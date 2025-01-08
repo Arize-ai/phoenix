@@ -117,16 +117,18 @@ class PromptMutationMixin:
         info: Info[Context, None],
         input: CreateChatPromptVersionInput,
     ) -> Prompt:
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
         try:
             tool_definitions = []
             for tool in input.prompt_version.tools:
                 pydantic_tool = tool.to_pydantic()
-                tool_definitions.append(pydantic_tool.dict())
-            tools = (
-                PromptToolsV1(tool_definitions=tool_definitions).dict()
-                if tool_definitions
-                else None
-            )
+                tool_definitions.append(pydantic_tool)
+            tools = PromptToolsV1(tool_definitions=tool_definitions)
             output_schema = (
                 PromptJSONSchema.model_validate(
                     strawberry.asdict(input.prompt_version.output_schema)
@@ -137,14 +139,21 @@ class PromptMutationMixin:
             template = PromptChatTemplateV1.model_validate(
                 strawberry.asdict(input.prompt_version.template)
             ).dict()
+            pydantic_prompt_version = PromptVersion(
+                user_id=user_id,
+                description=input.prompt_version.description,
+                template_type=input.prompt_version.template_type.value,
+                template_format=input.prompt_version.template_format.value,
+                template=template,
+                invocation_parameters=input.prompt_version.invocation_parameters,
+                tools=tools,
+                output_schema=output_schema,
+                model_name=input.prompt_version.model_name,
+                model_provider=input.prompt_version.model_provider,
+            )
         except ValidationError as error:
             raise BadRequest(str(error))
 
-        user_id: Optional[int] = None
-        assert isinstance(request := info.context.request, Request)
-        if "user" in request.scope:
-            assert isinstance(user := request.user, PhoenixUser)
-            user_id = int(user.identity)
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
@@ -155,16 +164,16 @@ class PromptMutationMixin:
 
             prompt_version = models.PromptVersion(
                 prompt_id=prompt_id,
-                user_id=user_id,
-                description=input.prompt_version.description,
-                template_type=input.prompt_version.template_type.value,
-                template_format=input.prompt_version.template_format.value,
-                template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
-                tools=tools,
-                output_schema=output_schema,
-                model_provider=input.prompt_version.model_provider,
-                model_name=input.prompt_version.model_name,
+                user_id=pydantic_prompt_version.user_id,
+                description=pydantic_prompt_version.description,
+                template_type=pydantic_prompt_version.template_type,
+                template_format=pydantic_prompt_version.template_format,
+                template=pydantic_prompt_version.template.dict(),
+                invocation_parameters=pydantic_prompt_version.invocation_parameters,
+                tools=pydantic_prompt_version.tools.dict(),
+                output_schema=pydantic_prompt_version.output_schema,
+                model_provider=pydantic_prompt_version.model_provider,
+                model_name=pydantic_prompt_version.model_name,
             )
             session.add(prompt_version)
 
