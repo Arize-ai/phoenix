@@ -95,7 +95,6 @@ export function PromptLayout() {
         index={tabIndex}
         onChange={(index) => {
           let url: string;
-          alert(index);
           if (index === 1) {
             url = `/prompts/${loaderData.prompt.id}/versions`;
           } else if (index === 2) {

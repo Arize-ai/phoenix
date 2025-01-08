@@ -12,6 +12,7 @@ import { Card } from "@arizeai/components";
 
 import { Icon, Icons } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
 import { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
 import { DeletePromptVersionTagButton } from "./DeletePromptVersionTagButton";
@@ -50,6 +51,9 @@ export function PromptVersionTagsConfigCard({
         header: "",
         size: 10,
         accessorKey: "id",
+        meta: {
+          textAlign: "right",
+        },
         cell: ({ row }) => {
           return (
             <DeletePromptVersionTagButton
@@ -81,6 +85,8 @@ export function PromptVersionTagsConfigCard({
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
   return (
     <Card title="Tags" variant="compact" bodyStyle={{ padding: 0 }}>
       <table css={tableCSS}>
@@ -125,17 +131,22 @@ export function PromptVersionTagsConfigCard({
             </tr>
           ))}
         </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
+
+        {isEmpty ? (
+          <TableEmpty message="No Tags" />
+        ) : (
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        )}
       </table>
     </Card>
   );
