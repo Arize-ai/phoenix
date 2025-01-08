@@ -14,20 +14,20 @@ export function PromptConfigPage() {
         height="100%"
         overflow="auto"
         width="100%"
-    data-testid="scroll-container"
-  >
-    <View padding="size-200">
-      <Flex
-        direction="column"
-        gap="size-200"
-          marginStart="auto"
-          marginEnd="auto"
-          maxWidth={900}
-        >
-          <PromptVersionTagsConfigCard prompt={data.prompt} />
+        data-testid="scroll-container"
+      >
+        <View padding="size-200">
+          <Flex
+            direction="column"
+            gap="size-200"
+            marginStart="auto"
+            marginEnd="auto"
+            maxWidth={900}
+          >
+            <PromptVersionTagsConfigCard prompt={data.prompt} />
           </Flex>
         </View>
       </View>
     </Flex>
   );
-};
+}
