@@ -9,6 +9,7 @@ import {
   type DisclosureProps as AriaDisclosureProps,
   Heading,
 } from "react-aria-components";
+import { css, SerializedStyles } from "@emotion/react";
 
 import { classNames, Flex, Icon, Icons } from "@phoenix/components";
 
@@ -17,8 +18,7 @@ import { FlexStyleProps, SizingProps } from "../types";
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
 export type DisclosureGroupProps = AriaDisclosureGroupProps & {
-  /** If true, the DisclosureGroup will render borders between items, even the last item */
-  asSibling?: boolean;
+  css?: SerializedStyles;
 };
 
 /**
@@ -29,15 +29,14 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps & {
  */
 export const DisclosureGroup = ({
   className,
-  asSibling,
+  css: cssProp,
   ...props
 }: DisclosureGroupProps) => {
   return (
     <AriaDisclosureGroup
       allowsMultipleExpanded
       className={classNames("ac-disclosure-group", className)}
-      css={disclosureGroupCSS}
-      data-as-sibling={asSibling}
+      css={css(disclosureGroupCSS, cssProp)}
       {...props}
     />
   );
