@@ -135,10 +135,13 @@ function TagList({
   const [commitSetTag, isCommitting] = useMutation(graphql`
     mutation TagPromptVersionButtonSetTagMutation(
       $input: SetPromptVersionTagInput!
+      $promptVersionId: GlobalID!
     ) {
       setPromptVersionTag(input: $input) {
-        promptVersionTag {
-          id
+        query {
+          node(id: $promptVersionId) {
+            ...PromptVersionTagsList_data
+          }
         }
       }
     }
@@ -169,6 +172,7 @@ function TagList({
                             name: tagName,
                             promptVersionId: versionId,
                           },
+                          promptVersionId: versionId,
                         },
                         onCompleted: () => {
                           onTagSet(tagName);
