@@ -1940,6 +1940,7 @@ type PromptVersion implements Node {
   createdAt: DateTime!
   tags: [PromptVersionTag!]!
   user: User
+  previousVersion: PromptVersion
 }
 
 """
