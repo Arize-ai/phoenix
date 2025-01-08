@@ -3,6 +3,7 @@ import operator
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, field
+from hashlib import sha256
 from typing import Any, Callable, Literal, Optional, Union, get_args
 
 from sqlalchemy import (
@@ -618,7 +619,10 @@ class SQLAlchemyTransformer(ast.NodeTransformer):
             experiment_id
         )  # experiment_runs are needed so we have something to join experiment_run_annotations to
         experiment_index = self.get_experiment_index(experiment_id)
-        alias_name = f"experiment_run_annotations_{experiment_index}_{eval_name}"
+        eval_name_hash = sha256(eval_name.encode()).hexdigest()[:9]
+        alias_name = (  # postgres truncates identifiers at 63 chars, so cap the length
+            f"experiment_run_annotations_{experiment_index}_{eval_name_hash}"
+        )
         aliased_table = aliased(models.ExperimentRunAnnotation, name=alias_name)
         if experiment_id not in self._aliased_experiment_run_annotations:
             self._aliased_experiment_run_annotations[experiment_id] = {}

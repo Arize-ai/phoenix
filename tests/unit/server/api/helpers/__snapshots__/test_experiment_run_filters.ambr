@@ -8,7 +8,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-eval-comparison]
   dict({
     'filter_condition': "evals['hallucination'].score < 10",
-    'sql': 'experiment_run_annotations_0_hallucination.score < 10 OR experiment_run_annotations_1_hallucination.score < 10',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score < 10 OR experiment_run_annotations_1_2c229d9ff.score < 10',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[postgresql-input-is-not-free-attribute]
@@ -56,7 +56,7 @@
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-eval-comparison]
   dict({
     'filter_condition': "evals['hallucination'].score < 10",
-    'sql': 'experiment_run_annotations_0_hallucination.score < 10 OR experiment_run_annotations_1_hallucination.score < 10',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score < 10 OR experiment_run_annotations_1_2c229d9ff.score < 10',
   })
 # ---
 # name: test_compile_sqlalchemy_filter_condition_correctly_compiles[sqlite-input-is-not-free-attribute]
@@ -98,19 +98,19 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-complex-negation]
   dict({
     'filter_condition': "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
-    'sql': 'NOT (experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)',
+    'sql': 'NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000)',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-conjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-conjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-contains-reversed]
@@ -128,13 +128,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 OR experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-disjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-eq-reversed]
@@ -158,19 +158,19 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-explanation-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].evals['hallucination'].explanation",
-    'sql': "strpos(experiment_run_annotations_0_hallucination.explanation, 'search-term') > 0",
+    'sql': "strpos(experiment_run_annotations_0_2c229d9ff.explanation, 'search-term') > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-label-eq]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].label == 'hallucinated'",
-    'sql': "experiment_run_annotations_0_hallucination.label = 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label = 'hallucinated'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-hallucination-score-gt]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-experiment-input-name]
@@ -416,13 +416,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-mixed-conjunction-and-disjunction-with-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-mixed-conjunction-and-disjunction-without-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round(CAST((EXTRACT(EPOCH FROM experiment_runs_0.end_time) - EXTRACT(EPOCH FROM experiment_runs_0.start_time)) * 1000 AS NUMERIC), 1) > 1000 AND experiment_runs_1.error IS NULL',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-ne-reversed]
@@ -440,7 +440,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-negation]
   dict({
     'filter_condition': "not experiments[0].evals['hallucination'].label == 'hallucinated'",
-    'sql': "experiment_run_annotations_0_hallucination.label != 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label != 'hallucinated'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[postgresql-not-contains]
@@ -488,19 +488,19 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-complex-negation]
   dict({
     'filter_condition': "not (experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000)",
-    'sql': "NOT (experiment_run_annotations_0_hallucination.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000)",
+    'sql': "NOT (experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000)",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-conjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': "experiment_run_annotations_0_hallucination.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-conjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 and experiments[0].latency_ms > 1000",
-    'sql': "experiment_run_annotations_0_hallucination.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 AND round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-contains-reversed]
@@ -518,13 +518,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction-of-three]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 or experiments[1].error is None",
-    'sql': "experiment_run_annotations_0_hallucination.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 OR experiment_runs_1.error IS NULL",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 OR experiment_runs_1.error IS NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-disjunction]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000",
-    'sql': "experiment_run_annotations_0_hallucination.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-eq-reversed]
@@ -548,19 +548,19 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-explanation-in]
   dict({
     'filter_condition': "'search-term' in experiments[0].evals['hallucination'].explanation",
-    'sql': "text_contains(experiment_run_annotations_0_hallucination.explanation, 'search-term') > 0",
+    'sql': "text_contains(experiment_run_annotations_0_2c229d9ff.explanation, 'search-term') > 0",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-label-eq]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].label == 'hallucinated'",
-    'sql': "experiment_run_annotations_0_hallucination.label = 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label = 'hallucinated'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-hallucination-score-gt]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5",
-    'sql': 'experiment_run_annotations_0_hallucination.score > 0.5',
+    'sql': 'experiment_run_annotations_0_2c229d9ff.score > 0.5',
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-experiment-input-name]
@@ -806,13 +806,13 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-mixed-conjunction-and-disjunction-with-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or (experiments[0].latency_ms > 1000 and experiments[1].error is None)",
-    'sql': "experiment_run_annotations_0_hallucination.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-mixed-conjunction-and-disjunction-without-parentheses]
   dict({
     'filter_condition': "experiments[0].evals['hallucination'].score > 0.5 or experiments[0].latency_ms > 1000 and experiments[1].error is None",
-    'sql': "experiment_run_annotations_0_hallucination.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
+    'sql': "experiment_run_annotations_0_2c229d9ff.score > 0.5 OR round((unixepoch(experiment_runs_0.end_time, 'subsec') - unixepoch(experiment_runs_0.start_time, 'subsec')) * 1000, 1) > 1000 AND experiment_runs_1.error IS NULL",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-ne-reversed]
@@ -830,7 +830,7 @@
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-negation]
   dict({
     'filter_condition': "not experiments[0].evals['hallucination'].label == 'hallucinated'",
-    'sql': "experiment_run_annotations_0_hallucination.label != 'hallucinated'",
+    'sql': "experiment_run_annotations_0_2c229d9ff.label != 'hallucinated'",
   })
 # ---
 # name: test_sqlalchemy_transformer_correctly_compiles[sqlite-not-contains]
