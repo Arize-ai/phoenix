@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from typing_extensions import TypeAlias
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
@@ -82,7 +82,33 @@ class PromptToolDefinition(PromptModel):
 
 class PromptToolsV1(PromptModel):
     version: Literal["tools-v1"] = "tools-v1"
-    tool_definitions: list[PromptToolDefinition] = Field(..., min_length=1)
+    tool_definitions: list[PromptToolDefinition]
+
+
+class PromptVersion(PromptModel):
+    user_id: Optional[int]
+    description: Optional[str]
+    template_type: PromptTemplateType
+    template_format: PromptTemplateFormat
+    template: PromptTemplate
+    invocation_parameters: Optional[dict[str, Any]]
+    tools: PromptToolsV1
+    output_schema: Optional[dict[str, Any]]
+    model_name: str
+    model_provider: str
+
+    @model_validator(mode="after")
+    def validate_tool_definitions_for_known_model_providers(self) -> "PromptVersion":
+        tool_definitions = [tool_def.definition for tool_def in self.tools.tool_definitions]
+        if self.model_provider.lower() == "openai":
+            for tool_definition_index, tool_definition in enumerate(tool_definitions):
+                try:
+                    OpenAIToolDefinition.model_validate(tool_definition)
+                except ValidationError as e:
+                    raise ValueError(
+                        f"Invalid OpenAI tool definition at index {tool_definition_index}: {e}"
+                    )
+        return self
 
 
 # JSON schema

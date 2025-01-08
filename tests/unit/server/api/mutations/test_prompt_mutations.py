@@ -124,8 +124,8 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
-                            "modelName": "o1-mini",
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-3-5-sonnet",
                             "tools": [{"definition": {"foo": "bar"}}],
                         },
                     }
@@ -133,6 +133,53 @@ class TestPromptMutations:
                 [{"definition": {"foo": "bar"}}],
                 None,
                 id="with-tools",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "openai",
+                            "modelName": "o1-mini",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {"location": {"type": "string"}},
+                                            },
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                [
+                    {
+                        "definition": {
+                            "type": "function",
+                            "function": {
+                                "name": "get_weather",
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {"location": {"type": "string"}},
+                                },
+                            },
+                        }
+                    }
+                ],
+                None,
+                id="with-valid-openai-tools",
             ),
             pytest.param(
                 {
@@ -180,8 +227,10 @@ class TestPromptMutations:
         assert prompt_version.pop("user") is None
         assert prompt_version.pop("templateType") == "CHAT"
         assert prompt_version.pop("templateFormat") == "MUSTACHE"
-        assert prompt_version.pop("modelProvider") == "openai"
-        assert prompt_version.pop("modelName") == "o1-mini"
+        expected_model_provider = variables["input"]["promptVersion"]["modelProvider"]
+        expected_model_name = variables["input"]["promptVersion"]["modelName"]
+        assert prompt_version.pop("modelProvider") == expected_model_provider
+        assert prompt_version.pop("modelName") == expected_model_name
         assert prompt_version.pop("invocationParameters") == {"temperature": 0.4}
         assert prompt_version.pop("tools") == expected_tools
         assert prompt_version.pop("outputSchema") == expected_output_schema
@@ -271,6 +320,39 @@ class TestPromptMutations:
                 },
                 "Input should be a valid dictionary",
                 id="invalid-output-schema",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "openai",
+                            "modelName": "o1-mini",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "parameters": {
+                                                "type": "invalid_type",  # invalid schema type
+                                                "properties": {"location": {"type": "string"}},
+                                            },
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "function.parameters.type",
+                id="with-invalid-openai-tools",
             ),
         ],
     )
