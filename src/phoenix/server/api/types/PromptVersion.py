@@ -67,12 +67,11 @@ class PromptVersion(Node):
                 return None
 
             prompt_id = current_version.prompt_id
-            created_at = current_version.created_at
 
             stmt = (
                 select(models.PromptVersion)
                 .where(models.PromptVersion.prompt_id == prompt_id)
-                .where(models.PromptVersion.created_at < created_at)
+                .where(models.PromptVersion.id < self.id_attr)
                 .order_by(models.PromptVersion.created_at.desc())
                 .limit(1)
             )
