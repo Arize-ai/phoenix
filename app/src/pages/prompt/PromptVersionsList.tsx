@@ -4,13 +4,14 @@ import { Link } from "react-router-dom";
 import { formatRelative } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Flex, Tag, TagGroup, TagList, Text, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
 import {
   PromptVersionsList__main$data,
   PromptVersionsList__main$key,
 } from "./__generated__/PromptVersionsList__main.graphql";
+import { PromptVersionTagsList } from "./PromptVersionTagsList";
 
 export type PromptVersionItemProps = {
   version: PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
@@ -44,10 +45,6 @@ export const PromptVersionItem = ({
   version,
   active,
 }: PromptVersionItemProps) => {
-  const tags = version.tags.map((tag) => ({
-    id: tag.name,
-    name: tag.name,
-  }));
   return (
     <div css={promptVersionItemCSS} data-active={active}>
       <Link to={`${version.id}`}>
@@ -68,9 +65,7 @@ export const PromptVersionItem = ({
             <Truncate maxWidth={"100%"}>
               <Text color="text-700">{version.description}</Text>
             </Truncate>
-            <TagGroup aria-label="Prompt Version Tags">
-              <TagList items={tags}>{(tag) => <Tag>{tag.name}</Tag>}</TagList>
-            </TagGroup>
+            <PromptVersionTagsList promptVersion={version} />
           </Flex>
         </View>
       </Link>
@@ -103,9 +98,7 @@ export const PromptVersionsList = ({
                 id
                 description
                 createdAt
-                tags {
-                  name
-                }
+                ...PromptVersionTagsList_data
               }
             }
           }
