@@ -26,9 +26,7 @@ from phoenix.db.models import (
 from phoenix.db.models import (
     Experiment as OrmExperiment,
 )
-from phoenix.db.models import (
-    ExperimentRun as OrmRun,
-)
+from phoenix.db.models import ExperimentRun as OrmExperimentRun
 from phoenix.db.models import (
     Trace as OrmTrace,
 )
@@ -37,6 +35,11 @@ from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound, Unauthorized
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.helpers.experiment_run_filters import (
+    ExperimentRunFilterConditionSyntaxError,
+    compile_sqlalchemy_filter_condition,
+    update_examples_query_with_filter_condition,
+)
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -86,6 +89,7 @@ from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
+from phoenix.server.api.types.ValidationResult import ValidationResult
 
 initialize_playground_clients()
 
@@ -299,6 +303,7 @@ class Query:
         self,
         info: Info[Context, None],
         experiment_ids: list[GlobalID],
+        filter_condition: Optional[str] = UNSET,
     ) -> list[ExperimentComparison]:
         experiment_ids_ = [
             from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
@@ -347,34 +352,43 @@ class Query:
                 .group_by(OrmRevision.dataset_example_id)
                 .scalar_subquery()
             )
-            examples = (
-                await session.scalars(
-                    select(OrmExample)
-                    .join(OrmRevision, OrmExample.id == OrmRevision.dataset_example_id)
-                    .where(
-                        and_(
-                            OrmRevision.id.in_(revision_ids),
-                            OrmRevision.revision_kind != "DELETE",
-                        )
-                    )
-                    .order_by(OrmRevision.dataset_example_id.desc())
+            examples_query = (
+                select(OrmExample)
+                .distinct(OrmExample.id)
+                .join(
+                    OrmRevision,
+                    onclause=and_(
+                        OrmExample.id == OrmRevision.dataset_example_id,
+                        OrmRevision.id.in_(revision_ids),
+                        OrmRevision.revision_kind != "DELETE",
+                    ),
                 )
-            ).all()
+                .order_by(OrmExample.id.desc())
+            )
+
+            if filter_condition:
+                examples_query = update_examples_query_with_filter_condition(
+                    query=examples_query,
+                    filter_condition=filter_condition,
+                    experiment_ids=experiment_ids_,
+                )
+
+            examples = (await session.scalars(examples_query)).all()
 
             ExampleID: TypeAlias = int
             ExperimentID: TypeAlias = int
-            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmRun]]] = defaultdict(
-                lambda: defaultdict(list)
+            runs: defaultdict[ExampleID, defaultdict[ExperimentID, list[OrmExperimentRun]]] = (
+                defaultdict(lambda: defaultdict(list))
             )
             async for run in await session.stream_scalars(
-                select(OrmRun)
+                select(OrmExperimentRun)
                 .where(
                     and_(
-                        OrmRun.dataset_example_id.in_(example.id for example in examples),
-                        OrmRun.experiment_id.in_(experiment_ids_),
+                        OrmExperimentRun.dataset_example_id.in_(example.id for example in examples),
+                        OrmExperimentRun.experiment_id.in_(experiment_ids_),
                     )
                 )
-                .options(joinedload(OrmRun.trace).load_only(OrmTrace.trace_id))
+                .options(joinedload(OrmExperimentRun.trace).load_only(OrmTrace.trace_id))
             ):
                 runs[run.dataset_example_id][run.experiment_id].append(run)
 
@@ -404,6 +418,30 @@ class Query:
                 )
             )
         return experiment_comparisons
+
+    @strawberry.field
+    async def validate_experiment_run_filter_condition(
+        self,
+        condition: str,
+        experiment_ids: list[GlobalID],
+    ) -> ValidationResult:
+        try:
+            compile_sqlalchemy_filter_condition(
+                filter_condition=condition,
+                experiment_ids=[
+                    from_global_id_with_expected_type(experiment_id, OrmExperiment.__name__)
+                    for experiment_id in experiment_ids
+                ],
+            )
+            return ValidationResult(
+                is_valid=True,
+                error_message=None,
+            )
+        except ExperimentRunFilterConditionSyntaxError as error:
+            return ValidationResult(
+                is_valid=False,
+                error_message=str(error),
+            )
 
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
