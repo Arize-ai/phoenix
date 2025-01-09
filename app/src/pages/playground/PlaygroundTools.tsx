@@ -60,6 +60,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
                     patch: {
                       toolChoice: choice,
                     },
+                    dirty: true,
                   });
                 }}
                 toolNames={toolNames}

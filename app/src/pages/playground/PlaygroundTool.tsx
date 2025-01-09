@@ -104,6 +104,7 @@ export function PlaygroundTool({
               : t
           ),
         },
+        dirty: true,
       });
     },
     [instanceTools, playgroundInstanceId, tool.id, updateInstance]
@@ -165,6 +166,7 @@ export function PlaygroundTool({
                   tools: newTools,
                   toolChoice,
                 },
+                dirty: true,
               });
             }}
           />

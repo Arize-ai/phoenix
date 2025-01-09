@@ -20,27 +20,25 @@ import { ModelSupportedParamsFetcher } from "./ModelSupportedParamsFetcher";
 import { PlaygroundChatTemplate } from "./PlaygroundChatTemplate";
 import { PromptComboBox } from "./PromptComboBox";
 import { PlaygroundInstanceProps } from "./types";
-import { useDirtyPlaygroundInstance } from "./useDirtyPlaygroundInstance";
 
 interface PlaygroundTemplateProps extends PlaygroundInstanceProps {}
 
 export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
-  const { dirty, resetDirtyState } = useDirtyPlaygroundInstance(instanceId);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
+  const dirty = instance?.dirty;
 
   const onChangePrompt = useCallback(
     async (promptId: string | null) => {
-      resetDirtyState();
       if (!promptId) {
         const patch = { prompt: null };
-        updateInstance({ instanceId, patch });
+        updateInstance({ instanceId, patch, dirty: false });
         return;
       }
 
@@ -51,10 +49,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           patch: {
             ...response.instance,
           },
+          dirty: false,
         });
       }
     },
-    [instanceId, updateInstance, resetDirtyState]
+    [instanceId, updateInstance]
   );
 
   if (!instance) {
@@ -146,7 +145,7 @@ function DeleteButton(props: PlaygroundInstanceProps) {
 type SaveButtonProps = {
   instanceId: number;
   setDialog: (dialog: React.ReactNode) => void;
-  dirty: boolean;
+  dirty?: boolean;
 };
 
 function SaveButton({ instanceId, setDialog, dirty }: SaveButtonProps) {
