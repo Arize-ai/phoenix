@@ -9,17 +9,15 @@ import {
   type DisclosureProps as AriaDisclosureProps,
   Heading,
 } from "react-aria-components";
-import { css, SerializedStyles } from "@emotion/react";
+import { css } from "@emotion/react";
 
 import { classNames, Flex, Icon, Icons } from "@phoenix/components";
 
-import { FlexStyleProps, SizingProps } from "../types";
+import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
-export type DisclosureGroupProps = AriaDisclosureGroupProps & {
-  css?: SerializedStyles;
-};
+export type DisclosureGroupProps = AriaDisclosureGroupProps & StylableProps;
 
 /**
  * Wrap multiple Disclosure components in a DisclosureGroup to control
@@ -29,14 +27,14 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps & {
  */
 export const DisclosureGroup = ({
   className,
-  css: cssProp,
+  css: propCSS,
   ...props
 }: DisclosureGroupProps) => {
   return (
     <AriaDisclosureGroup
       allowsMultipleExpanded
       className={classNames("ac-disclosure-group", className)}
-      css={css(disclosureGroupCSS, cssProp)}
+      css={css(disclosureGroupCSS, propCSS)}
       {...props}
     />
   );

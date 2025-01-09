@@ -1,6 +1,7 @@
 import React, { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useParams } from "react-router";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -64,7 +65,9 @@ export function TagPromptVersionButton() {
               <Button
                 icon={<Icon svg={<Icons.PlusOutline />} />}
                 size="S"
-                width="100%"
+                css={css`
+                  width: 100%;
+                `}
                 onPress={() => setShowNewTagDialog(true)}
               >
                 New Tag
