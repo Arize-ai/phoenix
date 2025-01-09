@@ -155,6 +155,13 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column(
+            "user_id",
+            sa.Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column(
             "prompt_id",
             sa.Integer,
             sa.ForeignKey("prompts.id", ondelete="CASCADE"),

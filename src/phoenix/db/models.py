@@ -924,6 +924,11 @@ class PromptVersionTag(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
     prompt_id: Mapped[int] = mapped_column(
         ForeignKey("prompts.id", ondelete="CASCADE"),
         index=True,
