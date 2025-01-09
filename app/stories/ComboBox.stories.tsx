@@ -1,7 +1,7 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Flex } from "@phoenix/components";
+import { Flex, View } from "@phoenix/components";
 import {
   ComboBox,
   ComboBoxItem,
@@ -62,20 +62,22 @@ export default meta;
 
 const Template: StoryFn<ComboBoxProps<object>> = (args) => (
   <ThemeWrapper>
-    <ComboBox {...args}>
-      <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-        Chocolate
-      </ComboBoxItem>
-      <ComboBoxItem textValue="Mint" key={"mint"}>
-        Mint
-      </ComboBoxItem>
-      <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-        Strawberry
-      </ComboBoxItem>
-      <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-        Vanilla
-      </ComboBoxItem>
-    </ComboBox>
+    <View width="300px">
+      <ComboBox {...args}>
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+    </View>
   </ThemeWrapper>
 );
 
