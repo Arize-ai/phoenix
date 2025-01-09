@@ -1,5 +1,17 @@
 # Changelog
 
+## [7.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.2...arize-phoenix-v7.6.0) (2025-01-09)
+
+
+### Features
+
+* **playground:** Support anyOf json schema ([#5927](https://github.com/Arize-ai/phoenix/issues/5927)) ([16ca5f9](https://github.com/Arize-ai/phoenix/commit/16ca5f9463ef43b684847a94fdc756e57529a435))
+
+
+### Bug Fixes
+
+* return 200 status code for POST v1/traces ([#5962](https://github.com/Arize-ai/phoenix/issues/5962)) ([421852b](https://github.com/Arize-ai/phoenix/commit/421852b7dedefa0b910dd1d0cee693620af4c98b))
+
 ## [7.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.1...arize-phoenix-v7.5.2) (2025-01-07)
 
 
