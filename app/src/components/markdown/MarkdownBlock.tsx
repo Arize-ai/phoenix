@@ -3,6 +3,8 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { css } from "@emotion/react";
 
+import { PrettyText } from "../utility";
+
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
 
@@ -26,15 +28,7 @@ export function MarkdownBlock({
       <Markdown remarkPlugins={[remarkGfm]}>{children}</Markdown>
     </div>
   ) : (
-    <pre
-      css={css`
-        white-space: pre-wrap;
-        text-wrap: wrap;
-        margin: 0;
-      `}
-    >
-      {children}
-    </pre>
+    <PrettyText>{children}</PrettyText>
   );
 }
 

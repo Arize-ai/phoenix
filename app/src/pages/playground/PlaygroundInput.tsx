@@ -1,7 +1,6 @@
 import React from "react";
 
-import { Flex, Text, View } from "@arizeai/components";
-
+import { Flex, Text, View } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
 

@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "AI Observability and Evaluation"
 readme = "README.md"
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.9, <3.14"
 license = {text="Elastic-2.0"}
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -19,6 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
   "scikit-learn",
@@ -28,12 +29,12 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.247.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql==0.253.1",  # need to pin version because we're monkey-patching
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
-  "wrapt<1.17; sys_platform == 'darwin'",
-  "wrapt; sys_platform != 'darwin'",
+  "wrapt<1.17; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "wrapt>=1.17; sys_platform != 'darwin' or platform_machine != 'x86_64'",
   "protobuf>=3.20.2, <6.0",
   "grpcio",
   "grpc-interceptor",
@@ -87,7 +88,7 @@ dev = [
   "pytest-postgresql",
   "asyncpg",
   "psycopg[binary,pool]",
-  "strawberry-graphql[debug-server,opentelemetry]==0.247.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[debug-server,opentelemetry]==0.253.1",  # need to pin version because we're monkey-patching
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
@@ -133,7 +134,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-grpc",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.247.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.253.1",  # need to pin version because we're monkey-patching
   "uvloop; platform_system != 'Windows'",
   "fast-hdbscan>=0.2.0",
   "numba>=0.60.0",  # https://github.com/astral-sh/uv/issues/6281
@@ -157,6 +158,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
 exclude = [
+  "src/phoenix/client/",
   "src/phoenix/evals/",
   "src/phoenix/otel/",
 ]
@@ -171,6 +173,7 @@ only-packages = true
 [tool.hatch.build.targets.sdist]
 exclude = [
   "packages/",
+  "src/phoenix/client/",
   "src/phoenix/evals/",
   "src/phoenix/otel/",
   "tests/",
@@ -229,7 +232,7 @@ dependencies = [
   "py-grpc-prometheus",
   "pypistats",  # this is needed to type-check third-party packages
   "requests",  # this is needed to type-check third-party packages
-  "strawberry-graphql[opentelemetry]==0.247.0",  # need to pin version because we're monkey-patching
+  "strawberry-graphql[opentelemetry]==0.253.1",  # need to pin version because we're monkey-patching
   "tenacity",
   "types-cachetools",
   "types-protobuf",
@@ -368,7 +371,9 @@ exclude = [
   "packages/",
   "scripts/",
   "sdist/",
+  "src/phoenix/client/",
   "src/phoenix/evals/",
+  "src/phoenix/otel/",
   "tutorials/",
   "js/",
 ]

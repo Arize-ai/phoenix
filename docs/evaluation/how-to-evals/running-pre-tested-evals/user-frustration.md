@@ -1,8 +1,12 @@
 # User Frustration
 
-Teams that are using conversation bots and assistants desire to know whether a user interacting with the bot is frustrated. The user frustration Evaluation can be used on a single back and forth or an entire span to detect whether a user has become frustrated by the conversation. &#x20;
+Teams that are using conversation bots and assistants desire to know whether a user interacting with the bot is frustrated. The user frustration Evaluation can be used on a single back and forth or an entire span to detect whether a user has become frustrated by the conversation.
 
 {% embed url="https://colab.research.google.com/drive/1Av5MGJHqt0xcJziBadEoVgdYqqohm6oT?usp=sharing" %}
+
+{% hint style="info" %}
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L652).
+{% endhint %}
 
 ```python
   You are given a conversation where between a user and an assistant.

@@ -1,8 +1,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text } from "@arizeai/components";
-
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -99,7 +98,7 @@ export function AnnotationLabel({
       <Flex direction="row" gap="size-100" alignItems="center">
         <AnnotationColorSwatch annotationName={annotation.name} />
         <div css={textCSS}>
-          <Text weight="heavy" textSize="small" color="inherit">
+          <Text weight="heavy" size="XS" color="inherit">
             {annotation.name}
           </Text>
         </div>
@@ -111,7 +110,7 @@ export function AnnotationLabel({
             `
           )}
         >
-          <Text textSize="small">{labelValue}</Text>
+          <Text size="XS">{labelValue}</Text>
         </div>
         {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
       </Flex>

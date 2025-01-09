@@ -32,6 +32,7 @@ jobs:
       ipynb_files: ${{ steps.filter.outputs.ipynb_files }}
       proto: ${{ steps.filter.outputs.proto }}
       phoenix: ${{ steps.filter.outputs.phoenix }}
+      phoenix_client: ${{ steps.filter.outputs.phoenix_client }}
       phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}
       phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}
     steps:
@@ -51,6 +52,9 @@ jobs:
               - "tests/**"
               - "tutorials/**"
               - "pyproject.toml"
+              - "tox.ini"
+            phoenix_client:
+              - "packages/phoenix-client/**"
               - "tox.ini"
             phoenix_evals:
               - "packages/phoenix-evals/**"
@@ -79,6 +83,29 @@ jobs:
         run: hatch run notebooks:clean
       - run: git diff --exit-code
 
+  phoenix-client:
+    name: Phoenix Client
+    runs-on: ${{ matrix.os }}
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
+    strategy:
+      matrix:
+        py: [ 3.9, 3.12 ]
+        os: [ ubuntu-latest, windows-latest, macos-13 ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-client/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.15
+      - run: uvx --with tox-uv tox run -e phoenix_client -- -ra -x
+
   phoenix-evals:
     name: Phoenix Evals
     runs-on: ${{ matrix.os }}
@@ -97,9 +124,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
       - run: uvx --with tox-uv tox run -e phoenix_evals -- -ra -x
 
   phoenix-otel:
@@ -120,9 +147,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
       - run: uvx --with tox-uv tox run -e phoenix_otel -- -ra -x
 
   #  clean-jupyter-notebooks:
@@ -131,7 +158,7 @@ jobs:
   #    if: ${{ needs.changes.outputs.ipynb == 'true' }}
   #    strategy:
   #      matrix:
-  #        py: [ 3.12 ]
+  #        py: [ 3.13 ]
   #        os: [ ubuntu-latest ]
   #    runs-on: ${{ matrix.os }}
   #    steps:
@@ -142,9 +169,9 @@ jobs:
   #        with:
   #          python-version: ${{ matrix.py }}
   #      - name: Set up `uv`
-  #        uses: astral-sh/setup-uv@v3
+  #        uses: astral-sh/setup-uv@v4
   #        with:
-  #          version: 0.5.5
+  #          version: 0.5.15
   #          enable-cache: true
   #          cache-dependency-glob: |
   #            pyproject.toml
@@ -160,7 +187,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [3.12]
+        py: [3.9]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -171,9 +198,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -189,7 +216,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: [3.12]
+        py: [3.9]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -200,9 +227,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -217,8 +244,7 @@ jobs:
     if: ${{ needs.changes.outputs.proto == 'true' }}
     strategy:
       matrix:
-        # uv fails on 3.12 as of 10/16/2024 when installing protobuf dependencies
-        py: [3.11]
+        py: [3.9]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -229,9 +255,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -245,8 +271,9 @@ jobs:
     name: Ruff
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        py: [3.12]
+        py: [3.12, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -256,9 +283,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
       - name: Run `ruff`
         run: uvx --with tox-uv tox run -e ruff
       - run: git diff --exit-code
@@ -269,8 +296,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
-        py: [3.9, 3.12]
+        py: [3.9, 3.12, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -285,9 +313,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -303,8 +331,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
-        py: [3.9, 3.12]
+        py: [3.9, 3.12, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -319,9 +348,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -337,9 +366,13 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
-        py: [3.9, 3.12]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        py: [3.9, 3.12, 3.13]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        exclude:
+          - py: 3.13
+            os: macos-13
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -354,9 +387,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -379,8 +412,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
-        py: [3.9, 3.12]
+        py: [3.9, 3.12, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -395,9 +429,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml
@@ -413,14 +447,20 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
-        py: [3.9, 3.12]
+        py: [3.9, 3.12, 3.13]
         db: [sqlite, postgresql]
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         exclude:
           - db: postgresql
             os: windows-latest
           - db: postgresql
+            os: macos-latest
+          - db: postgresql
+            os: macos-13
+          - py: 3.13
+            db: sqlite
             os: macos-13
     env:
       CI_TEST_DB_BACKEND: ${{ matrix.db }}
@@ -450,9 +490,9 @@ jobs:
         with:
           python-version: ${{ matrix.py }}
       - name: Set up `uv`
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
         with:
-          version: 0.5.5
+          version: 0.5.15
           enable-cache: true
           cache-dependency-glob: |
             pyproject.toml

@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import {
   detectToolCallProvider,
   LlmProviderToolCall,

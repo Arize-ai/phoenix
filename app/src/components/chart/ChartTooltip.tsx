@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
-import { Text } from "@arizeai/components";
+import { Text } from "@phoenix/components";
 
 /**
  * Component that renders a small preview of the plot item

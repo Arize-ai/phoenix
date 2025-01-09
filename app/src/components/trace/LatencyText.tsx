@@ -1,16 +1,14 @@
 import React, { useMemo } from "react";
 
-import { Flex, Icon, Icons, Text, TextProps } from "@arizeai/components";
-
+import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
-
 export function LatencyText({
   latencyMs,
-  textSize = "medium",
+  size = "M",
   showIcon = true,
 }: {
   latencyMs: number;
-  textSize?: TextProps["textSize"];
+  size?: TextProps["size"];
   /**
    * Whether to show the clock icon.
    * @default true
@@ -43,11 +41,11 @@ export function LatencyText({
       gap="size-50"
     >
       {showIcon ? (
-        <Text color={color} textSize={textSize}>
+        <Text color={color} size={size}>
           <Icon svg={<Icons.ClockOutline />} />
         </Text>
       ) : null}
-      <Text color={color} textSize={textSize}>
+      <Text color={color} size={size}>
         {latencyText}
       </Text>
     </Flex>

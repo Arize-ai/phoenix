@@ -6,13 +6,12 @@ import {
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import { Outlet } from "react-router";
-import { useParams } from "react-router";
+import { Outlet, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Flex, TabPane, Tabs } from "@arizeai/components";
+import { TabPane, Tabs } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useLastNTimeRange,
@@ -175,7 +174,7 @@ export function ProjectPageContent({
             );
           }}
         </TabPane>
-        <TabPane name="Spans" title="Spans">
+        <TabPane name="Spans">
           {({ isSelected }) => {
             return (
               isSelected &&
@@ -189,7 +188,7 @@ export function ProjectPageContent({
             );
           }}
         </TabPane>
-        <TabPane name="Sessions" title="Sessions">
+        <TabPane name="Sessions">
           {({ isSelected }) => {
             return (
               isSelected &&

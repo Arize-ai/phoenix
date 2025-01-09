@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from "react";
 
-import { Flex, View, ViewProps } from "@arizeai/components";
+import { Flex, View, ViewProps } from "@phoenix/components";
 
 type ViewSummaryAsideProps = PropsWithChildren<{
   width?: ViewProps["width"];

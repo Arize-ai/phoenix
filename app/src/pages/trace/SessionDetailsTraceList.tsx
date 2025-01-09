@@ -1,17 +1,17 @@
 import React, { useMemo } from "react";
 import { isNumber, isString } from "lodash";
 
-import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
 import {
   SemanticAttributePrefixes,
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { Link } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
+import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -19,7 +19,10 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import { SessionDetailsQuery$data } from "./__generated__/SessionDetailsQuery.graphql";
+import {
+  MimeType,
+  SessionDetailsQuery$data,
+} from "./__generated__/SessionDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
@@ -38,10 +41,22 @@ const getUserFromRootSpanAttributes = (attributes: string) => {
 function RootSpanMessage({
   role,
   value,
+  mimeType,
 }: {
   role: "HUMAN" | "AI";
-  value: string;
+  value: unknown;
+  mimeType?: MimeType | null;
 }) {
+  const valueString = useMemo(() => {
+    if (mimeType !== "json") {
+      return String(value);
+    }
+    const parsed = safelyParseJSON(value as string);
+    if (parsed.json == null) {
+      return "--";
+    }
+    return JSON.stringify(parsed.json, null, 2);
+  }, [value, mimeType]);
   const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
   return (
     <View
@@ -49,15 +64,17 @@ function RootSpanMessage({
       borderRadius={"medium"}
       borderColor={"dark"}
       borderWidth={"thin"}
-      padding={"size-200"}
+      padding="size-200"
       maxWidth={"70%"}
       {...styles}
     >
       <Flex direction={"column"} gap={"size-50"}>
-        <Text color="text-700" textSize="medium">
-          {role}
-        </Text>
-        <Text>{value}</Text>
+        <Text color="text-700">{role}</Text>
+        {mimeType === "json" ? (
+          <JSONBlock value={valueString} />
+        ) : (
+          <Text>{valueString}</Text>
+        )}
       </Flex>
     </View>
   );
@@ -92,7 +109,7 @@ function RootSpanDetails({
         justifyContent={"space-between"}
         height={"100%"}
       >
-        <Flex direction={"column"} gap={"size-200"}>
+        <Flex direction={"column"} gap="size-200">
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace #{index + 1}</Text>
             <Link
@@ -131,7 +148,7 @@ function RootSpanDetails({
           alignItems="end"
         >
           <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
-            <Text textSize="medium">Feedback</Text>
+            <Text>Feedback</Text>
             <Flex gap={"size-50"} direction={"column"}>
               {rootSpan.spanAnnotations.length > 0
                 ? rootSpan.spanAnnotations.map((annotation) => (
@@ -150,7 +167,7 @@ function RootSpanDetails({
           </Flex>
           <span>
             <EditSpanAnnotationsButton
-              size={"compact"}
+              size="S"
               spanNodeId={rootSpan.id}
               projectId={rootSpan.project.id}
             />
@@ -164,8 +181,16 @@ function RootSpanDetails({
 function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
   return (
     <Flex direction={"column"} gap={"size-100"}>
-      <RootSpanMessage role={"HUMAN"} value={rootSpan.input?.value ?? "--"} />
-      <RootSpanMessage role={"AI"} value={rootSpan.output?.value ?? "--"} />
+      <RootSpanMessage
+        role={"HUMAN"}
+        value={rootSpan.input?.value}
+        mimeType={rootSpan.input?.mimeType}
+      />
+      <RootSpanMessage
+        role={"AI"}
+        value={rootSpan.output?.value}
+        mimeType={rootSpan.output?.mimeType}
+      />
     </Flex>
   );
 }
@@ -196,12 +221,12 @@ export function SessionDetailsTraceList({
             <View
               borderRightWidth={"thin"}
               borderEndColor={"dark"}
-              padding={"size-200"}
+              padding="size-200"
               flex={"1 1 auto"}
             >
               <RootSpanInputOutput rootSpan={rootSpan} />
             </View>
-            <View width={350} padding={"size-200"} flex="none">
+            <View width={350} padding="size-200" flex="none">
               <RootSpanDetails rootSpan={rootSpan} index={index} />
             </View>
           </Flex>

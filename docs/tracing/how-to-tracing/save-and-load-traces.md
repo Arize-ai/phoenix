@@ -6,6 +6,19 @@ description: How to manually save and load traces
 
 In addition to persisting to a database, Phoenix allows you to save and load your trace data to and from external files.
 
+### Connect to Phoenix
+
+Before accessing px.Client(), be sure you've set the following environment variables:
+
+```python
+import os
+
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
+```
+
+If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
+
 ### Saving Traces
 
 The initial step involves saving the traces present in a Phoenix instance to a designated location.
@@ -43,7 +56,7 @@ trace_id = px.Client().get_trace_dataset().save(directory=directory)
 
 This output the trace ID and prints the path of the saved file:
 
-`💾 Trace dataset saved to under ID: f7733fda-6ad6-4427-a803-55ad2182b662`&#x20;
+`💾 Trace dataset saved to under ID: f7733fda-6ad6-4427-a803-55ad2182b662`
 
 `📂 Trace dataset path: /my_saved_traces/trace_dataset-f7733fda-6ad6-4427-a803-55ad2182b662.parquet`
 

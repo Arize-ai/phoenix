@@ -1,7 +1,9 @@
 import React, { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { EmptyGraphic, Flex, View } from "@arizeai/components";
+import { EmptyGraphic } from "@arizeai/components";
+
+import { Flex, View } from "@phoenix/components";
 
 import { ExternalLink } from "./ExternalLink";
 type ErrorBoundaryProps = { children: ReactNode };

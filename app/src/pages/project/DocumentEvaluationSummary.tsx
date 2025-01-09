@@ -2,15 +2,9 @@ import React, { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
-import {
-  Flex,
-  HelpTooltip,
-  Text,
-  TooltipTrigger,
-  TriggerWrap,
-  View,
-} from "@arizeai/components";
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
+import { Flex, Text, View } from "@phoenix/components";
 import { useLastNTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -51,10 +45,10 @@ export function DocumentEvaluationSummary({
   );
   return (
     <Flex direction="column" flex="none">
-      <Text elementType="h3" textSize="medium" color="text-700">
+      <Text elementType="h3" size="S" color="text-700">
         {evaluationName}
       </Text>
-      <Suspense fallback={<Text textSize="xlarge">--</Text>}>
+      <Suspense fallback={<Text size="L">--</Text>}>
         <EvaluationSummaryValue
           evaluationName={evaluationName}
           project={data?.project}

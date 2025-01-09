@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<16ff5bed2bd91b23b7055365ced74c8d>>
+ * @generated SignedSource<<c47b4b5d417dfa5f0ca4d3abe1001a61>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,43 +10,18 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type ModelConfigButtonDialogQuery$variables = {
-  providerKey: GenerativeProviderKey;
-};
+export type ModelConfigButtonDialogQuery$variables = Record<PropertyKey, never>;
 export type ModelConfigButtonDialogQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ModelPickerFragment" | "ModelProviderPickerFragment">;
+  readonly " $fragmentSpreads": FragmentRefs<"ModelProviderPickerFragment">;
 };
 export type ModelConfigButtonDialogQuery = {
   response: ModelConfigButtonDialogQuery$data;
   variables: ModelConfigButtonDialogQuery$variables;
 };
 
-const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "providerKey"
-  }
-],
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "providerKey",
-    "variableName": "providerKey"
-  }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-};
-return {
+const node: ConcreteRequest = {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
     "name": "ModelConfigButtonDialogQuery",
@@ -55,11 +30,6 @@ return {
         "args": null,
         "kind": "FragmentSpread",
         "name": "ModelProviderPickerFragment"
-      },
-      {
-        "args": (v1/*: any*/),
-        "kind": "FragmentSpread",
-        "name": "ModelPickerFragment"
       }
     ],
     "type": "Query",
@@ -67,7 +37,7 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [],
     "kind": "Operation",
     "name": "ModelConfigButtonDialogQuery",
     "selections": [
@@ -86,7 +56,13 @@ return {
             "name": "key",
             "storageKey": null
           },
-          (v2/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
           {
             "alias": null,
             "args": null,
@@ -103,38 +79,19 @@ return {
           }
         ],
         "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": [
-          {
-            "fields": (v1/*: any*/),
-            "kind": "ObjectValue",
-            "name": "input"
-          }
-        ],
-        "concreteType": "GenerativeModel",
-        "kind": "LinkedField",
-        "name": "models",
-        "plural": true,
-        "selections": [
-          (v2/*: any*/)
-        ],
-        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "312c7daf378370f2936ee987869d155d",
+    "cacheID": "64ad561d3ca07bdded6af274c73eb18a",
     "id": null,
     "metadata": {},
     "name": "ModelConfigButtonDialogQuery",
     "operationKind": "query",
-    "text": "query ModelConfigButtonDialogQuery(\n  $providerKey: GenerativeProviderKey!\n) {\n  ...ModelProviderPickerFragment\n  ...ModelPickerFragment_3rERSq\n}\n\nfragment ModelPickerFragment_3rERSq on Query {\n  models(input: {providerKey: $providerKey}) {\n    name\n  }\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
+    "text": "query ModelConfigButtonDialogQuery {\n  ...ModelProviderPickerFragment\n}\n\nfragment ModelProviderPickerFragment on Query {\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n    dependencies\n  }\n}\n"
   }
 };
-})();
 
-(node as any).hash = "c9b38e766093b2378047d22b01ef0fbf";
+(node as any).hash = "4b1b96842c19ea5721b7fcf1cdb86426";
 
 export default node;

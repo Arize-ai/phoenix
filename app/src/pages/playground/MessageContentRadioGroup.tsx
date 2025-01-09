@@ -1,14 +1,14 @@
 import React from "react";
 
 import {
-  Icon,
-  Icons,
   Radio,
   RadioGroup,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
+
+import { Icon, Icons } from "@phoenix/components";
 
 export type AIMessageMode = "text" | "toolCalls";
 export type MessageMode = AIMessageMode;

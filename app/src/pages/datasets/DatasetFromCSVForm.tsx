@@ -3,19 +3,18 @@ import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dropdown,
   DropdownProps,
   Field,
   FieldProps,
-  Flex,
   Form,
   Item,
   ListBox,
   TextArea,
   TextField,
-  View,
 } from "@arizeai/components";
+
+import { Button, Flex, View } from "@phoenix/components";
 
 type CreateDatasetFromCSVParams = {
   file: FileList;
@@ -263,8 +262,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
             type="submit"
             isDisabled={!isValid}
             variant={isDirty ? "primary" : "default"}
-            size="compact"
-            loading={false}
+            size="S"
           >
             Create Dataset
           </Button>

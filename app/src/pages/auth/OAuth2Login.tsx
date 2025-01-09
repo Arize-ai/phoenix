@@ -1,8 +1,7 @@
 import React, { ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { Button } from "@arizeai/components";
-
+import { Button } from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type OAuth2LoginProps = {

@@ -2,8 +2,6 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import {
-  Icon,
-  Icons,
   Radio,
   RadioGroup,
   Tooltip,
@@ -11,6 +9,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { CanvasMode } from "@phoenix/store";
 
 const radioItemCSS = css`

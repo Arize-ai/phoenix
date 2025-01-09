@@ -1,16 +1,15 @@
 import React, { ReactNode, useState } from "react";
 
+import { Dialog, DialogContainer } from "@arizeai/components";
+
 import {
   Button,
-  Dialog,
-  DialogContainer,
+  ExternalLink,
   Icon,
   Icons,
   Text,
   View,
-} from "@arizeai/components";
-
-import { ExternalLink } from "@phoenix/components";
+} from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 
@@ -24,9 +23,8 @@ export function NewProjectButton() {
   return (
     <div>
       <Button
-        variant="default"
         icon={<Icon svg={<Icons.GridOutline />} />}
-        onClick={() => {
+        onPress={() => {
           setDialog(<NewProjectDialog />);
         }}
       >

@@ -1,6 +1,8 @@
 import React from "react";
 
-import { Flex, Item, Label, Picker } from "@arizeai/components";
+import { Item, Label, Picker } from "@arizeai/components";
+
+import { Flex } from "@phoenix/components";
 
 type DefaultToolChoice = Extract<ToolChoice, "auto" | "required" | "none">;
 
@@ -79,17 +81,17 @@ export function ToolChoicePicker({
       {[
         <Item key="auto" textValue="auto">
           <Flex gap={"size-100"}>
-            Tools auto-selected by LLM <Label>auto</Label>
+            Tools auto-selected by LLM <Label color="grey-900">auto</Label>
           </Flex>
         </Item>,
         <Item key="required" textValue="required">
           <Flex gap={"size-100"}>
-            Use at least one tool <Label>required</Label>
+            Use at least one tool <Label color="grey-900">required</Label>
           </Flex>
         </Item>,
         <Item key="none" textValue="none">
           <Flex gap={"size-100"}>
-            Don&apos;t use any tools <Label>none</Label>
+            Don&apos;t use any tools <Label color="grey-900">none</Label>
           </Flex>
         </Item>,
         // Add "TOOL_NAME_PREFIX" prefix to user defined tool names to avoid conflicts with default keys

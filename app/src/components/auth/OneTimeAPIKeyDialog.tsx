@@ -1,20 +1,11 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Dialog,
-  Flex,
-  Heading,
-  Text,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Alert, Dialog, TextField } from "@arizeai/components";
 
+import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
-
-import { ExternalLink } from "../ExternalLink";
 
 /**
  * Displays the key one time for the user to copy.
@@ -37,7 +28,7 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
         <View padding="size-200">
           <Flex direction="row" gap="size-100" alignItems="end">
             <TextField label="API Key" isReadOnly value={jwt} minWidth="100%" />
-            <CopyToClipboardButton text={jwt} size="default" />
+            <CopyToClipboardButton text={jwt} />
           </Flex>
         </View>
         <View padding="size-200" borderTopColor="light" borderTopWidth="thin">

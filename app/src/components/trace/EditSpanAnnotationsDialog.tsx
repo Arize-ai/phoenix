@@ -13,9 +13,10 @@ import {
 } from "react-relay";
 import { css } from "@emotion/react";
 
+// eslint-disable-next-line deprecate/import
 import {
   Alert,
-  Button,
+  Button as LegacyButton,
   Card,
   Dialog,
   Flex,
@@ -29,6 +30,7 @@ import {
   View,
 } from "@arizeai/components";
 
+import { Button } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -129,8 +131,8 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         setIsPopoverOpen(isOpen);
       }}
     >
-      <Button
-        variant="default"
+      <LegacyButton
+        variant="primary"
         disabled={disabled}
         size="compact"
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
@@ -138,8 +140,8 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           setIsPopoverOpen(true);
         }}
       >
-        New
-      </Button>
+        New Annotation
+      </LegacyButton>
       <NewAnnotationPopover
         projectId={projectId}
         spanNodeId={spanNodeId}
@@ -267,12 +269,11 @@ function NewSpanAnnotationCard(props: {
         <Flex direction="row" alignItems="center" gap="size-100">
           <AnnotatorKindLabel kind="HUMAN" />
           <Button
-            variant="default"
-            size="compact"
+            size="S"
             isDisabled
             aria-label="delete annotation"
             icon={<Icon svg={<Icons.CloseOutline />} />}
-            onClick={onDelete}
+            onPress={onDelete}
           />
         </Flex>
       }
@@ -477,7 +478,7 @@ function NewAnnotationPopoverContent(props: {
           />
           <Button
             variant="primary"
-            onClick={() => {
+            onPress={() => {
               onAnnotationNameSelect(newName);
             }}
           >

@@ -43,7 +43,7 @@ Note, you should pin the phoenix version for production to the version of phoeni
 docker run -p 6006:6006 -p 4317:4317 -i -t arizephoenix/phoenix:latest
 ```
 
-See [#ports](../setup/configuration.md#ports "mention") for details on the ports for the container.
+See [#ports](configuration.md#ports "mention") for details on the ports for the container.
 
 Navigate to [http://0.0.0.0:6006](http://0.0.0.0:6006) and you should see your local Arize Phoenix
 {% endtab %}
@@ -94,7 +94,7 @@ This way you will always have a running Phoenix instance when you run
 docker compose up
 ```
 
-For the full details of on how to configure Phoenix, check out the [Configuration section](../setup/configuration.md)
+For the full details of on how to configure Phoenix, check out the [Configuration section](configuration.md)
 
 ## PostGreSQL
 

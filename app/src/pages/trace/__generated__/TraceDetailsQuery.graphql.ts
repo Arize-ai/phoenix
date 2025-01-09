@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<05ddaf3cf129db9abc342c1c612a4b46>>
+ * @generated SignedSource<<fa98e93e6d1dc991c0a0c017005caf51>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type TraceDetailsQuery$variables = {
 export type TraceDetailsQuery$data = {
   readonly project: {
     readonly trace?: {
+      readonly latencyMs: number | null;
       readonly projectSessionId: string | null;
       readonly spans: {
         readonly edges: ReadonlyArray<{
@@ -33,6 +34,7 @@ export type TraceDetailsQuery$data = {
             readonly parentId: string | null;
             readonly spanAnnotations: ReadonlyArray<{
               readonly annotatorKind: AnnotatorKind;
+              readonly id: string;
               readonly label: string | null;
               readonly name: string;
               readonly score: number | null;
@@ -87,6 +89,13 @@ v4 = {
   "storageKey": null
 },
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "latencyMs",
+  "storageKey": null
+},
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -195,13 +204,7 @@ v5 = {
                       "name": "parentId",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "latencyMs",
-                      "storageKey": null
-                    },
+                    (v5/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -231,6 +234,7 @@ v5 = {
                       "name": "spanAnnotations",
                       "plural": true,
                       "selections": [
+                        (v3/*: any*/),
                         (v4/*: any*/),
                         {
                           "alias": null,
@@ -264,7 +268,8 @@ v5 = {
             }
           ],
           "storageKey": "spans(first:1000)"
-        }
+        },
+        (v5/*: any*/)
       ],
       "storageKey": null
     }
@@ -290,7 +295,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -322,7 +327,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*: any*/),
+          (v6/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -334,16 +339,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5ac539f9f161693ada371b5d0e55f17f",
+    "cacheID": "e49f79cc2ed4e3975425c66bfa0c9952",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanAnnotations {\n                name\n                label\n                score\n                annotatorKind\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n              }\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "69f82cff480af6a8d9e0cc0bb393d3e3";
+(node as any).hash = "5fb4b5eb8dbfa378e4e293ec414bb1aa";
 
 export default node;

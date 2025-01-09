@@ -11,8 +11,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text, theme } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -52,7 +51,7 @@ function TooltipContent({
         : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -137,7 +136,7 @@ export function DimensionPercentEmptyTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           label={{
             value: "% Empty",
             angle: -90,
@@ -151,7 +150,7 @@ export function DimensionPercentEmptyTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />

@@ -1,18 +1,11 @@
 import React, { ReactNode, useCallback, useState } from "react";
 
-import {
-  ActionMenu,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  Item,
-  Text,
-} from "@arizeai/components";
+import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
+
+import { Flex, Icon, Icons, Text } from "@phoenix/components";
 
 import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
-
 type DatasetActionMenuProps = {
   datasetId: string;
   datasetName: string;

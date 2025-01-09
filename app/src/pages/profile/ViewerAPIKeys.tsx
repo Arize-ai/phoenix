@@ -1,14 +1,9 @@
 import React, { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Button,
-  Card,
-  DialogContainer,
-  Icon,
-  Icons,
-} from "@arizeai/components";
+import { Card, DialogContainer } from "@arizeai/components";
 
+import { Button, Icon, Icons } from "@phoenix/components";
 import {
   APIKeyFormParams,
   CreateAPIKeyDialog,
@@ -76,10 +71,9 @@ export function ViewerAPIKeys({
       bodyStyle={{ padding: 0 }}
       extra={
         <Button
-          variant="default"
-          size="compact"
+          size="S"
           icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-          onClick={() =>
+          onPress={() =>
             setDialog(
               <CreateAPIKeyDialog
                 onSubmit={onSubmit}

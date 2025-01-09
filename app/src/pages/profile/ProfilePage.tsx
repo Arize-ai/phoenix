@@ -1,8 +1,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Flex } from "@arizeai/components";
-
+import { Flex } from "@phoenix/components";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { ViewerAPIKeys } from "./ViewerAPIKeys";

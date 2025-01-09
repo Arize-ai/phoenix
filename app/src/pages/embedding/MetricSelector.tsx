@@ -5,12 +5,12 @@ import {
   CollectionElement,
   Content,
   ContextualHelp,
-  Heading,
   Item,
   Picker,
   Section,
 } from "@arizeai/components";
 
+import { Heading } from "@phoenix/components";
 import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 import {
   DriftMetricDefinition,
@@ -112,11 +112,13 @@ function parseMetricKey({
 
 const contextualHelp = (
   <ContextualHelp variant="info">
-    <Heading level={4}>Analysis Metric</Heading>
+    <Heading level={4} weight="heavy">
+      Analysis Metric
+    </Heading>
     <Content>
       <p>Select a metric to drive the analysis of your embeddings.</p>
       <p>
-        To analyze the the drift between your two inferencess, select a drift
+        To analyze the the drift between your two inferences, select a drift
         metric and the UI will highlight areas of high drift.
       </p>
       <p>

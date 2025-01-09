@@ -1,8 +1,7 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Text } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { DimensionCardinalityStats_dimension$key } from "./__generated__/DimensionCardinalityStats_dimension.graphql";
@@ -33,12 +32,12 @@ export function DimensionCardinalityStats(props: {
 
   return (
     <>
-      <Text elementType="h3" textSize="small" color="text-700">
+      <Text elementType="h3" size="XS" color="text-700">
         Cardinality
       </Text>
-      <Text textSize="xlarge">{intFormatter(data.cardinality)}</Text>
+      <Text>{intFormatter(data.cardinality)}</Text>
       {data.referenceCardinality != null && (
-        <Text textSize="medium" color="designationPurple">
+        <Text size="S" color="purple-800">
           {intFormatter(data.referenceCardinality)}
         </Text>
       )}

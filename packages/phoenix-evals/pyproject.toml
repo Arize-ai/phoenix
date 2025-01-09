@@ -22,7 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.17.5"
+version = "0.18.1"
 dependencies = [
   "pandas",
   "tqdm",
@@ -36,7 +36,7 @@ dev = [
   "litellm>=1.28.9",
   "openai>=1.0.0",
   "vertexai",
-  "mistralai<1",
+  "mistralai>=1.0.0",
 ]
 test = [
   "openinference-semantic-conventions",
@@ -47,7 +47,7 @@ test = [
   "boto3",
   "litellm>=1.28.9",
   "openai>=1.0.0",
-  "mistralai<1",
+  "mistralai>=1.0.0",
   "vertexai",
   "respx",
   "nest_asyncio",

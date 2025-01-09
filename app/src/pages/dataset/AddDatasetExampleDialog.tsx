@@ -3,17 +3,9 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  Alert,
-  Button,
-  Card,
-  CardProps,
-  Dialog,
-  Flex,
-  TextArea,
-  View,
-} from "@arizeai/components";
+import { Alert, Card, CardProps, Dialog, TextArea } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -226,12 +218,12 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
         <Flex direction="row" justifyContent="end" gap="size-100">
           <Button
             variant="primary"
-            size="compact"
-            disabled={!isValid || isCommitting}
-            loading={isCommitting}
-            onClick={handleSubmit(onSubmit)}
+            size="S"
+            isDisabled={!isValid || isCommitting}
+            icon={isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null}
+            onPress={() => handleSubmit(onSubmit)()}
           >
-            Add Example
+            {isCommitting ? "Adding Example..." : "Add Example"}
           </Button>
         </Flex>
       </View>

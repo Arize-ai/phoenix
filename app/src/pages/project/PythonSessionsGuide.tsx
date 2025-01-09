@@ -1,8 +1,6 @@
 import React from "react";
 
-import { Heading, Text, View } from "@arizeai/components";
-
-import { ExternalLink } from "@phoenix/components";
+import { ExternalLink, Heading, Text, View } from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 
 const INSTALL_OPENINFERENCE_INSTRUMENTATION_PYTHON = `pip install openinference-instrumentation`;

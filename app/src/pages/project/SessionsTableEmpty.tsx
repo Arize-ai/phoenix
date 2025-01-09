@@ -1,16 +1,9 @@
 import React, { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Dialog,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  View,
-} from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { CodeLanguage, CodeLanguageRadioGroup } from "@phoenix/components/code";
 
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
@@ -36,7 +29,7 @@ function SetupSessionsDialog() {
 export function SessionsTableEmpty() {
   const [dialog, setDialog] = useState<ReactNode | null>(null);
 
-  const onGettingStartedClick = () => {
+  const onGettingStartedPress = () => {
     setDialog(<SetupSessionsDialog />);
   };
 
@@ -45,17 +38,17 @@ export function SessionsTableEmpty() {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-300)
+              var(--ac-global-dimension-size-300) !important;
           `}
         >
           <Flex direction="column" gap="size-200" alignItems="center">
             No sessions found for this project
             <Button
-              variant="default"
               icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-              onClick={onGettingStartedClick}
+              onPress={onGettingStartedPress}
             >
               Setup Sessions
             </Button>

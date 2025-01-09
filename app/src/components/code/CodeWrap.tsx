@@ -1,11 +1,11 @@
 import React, { ReactNode } from "react";
 
-import { View, ViewStyleProps } from "@arizeai/components";
+import { View, ViewProps } from "@phoenix/components";
 
 export function CodeWrap({
   children,
   ...props
-}: { children: ReactNode } & ViewStyleProps) {
+}: { children: ReactNode } & ViewProps) {
   return (
     <View
       borderColor="light"

@@ -22,3 +22,4 @@ export * from "./profile";
 export * from "./playground";
 export * from "./AuthenticatedRoot";
 export * from "./authenticatedRootLoader";
+export * from "./support";

@@ -2,15 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Button,
-  Dialog,
-  Flex,
-  Form,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Dialog, Form, TextField } from "@arizeai/components";
 
+import { Button, Flex, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";
@@ -144,8 +138,8 @@ export function ResetPasswordDialog({
               <Button
                 variant={isDirty ? "primary" : "default"}
                 type="submit"
-                disabled={isCommitting}
-                onClick={handleSubmit(onSubmit)}
+                isDisabled={isCommitting}
+                onPress={() => handleSubmit(onSubmit)()}
               >
                 {isCommitting ? "Resetting..." : "Reset Password"}
               </Button>

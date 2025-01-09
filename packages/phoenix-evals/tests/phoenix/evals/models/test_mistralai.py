@@ -1,5 +1,5 @@
 import pytest
-from mistralai.client import MistralClient
+from mistralai import Mistral
 
 from phoenix.evals.models.mistralai import MistralAIModel
 
@@ -14,4 +14,4 @@ def test_mistral_model(monkeypatch):
     model = MistralAIModel(model="mistral-large-latest")
 
     assert model.model == "mistral-large-latest"
-    assert isinstance(model._client, MistralClient)
+    assert isinstance(model._client, Mistral)

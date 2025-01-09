@@ -2,9 +2,6 @@ import React from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
-  Flex,
-  Icon,
-  Icons,
   Item,
   Picker,
   PickerProps,
@@ -13,6 +10,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Flex, Icon, Icons } from "@phoenix/components";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { ModelProviderPickerFragment$key } from "./__generated__/ModelProviderPickerFragment.graphql";

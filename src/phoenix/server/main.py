@@ -109,7 +109,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 
 def _write_pid_file_when_ready(
     server: Server,
-    wait_up_to_seconds: float = 5,
+    wait_up_to_seconds: float = 60,
 ) -> None:
     """Write PID file after server is started (or when time is up)."""
     time_limit = time() + wait_up_to_seconds

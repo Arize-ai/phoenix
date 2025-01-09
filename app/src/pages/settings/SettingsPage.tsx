@@ -1,9 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Card, Flex, TextField, View } from "@arizeai/components";
+import { Card, TextField } from "@arizeai/components";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { CopyToClipboardButton, Flex, View } from "@phoenix/components";
 import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 
@@ -87,7 +87,7 @@ export function SettingsPage() {
 function CopyToClipboardButtonWithPadding(props: { text: string }) {
   return (
     <View paddingBottom="19px">
-      <CopyToClipboardButton text={props.text} size="default" />
+      <CopyToClipboardButton text={props.text} size="M" />
     </View>
   );
 }

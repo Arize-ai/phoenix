@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 
-import { ViewStyleProps } from "@arizeai/components";
+import { ViewProps } from "@phoenix/components";
 
 export function useChatMessageStyles(
   role: string
-): Pick<ViewStyleProps, "backgroundColor" | "borderColor"> {
-  return useMemo<ViewStyleProps>(() => {
+): Pick<ViewProps, "backgroundColor" | "borderColor"> {
+  return useMemo<ViewProps>(() => {
     if (role === "user" || role === "human") {
       return {
         backgroundColor: "grey-100",

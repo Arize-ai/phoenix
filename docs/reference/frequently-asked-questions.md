@@ -1,5 +1,26 @@
 # Frequently Asked Questions
 
+## Will Phoenix Developer Edition be on the latest version of Phoenix?
+
+We update the Phoenix version used by Phoenix Developer Edition on a weekly basis.
+
+## Data retention
+
+We have a 30 day data retention policy. We are working on plans to offer a longer data retention period.
+
+## Sharing
+
+Currently accounts are setup to be used specifically for one developer. We will be adding ways to share your traces with other developers on your team shortly!
+
+## Pricing
+
+Phoenix Developer Edition is free up to the following limits, then $50/month.
+
+Free tier limits:
+
+* 100K logs (spans)
+* 10gb storage
+
 ## Can I use Azure OpenAI?
 
 Yes, in fact this is probably the preferred way to interact with OpenAI if your enterprise requires data privacy. Getting the parameters right for Azure can be a bit tricky so check out the [models section for details.](../api/evaluation-models.md#azure-openai)
@@ -49,19 +70,15 @@ If you are abruptly unable to access phoenix, check whether the ssh connection i
 
 Simply run `exit` in the terminal/command prompt where you ran the port forwarding command.
 
-## How can I configure the backend to send the data to the phoenix UI in another container?&#x20;
+## How can I configure the backend to send the data to the phoenix UI in another container?
 
-_If you are working on an API whose endpoints perform RAG, but would like the phoenix server not to be launched as another thread._&#x20;
+_If you are working on an API whose endpoints perform RAG, but would like the phoenix server not to be launched as another thread._
 
 You can do this by configuring the following the environment variable PHOENIX\_COLLECTOR\_ENDPOINT to point to the server running in a different process or container. https://docs.arize.com/phoenix/environments
-
-
 
 ## Can I use an older version of LlamaIndex?
 
 Yes you can! You will have to be using `arize-phoenix>3.0.0` and downgrade `openinference-instrumentation-llama-index<1.0.0`
-
-
 
 ## Running on SageMaker
 
@@ -73,17 +90,28 @@ import os
 os.environ["PHOENIX_NOTEBOOK_ENV"] = "sagemaker"
 ```
 
-
-
 ## Can I persistdata in the notbook?
 
 You can persist data in the notebook by either setting the `use_temp_dir` flag to false in `px.launch_app` which will persit your data in SQLite on your disk at the **PHOENIX\_WORKING\_DIR**. Alternatively you can deploy a phoenix instance and point to it via **PHOENIX\_COLLECTOR\_ENDPOINT**.
 
-
-
 ## Can I use gRPC for trace collection?
 
-Phoenix does natively support gRPC for trace collection post 4.0 release. See [#how-to-configure-phoenix](../setup/#how-to-configure-phoenix "mention") for details.
+Phoenix does natively support gRPC for trace collection post 4.0 release. See [deployment](../deployment/ "mention") for details.
 
+## How do I resolve Phoenix Evals, showing NOT\_PARSABLE?
 
+`NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON. Here's how to fix it:
 
+1.  Increase `max_tokens`: Update the model configuration as follows:
+
+    ```python
+    pythonCopy codellm_judge_model = OpenAIModel(
+        api_key=getpass("Enter your OpenAI API key..."),
+        model="gpt-4o-2024-08-06",
+        temperature=0.2,
+        max_tokens=1000,  # Increase token limit
+    )
+    ```
+2. Update Phoenix: Use version ≥0.17.4, which removes token limits for OpenAI and increases defaults for other APIs.
+3. Check Logs: Look for `finish_reason="length"` to confirm token limits caused the issue.&#x20;
+4. If the above doesn't work, it's possible the llm-as-a-judge output might not fit into the defined rails for that particular custom Phoenix eval. Double check the prompt output matches the rail expectations.

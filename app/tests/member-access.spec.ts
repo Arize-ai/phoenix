@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   page.goto(`/login`);
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Password").fill("member123");
-  await page.getByRole("button", { name: "Login", exact: true }).click();
+  await page.getByRole("button", { name: "Log In", exact: true }).click();
   await page.waitForURL("**/projects");
 });
 

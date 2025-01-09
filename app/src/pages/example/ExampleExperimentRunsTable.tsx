@@ -9,8 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@arizeai/components";
-
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -31,9 +30,10 @@ export function ExampleExperimentsTableEmpty() {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-300)
+              var(--ac-global-dimension-size-300) !important;
           `}
         >
           No experiments have been run for this example.
@@ -201,10 +201,9 @@ export function ExampleExperimentRunsTable({
         if (trace) {
           return (
             <Button
-              variant="default"
-              size="compact"
+              size="S"
               icon={<Icon svg={<Icons.Trace />} />}
-              onClick={() => {
+              onPress={() => {
                 navigate(
                   `/projects/${trace.projectId}/traces/${trace.traceId}`
                 );
@@ -271,12 +270,7 @@ export function ExampleExperimentRunsTable({
         ) : (
           <tbody>
             {rows.map((row) => (
-              <tr
-                key={row.id}
-                // onClick={() => {
-                //   navigate(`experiments/${row.original.id}`);
-                // }}
-              >
+              <tr key={row.id}>
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>

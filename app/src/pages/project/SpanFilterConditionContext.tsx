@@ -13,11 +13,11 @@ export type SpanFilterConditionContextType = {
   appendFilterCondition: (condition: string) => void;
 };
 
-export const SpanFilterConditionConnext =
+export const SpanFilterConditionContext =
   createContext<SpanFilterConditionContextType | null>(null);
 
 export function useSpanFilterCondition() {
-  const context = useContext(SpanFilterConditionConnext);
+  const context = useContext(SpanFilterConditionContext);
   if (context === null) {
     throw new Error(
       "useSpanFilterCondition must be used within a SpanFilterConditionProvider"
@@ -47,10 +47,10 @@ export function SpanFilterConditionProvider(props: PropsWithChildren) {
   );
 
   return (
-    <SpanFilterConditionConnext.Provider
+    <SpanFilterConditionContext.Provider
       value={{ filterCondition, setFilterCondition, appendFilterCondition }}
     >
       {props.children}
-    </SpanFilterConditionConnext.Provider>
+    </SpanFilterConditionContext.Provider>
   );
 }
