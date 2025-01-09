@@ -222,7 +222,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             activeRunId: null,
             experimentId: null,
             spanId: null,
-            prompt: null,
           },
         ],
       });
