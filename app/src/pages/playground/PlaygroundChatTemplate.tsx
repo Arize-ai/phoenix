@@ -135,6 +135,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
               messages: newMessages,
             },
           },
+          dirty: true,
         });
       }}
     >
@@ -343,6 +344,7 @@ function SortableMessageItem({
             ),
           },
         },
+        dirty: true,
       });
     },
     [message.id, playgroundInstanceId, template.messages, updateInstance]
@@ -396,6 +398,7 @@ function SortableMessageItem({
                       ),
                     },
                   },
+                  dirty: true,
                 });
               }}
             />
@@ -464,6 +467,7 @@ function SortableMessageItem({
                       ),
                     },
                   },
+                  dirty: true,
                 });
               }}
             />
