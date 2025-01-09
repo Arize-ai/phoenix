@@ -464,22 +464,9 @@ def test_llm_classify_positional_args_no_data(
         ["relevant", "unrelated"],
         verbose=True,
         )
-    except ValueError as e:
-        assert str(e) == "Missing one or more of these parameters: data, model, template, rails"
+    except TypeError as e:
+        assert str(e) == "llm_classify() missing 1 required positional argument: 'rails'"
 
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_llm_classify_positional_args_all_empty(
-    classification_dataframe: DataFrame,
-    openai_api_key: str,
-):
-    model = OpenAIModel()
-
-    try:
-        llm_classify(
-        )
-    except ValueError as e:
-        assert str(e) == "Missing one or more of these parameters: data, model, template, rails"
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_no_data_and_no_dataframe_args(
@@ -495,9 +482,26 @@ def test_llm_classify_no_data_and_no_dataframe_args(
             rails=["relevant", "unrelated"],
             verbose=True,
         )
-    except ValueError as e:
-        assert str(e) == "Either data or dataframe arg must be provided"
+    except TypeError as e:
+        assert str(e) == "llm_classify() missing 1 required positional argument: 'data'"
 
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_data_positional_rest_keyword_args(
+    classification_dataframe: DataFrame,
+    openai_api_key: str,
+):
+    model = OpenAIModel()
+
+    try:
+        llm_classify(
+            classification_dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+            model=model,
+            rails=["relevant", "unrelated"],
+            verbose=True,
+        )
+    except TypeError as e:
+        assert str(e) == "llm_classify() missing 1 required positional argument: 'data'"
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_included_prompt_and_response(

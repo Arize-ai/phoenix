@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import inspect
 import logging
+import warnings
 from collections import defaultdict
 from enum import Enum
+from functools import wraps
 from itertools import product
 from typing import (
     Any,
@@ -68,11 +70,33 @@ class ClassificationStatus(Enum):
 
 PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
 
+def deprecate_dataframe_arg(func: Callable[..., Any]) -> Callable[..., Any]:
+    # Remove this once the `dataframe` arg in `llm_classify` is no longer supported
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(func)
+
+        if "dataframe" in kwargs:
+            warnings.warn(
+                "`dataframe` argument is deprecated; use `data` instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["data"] = kwargs.pop("dataframe")
+        bound_args = signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return wrapper
+
+
+@deprecate_dataframe_arg
 def llm_classify(
-    data: Optional[Union[pd.DataFrame, List[Any], Tuple[Any]]] = None,
-    model: Optional[BaseModel] = None,
-    template: Optional[Union[ClassificationTemplate, PromptTemplate, str]] = None,
-    rails: Optional[List[str]] = None,
+    data: Union[pd.DataFrame, List[Any], Tuple[Any]],
+    model: BaseModel,
+    template: Union[ClassificationTemplate, PromptTemplate, str],
+    rails: List[str],
     data_processor: Optional[Callable[[PROCESSOR_TYPE], PROCESSOR_TYPE]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -86,7 +110,6 @@ def llm_classify(
     run_sync: bool = False,
     concurrency: Optional[int] = None,
     progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
-    **kwargs: Any,
 ) -> pd.DataFrame:
     """
     Classifies each input row of the dataframe using an LLM.
@@ -162,15 +185,15 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    # Params checked together to account for positional args being passed
-    if model is None or template is None or rails is None:
-        raise ValueError("Missing one or more of these parameters: data, model, template, rails")
-
-    dataframe = kwargs.get("dataframe")
-    # If data and dataframe are both provided, _llm_data defaults to data
-    _llm_data = dataframe if data is None else data
-    if _llm_data is None:
-        raise ValueError("Either data or dataframe arg must be provided")
+    # # Params checked together to account for positional args being passed
+    # if model is None or template is None or rails is None:
+    #     raise ValueError("Missing one or more of these parameters: data, model, template, rails")
+    #
+    # dataframe = kwargs.get("dataframe")
+    # # If data and dataframe are both provided, _llm_data defaults to data
+    # _llm_data = dataframe if data is None else data
+    # if _llm_data is None:
+    #     raise ValueError("Either data or dataframe arg must be provided")
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
@@ -190,8 +213,8 @@ def llm_classify(
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
 
-    labels: Iterable[Optional[str]] = [None] * len(_llm_data)
-    explanations: Iterable[Optional[str]] = [None] * len(_llm_data)
+    labels: Iterable[Optional[str]] = [None] * len(data)
+    explanations: Iterable[Optional[str]] = [None] * len(data)
 
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
@@ -297,12 +320,12 @@ def llm_classify(
     )
 
     list_of_inputs: Union[Tuple[Any], List[Any]]
-    if isinstance(_llm_data, pd.DataFrame):
-        list_of_inputs = [row_tuple[1] for row_tuple in _llm_data.iterrows()]
-        dataframe_index = _llm_data.index
-    elif isinstance(_llm_data, (list, tuple)):
-        list_of_inputs = _llm_data
-        dataframe_index = pd.Index(range(len(_llm_data)))
+    if isinstance(data, pd.DataFrame):
+        list_of_inputs = [row_tuple[1] for row_tuple in data.iterrows()]
+        dataframe_index = data.index
+    elif isinstance(data, (list, tuple)):
+        list_of_inputs = data
+        dataframe_index = pd.Index(range(len(data)))
     else:
         raise ValueError("dataframe must be a pandas DataFrame, list, or tuple")
 
