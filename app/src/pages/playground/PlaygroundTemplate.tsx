@@ -32,16 +32,13 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
+  const dirty = instance?.dirty;
 
   const onChangePrompt = useCallback(
     async (promptId: string | null) => {
       if (!promptId) {
-        updateInstance({
-          instanceId,
-          patch: {
-            prompt: null,
-          },
-        });
+        const patch = { prompt: null };
+        updateInstance({ instanceId, patch, dirty: false });
         return;
       }
 
@@ -52,6 +49,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           patch: {
             ...response.instance,
           },
+          dirty: false,
         });
       }
     },
@@ -94,7 +92,11 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               <ModelSupportedParamsFetcher instanceId={instanceId} />
             </Suspense>
             <ModelConfigButton {...props} />
-            <SaveButton instanceId={instanceId} setDialog={setDialog} />
+            <SaveButton
+              instanceId={instanceId}
+              setDialog={setDialog}
+              dirty={dirty}
+            />
             {instances.length > 1 ? <DeleteButton {...props} /> : null}
           </Flex>
         }
@@ -143,9 +145,10 @@ function DeleteButton(props: PlaygroundInstanceProps) {
 type SaveButtonProps = {
   instanceId: number;
   setDialog: (dialog: React.ReactNode) => void;
+  dirty?: boolean;
 };
 
-function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
+function SaveButton({ instanceId, setDialog, dirty }: SaveButtonProps) {
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === instanceId)
   );
@@ -168,7 +171,7 @@ function SaveButton({ instanceId, setDialog }: SaveButtonProps) {
       <TooltipTrigger delay={100}>
         <TriggerWrap>
           <Button
-            // TODO(apowell): Make variant "primary" when instance is "dirty", aka different from selected prompt
+            variant={dirty ? "primary" : undefined}
             size="S"
             onPress={onSave}
           >

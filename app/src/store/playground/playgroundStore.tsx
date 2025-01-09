@@ -116,6 +116,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     output: undefined,
     spanId: null,
     activeRunId: null,
+    dirty: false,
   }) satisfies Partial<PlaygroundInstance>;
 
 export function createPlaygroundInstance(): PlaygroundInstance {
@@ -313,6 +314,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             return {
               ...instance,
               ...patch,
+              dirty: true,
             };
           }
           return instance;
@@ -330,6 +332,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
+              dirty: true,
               model: {
                 ...instance.model,
                 ...patch,
@@ -359,6 +362,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           ) {
             return {
               ...instance,
+              dirty: true,
               messages: [
                 ...instance.template.messages,
                 { role: DEFAULT_CHAT_ROLE, content: "{question}" },
@@ -369,7 +373,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
-    updateInstance: ({ instanceId, patch }) => {
+    updateInstance: ({ instanceId, patch, dirty }) => {
       const instances = get().instances;
       set({
         instances: instances.map((instance) => {
@@ -377,6 +381,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             return {
               ...instance,
               ...patch,
+              ...(dirty != undefined ? { dirty } : {}),
             };
           }
           return instance;
@@ -444,6 +449,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
+              dirty: true,
               model: { ...instance.model, invocationParameters },
             };
           }
@@ -470,6 +476,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
+                dirty: true,
                 model: {
                   ...instance.model,
                   invocationParameters: instance.model.invocationParameters.map(
@@ -490,6 +497,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
+                dirty: true,
                 model: {
                   ...instance.model,
                   invocationParameters: [
@@ -517,6 +525,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
+              dirty: true,
               model: {
                 ...instance.model,
                 invocationParameters:
@@ -526,6 +535,20 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
                       invocationParameterInputInvocationName
                   ),
               },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    setDirty: (instanceId: number, dirty: boolean) => {
+      const instances = get().instances;
+      set({
+        instances: instances.map((instance) => {
+          if (instance.id === instanceId) {
+            return {
+              ...instance,
+              dirty,
             };
           }
           return instance;
