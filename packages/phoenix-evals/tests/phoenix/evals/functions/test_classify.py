@@ -116,6 +116,7 @@ def mock_respx_responses(respx_mock: respx.mock):
                 ],
             }
             respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
     return _mock_responses
 
 
@@ -124,7 +125,7 @@ def test_llm_classify(
     openai_api_key: str,
     classification_dataframe: DataFrame,
     respx_mock: respx.mock,
-    mock_respx_responses
+    mock_respx_responses,
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -155,9 +156,7 @@ def test_llm_classify(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_data_processor_dataframe(
-    openai_api_key: str,
-    classification_dataframe: DataFrame,
-    mock_respx_responses
+    openai_api_key: str, classification_dataframe: DataFrame, mock_respx_responses
 ):
     def row_flag_processor(row_series: pd.Series) -> pd.Series:
         if "C++" in row_series["reference"] or "Python" in row_series["reference"]:
@@ -235,9 +234,7 @@ def test_llm_classify_data_processor_dataframe(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_data_processor_list_of_tuples(
-    openai_api_key: str,
-    classification_dataframe: DataFrame,
-    mock_respx_responses
+    openai_api_key: str, classification_dataframe: DataFrame, mock_respx_responses
 ):
     def tuple_flag_processor(row_tuple: tuple) -> tuple:
         if "C++" in row_tuple[1] or "Python" in row_tuple[1]:
@@ -386,9 +383,7 @@ def test_llm_classify_data_processor_list_of_strings(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_data_and_no_dataframe_args(
-    classification_dataframe: DataFrame,
-    openai_api_key: str,
-    mock_respx_responses
+    classification_dataframe: DataFrame, openai_api_key: str, mock_respx_responses
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -459,10 +454,10 @@ def test_llm_classify_positional_args_no_data(
 
     try:
         llm_classify(
-        model,
-        RAG_RELEVANCY_PROMPT_TEMPLATE,
-        ["relevant", "unrelated"],
-        verbose=True,
+            model,
+            RAG_RELEVANCY_PROMPT_TEMPLATE,
+            ["relevant", "unrelated"],
+            verbose=True,
         )
     except TypeError as e:
         assert str(e) == "llm_classify() missing 1 required positional argument: 'rails'"
@@ -485,6 +480,7 @@ def test_llm_classify_no_data_and_no_dataframe_args(
     except TypeError as e:
         assert str(e) == "llm_classify() missing 1 required positional argument: 'data'"
 
+
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_data_positional_rest_keyword_args(
     classification_dataframe: DataFrame,
@@ -502,6 +498,7 @@ def test_llm_classify_data_positional_rest_keyword_args(
         )
     except TypeError as e:
         assert str(e) == "llm_classify() missing 1 required positional argument: 'data'"
+
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_included_prompt_and_response(

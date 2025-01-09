@@ -70,6 +70,7 @@ class ClassificationStatus(Enum):
 
 PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
 
+
 def deprecate_dataframe_arg(func: Callable[..., Any]) -> Callable[..., Any]:
     # Remove this once the `dataframe` arg in `llm_classify` is no longer supported
 
