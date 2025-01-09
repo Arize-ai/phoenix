@@ -1,5 +1,6 @@
 import React from "react";
 import { graphql, useMutation } from "react-relay";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -58,7 +59,9 @@ export function DeletePromptVersionTagButton({
               </Text>
             </View>
             <Button
-              width="100%"
+              css={css`
+                width: 100%;
+              `}
               variant="danger"
               size="S"
               onPress={() =>
