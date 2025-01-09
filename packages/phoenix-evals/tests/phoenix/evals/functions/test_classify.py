@@ -101,11 +101,63 @@ def classification_template():
     return RAG_RELEVANCY_PROMPT_TEMPLATE
 
 
+@pytest.fixture
+def mock_respx_responses(respx_mock: respx.mock):
+    def _mock_responses(response_mapping):
+        for (query, reference), response in response_mapping.items():
+            matcher = M(content__contains=query) & M(content__contains=reference)
+            payload = {
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
+                        },
+                    }
+                ],
+            }
+            respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+    return _mock_responses
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify(
+    openai_api_key: str,
+    classification_dataframe: DataFrame,
+    respx_mock: respx.mock,
+    mock_respx_responses
+):
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    mock_respx_responses(response_mapping)
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "unrelated"],
+        verbose=True,
+    )
+
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_data_processor_dataframe(
     openai_api_key: str,
     classification_dataframe: DataFrame,
-    respx_mock: respx.mock,
+    mock_respx_responses
 ):
     def row_flag_processor(row_series: pd.Series) -> pd.Series:
         if "C++" in row_series["reference"] or "Python" in row_series["reference"]:
@@ -137,23 +189,12 @@ def test_llm_classify_data_processor_dataframe(
     processed_keys = list(zip(expected_dataframe["input"], expected_dataframe["reference"]))
     processed_mapping = {key: response for key, response in zip(processed_keys, responses)}
 
-    for (query, reference), response in processed_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+    mock_respx_responses(processed_mapping)
 
     model = OpenAIModel()
 
     result = llm_classify(
-        data=dataframe,
+        dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "unrelated"],
@@ -196,7 +237,7 @@ def test_llm_classify_data_processor_dataframe(
 def test_llm_classify_data_processor_list_of_tuples(
     openai_api_key: str,
     classification_dataframe: DataFrame,
-    respx_mock: respx.mock,
+    mock_respx_responses
 ):
     def tuple_flag_processor(row_tuple: tuple) -> tuple:
         if "C++" in row_tuple[1] or "Python" in row_tuple[1]:
@@ -221,23 +262,12 @@ def test_llm_classify_data_processor_list_of_tuples(
     processed_keys = processed_list_of_tuples
     processed_mapping = {key: response for key, response in zip(processed_keys, responses)}
 
-    for (query, reference), response in processed_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+    mock_respx_responses(processed_mapping)
 
     model = OpenAIModel()
 
     result = llm_classify(
-        data=list_of_tuples,
+        dataframe=list_of_tuples,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "unrelated"],
@@ -319,7 +349,7 @@ def test_llm_classify_data_processor_list_of_strings(
     model = OpenAIModel()
 
     result = llm_classify(
-        data=list_of_str,
+        dataframe=list_of_str,
         template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
         rails=["toxic", "non-toxic"],
@@ -352,6 +382,121 @@ def test_llm_classify_data_processor_list_of_strings(
             data={"label": expected_labels},
         ),
     )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_data_and_no_dataframe_args(
+    classification_dataframe: DataFrame,
+    openai_api_key: str,
+    mock_respx_responses
+):
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    mock_respx_responses(response_mapping)
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        data=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "unrelated"],
+        verbose=True,
+    )
+
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_positional_args(
+    classification_dataframe: DataFrame,
+    openai_api_key: str,
+    mock_respx_responses,
+):
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "unrelated", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    mock_respx_responses(response_mapping)
+
+    model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe,
+        model,
+        RAG_RELEVANCY_PROMPT_TEMPLATE,
+        ["relevant", "unrelated"],
+        verbose=True,
+    )
+
+    expected_labels = ["relevant", "unrelated", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result[["label"]],
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_positional_args_no_data(
+    classification_dataframe: DataFrame,
+    openai_api_key: str,
+):
+    model = OpenAIModel()
+
+    try:
+        llm_classify(
+        model,
+        RAG_RELEVANCY_PROMPT_TEMPLATE,
+        ["relevant", "unrelated"],
+        verbose=True,
+        )
+    except ValueError as e:
+        assert str(e) == "Missing one or more of these parameters: data, model, template, rails"
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_positional_args_all_empty(
+    classification_dataframe: DataFrame,
+    openai_api_key: str,
+):
+    model = OpenAIModel()
+
+    try:
+        llm_classify(
+        )
+    except ValueError as e:
+        assert str(e) == "Missing one or more of these parameters: data, model, template, rails"
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_no_data_and_no_dataframe_args(
+    classification_dataframe: DataFrame,
+    openai_api_key: str,
+):
+    model = OpenAIModel()
+
+    try:
+        llm_classify(
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+            model=model,
+            rails=["relevant", "unrelated"],
+            verbose=True,
+        )
+    except ValueError as e:
+        assert str(e) == "Either data or dataframe arg must be provided"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
@@ -582,25 +727,6 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "'model': 'gpt-4'" in out, "Model information should be printed"
     assert "'temperature': 0.0" in out, "Model information should be printed"
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_llm_classify_no_data_and_no_dataframe_args(
-    classification_dataframe: DataFrame,
-    openai_api_key: str,
-):
-    model = OpenAIModel()
-
-    try:
-        llm_classify(
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "unrelated"],
-            verbose=True,
-            use_function_calling_if_available=False,
-        )
-    except ValueError as e:
-        assert str(e) == "either data or dataframe args must be provided"
 
 
 def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.CaptureFixture[str]):

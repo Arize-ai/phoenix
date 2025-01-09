@@ -68,12 +68,11 @@ class ClassificationStatus(Enum):
 
 PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
 
-
 def llm_classify(
-    model: BaseModel,
-    template: Union[ClassificationTemplate, PromptTemplate, str],
-    rails: List[str],
     data: Optional[Union[pd.DataFrame, List[Any], Tuple[Any]]] = None,
+    model: Optional[BaseModel] = None,
+    template: Optional[Union[ClassificationTemplate, PromptTemplate, str]] = None,
+    rails: Optional[List[str]] = None,
     data_processor: Optional[Callable[[PROCESSOR_TYPE], PROCESSOR_TYPE]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -96,18 +95,18 @@ def llm_classify(
     `provide_explanation=True`.
 
     Args:
+        data (Union[pd.DataFrame, List[Any], Tuple[Any]): A collection of data which
+            can contain template variables and other information necessary to generate evaluations.
+
+        model (BaseEvalModel): An LLM model class.
+
         template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
             as either an instance of PromptTemplate, ClassificationTemplate or a string.
             If a string, the variable names should be surrounded by curly braces so that
             a call to `.format` can be made to substitute variable values.
 
-        model (BaseEvalModel): An LLM model class.
-
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
-
-        data (Union[pd.DataFrame, List[Any], Tuple[Any]): A collection of data which
-            can contain template variables and other information necessary to generate evaluations.
 
         data_processor (Optional[Callable[[T], T]]): An optional general-purpose function which
             can be run as a coroutine to process the data before it is passed to the model.
@@ -163,11 +162,15 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
+    # Params checked together to account for positional args being passed
+    if model is None or template is None or rails is None:
+        raise ValueError("Missing one or more of these parameters: data, model, template, rails")
+
     dataframe = kwargs.get("dataframe")
     # If data and dataframe are both provided, _llm_data defaults to data
     _llm_data = dataframe if data is None else data
     if _llm_data is None:
-        raise ValueError("either data or dataframe args must be provided")
+        raise ValueError("Either data or dataframe arg must be provided")
 
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
