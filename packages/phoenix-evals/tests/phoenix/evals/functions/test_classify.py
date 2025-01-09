@@ -1482,7 +1482,7 @@ def test_run_evals_fails_gracefully_on_error(
     )
 
 
-def test_run_evals_with_expected_evaluators_returns_empty_list() -> None:
+def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
     eval_dfs = run_evals(
         dataframe=pd.DataFrame(),
         evaluators=[],
