@@ -104,25 +104,25 @@ async def insert_span(
         cumulative_llm_token_count_prompt = int(
             get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
         )
-    except ValueError:
+    except BaseException:
         cumulative_llm_token_count_prompt = 0
     try:
         cumulative_llm_token_count_completion = int(
             get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
         )
-    except ValueError:
+    except BaseException:
         cumulative_llm_token_count_completion = 0
     try:
         llm_token_count_prompt = int(
             get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
         )
-    except ValueError:
+    except BaseException:
         llm_token_count_prompt = 0
     try:
         llm_token_count_completion = int(
             get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
         )
-    except ValueError:
+    except BaseException:
         llm_token_count_completion = 0
     if accumulation := (
         await session.execute(

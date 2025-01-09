@@ -49,6 +49,36 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 LLM_PROMPT_TEMPLATE_VARIABLES = SpanAttributes.LLM_PROMPT_TEMPLATE_VARIABLES
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+
+
+def coerce_otlp_span_attributes(
+    decoded_attributes: Iterator[tuple[str, Any]],
+) -> Iterator[tuple[str, Any]]:
+    new_attributes: list[tuple[str, Any]] = []
+
+    for key, value in decoded_attributes:
+        if key == LLM_TOKEN_COUNT_PROMPT:
+            try:
+                new_attributes.append((LLM_TOKEN_COUNT_PROMPT, int(value)))
+            except BaseException:
+                new_attributes.append((LLM_TOKEN_COUNT_PROMPT, value))
+        elif key == LLM_TOKEN_COUNT_COMPLETION:
+            try:
+                new_attributes.append((LLM_TOKEN_COUNT_COMPLETION, int(value)))
+            except BaseException:
+                new_attributes.append((LLM_TOKEN_COUNT_COMPLETION, value))
+        elif key == LLM_TOKEN_COUNT_TOTAL:
+            try:
+                new_attributes.append((LLM_TOKEN_COUNT_TOTAL, int(value)))
+            except BaseException:
+                new_attributes.append((LLM_TOKEN_COUNT_TOTAL, value))
+        else:
+            new_attributes.append((key, value))
+
+    return iter(new_attributes)
 
 
 def decode_otlp_span(otlp_span: otlp.Span) -> Span:
@@ -59,7 +89,9 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     start_time = _decode_unix_nano(otlp_span.start_time_unix_nano)
     end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
-    attributes = unflatten(load_json_strings(_decode_key_values(otlp_span.attributes)))
+    attributes = unflatten(
+        load_json_strings(coerce_otlp_span_attributes(_decode_key_values(otlp_span.attributes)))
+    )
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
 
     status_code, status_message = _decode_status(otlp_span.status)
