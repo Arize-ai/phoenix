@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import inspect
 import logging
+import warnings
 from collections import defaultdict
 from enum import Enum
+from functools import wraps
 from itertools import product
 from typing import (
     Any,
@@ -69,6 +71,28 @@ class ClassificationStatus(Enum):
 PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
 
 
+def deprecate_dataframe_arg(func: Callable[..., Any]) -> Callable[..., Any]:
+    # Remove this once the `dataframe` arg in `llm_classify` is no longer supported
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(func)
+
+        if "dataframe" in kwargs:
+            warnings.warn(
+                "`dataframe` argument is deprecated; use `data` instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["data"] = kwargs.pop("dataframe")
+        bound_args = signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return wrapper
+
+
+@deprecate_dataframe_arg
 def llm_classify(
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
