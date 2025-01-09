@@ -1918,6 +1918,7 @@
             "title": "Definition"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "definition"
@@ -1993,7 +1994,6 @@
               "$ref": "#/components/schemas/PromptToolDefinition"
             },
             "type": "array",
-            "minItems": 1,
             "title": "Tool Definitions"
           }
         },
