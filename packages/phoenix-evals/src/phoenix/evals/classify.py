@@ -186,16 +186,6 @@ def llm_classify(
             details about execution errors that may have occurred during the classification as well
             as the total runtime of each classification (in seconds).
     """
-    # # Params checked together to account for positional args being passed
-    # if model is None or template is None or rails is None:
-    #     raise ValueError("Missing one or more of these parameters: data, model, template, rails")
-    #
-    # dataframe = kwargs.get("dataframe")
-    # # If data and dataframe are both provided, _llm_data defaults to data
-    # _llm_data = dataframe if data is None else data
-    # if _llm_data is None:
-    #     raise ValueError("Either data or dataframe arg must be provided")
-
     concurrency = concurrency or model.default_concurrency
     # clients need to be reloaded to ensure that async evals work properly
     model.reload_client()
