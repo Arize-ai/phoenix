@@ -75,6 +75,7 @@ export const PlaygroundOutputMoveButton = ({
                 messages: [...instance.template.messages, ...messages],
               },
             },
+            dirty: true,
           });
           cleanupOutput();
         }}
