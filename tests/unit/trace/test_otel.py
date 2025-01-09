@@ -474,7 +474,7 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.other.field", "world"),
     ]
 
-    result = list(coerce_otlp_span_attributes(iter(input_attrs)))
+    result = list(coerce_otlp_span_attributes(input_attrs))
 
     expected = [
         ("llm.token_count.prompt", 123),
@@ -494,7 +494,7 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.total", ""),
     ]
 
-    result = list(coerce_otlp_span_attributes(iter(invalid_attrs)))
+    result = list(coerce_otlp_span_attributes(invalid_attrs))
 
     assert result == invalid_attrs
 

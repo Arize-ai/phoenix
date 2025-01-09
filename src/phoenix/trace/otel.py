@@ -57,28 +57,13 @@ LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
 def coerce_otlp_span_attributes(
     decoded_attributes: Iterator[tuple[str, Any]],
 ) -> Iterator[tuple[str, Any]]:
-    new_attributes: list[tuple[str, Any]] = []
-
     for key, value in decoded_attributes:
-        if key == LLM_TOKEN_COUNT_PROMPT:
+        if key in (LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_COMPLETION, LLM_TOKEN_COUNT_TOTAL):
             try:
-                new_attributes.append((LLM_TOKEN_COUNT_PROMPT, int(value)))
+                value = int(value)
             except BaseException:
-                new_attributes.append((LLM_TOKEN_COUNT_PROMPT, value))
-        elif key == LLM_TOKEN_COUNT_COMPLETION:
-            try:
-                new_attributes.append((LLM_TOKEN_COUNT_COMPLETION, int(value)))
-            except BaseException:
-                new_attributes.append((LLM_TOKEN_COUNT_COMPLETION, value))
-        elif key == LLM_TOKEN_COUNT_TOTAL:
-            try:
-                new_attributes.append((LLM_TOKEN_COUNT_TOTAL, int(value)))
-            except BaseException:
-                new_attributes.append((LLM_TOKEN_COUNT_TOTAL, value))
-        else:
-            new_attributes.append((key, value))
-
-    return iter(new_attributes)
+                pass
+        yield key, value
 
 
 def decode_otlp_span(otlp_span: otlp.Span) -> Span:
