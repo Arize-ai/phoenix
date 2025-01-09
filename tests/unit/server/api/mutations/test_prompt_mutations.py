@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 from strawberry.relay.types import GlobalID
@@ -91,7 +91,7 @@ class TestPromptMutations:
     """
 
     @pytest.mark.parametrize(
-        "variables,expected_tools,expected_output_schema",
+        "variables",
         [
             pytest.param(
                 {
@@ -109,9 +109,26 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                None,
                 id="basic-input",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "unknown",
+                            "modelName": "unknown",
+                            "tools": [{"definition": {"foo": "bar"}}],
+                        },
+                    }
+                },
+                id="with-tools",
             ),
             pytest.param(
                 {
@@ -126,13 +143,65 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "tools": [{"definition": {"foo": "bar"}}],
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {"location": {"type": "string"}},
+                                            },
+                                        },
+                                    }
+                                }
+                            ],
                         },
                     }
                 },
-                [{"definition": {"foo": "bar"}}],
-                None,
-                id="with-tools",
+                id="with-valid-openai-tools",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                id="with-valid-anthropic-tools",
             ),
             pytest.param(
                 {
@@ -151,8 +220,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                {"definition": {"foo": "bar"}},
                 id="with-output-schema",
             ),
         ],
@@ -162,8 +229,6 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
-        expected_tools: list[dict[str, Any]],
-        expected_output_schema: Optional[dict[str, Any]],
     ) -> None:
         result = await gql_client.execute(self.CREATE_CHAT_PROMPT_MUTATION, variables)
         assert not result.errors
@@ -180,10 +245,14 @@ class TestPromptMutations:
         assert prompt_version.pop("user") is None
         assert prompt_version.pop("templateType") == "CHAT"
         assert prompt_version.pop("templateFormat") == "MUSTACHE"
-        assert prompt_version.pop("modelProvider") == "openai"
-        assert prompt_version.pop("modelName") == "o1-mini"
+        expected_model_provider = variables["input"]["promptVersion"]["modelProvider"]
+        expected_model_name = variables["input"]["promptVersion"]["modelName"]
+        assert prompt_version.pop("modelProvider") == expected_model_provider
+        assert prompt_version.pop("modelName") == expected_model_name
         assert prompt_version.pop("invocationParameters") == {"temperature": 0.4}
+        expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert prompt_version.pop("tools") == expected_tools
+        expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
         assert prompt_version.pop("outputSchema") == expected_output_schema
         assert isinstance(prompt_version.pop("id"), str)
 
@@ -272,6 +341,84 @@ class TestPromptMutations:
                 "Input should be a valid dictionary",
                 id="invalid-output-schema",
             ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "openai",
+                            "modelName": "o1-mini",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "parameters": {
+                                                "type": "invalid_type",  # invalid schema type
+                                                "properties": {"location": {"type": "string"}},
+                                            },
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "function.parameters.type",
+                id="with-invalid-openai-tools",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                        "cache_control": {
+                                            "type": "invalid_type"
+                                        },  # invalid cache control type
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "cache_control.type",
+                id="with-invalid-anthropic-tools",
+            ),
         ],
     )
     async def test_create_chat_prompt_fails_with_invalid_input(
@@ -283,7 +430,7 @@ class TestPromptMutations:
         assert result.data is None
 
     @pytest.mark.parametrize(
-        "variables,expected_tools,expected_output_schema",
+        "variables",
         [
             pytest.param(
                 {
@@ -300,9 +447,25 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                None,
                 id="basic-input",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "promptId": str(GlobalID("Prompt", "1")),
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "unknown",
+                            "modelName": "unknown",
+                            "tools": [{"definition": {"foo": "bar"}}],
+                        },
+                    }
+                },
+                id="with-tools",
             ),
             pytest.param(
                 {
@@ -316,13 +479,24 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "tools": [{"definition": {"foo": "bar"}}],
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {"location": {"type": "string"}},
+                                            },
+                                        },
+                                    }
+                                }
+                            ],
                         },
                     }
                 },
-                [{"definition": {"foo": "bar"}}],
-                None,
-                id="with-tools",
+                id="with-valid-openai-tools",
             ),
             pytest.param(
                 {
@@ -340,9 +514,47 @@ class TestPromptMutations:
                         },
                     }
                 },
-                [],
-                {"definition": {"foo": "bar"}},
                 id="with-output-schema",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "promptId": str(GlobalID("Prompt", "1")),
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                id="with-valid-anthropic-tools",
             ),
         ],
     )
@@ -351,8 +563,6 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
-        expected_tools: list[dict[str, Any]],
-        expected_output_schema: Optional[dict[str, Any]],
     ) -> None:
         # Create initial prompt
         create_prompt_result = await gql_client.execute(
@@ -391,10 +601,14 @@ class TestPromptMutations:
         assert latest_prompt_version.pop("user") is None
         assert latest_prompt_version.pop("templateType") == "CHAT"
         assert latest_prompt_version.pop("templateFormat") == "MUSTACHE"
-        assert latest_prompt_version.pop("modelProvider") == "openai"
-        assert latest_prompt_version.pop("modelName") == "o1-mini"
+        expected_model_provider = variables["input"]["promptVersion"]["modelProvider"]
+        expected_model_name = variables["input"]["promptVersion"]["modelName"]
+        assert latest_prompt_version.pop("modelProvider") == expected_model_provider
+        assert latest_prompt_version.pop("modelName") == expected_model_name
         assert latest_prompt_version.pop("invocationParameters") == {"temperature": 0.4}
+        expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert latest_prompt_version.pop("tools") == expected_tools
+        expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
         assert latest_prompt_version.pop("outputSchema") == expected_output_schema
         assert isinstance(latest_prompt_version.pop("id"), str)
 
@@ -475,6 +689,82 @@ class TestPromptMutations:
                 },
                 "Input should be a valid dictionary",
                 id="invalid-output-schema",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "promptId": str(GlobalID("Prompt", "1")),
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "openai",
+                            "modelName": "o1-mini",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "parameters": {
+                                                "type": "invalid_type",  # invalid schema type
+                                                "properties": {"location": {"type": "string"}},
+                                            },
+                                        },
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "function.parameters.type",
+                id="with-invalid-openai-tools",
+            ),
+            pytest.param(
+                {
+                    "input": {
+                        "promptId": str(GlobalID("Prompt", "1")),
+                        "promptVersion": {
+                            "description": "prompt-version-description",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "anthropic",
+                            "modelName": "claude-2",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "name": "get_weather",
+                                        "description": "Get the current weather in a given location",  # noqa: E501
+                                        "input_schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "location": {
+                                                    "type": "string",
+                                                    "description": "The city and state, e.g. San Francisco, CA",  # noqa: E501
+                                                },
+                                                "unit": {
+                                                    "type": "string",
+                                                    "enum": ["celsius", "fahrenheit"],
+                                                    "description": 'The unit of temperature, either "celsius" or "fahrenheit"',  # noqa: E501
+                                                },
+                                            },
+                                            "required": ["location"],
+                                        },
+                                        "cache_control": {
+                                            "type": "invalid_type"
+                                        },  # invalid cache control type
+                                    }
+                                }
+                            ],
+                        },
+                    }
+                },
+                "cache_control.type",
+                id="with-invalid-anthropic-tools",
             ),
         ],
     )
