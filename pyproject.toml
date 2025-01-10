@@ -59,6 +59,7 @@ dependencies = [
   "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
   "websockets",
+  "jsonschema>=4.0.0,<=4.23.0", # the upper bound is to keep us off the bleeding edge in case there's a regression since this controls what gets written to the database
 ]
 dynamic = ["version"]
 
@@ -93,7 +94,7 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
   "langchain>=0.0.334",
-  "litellm>=1.0.3",
+  "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
   "google-cloud-aiplatform>=1.3",
   "anthropic",
   "prometheus_client",
@@ -102,6 +103,7 @@ dev = [
   "portpicker",
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
+  "types-jsonschema",
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",

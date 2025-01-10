@@ -7,7 +7,7 @@ asyncpg
 grpc-interceptor[testing]
 httpx
 httpx-ws
-litellm>=1.0.3
+litellm>=1.0.3,<1.57.5
 nest-asyncio # for executor testing
 numpy
 openai>=1.0.0
