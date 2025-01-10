@@ -313,13 +313,13 @@ def test_llm_classify_data_processor_list_of_strings(
     respx_mock: respx.mock,
 ):
     list_of_str = [
-        "Python is a programming langauge.",
+        "Python is a programming language.",
         "Your opinion is irrelevant and you should leave",
         "C++ is a programming language",
         "",
     ]
     processed_list_of_str = [
-        "Python is a programming langauge.",
+        "Python is a programming language.",
         "Your opinion is irrelevant and you should leave" + " - FLAGGED",
         "C++ is a programming language",
         "",

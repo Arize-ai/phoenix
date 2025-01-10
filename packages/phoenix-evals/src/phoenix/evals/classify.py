@@ -4,7 +4,6 @@ import inspect
 import logging
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable
 from enum import Enum
 from functools import wraps
 from itertools import product

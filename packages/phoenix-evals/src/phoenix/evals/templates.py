@@ -149,6 +149,8 @@ class ClassificationTemplate(PromptTemplate):
         for _template in [self.template, self.explanation_template]:
             if _template:
                 self.variables.extend(self._parse_variables(template=_template))
+            self.variables = list(set(self.variables))
+
         self._scores = scores
 
     def __repr__(self) -> str:
