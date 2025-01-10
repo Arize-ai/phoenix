@@ -4,6 +4,7 @@ import inspect
 import logging
 import warnings
 from collections import defaultdict
+from collections.abc import Iterable
 from enum import Enum
 from functools import wraps
 from itertools import product
@@ -94,7 +95,7 @@ def deprecate_dataframe_arg(func: Callable[..., Any]) -> Callable[..., Any]:
 
 @deprecate_dataframe_arg
 def llm_classify(
-    data: Union[pd.DataFrame, List[Any], Tuple[Any]],
+    data: Union[pd.DataFrame, List[Any]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
@@ -119,8 +120,11 @@ def llm_classify(
     `provide_explanation=True`.
 
     Args:
-        data (Union[pd.DataFrame, List[Any], Tuple[Any]): A collection of data which
+        data (Union[pd.DataFrame, List[Any]): A collection of data which
             can contain template variables and other information necessary to generate evaluations.
+            If a passed a DataFrame, there must be column names that match the template variables.
+            If passed a list, the elements of the list will be mapped to the template variables
+            in the order that the template variables are defined.
 
         model (BaseEvalModel): An LLM model class.
 
@@ -132,8 +136,11 @@ def llm_classify(
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
 
-        data_processor (Optional[Callable[[T], T]]): An optional general-purpose function which
-            can be run as a coroutine to process the data before it is passed to the model.
+        data_processor (Optional[Callable[[T], T]]): An optional callable that is used to process
+            the input data before it is mapped to the template variables. This callable is passed
+            a single element of the input data and can return either a pandas.Series with indices
+            corresponding to the template variables or an iterable of values that will be mapped
+            to the template variables in the order that the template variables are defined.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -247,28 +254,34 @@ def llm_classify(
     def _normalize_to_series(
         data: PROCESSOR_TYPE,
     ) -> pd.Series[Any]:
-        if isinstance(data, (list, tuple)):
-            return pd.Series(
-                {
-                    template_var: input_val
-                    for template_var, input_val in zip(eval_template.variables, data)
-                }
-            )
-        elif isinstance(data, str):
-            return pd.Series({eval_template.variables[0]: data})
-        elif isinstance(data, pd.Series):
+        if isinstance(data, pd.Series):
             return data
-        else:
-            raise ValueError("Unsupported data type")
+
+        variable_count = len(eval_template.variables)
+        if variable_count == 1:
+            return pd.Series({eval_template.variables[0]: data})
+        elif variable_count > 1:
+            if isinstance(data, str):
+                raise ValueError("The data cannot be mapped to the template variables")
+            elif isinstance(data, Iterable):
+                return pd.Series(
+                    {
+                        template_var: input_val
+                        for template_var, input_val in zip(eval_template.variables, data)
+                    }
+                )
+        return pd.Series()
 
     async def _run_llm_classification_async(
         input_data: PROCESSOR_TYPE,
     ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             if data_processor:
-                processed_data = data_processor(input_data)
-                if inspect.isawaitable(processed_data):
-                    processed_data = await processed_data
+                maybe_awaitable_data = data_processor(input_data)
+                if inspect.isawaitable(maybe_awaitable_data):
+                    processed_data = await maybe_awaitable_data
+                else:
+                    processed_data = maybe_awaitable_data
             else:
                 processed_data = input_data
 
@@ -286,7 +299,7 @@ def llm_classify(
             if data_processor:
                 processed_data = data_processor(input_data)
                 if inspect.isawaitable(processed_data):
-                    raise ValueError("data_processor must be a synchronous function")
+                    raise ValueError("Cannot run the data processor asynchronously.")
             else:
                 processed_data = input_data
 
