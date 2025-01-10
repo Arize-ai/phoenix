@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -15,11 +15,11 @@ import {
   PopoverArrow,
   View,
 } from "@phoenix/components";
+import { DEFAULT_PROMPT_VERSTION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import { TagPromptVersionButtonTagsQuery } from "./__generated__/TagPromptVersionButtonTagsQuery.graphql";
 import { NewPromptVersionDialog } from "./NewPromptVersionTagDialog";
-
 export function TagPromptVersionButton() {
   const [showNewTagDialog, setShowNewTagDialog] = useState<boolean>(false);
   const [fetchKey, setFetchKey] = useState<number>(0);
@@ -131,10 +131,21 @@ function TagList({
     { promptId, versionId },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
-  const allVersionTags =
-    data?.prompt?.versionTags?.map((tag) => tag.name) || [];
-  const versionTags = data?.promptVersion?.tags?.map((tag) => tag.name) || [];
 
+  const versionTags = useMemo(() => {
+    return data?.promptVersion?.tags?.map((tag) => tag.name) || [];
+  }, [data?.promptVersion?.tags]);
+
+  const allVersionTags = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...DEFAULT_PROMPT_VERSTION_TAGS.map(
+          (tagDefinition) => tagDefinition.name
+        ),
+        ...versionTags,
+      ])
+    );
+  }, [versionTags]);
   const [commitSetTag, isCommitting] = useMutation(graphql`
     mutation TagPromptVersionButtonSetTagMutation(
       $input: SetPromptVersionTagInput!
@@ -151,7 +162,7 @@ function TagList({
   `);
   return (
     <ul>
-      {allVersionTags.map((tagName) => {
+      {allVersionTags.map((tagName: string) => {
         const isTagSet = versionTags.includes(tagName);
         return (
           <li key={tagName}>
@@ -169,11 +180,21 @@ function TagList({
                   disabled={isTagSet || isCommitting}
                   onChange={(e) => {
                     if (e.target.checked) {
+                      const isCreate = !versionTags.includes(tagName);
+                      let description = "";
+                      if (isCreate) {
+                        const tagDefinition = DEFAULT_PROMPT_VERSTION_TAGS.find(
+                          (tagDefinition) => tagDefinition.name === tagName
+                        );
+                        description = tagDefinition?.description || "";
+                      }
+
                       commitSetTag({
                         variables: {
                           input: {
                             name: tagName,
                             promptVersionId: versionId,
+                            description,
                           },
                           promptVersionId: versionId,
                         },
@@ -184,7 +205,7 @@ function TagList({
                     }
                   }}
                 />
-                {tagName}
+                <span>{tagName}</span>
               </Flex>
             </View>
           </li>

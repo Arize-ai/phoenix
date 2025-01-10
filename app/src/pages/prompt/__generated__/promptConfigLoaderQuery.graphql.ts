@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<697fd8162e04f6dbc5b2d8368532a6cd>>
+ * @generated SignedSource<<20251278e05a94ba1420352729610dc1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -130,6 +130,13 @@ return {
                     "kind": "ScalarField",
                     "name": "description",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "promptVersionId",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -144,12 +151,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2245ccefab235f7ff373ef8349f9a687",
+    "cacheID": "3b99248824fdc64b0a16632d83801a44",
     "id": null,
     "metadata": {},
     "name": "promptConfigLoaderQuery",
     "operationKind": "query",
-    "text": "query promptConfigLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n  }\n}\n"
+    "text": "query promptConfigLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    ... on Prompt {\n      ...PromptVersionTagsConfigCard_data\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
   }
 };
 })();
