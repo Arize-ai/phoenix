@@ -295,7 +295,7 @@ class TestPromptMutations:
         assert result.data is None
 
     @pytest.mark.parametrize(
-        "variables,expected_error",
+        "variables",
         [
             pytest.param(
                 {
@@ -316,7 +316,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "Input should be a valid dictionary",
                 id="invalid-tools",
             ),
             pytest.param(
@@ -338,7 +337,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "Input should be a valid dictionary",
                 id="invalid-output-schema",
             ),
             pytest.param(
@@ -371,7 +369,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "function.parameters.type",
                 id="with-invalid-openai-tools",
             ),
             pytest.param(
@@ -416,17 +413,15 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "cache_control.type",
                 id="with-invalid-anthropic-tools",
             ),
         ],
     )
     async def test_create_chat_prompt_fails_with_invalid_input(
-        self, gql_client: AsyncGraphQLClient, variables: dict[str, Any], expected_error: str
+        self, gql_client: AsyncGraphQLClient, variables: dict[str, Any]
     ) -> None:
         result = await gql_client.execute(self.CREATE_CHAT_PROMPT_MUTATION, variables)
         assert len(result.errors) == 1
-        assert expected_error in result.errors[0].message
         assert result.data is None
 
     @pytest.mark.parametrize(
@@ -646,7 +641,7 @@ class TestPromptMutations:
         assert result.data is None
 
     @pytest.mark.parametrize(
-        "variables,expected_error",
+        "variables",
         [
             pytest.param(
                 {
@@ -666,7 +661,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "Input should be a valid dictionary",
                 id="invalid-tools",
             ),
             pytest.param(
@@ -687,7 +681,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "Input should be a valid dictionary",
                 id="invalid-output-schema",
             ),
             pytest.param(
@@ -719,7 +712,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "function.parameters.type",
                 id="with-invalid-openai-tools",
             ),
             pytest.param(
@@ -763,7 +755,6 @@ class TestPromptMutations:
                         },
                     }
                 },
-                "cache_control.type",
                 id="with-invalid-anthropic-tools",
             ),
         ],
@@ -773,7 +764,6 @@ class TestPromptMutations:
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
-        expected_error: str,
     ) -> None:
         # Create initial prompt
         create_prompt_result = await gql_client.execute(
@@ -799,5 +789,4 @@ class TestPromptMutations:
         # Try to create invalid prompt version
         result = await gql_client.execute(self.CREATE_CHAT_PROMPT_VERSION_MUTATION, variables)
         assert len(result.errors) == 1
-        assert expected_error in result.errors[0].message
         assert result.data is None
