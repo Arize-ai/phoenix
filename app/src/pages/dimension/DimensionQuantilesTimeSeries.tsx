@@ -15,8 +15,7 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text, theme } from "@arizeai/components";
-
+import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
@@ -79,7 +78,7 @@ function TooltipContent({
     const data: ChartDataItem = payload[0].payload;
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
+        <Text weight="heavy" size="S">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -264,7 +263,7 @@ export function DimensionQuantilesTimeSeries({
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           label={{
             value: "Value",
             angle: -90,
@@ -279,7 +278,7 @@ export function DimensionQuantilesTimeSeries({
         />
         <CartesianGrid
           strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
+          stroke="var(--ac-global-color-grey-500)"
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />

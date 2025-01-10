@@ -1,5 +1,99 @@
 # Changelog
 
+## [7.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.2...arize-phoenix-v7.6.0) (2025-01-09)
+
+
+### Features
+
+* **playground:** Support anyOf json schema ([#5927](https://github.com/Arize-ai/phoenix/issues/5927)) ([16ca5f9](https://github.com/Arize-ai/phoenix/commit/16ca5f9463ef43b684847a94fdc756e57529a435))
+
+
+### Bug Fixes
+
+* return 200 status code for POST v1/traces ([#5962](https://github.com/Arize-ai/phoenix/issues/5962)) ([421852b](https://github.com/Arize-ai/phoenix/commit/421852b7dedefa0b910dd1d0cee693620af4c98b))
+
+## [7.5.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.1...arize-phoenix-v7.5.2) (2025-01-07)
+
+
+### Bug Fixes
+
+* add id fields to annotations so that relay caches anotations correctly ([#5919](https://github.com/Arize-ai/phoenix/issues/5919)) ([09a4c25](https://github.com/Arize-ai/phoenix/commit/09a4c2537bb384f508f9aaaf04dd7d71ab28195a))
+
+## [7.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.0...arize-phoenix-v7.5.1) (2025-01-04)
+
+
+### Bug Fixes
+
+* default prompt / completion tokens to 0 ([#5897](https://github.com/Arize-ai/phoenix/issues/5897)) ([8cfc138](https://github.com/Arize-ai/phoenix/commit/8cfc138ace0ec05794f0efb1dc1ed0f93ea8d298))
+
+## [7.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.4.0...arize-phoenix-v7.5.0) (2025-01-03)
+
+
+### Features
+
+* **components:** Disclosure (fka Accordion) ([#5873](https://github.com/Arize-ai/phoenix/issues/5873)) ([ea8a7c7](https://github.com/Arize-ai/phoenix/commit/ea8a7c7fba24c289c8009ea3f795cf463557d63a))
+
+
+### Bug Fixes
+
+* **components:** Add class names to Disclosure for backwards compatibility with Accordion ([#5889](https://github.com/Arize-ai/phoenix/issues/5889)) ([8c8271e](https://github.com/Arize-ai/phoenix/commit/8c8271e1bd22b71e4f3b98fd5ac372d3afb00170))
+* **graphql:** coerce to string when output.value is not None (e.g. bool) ([#5892](https://github.com/Arize-ai/phoenix/issues/5892)) ([5c7e6d3](https://github.com/Arize-ai/phoenix/commit/5c7e6d3ebcd63e98586060732f3cf974a6f8c7aa))
+
+## [7.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.2...arize-phoenix-v7.4.0) (2025-01-02)
+
+
+### Features
+
+* **components:** TextField ([#5850](https://github.com/Arize-ai/phoenix/issues/5850)) ([e91408d](https://github.com/Arize-ai/phoenix/commit/e91408d6ce07d08c2fef09415803c234ca728106))
+* **docs:** add support links ([#5829](https://github.com/Arize-ai/phoenix/issues/5829)) ([dd8ae20](https://github.com/Arize-ai/phoenix/commit/dd8ae2034cd96029a31ff80ea3bf6852fe1a5112))
+* show a breakdown of tokens in the project header ([#5876](https://github.com/Arize-ai/phoenix/issues/5876)) ([179859b](https://github.com/Arize-ai/phoenix/commit/179859bde2986ceb046d3bc318966a6867346746))
+
+
+### Bug Fixes
+
+* skip json parse if tool call function arguments attribute doesn't exist ([#5874](https://github.com/Arize-ai/phoenix/issues/5874)) ([878f1c1](https://github.com/Arize-ai/phoenix/commit/878f1c1feed8f3d4903601b8722e37a92efea556))
+
+## [7.3.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.1...arize-phoenix-v7.3.2) (2024-12-24)
+
+
+### Bug Fixes
+
+* **playground:** add common base class for OpenAI and AzureOpenAI streaming clients ([#5823](https://github.com/Arize-ai/phoenix/issues/5823)) ([9b8f10e](https://github.com/Arize-ai/phoenix/commit/9b8f10e942387e2dc230371a3715c71e2cd01e83))
+
+## [7.3.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.3.0...arize-phoenix-v7.3.1) (2024-12-23)
+
+
+### Bug Fixes
+
+* increase default wait time for uvicorn server process start ([#5818](https://github.com/Arize-ai/phoenix/issues/5818)) ([a4cef8e](https://github.com/Arize-ai/phoenix/commit/a4cef8e227516fced7bfc8471b988c21a88236bd))
+
+## [7.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.2.0...arize-phoenix-v7.3.0) (2024-12-21)
+
+
+### Features
+
+* **components:** styled button ([#5803](https://github.com/Arize-ai/phoenix/issues/5803)) ([e8afaa8](https://github.com/Arize-ai/phoenix/commit/e8afaa8d5aa421be2cddcaf515162b5d86f0a110))
+* **playground:** Update o1 model listing and params ([#5773](https://github.com/Arize-ai/phoenix/issues/5773)) ([aabe535](https://github.com/Arize-ai/phoenix/commit/aabe5359c86dd931fb70fb4f3d7663b9d608882b))
+* **tracing:** pretty print JSON strings for structured data outputs ([#5811](https://github.com/Arize-ai/phoenix/issues/5811)) ([b371f7c](https://github.com/Arize-ai/phoenix/commit/b371f7c4a05af80601fdb9660e20baf70d55de6c))
+
+
+### Bug Fixes
+
+* fix light mode filters and colors ([#5789](https://github.com/Arize-ai/phoenix/issues/5789)) ([6d8f0c6](https://github.com/Arize-ai/phoenix/commit/6d8f0c6cc31d91e0b07edf55786ccbfd486e856d))
+
+## [7.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.1.1...arize-phoenix-v7.2.0) (2024-12-18)
+
+
+### Features
+
+* **playground:** Enhance template editor ergonomics ([#5715](https://github.com/Arize-ai/phoenix/issues/5715)) ([1c593a4](https://github.com/Arize-ai/phoenix/commit/1c593a47967ea78d569b6538720678a921bcbb92))
+
+
+### Bug Fixes
+
+* **sessions:** exclude null input/output values in dataloader query for sessions table ([#5781](https://github.com/Arize-ai/phoenix/issues/5781)) ([fb1330f](https://github.com/Arize-ai/phoenix/commit/fb1330fdc61c756adcade2cf29f893d504ef3243))
+* update index.html ([#5783](https://github.com/Arize-ai/phoenix/issues/5783)) ([bca3b09](https://github.com/Arize-ai/phoenix/commit/bca3b0972fa75ff27516d98ec4d3f8db3de9fe29))
+
 ## [7.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.1.0...arize-phoenix-v7.1.1) (2024-12-11)
 
 

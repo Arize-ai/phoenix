@@ -1,6 +1,8 @@
 import React, { ReactNode, useState } from "react";
 
-import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
+
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { EditExampleDialog, EditExampleDialogProps } from "./EditExampleDialog";
 
@@ -11,10 +13,9 @@ export function EditExampleButton(props: EditExampleButtonProps) {
   return (
     <>
       <Button
-        variant="default"
-        size="compact"
+        size="S"
         icon={<Icon svg={<Icons.EditOutline />} />}
-        onClick={() =>
+        onPress={() =>
           setDialog(
             <EditExampleDialog
               {...dialogProps}

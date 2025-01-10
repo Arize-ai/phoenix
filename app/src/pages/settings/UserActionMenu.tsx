@@ -1,14 +1,8 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 
-import {
-  ActionMenu,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  Item,
-  Text,
-} from "@arizeai/components";
+import { ActionMenu, DialogContainer, Item } from "@arizeai/components";
+
+import { Flex, Icon, Icons } from "@phoenix/components";
 
 import { AuthMethod } from "./__generated__/UsersTable_users.graphql";
 import { DeleteUserDialog } from "./DeleteUserDialog";
@@ -62,7 +56,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           alignItems={"center"}
         >
           <Icon svg={<Icons.TrashOutline />} />
-          <Text>Delete</Text>
+          <>Delete</>
         </Flex>
       </Item>
     );
@@ -76,7 +70,7 @@ export function UserActionMenu(props: UserActionMenuProps) {
           alignItems={"center"}
         >
           <Icon svg={<Icons.Refresh />} />
-          <Text>Reset Password</Text>
+          <>Reset Password</>
         </Flex>
       </Item>
     );

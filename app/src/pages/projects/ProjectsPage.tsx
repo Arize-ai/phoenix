@@ -9,15 +9,9 @@ import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Heading,
-  Text,
-  useNotification,
-  View,
-} from "@arizeai/components";
+import { useNotification } from "@arizeai/components";
 
-import { Link, Loading } from "@phoenix/components";
+import { Flex, Heading, Link, Loading, Text, View } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useLastNTimeRange,
@@ -331,7 +325,7 @@ function ProjectItem({
             >
               {project.name}
             </Heading>
-            <Text color="text-700" textSize="small" fontStyle="italic">
+            <Text color="text-700" size="XS" fontStyle="italic">
               {lastUpdatedText}
             </Text>
           </Flex>
@@ -347,25 +341,25 @@ function ProjectItem({
 
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
             Total Traces
           </Text>
-          <Text textSize="xlarge">{intFormatter(traceCount)}</Text>
+          <Text size="L">{intFormatter(traceCount)}</Text>
         </Flex>
         <Flex direction="column" flex="none">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
             Total Tokens
           </Text>
-          <Text textSize="xlarge">{intFormatter(tokenCountTotal)}</Text>
+          <Text size="L">{intFormatter(tokenCountTotal)}</Text>
         </Flex>
         <Flex direction="column" flex="none">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
             Latency P50
           </Text>
           {latencyMsP50 != null ? (
-            <LatencyText latencyMs={latencyMsP50} textSize="xlarge" />
+            <LatencyText latencyMs={latencyMsP50} size="L" />
           ) : (
-            <Text textSize="xlarge">--</Text>
+            <Text size="L">--</Text>
           )}
         </Flex>
       </Flex>

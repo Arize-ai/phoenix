@@ -1,9 +1,6 @@
 import React from "react";
-import { css } from "@emotion/react";
 
-import { Button, Icon, Icons } from "@arizeai/components";
-
-import { Loading } from "@phoenix/components";
+import { Button, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export function PlaygroundRunButton() {
@@ -20,25 +17,14 @@ export function PlaygroundRunButton() {
     <Button
       variant="primary"
       icon={
-        !isRunning ? (
-          <Icon svg={<Icons.PlayCircleOutline />} />
-        ) : (
-          <div
-            css={css`
-              margin-right: var(--ac-global-dimension-static-size-50);
-              & > * {
-                height: 1em;
-                width: 1em;
-                font-size: 1.3rem;
-              }
-            `}
-          >
-            <Loading size="S" />
-          </div>
-        )
+        <Icon
+          svg={
+            isRunning ? <Icons.LoadingOutline /> : <Icons.PlayCircleOutline />
+          }
+        />
       }
-      size="compact"
-      onClick={() => {
+      size="S"
+      onPress={() => {
         if (isRunning) {
           cancelPlaygroundInstances();
         } else {

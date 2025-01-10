@@ -2,15 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Flex,
-  Form,
-  TextArea,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Form, TextArea, TextField } from "@arizeai/components";
 
+import { Button, Flex, View } from "@phoenix/components";
 export type AnnotationFormData = {
   name: string;
   score?: number | null;
@@ -189,8 +183,8 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               <Button
                 variant={isDirty ? "primary" : "default"}
                 type="submit"
-                size="compact"
-                disabled={!isValid || !isDirty || isSubmitting}
+                size="S"
+                isDisabled={!isValid || !isDirty || isSubmitting}
               >
                 {isSubmitting ? "Saving..." : "Save"}
               </Button>

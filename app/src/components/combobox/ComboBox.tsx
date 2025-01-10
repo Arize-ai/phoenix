@@ -13,13 +13,13 @@ import {
   Text,
   ValidationResult,
 } from "react-aria-components";
+import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
-
+import { Icon, Icons } from "@phoenix/components";
+import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps } from "@phoenix/components/types";
 
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
-
 export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children">,
     SizingProps {
@@ -51,7 +51,7 @@ export function ComboBox<T extends object>({
   return (
     <AriaComboBox
       {...props}
-      css={comboBoxCSS}
+      css={css(fieldBaseCSS, comboBoxCSS)}
       data-size={size}
       style={{
         width,

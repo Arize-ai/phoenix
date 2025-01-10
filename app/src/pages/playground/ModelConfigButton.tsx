@@ -12,21 +12,17 @@ import debounce from "lodash/debounce";
 import { css } from "@emotion/react";
 
 import {
-  Button,
   Dialog,
   DialogContainer,
-  Flex,
-  Icon,
-  Icons,
   Item,
   Picker,
-  Text,
   TextField,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
@@ -171,16 +167,12 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
   return (
     <Fragment>
       <Button
-        variant="default"
-        size="compact"
-        onClick={() => {
+        size="S"
+        onPress={() => {
           startTransition(() => {
             setDialog(<ModelConfigDialog {...props} />);
           });
         }}
-        title={`${ModelProviders[instance.model.provider]} ${
-          instance.model.modelName || "--"
-        }`}
       >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
@@ -263,9 +255,9 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
       extra={
         <TooltipTrigger delay={0} offset={5}>
           <Button
-            size={"compact"}
+            size="S"
             variant="default"
-            onClick={onSaveConfig}
+            onPress={onSaveConfig}
             icon={<Icon svg={<Icons.SaveOutline />} />}
           >
             Save as Default

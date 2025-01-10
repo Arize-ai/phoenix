@@ -290,8 +290,14 @@ class Span(Node):
 
 def to_gql_span(span: models.Span) -> Span:
     events: list[SpanEvent] = list(map(SpanEvent.from_dict, span.events))
-    input_value = cast(Optional[str], get_attribute_value(span.attributes, INPUT_VALUE))
-    output_value = cast(Optional[str], get_attribute_value(span.attributes, OUTPUT_VALUE))
+    input_value = get_attribute_value(span.attributes, INPUT_VALUE)
+    if input_value is not None:
+        input_value = str(input_value)
+    assert input_value is None or isinstance(input_value, str)
+    output_value = get_attribute_value(span.attributes, OUTPUT_VALUE)
+    if output_value is not None:
+        output_value = str(output_value)
+    assert output_value is None or isinstance(output_value, str)
     retrieval_documents = get_attribute_value(span.attributes, RETRIEVAL_DOCUMENTS)
     num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(

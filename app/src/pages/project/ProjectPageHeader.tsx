@@ -2,11 +2,12 @@ import React, { ReactNode, startTransition, useEffect } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@arizeai/components";
+import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
+import { Flex, Text, View } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatInt, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ProjectPageHeader_stats$key } from "./__generated__/ProjectPageHeader_stats.graphql";
 import { ProjectPageHeaderQuery } from "./__generated__/ProjectPageHeaderQuery.graphql";
@@ -31,6 +32,8 @@ export function ProjectPageHeader(props: {
       @refetchable(queryName: "ProjectPageHeaderQuery") {
         traceCount(timeRange: $timeRange)
         tokenCountTotal(timeRange: $timeRange)
+        tokenCountPrompt(timeRange: $timeRange)
+        tokenCountCompletion(timeRange: $timeRange)
         latencyMsP50: latencyMsQuantile(
           probability: 0.50
           timeRange: $timeRange
@@ -56,6 +59,8 @@ export function ProjectPageHeader(props: {
   const latencyMsP50 = data?.latencyMsP50;
   const latencyMsP99 = data?.latencyMsP99;
   const tokenCountTotal = data?.tokenCountTotal;
+  const tokenCountPrompt = data?.tokenCountPrompt;
+  const tokenCountCompletion = data?.tokenCountCompletion;
   const spanAnnotationNames = data?.spanAnnotationNames;
   const documentEvaluationNames = data?.documentEvaluationNames;
 
@@ -109,36 +114,70 @@ export function ProjectPageHeader(props: {
         >
           <Flex direction="row" gap="size-400" alignItems="center">
             <Flex direction="column" flex="none">
-              <Text elementType="h3" textSize="medium" color="text-700">
+              <Text elementType="h3" size="S" color="text-700">
                 Total Traces
               </Text>
-              <Text textSize="xlarge">{intFormatter(data?.traceCount)}</Text>
+              <Text size="L">{intFormatter(data?.traceCount)}</Text>
             </Flex>
             <Flex direction="column" flex="none">
-              <Text elementType="h3" textSize="medium" color="text-700">
+              <Text elementType="h3" size="S" color="text-700">
                 Total Tokens
               </Text>
-              <Text textSize="xlarge">{intFormatter(tokenCountTotal)}</Text>
+              <TooltipTrigger delay={0} placement="bottom">
+                <TriggerWrap>
+                  <Text size="L">{intFormatter(tokenCountTotal)}</Text>
+                </TriggerWrap>
+                <HelpTooltip>
+                  <View width="size-2400">
+                    <Flex direction="column">
+                      <Flex justifyContent="space-between">
+                        <Text>Prompt Tokens</Text>
+                        <Text>
+                          {typeof tokenCountPrompt === "number"
+                            ? formatInt(tokenCountPrompt)
+                            : "--"}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Completion Tokens</Text>
+                        <Text>
+                          {typeof tokenCountCompletion === "number"
+                            ? formatInt(tokenCountCompletion)
+                            : "--"}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Total Tokens</Text>
+                        <Text>
+                          {typeof tokenCountTotal === "number"
+                            ? formatInt(tokenCountTotal)
+                            : "--"}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </View>
+                </HelpTooltip>
+              </TooltipTrigger>
             </Flex>
             <Flex direction="column" flex="none">
-              <Text elementType="h3" textSize="medium" color="text-700">
+              <Text elementType="h3" size="S" color="text-700">
                 Latency P50
               </Text>
               {latencyMsP50 != null ? (
-                <LatencyText latencyMs={latencyMsP50} textSize="xlarge" />
+                <LatencyText latencyMs={latencyMsP50} size="L" />
               ) : (
-                <Text textSize="xlarge">--</Text>
+                <Text size="L">--</Text>
               )}
             </Flex>
             <Flex direction="column" flex="none">
-              <Text elementType="h3" textSize="medium" color="text-700">
+              <Text elementType="h3" size="S" color="text-700">
                 Latency P99
               </Text>
 
               {latencyMsP99 != null ? (
-                <LatencyText latencyMs={latencyMsP99} textSize="xlarge" />
+                <LatencyText latencyMs={latencyMsP99} size="L" />
               ) : (
-                <Text textSize="xlarge">--</Text>
+                <Text size="L">--</Text>
               )}
             </Flex>
             {spanAnnotationNames.map((name) => (

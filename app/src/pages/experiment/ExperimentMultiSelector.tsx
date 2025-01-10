@@ -6,12 +6,11 @@ import {
   DropdownProps,
   Field,
   FieldProps,
-  Flex,
   Item,
   ListBox,
-  Text,
 } from "@arizeai/components";
 
+import { Flex, Text } from "@phoenix/components";
 import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
 
 import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";
@@ -101,7 +100,7 @@ export function ExperimentMultiSelector(
 
                     <Text>{experiment.name}</Text>
                   </Flex>
-                  <Text textSize="small" color="text-700">
+                  <Text size="XS" color="text-700">
                     {new Date(experiment.createdAt).toLocaleString()}
                   </Text>
                 </Flex>

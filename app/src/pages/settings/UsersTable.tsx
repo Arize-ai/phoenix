@@ -15,8 +15,9 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { DialogContainer, Flex, Icon, Icons } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
+import { Flex, Icon, Icons } from "@phoenix/components";
 import { RolePicker } from "@phoenix/components/settings/RolePicker";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";

@@ -1,4 +1,4 @@
-import { css, Theme } from "@emotion/react";
+import { css } from "@emotion/react";
 
 export const resizeHandleCSS = css`
   transition: 250ms linear all;
@@ -50,7 +50,7 @@ export const resizeHandleCSS = css`
   }
 `;
 
-export const compactResizeHandleCSS = (theme: Theme) => css`
+export const compactResizeHandleCSS = css`
   transition: 250ms linear all;
   background-color: var(--ac-global-color-grey-200);
   --px-resize-handle-size: 4px;
@@ -63,6 +63,6 @@ export const compactResizeHandleCSS = (theme: Theme) => css`
   }
 
   &:hover {
-    background-color: ${theme.colors.arizeLightBlue};
+    background-color: var(--ac-global-color-primary);
   }
 `;

@@ -1,7 +1,5 @@
 import { ReferenceLineProps, TooltipProps, XAxisProps } from "recharts";
 
-import { theme } from "@arizeai/components";
-
 /**
  * Re-usable default props for the XAxis component.
  */
@@ -22,7 +20,7 @@ export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
     position: "top",
     style: {
       fill: "#fabe32",
-      fontSize: theme.typography.sizes.small.fontSize,
+      fontSize: "var(--ac-global-font-size-xs)",
     },
   },
 };

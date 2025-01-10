@@ -1,8 +1,9 @@
 import React from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { ActionMenu, Icon, Icons, Item } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
 
+import { Icon, Icons } from "@phoenix/components";
 import { useGlobalNotification, usePointCloudContext } from "@phoenix/contexts";
 
 import { EmbeddingActionMenuExportClustersMutation } from "./__generated__/EmbeddingActionMenuExportClustersMutation.graphql";
@@ -62,7 +63,7 @@ export function EmbeddingActionMenu() {
       }}
     >
       <Item key="export_cluster">
-        <Icon svg={<Icons.Download />} />
+        <Icon svg={<Icons.DownloadOutline />} />
         Export clusters
       </Item>
     </ActionMenu>

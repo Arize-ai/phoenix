@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Text, View } from "@arizeai/components";
+import { Text, View } from "@phoenix/components";
 
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
@@ -68,9 +68,7 @@ export function AnnotationTooltipFilterActions(
       marginStart="size-200"
       width={300}
     >
-      <Text textSize="large" weight="heavy">
-        Filters
-      </Text>
+      <Text weight="heavy">Filters</Text>
 
       <ul
         css={css`
@@ -112,7 +110,7 @@ function FilterItem({
       className="button--reset"
       css={css`
         color: var(--ac-global-text-color-900);
-        border: 1px solid var(--ac-global-color-gray-200);
+        border: 1px solid var(--ac-global-color-grey-300);
         border-radius: 4px;
         padding: var(--ac-global-dimension-size-50)
           var(--ac-global-dimension-size-100);

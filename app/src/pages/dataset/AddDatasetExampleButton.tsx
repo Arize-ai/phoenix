@@ -1,6 +1,8 @@
 import React, { ReactNode, useCallback, useState } from "react";
 
-import { Button, DialogContainer, Icon, Icons } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
+
+import { Button, Icon, Icons } from "@phoenix/components";
 
 import { AddDatasetExampleDialog } from "./AddDatasetExampleDialog";
 
@@ -28,9 +30,8 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
     <>
       <Button
         icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        size="compact"
-        variant="default"
-        onClick={onAddExample}
+        size="S"
+        onPress={onAddExample}
       >
         Add Example
       </Button>

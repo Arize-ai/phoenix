@@ -1,9 +1,7 @@
 import React from "react";
 
-import { Flex } from "@arizeai/components";
-
+import { Flex } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-
 /**
  * Display the alphabetic index and title in a single line
  */

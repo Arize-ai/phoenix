@@ -4,9 +4,15 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
-
-import { Link, Loading } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  Link,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -83,6 +89,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountPrompt
                     tokenCountCompletion
                     spanAnnotations {
+                      id
                       name
                       label
                       score
@@ -203,25 +210,25 @@ function TraceHeader({
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
       <Flex direction="row" gap="size-400" alignItems={"center"}>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="M" color="text-700">
             Trace Status
           </Text>
-          <Text textSize="xlarge">
+          <Text size="XL">
             <Flex direction="row" gap="size-50" alignItems="center">
               <SpanStatusCodeIcon statusCode={statusCode} />
-              <Text textSize="xlarge" color={statusColor}>
+              <Text size="L" color={statusColor}>
                 {statusCode}
               </Text>
             </Flex>
           </Text>
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="text-700">
+          <Text elementType="h3" size="M" color="text-700">
             Latency
           </Text>
-          <Text textSize="xlarge">
+          <Text size="XL">
             {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
+              <LatencyText latencyMs={latencyMs} size="L" />
             ) : (
               "--"
             )}
@@ -229,7 +236,7 @@ function TraceHeader({
         </Flex>
         {hasAnnotations ? (
           <Flex direction="column" gap="size-50">
-            <Text elementType="h3" textSize="medium" color="text-700">
+            <Text elementType="h3" size="M" color="text-700">
               Feedback
             </Text>
             <Flex direction="row" gap="size-50">

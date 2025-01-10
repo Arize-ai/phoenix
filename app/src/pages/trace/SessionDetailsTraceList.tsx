@@ -1,13 +1,12 @@
 import React, { useMemo } from "react";
 import { isNumber, isString } from "lodash";
 
-import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
 import {
   SemanticAttributePrefixes,
   UserAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { Link } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -65,14 +64,12 @@ function RootSpanMessage({
       borderRadius={"medium"}
       borderColor={"dark"}
       borderWidth={"thin"}
-      padding={"size-200"}
+      padding="size-200"
       maxWidth={"70%"}
       {...styles}
     >
       <Flex direction={"column"} gap={"size-50"}>
-        <Text color="text-700" textSize="medium">
-          {role}
-        </Text>
+        <Text color="text-700">{role}</Text>
         {mimeType === "json" ? (
           <JSONBlock value={valueString} />
         ) : (
@@ -112,7 +109,7 @@ function RootSpanDetails({
         justifyContent={"space-between"}
         height={"100%"}
       >
-        <Flex direction={"column"} gap={"size-200"}>
+        <Flex direction={"column"} gap="size-200">
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace #{index + 1}</Text>
             <Link
@@ -151,7 +148,7 @@ function RootSpanDetails({
           alignItems="end"
         >
           <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
-            <Text textSize="medium">Feedback</Text>
+            <Text>Feedback</Text>
             <Flex gap={"size-50"} direction={"column"}>
               {rootSpan.spanAnnotations.length > 0
                 ? rootSpan.spanAnnotations.map((annotation) => (
@@ -170,7 +167,7 @@ function RootSpanDetails({
           </Flex>
           <span>
             <EditSpanAnnotationsButton
-              size={"compact"}
+              size="S"
               spanNodeId={rootSpan.id}
               projectId={rootSpan.project.id}
             />
@@ -224,12 +221,12 @@ export function SessionDetailsTraceList({
             <View
               borderRightWidth={"thin"}
               borderEndColor={"dark"}
-              padding={"size-200"}
+              padding="size-200"
               flex={"1 1 auto"}
             >
               <RootSpanInputOutput rootSpan={rootSpan} />
             </View>
-            <View width={350} padding={"size-200"} flex="none">
+            <View width={350} padding="size-200" flex="none">
               <RootSpanDetails rootSpan={rootSpan} index={index} />
             </View>
           </Flex>

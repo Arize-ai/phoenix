@@ -3,12 +3,12 @@ import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { AddonBefore, Flex, Icon, Icons } from "@arizeai/components";
+import { AddonBefore } from "@arizeai/components";
 
-import { useTheme } from "../../contexts";
+import { Flex, Icon, Icons } from "@phoenix/components";
+import { useTheme } from "@phoenix/contexts";
 
 import { useSessionSearchContext } from "./SessionSearchContext";
-
 const codeMirrorCSS = css`
   flex: 1 1 auto;
   .cm-content {

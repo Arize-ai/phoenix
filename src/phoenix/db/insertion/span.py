@@ -100,19 +100,30 @@ async def insert_span(
     )
 
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
-    cumulative_llm_token_count_prompt = cast(
-        int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
-    )
-    cumulative_llm_token_count_completion = cast(
-        int, get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
-    )
-    llm_token_count_prompt = cast(
-        Optional[int], get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT)
-    )
-    llm_token_count_completion = cast(
-        Optional[int],
-        get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION),
-    )
+    try:
+        cumulative_llm_token_count_prompt = int(
+            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
+        )
+    except BaseException:
+        cumulative_llm_token_count_prompt = 0
+    try:
+        cumulative_llm_token_count_completion = int(
+            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
+        )
+    except BaseException:
+        cumulative_llm_token_count_completion = 0
+    try:
+        llm_token_count_prompt = int(
+            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
+        )
+    except BaseException:
+        llm_token_count_prompt = 0
+    try:
+        llm_token_count_completion = int(
+            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
+        )
+    except BaseException:
+        llm_token_count_completion = 0
     if accumulation := (
         await session.execute(
             select(

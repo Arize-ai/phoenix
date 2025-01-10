@@ -1,16 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Text,
-  TextProps,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+
+import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 
 type TokenCountProps = {
   /**
@@ -28,7 +21,7 @@ type TokenCountProps = {
   /**
    * The size of the icon and text
    */
-  textSize?: TextProps["textSize"];
+  size?: TextProps["size"];
 };
 
 /**
@@ -38,7 +31,7 @@ export function TokenCount(props: TokenCountProps) {
   return (
     <TooltipTrigger>
       <TriggerWrap>
-        <TokenItem textSize={props.textSize}>{props.tokenCountTotal}</TokenItem>
+        <TokenItem size={props.size}>{props.tokenCountTotal}</TokenItem>
       </TriggerWrap>
       <Tooltip>
         <Flex direction="column" gap="size-50">
@@ -61,7 +54,7 @@ function TokenItem({
   ...textProps
 }: {
   children: number;
-  textSize?: TextProps["textSize"];
+  size?: TextProps["size"];
 }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">

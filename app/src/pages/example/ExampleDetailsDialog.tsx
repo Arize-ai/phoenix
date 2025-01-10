@@ -4,18 +4,15 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
+import { Card, CardProps, Dialog, DialogContainer } from "@arizeai/components";
+
 import {
   Button,
-  Card,
-  CardProps,
-  Dialog,
-  DialogContainer,
+  CopyToClipboardButton,
   Flex,
   Heading,
   View,
-} from "@arizeai/components";
-
-import { CopyToClipboardButton } from "@phoenix/components";
+} from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -94,9 +91,8 @@ export function ExampleDetailsDialog({
           <Flex direction="row" gap="size-100">
             {sourceSpanInfo ? (
               <Button
-                variant="default"
-                size="compact"
-                onClick={() => {
+                size="S"
+                onPress={() => {
                   navigate(
                     `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`
                   );

@@ -7,16 +7,13 @@ import React, {
 import { css } from "@emotion/react";
 
 import {
-  Button,
   classNames,
-  Flex,
-  Icon,
-  Icons,
   Tooltip,
   TooltipTrigger,
-  View,
+  TriggerWrap,
 } from "@arizeai/components";
 
+import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
@@ -89,25 +86,27 @@ function TraceTreeToolbar() {
     <View borderBottomWidth="thin" borderColor="dark" padding="size-100">
       <Flex direction="row" justifyContent="end" flex="none" gap="size-100">
         <TooltipTrigger offset={5}>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-            onClick={() => {
-              setIsCollapsed(!isCollapsed);
-            }}
-            icon={
-              <Icon
-                svg={
-                  isCollapsed ? (
-                    <Icons.RowCollapseOutline />
-                  ) : (
-                    <Icons.RowExpandOutline />
-                  )
-                }
-              />
-            }
-          />
+          <TriggerWrap>
+            <Button
+              variant="default"
+              size="S"
+              aria-label={isCollapsed ? "Expand all" : "Collapse all"}
+              onPress={() => {
+                setIsCollapsed(!isCollapsed);
+              }}
+              icon={
+                <Icon
+                  svg={
+                    isCollapsed ? (
+                      <Icons.RowCollapseOutline />
+                    ) : (
+                      <Icons.RowExpandOutline />
+                    )
+                  }
+                />
+              }
+            />
+          </TriggerWrap>
           <Tooltip>
             {isCollapsed
               ? "Expand all nested spans"
@@ -115,29 +114,30 @@ function TraceTreeToolbar() {
           </Tooltip>
         </TooltipTrigger>
         <TooltipTrigger offset={5}>
-          <Button
-            variant="default"
-            size="compact"
-            aria-label={
-              showMetricsInTraceTree
-                ? "Hide metrics in trace tree"
-                : "Show metrics in trace tree"
-            }
-            onClick={() => {
-              setShowMetricsInTraceTree(!showMetricsInTraceTree);
-            }}
-            icon={
-              <Icon
-                svg={
-                  showMetricsInTraceTree ? (
-                    <Icons.TimerOutline />
-                  ) : (
-                    <Icons.TimerOffOutline />
-                  )
-                }
-              />
-            }
-          />
+          <TriggerWrap>
+            <Button
+              size="S"
+              aria-label={
+                showMetricsInTraceTree
+                  ? "Hide metrics in trace tree"
+                  : "Show metrics in trace tree"
+              }
+              onPress={() => {
+                setShowMetricsInTraceTree(!showMetricsInTraceTree);
+              }}
+              icon={
+                <Icon
+                  svg={
+                    showMetricsInTraceTree ? (
+                      <Icons.TimerOutline />
+                    ) : (
+                      <Icons.TimerOffOutline />
+                    )
+                  }
+                />
+              }
+            />
+          </TriggerWrap>
           <Tooltip>
             {showMetricsInTraceTree
               ? "Hide metrics in trace tree"
@@ -335,11 +335,11 @@ function SpanTreeEdgeConnector({
     <div
       aria-hidden="true"
       data-testid="span-tree-edge-connector"
-      css={(theme) => css`
+      css={css`
         position: absolute;
         border-left: 1px solid
           ${statusCode === "ERROR"
-            ? theme.colors.statusDanger
+            ? "var(--ac-global-color-danger)"
             : "var(--ac-global-color-grey-700)"};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
@@ -358,25 +358,23 @@ function SpanTreeEdge({
   statusCode: SpanStatusCodeType;
   nestingLevel: number;
 }) {
+  const color =
+    statusCode === "ERROR"
+      ? "var(--ac-global-color-danger)"
+      : "var(--ac-global-color-grey-700)";
   return (
     <div
       aria-hidden="true"
-      css={(theme) => {
-        const color =
-          statusCode === "ERROR"
-            ? theme.colors.statusDanger
-            : "var(--ac-global-color-grey-700)";
-        return css`
-          position: absolute;
-          border-left: 1px solid ${color};
-          border-bottom: 1px solid ${color};
-          border-radius: 0 0 0 11px;
-          top: -5px;
-          left: ${nestingLevel * NESTING_INDENT + 29}px;
-          width: 15px;
-          height: 24px;
-        `;
-      }}
+      css={css`
+        position: absolute;
+        border-left: 1px solid ${color};
+        border-bottom: 1px solid ${color};
+        border-radius: 0 0 0 11px;
+        top: -5px;
+        left: ${nestingLevel * NESTING_INDENT + 29}px;
+        width: 15px;
+        height: 24px;
+      `}
     ></div>
   );
 }

@@ -2,14 +2,14 @@ import React from "react";
 
 import {
   FileTextOutline,
-  Icon,
   Radio,
   RadioGroup,
-  TextOutline,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
+
+import { Icon, Icons } from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
@@ -33,7 +33,7 @@ export function MarkdownModeRadioGroup({
       <Radio label="text" value="text">
         <TooltipTrigger placement="top" delay={1000} offset={10}>
           <TriggerWrap>
-            <Icon svg={<TextOutline />} />
+            <Icon svg={<Icons.TextOutline />} />
           </TriggerWrap>
           <Tooltip>Text</Tooltip>
         </TooltipTrigger>

@@ -18,17 +18,10 @@ import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
-import {
-  Counter,
-  Flex,
-  Switch,
-  TabPane,
-  Tabs,
-  View,
-} from "@arizeai/components";
+import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
-import { Loading, LoadingMask } from "@phoenix/components";
+import { Flex, Loading, LoadingMask, View } from "@phoenix/components";
 import {
   PrimaryInferencesTimeRange,
   ReferenceInferencesTimeRange,
@@ -48,9 +41,9 @@ import {
 import {
   PointCloudProvider,
   useGlobalNotification,
+  useInferences,
   usePointCloudContext,
 } from "@phoenix/contexts";
-import { useInferences } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
@@ -683,12 +676,12 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
           </View>
           <View flex="1 1 auto" overflow="auto">
             <ul
-              css={(theme) => css`
+              css={css`
                 flex: 1 1 auto;
                 display: flex;
                 flex-direction: column;
-                gap: ${theme.spacing.margin8}px;
-                margin: ${theme.spacing.margin8}px;
+                gap: var(--ac-global-dimension-size-100);
+                margin: var(--ac-global-dimension-size-100);
               `}
             >
               {clusters.map((cluster) => {

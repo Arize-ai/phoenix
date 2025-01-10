@@ -2,18 +2,9 @@ import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Card,
-  Flex,
-  Icon,
-  Icons,
-  Item,
-  ListBox,
-  Text,
-  TextField,
-  View,
-} from "@arizeai/components";
+import { Card, Item, ListBox, TextField } from "@arizeai/components";
+
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 
 import { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
 import { DatasetSelectorPopoverContentDatasetsQuery } from "./__generated__/DatasetSelectorPopoverContentDatasetsQuery.graphql";
@@ -45,7 +36,7 @@ export function DatasetSelectorPopoverContent(
       borderColor="light"
       bodyStyle={{ padding: 0 }}
       extra={
-        <Button variant="default" size="compact" onClick={onCreateNewDataset}>
+        <Button variant="default" size="S" onPress={onCreateNewDataset}>
           New Dataset
         </Button>
       }

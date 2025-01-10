@@ -8,9 +8,10 @@ export function TableEmpty(props: { message?: string }) {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-300)
+              var(--ac-global-dimension-size-300) !important;
           `}
         >
           {message}

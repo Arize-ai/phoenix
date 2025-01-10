@@ -2,16 +2,9 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import {
-  Button,
-  Content,
-  ContextualHelp,
-  Form,
-  Heading,
-  Text,
-  TextField,
-} from "@arizeai/components";
+import { Content, ContextualHelp, Form, TextField } from "@arizeai/components";
 
+import { Button, Heading, Text } from "@phoenix/components";
 import {
   MAX_INFERENCES_SAMPLE_SIZE,
   MAX_MIN_DIST,

@@ -1,6 +1,8 @@
 import React from "react";
 
-import { Flex, Item, Label, Picker } from "@arizeai/components";
+import { Item, Label, Picker } from "@arizeai/components";
+
+import { Flex } from "@phoenix/components";
 
 type DefaultToolChoice = Extract<ToolChoice, "auto" | "required" | "none">;
 

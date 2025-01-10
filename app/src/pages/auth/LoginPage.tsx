@@ -2,7 +2,9 @@ import React from "react";
 import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import { Alert, Flex, View } from "@arizeai/components";
+import { Alert } from "@arizeai/components";
+
+import { Flex, View } from "@phoenix/components";
 
 import { AuthLayout } from "./AuthLayout";
 import { LoginForm } from "./LoginForm";

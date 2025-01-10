@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Button, Dialog, Flex, Text, View } from "@arizeai/components";
+import { Dialog } from "@arizeai/components";
 
+import { Button, Flex, Text, View } from "@phoenix/components";
 import { normalizeUserRole } from "@phoenix/constants";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
@@ -88,15 +89,16 @@ export function UserRoleChangeDialog({
         borderTopWidth="thin"
       >
         <Flex direction="row" justifyContent="end" gap={"size-100"}>
-          <Button variant="default" onClick={onClose}>
+          <Button onPress={onClose} size="S">
             Cancel
           </Button>
           <Button
             variant="primary"
-            onClick={() => {
+            size="S"
+            onPress={() => {
               handleChange();
             }}
-            disabled={isCommitting}
+            isDisabled={isCommitting}
           >
             Change role
           </Button>

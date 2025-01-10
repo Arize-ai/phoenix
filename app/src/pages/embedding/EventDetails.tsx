@@ -7,18 +7,19 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { Counter, Label } from "@arizeai/components";
+
 import {
-  Accordion,
-  AccordionItem,
-  Counter,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Flex,
   Heading,
   Icon,
   Icons,
-  Label,
   View,
-} from "@arizeai/components";
-
+} from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -82,101 +83,117 @@ export function EventDetails({ event }: { event: ModelEvent }) {
       `}
     >
       <EventPreview event={event} />
-      <Accordion>
+      <DisclosureGroup
+        defaultExpandedKeys={[
+          "prediction",
+          "document",
+          "dimensions",
+          "retrievals",
+        ]}
+      >
         {isPredictionRecord ? (
-          <AccordionItem id="prediction" title={"Prediction Details"}>
-            <dl css={detailsListCSS}>
-              {event.predictionId != null && (
-                <div>
-                  <dt>Prediction ID</dt>
-                  <dd
-                    css={css`
-                      display: flex;
-                      align-items: center;
-                    `}
-                  >
-                    {event.predictionId}
-                  </dd>
-                </div>
-              )}
-              {event.predictionLabel != null && (
-                <div>
-                  <dt>Prediction Label</dt>
-                  <dd>{event.predictionLabel}</dd>
-                </div>
-              )}
-              {event.predictionScore != null && (
-                <div>
-                  <dt>Prediction Score</dt>
-                  <dd>{event.predictionScore}</dd>
-                </div>
-              )}
-              {event.actualLabel != null && (
-                <div>
-                  <dt>Actual Label</dt>
-                  <dd>{event.actualLabel}</dd>
-                </div>
-              )}
-              {event.actualScore != null && (
-                <div>
-                  <dt>Actual Score</dt>
-                  <dd>{event.actualScore}</dd>
-                </div>
-              )}
-            </dl>
-          </AccordionItem>
+          <Disclosure id="prediction">
+            <DisclosureTrigger>Prediction Details</DisclosureTrigger>
+            <DisclosurePanel>
+              <dl css={detailsListCSS}>
+                {event.predictionId != null && (
+                  <div>
+                    <dt>Prediction ID</dt>
+                    <dd
+                      css={css`
+                        display: flex;
+                        align-items: center;
+                      `}
+                    >
+                      {event.predictionId}
+                    </dd>
+                  </div>
+                )}
+                {event.predictionLabel != null && (
+                  <div>
+                    <dt>Prediction Label</dt>
+                    <dd>{event.predictionLabel}</dd>
+                  </div>
+                )}
+                {event.predictionScore != null && (
+                  <div>
+                    <dt>Prediction Score</dt>
+                    <dd>{event.predictionScore}</dd>
+                  </div>
+                )}
+                {event.actualLabel != null && (
+                  <div>
+                    <dt>Actual Label</dt>
+                    <dd>{event.actualLabel}</dd>
+                  </div>
+                )}
+                {event.actualScore != null && (
+                  <div>
+                    <dt>Actual Score</dt>
+                    <dd>{event.actualScore}</dd>
+                  </div>
+                )}
+              </dl>
+            </DisclosurePanel>
+          </Disclosure>
         ) : (
-          <AccordionItem id="document" title={"Document Details"}>
-            <dl css={detailsListCSS}>
-              {event.predictionId != null && (
-                <div>
-                  <dt>Document ID</dt>
-                  <dd
-                    css={css`
-                      display: flex;
-                      align-items: center;
-                    `}
-                  >
-                    {/* TODO - find a way to make the ID more semantic like a record ID */}
-                    {event.predictionId}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          </AccordionItem>
+          <Disclosure id="document">
+            <DisclosureTrigger>Document Details</DisclosureTrigger>
+            <DisclosurePanel>
+              <dl css={detailsListCSS}>
+                {event.predictionId != null && (
+                  <div>
+                    <dt>Document ID</dt>
+                    <dd
+                      css={css`
+                        display: flex;
+                        align-items: center;
+                      `}
+                    >
+                      {/* TODO - find a way to make the ID more semantic like a record ID */}
+                      {event.predictionId}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </DisclosurePanel>
+          </Disclosure>
         )}
-        <AccordionItem id="dimensions" title="Dimensions">
-          <EmbeddingDimensionsTable dimensions={event.dimensions} />
-        </AccordionItem>
+        <Disclosure id="dimensions">
+          <DisclosureTrigger>Dimensions</DisclosureTrigger>
+          <DisclosurePanel>
+            <EmbeddingDimensionsTable dimensions={event.dimensions} />
+          </DisclosurePanel>
+        </Disclosure>
         {hasRetrievals && (
-          <AccordionItem
-            id="retrievals"
-            title="Retrieved Documents"
-            titleExtra={
+          <Disclosure id="retrievals">
+            <DisclosureTrigger>
+              Retrieved Documents
               <Counter variant="light">
                 {event.retrievedDocuments.length}
               </Counter>
-            }
-          >
-            <ul
-              css={css`
-                padding: var(--ac-global-dimension-static-size-100);
-                li + li {
-                  margin-top: var(--ac-global-dimension-static-size-100);
-                }
-              `}
-            >
-              {event.retrievedDocuments.map((document) => {
-                return (
-                  <li key={document.id}>
-                    <DocumentItem document={document} />
-                  </li>
-                );
-              })}
-            </ul>
-          </AccordionItem>
+            </DisclosureTrigger>
+            <DisclosurePanel>
+              <ul
+                css={css`
+                  padding: var(--ac-global-dimension-static-size-100);
+                  li + li {
+                    margin-top: var(--ac-global-dimension-static-size-100);
+                  }
+                `}
+              >
+                {event.retrievedDocuments.map((document) => {
+                  return (
+                    <li key={document.id}>
+                      <DocumentItem document={document} />
+                    </li>
+                  );
+                })}
+              </ul>
+            </DisclosurePanel>
+          </Disclosure>
         )}
-      </Accordion>
+      </DisclosureGroup>
     </section>
   );
 }
@@ -362,32 +379,40 @@ function EventPreview({ event }: { event: ModelEvent }) {
       <Flex direction="column">
         <DataURLPreview dataUrl={dataUrl} />
         {rawData && (
-          <Accordion>
-            <AccordionItem id="raw" title="Raw Data">
+          <Disclosure id="raw">
+            <DisclosureTrigger>Raw Data</DisclosureTrigger>
+            <DisclosurePanel>
               <TextPre>{rawData}</TextPre>
-            </AccordionItem>
-          </Accordion>
+            </DisclosurePanel>
+          </Disclosure>
         )}
       </Flex>
     );
   } else if (documentText) {
     content = (
-      <Accordion>
-        <AccordionItem id="document" title="Document">
+      <Disclosure id="document">
+        <DisclosureTrigger>Document</DisclosureTrigger>
+        <DisclosurePanel>
           <TextPre>{documentText}</TextPre>
-        </AccordionItem>
-      </Accordion>
+        </DisclosurePanel>
+      </Disclosure>
     );
   } else if (promptAndResponse) {
     content = (
-      <Accordion>
-        <AccordionItem id="prompt" title="Prompt">
-          <TextPre>{promptAndResponse.prompt}</TextPre>
-        </AccordionItem>
-        <AccordionItem id="response" title="Response">
-          <TextPre>{promptAndResponse.response}</TextPre>
-        </AccordionItem>
-      </Accordion>
+      <DisclosureGroup defaultExpandedKeys={["prompt", "response"]}>
+        <Disclosure id="prompt">
+          <DisclosureTrigger>Prompt</DisclosureTrigger>
+          <DisclosurePanel>
+            <TextPre>{promptAndResponse.prompt}</TextPre>
+          </DisclosurePanel>
+        </Disclosure>
+        <Disclosure id="response">
+          <DisclosureTrigger>Response</DisclosureTrigger>
+          <DisclosurePanel>
+            <TextPre>{promptAndResponse.response}</TextPre>
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
     );
   } else if (event.rawData) {
     {
@@ -403,9 +428,10 @@ function TableEmpty() {
       <tr>
         <td
           colSpan={100}
-          css={(theme) => css`
+          css={css`
             text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+            padding: var(--ac-global-dimension-size-300)
+              var(--ac-global-dimension-size-300) !important;
           `}
         >
           <Empty

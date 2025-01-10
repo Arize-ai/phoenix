@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
 
-import { Alert, Button, Flex, Icon, Icons } from "@arizeai/components";
+import { Alert } from "@arizeai/components";
+
+import { Button, Flex, Icon, Icons } from "@phoenix/components";
 
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
@@ -70,9 +72,8 @@ function SpanPlaygroundBanners({
           }}
           extra={
             <Button
-              variant="default"
               icon={<Icon svg={<Icons.ArrowBack />} />}
-              onClick={() => {
+              onPress={() => {
                 navigate(
                   `/projects/${span.project.id}/traces/${span.context.traceId}?selectedSpanNodeId=${span.id}`
                 );

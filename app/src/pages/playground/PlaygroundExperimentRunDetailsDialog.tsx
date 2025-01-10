@@ -3,19 +3,18 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
+import { Card, CardProps, Dialog } from "@arizeai/components";
+
 import {
-  Card,
-  CardProps,
-  Dialog,
+  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
   Icons,
   Text,
   View,
-} from "@arizeai/components";
-
-import { CopyToClipboardButton, ViewSummaryAside } from "@phoenix/components";
+  ViewSummaryAside,
+} from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { JSONBlock } from "@phoenix/components/code";
 import { resizeHandleCSS } from "@phoenix/components/resize";
