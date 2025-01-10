@@ -1533,6 +1533,7 @@ type PromptVersionTag implements Node {
 
 type PromptVersionTagMutationPayload {
   promptVersionTag: PromptVersionTag
+  prompt: Prompt
   query: Query!
 }
 
