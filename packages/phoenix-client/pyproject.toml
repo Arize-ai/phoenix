@@ -1,6 +1,6 @@
 [project]
-name = "arize-phoenix-evals"
-description = "LLM Evaluations"
+name = "arize-phoenix-client"
+description = "LLM Observability"
 readme = "README.md"
 requires-python = ">=3.8, <3.14"
 license = {text="Elastic-2.0"}
@@ -22,38 +22,8 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-version = "0.18.1"
+version = "0.1.0-alpha.1"
 dependencies = [
-  "pandas",
-  "tqdm",
-  "typing-extensions>=4.5, <5",
-]
-
-[project.optional-dependencies]
-dev = [
-  "anthropic>0.18.0",
-  "boto3",
-  "litellm>=1.28.9",
-  "openai>=1.0.0",
-  "vertexai",
-  "mistralai>=1.0.0",
-]
-test = [
-  "openinference-semantic-conventions",
-  "pandas",
-  "tqdm",
-  "typing-extensions>=4.5, <5",
-  "anthropic>=0.18.0",
-  "boto3",
-  "litellm>=1.28.9",
-  "openai>=1.0.0",
-  "mistralai>=1.0.0",
-  "vertexai",
-  "respx",
-  "nest_asyncio",
-  "pandas-stubs<=2.0.2.230605",
-  "types-tqdm",
-  "lameenc"
 ]
 
 [project.urls]
@@ -112,12 +82,6 @@ exclude = [
   "dist/",
   "tests/",
 ]
-
-[[tool.mypy.overrides]]
-module = [
-  "litellm",
-]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -8,15 +8,14 @@ import numpy as np
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson  # type: ignore[import-untyped]
-from openinference.semconv.trace import (
-    SpanAttributes,
-)
+from openinference.semconv.trace import SpanAttributes
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from pytest import approx
 
 from phoenix.trace.otel import (
     _decode_identifier,
     _encode_identifier,
+    coerce_otlp_span_attributes,
     decode_otlp_span,
     encode_span_to_otlp,
 )
@@ -461,6 +460,43 @@ def test_decode_encode_tool_parameters(span: Span) -> None:
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
     decoded_span = decode_otlp_span(otlp_span)
     assert decoded_span.attributes["tool"]["parameters"] == span.attributes["tool"]["parameters"]
+
+
+def test_coerce_otlp_span_attributes() -> None:
+    # Test attributes that should be coerced
+    input_attrs = [
+        ("llm.token_count.prompt", "123"),
+        ("llm.token_count.completion", "456"),
+        ("llm.token_count.total", "579"),
+        # Test attributes that should not be modified
+        ("other.number", "789"),
+        ("some.string", "hello"),
+        ("llm.other.field", "world"),
+    ]
+
+    result = list(coerce_otlp_span_attributes(input_attrs))
+
+    expected = [
+        ("llm.token_count.prompt", 123),
+        ("llm.token_count.completion", 456),
+        ("llm.token_count.total", 579),
+        ("other.number", "789"),
+        ("some.string", "hello"),
+        ("llm.other.field", "world"),
+    ]
+
+    assert result == expected
+
+    # Test that invalid number strings remain as strings
+    invalid_attrs = [
+        ("llm.token_count.prompt", "not_a_number"),
+        ("llm.token_count.completion", "invalid"),
+        ("llm.token_count.total", ""),
+    ]
+
+    result = list(coerce_otlp_span_attributes(invalid_attrs))
+
+    assert result == invalid_attrs
 
 
 @pytest.fixture

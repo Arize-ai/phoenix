@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<587ce3fa46dad38b494ff2890383e5ed>>
+ * @generated SignedSource<<6b93ecf824bd8052c6a49b98a7e646d5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,6 +52,7 @@ export type TracesTable_spans$data = {
           readonly parentId: string | null;
           readonly spanAnnotations: ReadonlyArray<{
             readonly annotatorKind: AnnotatorKind;
+            readonly id: string;
             readonly label: string | null;
             readonly name: string;
             readonly score: number | null;
@@ -79,6 +80,7 @@ export type TracesTable_spans$data = {
         readonly parentId: string | null;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly id: string;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -214,6 +216,7 @@ v12 = {
   "name": "spanAnnotations",
   "plural": true,
   "selections": [
+    (v2/*: any*/),
     (v1/*: any*/),
     {
       "alias": null,
@@ -540,6 +543,6 @@ return {
 };
 })();
 
-(node as any).hash = "53b160969c87d5e35e08a1f4ca26aadb";
+(node as any).hash = "7a8017aa7d5eebddd6255365f3372f64";
 
 export default node;

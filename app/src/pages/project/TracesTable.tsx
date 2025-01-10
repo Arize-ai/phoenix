@@ -149,6 +149,7 @@ export function TracesTable(props: TracesTableProps) {
                   traceId
                 }
                 spanAnnotations {
+                  id
                   name
                   label
                   score
@@ -182,6 +183,7 @@ export function TracesTable(props: TracesTableProps) {
                     traceId
                   }
                   spanAnnotations {
+                    id
                     name
                     label
                     score

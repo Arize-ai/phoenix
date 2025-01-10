@@ -65,6 +65,7 @@ import {
   ExperimentCompareTableQuery,
   ExperimentCompareTableQuery$data,
 } from "./__generated__/ExperimentCompareTableQuery.graphql";
+import { ExperimentRunFilterConditionField } from "./ExperimentRunFilterConditionField";
 
 type ExampleCompareTableProps = {
   datasetId: string;
@@ -131,13 +132,19 @@ const annotationTooltipExtraCSS = css`
 
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
+  const [filterCondition, setFilterCondition] = useState("");
+
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
         $experimentIds: [GlobalID!]!
         $datasetId: GlobalID!
+        $filterCondition: String
       ) {
-        comparisons: compareExperiments(experimentIds: $experimentIds) {
+        comparisons: compareExperiments(
+          experimentIds: $experimentIds
+          filterCondition: $filterCondition
+        ) {
           example {
             id
             revision {
@@ -198,6 +205,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     {
       experimentIds,
       datasetId,
+      filterCondition,
     }
   );
   const experimentInfoById = useMemo(() => {
@@ -440,64 +448,79 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   // Make sure the table is at least 1280px wide
 
   return (
-    <div css={tableWrapCSS}>
-      <table
-        css={css(tableCSS, borderedTableCSS)}
-        style={{
-          ...columnSizeVars,
-          width: table.getTotalSize(),
-          minWidth: "100%",
-        }}
+    <Flex direction="column" height="100%">
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        borderBottomColor="grey-300"
+        borderBottomWidth="thin"
+        flex="none"
       >
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  style={{
-                    width: `calc(var(--header-${header?.id}-size) * 1px)`,
-                  }}
-                >
-                  <div>
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </div>
-                  <div
-                    {...{
-                      onMouseDown: header.getResizeHandler(),
-                      onTouchStart: header.getResizeHandler(),
-                      className: `resizer ${
-                        header.column.getIsResizing() ? "isResizing" : ""
-                      }`,
+        <ExperimentRunFilterConditionField
+          onValidCondition={setFilterCondition}
+        />
+      </View>
+      <div css={tableWrapCSS}>
+        <table
+          css={css(tableCSS, borderedTableCSS)}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    style={{
+                      width: `calc(var(--header-${header?.id}-size) * 1px)`,
                     }}
-                  />
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : /* When resizing any column we will render this special memoized version of our table body */
-        table.getState().columnSizingInfo.isResizingColumn ? (
-          <MemoizedTableBody table={table} />
-        ) : (
-          <TableBody table={table} />
-        )}
-      </table>
-      <DialogContainer
-        isDismissable
-        type="slideOver"
-        onDismiss={() => {
-          setDialog(null);
-        }}
-      >
-        {dialog}
-      </DialogContainer>
-    </div>
+                  >
+                    <div>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </div>
+                    <div
+                      {...{
+                        onMouseDown: header.getResizeHandler(),
+                        onTouchStart: header.getResizeHandler(),
+                        className: `resizer ${
+                          header.column.getIsResizing() ? "isResizing" : ""
+                        }`,
+                      }}
+                    />
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : /* When resizing any column we will render this special memoized version of our table body */
+          table.getState().columnSizingInfo.isResizingColumn ? (
+            <MemoizedTableBody table={table} />
+          ) : (
+            <TableBody table={table} />
+          )}
+        </table>
+        <DialogContainer
+          isDismissable
+          type="slideOver"
+          onDismiss={() => {
+            setDialog(null);
+          }}
+        >
+          {dialog}
+        </DialogContainer>
+      </div>
+    </Flex>
   );
 }
 
