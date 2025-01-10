@@ -568,6 +568,19 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
             },
             id="invalid-schema-ref",
         ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_status",
+                    "description": "Get system status",
+                    "parameters": {
+                        "type": "string",
+                    },
+                },
+            },
+            id="non-object-parameters",
+        ),
     ],
 )
 def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict[str, Any]) -> None:

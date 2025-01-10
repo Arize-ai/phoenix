@@ -101,16 +101,20 @@ Draft7Validator.check_schema(JSON_SCHEMA_DRAFT_7_META_SCHEMA)  # ensure the sche
 JSON_SCHEMA_DRAFT_7_VALIDATOR = Draft7Validator(JSON_SCHEMA_DRAFT_7_META_SCHEMA)
 
 
-def validate_json_schema(schema: dict[str, Any]) -> dict[str, Any]:
+def validate_json_schema_object_definition(schema: dict[str, Any]) -> dict[str, Any]:
     """
-    Validates that a dictionary is a valid JSON schema.
+    Validates that a dictionary is a valid JSON schema object property.
     """
     try:
         JSON_SCHEMA_DRAFT_7_VALIDATOR.validate(schema)
     except ValidationError as error:
         raise ValueError(str(error))
+    if schema.get("type") != "object":
+        raise ValueError("The 'type' property must be 'object'")
     return schema
 
 
 # Pydantic type with built-in validation for JSON schemas
-JSONSchema: TypeAlias = Annotated[dict[str, Any], AfterValidator(validate_json_schema)]
+JSONSchemaObjectDefinition: TypeAlias = Annotated[
+    dict[str, Any], AfterValidator(validate_json_schema_object_definition)
+]

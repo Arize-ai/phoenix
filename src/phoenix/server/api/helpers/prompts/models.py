@@ -4,7 +4,7 @@ from typing import Any, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 from typing_extensions import TypeAlias
 
-from phoenix.server.api.helpers.jsonschema import JSONSchema
+from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
@@ -132,7 +132,7 @@ class OpenAIFunctionDefinition(PromptModel):
 
     name: str
     description: str = UNDEFINED
-    parameters: JSONSchema = UNDEFINED
+    parameters: JSONSchemaObjectDefinition = UNDEFINED
     strict: Optional[bool] = UNDEFINED
 
 
@@ -159,7 +159,7 @@ class AnthropicToolDefinition(PromptModel):
     Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/tool_param.py#L22
     """
 
-    input_schema: JSONSchema
+    input_schema: JSONSchemaObjectDefinition
     name: str
     cache_control: Optional[AnthropicCacheControlEphemeralParam] = UNDEFINED
     description: str = UNDEFINED
