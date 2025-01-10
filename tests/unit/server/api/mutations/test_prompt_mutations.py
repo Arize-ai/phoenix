@@ -11,9 +11,52 @@ class TestPromptMutations:
     CREATE_CHAT_PROMPT_MUTATION = """
       mutation CreateChatPromptMutation($input: CreateChatPromptInput!) {
         createChatPrompt(input: $input) {
+          id
           name
           description
           createdAt
+          promptVersions {
+            edges {
+              promptVersion: node {
+                id
+                createdAt
+                description
+                user {
+                  id
+                }
+                templateType
+                templateFormat
+                template {
+                  ... on PromptChatTemplate {
+                    messages {
+                      ... on TextPromptMessage {
+                        role
+                        content
+                      }
+                    }
+                  }
+                }
+                invocationParameters
+                tools {
+                  definition
+                }
+                outputSchema {
+                  definition
+                }
+                modelName
+                modelProvider
+              }
+            }
+          }
+        }
+      }
+    """
+    CREATE_CHAT_PROMPT_VERSION_MUTATION = """
+      mutation CreateChatPromptVersionMutation($input: CreateChatPromptVersionInput!) {
+        createChatPromptVersion(input: $input) {
+          id
+          name
+          description
           promptVersions {
             edges {
               promptVersion: node {
@@ -49,15 +92,18 @@ class TestPromptMutations:
         }
       }
     """
-    CREATE_CHAT_PROMPT_VERSION_MUTATION = """
-      mutation CreateChatPromptVersionMutation($input: CreateChatPromptVersionInput!) {
-        createChatPromptVersion(input: $input) {
+    CLONE_PROMPT_MUTATION = """
+      mutation ClonePromptMutation($input: ClonePromptInput!) {
+        clonePrompt(input: $input) {
+          id
           name
           description
+          createdAt
           promptVersions {
             edges {
               promptVersion: node {
                 id
+                createdAt
                 description
                 user {
                   id
@@ -789,4 +835,180 @@ class TestPromptMutations:
         # Try to create invalid prompt version
         result = await gql_client.execute(self.CREATE_CHAT_PROMPT_VERSION_MUTATION, variables)
         assert len(result.errors) == 1
+        assert result.data is None
+
+    @pytest.mark.parametrize(
+        "variables, initial_prompt_variables",
+        [
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name (copy)",
+                        "description": "new prompt-description",
+                        "promptId": str(GlobalID("Prompt", "1")),
+                    }
+                },
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "initial-version",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "initial"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "openai",
+                            "modelName": "o1-mini",
+                        },
+                    }
+                },
+                id="with-valid-input",
+            ),
+        ],
+    )
+    async def test_clone_prompt_succeeds_with_valid_input(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        variables: dict[str, Any],
+        initial_prompt_variables: dict[str, Any],
+    ) -> None:
+        # create initial prompt
+        create_prompt_result = await gql_client.execute(
+            self.CREATE_CHAT_PROMPT_MUTATION, initial_prompt_variables
+        )
+        assert not create_prompt_result.errors
+        assert create_prompt_result.data is not None
+
+        # clone prompt
+        result = await gql_client.execute(self.CLONE_PROMPT_MUTATION, variables)
+
+        # assert prompt and prompt versions were cloned
+        # prompt id, prompt version ids, dates, should be different
+        # everything else should be the same
+        assert result.data is not None
+        data = result.data["clonePrompt"]
+        assert data.pop("id") != create_prompt_result.data["createChatPrompt"]["id"]
+        assert data.pop("name") != create_prompt_result.data["createChatPrompt"]["name"]
+        assert data.pop("createdAt") is not None
+        assert (
+            data.pop("description") != create_prompt_result.data["createChatPrompt"]["description"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("id")
+            != create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["id"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("description")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["description"]
+        )
+        # assert createdAt is not None
+        # we can't do a comparison because the date is identical
+        assert data["promptVersions"]["edges"][0]["promptVersion"].pop("createdAt") is not None
+        assert data["promptVersions"]["edges"][0]["promptVersion"].pop("user") is None
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("templateType")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["templateType"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("templateFormat")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["templateFormat"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("invocationParameters")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["invocationParameters"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("modelProvider")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["modelProvider"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("modelName")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["modelName"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("template")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["template"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("tools")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["tools"]
+        )
+        assert (
+            data["promptVersions"]["edges"][0]["promptVersion"].pop("outputSchema")
+            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
+                "promptVersion"
+            ]["outputSchema"]
+        )
+        # assert all fields of promptVersions["edges"][0]["promptVersion"] have been popped
+        assert not data["promptVersions"]["edges"][0]["promptVersion"]
+        assert data.pop("promptVersions") is not None
+        assert not data
+
+    @pytest.mark.parametrize(
+        "variables, initial_prompt_variables",
+        [
+            pytest.param(
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "new prompt-description",
+                        "promptId": str(GlobalID("Prompt", "1")),
+                    }
+                },
+                {
+                    "input": {
+                        "name": "prompt-name",
+                        "description": "prompt-description",
+                        "promptVersion": {
+                            "description": "initial-version",
+                            "templateType": "CHAT",
+                            "templateFormat": "MUSTACHE",
+                            "template": {"messages": [{"role": "USER", "content": "initial"}]},
+                            "invocationParameters": {"temperature": 0.4},
+                            "modelProvider": "openai",
+                            "modelName": "o1-mini",
+                        },
+                    }
+                },
+                id="with-duplicate-name",
+            ),
+        ],
+    )
+    async def test_clone_prompt_fails_with_duplicate_name(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        variables: dict[str, Any],
+        initial_prompt_variables: dict[str, Any],
+    ) -> None:
+        # create initial prompt
+        create_prompt_result = await gql_client.execute(
+            self.CREATE_CHAT_PROMPT_MUTATION, initial_prompt_variables
+        )
+        assert not create_prompt_result.errors
+
+        # clone prompt
+        result = await gql_client.execute(self.CLONE_PROMPT_MUTATION, variables)
+        assert len(result.errors) == 1
+        assert "constraint failed" in result.errors[0].message
         assert result.data is None
