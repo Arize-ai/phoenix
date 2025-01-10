@@ -21,9 +21,9 @@ The following environment variables are used:
 - `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests. A JSON stringified object.
 
 ```bash
-PHOENIX_HOST=http://localhost:8000 PHOENIX_CLIENT_HEADERS='{"X-Custom-Header": "123"}' pnpx tsx examples/list_datasets.ts
+PHOENIX_HOST=http://localhost:6006 PHOENIX_CLIENT_HEADERS='{"Authorization": "bearer xxxxxx"}' pnpx tsx examples/list_datasets.ts
 # emits the following request:
-# GET http://localhost:8000/v1/datasets
+# GET http://localhost:6006/v1/datasets
 # headers: {
 #   "X-Custom-Header": "123",
 # }
@@ -34,7 +34,7 @@ Alternatively, you can pass configuration options to the client directly, and th
 ```ts
 const phoenix = createClient({
   options: {
-    baseUrl: "http://localhost:8000",
+    baseUrl: "http://localhost:6006",
     headers: {
       "X-Custom-Header": "123",
     },
