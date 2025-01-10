@@ -43,6 +43,8 @@ export const ClonePromptDialog = ({
   );
   const form = useForm({
     disabled: isClonePending,
+    reValidateMode: "onBlur",
+    mode: "onChange",
     defaultValues: {
       name: `${promptName} (Clone)`,
       description: promptDescription,
