@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { useFragment } from "react-relay";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Counter, TabPane, Tabs } from "@arizeai/components";
+import { Counter, DialogContainer, TabPane, Tabs } from "@arizeai/components";
 
 import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import { usePromptIdLoader } from "./usePromptIdLoader";
@@ -40,6 +41,7 @@ const mainCSS = css`
 `;
 
 export function PromptLayout() {
+  const [dialog, setDialog] = useState<React.ReactNode | null>(null);
   const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -53,6 +55,9 @@ export function PromptLayout() {
   const data = useFragment<PromptLayout__main$key>(
     graphql`
       fragment PromptLayout__main on Prompt {
+        id
+        name
+        description
         promptVersions {
           edges {
             node {
@@ -80,15 +85,33 @@ export function PromptLayout() {
           alignItems="center"
         >
           <Heading level={1}>{loaderData.prompt.name}</Heading>
-          <Button
-            size="S"
-            icon={<Icon svg={<Icons.Edit2Outline />} />}
-            onPress={() => {
-              navigate(`/prompts/${loaderData.prompt.id}/playground`);
-            }}
-          >
-            Edit in Playground
-          </Button>
+          <Flex direction="row" gap="size-100">
+            <Button
+              size="S"
+              icon={<Icon svg={<Icons.DuplicateIcon />} />}
+              onPress={() => {
+                setDialog(
+                  <ClonePromptDialog
+                    promptId={data.id}
+                    promptName={data.name}
+                    promptDescription={data.description ?? undefined}
+                    setDialog={setDialog}
+                  />
+                );
+              }}
+            >
+              Clone
+            </Button>
+            <Button
+              size="S"
+              icon={<Icon svg={<Icons.Edit2Outline />} />}
+              onPress={() => {
+                navigate(`/prompts/${loaderData.prompt.id}/playground`);
+              }}
+            >
+              Edit in Playground
+            </Button>
+          </Flex>
         </Flex>
       </View>
       <Tabs
@@ -118,6 +141,9 @@ export function PromptLayout() {
           <Outlet />
         </TabPane>
       </Tabs>
+      <DialogContainer onDismiss={() => setDialog(null)}>
+        {dialog}
+      </DialogContainer>
     </main>
   );
 }
