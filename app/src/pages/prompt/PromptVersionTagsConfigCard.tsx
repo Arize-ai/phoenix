@@ -10,7 +10,8 @@ import {
 
 import { Card } from "@arizeai/components";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { Flex, Icon, Icons, Link } from "@phoenix/components";
+import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
@@ -30,6 +31,7 @@ export function PromptVersionTagsConfigCard({
           id
           name
           description
+          promptVersionId
         }
       }
     `,
@@ -45,6 +47,19 @@ export function PromptVersionTagsConfigCard({
       {
         header: "Description",
         accessorKey: "description",
+        cell: TextCell,
+      },
+      {
+        header: "Version",
+        accessorKey: "promptVersionId",
+        cell: ({ row }) => {
+          const { promptId, promptVersionId } = row.original;
+          return (
+            <Link to={`/prompts/${promptId}/versions/${promptVersionId}`}>
+              {row.original.promptVersionId}
+            </Link>
+          );
+        },
       },
       {
         id: "actions",
@@ -79,6 +94,7 @@ export function PromptVersionTagsConfigCard({
       name: tag.name,
       description: tag.description,
       promptId: data.id,
+      promptVersionId: tag.promptVersionId,
     }));
   }, [data]);
 
