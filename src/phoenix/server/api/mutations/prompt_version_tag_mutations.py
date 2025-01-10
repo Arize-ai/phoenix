@@ -12,6 +12,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 
@@ -31,6 +32,7 @@ class SetPromptVersionTagInput:
 @strawberry.type
 class PromptVersionTagMutationPayload:
     prompt_version_tag: Optional[PromptVersionTag]
+    prompt: Optional[Prompt]
     query: Query
 
 
@@ -69,6 +71,9 @@ class PromptVersionTagMutationMixin:
                 raise BadRequest("PromptVersion with ID {input.prompt_version_id} not found.")
 
             prompt_id = prompt_version.prompt_id
+            prompt = await session.scalar(
+                select(models.Prompt).where(models.Prompt.id == prompt_id)
+            )
 
             existing_tag = await session.scalar(
                 select(models.PromptVersionTag).where(
@@ -101,4 +106,6 @@ class PromptVersionTagMutationMixin:
                 raise Conflict("Failed to update PromptVersionTag.")
 
             version_tag = to_gql_prompt_version_tag(updated_tag)
-            return PromptVersionTagMutationPayload(prompt_version_tag=version_tag, query=Query())
+            return PromptVersionTagMutationPayload(
+                prompt_version_tag=version_tag, prompt=prompt, query=Query()
+            )
