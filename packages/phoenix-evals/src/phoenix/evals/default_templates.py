@@ -8,8 +8,9 @@ from phoenix.evals.span_templates import (
 )
 from phoenix.evals.templates import (
     ClassificationTemplate,
+    PromptPartContentType,
+    PromptPartTemplate,
 )
-from src.phoenix.evals.templates import PromptPartContentType, PromptPartTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "unrelated"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
