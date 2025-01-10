@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a00e723f7ba26751cde89d334c9af7fa>>
+ * @generated SignedSource<<539937591ea2e8f663d0ccc65d050376>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type PromptVersionTagsConfigCard_data$data = {
     readonly description: string | null;
     readonly id: string;
     readonly name: string;
+    readonly promptVersionId: string;
   }>;
   readonly " $fragmentType": "PromptVersionTagsConfigCard_data";
 };
@@ -61,6 +62,13 @@ return {
           "kind": "ScalarField",
           "name": "description",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "promptVersionId",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -71,6 +79,6 @@ return {
 };
 })();
 
-(node as any).hash = "8a904c5cedada821af5fa5ff740261f5";
+(node as any).hash = "3650e60f18eb8d95b707df7bdbce99a9";
 
 export default node;
