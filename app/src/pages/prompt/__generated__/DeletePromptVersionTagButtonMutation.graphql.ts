@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a60bf42f1221c3f6a5f404711ee70ea>>
+ * @generated SignedSource<<95d7c17b1627dc228cb0000bb87f2913>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -181,6 +181,13 @@ return {
                             "kind": "ScalarField",
                             "name": "description",
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "promptVersionId",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -201,12 +208,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2f9f36c4f4843f0acd130436450bbc7f",
+    "cacheID": "f33f0c5c35bdfcb0a9fdb1eacff3dec8",
     "id": null,
     "metadata": {},
     "name": "DeletePromptVersionTagButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptVersionTagButtonMutation(\n  $input: DeletePromptVersionTagInput!\n  $promptId: GlobalID!\n) {\n  deletePromptVersionTag(input: $input) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ...PromptVersionTagsConfigCard_data\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n  }\n}\n"
+    "text": "mutation DeletePromptVersionTagButtonMutation(\n  $input: DeletePromptVersionTagInput!\n  $promptId: GlobalID!\n) {\n  deletePromptVersionTag(input: $input) {\n    query {\n      node(id: $promptId) {\n        __typename\n        ...PromptVersionTagsConfigCard_data\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionTagsConfigCard_data on Prompt {\n  id\n  versionTags {\n    id\n    name\n    description\n    promptVersionId\n  }\n}\n"
   }
 };
 })();
