@@ -1,6 +1,6 @@
 # @arizeai/phoenix-client
 
-This package provides a client for the Phoenix API.
+This package provides a client for the Phoenix API. It is still under active development and is subject to change.
 
 It utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate the types from the Phoenix OpenAPI spec.
 
@@ -25,7 +25,7 @@ PHOENIX_HOST=http://localhost:6006 PHOENIX_CLIENT_HEADERS='{"Authorization": "be
 # emits the following request:
 # GET http://localhost:6006/v1/datasets
 # headers: {
-#   "X-Custom-Header": "123",
+#   "Authorization": "bearer xxxxxx",
 # }
 ```
 
@@ -36,7 +36,7 @@ const phoenix = createClient({
   options: {
     baseUrl: "http://localhost:6006",
     headers: {
-      "X-Custom-Header": "123",
+      Authorization: "bearer xxxxxx",
     },
   },
 });
