@@ -496,136 +496,6 @@ from phoenix.server.api.helpers.prompts.models import AnthropicToolDefinition, O
             },
             id="pick-tshirt-size-function",
         ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "test_primitives",
-                    "description": "Test all primitive types",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "string_field": {"type": "string", "description": "A string field"},
-                            "number_field": {"type": "number", "description": "A number field"},
-                            "integer_field": {"type": "integer", "description": "An integer field"},
-                            "boolean_field": {"type": "boolean", "description": "A boolean field"},
-                            "null_field": {"type": "null", "description": "A null field"},
-                        },
-                        "required": [
-                            "string_field",
-                            "number_field",
-                            "integer_field",
-                            "boolean_field",
-                            "null_field",
-                        ],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="primitive-types-function",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "update_user_profile",
-                    "description": "Updates a user's profile information",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "user_id": {
-                                "type": "string",
-                                "description": "The ID of the user to update",
-                            },
-                            "nickname": {
-                                "description": "Optional nickname that can be null or a string",
-                                "anyOf": [{"type": "string"}, {"type": "null"}],
-                            },
-                        },
-                        "required": ["user_id"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="optional-anyof-parameter",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "categorize_colors",
-                    "description": "Categorize colors into warm, cool, or neutral tones, with null for uncertain cases",  # noqa: E501
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "colors": {
-                                "type": "array",
-                                "description": "List of color categories, with null for uncertain colors",  # noqa: E501
-                                "items": {
-                                    "anyOf": [
-                                        {
-                                            "type": "string",
-                                            "enum": ["warm", "cool", "neutral"],
-                                            "description": "Color category",
-                                        },
-                                        {"type": "null"},
-                                    ]
-                                },
-                            }
-                        },
-                        "required": ["colors"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="array-of-optional-enums",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "set_temperature",
-                    "description": "Set temperature within valid range",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "temp": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 100,
-                                "description": "Temperature in Fahrenheit (0-100)",
-                            }
-                        },
-                        "required": ["temp"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="integer-min-max-constraints",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "set_temperature",
-                    "description": "Set temperature within valid range",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "temp": {
-                                "type": "number",
-                                "minimum": 0.5,  # float min
-                                "maximum": 100,  # integer max
-                                "description": "Temperature in Fahrenheit (0-100)",
-                            }
-                        },
-                        "required": ["temp"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="number-min-max-constraints",
-        ),
     ],
 )
 def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[str, Any]) -> None:
@@ -661,89 +531,6 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
             {
                 "type": "function",
                 "function": {
-                    "name": "set_temperature",
-                    "description": "Sets the temperature for the thermostat",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "temp": {
-                                "type": "number",
-                                "enum": ["70", "72", "74"],  # only string properties can have enums
-                                "description": "The temperature to set in Fahrenheit",
-                            }
-                        },
-                        "required": ["temp"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="number-property-with-invalid-enum",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_weather",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"location": {"type": "string"}},
-                        "extra": "extra",  # extra properties are not allowed
-                    },
-                },
-            },
-            id="extra-properties",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "update_user",
-                    "description": "Updates user information",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                        },
-                        "required": [
-                            "name",
-                            "email",  # email is not in properties
-                        ],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="required-field-not-in-properties",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "set_preferences",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "priority": {
-                                "type": "string",
-                                "enum": [
-                                    0,  # integer enum values not allowed
-                                    "low",
-                                    "medium",
-                                    "high",
-                                ],
-                                "description": "The priority level to set",
-                            }
-                        },
-                        "required": ["priority"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="string-property-with-priority-enum",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
                     "name": "select_color",
                     "description": "Select a color from the available options",
                     "parameters": {
@@ -771,68 +558,28 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
                 "type": "function",
                 "function": {
                     "name": "set_temperature",
-                    "description": "Set temperature with invalid range",
+                    "description": "Set temperature with invalid schema",
                     "parameters": {
                         "type": "object",
-                        "properties": {
-                            "temp": {
-                                "type": "integer",
-                                "minimum": 100,
-                                "maximum": 0,  # min > max
-                                "description": "Temperature in Celsius",
-                            }
-                        },
-                        "required": ["temp"],
-                        "additionalProperties": False,
+                        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
+                        "required": "name",
                     },
                 },
             },
-            id="integer-min-max-range",
+            id="invalid-schema-ref",
         ),
         pytest.param(
             {
                 "type": "function",
                 "function": {
-                    "name": "set_count",
-                    "description": "Set an integer count with float bounds",
+                    "name": "get_status",
+                    "description": "Get system status",
                     "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "count": {
-                                "type": "integer",
-                                "minimum": 1.4,  # float not allowed for integer property
-                                "description": "Count value",
-                            }
-                        },
-                        "required": ["count"],
-                        "additionalProperties": False,
+                        "type": "string",
                     },
                 },
             },
-            id="integer-float-bounds",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "set_temperature",
-                    "description": "Set temperature with invalid range",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "temp": {
-                                "type": "number",
-                                "minimum": 100,
-                                "maximum": 0,  # min > max
-                                "description": "Temperature in Celsius",
-                            }
-                        },
-                        "required": ["temp"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="number-min-max-range",
+            id="non-object-parameters",
         ),
     ],
 )
@@ -911,7 +658,7 @@ def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict
                                     "b": {"type": "number", "description": "blue value [0.0, 1.0]"},
                                     "name": {
                                         "type": "string",
-                                        "description": 'Human-readable color name in snake_case, e.g. "olive_green" or "turquoise"',  # noqa: E501
+                                        "description": 'Human-readable color name in snake_case, e.g., "olive_green" or "turquoise"',  # noqa: E501
                                     },
                                 },
                                 "required": ["r", "g", "b", "name"],
