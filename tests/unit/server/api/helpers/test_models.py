@@ -658,7 +658,7 @@ def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict
                                     "b": {"type": "number", "description": "blue value [0.0, 1.0]"},
                                     "name": {
                                         "type": "string",
-                                        "description": 'Human-readable color name in snake_case, e.g. "olive_green" or "turquoise"',  # noqa: E501
+                                        "description": 'Human-readable color name in snake_case, e.g., "olive_green" or "turquoise"',  # noqa: E501
                                     },
                                 },
                                 "required": ["r", "g", "b", "name"],
