@@ -33,7 +33,9 @@ jobs:
         run: pnpm install --frozen-lockfile -r
       - name: Build
         working-directory: ./js
-        run: pnpm run -r build
+        run: |
+          pnpm run -r build
+          git diff --exit-code
       - name: Test
         working-directory: ./js
         run: pnpm run -r test
