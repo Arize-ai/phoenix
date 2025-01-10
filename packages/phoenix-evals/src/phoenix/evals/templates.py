@@ -1,4 +1,5 @@
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
 from string import Formatter
@@ -149,7 +150,8 @@ class ClassificationTemplate(PromptTemplate):
         for _template in [self.template, self.explanation_template]:
             if _template:
                 self.variables.extend(self._parse_variables(template=_template))
-            self.variables = list(set(self.variables))
+            # remove duplicates while preserving order
+            self.variables = list(OrderedDict.fromkeys(self.variables))
 
         self._scores = scores
 
