@@ -44,3 +44,6 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 !src/phoenix/evals/
 /src/phoenix/otel
 !src/phoenix/otel/
+
+# Caches
+.pnpm-store
