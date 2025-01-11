@@ -965,5 +965,8 @@ class TestPromptMutations:
         # clone prompt
         result = await gql_client.execute(self.CLONE_PROMPT_MUTATION, variables)
         assert len(result.errors) == 1
-        assert "UNIQUE constraint failed: prompts.name" in result.errors[0].message
+        assert (
+            f"A prompt named '{variables['input']['name']}' already exists"
+            in result.errors[0].message
+        )
         assert result.data is None

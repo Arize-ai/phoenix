@@ -247,11 +247,9 @@ class PromptMutationMixin:
             new_prompt.prompt_versions = new_versions
 
             session.add(new_prompt)
-            await session.flush()
 
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A prompt named '{input.name}' already exists")
-
         return to_gql_prompt_from_orm(new_prompt)
