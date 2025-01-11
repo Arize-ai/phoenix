@@ -18,6 +18,7 @@ from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
@@ -50,6 +51,7 @@ __all__ = [
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
+    "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",
