@@ -884,83 +884,38 @@ class TestPromptMutations:
         # clone prompt
         result = await gql_client.execute(self.CLONE_PROMPT_MUTATION, variables)
 
+        created_prompt = create_prompt_result.data["createChatPrompt"]
+        created_prompt_version = created_prompt["promptVersions"]["edges"][0]["promptVersion"]
+
         # assert prompt and prompt versions were cloned
         # prompt id, prompt version ids, dates, should be different
         # everything else should be the same
         assert result.data is not None
         data = result.data["clonePrompt"]
-        assert data.pop("id") != create_prompt_result.data["createChatPrompt"]["id"]
-        assert data.pop("name") != create_prompt_result.data["createChatPrompt"]["name"]
+        assert data.pop("id") != created_prompt["id"]
+        assert data.pop("name") != created_prompt["name"]
         assert data.pop("createdAt") is not None
+        assert data.pop("description") != created_prompt["description"]
+        cloned_prompt_version = data["promptVersions"]["edges"][0].pop("promptVersion")
+        assert cloned_prompt_version.pop("id") != created_prompt_version["id"]
+        assert cloned_prompt_version.pop("description") == created_prompt_version["description"]
+        assert cloned_prompt_version.pop("createdAt") is not None
+        assert cloned_prompt_version.pop("user") is None
+        assert cloned_prompt_version.pop("templateType") == created_prompt_version["templateType"]
         assert (
-            data.pop("description") != create_prompt_result.data["createChatPrompt"]["description"]
+            cloned_prompt_version.pop("templateFormat") == created_prompt_version["templateFormat"]
         )
         assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("id")
-            != create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["id"]
+            cloned_prompt_version.pop("invocationParameters")
+            == created_prompt_version["invocationParameters"]
         )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("description")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["description"]
-        )
-        # assert createdAt is not None
-        # we can't do a comparison because the date is identical
-        assert data["promptVersions"]["edges"][0]["promptVersion"].pop("createdAt") is not None
-        assert data["promptVersions"]["edges"][0]["promptVersion"].pop("user") is None
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("templateType")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["templateType"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("templateFormat")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["templateFormat"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("invocationParameters")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["invocationParameters"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("modelProvider")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["modelProvider"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("modelName")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["modelName"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("template")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["template"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("tools")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["tools"]
-        )
-        assert (
-            data["promptVersions"]["edges"][0]["promptVersion"].pop("outputSchema")
-            == create_prompt_result.data["createChatPrompt"]["promptVersions"]["edges"][0][
-                "promptVersion"
-            ]["outputSchema"]
-        )
-        # assert all fields of promptVersions["edges"][0]["promptVersion"] have been popped
-        assert not data["promptVersions"]["edges"][0]["promptVersion"]
+        assert cloned_prompt_version.pop("modelProvider") == created_prompt_version["modelProvider"]
+        assert cloned_prompt_version.pop("modelName") == created_prompt_version["modelName"]
+        assert cloned_prompt_version.pop("template") == created_prompt_version["template"]
+        assert cloned_prompt_version.pop("tools") == created_prompt_version["tools"]
+        assert cloned_prompt_version.pop("outputSchema") == created_prompt_version["outputSchema"]
+        assert not data["promptVersions"]["edges"][0]
+        assert not cloned_prompt_version
         assert data.pop("promptVersions") is not None
         assert not data
 
@@ -1010,5 +965,5 @@ class TestPromptMutations:
         # clone prompt
         result = await gql_client.execute(self.CLONE_PROMPT_MUTATION, variables)
         assert len(result.errors) == 1
-        assert "constraint failed" in result.errors[0].message
+        assert "UNIQUE constraint failed: prompts.name" in result.errors[0].message
         assert result.data is None
