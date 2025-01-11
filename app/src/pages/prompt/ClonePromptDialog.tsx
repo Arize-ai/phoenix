@@ -18,6 +18,7 @@ import {
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generated__/ClonePromptDialogMutation.graphql";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export const ClonePromptDialog = ({
   promptId,
@@ -78,8 +79,9 @@ export const ClonePromptDialog = ({
         });
       },
       onError: (error) => {
+        const message = getErrorMessagesFromRelayMutationError(error);
         setError("root", {
-          message: error.message,
+          message: message?.[0] ?? "An error occurred",
         });
       },
     });
