@@ -3,6 +3,7 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import select
+from strawberry import Private
 from strawberry.relay import Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -40,6 +41,7 @@ class PromptVersion(Node):
     model_name: str
     model_provider: str
     created_at: datetime
+    cached_sequence_number: Private[Optional[int]] = None
 
     @strawberry.field
     async def tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
@@ -81,8 +83,26 @@ class PromptVersion(Node):
                 return to_gql_prompt_version(prompt_version=previous_version)
             return None
 
+    @strawberry.field(
+        description="Sequence number (1-based) of prompt versions belonging to the same prompt"
+    )  # type: ignore
+    async def sequence_number(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        if self.cached_sequence_number is None:
+            seq_num = await info.context.data_loaders.prompt_version_sequence_number.load(
+                self.id_attr
+            )
+            if seq_num is None:
+                raise ValueError(f"invalid prompt version: id={self.id_attr}")
+            self.cached_sequence_number = seq_num
+        return self.cached_sequence_number
 
-def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion:
+
+def to_gql_prompt_version(
+    prompt_version: models.PromptVersion, sequence_number: Optional[int] = None
+) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
@@ -113,4 +133,5 @@ def to_gql_prompt_version(prompt_version: models.PromptVersion) -> PromptVersion
         model_name=prompt_version.model_name,
         model_provider=prompt_version.model_provider,
         created_at=prompt_version.created_at,
+        cached_sequence_number=sequence_number,
     )

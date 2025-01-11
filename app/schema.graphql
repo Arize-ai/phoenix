@@ -1503,6 +1503,11 @@ type PromptVersion implements Node {
   tags: [PromptVersionTag!]!
   user: User
   previousVersion: PromptVersion
+
+  """
+  Sequence number (1-based) of prompt versions belonging to the same prompt
+  """
+  sequenceNumber: Int!
 }
 
 """A connection to a list of items."""
