@@ -5,7 +5,7 @@ from fastapi import Request
 from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -211,11 +211,10 @@ class PromptMutationMixin:
             # Load prompt with all versions
             stmt = (
                 select(models.Prompt)
-                .options(selectinload(models.Prompt.prompt_versions))
+                .options(joinedload(models.Prompt.prompt_versions))
                 .where(models.Prompt.id == prompt_id)
             )
-            result = await session.execute(stmt)
-            prompt = result.scalar_one_or_none()
+            prompt = await session.scalar(stmt)
 
             if not prompt:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
@@ -226,8 +225,6 @@ class PromptMutationMixin:
                 description=input.description,
                 source_prompt_id=prompt_id,
             )
-            session.add(new_prompt)
-            await session.flush()
 
             # Create copies of all versions
             new_versions = [
@@ -247,7 +244,10 @@ class PromptMutationMixin:
                 for version in prompt.prompt_versions
             ]
             # Add all version copies to the new prompt
-            session.add_all(new_versions)
+            new_prompt.prompt_versions = new_versions
+
+            session.add(new_prompt)
+            await session.flush()
 
             try:
                 await session.commit()
