@@ -80,9 +80,15 @@ export const ClonePromptDialog = ({
       },
       onError: (error) => {
         const message = getErrorMessagesFromRelayMutationError(error);
-        setError("root", {
-          message: message?.[0] ?? "An error occurred",
-        });
+        if (message?.[0]?.includes("already exists")) {
+          setError("name", {
+            message: message?.[0],
+          });
+        } else {
+          setError("root", {
+            message: message?.[0],
+          });
+        }
       },
     });
   });
