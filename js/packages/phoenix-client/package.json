@@ -9,6 +9,14 @@
     ".": {
       "import": "./dist/esm/index.js",
       "require": "./dist/src/index.js"
+    },
+    "./prompts": {
+      "import": "./dist/esm/prompts/index.js",
+      "require": "./dist/src/prompts/index.js"
+    },
+    "./experiments": {
+      "import": "./dist/esm/experiments/index.js",
+      "require": "./dist/src/experiments/index.js"
     }
   },
   "files": [
@@ -30,6 +38,7 @@
   "license": "ELv2",
   "devDependencies": {
     "@types/node": "^20.14.11",
+    "openai": "^4.77.0",
     "openapi-typescript": "^7.4.1",
     "tsx": "^4.19.1"
   },
@@ -41,5 +50,8 @@
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=18"
+  },
+  "peerDependencies": {
+    "openai": "^4.77.0"
   }
 }
