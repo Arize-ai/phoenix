@@ -211,6 +211,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get all prompts */
+        get: operations["getPrompts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompt_versions/{prompt_version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get prompt by prompt version ID */
+        get: operations["getPromptVersionByPromptVersionId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get prompt by tag name */
+        get: operations["getPromptVersionByTagName"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -388,10 +439,34 @@ export interface components {
         GetExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
         };
+        /** GetPromptResponseBody */
+        GetPromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
+        /** GetPromptsResponseBody */
+        GetPromptsResponseBody: {
+            /** Data */
+            data: components["schemas"]["Prompt"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImageContentPart */
+        ImageContentPart: {
+            /**
+             * Type
+             * @default image
+             * @constant
+             */
+            type: "image";
+            image: components["schemas"]["ImageContentValue"];
+        };
+        /** ImageContentValue */
+        ImageContentValue: {
+            /** Url */
+            url: string;
         };
         /** InsertedSpanAnnotation */
         InsertedSpanAnnotation: {
@@ -432,6 +507,93 @@ export interface components {
         ListExperimentsResponseBody: {
             /** Data */
             data: components["schemas"]["Experiment"][];
+        };
+        /** Prompt */
+        Prompt: {
+            /** Id */
+            id: string;
+            /** Source Prompt Id */
+            source_prompt_id: string | null;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+        };
+        /** PromptChatTemplateV1 */
+        PromptChatTemplateV1: {
+            /** Messages */
+            messages: components["schemas"]["PromptMessage"][];
+        };
+        /**
+         * PromptJSONSchema
+         * @description A JSON schema definition used to guide an LLM's output
+         */
+        PromptJSONSchema: {
+            /** Definition */
+            definition: Record<string, never>;
+        };
+        /** PromptMessage */
+        PromptMessage: {
+            role: components["schemas"]["PromptMessageRole"];
+            /** Content */
+            content: (components["schemas"]["TextContentPart"] | components["schemas"]["ImageContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+        };
+        /**
+         * PromptMessageRole
+         * @enum {string}
+         */
+        PromptMessageRole: "USER" | "SYSTEM" | "AI" | "TOOL";
+        /** PromptStringTemplateV1 */
+        PromptStringTemplateV1: {
+            /** Template */
+            template: string;
+        };
+        /**
+         * PromptTemplateFormat
+         * @enum {string}
+         */
+        PromptTemplateFormat: "MUSTACHE" | "FSTRING" | "NONE";
+        /**
+         * PromptTemplateType
+         * @enum {string}
+         */
+        PromptTemplateType: "STR" | "CHAT";
+        /** PromptToolDefinition */
+        PromptToolDefinition: {
+            /** Definition */
+            definition: Record<string, never>;
+        };
+        /** PromptToolsV1 */
+        PromptToolsV1: {
+            /**
+             * Version
+             * @default tools-v1
+             * @constant
+             */
+            version: "tools-v1";
+            /** Tool Definitions */
+            tool_definitions: components["schemas"]["PromptToolDefinition"][];
+        };
+        /** PromptVersion */
+        PromptVersion: {
+            /** Id */
+            id: string;
+            /** Description */
+            description: string;
+            /** Model Provider */
+            model_provider: string;
+            /** Model Name */
+            model_name: string;
+            /** Template */
+            template: components["schemas"]["PromptChatTemplateV1"] | components["schemas"]["PromptStringTemplateV1"];
+            /** @default CHAT */
+            template_type: components["schemas"]["PromptTemplateType"];
+            /** @default MUSTACHE */
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** Invocation Parameters */
+            invocation_parameters?: Record<string, never>;
+            tools?: components["schemas"]["PromptToolsV1"] | null;
+            output_schema?: components["schemas"]["PromptJSONSchema"] | null;
         };
         /** SpanAnnotation */
         SpanAnnotation: {
@@ -476,6 +638,67 @@ export interface components {
              * @description Explanation of the annotation result
              */
             explanation?: string | null;
+        };
+        /** TextContentPart */
+        TextContentPart: {
+            /**
+             * Type
+             * @default text
+             * @constant
+             */
+            type: "text";
+            text: components["schemas"]["TextContentValue"];
+        };
+        /** TextContentValue */
+        TextContentValue: {
+            /** Text */
+            text: string;
+        };
+        /** ToolCallContentPart */
+        ToolCallContentPart: {
+            /**
+             * Type
+             * @default tool_call
+             * @constant
+             */
+            type: "tool_call";
+            tool_call: components["schemas"]["ToolCallContentValue"];
+        };
+        /** ToolCallContentValue */
+        ToolCallContentValue: {
+            /** Tool Call Id */
+            tool_call_id: string;
+            tool_call: components["schemas"]["ToolCallFunction"];
+        };
+        /** ToolCallFunction */
+        ToolCallFunction: {
+            /**
+             * Type
+             * @default function
+             * @constant
+             */
+            type: "function";
+            /** Name */
+            name: string;
+            /** Arguments */
+            arguments: string;
+        };
+        /** ToolResultContentPart */
+        ToolResultContentPart: {
+            /**
+             * Type
+             * @default tool_result
+             * @constant
+             */
+            type: "tool_result";
+            tool_result: components["schemas"]["ToolResultContentValue"];
+        };
+        /** ToolResultContentValue */
+        ToolResultContentValue: {
+            /** Tool Call Id */
+            tool_call_id: string;
+            /** Result */
+            result: boolean | number | string | Record<string, never> | unknown[] | null;
         };
         /** UploadDatasetData */
         UploadDatasetData: {
@@ -1232,6 +1455,151 @@ export interface operations {
             };
             /** @description Unsupported content type, only gzipped protobuf and pandas-arrow are supported */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPrompts: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded prompt ID) */
+                cursor?: string | null;
+                /** @description The max number of prompts to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPromptVersionByPromptVersionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the prompt version. */
+                prompt_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPromptVersionByTagName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+                /** @description The tag of the prompt version */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
