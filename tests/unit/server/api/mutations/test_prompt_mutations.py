@@ -282,6 +282,7 @@ class TestPromptMutations:
         data = result.data["createChatPrompt"]
         assert data.pop("name") == "prompt-name"
         assert data.pop("description") == "prompt-description"
+        assert isinstance(data.pop("id"), str)
         assert isinstance(data.pop("createdAt"), str)
         prompt_version = data.pop("promptVersions")["edges"][0]["promptVersion"]
         assert not data
@@ -300,6 +301,7 @@ class TestPromptMutations:
         assert prompt_version.pop("tools") == expected_tools
         expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
         assert prompt_version.pop("outputSchema") == expected_output_schema
+        assert isinstance(prompt_version.pop("createdAt"), str)
         assert isinstance(prompt_version.pop("id"), str)
 
         # Verify messages
@@ -633,6 +635,7 @@ class TestPromptMutations:
         data = result.data["createChatPromptVersion"]
         assert data.pop("name") == "prompt-name"
         assert data.pop("description") == "prompt-description"
+        assert isinstance(data.pop("id"), str)
         versions = data.pop("promptVersions")["edges"]
         assert len(versions) == 2
         latest_prompt_version = versions[0]["promptVersion"]
