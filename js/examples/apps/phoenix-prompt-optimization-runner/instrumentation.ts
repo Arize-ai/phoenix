@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import {
   OpenAIInstrumentation,

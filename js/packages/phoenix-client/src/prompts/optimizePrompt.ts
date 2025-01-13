@@ -331,6 +331,11 @@ async function evaluatePrompt(params: {
     "Experiment runs contain errors\n" +
       JSON.stringify(experiment.evaluationRuns, null, 2)
   );
+  invariant(
+    !experiment.evaluationRuns.some((run) => run == null),
+    "Experiment runs contain null results\n" +
+      JSON.stringify(experiment.evaluationRuns, null, 2)
+  );
   const failedExperimentEvaluationRuns = experiment.evaluationRuns.filter(
     (run) =>
       run.result != null && (run.result.score == null || run.result.score < 1)

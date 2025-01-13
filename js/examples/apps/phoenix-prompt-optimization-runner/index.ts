@@ -7,12 +7,9 @@ import {
   type OptimizePromptTask,
 } from "@arizeai/phoenix-client/prompts";
 import { asEvaluator } from "@arizeai/phoenix-client/experiments";
-import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
-import dotenv from "dotenv";
 import OpenAI from "openai";
 import { z } from "zod";
-
-dotenv.config();
+import { runner } from "./runner.js";
 
 const env = z
   .object({
@@ -40,61 +37,13 @@ const openai = new OpenAI({
 // baseUrl defaults to http://localhost:6006
 const phoenix = createClient();
 
-// Make GET request to /v1/datasets
-// Available GET endpoints are available via auto-completion
-// or by looking at Types["V1"]["paths"]
-const getDatasets = () =>
-  phoenix
-    .GET("/v1/datasets", { params: { query: { limit: 100 } } })
-    .then(({ data }) => data?.data ?? []);
-
-// - Prompt user to select a dataset from the list
-// - Prompt user to confirm the task before running
-// - Run the experiment
-// - Print the results
-
 const main = async () => {
-  intro("Phoenix Prompt Optimization Runner");
-  let datasets: Awaited<ReturnType<typeof getDatasets>> = [];
-  try {
-    datasets = await getDatasets();
-  } catch (e) {
-    if (e instanceof Error && e.message === "fetch failed") {
-      log.error(
-        "Cannot connect to Phoenix at http://localhost:6006! Start it with `pnpm d:up` and try again!"
-      );
-      return;
-    }
-    log.error(String(e));
-    return;
-  }
+  // TODO: This should come from Phoenix api
+  const initialPrompt = { content: "You are a helpful assistant." };
 
-  if (datasets.length === 0) {
-    outro(
-      "No datasets found in your Phoenix instance. Please create a dataset at http://localhost:6006/datasets first!\nYou can use the `qa-dataset.csv` file in this directory to create a dataset."
-    );
-    return;
-  }
-
-  const datasetId = await select({
-    message: "Select a dataset",
-    options: datasets.map((dataset) => ({
-      value: dataset.id,
-      label: dataset.name,
-    })),
-  });
-
-  const dataset = datasets.find((dataset) => dataset.id === datasetId);
-  if (!dataset) {
-    outro("Dataset not found, sorry!");
-    return;
-  }
-
-  const initialPrompt: OptimizePromptParams["prompt"] = {
-    content: "You are a helpful assistant.",
-  };
-
-  const LLMAssistantTask: OptimizePromptTask = {
+  // This Task should only answer questions about programming languages.
+  // It's initial prompt is not sufficient to do this and must be optimized.
+  const ProgrammingAssistantTask: OptimizePromptTask = {
     description:
       "Exclusively answer questions about programming languages. Reject any other questions.",
     execute: async ({ example, promptContent }) => {
@@ -112,82 +61,45 @@ const main = async () => {
     },
   };
 
-  log.info(
-    `We will optimize prompt "${initialPrompt.content}" for use against dataset "${dataset.name}" with task "${LLMAssistantTask.description}"`
-  );
-  const shouldContinue = await confirm({
-    message: "Do you want to continue?",
-  });
-
-  if (!shouldContinue) {
-    log.error("Prompt optimization cancelled");
-    return;
-  }
-
-  const s = spinner();
-  s.start("Evaluating initial prompt...");
-
-  let promptRun: Awaited<ReturnType<typeof optimizePrompt>>;
-  try {
-    promptRun = await optimizePrompt({
-      dataset: dataset.id,
-      client: phoenix,
-      options: {
-        maxTurns: 5,
-      },
-      handlers: {
-        onStart: () => {
-          s.stop();
-          s.start("Generating new prompt...");
-        },
-        onTurnEnd: ({ suggestions, failedExperimentEvaluationRunCount }) => {
-          log.info(
-            `Failed experiment evaluation run count: ${failedExperimentEvaluationRunCount}`
-          );
-          log.info(`Suggestions:\n${suggestions.join("\n")}`);
-        },
-      },
-      prompt: initialPrompt,
-      task: LLMAssistantTask,
-      logger: {
-        ...log,
-        log: (message) => log.message(message),
-      },
-      evaluator: asEvaluator("Matches", async (params) => {
-        const result = await openai.chat.completions
-          .create({
-            model: config.model,
-            response_format: {
-              type: "json_schema",
-              json_schema: {
-                name: "score",
-                schema: {
-                  type: "object",
-                  properties: {
-                    score: {
-                      type: "string",
-                      enum: ["A", "B", "C"],
-                      description:
-                        "The score of the output. A means the output exactly matches the expected output, B means the output semantically matches the expected output, and C means the output does not match the expected output.",
-                    },
-                    label: {
-                      type: "string",
-                      enum: ["Matches"],
-                    },
-                    explanation: {
-                      type: "string",
-                      description:
-                        "Explain why the outputs do, or do not, match the expected output.",
-                    },
+  // This Evaluator will score the output of the ProgrammingAssistantTask
+  // based on how well it matches the expected output.
+  // It should "pass" the prompt if the output at least has the same meaning as the expected output.
+  const SemanticMatcherEvaluator: OptimizePromptParams["evaluator"] =
+    asEvaluator("Matches", async (params) => {
+      const result = await openai.chat.completions
+        .create({
+          model: config.model,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "score",
+              schema: {
+                type: "object",
+                properties: {
+                  score: {
+                    type: "string",
+                    enum: ["A", "B", "C"],
+                    description:
+                      "The score of the output. A means the output exactly matches the expected output, B means the output semantically matches the expected output, and C means the output does not match the expected output.",
                   },
-                  required: ["score", "label", "explanation"],
+                  label: {
+                    type: "string",
+                    enum: ["Matches"],
+                  },
+                  explanation: {
+                    type: "string",
+                    description:
+                      "Explain why the outputs do, or do not, match the expected output.",
+                  },
                 },
+                required: ["score", "label", "explanation"],
               },
             },
-            messages: [
-              {
-                role: "user",
-                content: `How well does the received output match the expected output?
+          },
+          messages: [
+            {
+              role: "user",
+              content: `How well does the received output match the expected output?
 
 Received Output: 
 
@@ -196,62 +108,55 @@ ${params.output}
 Expected Output: 
 
 ${params.expected?.output}`,
-              },
-            ],
-          })
-          .then((res) => {
-            const parsed = JSON.parse(res.choices[0]?.message?.content ?? "");
-            return {
-              ...parsed,
-              score: parsed.score === "C" ? 0 : parsed.score === "B" ? 0.6 : 1,
-              metadata: {},
-            };
-          });
-        if (!result) {
-          throw new Error("No result from OpenAI");
-        }
-        return {
-          ...result,
-          score: result.score === "C" ? 0 : result.score === "B" ? 0.6 : 1,
-          metadata: {},
-        };
-      }),
-    });
-  } catch (e) {
-    s.stop("Prompt optimization failed!");
-    if (e instanceof Error) {
-      log.error(e.message);
-    } else {
-      log.error(JSON.stringify(e, null, 2));
-    }
-    return;
-  }
-
-  if (!promptRun) {
-    s.stop("Prompt optimization did not proceed");
-    return;
-  }
-
-  s.stop("Prompt optimization complete!");
-
-  if (promptRun.lastTestedInputOutputs.length > 0) {
-    log.info("Last tested input outputs:");
-    promptRun.lastTestedInputOutputs.forEach(
-      ({ input, output, score, explanation }) => {
-        log.info(`Input:\n${input}`);
-        log.info(`Output:\n${output}`);
-        log.info(`Explanation:\n${explanation}`);
-        log.info(`Score:\n${score}`);
+            },
+          ],
+        })
+        .then((res) => {
+          const parsed = JSON.parse(res.choices[0]?.message?.content ?? "");
+          return {
+            ...parsed,
+            score: parsed.score === "A" ? 1 : parsed.score === "B" ? 0.6 : 0,
+            metadata: {},
+          };
+        });
+      if (!result) {
+        throw new Error("No result from OpenAI");
       }
-    );
-  }
+      return {
+        ...result,
+        metadata: {},
+      };
+    });
 
-  log.info("Original Prompt:");
-  log.info(promptRun.initialPrompt.content);
-  log.info("Optimized Prompt Output:");
-  log.info(promptRun.optimizedPrompt.content);
+  const optimizer = (
+    datasetId: string,
+    handlers: OptimizePromptParams["handlers"],
+    logger: OptimizePromptParams["logger"]
+  ) =>
+    // The optimizer will optimize the initial prompt to match the task description
+    // It does this by evaluating the output of the task against every example in the dataset
+    // and then using the evaluator to score the output.
+    // It will run until all examples have been evaluated or the maxTurns is reached.
+    optimizePrompt({
+      dataset: datasetId,
+      client: phoenix,
+      options: {
+        maxTurns: 5,
+      },
+      handlers,
+      prompt: initialPrompt,
+      task: ProgrammingAssistantTask,
+      logger,
+      evaluator: SemanticMatcherEvaluator,
+    });
 
-  outro("🐦‍🔥 Thank you for using Phoenix!");
+  // This runs the optimizer with a nice CLI interface, but is not required.
+  await runner({
+    phoenix,
+    optimizer,
+    initialPrompt: initialPrompt.content,
+    taskDescription: ProgrammingAssistantTask.description,
+  });
 };
 
 main();
