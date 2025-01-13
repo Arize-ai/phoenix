@@ -12,7 +12,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Prompt import Prompt
+from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 
@@ -30,9 +30,15 @@ class SetPromptVersionTagInput:
 
 
 @strawberry.type
-class PromptVersionTagMutationPayload:
+class DeletePromptVersionTagPayload:
     prompt_version_tag: Optional[PromptVersionTag]
-    prompt: Optional[Prompt]
+    query: Query
+
+
+@strawberry.type
+class SetPromptVersionTagPayload:
+    prompt_version_tag: Optional[PromptVersionTag]
+    prompt: Prompt
     query: Query
 
 
@@ -41,7 +47,7 @@ class PromptVersionTagMutationMixin:
     @strawberry.mutation
     async def delete_prompt_version_tag(
         self, info: Info[Context, None], input: DeletePromptVersionTagInput
-    ) -> PromptVersionTagMutationPayload:
+    ) -> DeletePromptVersionTagPayload:
         async with info.context.db() as session:
             prompt_version_tag_id = from_global_id_with_expected_type(
                 input.prompt_version_tag_id, PromptVersionTag.__name__
@@ -54,12 +60,12 @@ class PromptVersionTagMutationMixin:
                 raise NotFound(f"PromptVersionTag with ID {input.prompt_version_tag_id} not found")
 
             await session.commit()
-            return PromptVersionTagMutationPayload(prompt_version_tag=None, query=Query())
+            return DeletePromptVersionTagPayload(prompt_version_tag=None, query=Query())
 
     @strawberry.mutation
     async def set_prompt_version_tag(
         self, info: Info[Context, None], input: SetPromptVersionTagInput
-    ) -> PromptVersionTagMutationPayload:
+    ) -> SetPromptVersionTagPayload:
         async with info.context.db() as session:
             prompt_version_id = from_global_id_with_expected_type(
                 input.prompt_version_id, PromptVersion.__name__
@@ -74,6 +80,8 @@ class PromptVersionTagMutationMixin:
             prompt = await session.scalar(
                 select(models.Prompt).where(models.Prompt.id == prompt_id)
             )
+            if not prompt:
+                raise BadRequest("All prompt version tags must belong to a prompt")
 
             existing_tag = await session.scalar(
                 select(models.PromptVersionTag).where(
@@ -106,6 +114,6 @@ class PromptVersionTagMutationMixin:
                 raise Conflict("Failed to update PromptVersionTag.")
 
             version_tag = to_gql_prompt_version_tag(updated_tag)
-            return PromptVersionTagMutationPayload(
-                prompt_version_tag=version_tag, prompt=prompt, query=Query()
+            return SetPromptVersionTagPayload(
+                prompt_version_tag=version_tag, prompt=to_gql_prompt_from_orm(prompt), query=Query()
             )
