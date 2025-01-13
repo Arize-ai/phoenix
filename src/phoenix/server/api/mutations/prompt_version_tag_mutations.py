@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
@@ -30,13 +30,7 @@ class SetPromptVersionTagInput:
 
 
 @strawberry.type
-class DeletePromptVersionTagPayload:
-    prompt_version_tag: Optional[PromptVersionTag]
-    query: Query
-
-
-@strawberry.type
-class SetPromptVersionTagPayload:
+class PromptVersionTagMutationPayload:
     prompt_version_tag: Optional[PromptVersionTag]
     prompt: Prompt
     query: Query
@@ -47,25 +41,43 @@ class PromptVersionTagMutationMixin:
     @strawberry.mutation
     async def delete_prompt_version_tag(
         self, info: Info[Context, None], input: DeletePromptVersionTagInput
-    ) -> DeletePromptVersionTagPayload:
+    ) -> PromptVersionTagMutationPayload:
         async with info.context.db() as session:
             prompt_version_tag_id = from_global_id_with_expected_type(
                 input.prompt_version_tag_id, PromptVersionTag.__name__
             )
-            stmt = delete(models.PromptVersionTag).where(
-                models.PromptVersionTag.id == prompt_version_tag_id
+            stmt = (
+                select(models.PromptVersionTag, models.Prompt)
+                .join(
+                    models.PromptVersion,
+                    models.PromptVersion.id == models.PromptVersionTag.prompt_version_id,
+                )
+                .join(models.Prompt, models.Prompt.id == models.PromptVersion.prompt_id)
+                .where(models.PromptVersionTag.id == prompt_version_tag_id)
             )
             result = await session.execute(stmt)
-            if result.rowcount == 0:
+            if results := result.one_or_none():
+                prompt_version_tag, prompt = results
+
+            if not prompt_version_tag:
                 raise NotFound(f"PromptVersionTag with ID {input.prompt_version_tag_id} not found")
 
+            if not prompt:
+                raise BadRequest(
+                    f"PromptVersionTag with ID {input.prompt_version_tag_id} "
+                    "does not belong to a prompt"
+                )
+
+            await session.delete(prompt_version_tag)
             await session.commit()
-            return DeletePromptVersionTagPayload(prompt_version_tag=None, query=Query())
+            return PromptVersionTagMutationPayload(
+                prompt_version_tag=None, query=Query(), prompt=to_gql_prompt_from_orm(prompt)
+            )
 
     @strawberry.mutation
     async def set_prompt_version_tag(
         self, info: Info[Context, None], input: SetPromptVersionTagInput
-    ) -> SetPromptVersionTagPayload:
+    ) -> PromptVersionTagMutationPayload:
         async with info.context.db() as session:
             prompt_version_id = from_global_id_with_expected_type(
                 input.prompt_version_id, PromptVersion.__name__
@@ -74,7 +86,7 @@ class PromptVersionTagMutationMixin:
                 select(models.PromptVersion).where(models.PromptVersion.id == prompt_version_id)
             )
             if not prompt_version:
-                raise BadRequest("PromptVersion with ID {input.prompt_version_id} not found.")
+                raise BadRequest(f"PromptVersion with ID {input.prompt_version_id} not found.")
 
             prompt_id = prompt_version.prompt_id
             prompt = await session.scalar(
@@ -114,6 +126,6 @@ class PromptVersionTagMutationMixin:
                 raise Conflict("Failed to update PromptVersionTag.")
 
             version_tag = to_gql_prompt_version_tag(updated_tag)
-            return SetPromptVersionTagPayload(
+            return PromptVersionTagMutationPayload(
                 prompt_version_tag=version_tag, prompt=to_gql_prompt_from_orm(prompt), query=Query()
             )

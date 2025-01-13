@@ -522,11 +522,6 @@ input DeletePromptVersionTagInput {
   promptVersionTagId: GlobalID!
 }
 
-type DeletePromptVersionTagPayload {
-  promptVersionTag: PromptVersionTag
-  query: Query!
-}
-
 input DeleteUsersInput {
   userIds: [GlobalID!]!
 }
@@ -1212,8 +1207,8 @@ type Mutation {
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): Query!
-  deletePromptVersionTag(input: DeletePromptVersionTagInput!): DeletePromptVersionTagPayload!
-  setPromptVersionTag(input: SetPromptVersionTagInput!): SetPromptVersionTagPayload!
+  deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1536,6 +1531,12 @@ type PromptVersionTag implements Node {
   description: String
 }
 
+type PromptVersionTagMutationPayload {
+  promptVersionTag: PromptVersionTag
+  prompt: Prompt!
+  query: Query!
+}
+
 type Query {
   modelProviders: [GenerativeProvider!]!
   models(input: ModelsInput = null): [GenerativeModel!]!
@@ -1614,12 +1615,6 @@ input SetPromptVersionTagInput {
   promptVersionId: GlobalID!
   name: String!
   description: String = null
-}
-
-type SetPromptVersionTagPayload {
-  promptVersionTag: PromptVersionTag
-  prompt: Prompt!
-  query: Query!
 }
 
 enum SortDir {
