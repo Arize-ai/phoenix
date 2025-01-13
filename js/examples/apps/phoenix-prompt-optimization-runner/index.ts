@@ -142,6 +142,10 @@ ${params.expected?.output}`,
       client: phoenix,
       options: {
         maxTurns: 5,
+        // Our evaluator will "pass" the prompt if the output at least has the same meaning as the expected output.
+        // This means that if the output is not exactly the same as the expected output, it will still be "passed".
+        // We set the failure threshold to 0.6 to allow for some flexibility in the output.
+        failureThreshold: 0.6,
       },
       handlers,
       prompt: initialPrompt,

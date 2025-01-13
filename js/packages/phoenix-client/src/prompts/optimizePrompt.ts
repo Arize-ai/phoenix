@@ -56,10 +56,16 @@ export type Prompt = {
 
 const DEFAULT_OPTIONS = {
   maxTurns: 3,
+  failureThreshold: 1,
+  verbose: false,
 } satisfies OptimizePromptOptions;
 
 export type OptimizePromptOptions = {
   maxTurns?: number;
+  /**
+   * A number between 0 and 1. If the evaluator score is below this threshold, the prompt is considered failed.
+   */
+  failureThreshold?: number;
   verbose?: boolean;
 };
 
@@ -145,7 +151,7 @@ export type ResolvedOptimizePromptParams = {
   client: PhoenixClient;
   logger: Logger;
   dataset: Dataset;
-  options: OptimizePromptOptions;
+  options: Required<OptimizePromptOptions>;
 } & Omit<
   OptimizePromptParams,
   "client" | "logger" | "dataset" | "options" | "prompt"
@@ -190,6 +196,7 @@ export async function optimizePrompt(params: OptimizePromptParams) {
       client,
       logger,
       verbose: options.verbose,
+      failureThreshold: options.failureThreshold,
     });
 
   if (!experiment.evaluationRuns) {
@@ -241,6 +248,7 @@ export async function optimizePrompt(params: OptimizePromptParams) {
       evaluator: params.evaluator,
       client,
       logger,
+      failureThreshold: options.failureThreshold,
     });
     lastFailedExperimentRuns = newExperiment.runs;
     lastFailedExperimentEvaluationRuns = newFailedExperimentEvaluationRuns;
@@ -314,9 +322,18 @@ async function evaluatePrompt(params: {
   client: PhoenixClient;
   logger: Logger;
   verbose?: boolean;
+  failureThreshold: number;
 }) {
-  const { promptContent, dataset, task, evaluator, client, logger, verbose } =
-    params;
+  const {
+    promptContent,
+    dataset,
+    task,
+    evaluator,
+    client,
+    logger,
+    verbose,
+    failureThreshold,
+  } = params;
   const experiment = await runExperiment({
     dataset,
     task: (example) => task.execute({ example, promptContent }),
@@ -338,7 +355,8 @@ async function evaluatePrompt(params: {
   );
   const failedExperimentEvaluationRuns = experiment.evaluationRuns.filter(
     (run) =>
-      run.result != null && (run.result.score == null || run.result.score < 1)
+      run.result != null &&
+      (run.result.score == null || run.result.score < failureThreshold)
   );
   const needsOptimization = failedExperimentEvaluationRuns.length > 0;
 
