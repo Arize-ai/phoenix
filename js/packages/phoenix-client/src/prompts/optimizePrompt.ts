@@ -61,11 +61,17 @@ const DEFAULT_OPTIONS = {
 } satisfies OptimizePromptOptions;
 
 export type OptimizePromptOptions = {
+  /**
+   * The maximum number of turns to run the optimization loop.
+   **/
   maxTurns?: number;
   /**
    * A number between 0 and 1. If the evaluator score is below this threshold, the prompt is considered failed.
    */
   failureThreshold?: number;
+  /**
+   * Whether to log verbose output from the evalutation process inside of the optimizer.
+   */
   verbose?: boolean;
 };
 
@@ -120,10 +126,7 @@ export type OptimizePromptHandlers = Partial<{
  *       { role: "user", content: example.input },
  *     ],
  *   });
- *   return {
- *     success: result.output === example.output,
- *     output: result.output,
- *   };
+ *   return result.content;
  * };
  * ```
  */
