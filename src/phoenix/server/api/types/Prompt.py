@@ -5,11 +5,12 @@ from typing import Optional
 import strawberry
 from sqlalchemy import func, select
 from strawberry import UNSET
-from strawberry.relay import Connection, Node, NodeID
+from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -26,6 +27,7 @@ from .PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 @strawberry.type
 class Prompt(Node):
     id_attr: NodeID[int]
+    source_prompt_id: Optional[GlobalID]
     name: str
     description: Optional[str]
     created_at: datetime
@@ -68,10 +70,30 @@ class Prompt(Node):
             ]
             return connection_from_list(data=data, args=args)
 
+    @strawberry.field
+    async def source_prompt(self, info: Info[Context, None]) -> Optional["Prompt"]:
+        if not self.source_prompt_id:
+            return None
+        async with info.context.db() as session:
+            source_prompt = await session.scalar(
+                select(models.Prompt).where(models.Prompt.id == self.source_prompt_id)
+            )
+            if not source_prompt:
+                raise NotFound(f"Source prompt not found: {self.source_prompt_id}")
+            return to_gql_prompt_from_orm(source_prompt)
+
 
 def to_gql_prompt_from_orm(orm_model: "models.Prompt") -> Prompt:
+    if not orm_model.source_prompt_id:
+        source_prompt_gid = None
+    else:
+        source_prompt_gid = GlobalID(
+            Prompt.__name__,
+            str(orm_model.source_prompt_id),
+        )
     return Prompt(
         id_attr=orm_model.id,
+        source_prompt_id=source_prompt_gid,
         name=orm_model.name,
         description=orm_model.description,
         created_at=orm_model.created_at,
