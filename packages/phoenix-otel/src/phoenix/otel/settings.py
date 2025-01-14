@@ -8,9 +8,15 @@ logger = logging.getLogger(__name__)
 
 # Environment variables specific to the subpackage
 ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
+ENV_PHOENIX_GRPC_PORT = "PHOENIX_GRPC_PORT"
 ENV_PHOENIX_PROJECT_NAME = "PHOENIX_PROJECT_NAME"
 ENV_PHOENIX_CLIENT_HEADERS = "PHOENIX_CLIENT_HEADERS"
 ENV_PHOENIX_API_KEY = "PHOENIX_API_KEY"
+
+GRPC_PORT = 4317
+"""The port the gRPC server will run on after launch_app is called.
+The default network port for OTLP/gRPC is 4317.
+See https://opentelemetry.io/docs/specs/otlp/#otlpgrpc-default-port"""
 
 
 def get_env_collector_endpoint() -> Optional[str]:
@@ -33,6 +39,17 @@ def get_env_phoenix_auth_header() -> Optional[Dict[str, str]]:
         return dict(authorization=f"Bearer {api_key}")
     else:
         return None
+
+
+def get_env_grpc_port() -> int:
+    if not (port := os.getenv(ENV_PHOENIX_GRPC_PORT)):
+        return GRPC_PORT
+    if port.isnumeric():
+        return int(port)
+    raise ValueError(
+        f"Invalid value for environment variable {ENV_PHOENIX_GRPC_PORT}: "
+        f"{port}. Value must be an integer."
+    )
 
 
 # Optional whitespace

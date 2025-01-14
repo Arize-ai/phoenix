@@ -23,13 +23,12 @@ from opentelemetry.sdk.trace.export import SpanExporter
 from .settings import (
     get_env_client_headers,
     get_env_collector_endpoint,
+    get_env_grpc_port,
     get_env_phoenix_auth_header,
     get_env_project_name,
 )
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
-
-_DEFAULT_GRPC_PORT = 4317
 
 
 def register(
@@ -388,7 +387,7 @@ def _maybe_http_endpoint(parsed_endpoint: ParseResult) -> bool:
 
 
 def _maybe_grpc_endpoint(parsed_endpoint: ParseResult) -> bool:
-    if not parsed_endpoint.path and parsed_endpoint.port == 4317:
+    if not parsed_endpoint.path and parsed_endpoint.port == get_env_grpc_port():
         return True
     return False
 
@@ -413,7 +412,7 @@ def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
 
 
 def _construct_grpc_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
-    return parsed_endpoint._replace(netloc=f"{parsed_endpoint.hostname}:{_DEFAULT_GRPC_PORT}")
+    return parsed_endpoint._replace(netloc=f"{parsed_endpoint.hostname}:{get_env_grpc_port()}")
 
 
 _KNOWN_PROVIDERS = {
