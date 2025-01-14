@@ -38,7 +38,7 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { TemplateLanguages } from "../../components/templateEditor/constants";
 
-import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
+import { ChatCompletionsOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   ChatCompletionInput,
   ChatCompletionMessageInput,
@@ -1010,10 +1010,8 @@ export const getChatCompletionInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    template: {
-      variables: variablesMap,
-      language: templateLanguage,
-    },
+    templateVariables: variablesMap,
+    templateLanguage,
   };
 };
 
@@ -1030,7 +1028,7 @@ export const getChatCompletionOverDatasetInput = ({
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
-}): ChatCompletionOverDatasetInput => {
+}): ChatCompletionsOverDatasetInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
     instanceId,
@@ -1038,8 +1036,12 @@ export const getChatCompletionOverDatasetInput = ({
   });
 
   return {
-    ...baseChatCompletionVariables,
-    templateLanguage: playgroundStore.getState().templateLanguage,
+    configs: [
+      {
+        ...baseChatCompletionVariables,
+        templateLanguage: playgroundStore.getState().templateLanguage,
+      },
+    ],
     datasetId,
   };
 };

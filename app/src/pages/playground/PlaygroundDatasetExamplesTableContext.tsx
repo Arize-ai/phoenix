@@ -8,13 +8,13 @@ import { PartialOutputToolCall } from "./PlaygroundToolCall";
 type InstanceId = number;
 export type ExampleId = string;
 type ChatCompletionSubscriptionResult = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionsOverDataset"],
   { __typename: "ChatCompletionSubscriptionResult" }
 >;
 export type Span = NonNullable<ChatCompletionSubscriptionResult["span"]>;
 
 type ToolCallChunk = Extract<
-  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionOverDataset"],
+  PlaygroundDatasetExamplesTableSubscription$data["chatCompletionsOverDataset"],
   { __typename: "ToolCallChunk" }
 >;
 

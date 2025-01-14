@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<23b1d95400eb05227f7edd4c2bde7d75>>
+ * @generated SignedSource<<1af9a0bbefd0a22ed16dafcb19c70111>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,8 @@ export type ChatCompletionInput = {
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
-  template?: TemplateOptions | null;
+  templateLanguage?: TemplateLanguage | null;
+  templateVariables?: any | null;
   tools?: ReadonlyArray<any> | null;
 };
 export type ChatCompletionMessageInput = {
@@ -43,10 +44,6 @@ export type InvocationParameterInput = {
   valueJson?: any | null;
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
-};
-export type TemplateOptions = {
-  language: TemplateLanguage;
-  variables: any;
 };
 export type PlaygroundOutputSubscription$variables = {
   input: ChatCompletionInput;

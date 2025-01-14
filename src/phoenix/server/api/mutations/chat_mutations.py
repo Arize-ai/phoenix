@@ -44,9 +44,8 @@ from phoenix.server.api.helpers.playground_spans import (
 )
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
-    ChatCompletionOverDatasetInput,
+    ChatCompletionsOverDatasetInput,
 )
-from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_description,
     _default_playground_experiment_metadata,
@@ -122,11 +121,12 @@ class ChatCompletionOverDatasetMutationPayload:
 class ChatCompletionMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     @classmethod
-    async def chat_completion_over_dataset(
+    async def chat_completions_over_dataset(
         cls,
         info: Info[Context, None],
-        input: ChatCompletionOverDatasetInput,
+        input: ChatCompletionsOverDatasetInput,
     ) -> ChatCompletionOverDatasetMutationPayload:
+        raise NotImplementedError
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
@@ -209,10 +209,8 @@ class ChatCompletionMutationMixin:
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
-                            template=TemplateOptions(
-                                language=input.template_language,
-                                variables=revision.input,
-                            ),
+                            template_language=input.template_language,
+                            template_variables=revision.input,
                         ),
                     )
                     for revision in batch
@@ -316,11 +314,17 @@ class ChatCompletionMutationMixin:
             )
             for message in input.messages
         ]
-        if template_options := input.template:
-            messages = list(_formatted_messages(messages, template_options))
-            attributes.update(
-                {PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_options.variables)}
+        if (template_language := input.template_language) and (
+            template_variables := input.template_variables
+        ):
+            messages = list(
+                _formatted_messages(
+                    messages=messages,
+                    template_language=template_language,
+                    template_variables=template_variables,
+                )
             )
+            attributes.update({PROMPT_TEMPLATE_VARIABLES: safe_json_dumps(template_variables)})
 
         invocation_parameters = llm_client.construct_invocation_parameters(
             input.invocation_parameters
@@ -459,12 +463,13 @@ class ChatCompletionMutationMixin:
 
 def _formatted_messages(
     messages: Iterable[ChatCompletionMessage],
-    template_options: TemplateOptions,
+    template_language: TemplateLanguage,
+    template_variables: dict[str, Any],
 ) -> Iterator[ChatCompletionMessage]:
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_language=template_options.language)
+    template_formatter = _template_formatter(template_language=template_language)
     (
         roles,
         templates,
@@ -472,7 +477,7 @@ def _formatted_messages(
         tool_calls,
     ) = zip(*messages)
     formatted_templates = map(
-        lambda template: template_formatter.format(template, **template_options.variables),
+        lambda template: template_formatter.format(template, **template_variables),
         templates,
     )
     formatted_messages = zip(roles, formatted_templates, tool_call_id, tool_calls)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fb8767ca8940fd71d617146eb52b1292>>
+ * @generated SignedSource<<787885284717111cb3d106198168f71b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,13 @@ export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
-export type ChatCompletionOverDatasetInput = {
-  apiKey?: string | null;
+export type ChatCompletionsOverDatasetInput = {
+  configs: ReadonlyArray<ChatCompletionOverDatasetConfig>;
   datasetId: string;
   datasetVersionId?: string | null;
+};
+export type ChatCompletionOverDatasetConfig = {
+  apiKey?: string | null;
   experimentDescription?: string | null;
   experimentMetadata?: any | null;
   experimentName?: string | null;
@@ -50,10 +53,10 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type PlaygroundDatasetExamplesTableMutation$variables = {
-  input: ChatCompletionOverDatasetInput;
+  input: ChatCompletionsOverDatasetInput;
 };
 export type PlaygroundDatasetExamplesTableMutation$data = {
-  readonly chatCompletionOverDataset: {
+  readonly chatCompletionsOverDataset: {
     readonly __typename: "ChatCompletionOverDatasetMutationPayload";
     readonly examples: ReadonlyArray<{
       readonly datasetExampleId: string;
@@ -133,7 +136,7 @@ v3 = [
     ],
     "concreteType": "ChatCompletionOverDatasetMutationPayload",
     "kind": "LinkedField",
-    "name": "chatCompletionOverDataset",
+    "name": "chatCompletionsOverDataset",
     "plural": false,
     "selections": [
       (v1/*: any*/),
@@ -345,16 +348,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "4697f7aaa22729dbf83970ce9ae6475b",
+    "cacheID": "a1c0c3af42475095700b8a4af8f6b637",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionOverDatasetInput!\n) {\n  chatCompletionOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation PlaygroundDatasetExamplesTableMutation(\n  $input: ChatCompletionsOverDatasetInput!\n) {\n  chatCompletionsOverDataset(input: $input) {\n    __typename\n    experimentId\n    examples {\n      datasetExampleId\n      experimentRunId\n      result {\n        __typename\n        ... on ChatCompletionMutationError {\n          message\n        }\n        ... on ChatCompletionMutationPayload {\n          content\n          errorMessage\n          span {\n            id\n            tokenCountCompletion\n            tokenCountPrompt\n            tokenCountTotal\n            latencyMs\n            project {\n              id\n            }\n            context {\n              traceId\n            }\n          }\n          toolCalls {\n            id\n            function {\n              name\n              arguments\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c15f93fe1380986536971620c3bf3a11";
+(node as any).hash = "3f27d122cf3868b436dd6fb35fd13766";
 
 export default node;
