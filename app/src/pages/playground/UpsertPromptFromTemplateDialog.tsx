@@ -157,6 +157,7 @@ export const UpsertPromptFromTemplateDialog = ({
               description: params.description,
               template: {
                 messages: promptInput.template.messages.map((m) => {
+                  // TODO(apowell): Break out into switch statement, rendering each message part type
                   return {
                     role: m.role,
                     content: [{ text: m.content, type: "text" }],
