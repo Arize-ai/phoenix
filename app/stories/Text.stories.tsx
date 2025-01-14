@@ -10,7 +10,6 @@ import {
 
 import { Flex, Text, TextProps } from "@phoenix/components";
 
-import { ThemeWrapper } from "./components/ThemeWrapper";
 import { GLOBAL_COLORS } from "./constants/colorConstants";
 
 const meta: Meta = {
@@ -47,12 +46,10 @@ const colors: TextProps["color"][] = [
  */
 export const Gallery = () => {
   return (
-    <ThemeWrapper>
-      <Flex direction="row" gap="size-200" alignItems="start" height="1000px">
-        <GalleryComponent />
-        <LegacyGalleryComponent />
-      </Flex>
-    </ThemeWrapper>
+    <Flex direction="row" gap="size-200" alignItems="start" height="1000px">
+      <GalleryComponent />
+      <LegacyGalleryComponent />
+    </Flex>
   );
 };
 

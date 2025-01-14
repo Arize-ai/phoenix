@@ -22,13 +22,11 @@ import {
   View,
 } from "@phoenix/components";
 
-import { ThemeWrapper } from "./components/ThemeWrapper";
-
 const meta: Meta = {
   title: "Gallery",
 
   parameters: {
-    controls: { expanded: true },
+    layout: "fullscreen",
   },
 };
 
@@ -37,7 +35,7 @@ export default meta;
 const Template: StoryFn = () => {
   const [direction, setDirection] = useState<"row" | "column">("row");
   return (
-    <ThemeWrapper>
+    <View padding="size-200">
       <View
         padding="size-200"
         borderWidth="thin"
@@ -83,7 +81,7 @@ const Template: StoryFn = () => {
             <Item key="strawberry">Strawberry</Item>
             <Item key="vanilla">Vanilla</Item>
           </Picker>
-          <View minWidth="270px">
+          <View minWidth="300px">
             <TagGroup selectionMode="multiple">
               <Label>Categories</Label>
               <TagList>
@@ -186,7 +184,6 @@ const Template: StoryFn = () => {
         </Flex>
       </View>
       <View
-        padding="size-200"
         borderWidth="thin"
         borderColor="dark"
         borderRadius="medium"
@@ -196,12 +193,12 @@ const Template: StoryFn = () => {
           <Disclosure id="content">
             <DisclosureTrigger>Nutrition Facts</DisclosureTrigger>
             <DisclosurePanel>
-              <Text>Ice cream is sooooo good for you!</Text>
+              <Text>Ice cream is good for you!</Text>
             </DisclosurePanel>
           </Disclosure>
         </DisclosureGroup>
       </View>
-    </ThemeWrapper>
+    </View>
   );
 };
 
