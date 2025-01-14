@@ -77,7 +77,7 @@ class Prompt(Node):
             return None
 
         source_prompt_id = from_global_id_with_expected_type(
-            global_id=self.source_prompt_id, expected_type_name=self.__name__
+            global_id=self.source_prompt_id, expected_type_name=Prompt.__name__
         )
 
         async with info.context.db() as session:
