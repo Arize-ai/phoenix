@@ -27,23 +27,14 @@ os.environ["OPENAI_API_KEY"] = openai_api_key
 
 ### Connect to Phoenix
 
-```python
-# Check if PHOENIX_API_KEY is present in the environment variables.
-# If it is, we'll use the cloud instance of Phoenix. If it's not, we'll start a local instance.
-# A third option is to connect to a docker or locally hosted instance.
-# See https://docs.arize.com/phoenix/setup/environments for more information.
+Note: if you're self-hosting Phoenix, swap your collector endpoint variable in the snippet below, and remove the Phoenix Client Headers variable.
 
+```python
 import os
 
-if "PHOENIX_API_KEY" in os.environ:
-    os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={os.environ['PHOENIX_API_KEY']}"
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-    print("Using cloud instance of Phoenix.")
-else:
-    import phoenix as px
-
-    px.launch_app().view()
-    print("Using local instance of Phoenix.")
+PHOENIX_API_KEY = "ADD YOUR API KEY"
+os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
 
 Now that we have Phoenix configured, we can register that instance with OpenTelemetry, which will allow us to collect traces from our application here.

@@ -98,12 +98,12 @@ from phoenix.otel import register
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="https://app.phoenix.arize.com/v1/traces",
-)
+) 
 ```
 {% endtab %}
 

@@ -18,7 +18,7 @@ description: Phoenix can be accessed via our website or self-hosted.
 To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix. The `register` utility from the `phoenix.otel` module streamlines this process.
 
 ```bash
-pip install arize-phoenix-otel
+pip install arize-phoenix
 ```
 
 Connect your application to your cloud instance using:
@@ -30,11 +30,10 @@ from phoenix.otel import register
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # configure the Phoenix tracer
-tracer_provider = register(
-  endpoint="https://app.phoenix.arize.com/v1/traces",
-) 
+tracer_provider = register() 
 ```
 
 Your app is now connected to Phoenix! Any OpenTelemetry traces you generate will be sent to your Phoenix instance.
