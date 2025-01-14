@@ -14,6 +14,7 @@ import {
   SavePromptForm,
   SavePromptSubmitHandler,
 } from "@phoenix/pages/playground/SavePromptForm";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 type UpsertPromptFromTemplateProps = {
   instanceId: number;
@@ -109,10 +110,10 @@ export const UpsertPromptFromTemplateDialog = ({
           setDialog(null);
         },
         onError: (error) => {
-          // eslint-disable-next-line no-console
-          console.error(error);
+          const message = getErrorMessagesFromRelayMutationError(error);
           notifyError({
             title: "Error creating prompt",
+            message: message?.[0],
           });
           setDialog(null);
         },
@@ -161,10 +162,10 @@ export const UpsertPromptFromTemplateDialog = ({
           setDialog(null);
         },
         onError: (error) => {
-          // eslint-disable-next-line no-console
-          console.error(error);
+          const message = getErrorMessagesFromRelayMutationError(error);
           notifyError({
             title: "Error updating prompt",
+            message: message?.[0],
           });
           setDialog(null);
         },
