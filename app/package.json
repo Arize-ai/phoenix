@@ -68,8 +68,6 @@
     "@playwright/test": "^1.48.0",
     "@storybook/addon-essentials": "^8.4.6",
     "@storybook/addon-interactions": "^8.4.6",
-    "@storybook/addon-onboarding": "^8.4.6",
-    "@storybook/addon-themes": "^8.4.6",
     "@storybook/blocks": "^8.4.6",
     "@storybook/react": "^8.4.6",
     "@storybook/react-vite": "^8.4.6",
