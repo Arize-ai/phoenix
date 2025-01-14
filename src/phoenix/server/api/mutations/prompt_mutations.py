@@ -261,9 +261,7 @@ class PromptMutationMixin:
         return to_gql_prompt_from_orm(new_prompt)
 
     @strawberry.mutation
-    async def patch_prompt(
-        self, info: Info[Context, None], input: PatchPromptInput
-    ) -> Prompt:
+    async def patch_prompt(self, info: Info[Context, None], input: PatchPromptInput) -> Prompt:
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
