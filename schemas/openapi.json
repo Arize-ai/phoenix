@@ -1742,30 +1742,10 @@
             "$ref": "#/components/schemas/PromptMessageRole"
           },
           "content": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "object"
-              },
-              {
-                "items": {},
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "items": {
+              "$ref": "#/components/schemas/Part"
+            },
+            "type": "array",
             "title": "Content"
           }
         },
@@ -1886,6 +1866,27 @@
           "data"
         ],
         "title": "ListExperimentsResponseBody"
+      },
+      "Part": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "tool",
+              "tool_call",
+              "tool_result"
+            ],
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "Part"
       },
       "PromptChatTemplateV1": {
         "properties": {
