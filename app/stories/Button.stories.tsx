@@ -16,10 +16,23 @@ export default meta;
 
 const Template: StoryFn<ButtonProps> = (args) => <Button {...args} />;
 
+/**
+ * Buttons are used to perform actions within the UI
+ */
 export const Default = Template.bind({});
 
 Default.args = {
   children: "Button",
+};
+
+/**
+ * Use the `variant` prop to change the appearance of the button
+ */
+export const Danger = Template.bind({});
+
+Danger.args = {
+  children: "Danger",
+  variant: "danger",
 };
 
 export const CustomCSS = Template.bind({});
