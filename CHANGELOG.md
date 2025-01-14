@@ -1,5 +1,19 @@
 # Changelog
 
+## [7.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.6.0...arize-phoenix-v7.7.0) (2025-01-14)
+
+
+### Features
+
+* **experiments:** add experiment run filter to compare experiments page ([#5738](https://github.com/Arize-ai/phoenix/issues/5738)) ([0bf194d](https://github.com/Arize-ai/phoenix/commit/0bf194d1051e7cd0c9a878c37be3c9692fb2be41))
+
+
+### Bug Fixes
+
+* Coerce incoming span token counts to int ([#5976](https://github.com/Arize-ai/phoenix/issues/5976)) ([8711b21](https://github.com/Arize-ai/phoenix/commit/8711b2168e8d947f02b8e65a6c51d8bb7a42c912))
+* pin upper bound on litellm to prevent windows break ([#6004](https://github.com/Arize-ai/phoenix/issues/6004)) ([abdd24f](https://github.com/Arize-ai/phoenix/commit/abdd24fd56ca3677851f88ca233f280d651bafda))
+* Update schema.py to make extensions a list, not chain ([#6024](https://github.com/Arize-ai/phoenix/issues/6024)) ([6e6e181](https://github.com/Arize-ai/phoenix/commit/6e6e181b90c61803717cfa061d9a9e74ade77d3c))
+
 ## [7.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.5.2...arize-phoenix-v7.6.0) (2025-01-09)
 
 
