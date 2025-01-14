@@ -1214,7 +1214,7 @@ type Mutation {
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): Query!
   clonePrompt(input: ClonePromptInput!): Prompt!
-  patchPromptDescription(input: PatchPromptDescriptionInput!): Prompt!
+  patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
@@ -1284,7 +1284,7 @@ input PatchDatasetInput {
   metadata: JSON
 }
 
-input PatchPromptDescriptionInput {
+input PatchPromptInput {
   promptId: GlobalID!
   description: String!
 }
