@@ -1427,11 +1427,13 @@ input ProjectSessionSort {
 type Prompt implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  sourcePromptId: GlobalID
   name: String!
   description: String
   createdAt: DateTime!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
+  sourcePrompt: Prompt
 }
 
 type PromptChatTemplate {
