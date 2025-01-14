@@ -1,3 +1,5 @@
+directive @oneOf on INPUT_OBJECT
+
 input AddExamplesToDatasetInput {
   datasetId: GlobalID!
   examples: [DatasetExampleInput!]!
@@ -248,6 +250,15 @@ type Cluster {
 input ClusterInput {
   eventIds: [ID!]!
   id: ID
+}
+
+union ContentPart = TextContentValue | ImageContentValue | ToolCallContentValue | ToolResultContentValue
+
+input ContentPartInput @oneOf {
+  text: TextContentValueInput = null
+  image: ImageContentValueInput = null
+  toolCall: ToolCallContentValueInput = null
+  toolResult: ToolResultContentValueInput = null
 }
 
 input CreateApiKeyInput {
@@ -1034,18 +1045,11 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
-type ImagePart {
-  type: String!
-  image: ImageResult!
-}
-
-type ImageResult {
-  type: String!
+type ImageContentValue {
   url: String!
 }
 
-input ImageResultInput {
-  type: String!
+input ImageContentValueInput {
   url: String!
 }
 
@@ -1270,16 +1274,6 @@ type PageInfo {
   endCursor: String
 }
 
-union Part = TextPart | ImagePart | ToolCallPart | ToolResultPart
-
-input PartInput {
-  type: String!
-  text: String = null
-  image: ImageResultInput = null
-  toolCall: String = null
-  toolResult: ToolResultInput = null
-}
-
 input PatchAnnotationInput {
   annotationId: GlobalID!
   name: String
@@ -1482,12 +1476,12 @@ type PromptEdge {
 
 type PromptMessage {
   role: PromptMessageRole!
-  content: [Part!]!
+  content: [ContentPart!]!
 }
 
 input PromptMessageInput {
   role: String!
-  content: [PartInput!]!
+  content: [ContentPartInput!]!
 }
 
 enum PromptMessageRole {
@@ -1919,8 +1913,11 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
   content: String!
 }
 
-type TextPart {
-  type: String!
+type TextContentValue {
+  text: String!
+}
+
+input TextContentValueInput {
   text: String!
 }
 
@@ -1953,8 +1950,11 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   function: FunctionCallChunk!
 }
 
-type ToolCallPart {
-  type: String!
+type ToolCallContentValue {
+  toolCall: String!
+}
+
+input ToolCallContentValueInput {
   toolCall: String!
 }
 
@@ -1966,21 +1966,14 @@ input ToolDefinitionInput {
   definition: JSON!
 }
 
-type ToolResult {
-  type: String!
+type ToolResultContentValue {
   toolCallId: String!
   result: JSON!
 }
 
-input ToolResultInput {
-  type: String!
+input ToolResultContentValueInput {
   toolCallId: String!
   result: JSON!
-}
-
-type ToolResultPart {
-  type: String!
-  toolResult: ToolResult!
 }
 
 type Trace implements Node {

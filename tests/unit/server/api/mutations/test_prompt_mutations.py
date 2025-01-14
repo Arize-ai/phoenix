@@ -31,8 +31,7 @@ class TestPromptMutations:
                     messages {
                         role
                         content {
-                            ... on TextPart {
-                                type
+                            ... on TextContentValue {
                                 text
                             }
                         }
@@ -75,8 +74,7 @@ class TestPromptMutations:
                     messages {
                         role
                         content {
-                            ... on TextPart {
-                                type
+                            ... on TextContentValue {
                                 text
                             }
                         }
@@ -121,8 +119,7 @@ class TestPromptMutations:
                     messages {
                         role
                         content {
-                            ... on TextPart {
-                                type
+                            ... on TextContentValue {
                                 text
                             }
                         }
@@ -161,7 +158,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -186,7 +183,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -212,7 +209,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -251,7 +248,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -299,7 +296,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -436,7 +433,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -464,7 +461,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -492,7 +489,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -531,7 +528,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -593,7 +590,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -617,7 +614,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -642,7 +639,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -680,7 +677,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -705,7 +702,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -763,7 +760,7 @@ class TestPromptMutations:
                             "messages": [
                                 {
                                     "role": "USER",
-                                    "content": [{"type": "text", "text": "initial"}],
+                                    "content": [{"text": {"text": "initial"}}],
                                 }
                             ]
                         },
@@ -831,7 +828,7 @@ class TestPromptMutations:
                     "templateFormat": "MUSTACHE",
                     "template": {
                         "messages": [
-                            {"role": "USER", "content": [{"type": "text", "text": "hello world"}]}
+                            {"role": "USER", "content": [{"text": {"text": "hello world"}}]}
                         ]
                     },
                     "invocationParameters": {"temperature": 0.4},
@@ -877,7 +874,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -904,7 +901,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -931,7 +928,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -969,7 +966,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "hello world"}],
+                                        "content": [{"text": {"text": "hello world"}}],
                                     }
                                 ]
                             },
@@ -1030,7 +1027,7 @@ class TestPromptMutations:
                             "messages": [
                                 {
                                     "role": "USER",
-                                    "content": [{"type": "text", "text": "initial"}],
+                                    "content": [{"text": {"text": "initial"}}],
                                 }
                             ]
                         },
@@ -1071,7 +1068,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "initial"}],
+                                        "content": [{"text": {"text": "initial"}}],
                                     }
                                 ]
                             },
@@ -1160,7 +1157,7 @@ class TestPromptMutations:
                                 "messages": [
                                     {
                                         "role": "USER",
-                                        "content": [{"type": "text", "text": "initial"}],
+                                        "content": [{"text": {"text": "initial"}}],
                                     }
                                 ]
                             },

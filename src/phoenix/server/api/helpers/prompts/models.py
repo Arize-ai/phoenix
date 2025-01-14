@@ -53,48 +53,55 @@ class PartBase(BaseModel):
     type: Literal["text", "image", "tool", "tool_call", "tool_result"]
 
 
-class TextPart(PartBase):
-    type: Literal["text"]
+class TextContentValue(BaseModel):
     text: str
 
 
-class ImageResult(BaseModel):
-    type: Literal["image_result"]
+class TextContentPart(PartBase):
+    type: Literal["text"]
+    text: TextContentValue
+
+
+class ImageContentValue(BaseModel):
     # http url, or base64 encoded image
     url: str
 
 
-class ImagePart(PartBase):
+class ImageContentPart(PartBase):
     type: Literal["image"]
     # the image data
-    image: ImageResult
+    image: ImageContentValue
 
 
-class ToolCallPart(PartBase):
-    type: Literal["tool_call"]
-    # the identifier of the tool call function
+class ToolCallContentValue(BaseModel):
     tool_call: str
 
 
-class ToolResult(BaseModel):
-    type: Literal["tool_result_result"]
+class ToolCallContentPart(PartBase):
+    type: Literal["tool_call"]
+    # the identifier of the tool call function
+    tool_call: ToolCallContentValue
+
+
+class ToolResultContentValue(BaseModel):
     tool_call_id: str
     result: JSONSerializable
 
 
-class ToolResultPart(PartBase):
+class ToolResultContentPart(PartBase):
     type: Literal["tool_result"]
-    tool_result: ToolResult
+    tool_result: ToolResultContentValue
 
 
-Part = Annotated[
-    Union[TextPart, ImagePart, ToolCallPart, ToolResultPart], Field(discriminator="type")
+ContentPart: TypeAlias = Annotated[
+    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
+    Field(discriminator="type"),
 ]
 
 
 class PromptMessage(PromptModel):
     role: PromptMessageRole
-    content: list[Part]
+    content: list[ContentPart]
 
 
 class PromptChatTemplateV1(PromptModel):

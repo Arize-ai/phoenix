@@ -8,8 +8,9 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import ImagePart as ImagePartModel
-from phoenix.server.api.helpers.prompts.models import ImageResult as ImageResultModel
+from phoenix.server.api.helpers.prompts.models import (
+    ImageContentValue as ImageContentValueModel,
+)
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptStringTemplateV1,
@@ -19,59 +20,48 @@ from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMes
 from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1 as PromptStringTemplateModel,
 )
-from phoenix.server.api.helpers.prompts.models import TextPart as TextPartModel
-from phoenix.server.api.helpers.prompts.models import ToolCallPart as ToolCallPartModel
-from phoenix.server.api.helpers.prompts.models import ToolResult as ToolResultModel
-from phoenix.server.api.helpers.prompts.models import ToolResultPart as ToolResultPartModel
+from phoenix.server.api.helpers.prompts.models import (
+    TextContentValue as TextContentValueModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolCallContentValue as ToolCallContentValueModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolResultContentValue as ToolResultContentValueModel,
+)
 
 
-@strawberry.experimental.pydantic.type(ImageResultModel)
-class ImageResult:
-    type: str
-    url: strawberry.auto
+@strawberry.experimental.pydantic.type(TextContentValueModel, all_fields=True)
+class TextContentValue:
+    pass
 
 
-@strawberry.experimental.pydantic.type(ToolResultModel)
-class ToolResult:
-    type: str
+@strawberry.experimental.pydantic.type(ImageContentValueModel, all_fields=True)
+class ImageContentValue:
+    pass
+
+
+@strawberry.experimental.pydantic.type(ToolCallContentValueModel, all_fields=True)
+class ToolCallContentValue:
+    pass
+
+
+@strawberry.experimental.pydantic.type(ToolResultContentValueModel)
+class ToolResultContentValue:
     tool_call_id: strawberry.auto
     result: JSON
 
 
-@strawberry.experimental.pydantic.type(TextPartModel)
-class TextPart:
-    type: str
-    text: strawberry.auto
-
-
-@strawberry.experimental.pydantic.type(ImagePartModel)
-class ImagePart:
-    type: str
-    image: ImageResult
-
-
-@strawberry.experimental.pydantic.type(ToolCallPartModel)
-class ToolCallPart:
-    type: str
-    tool_call: strawberry.auto
-
-
-@strawberry.experimental.pydantic.type(ToolResultPartModel)
-class ToolResultPart:
-    type: str
-    tool_result: ToolResult
-
-
-Part: TypeAlias = Annotated[
-    Union[TextPart, ImagePart, ToolCallPart, ToolResultPart],
-    strawberry.union("Part"),
+ContentPart: TypeAlias = Annotated[
+    Union[TextContentValue, ImageContentValue, ToolCallContentValue, ToolResultContentValue],
+    strawberry.union("ContentPart"),
 ]
 
 
 @strawberry.experimental.pydantic.type(PromptMessageModel)
 class PromptMessage:
     role: strawberry.auto
-    content: list[Part]
+    content: list[ContentPart]
 
 
 @strawberry.experimental.pydantic.type(PromptChatTemplateV1)

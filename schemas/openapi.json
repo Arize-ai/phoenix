@@ -1722,7 +1722,7 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "ImagePart": {
+      "ImageContentPart": {
         "properties": {
           "type": {
             "type": "string",
@@ -1730,7 +1730,7 @@
             "title": "Type"
           },
           "image": {
-            "$ref": "#/components/schemas/ImageResult"
+            "$ref": "#/components/schemas/ImageContentValue"
           }
         },
         "type": "object",
@@ -1738,15 +1738,10 @@
           "type",
           "image"
         ],
-        "title": "ImagePart"
+        "title": "ImageContentPart"
       },
-      "ImageResult": {
+      "ImageContentValue": {
         "properties": {
-          "type": {
-            "type": "string",
-            "const": "image_result",
-            "title": "Type"
-          },
           "url": {
             "type": "string",
             "title": "Url"
@@ -1754,10 +1749,9 @@
         },
         "type": "object",
         "required": [
-          "type",
           "url"
         ],
-        "title": "ImageResult"
+        "title": "ImageContentValue"
       },
       "InsertedSpanAnnotation": {
         "properties": {
@@ -1924,25 +1918,25 @@
             "items": {
               "oneOf": [
                 {
-                  "$ref": "#/components/schemas/TextPart"
+                  "$ref": "#/components/schemas/TextContentPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ImagePart"
+                  "$ref": "#/components/schemas/ImageContentPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolCallPart"
+                  "$ref": "#/components/schemas/ToolCallContentPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ToolResultPart"
+                  "$ref": "#/components/schemas/ToolResultContentPart"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
-                  "image": "#/components/schemas/ImagePart",
-                  "text": "#/components/schemas/TextPart",
-                  "tool_call": "#/components/schemas/ToolCallPart",
-                  "tool_result": "#/components/schemas/ToolResultPart"
+                  "image": "#/components/schemas/ImageContentPart",
+                  "text": "#/components/schemas/TextContentPart",
+                  "tool_call": "#/components/schemas/ToolCallContentPart",
+                  "tool_result": "#/components/schemas/ToolResultContentPart"
                 }
               }
             },
@@ -2203,7 +2197,7 @@
         "type": "object",
         "title": "SpanAnnotationResult"
       },
-      "TextPart": {
+      "TextContentPart": {
         "properties": {
           "type": {
             "type": "string",
@@ -2211,8 +2205,7 @@
             "title": "Type"
           },
           "text": {
-            "type": "string",
-            "title": "Text"
+            "$ref": "#/components/schemas/TextContentValue"
           }
         },
         "type": "object",
@@ -2220,9 +2213,22 @@
           "type",
           "text"
         ],
-        "title": "TextPart"
+        "title": "TextContentPart"
       },
-      "ToolCallPart": {
+      "TextContentValue": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TextContentValue"
+      },
+      "ToolCallContentPart": {
         "properties": {
           "type": {
             "type": "string",
@@ -2230,8 +2236,7 @@
             "title": "Type"
           },
           "tool_call": {
-            "type": "string",
-            "title": "Tool Call"
+            "$ref": "#/components/schemas/ToolCallContentValue"
           }
         },
         "type": "object",
@@ -2239,15 +2244,41 @@
           "type",
           "tool_call"
         ],
-        "title": "ToolCallPart"
+        "title": "ToolCallContentPart"
       },
-      "ToolResult": {
+      "ToolCallContentValue": {
+        "properties": {
+          "tool_call": {
+            "type": "string",
+            "title": "Tool Call"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_call"
+        ],
+        "title": "ToolCallContentValue"
+      },
+      "ToolResultContentPart": {
         "properties": {
           "type": {
             "type": "string",
-            "const": "tool_result_result",
+            "const": "tool_result",
             "title": "Type"
           },
+          "tool_result": {
+            "$ref": "#/components/schemas/ToolResultContentValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "tool_result"
+        ],
+        "title": "ToolResultContentPart"
+      },
+      "ToolResultContentValue": {
+        "properties": {
           "tool_call_id": {
             "type": "string",
             "title": "Tool Call Id"
@@ -2282,29 +2313,10 @@
         },
         "type": "object",
         "required": [
-          "type",
           "tool_call_id",
           "result"
         ],
-        "title": "ToolResult"
-      },
-      "ToolResultPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "tool_result",
-            "title": "Type"
-          },
-          "tool_result": {
-            "$ref": "#/components/schemas/ToolResult"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "tool_result"
-        ],
-        "title": "ToolResultPart"
+        "title": "ToolResultContentValue"
       },
       "UploadDatasetData": {
         "properties": {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4820b3403003e29b662ed2f915d43b45>>
+ * @generated SignedSource<<b7805398ca7351a4793a1ee0e613c962>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,28 +36,18 @@ export type fetchPlaygroundPromptQuery$data = {
             readonly __typename: "PromptChatTemplate";
             readonly messages: ReadonlyArray<{
               readonly content: ReadonlyArray<{
-                readonly __typename: "ImagePart";
-                readonly image: {
-                  readonly type: string;
-                  readonly url: string;
-                };
-                readonly type: string;
+                readonly __typename: "ImageContentValue";
+                readonly url: string;
               } | {
-                readonly __typename: "TextPart";
+                readonly __typename: "TextContentValue";
                 readonly text: string;
-                readonly type: string;
               } | {
-                readonly __typename: "ToolCallPart";
+                readonly __typename: "ToolCallContentValue";
                 readonly toolCall: string;
-                readonly type: string;
               } | {
-                readonly __typename: "ToolResultPart";
-                readonly toolResult: {
-                  readonly result: any;
-                  readonly toolCallId: string;
-                  readonly type: string;
-                };
-                readonly type: string;
+                readonly __typename: "ToolResultContentValue";
+                readonly result: any;
+                readonly toolCallId: string;
               } | {
                 // This will never be '%other', but we need some
                 // value in case none of the concrete values match.
@@ -145,13 +135,6 @@ v7 = {
   "storageKey": null
 },
 v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "type",
-  "storageKey": null
-},
-v9 = {
   "alias": null,
   "args": [
     {
@@ -267,34 +250,6 @@ v9 = {
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v8/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "concreteType": "ImageResult",
-                                  "kind": "LinkedField",
-                                  "name": "image",
-                                  "plural": false,
-                                  "selections": [
-                                    (v8/*: any*/),
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "url",
-                                      "storageKey": null
-                                    }
-                                  ],
-                                  "storageKey": null
-                                }
-                              ],
-                              "type": "ImagePart",
-                              "abstractKey": null
-                            },
-                            {
-                              "kind": "InlineFragment",
-                              "selections": [
-                                (v8/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
@@ -303,13 +258,26 @@ v9 = {
                                   "storageKey": null
                                 }
                               ],
-                              "type": "TextPart",
+                              "type": "TextContentValue",
                               "abstractKey": null
                             },
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v8/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "url",
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "ImageContentValue",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
                                 {
                                   "alias": null,
                                   "args": null,
@@ -318,41 +286,28 @@ v9 = {
                                   "storageKey": null
                                 }
                               ],
-                              "type": "ToolCallPart",
+                              "type": "ToolCallContentValue",
                               "abstractKey": null
                             },
                             {
                               "kind": "InlineFragment",
                               "selections": [
-                                (v8/*: any*/),
                                 {
                                   "alias": null,
                                   "args": null,
-                                  "concreteType": "ToolResult",
-                                  "kind": "LinkedField",
-                                  "name": "toolResult",
-                                  "plural": false,
-                                  "selections": [
-                                    (v8/*: any*/),
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "toolCallId",
-                                      "storageKey": null
-                                    },
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "result",
-                                      "storageKey": null
-                                    }
-                                  ],
+                                  "kind": "ScalarField",
+                                  "name": "toolCallId",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "result",
                                   "storageKey": null
                                 }
                               ],
-                              "type": "ToolResultPart",
+                              "type": "ToolResultContentValue",
                               "abstractKey": null
                             }
                           ],
@@ -409,7 +364,7 @@ return {
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
-              (v9/*: any*/)
+              (v8/*: any*/)
             ],
             "type": "Prompt",
             "abstractKey": null
@@ -447,7 +402,7 @@ return {
               (v3/*: any*/),
               (v4/*: any*/),
               (v5/*: any*/),
-              (v9/*: any*/)
+              (v8/*: any*/)
             ],
             "type": "Prompt",
             "abstractKey": null
@@ -458,16 +413,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a8dc743d35e7bbf811030345034765b1",
+    "cacheID": "6e24202c39cfefb7a0bf3c720d36c4c5",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            outputSchema {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on ImagePart {\n                      type\n                      image {\n                        type\n                        url\n                      }\n                    }\n                    ... on TextPart {\n                      type\n                      text\n                    }\n                    ... on ToolCallPart {\n                      type\n                      toolCall\n                    }\n                    ... on ToolResultPart {\n                      type\n                      toolResult {\n                        type\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            outputSchema {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentValue {\n                      text\n                    }\n                    ... on ImageContentValue {\n                      url\n                    }\n                    ... on ToolCallContentValue {\n                      toolCall\n                    }\n                    ... on ToolResultContentValue {\n                      toolCallId\n                      result\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5d71628c9483d9b54005240ca35080e3";
+(node as any).hash = "b7a206bb518411dd99f4d0b035dfce4b";
 
 export default node;

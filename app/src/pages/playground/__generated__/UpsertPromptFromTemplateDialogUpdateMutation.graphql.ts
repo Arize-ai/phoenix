@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<42a7e77741aa065069d95f19c40c48aa>>
+ * @generated SignedSource<<6756b010b4519dc65ba8a9125b93c7fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,24 +30,27 @@ export type PromptChatTemplateInput = {
   messages: ReadonlyArray<PromptMessageInput>;
 };
 export type PromptMessageInput = {
-  content: ReadonlyArray<PartInput>;
+  content: ReadonlyArray<ContentPartInput>;
   role: string;
 };
-export type PartInput = {
-  image?: ImageResultInput | null;
-  text?: string | null;
-  toolCall?: string | null;
-  toolResult?: ToolResultInput | null;
-  type: string;
+export type ContentPartInput = {
+  image?: ImageContentValueInput | null;
+  text?: TextContentValueInput | null;
+  toolCall?: ToolCallContentValueInput | null;
+  toolResult?: ToolResultContentValueInput | null;
 };
-export type ImageResultInput = {
-  type: string;
+export type TextContentValueInput = {
+  text: string;
+};
+export type ImageContentValueInput = {
   url: string;
 };
-export type ToolResultInput = {
+export type ToolCallContentValueInput = {
+  toolCall: string;
+};
+export type ToolResultContentValueInput = {
   result: any;
   toolCallId: string;
-  type: string;
 };
 export type ToolDefinitionInput = {
   definition: any;

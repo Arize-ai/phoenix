@@ -103,23 +103,18 @@ class TestPrompts:
                                 {
                                     "role": "USER",
                                     "content": [
-                                        {"type": "text", "text": "hi"},
+                                        {"text": {"text": "hi"}},
                                         {
-                                            "type": "image",
                                             "image": {
-                                                "type": "image_result",
                                                 "url": "https://example.com/image.jpg",
                                             },
                                         },
                                         {
-                                            "type": "tool_call",
-                                            "tool_call": "tool_call_id",
+                                            "tool_call": {"tool_call_id": "1234"},
                                         },
                                         {
-                                            "type": "tool_result",
                                             "tool_result": {
-                                                "type": "tool_result_result",
-                                                "tool_call_id": "tool_call_id",
+                                                "tool_call_id": "1234",
                                                 "result": {"foo": "bar"},
                                             },
                                         },

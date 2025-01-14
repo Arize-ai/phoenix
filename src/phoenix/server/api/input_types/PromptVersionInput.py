@@ -4,12 +4,14 @@ import strawberry
 from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
-    ImageResult,
+    ImageContentValue,
     PromptChatTemplateV1,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolDefinition,
-    ToolResult,
+    TextContentValue,
+    ToolCallContentValue,
+    ToolResultContentValue,
 )
 from phoenix.server.api.helpers.prompts.models import (
     PromptMessage as PromptMessageModel,
@@ -26,32 +28,39 @@ class JSONSchemaInput:
     definition: JSON
 
 
-@strawberry.experimental.pydantic.input(ImageResult)
-class ImageResultInput:
-    type: str
+@strawberry.experimental.pydantic.input(TextContentValue)
+class TextContentValueInput:
+    text: str
+
+
+@strawberry.experimental.pydantic.input(ImageContentValue)
+class ImageContentValueInput:
     url: str
 
 
-@strawberry.experimental.pydantic.input(ToolResult)
-class ToolResultInput:
-    type: str
+@strawberry.experimental.pydantic.input(ToolResultContentValue)
+class ToolResultContentValueInput:
     tool_call_id: strawberry.auto
     result: JSON
 
 
-@strawberry.input
-class PartInput:
-    type: str
-    text: Optional[str] = None
-    image: Optional[ImageResultInput] = None
-    tool_call: Optional[str] = None
-    tool_result: Optional[ToolResultInput] = None
+@strawberry.experimental.pydantic.input(ToolCallContentValue)
+class ToolCallContentValueInput:
+    tool_call: strawberry.auto
+
+
+@strawberry.input(one_of=True)
+class ContentPartInput:
+    text: Optional[TextContentValueInput] = None
+    image: Optional[ImageContentValueInput] = None
+    tool_call: Optional[ToolCallContentValueInput] = None
+    tool_result: Optional[ToolResultContentValueInput] = None
 
 
 @strawberry.experimental.pydantic.input(PromptMessageModel)
 class PromptMessageInput:
     role: str
-    content: list[PartInput] = strawberry.field(default_factory=list)
+    content: list[ContentPartInput] = strawberry.field(default_factory=list)
 
 
 @strawberry.experimental.pydantic.input(PromptChatTemplateV1)

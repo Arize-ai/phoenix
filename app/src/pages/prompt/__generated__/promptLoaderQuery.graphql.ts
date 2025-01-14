@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b043472c922c65b9439bafe3d36e5c84>>
+ * @generated SignedSource<<52a5a9688fd9202915dd6379319ea966>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,14 +62,7 @@ v4 = {
   "name": "name",
   "storageKey": null
 },
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "type",
-  "storageKey": null
-},
-v6 = [
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -78,14 +71,14 @@ v6 = [
     "storageKey": null
   }
 ],
-v7 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -229,34 +222,6 @@ return {
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v5/*: any*/),
-                                              {
-                                                "alias": null,
-                                                "args": null,
-                                                "concreteType": "ImageResult",
-                                                "kind": "LinkedField",
-                                                "name": "image",
-                                                "plural": false,
-                                                "selections": [
-                                                  (v5/*: any*/),
-                                                  {
-                                                    "alias": null,
-                                                    "args": null,
-                                                    "kind": "ScalarField",
-                                                    "name": "url",
-                                                    "storageKey": null
-                                                  }
-                                                ],
-                                                "storageKey": null
-                                              }
-                                            ],
-                                            "type": "ImagePart",
-                                            "abstractKey": null
-                                          },
-                                          {
-                                            "kind": "InlineFragment",
-                                            "selections": [
-                                              (v5/*: any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
@@ -265,13 +230,26 @@ return {
                                                 "storageKey": null
                                               }
                                             ],
-                                            "type": "TextPart",
+                                            "type": "TextContentValue",
                                             "abstractKey": null
                                           },
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v5/*: any*/),
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "kind": "ScalarField",
+                                                "name": "url",
+                                                "storageKey": null
+                                              }
+                                            ],
+                                            "type": "ImageContentValue",
+                                            "abstractKey": null
+                                          },
+                                          {
+                                            "kind": "InlineFragment",
+                                            "selections": [
                                               {
                                                 "alias": null,
                                                 "args": null,
@@ -280,41 +258,28 @@ return {
                                                 "storageKey": null
                                               }
                                             ],
-                                            "type": "ToolCallPart",
+                                            "type": "ToolCallContentValue",
                                             "abstractKey": null
                                           },
                                           {
                                             "kind": "InlineFragment",
                                             "selections": [
-                                              (v5/*: any*/),
                                               {
                                                 "alias": null,
                                                 "args": null,
-                                                "concreteType": "ToolResult",
-                                                "kind": "LinkedField",
-                                                "name": "toolResult",
-                                                "plural": false,
-                                                "selections": [
-                                                  (v5/*: any*/),
-                                                  {
-                                                    "alias": null,
-                                                    "args": null,
-                                                    "kind": "ScalarField",
-                                                    "name": "toolCallId",
-                                                    "storageKey": null
-                                                  },
-                                                  {
-                                                    "alias": null,
-                                                    "args": null,
-                                                    "kind": "ScalarField",
-                                                    "name": "result",
-                                                    "storageKey": null
-                                                  }
-                                                ],
+                                                "kind": "ScalarField",
+                                                "name": "toolCallId",
+                                                "storageKey": null
+                                              },
+                                              {
+                                                "alias": null,
+                                                "args": null,
+                                                "kind": "ScalarField",
+                                                "name": "result",
                                                 "storageKey": null
                                               }
                                             ],
-                                            "type": "ToolResultPart",
+                                            "type": "ToolResultContentValue",
                                             "abstractKey": null
                                           }
                                         ],
@@ -379,7 +344,7 @@ return {
                             "kind": "LinkedField",
                             "name": "outputSchema",
                             "plural": false,
-                            "selections": (v6/*: any*/),
+                            "selections": (v5/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -389,7 +354,7 @@ return {
                             "kind": "LinkedField",
                             "name": "tools",
                             "plural": true,
-                            "selections": (v6/*: any*/),
+                            "selections": (v5/*: any*/),
                             "storageKey": null
                           },
                           (v3/*: any*/)
@@ -405,8 +370,8 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*: any*/),
+                          (v6/*: any*/),
                           (v7/*: any*/),
-                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -429,7 +394,7 @@ return {
                 ],
                 "storageKey": null
               },
-              (v7/*: any*/),
+              (v6/*: any*/),
               {
                 "alias": "latestVersions",
                 "args": [
@@ -461,8 +426,8 @@ return {
                         "plural": false,
                         "selections": [
                           (v3/*: any*/),
-                          (v7/*: any*/),
-                          (v8/*: any*/)
+                          (v6/*: any*/),
+                          (v7/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -482,12 +447,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b5d8be1a7598a435f549d1b57dadfe22",
+    "cacheID": "1fd18f28bbc6e627406a01499d3ddbec",
     "id": null,
     "metadata": {},
     "name": "promptLoaderQuery",
     "operationKind": "query",
-    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on ImagePart {\n            type\n            image {\n              type\n              url\n            }\n          }\n          ... on TextPart {\n            type\n            text\n          }\n          ... on ToolCallPart {\n            type\n            toolCall\n          }\n          ... on ToolResultPart {\n            type\n            toolResult {\n              type\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on ImagePart {\n            type\n            image {\n              type\n              url\n            }\n          }\n          ... on TextPart {\n            type\n            text\n          }\n          ... on ToolCallPart {\n            type\n            toolCall\n          }\n          ... on ToolResultPart {\n            type\n            toolResult {\n              type\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  description\n  ...PromptLatestVersionsListFragment\n}\n\nfragment PromptIndexPage__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        ...PromptInvocationParameters__main\n        ...PromptChatMessagesCard__main\n        ...PromptCodeExportCard__main\n        ...PromptModelConfigurationCard__main\n      }\n    }\n  }\n  ...PromptIndexPage__aside\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n\nfragment PromptLatestVersionsListFragment on Prompt {\n  latestVersions: promptVersions(first: 5) {\n    edges {\n      version: node {\n        id\n        description\n        createdAt\n      }\n    }\n  }\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  promptVersions {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptOutputSchemaFragment\n}\n\nfragment PromptOutputSchemaFragment on PromptVersion {\n  outputSchema {\n    definition\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    definition\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        description\n        createdAt\n        ...PromptVersionTagsList_data\n      }\n    }\n  }\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
+    "text": "query promptLoaderQuery(\n  $id: GlobalID!\n) {\n  prompt: node(id: $id) {\n    __typename\n    id\n    ... on Prompt {\n      name\n      ...PromptIndexPage__main\n      ...PromptVersionsPageContent__main\n      ...PromptLayout__main\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentValue {\n            text\n          }\n          ... on ImageContentValue {\n            url\n          }\n          ... on ToolCallContentValue {\n            toolCall\n          }\n          ... on ToolResultContentValue {\n            toolCallId\n            result\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentValue {\n            __typename\n            text\n          }\n          ... on ImageContentValue {\n            __typename\n            url\n          }\n          ... on ToolCallContentValue {\n            __typename\n            toolCall\n          }\n          ... on ToolResultContentValue {\n            __typename\n            toolCallId\n            result\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptIndexPage__aside on Prompt {\n  description\n  ...PromptLatestVersionsListFragment\n}\n\nfragment PromptIndexPage__main on Prompt {\n  promptVersions {\n    edges {\n      node {\n        ...PromptInvocationParameters__main\n        ...PromptChatMessagesCard__main\n        ...PromptCodeExportCard__main\n        ...PromptModelConfigurationCard__main\n      }\n    }\n  }\n  ...PromptIndexPage__aside\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n\nfragment PromptLatestVersionsListFragment on Prompt {\n  latestVersions: promptVersions(first: 5) {\n    edges {\n      version: node {\n        id\n        description\n        createdAt\n      }\n    }\n  }\n}\n\nfragment PromptLayout__main on Prompt {\n  id\n  name\n  description\n  promptVersions {\n    edges {\n      node {\n        id\n      }\n    }\n  }\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptOutputSchemaFragment\n}\n\nfragment PromptOutputSchemaFragment on PromptVersion {\n  outputSchema {\n    definition\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    definition\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        description\n        createdAt\n        ...PromptVersionTagsList_data\n      }\n    }\n  }\n}\n\nfragment PromptVersionsPageContent__main on Prompt {\n  ...PromptVersionsList__main\n}\n"
   }
 };
 })();
