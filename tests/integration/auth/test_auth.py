@@ -1018,7 +1018,7 @@ class TestPrompts:
                             "messages": [
                                 {
                                     "role": "USER",
-                                    "content": [{"type": "text", "text": "hello world"}],
+                                    "content": [{"text": {"text": "hello world"}}],
                                 }
                             ]
                         },
@@ -1064,7 +1064,7 @@ class TestPrompts:
                             "messages": [
                                 {
                                     "role": "USER",
-                                    "content": [{"type": "text", "text": "new version"}],
+                                    "content": [{"text": {"text": "new version"}}],
                                 }
                             ]
                         },
