@@ -1842,6 +1842,7 @@ type Prompt implements Node {
   The Globally Unique ID of this object
   """
   id: GlobalID!
+  sourcePromptId: GlobalID
   name: String!
   description: String
   createdAt: DateTime!
@@ -1852,6 +1853,7 @@ type Prompt implements Node {
     after: String
     before: String
   ): PromptVersionConnection!
+  sourcePrompt: Prompt
 }
 
 type PromptChatTemplate {
