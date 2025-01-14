@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b791087c02ae4e57c1c2cc77a72faef>>
+ * @generated SignedSource<<66bc0ae785e0ca43c9f36b6d80cf4ff0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
 export type CreateChatPromptVersionInput = {
@@ -28,11 +27,27 @@ export type ChatPromptVersionInput = {
   tools?: ReadonlyArray<ToolDefinitionInput>;
 };
 export type PromptChatTemplateInput = {
-  messages: ReadonlyArray<TextPromptMessageInput>;
+  messages: ReadonlyArray<PromptMessageInput>;
 };
-export type TextPromptMessageInput = {
-  content: string;
-  role: PromptMessageRole;
+export type PromptMessageInput = {
+  content: ReadonlyArray<PartInput>;
+  role: string;
+};
+export type PartInput = {
+  image?: ImageInput | null;
+  text?: string | null;
+  toolCall?: string | null;
+  toolResult?: ToolResultInput | null;
+  type: string;
+};
+export type ImageInput = {
+  type: string;
+  url: string;
+};
+export type ToolResultInput = {
+  result: any;
+  toolCallId: string;
+  type: string;
 };
 export type ToolDefinitionInput = {
   definition: any;

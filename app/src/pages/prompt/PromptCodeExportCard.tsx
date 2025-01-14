@@ -45,37 +45,32 @@ export function PromptCodeExportCard({
           __typename
           ... on PromptChatTemplate {
             messages {
-              ... on JSONPromptMessage {
-                role
-                content {
-                  __typename
-                  ... on ImagePart {
-                    image {
-                      type
-                      url
-                    }
-                  }
-                  ... on TextPart {
+              role
+              content {
+                __typename
+                ... on ImagePart {
+                  type
+                  image {
                     type
-                    text
-                  }
-                  ... on ToolCallPart {
-                    type
-                    toolCall
-                  }
-                  ... on ToolResultPart {
-                    type
-                    toolResult {
-                      type
-                      toolCallId
-                      result
-                    }
+                    url
                   }
                 }
-              }
-              ... on TextPromptMessage {
-                role
-                textContent: content
+                ... on TextPart {
+                  type
+                  text
+                }
+                ... on ToolCallPart {
+                  type
+                  toolCall
+                }
+                ... on ToolResultPart {
+                  type
+                  toolResult {
+                    type
+                    toolCallId
+                    result
+                  }
+                }
               }
             }
           }

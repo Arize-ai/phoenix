@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1a22d0484247222e9e135d16b4448ab7>>
+ * @generated SignedSource<<a40c39d454e95227c58b5f3719005bbe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,12 +23,13 @@ export type PromptCodeExportCard__main$data = {
   readonly template: {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
-      readonly content?: ReadonlyArray<{
+      readonly content: ReadonlyArray<{
         readonly __typename: "ImagePart";
         readonly image: {
           readonly type: string;
           readonly url: string;
         };
+        readonly type: string;
       } | {
         readonly __typename: "TextPart";
         readonly text: string;
@@ -50,8 +51,7 @@ export type PromptCodeExportCard__main$data = {
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       }>;
-      readonly role?: PromptMessageRole;
-      readonly textContent?: string;
+      readonly role: PromptMessageRole;
     }>;
   } | {
     readonly __typename: "PromptStringTemplate";
@@ -91,13 +91,6 @@ v1 = {
   "storageKey": null
 },
 v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "role",
-  "storageKey": null
-},
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -166,135 +159,120 @@ return {
             {
               "alias": null,
               "args": null,
-              "concreteType": null,
+              "concreteType": "PromptMessage",
               "kind": "LinkedField",
               "name": "messages",
               "plural": true,
               "selections": [
                 {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    (v2/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "content",
-                      "plural": true,
-                      "selections": [
-                        (v1/*: any*/),
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "Image",
-                              "kind": "LinkedField",
-                              "name": "image",
-                              "plural": false,
-                              "selections": [
-                                (v3/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "url",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "ImagePart",
-                          "abstractKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            (v3/*: any*/),
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "text",
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "TextPart",
-                          "abstractKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            (v3/*: any*/),
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "toolCall",
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "ToolCallPart",
-                          "abstractKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            (v3/*: any*/),
-                            {
-                              "alias": null,
-                              "args": null,
-                              "concreteType": "ToolResult",
-                              "kind": "LinkedField",
-                              "name": "toolResult",
-                              "plural": false,
-                              "selections": [
-                                (v3/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "toolCallId",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "result",
-                                  "storageKey": null
-                                }
-                              ],
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "ToolResultPart",
-                          "abstractKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "JSONPromptMessage",
-                  "abstractKey": null
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "role",
+                  "storageKey": null
                 },
                 {
-                  "kind": "InlineFragment",
+                  "alias": null,
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "content",
+                  "plural": true,
                   "selections": [
-                    (v2/*: any*/),
+                    (v1/*: any*/),
                     {
-                      "alias": "textContent",
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "content",
-                      "storageKey": null
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "Image",
+                          "kind": "LinkedField",
+                          "name": "image",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "url",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "ImagePart",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "text",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "TextPart",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "toolCall",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "ToolCallPart",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "ToolResult",
+                          "kind": "LinkedField",
+                          "name": "toolResult",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "toolCallId",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "result",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "ToolResultPart",
+                      "abstractKey": null
                     }
                   ],
-                  "type": "TextPromptMessage",
-                  "abstractKey": null
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -340,6 +318,6 @@ return {
 };
 })();
 
-(node as any).hash = "4d866d1d13b65891c72d5b5c8e3a4285";
+(node as any).hash = "f36951490c75e4c7bef7cbd4b69bb361";
 
 export default node;
