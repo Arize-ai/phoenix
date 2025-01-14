@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.7.0...arize-phoenix-v7.7.1) (2025-01-14)
+
+
+### Bug Fixes
+
+* don't lock delete dataset mutation ([#6038](https://github.com/Arize-ai/phoenix/issues/6038)) ([95084b5](https://github.com/Arize-ai/phoenix/commit/95084b5f2adbeb5c1070ffccaeb685e4f14b74aa))
+
 ## [7.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.6.0...arize-phoenix-v7.7.0) (2025-01-14)
 
 
