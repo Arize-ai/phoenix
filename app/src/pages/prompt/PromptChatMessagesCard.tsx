@@ -39,11 +39,35 @@ export function PromptChatMessages({
             messages {
               ... on JSONPromptMessage {
                 role
-                jsonContent: content
+                content {
+                  __typename
+                  ... on ImagePart {
+                    image {
+                      type
+                      url
+                    }
+                  }
+                  ... on TextPart {
+                    type
+                    text
+                  }
+                  ... on ToolCallPart {
+                    type
+                    toolCall
+                  }
+                  ... on ToolResultPart {
+                    type
+                    toolResult {
+                      type
+                      toolCallId
+                      result
+                    }
+                  }
+                }
               }
               ... on TextPromptMessage {
                 role
-                content
+                textContent: content
               }
             }
           }
@@ -88,11 +112,11 @@ function ChatMessages({
   return (
     <Flex direction="column" gap="size-200">
       {messages.map((message, i) => (
-        // TODO: Handle JSON content for things like tool calls
         <ChatTemplateMessage
           key={i}
           role={message.role as string}
-          content={message.content || JSON.stringify(message.jsonContent)}
+          // TODO(apowell): Break out into switch statement, rendering each message part type
+          content={message.textContent || JSON.stringify(message.content)}
           templateFormat={templateFormat}
         />
       ))}
