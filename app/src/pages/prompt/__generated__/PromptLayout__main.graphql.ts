@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fbcae6784dfd22eaf4ee4e96cff8ecb7>>
+ * @generated SignedSource<<9bb0b567dbba35e8d71a077f77a57bf4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,9 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptLayout__main$data = {
+  readonly description: string | null;
+  readonly id: string;
+  readonly name: string;
   readonly promptVersions: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -25,12 +28,35 @@ export type PromptLayout__main$key = {
   readonly " $fragmentSpreads": FragmentRefs<"PromptLayout__main">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "PromptLayout__main",
   "selections": [
+    (v0/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "description",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -55,13 +81,7 @@ const node: ReaderFragment = {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "id",
-                  "storageKey": null
-                }
+                (v0/*: any*/)
               ],
               "storageKey": null
             }
@@ -75,7 +95,8 @@ const node: ReaderFragment = {
   "type": "Prompt",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "7453bb448124e048413aab16f34c6543";
+(node as any).hash = "6431d40ed67848e82e6dd5e826d11ed3";
 
 export default node;

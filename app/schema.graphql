@@ -236,6 +236,12 @@ input ClearProjectInput {
   endTime: DateTime
 }
 
+input ClonePromptInput {
+  name: String!
+  description: String = null
+  promptId: GlobalID!
+}
+
 type Cluster {
   """
   The ID of the cluster
@@ -1521,6 +1527,7 @@ type Mutation {
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): Query!
+  clonePrompt(input: ClonePromptInput!): Prompt!
   deletePromptVersionTag(
     input: DeletePromptVersionTagInput!
   ): PromptVersionTagMutationPayload!
