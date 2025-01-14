@@ -59,3 +59,13 @@ export const fieldBaseCSS = css`
     color: var(--ac-global-color-danger);
   }
 `;
+
+export const fieldPopoverCSS = css`
+  width: var(--trigger-width);
+  background-color: var(--ac-global-menu-background-color);
+  border-radius: var(--ac-global-rounding-small);
+  color: var(--ac-global-text-color-900);
+  box-shadow: 0px 4px 10px var(--px-overlay-shadow-color);
+  border: 1px solid var(--ac-global-menu-border-color);
+  max-height: inherit;
+`;
