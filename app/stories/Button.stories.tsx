@@ -4,28 +4,35 @@ import { css } from "@emotion/react";
 
 import { Button, ButtonProps } from "@phoenix/components";
 
-import { ThemeWrapper } from "./components/ThemeWrapper";
-
 const meta: Meta = {
   title: "Button",
   component: Button,
   parameters: {
-    controls: { expanded: true },
+    layout: "centered",
   },
 };
 
 export default meta;
 
-const Template: StoryFn<ButtonProps> = (args) => (
-  <ThemeWrapper>
-    <Button {...args} />
-  </ThemeWrapper>
-);
+const Template: StoryFn<ButtonProps> = (args) => <Button {...args} />;
 
+/**
+ * Buttons are used to perform actions within the UI
+ */
 export const Default = Template.bind({});
 
 Default.args = {
   children: "Button",
+};
+
+/**
+ * Use the `variant` prop to change the appearance of the button
+ */
+export const Danger = Template.bind({});
+
+Danger.args = {
+  children: "Danger",
+  variant: "danger",
 };
 
 export const CustomCSS = Template.bind({});

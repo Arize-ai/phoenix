@@ -10,6 +10,7 @@ export type {
   InputProps,
   LabelProps,
   FieldErrorProps,
+  DialogTriggerProps,
 } from "react-aria-components";
 export { classNames } from "@arizeai/components";
 

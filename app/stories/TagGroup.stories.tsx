@@ -9,8 +9,6 @@ import {
   TagList,
 } from "@phoenix/components";
 
-import { ThemeWrapper } from "./components/ThemeWrapper";
-
 const meta: Meta = {
   title: "TagGroup",
   component: TagGroup,
@@ -30,17 +28,15 @@ const meta: Meta = {
 export default meta;
 
 const Template: StoryFn<TagGroupProps> = (args) => (
-  <ThemeWrapper>
-    <TagGroup {...args}>
-      <Label>Categories</Label>
-      <TagList>
-        <Tag>News</Tag>
-        <Tag>Travel</Tag>
-        <Tag>Gaming</Tag>
-        <Tag>Shopping</Tag>
-      </TagList>
-    </TagGroup>
-  </ThemeWrapper>
+  <TagGroup {...args}>
+    <Label>Categories</Label>
+    <TagList>
+      <Tag>News</Tag>
+      <Tag>Travel</Tag>
+      <Tag>Gaming</Tag>
+      <Tag>Shopping</Tag>
+    </TagList>
+  </TagGroup>
 );
 
 export const Default = Template.bind({});
