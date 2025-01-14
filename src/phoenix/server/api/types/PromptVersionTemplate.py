@@ -8,9 +8,9 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import (
-    JSONPromptMessage as JSONPromptMessageModel,
-)
+from phoenix.server.api.helpers.prompts.models import Image as ImageModel
+from phoenix.server.api.helpers.prompts.models import ImagePart as ImagePartModel
+from phoenix.server.api.helpers.prompts.models import JSONPromptMessage as JSONPromptMessageModel
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptStringTemplateV1,
@@ -19,9 +19,11 @@ from phoenix.server.api.helpers.prompts.models import (
 from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1 as PromptStringTemplateModel,
 )
-from phoenix.server.api.helpers.prompts.models import (
-    TextPromptMessage as TextPromptMessageModel,
-)
+from phoenix.server.api.helpers.prompts.models import TextPart as TextPartModel
+from phoenix.server.api.helpers.prompts.models import TextPromptMessage as TextPromptMessageModel
+from phoenix.server.api.helpers.prompts.models import ToolCallPart as ToolCallPartModel
+from phoenix.server.api.helpers.prompts.models import ToolResult as ToolResultModel
+from phoenix.server.api.helpers.prompts.models import ToolResultPart as ToolResultPartModel
 
 
 @strawberry.experimental.pydantic.type(TextPromptMessageModel)
@@ -30,10 +32,53 @@ class TextPromptMessage:
     content: strawberry.auto
 
 
+@strawberry.experimental.pydantic.type(ImageModel)
+class Image:
+    type: str
+    url: strawberry.auto
+
+
+@strawberry.experimental.pydantic.type(ToolResultModel)
+class ToolResult:
+    type: str
+    tool_call_id: strawberry.auto
+    result: JSON
+
+
+@strawberry.experimental.pydantic.type(TextPartModel)
+class TextPart:
+    type: str
+    text: strawberry.auto
+
+
+@strawberry.experimental.pydantic.type(ImagePartModel)
+class ImagePart:
+    type: str
+    image: Image
+
+
+@strawberry.experimental.pydantic.type(ToolCallPartModel)
+class ToolCallPart:
+    type: str
+    tool_call: strawberry.auto
+
+
+@strawberry.experimental.pydantic.type(ToolResultPartModel)
+class ToolResultPart:
+    type: str
+    tool_result: ToolResult
+
+
+Part: TypeAlias = Annotated[
+    Union[TextPart, ImagePart, ToolCallPart, ToolResultPart],
+    strawberry.union("Part"),
+]
+
+
 @strawberry.experimental.pydantic.type(JSONPromptMessageModel)
 class JSONPromptMessage:
     role: strawberry.auto
-    content: JSON
+    content: list[Part]
 
 
 PromptTemplateMessage: TypeAlias = Annotated[

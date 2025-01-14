@@ -49,14 +49,52 @@ class PromptModel(BaseModel):
     )
 
 
-class TextPromptMessage(PromptModel):
-    role: PromptMessageRole
-    content: str
+class Part(PromptModel):
+    type: Literal["text", "image", "tool", "tool_call", "tool_result"]
+
+
+class TextPart(Part):
+    type: Literal["text"]
+    text: str
+
+
+class Image(BaseModel):
+    type: Literal["image_result"]
+    # http url, or base64 encoded image
+    url: str
+
+
+class ImagePart(Part):
+    type: Literal["image"]
+    # the image data
+    image: Image
+
+
+class ToolCallPart(Part):
+    type: Literal["tool_call"]
+    # the identifier of the tool call function
+    tool_call: str
+
+
+class ToolResult(BaseModel):
+    type: Literal["tool_result_result"]
+    tool_call_id: str
+    result: JSONSerializable
+
+
+class ToolResultPart(Part):
+    type: Literal["tool_result"]
+    tool_result: ToolResult
 
 
 class JSONPromptMessage(PromptModel):
     role: PromptMessageRole
-    content: JSONSerializable
+    content: list[Part]
+
+
+class TextPromptMessage(PromptModel):
+    role: PromptMessageRole
+    content: str
 
 
 class PromptChatTemplateV1(PromptModel):

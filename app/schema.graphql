@@ -1034,6 +1034,16 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+type Image {
+  type: String!
+  url: String!
+}
+
+type ImagePart {
+  type: String!
+  image: Image!
+}
+
 type Inferences {
   """The start bookend of the data"""
   startTime: DateTime!
@@ -1125,7 +1135,7 @@ type JSONInvocationParameter implements InvocationParameterBase {
 
 type JSONPromptMessage {
   role: PromptMessageRole!
-  content: JSON!
+  content: [Part!]!
 }
 
 type JSONSchema {
@@ -1259,6 +1269,8 @@ type PageInfo {
   """When paginating forwards, the cursor to continue."""
   endCursor: String
 }
+
+union Part = TextPart | ImagePart | ToolCallPart | ToolResultPart
 
 input PatchAnnotationInput {
   annotationId: GlobalID!
@@ -1891,6 +1903,11 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
   content: String!
 }
 
+type TextPart {
+  type: String!
+  text: String!
+}
+
 type TextPromptMessage {
   role: PromptMessageRole!
   content: String!
@@ -1930,12 +1947,28 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   function: FunctionCallChunk!
 }
 
+type ToolCallPart {
+  type: String!
+  toolCall: String!
+}
+
 type ToolDefinition {
   definition: JSON!
 }
 
 input ToolDefinitionInput {
   definition: JSON!
+}
+
+type ToolResult {
+  type: String!
+  toolCallId: String!
+  result: JSON!
+}
+
+type ToolResultPart {
+  type: String!
+  toolResult: ToolResult!
 }
 
 type Trace implements Node {
