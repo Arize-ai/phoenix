@@ -4,23 +4,17 @@ import { css } from "@emotion/react";
 
 import { Button, ButtonProps } from "@phoenix/components";
 
-import { ThemeWrapper } from "./components/ThemeWrapper";
-
 const meta: Meta = {
   title: "Button",
   component: Button,
   parameters: {
-    controls: { expanded: true },
+    layout: "centered",
   },
 };
 
 export default meta;
 
-const Template: StoryFn<ButtonProps> = (args) => (
-  <ThemeWrapper>
-    <Button {...args} />
-  </ThemeWrapper>
-);
+const Template: StoryFn<ButtonProps> = (args) => <Button {...args} />;
 
 export const Default = Template.bind({});
 
