@@ -23,7 +23,7 @@ def build_graphql_schema(
     return strawberry.Schema(
         query=Query,
         mutation=Mutation,
-        extensions=chain(extensions or [], [get_mask_errors_extension()]),
+        extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
         types=_implementing_types(ChatCompletionSubscriptionPayload),
     )
