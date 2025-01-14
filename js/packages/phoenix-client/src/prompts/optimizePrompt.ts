@@ -40,10 +40,7 @@ import {
 
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  // baseURL: "http://localhost:11434/v1",
-  // apiKey: "ollama",
-});
+const openai = new OpenAI({});
 const model = "gpt-4o";
 
 /**
