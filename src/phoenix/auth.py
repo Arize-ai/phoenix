@@ -17,7 +17,7 @@ ResponseType = TypeVar("ResponseType", bound=Response)
 
 def compute_password_hash(*, password: str, salt: bytes) -> bytes:
     """
-    Salts and hashes a password using PBKDF2, HMAC, and SHA256.
+    Salts and hashes a password using PBKDF2, HMAC and SHA256.
 
     Args:
         password (str): the password to hash
