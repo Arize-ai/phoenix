@@ -10,26 +10,19 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.helpers.prompts.models import Image as ImageModel
 from phoenix.server.api.helpers.prompts.models import ImagePart as ImagePartModel
-from phoenix.server.api.helpers.prompts.models import JSONPromptMessage as JSONPromptMessageModel
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptStringTemplateV1,
     PromptTemplateType,
 )
+from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
 from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1 as PromptStringTemplateModel,
 )
 from phoenix.server.api.helpers.prompts.models import TextPart as TextPartModel
-from phoenix.server.api.helpers.prompts.models import TextPromptMessage as TextPromptMessageModel
 from phoenix.server.api.helpers.prompts.models import ToolCallPart as ToolCallPartModel
 from phoenix.server.api.helpers.prompts.models import ToolResult as ToolResultModel
 from phoenix.server.api.helpers.prompts.models import ToolResultPart as ToolResultPartModel
-
-
-@strawberry.experimental.pydantic.type(TextPromptMessageModel)
-class TextPromptMessage:
-    role: strawberry.auto
-    content: strawberry.auto
 
 
 @strawberry.experimental.pydantic.type(ImageModel)
@@ -75,32 +68,24 @@ Part: TypeAlias = Annotated[
 ]
 
 
-@strawberry.experimental.pydantic.type(JSONPromptMessageModel)
-class JSONPromptMessage:
+@strawberry.experimental.pydantic.type(PromptMessageModel)
+class PromptMessage:
     role: strawberry.auto
     content: list[Part]
-
-
-PromptTemplateMessage: TypeAlias = Annotated[
-    Union[TextPromptMessage, JSONPromptMessage],
-    strawberry.union("PromptTemplateMessage"),
-]
 
 
 @strawberry.experimental.pydantic.type(PromptChatTemplateV1)
 class PromptChatTemplate:
     _version: strawberry.Private[str] = "messages-v1"
-    messages: list[PromptTemplateMessage]
+    messages: list[PromptMessage]
 
 
 def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
     template = PromptChatTemplateV1.model_validate(orm_model.template)
-    messages: list[PromptTemplateMessage] = []
+    messages: list[PromptMessage] = []
     for msg in template.messages:
-        if isinstance(msg, TextPromptMessageModel):
-            messages.append(TextPromptMessage(role=msg.role, content=msg.content))
-        elif isinstance(msg, JSONPromptMessageModel):
-            messages.append(JSONPromptMessage(role=msg.role, content=msg.content))
+        if isinstance(msg, PromptMessageModel):
+            messages.append(PromptMessage(role=msg.role, content=msg.content))
         else:
             assert_never(msg)
     return PromptChatTemplate(messages=messages)

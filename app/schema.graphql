@@ -1039,6 +1039,11 @@ type Image {
   url: String!
 }
 
+input ImageInput {
+  type: String!
+  url: String!
+}
+
 type ImagePart {
   type: String!
   image: Image!
@@ -1131,11 +1136,6 @@ type JSONInvocationParameter implements InvocationParameterBase {
   required: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: JSON
-}
-
-type JSONPromptMessage {
-  role: PromptMessageRole!
-  content: [Part!]!
 }
 
 type JSONSchema {
@@ -1271,6 +1271,14 @@ type PageInfo {
 }
 
 union Part = TextPart | ImagePart | ToolCallPart | ToolResultPart
+
+input PartInput {
+  type: String!
+  text: String = null
+  image: ImageInput = null
+  toolCall: String = null
+  toolResult: ToolResultInput = null
+}
 
 input PatchAnnotationInput {
   annotationId: GlobalID!
@@ -1447,11 +1455,11 @@ type Prompt implements Node {
 }
 
 type PromptChatTemplate {
-  messages: [PromptTemplateMessage!]!
+  messages: [PromptMessage!]!
 }
 
 input PromptChatTemplateInput {
-  messages: [TextPromptMessageInput!]!
+  messages: [PromptMessageInput!]!
 }
 
 """A connection to a list of items."""
@@ -1470,6 +1478,16 @@ type PromptEdge {
 
   """The item at the end of the edge"""
   node: Prompt!
+}
+
+type PromptMessage {
+  role: PromptMessageRole!
+  content: [Part!]!
+}
+
+input PromptMessageInput {
+  role: String!
+  content: [PartInput!]!
 }
 
 enum PromptMessageRole {
@@ -1498,8 +1516,6 @@ enum PromptTemplateFormat {
   FSTRING
   NONE
 }
-
-union PromptTemplateMessage = TextPromptMessage | JSONPromptMessage
 
 enum PromptTemplateType {
   STRING
@@ -1908,16 +1924,6 @@ type TextPart {
   text: String!
 }
 
-type TextPromptMessage {
-  role: PromptMessageRole!
-  content: String!
-}
-
-input TextPromptMessageInput {
-  role: PromptMessageRole!
-  content: String!
-}
-
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -1961,6 +1967,12 @@ input ToolDefinitionInput {
 }
 
 type ToolResult {
+  type: String!
+  toolCallId: String!
+  result: JSON!
+}
+
+input ToolResultInput {
   type: String!
   toolCallId: String!
   result: JSON!

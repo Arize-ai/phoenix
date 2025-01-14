@@ -98,7 +98,35 @@ class TestPrompts:
                         prompt_id=prompt.id,
                         template_type="CHAT",
                         template_format="MUSTACHE",
-                        template={"messages": [{"role": "USER", "content": "hi"}]},
+                        template={
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [
+                                        {"type": "text", "text": "hi"},
+                                        {
+                                            "type": "image",
+                                            "image": {
+                                                "type": "image_result",
+                                                "url": "https://example.com/image.jpg",
+                                            },
+                                        },
+                                        {
+                                            "type": "tool_call",
+                                            "tool_call": "tool_call_id",
+                                        },
+                                        {
+                                            "type": "tool_result",
+                                            "tool_result": {
+                                                "type": "tool_result_result",
+                                                "tool_call_id": "tool_call_id",
+                                                "result": {"foo": "bar"},
+                                            },
+                                        },
+                                    ],
+                                }
+                            ]
+                        },
                         invocation_parameters={},
                         model_provider=token_hex(16),
                         model_name=token_hex(16),

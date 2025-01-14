@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
-from typing_extensions import TypeAlias
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from typing_extensions import Annotated, TypeAlias
 
 from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
 
@@ -49,11 +49,11 @@ class PromptModel(BaseModel):
     )
 
 
-class Part(PromptModel):
+class PartBase(BaseModel):
     type: Literal["text", "image", "tool", "tool_call", "tool_result"]
 
 
-class TextPart(Part):
+class TextPart(PartBase):
     type: Literal["text"]
     text: str
 
@@ -64,13 +64,13 @@ class Image(BaseModel):
     url: str
 
 
-class ImagePart(Part):
+class ImagePart(PartBase):
     type: Literal["image"]
     # the image data
     image: Image
 
 
-class ToolCallPart(Part):
+class ToolCallPart(PartBase):
     type: Literal["tool_call"]
     # the identifier of the tool call function
     tool_call: str
@@ -82,24 +82,24 @@ class ToolResult(BaseModel):
     result: JSONSerializable
 
 
-class ToolResultPart(Part):
+class ToolResultPart(PartBase):
     type: Literal["tool_result"]
     tool_result: ToolResult
 
 
-class JSONPromptMessage(PromptModel):
+Part = Annotated[
+    Union[TextPart, ImagePart, ToolCallPart, ToolResultPart], Field(discriminator="type")
+]
+
+
+class PromptMessage(PromptModel):
     role: PromptMessageRole
     content: list[Part]
 
 
-class TextPromptMessage(PromptModel):
-    role: PromptMessageRole
-    content: str
-
-
 class PromptChatTemplateV1(PromptModel):
     _version: str = "messages-v1"
-    messages: list[Union[TextPromptMessage, JSONPromptMessage]]
+    messages: list[PromptMessage]
 
 
 class PromptStringTemplateV1(PromptModel):
