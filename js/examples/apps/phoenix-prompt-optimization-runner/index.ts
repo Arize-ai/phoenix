@@ -13,7 +13,7 @@ import { runner } from "./runner.js";
 
 const env = z
   .object({
-    OPENAI_MODEL: z.string().default("llama3.2"),
+    OPENAI_MODEL: z.string().default("phi4"),
     OPENAI_API_KEY: z.string().default("ollama"),
     OPENAI_API_BASE_URL: z.string().default("http://localhost:11434/v1"),
   })
@@ -80,7 +80,7 @@ const main = async () => {
                     type: "string",
                     enum: ["A", "B", "C"],
                     description:
-                      "The score of the output. A means the output exactly matches the expected output, B means the output semantically matches the expected output, and C means the output does not match the expected output.",
+                      "'A' means the received text exactly matches the expected text, 'B' means the received text semantically matches the expected text, and 'C' means the received text does not match the expected text.",
                   },
                   label: {
                     type: "string",
@@ -89,7 +89,7 @@ const main = async () => {
                   explanation: {
                     type: "string",
                     description:
-                      "Explain why the outputs do, or do not, match the expected output.",
+                      "Explain why the received text does, or does not, match the expected text.",
                   },
                 },
                 required: ["score", "label", "explanation"],
@@ -99,15 +99,38 @@ const main = async () => {
           messages: [
             {
               role: "user",
-              content: `How well does the received output match the expected output?
-
-Received Output: 
-
-${params.output}
-
-Expected Output: 
-
-${params.expected?.output}`,
+              content: `Decide between 'A', 'B', or 'C' based on how well the received text matches the expected text.`,
+            },
+            {
+              role: "assistant",
+              content: "What is the received text?",
+            },
+            {
+              role: "user",
+              content:
+                typeof params.output === "string"
+                  ? params.output
+                  : JSON.stringify(params.output, null, 2),
+            },
+            {
+              role: "assistant",
+              content: "What is the expected text?",
+            },
+            {
+              role: "user",
+              content:
+                typeof params.expected?.output === "string"
+                  ? params.expected?.output
+                  : JSON.stringify(params.expected?.output, null, 2),
+            },
+            {
+              role: "assistant",
+              content: "Got it.",
+            },
+            {
+              role: "user",
+              content:
+                "Decide between 'A', 'B', or 'C' based on how well the received text matches the expected text.",
             },
           ],
         })
