@@ -37,7 +37,7 @@ const preview: Preview = {
       const theme = globals.theme || "light";
       return (
         <Provider theme={theme}>
-          <GlobalStyles></GlobalStyles>
+          <GlobalStyles />
           <Story />
         </Provider>
       );
