@@ -11,6 +11,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     CursorString,
@@ -74,9 +75,14 @@ class Prompt(Node):
     async def source_prompt(self, info: Info[Context, None]) -> Optional["Prompt"]:
         if not self.source_prompt_id:
             return None
+
+        source_prompt_id = from_global_id_with_expected_type(
+            global_id=self.source_prompt_id, expected_type_name=self.__name__
+        )
+
         async with info.context.db() as session:
             source_prompt = await session.scalar(
-                select(models.Prompt).where(models.Prompt.id == self.source_prompt_id)
+                select(models.Prompt).where(models.Prompt.id == source_prompt_id)
             )
             if not source_prompt:
                 raise NotFound(f"Source prompt not found: {self.source_prompt_id}")
