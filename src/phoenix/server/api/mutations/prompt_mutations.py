@@ -3,8 +3,9 @@ from typing import Optional
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -40,6 +41,13 @@ class CreateChatPromptVersionInput:
 
 @strawberry.input
 class DeletePromptInput:
+    prompt_id: GlobalID
+
+
+@strawberry.input
+class ClonePromptInput:
+    name: str
+    description: Optional[str] = None
     prompt_id: GlobalID
 
 
@@ -193,3 +201,55 @@ class PromptMutationMixin:
 
             await session.commit()
         return Query()
+
+    @strawberry.mutation
+    async def clone_prompt(self, info: Info[Context, None], input: ClonePromptInput) -> Prompt:
+        prompt_id = from_global_id_with_expected_type(
+            global_id=input.prompt_id, expected_type_name=Prompt.__name__
+        )
+        async with info.context.db() as session:
+            # Load prompt with all versions
+            stmt = (
+                select(models.Prompt)
+                .options(joinedload(models.Prompt.prompt_versions))
+                .where(models.Prompt.id == prompt_id)
+            )
+            prompt = await session.scalar(stmt)
+
+            if not prompt:
+                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
+
+            # Create new prompt
+            new_prompt = models.Prompt(
+                name=input.name,
+                description=input.description,
+                source_prompt_id=prompt_id,
+            )
+
+            # Create copies of all versions
+            new_versions = [
+                models.PromptVersion(
+                    prompt_id=new_prompt.id,
+                    user_id=version.user_id,
+                    description=version.description,
+                    template_type=version.template_type,
+                    template_format=version.template_format,
+                    template=version.template,
+                    invocation_parameters=version.invocation_parameters,
+                    tools=version.tools,
+                    output_schema=version.output_schema,
+                    model_provider=version.model_provider,
+                    model_name=version.model_name,
+                )
+                for version in prompt.prompt_versions
+            ]
+            # Add all version copies to the new prompt
+            new_prompt.prompt_versions = new_versions
+
+            session.add(new_prompt)
+
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"A prompt named '{input.name}' already exists")
+        return to_gql_prompt_from_orm(new_prompt)

@@ -5,6 +5,7 @@ import isObject from "lodash/isObject";
 import { List, ListItem } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
 
@@ -15,11 +16,15 @@ function PromptInvocationParameterItem({
   keyName: string;
   value: unknown;
 }) {
+  const { json, stringifyError } = safelyStringifyJSON(value);
+  if (stringifyError) {
+    return null;
+  }
   return (
     <View paddingStart="size-100" paddingEnd="size-100">
       <Flex direction="row" justifyContent="space-between">
         <Text weight="heavy">{keyName}</Text>
-        <Text>{String(value)}</Text>
+        <Text>{json}</Text>
       </Flex>
     </View>
   );
