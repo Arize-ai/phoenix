@@ -4,7 +4,7 @@ import strawberry
 from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
-    Image,
+    ImageResult,
     PromptChatTemplateV1,
     PromptTemplateFormat,
     PromptTemplateType,
@@ -26,8 +26,8 @@ class JSONSchemaInput:
     definition: JSON
 
 
-@strawberry.experimental.pydantic.input(Image)
-class ImageInput:
+@strawberry.experimental.pydantic.input(ImageResult)
+class ImageResultInput:
     type: str
     url: str
 
@@ -43,7 +43,7 @@ class ToolResultInput:
 class PartInput:
     type: str
     text: Optional[str] = None
-    image: Optional[ImageInput] = None
+    image: Optional[ImageResultInput] = None
     tool_call: Optional[str] = None
     tool_result: Optional[ToolResultInput] = None
 

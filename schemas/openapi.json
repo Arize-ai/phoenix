@@ -1722,7 +1722,25 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "Image": {
+      "ImagePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "image",
+            "title": "Type"
+          },
+          "image": {
+            "$ref": "#/components/schemas/ImageResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "image"
+        ],
+        "title": "ImagePart"
+      },
+      "ImageResult": {
         "properties": {
           "type": {
             "type": "string",
@@ -1739,25 +1757,7 @@
           "type",
           "url"
         ],
-        "title": "Image"
-      },
-      "ImagePart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "image",
-            "title": "Type"
-          },
-          "image": {
-            "$ref": "#/components/schemas/Image"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "image"
-        ],
-        "title": "ImagePart"
+        "title": "ImageResult"
       },
       "InsertedSpanAnnotation": {
         "properties": {

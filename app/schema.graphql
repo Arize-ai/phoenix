@@ -1034,19 +1034,19 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
-type Image {
-  type: String!
-  url: String!
-}
-
-input ImageInput {
-  type: String!
-  url: String!
-}
-
 type ImagePart {
   type: String!
-  image: Image!
+  image: ImageResult!
+}
+
+type ImageResult {
+  type: String!
+  url: String!
+}
+
+input ImageResultInput {
+  type: String!
+  url: String!
 }
 
 type Inferences {
@@ -1275,7 +1275,7 @@ union Part = TextPart | ImagePart | ToolCallPart | ToolResultPart
 input PartInput {
   type: String!
   text: String = null
-  image: ImageInput = null
+  image: ImageResultInput = null
   toolCall: String = null
   toolResult: ToolResultInput = null
 }

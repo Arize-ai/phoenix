@@ -8,8 +8,8 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import Image as ImageModel
 from phoenix.server.api.helpers.prompts.models import ImagePart as ImagePartModel
+from phoenix.server.api.helpers.prompts.models import ImageResult as ImageResultModel
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptStringTemplateV1,
@@ -25,8 +25,8 @@ from phoenix.server.api.helpers.prompts.models import ToolResult as ToolResultMo
 from phoenix.server.api.helpers.prompts.models import ToolResultPart as ToolResultPartModel
 
 
-@strawberry.experimental.pydantic.type(ImageModel)
-class Image:
+@strawberry.experimental.pydantic.type(ImageResultModel)
+class ImageResult:
     type: str
     url: strawberry.auto
 
@@ -47,7 +47,7 @@ class TextPart:
 @strawberry.experimental.pydantic.type(ImagePartModel)
 class ImagePart:
     type: str
-    image: Image
+    image: ImageResult
 
 
 @strawberry.experimental.pydantic.type(ToolCallPartModel)

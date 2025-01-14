@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<821bba8f73bedb9b0749d9148d845a73>>
+ * @generated SignedSource<<58976236a11d0e5cff4405942ac109d4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -128,7 +128,7 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "concreteType": "Image",
+                          "concreteType": "ImageResult",
                           "kind": "LinkedField",
                           "name": "image",
                           "plural": false,

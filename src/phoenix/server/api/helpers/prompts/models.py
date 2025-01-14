@@ -58,7 +58,7 @@ class TextPart(PartBase):
     text: str
 
 
-class Image(BaseModel):
+class ImageResult(BaseModel):
     type: Literal["image_result"]
     # http url, or base64 encoded image
     url: str
@@ -67,7 +67,7 @@ class Image(BaseModel):
 class ImagePart(PartBase):
     type: Literal["image"]
     # the image data
-    image: Image
+    image: ImageResult
 
 
 class ToolCallPart(PartBase):
