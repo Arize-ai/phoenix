@@ -3,7 +3,7 @@ from typing import Optional
 import strawberry
 from fastapi import Request
 from pydantic import ValidationError
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -49,6 +49,12 @@ class ClonePromptInput:
     name: str
     description: Optional[str] = None
     prompt_id: GlobalID
+
+
+@strawberry.input
+class PatchPromptDescriptionInput:
+    prompt_id: GlobalID
+    description: str
 
 
 @strawberry.type
@@ -253,3 +259,27 @@ class PromptMutationMixin:
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"A prompt named '{input.name}' already exists")
         return to_gql_prompt_from_orm(new_prompt)
+
+    @strawberry.mutation
+    async def patch_prompt_description(
+        self, info: Info[Context, None], input: PatchPromptDescriptionInput
+    ) -> Prompt:
+        prompt_id = from_global_id_with_expected_type(
+            global_id=input.prompt_id, expected_type_name=Prompt.__name__
+        )
+
+        async with info.context.db() as session:
+            stmt = (
+                update(models.Prompt)
+                .where(models.Prompt.id == prompt_id)
+                .values(description=input.description)
+                .returning(models.Prompt)
+            )
+
+            result = await session.execute(stmt)
+            prompt = result.scalar_one_or_none()
+
+            if prompt is None:
+                raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
+
+        return to_gql_prompt_from_orm(prompt)
