@@ -2242,13 +2242,41 @@
           "tool_call_id": {
             "type": "string",
             "title": "Tool Call Id"
+          },
+          "tool_call": {
+            "$ref": "#/components/schemas/ToolCallFunction"
           }
         },
         "type": "object",
         "required": [
-          "tool_call_id"
+          "tool_call_id",
+          "tool_call"
         ],
         "title": "ToolCallContentValue"
+      },
+      "ToolCallFunction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type",
+            "default": "function"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCallFunction"
       },
       "ToolResultContentPart": {
         "properties": {
