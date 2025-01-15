@@ -15,6 +15,8 @@ Analyze the provided audio file and classify the primary emotion based on these 
 - Volume: Loudness of the speech (e.g., loud, soft, moderate).
 - Intensity: Emotional strength or expression (e.g., subdued, sharp, exaggerated).
 
+************
+
 Here is the base64 encoded audio string:
 
 """
@@ -22,23 +24,35 @@ Here is the base64 encoded audio string:
 EMOTION_AUDIO_BASE_TEMPLATE_PT_2 = """{audio}"""
 
 EMOTION_AUDIO_BASE_TEMPLATE_PT_3 = """
-### POSSIBLE EMOTIONS:
+************
+
+POSSIBLE EMOTIONS:
 ['anger', 'happiness', 'excitement', 'sadness', 'neutral', 'frustration', 'fear', 'surprise',
 'disgust', 'other']
 IMPORTANT: Choose the most dominant emotion expressed in the audio. Neutral should only be used when
 no other emotion is clearly present, do your best to avoid this label.
 
-### RESPONSE FORMAT:
-1. EMOTION: Provide a single word from the list above representing the detected emotion.
-2. EXPLANATION:Write out in a step by step manner
-an EXPLANATION to show how you determined the emotion of the audio considering the tone, pitch,
-pace, volume, and intensity.
+************
+
+RESPONSE FORMAT:
+
+Provide a single word from the list above representing the detected emotion.
+
+EXAMPLE RESPONSE: excitement
+
+Analyze the audio and respond in this format.
 
 ************
 
-### EXAMPLE RESPONSE:
-excitement
-EXPLANATION:
+"""
+
+EMOTION_AUDIO_BASE_TEMPLATE_EXPLANATION = """
+
+Write out in a step by step manner
+an EXPLANATION to show how you determined the emotion of the audio considering the tone, pitch,
+pace, volume, and intensity.
+
+EXAMPLE RESPONSE:
 1. Tone: The tone was enthusiastic and high-energy.
 2. Pitch: The pitch was elevated and varied significantly.
 3. Pace: The pace was fast, consistent with excitement.
@@ -47,11 +61,6 @@ EXPLANATION:
 6. Conclusion: Based on these features, the primary emotion is 'excitement.'
 
 ************
-
-"""
-
-EMOTION_AUDIO_BASE_TEMPLATE_EXPLANATION = """
-Analyze the audio and respond in this format.
 
 EXPLANATION:
 """
