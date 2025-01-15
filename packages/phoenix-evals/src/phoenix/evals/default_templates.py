@@ -408,15 +408,13 @@ no other emotion is clearly present, do your best to avoid this label.
 
 ### RESPONSE FORMAT:
 1. EMOTION: Provide a single word from the list above representing the detected emotion.
-2. EXPLANATION: Explain your decision using the characteristics above.
+2. EXPLANATION:Write out in a step by step manner
+an EXPLANATION to show how you determined the emotion of the audio considering the tone, pitch, pace, volume, and intensity. 
+
+************
 
 ### EXAMPLE RESPONSE:
-
 excitement
-
-"""
-
-EMOTION_BASE_TEMPLATE_EXPLANATION = """
 EXPLANATION:
 1. Tone: The tone was enthusiastic and high-energy.
 2. Pitch: The pitch was elevated and varied significantly.
@@ -425,7 +423,14 @@ EXPLANATION:
 5. Intensity: The delivery was expressive and emotionally charged.
 6. Conclusion: Based on these features, the primary emotion is 'excitement.'
 
+************
+
+"""
+
+EMOTION_BASE_TEMPLATE_EXPLANATION = """
 Analyze the audio and respond in this format.
+
+EXPLANATION:
 """
 
 EMOTION_RAILS = [
