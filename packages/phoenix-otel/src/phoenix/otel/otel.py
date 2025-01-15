@@ -2,7 +2,7 @@ import inspect
 import os
 import sys
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
@@ -39,6 +39,7 @@ def register(
     set_global_tracer_provider: bool = True,
     headers: Optional[Dict[str, str]] = None,
     verbose: bool = True,
+    protocol: Optional[Literal["http", "grpc"]] = None,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -109,7 +110,12 @@ class TracerProvider(_TracerProvider):
     """
 
     def __init__(
-        self, *args: Any, endpoint: Optional[str] = None, verbose: bool = True, **kwargs: Any
+        self,
+        *args: Any,
+        endpoint: Optional[str] = None,
+        protocol: Optional[Literal["http", "grpc"]] = None,
+        verbose: bool = True,
+        **kwargs: Any,
     ):
         sig = _get_class_signature(_TracerProvider)
         bound_args = sig.bind_partial(*args, **kwargs)
@@ -215,12 +221,14 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         span_exporter: Optional[SpanExporter] = None,
         endpoint: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
+        protocol: Optional[Literal["http", "grpc"]] = None,
     ):
         if span_exporter is None:
-            parsed_url, endpoint = _normalized_endpoint(endpoint)
-            if _maybe_http_endpoint(parsed_url):
+            use_http = protocol == "http"
+            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
+            if _maybe_http_endpoint(parsed_url) or protocol == "http":
                 span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
-            elif _maybe_grpc_endpoint(parsed_url):
+            elif _maybe_grpc_endpoint(parsed_url) or protocol == "grpc":
                 span_exporter = GRPCSpanExporter(endpoint=endpoint, headers=headers)
             else:
                 warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
