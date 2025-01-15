@@ -7,6 +7,7 @@ import { Dialog, DialogContainer } from "@arizeai/components";
 
 import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 interface SelectedExperiment {
   id: string;
@@ -52,7 +53,7 @@ export function ExperimentSelectionToolbar(
       },
       onCompleted: () => {
         notifySuccess({
-          title: "Examples Deleted",
+          title: "Experiments Deleted",
           message: `${selectedExperiments.length} experiment${isPlural ? "s" : ""} have been deleted.`,
         });
         // Clear the selection
@@ -60,9 +61,10 @@ export function ExperimentSelectionToolbar(
         onClearSelection();
       },
       onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
         notifyError({
           title: "An error occurred",
-          message: `Failed to delete examples: ${error.message}`,
+          message: `Failed to delete experiments: ${formattedError?.[0] ?? error.message}`,
         });
       },
     });

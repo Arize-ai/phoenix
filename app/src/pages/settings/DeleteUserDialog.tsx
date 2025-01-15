@@ -5,6 +5,7 @@ import { Dialog } from "@arizeai/components";
 
 import { Button, Flex, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 export function DeleteUserDialog({
   userId,
@@ -40,9 +41,10 @@ export function DeleteUserDialog({
         onClose();
       },
       onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
         notifyError({
           title: "Failed to delete user",
-          message: error.message,
+          message: formattedError?.[0] ?? error.message,
         });
       },
     });

@@ -8,6 +8,7 @@ import { Alert, Card, CardProps, Dialog } from "@arizeai/components";
 import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { DatasetPicker, NewDatasetButton } from "@phoenix/components/dataset";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import { SpanToDatasetExampleDialogQuery } from "./__generated__/SpanToDatasetExampleDialogQuery.graphql";
@@ -119,7 +120,8 @@ export function SpanToDatasetExampleDialog({
           onCompleted(newExample.datasetId);
         },
         onError: (error) => {
-          setSubmitError(error.message);
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          setSubmitError(formattedError?.[0] ?? error.message);
         },
       });
     },
