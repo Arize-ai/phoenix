@@ -47,22 +47,30 @@ export function PromptCodeExportCard({
             messages {
               role
               content {
-                ... on TextContentValue {
+                ... on TextContentPart {
                   __typename
-                  text
+                  text {
+                    text
+                  }
                 }
-                ... on ImageContentValue {
+                ... on ImageContentPart {
                   __typename
-                  url
+                  image {
+                    url
+                  }
                 }
-                ... on ToolCallContentValue {
+                ... on ToolCallContentPart {
                   __typename
-                  toolCall
+                  toolCall {
+                    toolCallId
+                  }
                 }
-                ... on ToolResultContentValue {
+                ... on ToolResultContentPart {
                   __typename
-                  toolCallId
-                  result
+                  toolResult {
+                    toolCallId
+                    result
+                  }
                 }
               }
             }

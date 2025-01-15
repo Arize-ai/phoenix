@@ -8,6 +8,7 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
+from phoenix.server.api.helpers.prompts.models import ImageContentPart as ImageContentPartModel
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue as ImageContentValueModel,
 )
@@ -20,11 +21,18 @@ from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMes
 from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1 as PromptStringTemplateModel,
 )
+from phoenix.server.api.helpers.prompts.models import TextContentPart as TextContentPartModel
 from phoenix.server.api.helpers.prompts.models import (
     TextContentValue as TextContentValueModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
+    ToolCallContentPart as ToolCallContentPartModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
     ToolCallContentValue as ToolCallContentValueModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolResultContentPart as ToolResultContentPartModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
     ToolResultContentValue as ToolResultContentValueModel,
@@ -36,14 +44,29 @@ class TextContentValue:
     pass
 
 
+@strawberry.experimental.pydantic.type(TextContentPartModel)
+class TextContentPart:
+    text: TextContentValue
+
+
 @strawberry.experimental.pydantic.type(ImageContentValueModel, all_fields=True)
 class ImageContentValue:
     pass
 
 
+@strawberry.experimental.pydantic.type(ImageContentPartModel)
+class ImageContentPart:
+    image: ImageContentValue
+
+
 @strawberry.experimental.pydantic.type(ToolCallContentValueModel, all_fields=True)
 class ToolCallContentValue:
     pass
+
+
+@strawberry.experimental.pydantic.type(ToolCallContentPartModel)
+class ToolCallContentPart:
+    tool_call: ToolCallContentValue
 
 
 @strawberry.experimental.pydantic.type(ToolResultContentValueModel)
@@ -52,8 +75,13 @@ class ToolResultContentValue:
     result: JSON
 
 
+@strawberry.experimental.pydantic.type(ToolResultContentPartModel)
+class ToolResultContentPart:
+    tool_result: ToolResultContentValue
+
+
 ContentPart: TypeAlias = Annotated[
-    Union[TextContentValue, ImageContentValue, ToolCallContentValue, ToolResultContentValue],
+    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
     strawberry.union("ContentPart"),
 ]
 

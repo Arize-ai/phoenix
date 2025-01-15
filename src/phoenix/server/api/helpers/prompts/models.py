@@ -58,7 +58,7 @@ class TextContentValue(BaseModel):
 
 
 class TextContentPart(PartBase):
-    type: Literal["text"]
+    type: Literal["text"] = Field(default="text")
     text: TextContentValue
 
 
@@ -68,17 +68,17 @@ class ImageContentValue(BaseModel):
 
 
 class ImageContentPart(PartBase):
-    type: Literal["image"]
+    type: Literal["image"] = Field(default="image")
     # the image data
     image: ImageContentValue
 
 
 class ToolCallContentValue(BaseModel):
-    tool_call: str
+    tool_call_id: str
 
 
 class ToolCallContentPart(PartBase):
-    type: Literal["tool_call"]
+    type: Literal["tool_call"] = Field(default="tool_call")
     # the identifier of the tool call function
     tool_call: ToolCallContentValue
 
@@ -89,13 +89,13 @@ class ToolResultContentValue(BaseModel):
 
 
 class ToolResultContentPart(PartBase):
-    type: Literal["tool_result"]
+    type: Literal["tool_result"] = Field(default="tool_result")
     tool_result: ToolResultContentValue
 
 
 ContentPart: TypeAlias = Annotated[
     Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
-    Field(discriminator="type"),
+    Field(),
 ]
 
 

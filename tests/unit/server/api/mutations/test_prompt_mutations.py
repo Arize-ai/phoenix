@@ -31,8 +31,10 @@ class TestPromptMutations:
                     messages {
                         role
                         content {
-                            ... on TextContentValue {
-                                text
+                            ... on TextContentPart {
+                                text {
+                                    text
+                                }
                             }
                         }
                     }
@@ -74,8 +76,10 @@ class TestPromptMutations:
                     messages {
                         role
                         content {
-                            ... on TextContentValue {
-                                text
+                            ... on TextContentPart {
+                                text {
+                                    text
+                                }
                             }
                         }
                     }
@@ -119,8 +123,10 @@ class TestPromptMutations:
                     messages {
                         role
                         content {
-                            ... on TextContentValue {
-                                text
+                            ... on TextContentPart {
+                                text {
+                                    text
+                                }
                             }
                         }
                     }
@@ -353,8 +359,9 @@ class TestPromptMutations:
         content = message.pop("content")
         assert len(content) == 1
         part = content.pop(0)
-        assert part.pop("type") == "text"
-        assert part.pop("text") == "hello world"
+        text = part.pop("text")
+        assert text.pop("text") == "hello world"
+        assert not text
         assert not part
         assert not content
         assert not message
@@ -376,7 +383,7 @@ class TestPromptMutations:
                         "messages": [
                             {
                                 "role": "USER",
-                                "content": [{"type": "text", "text": "hello world"}],
+                                "content": [{"text": {"text": "hello world"}}],
                             }
                         ]
                     },
@@ -809,8 +816,10 @@ class TestPromptMutations:
         content = message.pop("content")
         assert len(content) == 1
         part = content[0]
-        assert part.pop("type") == "text"
-        assert part.pop("text") == "hello world"
+        text = part.pop("text")
+        assert text.pop("text") == "hello world"
+        assert not text
+        assert not part
         assert not message
         assert not template["messages"][0]
         assert not latest_prompt_version

@@ -1727,7 +1727,8 @@
           "type": {
             "type": "string",
             "const": "image",
-            "title": "Type"
+            "title": "Type",
+            "default": "image"
           },
           "image": {
             "$ref": "#/components/schemas/ImageContentValue"
@@ -1735,7 +1736,6 @@
         },
         "type": "object",
         "required": [
-          "type",
           "image"
         ],
         "title": "ImageContentPart"
@@ -1916,7 +1916,7 @@
           },
           "content": {
             "items": {
-              "oneOf": [
+              "anyOf": [
                 {
                   "$ref": "#/components/schemas/TextContentPart"
                 },
@@ -1929,16 +1929,7 @@
                 {
                   "$ref": "#/components/schemas/ToolResultContentPart"
                 }
-              ],
-              "discriminator": {
-                "propertyName": "type",
-                "mapping": {
-                  "image": "#/components/schemas/ImageContentPart",
-                  "text": "#/components/schemas/TextContentPart",
-                  "tool_call": "#/components/schemas/ToolCallContentPart",
-                  "tool_result": "#/components/schemas/ToolResultContentPart"
-                }
-              }
+              ]
             },
             "type": "array",
             "title": "Content"
@@ -2202,7 +2193,8 @@
           "type": {
             "type": "string",
             "const": "text",
-            "title": "Type"
+            "title": "Type",
+            "default": "text"
           },
           "text": {
             "$ref": "#/components/schemas/TextContentValue"
@@ -2210,7 +2202,6 @@
         },
         "type": "object",
         "required": [
-          "type",
           "text"
         ],
         "title": "TextContentPart"
@@ -2233,7 +2224,8 @@
           "type": {
             "type": "string",
             "const": "tool_call",
-            "title": "Type"
+            "title": "Type",
+            "default": "tool_call"
           },
           "tool_call": {
             "$ref": "#/components/schemas/ToolCallContentValue"
@@ -2241,21 +2233,20 @@
         },
         "type": "object",
         "required": [
-          "type",
           "tool_call"
         ],
         "title": "ToolCallContentPart"
       },
       "ToolCallContentValue": {
         "properties": {
-          "tool_call": {
+          "tool_call_id": {
             "type": "string",
-            "title": "Tool Call"
+            "title": "Tool Call Id"
           }
         },
         "type": "object",
         "required": [
-          "tool_call"
+          "tool_call_id"
         ],
         "title": "ToolCallContentValue"
       },
@@ -2264,7 +2255,8 @@
           "type": {
             "type": "string",
             "const": "tool_result",
-            "title": "Type"
+            "title": "Type",
+            "default": "tool_result"
           },
           "tool_result": {
             "$ref": "#/components/schemas/ToolResultContentValue"
@@ -2272,7 +2264,6 @@
         },
         "type": "object",
         "required": [
-          "type",
           "tool_result"
         ],
         "title": "ToolResultContentPart"

@@ -41,18 +41,26 @@ export function PromptChatMessages({
               role
               content {
                 __typename
-                ... on TextContentValue {
-                  text
+                ... on TextContentPart {
+                  text {
+                    text
+                  }
                 }
-                ... on ImageContentValue {
-                  url
+                ... on ImageContentPart {
+                  image {
+                    url
+                  }
                 }
-                ... on ToolCallContentValue {
-                  toolCall
+                ... on ToolCallContentPart {
+                  toolCall {
+                    toolCallId
+                  }
                 }
-                ... on ToolResultContentValue {
-                  toolCallId
-                  result
+                ... on ToolResultContentPart {
+                  toolResult {
+                    toolCallId
+                    result
+                  }
                 }
               }
             }

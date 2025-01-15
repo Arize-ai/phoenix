@@ -252,13 +252,13 @@ input ClusterInput {
   id: ID
 }
 
-union ContentPart = TextContentValue | ImageContentValue | ToolCallContentValue | ToolResultContentValue
+union ContentPart = TextContentPart | ImageContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
-  text: TextContentValueInput = null
-  image: ImageContentValueInput = null
-  toolCall: ToolCallContentValueInput = null
-  toolResult: ToolResultContentValueInput = null
+  text: TextContentValueInput
+  image: ImageContentValueInput
+  toolCall: ToolCallContentValueInput
+  toolResult: ToolResultContentValueInput
 }
 
 input CreateApiKeyInput {
@@ -1043,6 +1043,10 @@ input Granularity {
   Specifies the time interval between each point in the time-series. All points in the time-series are separated by the same length of time, and are generated starting from the end time of the time range.
   """
   samplingIntervalMinutes: Int!
+}
+
+type ImageContentPart {
+  image: ImageContentValue!
 }
 
 type ImageContentValue {
@@ -1913,6 +1917,10 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
   content: String!
 }
 
+type TextContentPart {
+  text: TextContentValue!
+}
+
 type TextContentValue {
   text: String!
 }
@@ -1950,12 +1958,16 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   function: FunctionCallChunk!
 }
 
+type ToolCallContentPart {
+  toolCall: ToolCallContentValue!
+}
+
 type ToolCallContentValue {
-  toolCall: String!
+  toolCallId: String!
 }
 
 input ToolCallContentValueInput {
-  toolCall: String!
+  toolCallId: String!
 }
 
 type ToolDefinition {
@@ -1964,6 +1976,10 @@ type ToolDefinition {
 
 input ToolDefinitionInput {
   definition: JSON!
+}
+
+type ToolResultContentPart {
+  toolResult: ToolResultContentValue!
 }
 
 type ToolResultContentValue {

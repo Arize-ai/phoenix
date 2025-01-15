@@ -46,15 +46,15 @@ class ToolResultContentValueInput:
 
 @strawberry.experimental.pydantic.input(ToolCallContentValue)
 class ToolCallContentValueInput:
-    tool_call: strawberry.auto
+    tool_call_id: strawberry.auto
 
 
 @strawberry.input(one_of=True)
 class ContentPartInput:
-    text: Optional[TextContentValueInput] = None
-    image: Optional[ImageContentValueInput] = None
-    tool_call: Optional[ToolCallContentValueInput] = None
-    tool_result: Optional[ToolResultContentValueInput] = None
+    text: Optional[TextContentValueInput] = strawberry.UNSET
+    image: Optional[ImageContentValueInput] = strawberry.UNSET
+    tool_call: Optional[ToolCallContentValueInput] = strawberry.UNSET
+    tool_result: Optional[ToolResultContentValueInput] = strawberry.UNSET
 
 
 @strawberry.experimental.pydantic.input(PromptMessageModel)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d385a813c2bcaa836a50e5c79c192005>>
+ * @generated SignedSource<<6bce62202ab0743152f11bd4a6d67a2f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -47,7 +47,7 @@ export type ImageContentValueInput = {
   url: string;
 };
 export type ToolCallContentValueInput = {
-  toolCall: string;
+  toolCallId: string;
 };
 export type ToolResultContentValueInput = {
   result: any;

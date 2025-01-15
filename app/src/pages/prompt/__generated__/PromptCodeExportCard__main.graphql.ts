@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cb9ec81b7e00ebbe360adaab912f46e4>>
+ * @generated SignedSource<<7af3b4cffcf0087c63719990c2dee8f9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,18 +24,26 @@ export type PromptCodeExportCard__main$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
-        readonly __typename: "ImageContentValue";
-        readonly url: string;
+        readonly __typename: "ImageContentPart";
+        readonly image: {
+          readonly url: string;
+        };
       } | {
-        readonly __typename: "TextContentValue";
-        readonly text: string;
+        readonly __typename: "TextContentPart";
+        readonly text: {
+          readonly text: string;
+        };
       } | {
-        readonly __typename: "ToolCallContentValue";
-        readonly toolCall: string;
+        readonly __typename: "ToolCallContentPart";
+        readonly toolCall: {
+          readonly toolCallId: string;
+        };
       } | {
-        readonly __typename: "ToolResultContentValue";
-        readonly result: any;
-        readonly toolCallId: string;
+        readonly __typename: "ToolResultContentPart";
+        readonly toolResult: {
+          readonly result: any;
+          readonly toolCallId: string;
+        };
       } | {
         // This will never be '%other', but we need some
         // value in case none of the concrete values match.
@@ -78,6 +86,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "toolCallId",
   "storageKey": null
 };
 return {
@@ -169,12 +184,23 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
+                          "concreteType": "TextContentValue",
+                          "kind": "LinkedField",
                           "name": "text",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "text",
+                              "storageKey": null
+                            }
+                          ],
                           "storageKey": null
                         }
                       ],
-                      "type": "TextContentValue",
+                      "type": "TextContentPart",
                       "abstractKey": null
                     },
                     {
@@ -184,12 +210,23 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "url",
+                          "concreteType": "ImageContentValue",
+                          "kind": "LinkedField",
+                          "name": "image",
+                          "plural": false,
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "url",
+                              "storageKey": null
+                            }
+                          ],
                           "storageKey": null
                         }
                       ],
-                      "type": "ImageContentValue",
+                      "type": "ImageContentPart",
                       "abstractKey": null
                     },
                     {
@@ -199,12 +236,17 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
+                          "concreteType": "ToolCallContentValue",
+                          "kind": "LinkedField",
                           "name": "toolCall",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/)
+                          ],
                           "storageKey": null
                         }
                       ],
-                      "type": "ToolCallContentValue",
+                      "type": "ToolCallContentPart",
                       "abstractKey": null
                     },
                     {
@@ -214,19 +256,24 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "kind": "ScalarField",
-                          "name": "toolCallId",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "result",
+                          "concreteType": "ToolResultContentValue",
+                          "kind": "LinkedField",
+                          "name": "toolResult",
+                          "plural": false,
+                          "selections": [
+                            (v2/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "result",
+                              "storageKey": null
+                            }
+                          ],
                           "storageKey": null
                         }
                       ],
-                      "type": "ToolResultContentValue",
+                      "type": "ToolResultContentPart",
                       "abstractKey": null
                     }
                   ],
@@ -276,6 +323,6 @@ return {
 };
 })();
 
-(node as any).hash = "8f64944910c607f450e649d1485d4020";
+(node as any).hash = "cff368e8df9f93cf218f786acce0d304";
 
 export default node;
