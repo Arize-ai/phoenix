@@ -32,6 +32,9 @@ from phoenix.server.api.helpers.prompts.models import (
     ToolCallContentValue as ToolCallContentValueModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
+    ToolCallFunction as ToolCallFunctionModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
     ToolResultContentPart as ToolResultContentPartModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
@@ -59,9 +62,16 @@ class ImageContentPart:
     image: ImageContentValue
 
 
-@strawberry.experimental.pydantic.type(ToolCallContentValueModel, all_fields=True)
+@strawberry.experimental.pydantic.type(ToolCallFunctionModel)
+class ToolCallFunction:
+    name: strawberry.auto
+    arguments: strawberry.auto
+
+
+@strawberry.experimental.pydantic.type(ToolCallContentValueModel)
 class ToolCallContentValue:
-    pass
+    tool_call_id: strawberry.auto
+    tool_call: ToolCallFunction
 
 
 @strawberry.experimental.pydantic.type(ToolCallContentPartModel)

@@ -1964,10 +1964,22 @@ type ToolCallContentPart {
 
 type ToolCallContentValue {
   toolCallId: String!
+  toolCall: ToolCallFunction!
 }
 
 input ToolCallContentValueInput {
   toolCallId: String!
+  toolCall: ToolCallFunctionInput!
+}
+
+type ToolCallFunction {
+  name: String!
+  arguments: String!
+}
+
+input ToolCallFunctionInput {
+  name: String!
+  arguments: String!
 }
 
 type ToolDefinition {

@@ -1,4 +1,5 @@
 -r ci.txt
+-r tests.txt
 anthropic
 Faker>=30.1.0
 arize

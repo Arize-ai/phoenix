@@ -112,7 +112,14 @@ class TestPrompts:
                                         },
                                         {
                                             "type": "tool_call",
-                                            "tool_call": {"tool_call_id": "1234"},
+                                            "tool_call": {
+                                                "tool_call_id": "1234",
+                                                "tool_call": {
+                                                    "type": "function",
+                                                    "name": token_hex(16),
+                                                    "arguments": token_hex(16),
+                                                },
+                                            },
                                         },
                                         {
                                             "type": "tool_result",

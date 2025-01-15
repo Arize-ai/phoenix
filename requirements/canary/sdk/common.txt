@@ -1,0 +1,2 @@
+-r ../../ci.txt
+-r ../../tests.txt

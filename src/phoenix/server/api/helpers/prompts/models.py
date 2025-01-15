@@ -65,6 +65,7 @@ class TextContentPart(PartBase):
 class ImageContentValue(BaseModel):
     # http url, or base64 encoded image
     url: str
+    # detail: Optional[Literal["auto", "low", "high"]]
 
 
 class ImageContentPart(PartBase):
@@ -73,8 +74,15 @@ class ImageContentPart(PartBase):
     image: ImageContentValue
 
 
+class ToolCallFunction(BaseModel):
+    type: Literal["function"] = Field(default="function")
+    name: str
+    arguments: str
+
+
 class ToolCallContentValue(BaseModel):
     tool_call_id: str
+    tool_call: ToolCallFunction
 
 
 class ToolCallContentPart(PartBase):
