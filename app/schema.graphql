@@ -1528,6 +1528,7 @@ type Mutation {
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): Query!
   clonePrompt(input: ClonePromptInput!): Prompt!
+  patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(
     input: DeletePromptVersionTagInput!
   ): PromptVersionTagMutationPayload!
@@ -1627,6 +1628,11 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
+}
+
+input PatchPromptInput {
+  promptId: GlobalID!
+  description: String!
 }
 
 input PatchUserInput {
