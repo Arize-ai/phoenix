@@ -4,6 +4,7 @@ import { Alert, Card, PopoverTrigger } from "@arizeai/components";
 
 import { Button, Icon, Icons, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { CreateDatasetForm } from "./CreateDatasetForm";
 
@@ -39,7 +40,11 @@ export function NewDatasetButton({
         <View width="500px">
           {error ? <Alert variant="danger">{error}</Alert> : null}
           <CreateDatasetForm
-            onDatasetCreateError={(error) => setError(error.message)}
+            onDatasetCreateError={(error) => {
+              const formattedError =
+                getErrorMessagesFromRelayMutationError(error);
+              setError(formattedError?.[0] ?? error.message);
+            }}
             onDatasetCreated={({ id, name }) => {
               setError(null);
               setIsOpen(false);
