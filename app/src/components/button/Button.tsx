@@ -3,12 +3,21 @@ import {
   Button as AriaButton,
   ButtonProps as AriaButtonProps,
 } from "react-aria-components";
+import { css } from "@emotion/react";
 
-import { SizingProps, VarianceProps } from "@phoenix/components/types";
+import {
+  SizingProps,
+  StylableProps,
+  VarianceProps,
+} from "@phoenix/components/types";
 
 import { buttonCSS } from "./styles";
 
-interface ButtonProps extends AriaButtonProps, SizingProps, VarianceProps {
+interface ButtonProps
+  extends AriaButtonProps,
+    SizingProps,
+    VarianceProps,
+    StylableProps {
   /**
    * An optional prefixed icon for the button
    */
@@ -21,8 +30,10 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
     variant = "default",
     icon,
     children,
+    css: propCSS,
     ...otherProps
   } = props;
+
   return (
     <AriaButton
       {...otherProps}
@@ -30,7 +41,7 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
       data-size={size}
       data-variant={variant}
       data-childless={!children}
-      css={buttonCSS}
+      css={css(buttonCSS, propCSS)}
     >
       {icon}
       <>{children}</>

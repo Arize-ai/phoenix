@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^1.8.11",
+    "@arizeai/components": "2.0.0-0",
     "@arizeai/openinference-semantic-conventions": "^0.13.0",
     "@arizeai/point-cloud": "^3.0.6",
     "@codemirror/autocomplete": "6.12.0",
@@ -68,8 +68,6 @@
     "@playwright/test": "^1.48.0",
     "@storybook/addon-essentials": "^8.4.6",
     "@storybook/addon-interactions": "^8.4.6",
-    "@storybook/addon-onboarding": "^8.4.6",
-    "@storybook/addon-themes": "^8.4.6",
     "@storybook/blocks": "^8.4.6",
     "@storybook/react": "^8.4.6",
     "@storybook/react-vite": "^8.4.6",

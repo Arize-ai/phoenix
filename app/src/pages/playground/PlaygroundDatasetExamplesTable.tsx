@@ -465,6 +465,7 @@ export function PlaygroundDatasetExamplesTable({
             updateInstance({
               instanceId,
               patch: { experimentId: chatCompletion.experiment.id },
+              dirty: null,
             });
             break;
           case "ChatCompletionSubscriptionResult":
@@ -552,6 +553,7 @@ export function PlaygroundDatasetExamplesTable({
           patch: {
             experimentId: response.chatCompletionOverDataset.experimentId,
           },
+          dirty: null,
         });
         setExampleDataForInstance({
           instanceId,
@@ -581,6 +583,7 @@ export function PlaygroundDatasetExamplesTable({
         updateInstance({
           instanceId: instance.id,
           patch: { experimentId: null },
+          dirty: null,
         });
         if (activeRunId === null) {
           continue;
@@ -638,6 +641,7 @@ export function PlaygroundDatasetExamplesTable({
         updateInstance({
           instanceId: instance.id,
           patch: { experimentId: null },
+          dirty: null,
         });
         const variables = {
           input: getChatCompletionOverDatasetInput({

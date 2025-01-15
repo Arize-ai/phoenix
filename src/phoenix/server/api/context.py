@@ -30,6 +30,7 @@ from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
+    PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -73,6 +74,7 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader

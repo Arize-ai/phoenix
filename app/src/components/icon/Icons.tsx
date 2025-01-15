@@ -469,6 +469,24 @@ export const Column = () => (
   </svg>
 );
 
+export const Commit = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="feather feather-git-commit"
+  >
+    <circle cx="12" cy="12" r="4" fill="none"></circle>
+    <line x1="1.05" y1="12" x2="7" y2="12"></line>
+    <line x1="17.01" y1="12" x2="22.96" y2="12"></line>
+  </svg>
+);
+
 export const Code = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1759,6 +1777,18 @@ export const PlusCircleOutline = () => (
         <rect width="24" height="24" opacity="0" />
         <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
         <path d="M15 11h-2V9a1 1 0 0 0-2 0v2H9a1 1 0 0 0 0 2h2v2a1 1 0 0 0 2 0v-2h2a1 1 0 0 0 0-2z" />
+      </g>
+    </g>
+  </svg>
+);
+
+export const PriceTagsOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="pricetags">
+        <rect width="24" height="24" opacity="0" />
+        <path d="M12.87 22a1.84 1.84 0 0 1-1.29-.53l-6.41-6.42a1 1 0 0 1-.29-.61L4 5.09a1 1 0 0 1 .29-.8 1 1 0 0 1 .8-.29l9.35.88a1 1 0 0 1 .61.29l6.42 6.41a1.82 1.82 0 0 1 0 2.57l-7.32 7.32a1.82 1.82 0 0 1-1.28.53zm-6-8.11l6 6 7.05-7.05-6-6-7.81-.73z" />
+        <circle cx="10.5" cy="10.5" r="1.5" />
       </g>
     </g>
   </svg>

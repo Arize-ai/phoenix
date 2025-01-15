@@ -3,11 +3,13 @@ import { css } from "@emotion/react";
 export const comboBoxCSS = css`
   &[data-size="M"] {
     --combobox-vertical-padding: 6px;
-    --combobox-horizontal-padding: 6px;
+    --combobox-start-padding: 8px;
+    --combobox-end-padding: 6px;
   }
   &[data-size="L"] {
     --combobox-vertical-padding: 10px;
-    --combobox-horizontal-padding: var(--ac-global-dimension-static-size-200);
+    --combobox-start-padding: var(--ac-global-dimension-static-size-200);
+    --combobox-end-padding: var(--ac-global-dimension-static-size-200);
   }
   color: var(--ac-global-text-color-900);
   &[data-required] {
@@ -25,8 +27,8 @@ export const comboBoxCSS = css`
     position: relative;
 
     .react-aria-Input {
-      padding: var(--combobox-vertical-padding)
-        var(--combobox-horizontal-padding);
+      padding: var(--combobox-vertical-padding) var(--combobox-end-padding)
+        var(--combobox-vertical-padding) var(--combobox-start-padding);
     }
     .react-aria-Button {
       background: none;
