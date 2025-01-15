@@ -177,8 +177,6 @@ def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
         tqdm.write(*args, **kwargs)
 
 
-
-
 def get_audio_format_from_base64(
     enc_str: str,
 ) -> Literal["mp3", "wav", "ogg", "flac", "m4a", "aac"]:
