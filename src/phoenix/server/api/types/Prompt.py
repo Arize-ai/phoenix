@@ -41,7 +41,10 @@ class Prompt(Node):
             if version_id:
                 v_id = from_global_id_with_expected_type(version_id, PromptVersion.__name__)
                 version = await session.scalar(
-                    select(models.PromptVersion).where(models.PromptVersion.id == v_id)
+                    select(models.PromptVersion).where(
+                        models.PromptVersion.id == v_id,
+                        models.PromptVersion.prompt_id == self.id_attr,
+                    )
                 )
                 if not version:
                     raise NotFound(f"Prompt version not found: {version_id}")
