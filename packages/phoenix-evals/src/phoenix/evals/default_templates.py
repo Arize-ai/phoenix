@@ -378,6 +378,7 @@ LABEL: "readable" or "unreadable"
 
 EXPLANATION:"""
 
+
 REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE = """
 You are given a conversation that contains questions by a CUSTOMER and you are
 trying to determine if the documentation page shared by the ASSISTANT correctly
@@ -782,6 +783,7 @@ A template for evaluating the readability of code. It uses a classification
 system ('readable', 'unreadable') and provides a detailed explanation template
 to assist users in articulating their judgment on code readability.
 """
+
 
 REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP.values()),

@@ -1,4 +1,5 @@
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
 from string import Formatter
@@ -31,7 +32,7 @@ class DotKeyFormatter(Formatter):
 
 class PromptPartContentType(str, Enum):
     TEXT = "text"
-    AUDIO_URL = "audio_url"
+    AUDIO = "audio"
 
 
 @dataclass
@@ -40,6 +41,7 @@ class PromptPart:
     content: str
 
 
+# TODO: ask about rename to PromptTemplatePart
 @dataclass
 class PromptPartTemplate:
     content_type: PromptPartContentType
@@ -148,6 +150,9 @@ class ClassificationTemplate(PromptTemplate):
         for _template in [self.template, self.explanation_template]:
             if _template:
                 self.variables.extend(self._parse_variables(template=_template))
+            # remove duplicates while preserving order
+            self.variables = list(OrderedDict.fromkeys(self.variables))
+
         self._scores = scores
 
     def __repr__(self) -> str:
