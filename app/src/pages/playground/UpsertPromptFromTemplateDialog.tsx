@@ -94,6 +94,15 @@ export const UpsertPromptFromTemplateDialog = ({
             promptVersion: {
               ...promptInput,
               templateFormat,
+              template: {
+                messages: promptInput.template.messages.map((m) => {
+                  // TODO(apowell): Break out into switch statement, rendering each message part type
+                  return {
+                    role: m.role,
+                    content: [{ text: { text: m.content } }],
+                  };
+                }),
+              },
             },
           },
         },
@@ -146,6 +155,15 @@ export const UpsertPromptFromTemplateDialog = ({
               ...promptInput,
               templateFormat,
               description: params.description,
+              template: {
+                messages: promptInput.template.messages.map((m) => {
+                  // TODO(apowell): Break out into switch statement, rendering each message part type
+                  return {
+                    role: m.role,
+                    content: [{ text: { text: m.content } }],
+                  };
+                }),
+              },
             },
           },
         },

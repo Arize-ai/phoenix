@@ -6,6 +6,7 @@ import { Card } from "@arizeai/components";
 import { Flex, Text } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { isTextPart } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 
 import {
   PromptChatMessagesCard__main$data,
@@ -37,13 +38,30 @@ export function PromptChatMessages({
           __typename
           ... on PromptChatTemplate {
             messages {
-              ... on JSONPromptMessage {
-                role
-                jsonContent: content
-              }
-              ... on TextPromptMessage {
-                role
-                content
+              role
+              content {
+                __typename
+                ... on TextContentPart {
+                  text {
+                    text
+                  }
+                }
+                ... on ImageContentPart {
+                  image {
+                    url
+                  }
+                }
+                ... on ToolCallContentPart {
+                  toolCall {
+                    toolCallId
+                  }
+                }
+                ... on ToolResultContentPart {
+                  toolResult {
+                    toolCallId
+                    result
+                  }
+                }
               }
             }
           }
@@ -87,15 +105,21 @@ function ChatMessages({
   const { messages } = template;
   return (
     <Flex direction="column" gap="size-200">
-      {messages.map((message, i) => (
-        // TODO: Handle JSON content for things like tool calls
-        <ChatTemplateMessage
-          key={i}
-          role={message.role as string}
-          content={message.content || JSON.stringify(message.jsonContent)}
-          templateFormat={templateFormat}
-        />
-      ))}
+      {messages.map((message, i) => {
+        const textPart = message.content.find(isTextPart);
+        // TODO(apowell): Break out into switch statement, rendering each message part type
+        if (!isTextPart(textPart)) {
+          return null;
+        }
+        return (
+          <ChatTemplateMessage
+            key={i}
+            role={message.role as string}
+            content={textPart.text.text}
+            templateFormat={templateFormat}
+          />
+        );
+      })}
     </Flex>
   );
 }
