@@ -129,6 +129,6 @@ See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 Copyright 2024 Arize AI, Inc. All Rights Reserved.
 
-Portions of this code are patent protected by one or more U.S. Patents. See [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
+Portions of this code are patent protected by one or more U.S. Patents. See the [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
