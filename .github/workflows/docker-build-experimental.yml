@@ -3,7 +3,7 @@ name: Publish experimental Docker image
 on:
   push:
     branches:
-      - sessions
+      - prompts
 
 jobs:
   push_to_registry:
