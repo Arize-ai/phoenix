@@ -508,6 +508,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
+      fail-fast: false
       matrix:
         py: [3.9]
         pkg: [openai, anthropic, vertexai]
@@ -517,7 +518,7 @@ jobs:
         with:
           sparse-checkout: |
             requirements/
-            src/packages/
+            src/phoenix/
             tests/canary/sdk/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
