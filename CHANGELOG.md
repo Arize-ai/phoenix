@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.7.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.7.1...arize-phoenix-v7.7.2) (2025-01-15)
+
+
+### Bug Fixes
+
+* allow import of LLMRelationalEvaluator ([#6045](https://github.com/Arize-ai/phoenix/issues/6045)) ([49e893d](https://github.com/Arize-ai/phoenix/commit/49e893dc1cb300d1c04d5716ee4ccdeb8f1f6e94))
+
 ## [7.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.7.0...arize-phoenix-v7.7.1) (2025-01-14)
 
 
