@@ -14,6 +14,7 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { SystemAPIKeysTableFragment$key } from "./__generated__/SystemAPIKeysTableFragment.graphql";
 import { SystemAPIKeysTableQuery } from "./__generated__/SystemAPIKeysTableQuery.graphql";
@@ -77,9 +78,10 @@ export function SystemAPIKeysTable({
           });
         },
         onError: (error) => {
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
           notifyError({
             title: "Error deleting system key",
-            message: error.message,
+            message: formattedError?.[0] ?? error.message,
           });
         },
       });

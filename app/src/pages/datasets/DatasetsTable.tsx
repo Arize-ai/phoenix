@@ -22,6 +22,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
 import {
@@ -173,9 +174,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 refetch({}, { fetchPolicy: "store-and-network" });
               }}
               onDatasetEditError={(error) => {
+                const formattedError =
+                  getErrorMessagesFromRelayMutationError(error);
                 notifyError({
                   title: "Dataset update failed",
-                  message: error.message,
+                  message: formattedError?.[0] ?? error.message,
                 });
               }}
               onDatasetDelete={() => {
@@ -186,9 +189,11 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 refetch({}, { fetchPolicy: "store-and-network" });
               }}
               onDatasetDeleteError={(error) => {
+                const formattedError =
+                  getErrorMessagesFromRelayMutationError(error);
                 notifyError({
                   title: "Dataset deletion failed",
-                  message: error.message,
+                  message: formattedError?.[0] ?? error.message,
                 });
               }}
             />

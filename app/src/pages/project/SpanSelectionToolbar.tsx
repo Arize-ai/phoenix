@@ -19,6 +19,7 @@ import {
 import { Button } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
 
@@ -75,9 +76,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
           onClearSelection();
         },
         onError: (error) => {
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
           notifyError({
             title: "An error occurred",
-            message: `Failed to add spans to dataset: ${error.message}`,
+            message: `Failed to add spans to dataset: ${formattedError?.[0] ?? error.message}`,
           });
         },
       });
@@ -162,10 +164,12 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                         onDismiss={() => setDialog(null)}
                       >
                         <CreateDatasetForm
-                          onDatasetCreateError={() => {
+                          onDatasetCreateError={(error) => {
+                            const formattedError =
+                              getErrorMessagesFromRelayMutationError(error);
                             notifyError({
                               title: "Dataset creation failed",
-                              message: "Failed to create dataset.",
+                              message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
                             });
                           }}
                           onDatasetCreated={(dataset) => {
