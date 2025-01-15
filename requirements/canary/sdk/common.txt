@@ -1,2 +1,4 @@
 -r ../../ci.txt
--r ../../tests.txt
+deepdiff==8.1.1
+faker==33.3.1
+pytest-randomly==3.16.0

@@ -1,5 +1,4 @@
 -r ci.txt
--r tests.txt
 asyncpg
 beautifulsoup4
 faker
@@ -11,6 +10,7 @@ portpicker
 psutil
 psycopg[binary,pool]
 pyjwt
+pytest-randomly
 pytest-rerunfailures
 pytest-smtpd
 types-beautifulsoup4

@@ -1,5 +1,0 @@
-pytest==8.3.4
-pytest-xdist==3.6.1
-pytest-asyncio==0.25.1
-pytest-randomly==3.16.0
-deepdiff==8.1.1
