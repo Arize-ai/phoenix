@@ -115,7 +115,7 @@ function ChatMessages({
           <ChatTemplateMessage
             key={i}
             role={message.role as string}
-            content={textPart.text}
+            content={textPart.text.text}
             templateFormat={templateFormat}
           />
         );

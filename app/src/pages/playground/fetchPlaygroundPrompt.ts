@@ -37,10 +37,11 @@ type PromptVersion = NonNullable<
   fetchPlaygroundPromptQuery$data["prompt"]["promptVersions"]
 >["edges"][0]["promptVersion"];
 
-export const isTextPart = (
-  part: unknown
-): part is { text: string; type: "text" } =>
-  isObject(part) && "text" in part && "type" in part && part.type === "text";
+export const isTextPart = (part: unknown): part is { text: { text: string } } =>
+  isObject(part) &&
+  "text" in part &&
+  isObject(part.text) &&
+  "text" in part.text;
 
 /**
  * Converts a playground chat message role to a prompt message role
@@ -169,7 +170,7 @@ export const promptVersionToInstance = ({
                 return {
                   id: generateMessageId(),
                   role: getChatRole(m.role?.toLocaleLowerCase() as string),
-                  content: maybeTextPart.text,
+                  content: maybeTextPart.text.text,
                 };
               }
               // TODO(apowell): Break out into switch statement, rendering each message part type
