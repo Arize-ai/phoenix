@@ -31,7 +31,8 @@ no other emotion is clearly present, do your best to avoid this label.
 ### RESPONSE FORMAT:
 1. EMOTION: Provide a single word from the list above representing the detected emotion.
 2. EXPLANATION:Write out in a step by step manner
-an EXPLANATION to show how you determined the emotion of the audio considering the tone, pitch, pace, volume, and intensity. 
+an EXPLANATION to show how you determined the emotion of the audio considering the tone, pitch,
+pace, volume, and intensity.
 
 ************
 
