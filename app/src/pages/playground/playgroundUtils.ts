@@ -96,7 +96,8 @@ export function isChatMessageRole(role: unknown): role is ChatMessageRole {
  *
  * NB: Only exported for testing
  */
-export function getChatRole(role: string): ChatMessageRole {
+export function getChatRole(_role: string): ChatMessageRole {
+  const role = _role.toLowerCase();
   if (isChatMessageRole(role)) {
     return role;
   }
@@ -1091,15 +1092,37 @@ export const getChatCompletionOverDatasetInput = ({
  * @param content - the content to normalize
  * @returns a normalized json string
  */
-export function normalizeMessageAttributeValue(
-  content?: string | null | Record<string, unknown>
-): string {
+export function normalizeMessageContent(content?: unknown): string {
   if (content == null || content === "") {
     return "{}";
   }
-  return typeof content === "string"
-    ? content
-    : JSON.stringify(content, null, 2);
+
+  if (typeof content === "string") {
+    const isDoubleStringified =
+      content.startsWith('"{') ||
+      content.startsWith('"[') ||
+      content.startsWith('"\\"');
+    try {
+      // If it's a double-stringified value, parse it twice
+      if (isDoubleStringified) {
+        // First parse removes the outer quotes and unescapes the inner content
+        const firstParse = JSON.parse(content);
+        // Second parse converts the string representation to actual JSON
+        const secondParse =
+          typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+        // Stringify the result to ensure consistent formatting
+        return JSON.stringify(secondParse, null, 2);
+      }
+      // For regular strings, return as-is
+      return content;
+    } catch (e) {
+      // If parsing fails, return the original content
+      return content;
+    }
+  }
+
+  // For non-string content, stringify it with pretty printing
+  return JSON.stringify(content, null, 2);
 }
 
 export function areRequiredInvocationParametersConfigured(
