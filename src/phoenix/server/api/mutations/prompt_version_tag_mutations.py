@@ -8,9 +8,11 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptVersion import PromptVersion
@@ -25,7 +27,7 @@ class DeletePromptVersionTagInput:
 @strawberry.input
 class SetPromptVersionTagInput:
     prompt_version_id: GlobalID
-    name: str
+    name: Identifier
     description: Optional[str] = None
 
 
@@ -94,11 +96,11 @@ class PromptVersionTagMutationMixin:
             )
             if not prompt:
                 raise BadRequest("All prompt version tags must belong to a prompt")
-
+            name = IdentifierModel.model_validate(str(input.name))
             existing_tag = await session.scalar(
                 select(models.PromptVersionTag).where(
                     models.PromptVersionTag.prompt_id == prompt_id,
-                    models.PromptVersionTag.name == input.name,
+                    models.PromptVersionTag.name == name,
                 )
             )
 
@@ -109,7 +111,7 @@ class PromptVersionTagMutationMixin:
                 updated_tag = existing_tag
             else:
                 new_tag = models.PromptVersionTag(
-                    name=input.name,
+                    name=name,
                     description=input.description,
                     prompt_id=prompt_id,
                     prompt_version_id=prompt_version_id,

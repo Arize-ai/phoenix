@@ -2,7 +2,7 @@ import logging
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path
-from pydantic import Field
+from pydantic import Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.sql import Select
 from starlette.requests import Request
@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptJSONSchema,
@@ -94,11 +95,15 @@ async def get_prompt_version_by_tag_name(
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
     tag_name: str = Path(description="The tag of the prompt version"),
 ) -> GetPromptResponseBody:
+    try:
+        name = Identifier.model_validate(tag_name)
+    except ValidationError:
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid tag name")
     stmt = (
         select(models.PromptVersion)
         .join_from(models.PromptVersion, models.PromptVersionTag)
         .join_from(models.PromptVersionTag, models.Prompt)
-        .where(models.PromptVersionTag.name == tag_name)
+        .where(models.PromptVersionTag.name == name)
     )
     stmt = _filter_by_prompt_identifier(stmt, prompt_identifier)
     async with request.app.state.db() as session:
@@ -111,10 +116,7 @@ async def get_prompt_version_by_tag_name(
 class _PromptId(int): ...
 
 
-class _PromptName(str): ...
-
-
-_PromptIdentifier: TypeAlias = Union[_PromptId, _PromptName]
+_PromptIdentifier: TypeAlias = Union[_PromptId, Identifier]
 
 
 def _parse_prompt_identifier(
@@ -128,7 +130,10 @@ def _parse_prompt_identifier(
             PromptNodeType.__name__,
         )
     except ValueError:
-        return _PromptName(prompt_identifier)
+        try:
+            return Identifier.model_validate(prompt_identifier)
+        except ValidationError:
+            raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt name")
     return _PromptId(prompt_id)
 
 
@@ -139,8 +144,8 @@ def _filter_by_prompt_identifier(
     identifier = _parse_prompt_identifier(prompt_identifier)
     if isinstance(identifier, _PromptId):
         return stmt.where(models.Prompt.id == int(identifier))
-    if isinstance(identifier, _PromptName):
-        return stmt.where(models.Prompt.name == str(identifier))
+    if isinstance(identifier, Identifier):
+        return stmt.where(models.Prompt.name == identifier)
     assert_never(identifier)
 
 

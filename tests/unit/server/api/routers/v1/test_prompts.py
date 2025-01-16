@@ -1,11 +1,14 @@
+import string
 from secrets import token_hex
 from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import httpx
+import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
@@ -33,13 +36,32 @@ class TestPrompts:
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
         prompt_version = prompt_versions[1]
-        tag_name: str = await self._tag_prompt_version(db, prompt_version)
+        tag_name: Identifier = await self._tag_prompt_version(db, prompt_version)
         prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
-        for prompts_identifier in prompt_id, prompt.name:
-            url = f"/v1/prompts/{quote_plus(prompts_identifier)}/tags/{quote_plus(tag_name)}"
+        for prompts_identifier in prompt_id, prompt.name.root:
+            url = f"/v1/prompts/{quote_plus(prompts_identifier)}/tags/{quote_plus(tag_name.root)}"
             assert (response := await httpx_client.get(url)).is_success
             assert isinstance((data := response.json()["data"]), dict)
             self._compare_prompt_version(data, prompt_version)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "a b c",
+            "αβγ",
+            *(p for p in string.punctuation if p not in (".", "/")),
+            *(f"x{p}y" for p in string.punctuation if p not in ("-", ".", "/")),
+        ],
+    )
+    async def test_invalid_identifier(
+        self,
+        name: str,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = f"/v1/prompts/{quote_plus(name)}/tags/production"
+        assert (await httpx_client.get(url)).status_code == 422
+        url = f"/v1/prompts/abc/tags/{quote_plus(name)}"
+        assert (await httpx_client.get(url)).status_code == 422
 
     @staticmethod
     def _compare_prompt_version(
@@ -66,9 +88,9 @@ class TestPrompts:
     async def _tag_prompt_version(
         db: DbSessionFactory,
         prompt_version: models.PromptVersion,
-        tag_name: Optional[str] = None,
-    ) -> str:
-        tag_name = tag_name or token_hex(16)
+        tag_name: Optional[Identifier] = None,
+    ) -> Identifier:
+        tag_name = tag_name or Identifier.model_validate(token_hex(16))
         assert tag_name
         async with db() as session:
             prompt_version_tag = models.PromptVersionTag(
@@ -82,10 +104,10 @@ class TestPrompts:
     @staticmethod
     async def _insert_prompt_versions(
         db: DbSessionFactory,
-        prompt_name: Optional[str] = None,
+        prompt_name: Optional[Identifier] = None,
         n: int = 3,
     ) -> tuple[models.Prompt, list[models.PromptVersion]]:
-        prompt_name = prompt_name or token_hex(16)
+        prompt_name = prompt_name or Identifier.model_validate(token_hex(16))
         assert prompt_name
         prompt_versions = []
         async with db() as session:
