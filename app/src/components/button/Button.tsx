@@ -5,23 +5,22 @@ import {
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
-import {
-  SizingProps,
-  StylableProps,
-  VarianceProps,
-} from "@phoenix/components/types";
+import { SizingProps, StylableProps, Variant } from "@phoenix/components/types";
 
 import { buttonCSS } from "./styles";
 
-interface ButtonProps
-  extends AriaButtonProps,
-    SizingProps,
-    VarianceProps,
-    StylableProps {
+type ButtonVariant = Exclude<Variant, "info">;
+
+interface ButtonProps extends AriaButtonProps, SizingProps, StylableProps {
   /**
    * An optional prefixed icon for the button
    */
   icon?: ReactNode;
+  /**
+   * The variant of the button
+   * @default: 'default'
+   */
+  variant?: ButtonVariant;
 }
 
 function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
