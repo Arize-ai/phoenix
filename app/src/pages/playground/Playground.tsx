@@ -237,7 +237,7 @@ function PlaygroundContent() {
   // Handles blocking page reloads when a run is in progress
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isRunning) {
+      if (isRunning || anyDirtyInstances) {
         e.preventDefault();
         // This is deprecated but still necessary for cross-browser compatibility
         e.returnValue = true;
@@ -247,7 +247,7 @@ function PlaygroundContent() {
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isRunning]);
+  }, [isRunning, anyDirtyInstances]);
 
   return (
     <>
