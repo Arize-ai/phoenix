@@ -365,3 +365,23 @@ The `BatchSpanProcessor` processes spans in batches before they are exported. Th
 
 In production we recommend the `BatchSpanProcessor` over `SimpleSpanProcessor`\
 when deployed and the `SimpleSpanProcessor` when developing.
+
+#### Batch Processing Example - Using arize-phoenix-otel library
+
+```python
+from phoenix.otel import register
+
+# configure the Phoenix tracer for batch processing
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  batch=True, # Default is 'False'
+)
+```
+
+#### Batch Processing Example - Using OTel library
+
+```python
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, BatchSpanProcessor
+
+tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint)))
+```
