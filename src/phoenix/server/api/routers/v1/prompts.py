@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.sql import Select
@@ -30,6 +30,13 @@ from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersio
 logger = logging.getLogger(__name__)
 
 
+class Prompt(V1RoutesBaseModel):
+    id: str
+    source_prompt_id: Optional[str]
+    name: str
+    description: Optional[str]
+
+
 class PromptVersion(V1RoutesBaseModel):
     id: str
     description: str
@@ -47,7 +54,61 @@ class GetPromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
+class GetPromptsResponseBody(ResponseBody[list[Prompt]]):
+    pass
+
+
 router = APIRouter(tags=["prompts"])
+
+
+@router.get(
+    "/prompts",
+    operation_id="getPrompts",
+    summary="Get all prompts",
+    responses=add_errors_to_responses(
+        [
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+)
+async def get_prompts(
+    request: Request,
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination (base64-encoded prompt ID)",
+    ),
+    limit: int = Query(
+        default=100, description="The max number of prompts to return at a time.", gt=0
+    ),
+) -> GetPromptsResponseBody:
+    async with request.app.state.db() as session:
+        query = select(models.Prompt).order_by(models.Prompt.id.desc())
+
+        if cursor:
+            try:
+                cursor_id = GlobalID.from_id(cursor).node_id
+                query = query.filter(models.Prompt.id <= int(cursor_id))
+            except ValueError:
+                raise HTTPException(
+                    detail=f"Invalid cursor format: {cursor}",
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+
+        query = query.limit(limit + 1)
+        result = await session.execute(query)
+        orm_prompts = result.scalars().all()
+
+        if not orm_prompts:
+            return GetPromptsResponseBody(next_cursor=None, data=[])
+
+        next_cursor = None
+        if len(orm_prompts) == limit + 1:
+            last_prompt = orm_prompts[-1]
+            next_cursor = str(GlobalID(PromptNodeType.__name__, str(last_prompt.id)))
+            orm_prompts = orm_prompts[:-1]
+
+        prompts = [_prompt_from_orm_prompt(orm_prompt) for orm_prompt in orm_prompts]
+    return GetPromptsResponseBody(next_cursor=next_cursor, data=prompts)
 
 
 @router.get(
@@ -184,4 +245,18 @@ def _prompt_version_response_body(
             tools=tools,
             output_schema=output_schema,
         )
+    )
+
+
+def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> Prompt:
+    source_prompt_id = (
+        str(GlobalID(PromptNodeType.__name__, str(orm_prompt.source_prompt_id)))
+        if orm_prompt.source_prompt_id
+        else None
+    )
+    return Prompt(
+        id=str(GlobalID(PromptNodeType.__name__, str(orm_prompt.id))),
+        source_prompt_id=source_prompt_id,
+        name=orm_prompt.name,
+        description=orm_prompt.description,
     )
