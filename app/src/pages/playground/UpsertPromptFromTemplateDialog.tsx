@@ -80,6 +80,28 @@ export const UpsertPromptFromTemplateDialog = ({
         }
       }
     `);
+  // tasks to complete after either mutation completes successfully
+  const onSuccess = useCallback(
+    (promptId: string) => {
+      const state = store.getState();
+      const instance = state.instances.find(
+        (instance) => instance.id === instanceId
+      );
+      if (!instance) {
+        return;
+      }
+      state.updateInstance({
+        instanceId,
+        patch: {
+          prompt: {
+            id: promptId,
+          },
+        },
+        dirty: false,
+      });
+    },
+    [store, instanceId]
+  );
   const onCreate: SavePromptSubmitHandler = useCallback(
     (params) => {
       const { promptInput, templateFormat } = getInstancePromptParamsFromStore(
@@ -116,6 +138,7 @@ export const UpsertPromptFromTemplateDialog = ({
               },
             },
           });
+          onSuccess(response.createChatPrompt.id);
           setDialog(null);
         },
         onError: (error) => {
@@ -134,6 +157,7 @@ export const UpsertPromptFromTemplateDialog = ({
       navigate,
       notifyError,
       notifySuccess,
+      onSuccess,
       setDialog,
       store,
     ]
@@ -177,6 +201,7 @@ export const UpsertPromptFromTemplateDialog = ({
               },
             },
           });
+          onSuccess(response.createChatPromptVersion.id);
           setDialog(null);
         },
         onError: (error) => {
@@ -197,6 +222,7 @@ export const UpsertPromptFromTemplateDialog = ({
       setDialog,
       store,
       updatePrompt,
+      onSuccess,
     ]
   );
   return (
