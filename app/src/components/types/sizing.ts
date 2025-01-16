@@ -1,6 +1,6 @@
 export type Size = "XS" | "S" | "M" | "L" | "XL" | "XXL";
 
-export type ComponentSize = Omit<Size, "XS" | "XL" | "XXL">;
+export type ComponentSize = Exclude<Size, "XS" | "XL" | "XXL">;
 
 export type TextSize = Size;
 
