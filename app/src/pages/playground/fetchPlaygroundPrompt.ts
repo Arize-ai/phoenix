@@ -6,6 +6,7 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import { GenerativeProviderKey } from "@phoenix/pages/playground/__generated__/ModelSupportedParamsFetcherQuery.graphql";
+import { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
@@ -20,12 +21,27 @@ import {
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
+  TextPart,
+  ToolCallPart,
+  ToolResultPart,
+} from "@phoenix/schemas/promptSchemas";
+import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
+import {
   DEFAULT_INSTANCE_PARAMS,
   generateMessageId,
   generateToolId,
   PlaygroundInstance,
 } from "@phoenix/store/playground";
-import { isObject, Mutable } from "@phoenix/typeUtils";
+import { Mutable } from "@phoenix/typeUtils";
+import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import {
+  asTextPart,
+  asToolCallPart,
+  asToolResultPart,
+  makeTextPart,
+  makeToolCallPart,
+  makeToolResultPart,
+} from "@phoenix/utils/promptUtils";
 
 import {
   fetchPlaygroundPromptQuery,
@@ -36,12 +52,6 @@ import {
 type PromptVersion = NonNullable<
   fetchPlaygroundPromptQuery$data["prompt"]["promptVersions"]
 >["edges"][0]["promptVersion"];
-
-export const isTextPart = (part: unknown): part is { text: { text: string } } =>
-  isObject(part) &&
-  "text" in part &&
-  isObject(part.text) &&
-  "text" in part.text;
 
 /**
  * Converts a playground chat message role to a prompt message role
@@ -138,15 +148,18 @@ export const promptVersionToInstance = ({
     prompt: { id: promptId },
   } satisfies Partial<PlaygroundInstance>;
 
+  const modelName = promptVersion.modelName;
+  const provider =
+    openInferenceModelProviderToPhoenixModelProvider(
+      promptVersion.modelProvider
+    ) || DEFAULT_MODEL_PROVIDER;
+
   return {
     ...newInstance,
     model: {
       ...newInstance.model,
-      modelName: promptVersion.modelName,
-      provider:
-        openInferenceModelProviderToPhoenixModelProvider(
-          promptVersion.modelProvider
-        ) || DEFAULT_MODEL_PROVIDER,
+      modelName,
+      provider,
       supportedInvocationParameters: supportedInvocationParameters || [],
       invocationParameters: objectToInvocationParameters(
         {
@@ -165,19 +178,51 @@ export const promptVersionToInstance = ({
       messages:
         "messages" in promptVersion.template
           ? promptVersion.template.messages.map((m) => {
-              const maybeTextPart = m.content.find(isTextPart);
-              if (isTextPart(maybeTextPart)) {
+              // select all parts
+              const textContent = (
+                m.content.map(asTextPart).filter(Boolean) as TextPart[]
+              )
+                .map((part) => part.text.text)
+                .join("");
+              const toolCallParts = m.content
+                .filter(asToolCallPart)
+                .filter(Boolean) as ToolCallPart[];
+              const toolResultParts = m.content
+                .filter(asToolResultPart)
+                .filter(Boolean) as ToolResultPart[];
+              const firstToolResultPart = toolResultParts.at(0);
+              const role = getChatRole(m.role);
+              // determine how to build the message based on the available parts
+              // ideally playground is updated in the future to natively render message parts
+
+              if (role === "tool" && firstToolResultPart) {
                 return {
                   id: generateMessageId(),
-                  role: getChatRole(m.role?.toLocaleLowerCase() as string),
-                  content: maybeTextPart.text.text,
+                  role: getChatRole(m.role),
+                  content:
+                    safelyStringifyJSON(
+                      firstToolResultPart.toolResult.result,
+                      null,
+                      2
+                    ).json || "",
+                  toolCallId: firstToolResultPart.toolResult.toolCallId,
                 };
               }
-              // TODO(apowell): Break out into switch statement, rendering each message part type
+
+              if (role === "ai" && toolCallParts.length > 0) {
+                return {
+                  id: generateMessageId(),
+                  role: getChatRole(m.role),
+                  toolCalls: toolCallParts.map((toolCall) =>
+                    fromPromptToolCallPart(toolCall, provider)
+                  ),
+                };
+              }
+
               return {
                 id: generateMessageId(),
-                role: getChatRole(m.role?.toLocaleLowerCase() as string),
-                content: "",
+                role: getChatRole(m.role),
+                content: textContent,
               };
             })
           : [],
@@ -266,15 +311,43 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     return null;
   }
 
-  return {
+  const templateMessages = instance.template.messages.map((m) => {
+    let textParts = [makeTextPart(m.content)];
+    const toolCallParts = m.toolCalls?.map(makeToolCallPart) || [];
+    const toolResultParts = m.toolCallId
+      ? [makeToolResultPart(m.toolCallId, m.content)]
+      : [];
+    if (toolResultParts.length > 0) {
+      // for now, we don't support messages with both text and tool results in playground
+      textParts = [];
+    }
+    return {
+      content: (
+        [
+          // turn message content into a text part
+          ...textParts,
+          // turn tool calls into tool call parts
+          ...toolCallParts,
+          // turn tool results into tool result parts
+          ...toolResultParts,
+        ] satisfies (
+          | ChatPromptVersionInput["template"]["messages"][number]["content"][number]
+          | null
+        )[]
+      ).filter((part) => part !== null),
+      role: chatMessageRoleToPromptMessageRole(m.role),
+      // filter is removing nulls but type inference does not work for .filter
+      // we have to cast to get the type inference to work
+      // we do a proper typecheck above to ensure that this cast is safe
+    };
+  }) as ChatPromptVersionInput["template"]["messages"];
+
+  const newPromptVersion = {
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
     templateType: "CHAT",
     template: {
-      messages: instance.template.messages.map((m) => ({
-        content: m.content || "",
-        role: chatMessageRoleToPromptMessageRole(m.role),
-      })),
+      messages: templateMessages,
     },
     tools: instance.tools.map((tool) => ({
       definition: tool.definition,
@@ -312,9 +385,8 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
         ),
       instance.model.supportedInvocationParameters
     ),
-  } satisfies Omit<Partial<PromptVersion>, "template" | "tools"> & {
-    template: Omit<Partial<PromptVersion["template"]>, "__typename">;
-  } & { tools: Omit<Partial<PromptVersion["tools"]>[number], "__typename"> };
+  } satisfies Partial<ChatPromptVersionInput>;
+  return newPromptVersion;
 };
 
 const fetchPlaygroundPromptQuery = graphql`
@@ -358,6 +430,10 @@ const fetchPlaygroundPromptQuery = graphql`
                       ... on ToolCallContentPart {
                         toolCall {
                           toolCallId
+                          toolCall {
+                            name
+                            arguments
+                          }
                         }
                       }
                       ... on ToolResultContentPart {

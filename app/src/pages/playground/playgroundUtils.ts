@@ -95,7 +95,8 @@ export function isChatMessageRole(role: unknown): role is ChatMessageRole {
  *
  * NB: Only exported for testing
  */
-export function getChatRole(role: string): ChatMessageRole {
+export function getChatRole(_role: string): ChatMessageRole {
+  const role = _role.toLowerCase();
   if (isChatMessageRole(role)) {
     return role;
   }
@@ -1052,15 +1053,21 @@ export const getChatCompletionOverDatasetInput = ({
  * @param content - the content to normalize
  * @returns a normalized json string
  */
-export function normalizeMessageAttributeValue(
-  content?: string | null | Record<string, unknown>
-): string {
+export function normalizeMessageAttributeValue(content?: unknown): string {
   if (content == null || content === "") {
     return "{}";
   }
-  return typeof content === "string"
-    ? content
-    : JSON.stringify(content, null, 2);
+  if (
+    typeof content === "string" &&
+    (content.startsWith('"{') ||
+      content.startsWith('"[') ||
+      content.startsWith('"\\"'))
+  ) {
+    // if the content is stringified json, we want to unescape it and return it as a string
+    // including newlines
+    return content.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, "\n");
+  }
+  return typeof content === "string" ? content : JSON.stringify(content);
 }
 
 export function areRequiredInvocationParametersConfigured(
