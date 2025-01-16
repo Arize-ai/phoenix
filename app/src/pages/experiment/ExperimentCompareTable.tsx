@@ -772,7 +772,7 @@ function SelectedExampleDialog({
       }
     >
       <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-        <Panel defaultSize={100}>
+        <Panel defaultSize={35}>
           <div
             css={css`
               overflow-y: auto;
@@ -830,7 +830,7 @@ function SelectedExampleDialog({
           </div>
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={200}>
+        <Panel defaultSize={65}>
           <Flex direction="column" height="100%">
             <View
               paddingStart="size-200"
