@@ -1,6 +1,7 @@
+import base64
 import json
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -174,3 +175,56 @@ def _default_openai_function(
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
     if condition:
         tqdm.write(*args, **kwargs)
+
+
+def get_audio_format_from_base64(
+    enc_str: str,
+) -> Literal["mp3", "wav", "ogg", "flac", "m4a", "aac"]:
+    """
+    Determines the audio format from a base64 encoded string by checking file signatures.
+
+    Args:
+        enc_str: Base64 encoded audio data
+
+    Returns:
+        Audio format as string
+
+    Raises:
+        ValueError: If the audio format is not supported or cannot be determined
+    """
+    audio_bytes = base64.b64decode(enc_str)
+
+    if len(audio_bytes) < 12:
+        raise ValueError("Audio data too short to determine format")
+
+    # WAV check
+    if audio_bytes[0:4] == b"RIFF" and audio_bytes[8:12] == b"WAVE":
+        return "wav"
+
+    # OGG check
+    if audio_bytes[0:4] == b"OggS":
+        return "ogg"
+
+    # FLAC check
+    if audio_bytes[0:4] == b"fLaC":
+        return "flac"
+
+    # M4A check (ISO Base Media File Format)
+    if len(audio_bytes) > 10 and (audio_bytes[4:11] == b"ftypM4A" or audio_bytes[0:4] == b"M4A "):
+        return "m4a"
+
+    # AAC check
+    if audio_bytes[:2] in (bytearray([0xFF, 0xF1]), bytearray([0xFF, 0xF9])):
+        return "aac"
+
+    # MP3 checks
+    if len(audio_bytes) >= 3:
+        if audio_bytes[0:3] == b"ID3":
+            return "mp3"
+        elif audio_bytes[0] == 0xFF and (audio_bytes[1] & 0xE0 == 0xE0):  # MPEG sync
+            return "mp3"
+
+    # If no match, raise an error
+    raise ValueError(
+        "Unsupported audio format. Supported formats are: mp3, wav, ogg, flac, m4a, aac"
+    )

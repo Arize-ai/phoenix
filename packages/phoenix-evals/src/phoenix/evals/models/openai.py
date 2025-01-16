@@ -14,10 +14,11 @@ from typing import (
     get_origin,
 )
 
-from phoenix.evals.exceptions import PhoenixContextLimitExceeded
+from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
+from phoenix.evals.utils import get_audio_format_from_base64
 
 MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
@@ -35,6 +36,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-4-vision-preview": 128000,
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
+SUPPORTED_AUDIO_FORMATS = {"mp3", "wav"}
 logger = logging.getLogger(__name__)
 
 
@@ -282,11 +284,29 @@ class OpenAIModel(BaseModel):
         self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
     ) -> List[Dict[str, str]]:
         messages = []
-        for parts in prompt.parts:
-            if parts.content_type == PromptPartContentType.TEXT:
-                messages.append({"role": "system", "content": parts.content})
+        for part in prompt.parts:
+            if part.content_type == PromptPartContentType.TEXT:
+                messages.append({"role": "system", "content": part.content})
+            elif part.content_type == PromptPartContentType.AUDIO:
+                format = str(get_audio_format_from_base64(part.content))
+                if format not in SUPPORTED_AUDIO_FORMATS:
+                    raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [  # type: ignore
+                            {
+                                "type": "input_audio",
+                                "input_audio": {
+                                    "data": part.content,
+                                    "format": str(get_audio_format_from_base64(part.content)),
+                                },
+                            }
+                        ],
+                    }
+                )
             else:
-                raise ValueError(f"Unsupported content type: {parts.content_type}")
+                raise ValueError(f"Unsupported content type: {part.content_type}")
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
@@ -321,7 +341,7 @@ class OpenAIModel(BaseModel):
             prompt = MultimodalPrompt.from_string(prompt)
 
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        messages = self._build_messages(prompt=prompt, system_instruction=kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
             invoke_params["functions"] = functions
         if function_call := kwargs.get("function_call"):

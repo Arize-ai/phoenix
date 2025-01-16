@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import inspect
 import logging
+import warnings
 from collections import defaultdict
 from enum import Enum
+from functools import wraps
 from itertools import product
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -14,6 +18,7 @@ from typing import (
     NamedTuple,
     Optional,
     Tuple,
+    TypeVar,
     Union,
 )
 
@@ -63,11 +68,37 @@ class ClassificationStatus(Enum):
     MISSING_INPUT = "MISSING INPUT"
 
 
+PROCESSOR_TYPE = TypeVar("PROCESSOR_TYPE")
+
+
+def deprecate_dataframe_arg(func: Callable[..., Any]) -> Callable[..., Any]:
+    # Remove this once the `dataframe` arg in `llm_classify` is no longer supported
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(func)
+
+        if "dataframe" in kwargs:
+            warnings.warn(
+                "`dataframe` argument is deprecated; use `data` instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["data"] = kwargs.pop("dataframe")
+        bound_args = signature.bind_partial(*args, **kwargs)
+        bound_args.apply_defaults()
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return wrapper
+
+
+@deprecate_dataframe_arg
 def llm_classify(
-    dataframe: pd.DataFrame,
+    data: Union[pd.DataFrame, List[Any]],
     model: BaseModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
+    data_processor: Optional[Callable[[PROCESSOR_TYPE], PROCESSOR_TYPE]] = None,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -88,19 +119,27 @@ def llm_classify(
     `provide_explanation=True`.
 
     Args:
-        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents
-            a record to be classified. All template variable names must appear as column
-            names in the dataframe (extra columns unrelated to the template are permitted).
+        data (Union[pd.DataFrame, List[Any]): A collection of data which
+            can contain template variables and other information necessary to generate evaluations.
+            If a passed a DataFrame, there must be column names that match the template variables.
+            If passed a list, the elements of the list will be mapped to the template variables
+            in the order that the template variables are defined.
+
+        model (BaseEvalModel): An LLM model class.
 
         template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template
             as either an instance of PromptTemplate, ClassificationTemplate or a string.
             If a string, the variable names should be surrounded by curly braces so that
             a call to `.format` can be made to substitute variable values.
 
-        model (BaseEvalModel): An LLM model class.
-
         rails (List[str]): A list of strings representing the possible output classes
             of the model's predictions.
+
+        data_processor (Optional[Callable[[T], T]]): An optional callable that is used to process
+            the input data before it is mapped to the template variables. This callable is passed
+            a single element of the input data and can return either a pandas.Series with indices
+            corresponding to the template variables or an iterable of values that will be mapped
+            to the template variables in the order that the template variables are defined.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -171,8 +210,8 @@ def llm_classify(
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
 
-    labels: Iterable[Optional[str]] = [None] * len(dataframe)
-    explanations: Iterable[Optional[str]] = [None] * len(dataframe)
+    labels: Iterable[Optional[str]] = [None] * len(data)
+    explanations: Iterable[Optional[str]] = [None] * len(data)
 
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
@@ -211,18 +250,59 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(input_data: pd.Series[Any]) -> ParsedLLMResponse:
+    def _normalize_to_series(
+        data: PROCESSOR_TYPE,
+    ) -> pd.Series[Any]:
+        if isinstance(data, pd.Series):
+            return data
+
+        variable_count = len(eval_template.variables)
+        if variable_count == 1:
+            return pd.Series({eval_template.variables[0]: data})
+        elif variable_count > 1:
+            if isinstance(data, str):
+                raise ValueError("The data cannot be mapped to the template variables")
+            elif isinstance(data, Iterable):
+                return pd.Series(
+                    {
+                        template_var: input_val
+                        for template_var, input_val in zip(eval_template.variables, data)
+                    }
+                )
+        return pd.Series()
+
+    async def _run_llm_classification_async(
+        input_data: PROCESSOR_TYPE,
+    ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
-            prompt = _map_template(input_data)
+            if data_processor:
+                maybe_awaitable_data = data_processor(input_data)
+                if inspect.isawaitable(maybe_awaitable_data):
+                    processed_data = await maybe_awaitable_data
+                else:
+                    processed_data = maybe_awaitable_data
+            else:
+                processed_data = input_data
+
+            prompt = _map_template(_normalize_to_series(processed_data))
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response, str(prompt)
 
-    def _run_llm_classification_sync(input_data: pd.Series[Any]) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(
+        input_data: PROCESSOR_TYPE,
+    ) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
-            prompt = _map_template(input_data)
+            if data_processor:
+                processed_data = data_processor(input_data)
+                if inspect.isawaitable(processed_data):
+                    raise ValueError("Cannot run the data processor asynchronously.")
+            else:
+                processed_data = input_data
+
+            prompt = _map_template(_normalize_to_series(processed_data))
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
@@ -242,7 +322,17 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results, execution_details = executor.run([row_tuple[1] for row_tuple in dataframe.iterrows()])
+    list_of_inputs: Union[Tuple[Any], List[Any]]
+    if isinstance(data, pd.DataFrame):
+        list_of_inputs = [row_tuple[1] for row_tuple in data.iterrows()]
+        dataframe_index = data.index
+    elif isinstance(data, (list, tuple)):
+        list_of_inputs = data
+        dataframe_index = pd.Index(range(len(data)))
+    else:
+        raise ValueError("Invalid 'data' input type.")
+
+    results, execution_details = executor.run(list_of_inputs)
     labels, explanations, responses, prompts = zip(*results)
     all_exceptions = [details.exceptions for details in execution_details]
     execution_statuses = [details.status for details in execution_details]
@@ -264,7 +354,7 @@ def llm_classify(
             **({"execution_status": [status.value for status in classification_statuses]}),
             **({"execution_seconds": [runtime for runtime in execution_times]}),
         },
-        index=dataframe.index,
+        index=dataframe_index,
     )
 
 
