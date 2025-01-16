@@ -98,7 +98,40 @@ class TestPrompts:
                         prompt_id=prompt.id,
                         template_type="CHAT",
                         template_format="MUSTACHE",
-                        template={"messages": [{"role": "USER", "content": "hi"}]},
+                        template={
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [
+                                        {"type": "text", "text": {"text": "hi"}},
+                                        {
+                                            "type": "image",
+                                            "image": {
+                                                "url": "https://example.com/image.jpg",
+                                            },
+                                        },
+                                        {
+                                            "type": "tool_call",
+                                            "tool_call": {
+                                                "tool_call_id": "1234",
+                                                "tool_call": {
+                                                    "type": "function",
+                                                    "name": token_hex(16),
+                                                    "arguments": token_hex(16),
+                                                },
+                                            },
+                                        },
+                                        {
+                                            "type": "tool_result",
+                                            "tool_result": {
+                                                "tool_call_id": "1234",
+                                                "result": {"foo": "bar"},
+                                            },
+                                        },
+                                    ],
+                                }
+                            ]
+                        },
                         invocation_parameters={},
                         model_provider=token_hex(16),
                         model_name=token_hex(16),
