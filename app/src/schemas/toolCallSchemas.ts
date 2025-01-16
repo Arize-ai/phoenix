@@ -285,6 +285,13 @@ export function createAnthropicToolCall(): AnthropicToolCall {
   };
 }
 
+/**
+ * A schema for a tool call that is not in the first class supported format
+ *
+ * This is used to heuristically find the id, name, and arguments of a tool call
+ * based on common patterns in tool calls, allowing us to poke around in an unknown tool call
+ * and extract the id, name, and arguments
+ */
 export const toolCallHeuristicSchema = z.object({
   id: z.string().optional(),
   name: z.string().optional(),
