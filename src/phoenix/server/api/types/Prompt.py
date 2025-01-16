@@ -34,6 +34,33 @@ class Prompt(Node):
     created_at: datetime
 
     @strawberry.field
+    async def version(
+        self, info: Info[Context, None], version_id: Optional[GlobalID] = None
+    ) -> PromptVersion:
+        async with info.context.db() as session:
+            if version_id:
+                v_id = from_global_id_with_expected_type(version_id, PromptVersion.__name__)
+                version = await session.scalar(
+                    select(models.PromptVersion).where(
+                        models.PromptVersion.id == v_id,
+                        models.PromptVersion.prompt_id == self.id_attr,
+                    )
+                )
+                if not version:
+                    raise NotFound(f"Prompt version not found: {version_id}")
+            else:
+                stmt = (
+                    select(models.PromptVersion)
+                    .where(models.PromptVersion.prompt_id == self.id_attr)
+                    .order_by(models.PromptVersion.id.desc())
+                    .limit(1)
+                )
+                version = await session.scalar(stmt)
+                if not version:
+                    raise NotFound("This prompt has no associated versions")
+            return to_gql_prompt_version(version)
+
+    @strawberry.field
     async def version_tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
         async with info.context.db() as session:
             stmt = select(models.PromptVersionTag).where(
