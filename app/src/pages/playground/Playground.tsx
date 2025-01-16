@@ -220,13 +220,17 @@ function PlaygroundContent() {
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
   const isRunning = instances.some((instance) => instance.activeRunId != null);
+  const anyDirtyInstances = instances.some((instance) => instance.dirty);
 
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
-      return isRunning && currentLocation.pathname !== nextLocation.pathname;
+      return (
+        (isRunning && currentLocation.pathname !== nextLocation.pathname) ||
+        anyDirtyInstances
+      );
     },
-    [isRunning]
+    [isRunning, anyDirtyInstances]
   );
   const blocker = useBlocker(shouldBlockUnload);
 
@@ -341,7 +345,11 @@ function PlaygroundContent() {
       {blocker != null && (
         <ConfirmNavigationDialog
           blocker={blocker}
-          message="Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+          message={
+            isRunning
+              ? "Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+              : "You have unsaved changes. Are you sure you want to leave?"
+          }
         />
       )}
     </>
