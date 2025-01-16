@@ -38,8 +38,8 @@ def register(
     batch: bool = False,
     set_global_tracer_provider: bool = True,
     headers: Optional[Dict[str, str]] = None,
-    verbose: bool = True,
     protocol: Optional[Literal["http", "grpc"]] = None,
+    verbose: bool = True,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -61,12 +61,14 @@ def register(
             global tracer provider. Defaults to True.
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` environment variable will be used.
+        protocol (str, optional): The protocol to use for the collector endpoint. Must be either
+            "http" or "grpc". If not provided, the protocol will be inferred from the endpoint.
         verbose (bool): If True, configuration details will be printed to stdout.
     """
 
     project_name = project_name or get_env_project_name()
     resource = Resource.create({PROJECT_NAME: project_name})
-    tracer_provider = TracerProvider(resource=resource, verbose=False)
+    tracer_provider = TracerProvider(resource=resource, verbose=False, protocol=protocol)
     span_processor: SpanProcessor
     if batch:
         span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers)
@@ -106,6 +108,8 @@ class TracerProvider(_TracerProvider):
             used to infer which collector endpoint to use, defaults to the gRPC endpoint. When
             specifying the endpoint, the transport method (HTTP or gRPC) will be inferred from the
             URL.
+        protocol (str, optional): The protocol to use for the collector endpoint. Must be either
+            "http" or "grpc". If not provided, the protocol will be inferred from the endpoint.
         verbose (bool): If True, configuration details will be printed to stdout.
     """
 
@@ -126,14 +130,15 @@ class TracerProvider(_TracerProvider):
             )
         super().__init__(*bound_args.args, **bound_args.kwargs)
 
-        parsed_url, endpoint = _normalized_endpoint(endpoint)
+        use_http = protocol == "http"
+        parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
         self._default_processor = False
 
-        if _maybe_http_endpoint(parsed_url):
+        if _maybe_http_endpoint(parsed_url) or protocol == "http":
             http_exporter: SpanExporter = HTTPSpanExporter(endpoint=endpoint)
             self.add_span_processor(SimpleSpanProcessor(span_exporter=http_exporter))
             self._default_processor = True
-        elif _maybe_grpc_endpoint(parsed_url):
+        elif _maybe_grpc_endpoint(parsed_url) or protocol == "grpc":
             grpc_exporter: SpanExporter = GRPCSpanExporter(endpoint=endpoint)
             self.add_span_processor(SimpleSpanProcessor(span_exporter=grpc_exporter))
             self._default_processor = True
@@ -214,6 +219,8 @@ class SimpleSpanProcessor(_SimpleSpanProcessor):
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
             environment variable will be used.
+        protocol (str, optional): The protocol to use for the collector endpoint. Must be either
+            "http" or "grpc". If not provided, the protocol will be inferred from the endpoint.
     """
 
     def __init__(
@@ -261,6 +268,8 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         headers (dict, optional): Optional headers to include in the request to the collector.
             If not provided, the `PHOENIX_CLIENT_HEADERS` or `OTEL_EXPORTER_OTLP_HEADERS`
             environment variable will be used.
+        protocol (str, optional): The protocol to use for the collector endpoint. Must be either
+            "http" or "grpc". If not provided, the protocol will be inferred from the endpoint.
         max_queue_size (int, optional): The maximum queue size.
         schedule_delay_millis (float, optional): The delay between two consecutive exports in
             milliseconds.
@@ -273,12 +282,14 @@ class BatchSpanProcessor(_BatchSpanProcessor):
         span_exporter: Optional[SpanExporter] = None,
         endpoint: Optional[str] = None,
         headers: Optional[Dict[str, str]] = None,
+        protocol: Optional[Literal["http", "grpc"]] = None,
     ):
         if span_exporter is None:
-            parsed_url, endpoint = _normalized_endpoint(endpoint)
-            if _maybe_http_endpoint(parsed_url):
+            use_http = protocol == "http"
+            parsed_url, endpoint = _normalized_endpoint(endpoint, use_http=use_http)
+            if _maybe_http_endpoint(parsed_url) or protocol == "http":
                 span_exporter = HTTPSpanExporter(endpoint=endpoint, headers=headers)
-            elif _maybe_grpc_endpoint(parsed_url):
+            elif _maybe_grpc_endpoint(parsed_url) or protocol == "grpc":
                 span_exporter = GRPCSpanExporter(endpoint=endpoint, headers=headers)
             else:
                 warnings.warn("Could not infer collector endpoint protocol, defaulting to HTTP.")
