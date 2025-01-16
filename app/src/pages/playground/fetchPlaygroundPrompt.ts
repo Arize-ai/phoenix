@@ -200,11 +200,13 @@ export const promptVersionToInstance = ({
                   id: generateMessageId(),
                   role: getChatRole(m.role),
                   content:
-                    safelyStringifyJSON(
-                      firstToolResultPart.toolResult.result,
-                      null,
-                      2
-                    ).json || "",
+                    typeof firstToolResultPart.toolResult.result === "string"
+                      ? firstToolResultPart.toolResult.result
+                      : safelyStringifyJSON(
+                          firstToolResultPart.toolResult.result,
+                          null,
+                          2
+                        ).json || "",
                   toolCallId: firstToolResultPart.toolResult.toolCallId,
                 };
               }
@@ -313,7 +315,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
 
   const templateMessages = instance.template.messages.map((m) => {
     // turn message content into a text part
-    let textParts = [makeTextPart(m.content)];
+    let textParts = [m.content ? makeTextPart(m.content) : null];
     // turn tool calls into tool call parts
     const toolCallParts = m.toolCalls?.map(makeToolCallPart) || [];
     // turn tool results into tool result parts

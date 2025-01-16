@@ -18,7 +18,7 @@ import {
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import { normalizeMessageAttributeValue } from "@phoenix/pages/playground/playgroundUtils";
+import { normalizeMessageContent } from "@phoenix/pages/playground/playgroundUtils";
 import { ToolCallPart, ToolResultPart } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
@@ -39,7 +39,7 @@ export function ChatTemplateMessageToolResultPart({
 }: ChatTemplateMessageToolResultPartProps) {
   const value = useMemo(() => {
     const convertedToolResult = toolResult.toolResult.result;
-    return normalizeMessageAttributeValue(convertedToolResult);
+    return normalizeMessageContent(convertedToolResult);
   }, [toolResult]);
   return (
     <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.toolResult}>

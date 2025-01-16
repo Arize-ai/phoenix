@@ -1053,21 +1053,37 @@ export const getChatCompletionOverDatasetInput = ({
  * @param content - the content to normalize
  * @returns a normalized json string
  */
-export function normalizeMessageAttributeValue(content?: unknown): string {
+export function normalizeMessageContent(content?: unknown): string {
   if (content == null || content === "") {
     return "{}";
   }
-  if (
-    typeof content === "string" &&
-    (content.startsWith('"{') ||
-      content.startsWith('"[') ||
-      content.startsWith('"\\"'))
-  ) {
-    // if the content is stringified json, we want to unescape it and return it as a string
-    // including newlines
-    return content.slice(1, -1).replace(/\\"/g, '"').replace(/\\n/g, "\n");
+
+  if (typeof content === "string") {
+    try {
+      // If it's a double-stringified value, parse it twice
+      if (
+        content.startsWith('"{') ||
+        content.startsWith('"[') ||
+        content.startsWith('"\\"')
+      ) {
+        // First parse removes the outer quotes and unescapes the inner content
+        const firstParse = JSON.parse(content);
+        // Second parse converts the string representation to actual JSON
+        const secondParse =
+          typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+        // Stringify the result to ensure consistent formatting
+        return JSON.stringify(secondParse, null, 2);
+      }
+      // For regular strings, return as-is
+      return content;
+    } catch (e) {
+      // If parsing fails, return the original content
+      return content;
+    }
   }
-  return typeof content === "string" ? content : JSON.stringify(content);
+
+  // For non-string content, stringify it with pretty printing
+  return JSON.stringify(content, null, 2);
 }
 
 export function areRequiredInvocationParametersConfigured(
