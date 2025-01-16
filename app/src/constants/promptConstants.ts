@@ -1,4 +1,4 @@
-export const DEFAULT_PROMPT_VERSTION_TAGS = [
+export const DEFAULT_PROMPT_VERSION_TAGS = [
   {
     name: "production",
     description: "The version deployed to production",
