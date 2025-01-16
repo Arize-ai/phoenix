@@ -17,7 +17,7 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useNavigate } from "react-router";
+import { useSearchParams } from "react-router-dom";
 import {
   CellContext,
   ColumnDef,
@@ -440,7 +440,7 @@ export function PlaygroundDatasetExamplesTable({
   );
 
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
   );
@@ -800,9 +800,10 @@ export function PlaygroundDatasetExamplesTable({
                   aria-label="View example details"
                   icon={<Icon svg={<Icons.ExpandOutline />} />}
                   onPress={() => {
-                    navigate(
-                      `/playground/datasets/${datasetId}/examples/${row.original.id}`
-                    );
+                    setSearchParams((prev) => {
+                      prev.set("exampleId", row.original.id);
+                      return prev;
+                    });
                   }}
                 />
                 <Tooltip>View Example</Tooltip>

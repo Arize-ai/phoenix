@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
 
 import { ExampleDetailsDialog } from "../example/ExampleDetailsDialog";
 
@@ -7,13 +7,20 @@ import { ExampleDetailsDialog } from "../example/ExampleDetailsDialog";
  * A page that shows the details of a dataset example.
  */
 export function PlaygroundExamplePage() {
-  const { exampleId, datasetId } = useParams();
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const exampleId = searchParams.get("exampleId");
+  const datasetId = searchParams.get("datasetId");
+  if (!exampleId || !datasetId) {
+    return null;
+  }
   return (
     <ExampleDetailsDialog
       exampleId={exampleId as string}
       onDismiss={() => {
-        navigate(`/playground/datasets/${datasetId}`);
+        setSearchParams((prev) => {
+          prev.delete("exampleId");
+          return prev;
+        });
       }}
     />
   );
