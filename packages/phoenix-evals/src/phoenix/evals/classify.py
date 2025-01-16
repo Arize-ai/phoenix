@@ -330,7 +330,7 @@ def llm_classify(
         list_of_inputs = data
         dataframe_index = pd.Index(range(len(data)))
     else:
-        raise ValueError("dataframe must be a pandas DataFrame, list, or tuple")
+        raise ValueError("Invalid 'data' input type.")
 
     results, execution_details = executor.run(list_of_inputs)
     labels, explanations, responses, prompts = zip(*results)
