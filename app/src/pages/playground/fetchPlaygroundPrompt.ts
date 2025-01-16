@@ -182,6 +182,8 @@ export const promptVersionToInstance = ({
               const textContent = (
                 m.content.map(asTextPart).filter(Boolean) as TextPart[]
               )
+                // summarize text parts into a single string, this is a temporary solution
+                // until the playground is updated to natively render message parts
                 .map((part) => part.text.text)
                 .join("");
               const toolCallParts = m.content
@@ -322,8 +324,11 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     const toolResultParts = m.toolCallId
       ? [makeToolResultPart(m.toolCallId, m.content)]
       : [];
-    if (toolResultParts.length > 0) {
-      // for now, we don't support messages with both text and tool results in playground
+    if (toolCallParts.length > 0 || toolResultParts.length > 0) {
+      // this is a temporary solution until the playground is updated to natively render message parts
+      // right now, it only support text, tool calls, or tool results, not a mix of them
+      // keeping the text parts around may inadvertently save transient content state from the playground
+      // that was invisible to the user at save time
       textParts = [];
     }
     return {

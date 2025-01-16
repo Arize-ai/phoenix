@@ -1059,13 +1059,13 @@ export function normalizeMessageContent(content?: unknown): string {
   }
 
   if (typeof content === "string") {
+    const isDoubleStringified =
+      content.startsWith('"{') ||
+      content.startsWith('"[') ||
+      content.startsWith('"\\"');
     try {
       // If it's a double-stringified value, parse it twice
-      if (
-        content.startsWith('"{') ||
-        content.startsWith('"[') ||
-        content.startsWith('"\\"')
-      ) {
+      if (isDoubleStringified) {
         // First parse removes the outer quotes and unescapes the inner content
         const firstParse = JSON.parse(content);
         // Second parse converts the string representation to actual JSON
