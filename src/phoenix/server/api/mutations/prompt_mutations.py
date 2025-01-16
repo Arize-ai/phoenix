@@ -58,6 +58,11 @@ class PatchPromptInput:
 
 
 @strawberry.type
+class DeletePromptMutationPayload:
+    query: Query
+
+
+@strawberry.type
 class PromptMutationMixin:
     @strawberry.mutation
     async def create_chat_prompt(
@@ -194,7 +199,9 @@ class PromptMutationMixin:
         return to_gql_prompt_from_orm(prompt)
 
     @strawberry.mutation
-    async def delete_prompt(self, info: Info[Context, None], input: DeletePromptInput) -> Query:
+    async def delete_prompt(
+        self, info: Info[Context, None], input: DeletePromptInput
+    ) -> DeletePromptMutationPayload:
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
@@ -206,7 +213,7 @@ class PromptMutationMixin:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
             await session.commit()
-        return Query()
+        return DeletePromptMutationPayload(query=Query())
 
     @strawberry.mutation
     async def clone_prompt(self, info: Info[Context, None], input: ClonePromptInput) -> Prompt:

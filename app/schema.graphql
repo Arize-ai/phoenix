@@ -634,6 +634,10 @@ input DeletePromptInput {
   promptId: GlobalID!
 }
 
+type DeletePromptMutationPayload {
+  query: Query!
+}
+
 input DeletePromptVersionTagInput {
   promptVersionTagId: GlobalID!
 }
@@ -1544,7 +1548,7 @@ type Mutation {
   ): TraceAnnotationMutationPayload!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
-  deletePrompt(input: DeletePromptInput!): Query!
+  deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
   clonePrompt(input: ClonePromptInput!): Prompt!
   patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(
