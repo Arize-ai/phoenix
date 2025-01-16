@@ -1014,7 +1014,14 @@ class TestPrompts:
                         "description": "prompt-version-description",
                         "templateType": "CHAT",
                         "templateFormat": "MUSTACHE",
-                        "template": {"messages": [{"role": "USER", "content": "hello world"}]},
+                        "template": {
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [{"text": {"text": "hello world"}}],
+                                }
+                            ]
+                        },
                         "invocationParameters": {"temperature": 0.4},
                         "modelProvider": "openai",
                         "modelName": "o1-mini",
@@ -1053,7 +1060,14 @@ class TestPrompts:
                         "description": "new-version-description",
                         "templateType": "CHAT",
                         "templateFormat": "MUSTACHE",
-                        "template": {"messages": [{"role": "USER", "content": "new version"}]},
+                        "template": {
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [{"text": {"text": "new version"}}],
+                                }
+                            ]
+                        },
                         "invocationParameters": {"temperature": 0.4},
                         "modelProvider": "openai",
                         "modelName": "o1-mini",

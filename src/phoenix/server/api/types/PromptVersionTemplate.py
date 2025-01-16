@@ -8,54 +8,112 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
+from phoenix.server.api.helpers.prompts.models import ImageContentPart as ImageContentPartModel
 from phoenix.server.api.helpers.prompts.models import (
-    JSONPromptMessage as JSONPromptMessageModel,
+    ImageContentValue as ImageContentValueModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptStringTemplateV1,
     PromptTemplateType,
 )
+from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
 from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1 as PromptStringTemplateModel,
 )
+from phoenix.server.api.helpers.prompts.models import TextContentPart as TextContentPartModel
 from phoenix.server.api.helpers.prompts.models import (
-    TextPromptMessage as TextPromptMessageModel,
+    TextContentValue as TextContentValueModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolCallContentPart as ToolCallContentPartModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolCallContentValue as ToolCallContentValueModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolCallFunction as ToolCallFunctionModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolResultContentPart as ToolResultContentPartModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    ToolResultContentValue as ToolResultContentValueModel,
 )
 
 
-@strawberry.experimental.pydantic.type(TextPromptMessageModel)
-class TextPromptMessage:
-    role: strawberry.auto
-    content: strawberry.auto
+@strawberry.experimental.pydantic.type(TextContentValueModel, all_fields=True)
+class TextContentValue:
+    pass
 
 
-@strawberry.experimental.pydantic.type(JSONPromptMessageModel)
-class JSONPromptMessage:
-    role: strawberry.auto
-    content: JSON
+@strawberry.experimental.pydantic.type(TextContentPartModel)
+class TextContentPart:
+    text: TextContentValue
 
 
-PromptTemplateMessage: TypeAlias = Annotated[
-    Union[TextPromptMessage, JSONPromptMessage],
-    strawberry.union("PromptTemplateMessage"),
+@strawberry.experimental.pydantic.type(ImageContentValueModel, all_fields=True)
+class ImageContentValue:
+    pass
+
+
+@strawberry.experimental.pydantic.type(ImageContentPartModel)
+class ImageContentPart:
+    image: ImageContentValue
+
+
+@strawberry.experimental.pydantic.type(ToolCallFunctionModel)
+class ToolCallFunction:
+    name: strawberry.auto
+    arguments: strawberry.auto
+
+
+@strawberry.experimental.pydantic.type(ToolCallContentValueModel)
+class ToolCallContentValue:
+    tool_call_id: strawberry.auto
+    tool_call: ToolCallFunction
+
+
+@strawberry.experimental.pydantic.type(ToolCallContentPartModel)
+class ToolCallContentPart:
+    tool_call: ToolCallContentValue
+
+
+@strawberry.experimental.pydantic.type(ToolResultContentValueModel)
+class ToolResultContentValue:
+    tool_call_id: strawberry.auto
+    result: JSON
+
+
+@strawberry.experimental.pydantic.type(ToolResultContentPartModel)
+class ToolResultContentPart:
+    tool_result: ToolResultContentValue
+
+
+ContentPart: TypeAlias = Annotated[
+    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
+    strawberry.union("ContentPart"),
 ]
+
+
+@strawberry.experimental.pydantic.type(PromptMessageModel)
+class PromptMessage:
+    role: strawberry.auto
+    content: list[ContentPart]
 
 
 @strawberry.experimental.pydantic.type(PromptChatTemplateV1)
 class PromptChatTemplate:
     _version: strawberry.Private[str] = "messages-v1"
-    messages: list[PromptTemplateMessage]
+    messages: list[PromptMessage]
 
 
 def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
     template = PromptChatTemplateV1.model_validate(orm_model.template)
-    messages: list[PromptTemplateMessage] = []
+    messages: list[PromptMessage] = []
     for msg in template.messages:
-        if isinstance(msg, TextPromptMessageModel):
-            messages.append(TextPromptMessage(role=msg.role, content=msg.content))
-        elif isinstance(msg, JSONPromptMessageModel):
-            messages.append(JSONPromptMessage(role=msg.role, content=msg.content))
+        if isinstance(msg, PromptMessageModel):
+            messages.append(PromptMessage(role=msg.role, content=msg.content))
         else:
             assert_never(msg)
     return PromptChatTemplate(messages=messages)
