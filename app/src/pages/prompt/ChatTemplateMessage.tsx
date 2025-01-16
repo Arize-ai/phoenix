@@ -30,19 +30,19 @@ const PART_TYPE_TITLE = {
 } as const;
 const PART_TYPE_TITLES = Object.values(PART_TYPE_TITLE);
 
-export type ChatTemplateMessageToolResultProps = {
+export type ChatTemplateMessageToolResultPartProps = {
   toolResult: ToolResultPart;
 };
 
-export function ChatTemplateMessageToolResult({
+export function ChatTemplateMessageToolResultPart({
   toolResult,
-}: ChatTemplateMessageToolResultProps) {
+}: ChatTemplateMessageToolResultPartProps) {
   const value = useMemo(() => {
     const convertedToolResult = toolResult.toolResult.result;
     return normalizeMessageAttributeValue(convertedToolResult);
   }, [toolResult]);
   return (
-    <ChatTemplateMessagePart title={PART_TYPE_TITLE.toolResult}>
+    <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.toolResult}>
       <Flex direction="column">
         <View paddingX="size-200" paddingTop="size-100">
           <Flex
@@ -66,25 +66,25 @@ export function ChatTemplateMessageToolResult({
           />
         </TemplateEditorWrap>
       </Flex>
-    </ChatTemplateMessagePart>
+    </ChatTemplateMessagePartContainer>
   );
 }
 
-export type ChatTemplateMessageToolCallProps = {
+export type ChatTemplateMessageToolCallPartProps = {
   toolCall: ToolCallPart;
   provider: ModelProvider;
 };
 
-export function ChatTemplateMessageToolCall({
+export function ChatTemplateMessageToolCallPart({
   provider,
   toolCall,
-}: ChatTemplateMessageToolCallProps) {
+}: ChatTemplateMessageToolCallPartProps) {
   const value = useMemo(() => {
     const convertedToolCall = fromPromptToolCallPart(toolCall, provider);
     return safelyStringifyJSON(convertedToolCall, null, 2).json || "";
   }, [provider, toolCall]);
   return (
-    <ChatTemplateMessagePart title={PART_TYPE_TITLE.toolCall}>
+    <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.toolCall}>
       <TemplateEditorWrap readOnly>
         <TemplateEditor
           readOnly
@@ -93,19 +93,21 @@ export function ChatTemplateMessageToolCall({
           templateLanguage={TemplateLanguages.NONE}
         />
       </TemplateEditorWrap>
-    </ChatTemplateMessagePart>
+    </ChatTemplateMessagePartContainer>
   );
 }
 
-export type ChatTemplateMessageTextProps = {
+export type ChatTemplateMessageTextPartProps = {
   text: string;
   templateFormat: TemplateLanguage;
 };
 
-export function ChatTemplateMessageText(props: ChatTemplateMessageTextProps) {
+export function ChatTemplateMessageTextPart(
+  props: ChatTemplateMessageTextPartProps
+) {
   const { text, templateFormat } = props;
   return (
-    <ChatTemplateMessagePart title={PART_TYPE_TITLE.text}>
+    <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.text}>
       <TemplateEditorWrap readOnly>
         <TemplateEditor
           readOnly
@@ -114,11 +116,14 @@ export function ChatTemplateMessageText(props: ChatTemplateMessageTextProps) {
           templateLanguage={templateFormat}
         />
       </TemplateEditorWrap>
-    </ChatTemplateMessagePart>
+    </ChatTemplateMessagePartContainer>
   );
 }
 
-export function ChatTemplateMessagePart({
+/**
+ * Internal container component for ChatTemplateMessage*Type*Part components
+ */
+function ChatTemplateMessagePartContainer({
   title,
   children,
 }: PropsWithChildren<{ title?: string }>) {
@@ -139,10 +144,18 @@ export type ChatTemplateMessageProps = PropsWithChildren<{
 }>;
 
 /**
- * A Read-Only CodeMirror component for the chat template message
- * E.x. a system or user message template part
+ * A Card component that represents a template chat message
+ *
+ * It accepts children, who should be ChatTemplateMessage*Type*Part components
+ *
+ * @example
+ * <ChatTemplateMessageCard role="system">
+ *   <ChatTemplateMessageTextPart text="Hello, world!" templateFormat={TemplateLanguages.NONE} />
+ *   <ChatTemplateMessageToolCallPart toolCall={toolCall} provider={provider} />
+ *   <ChatTemplateMessageToolResultPart toolResult={toolResult} />
+ * </ChatTemplateMessageCard>
  */
-export function ChatTemplateMessage(props: ChatTemplateMessageProps) {
+export function ChatTemplateMessageCard(props: ChatTemplateMessageProps) {
   const { role, children } = props;
   const styles = useChatMessageStyles(role);
   return (

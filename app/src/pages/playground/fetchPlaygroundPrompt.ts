@@ -312,8 +312,11 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
   }
 
   const templateMessages = instance.template.messages.map((m) => {
+    // turn message content into a text part
     let textParts = [makeTextPart(m.content)];
+    // turn tool calls into tool call parts
     const toolCallParts = m.toolCalls?.map(makeToolCallPart) || [];
+    // turn tool results into tool result parts
     const toolResultParts = m.toolCallId
       ? [makeToolResultPart(m.toolCallId, m.content)]
       : [];
@@ -323,23 +326,16 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     }
     return {
       content: (
-        [
-          // turn message content into a text part
-          ...textParts,
-          // turn tool calls into tool call parts
-          ...toolCallParts,
-          // turn tool results into tool result parts
-          ...toolResultParts,
-        ] satisfies (
+        [...textParts, ...toolCallParts, ...toolResultParts] satisfies (
           | ChatPromptVersionInput["template"]["messages"][number]["content"][number]
           | null
         )[]
       ).filter((part) => part !== null),
       role: chatMessageRoleToPromptMessageRole(m.role),
-      // filter is removing nulls but type inference does not work for .filter
-      // we have to cast to get the type inference to work
-      // we do a proper typecheck above to ensure that this cast is safe
     };
+    // filter is removing nulls but type inference does not work for .filter
+    // we have to cast to get the type inference to work
+    // we do a proper typecheck above to ensure that this cast is safe
   }) as ChatPromptVersionInput["template"]["messages"];
 
   const newPromptVersion = {

@@ -21,10 +21,10 @@ import {
   PromptTemplateFormat,
 } from "./__generated__/PromptChatMessagesCard__main.graphql";
 import {
-  ChatTemplateMessage,
-  ChatTemplateMessageText,
-  ChatTemplateMessageToolCall,
-  ChatTemplateMessageToolResult,
+  ChatTemplateMessageCard,
+  ChatTemplateMessageTextPart,
+  ChatTemplateMessageToolCallPart,
+  ChatTemplateMessageToolResultPart,
 } from "./ChatTemplateMessage";
 
 const convertTemplateFormat = (
@@ -128,7 +128,7 @@ function ChatMessageContentPart({
   let parsedPart: AnyPart | null = asTextPart(part);
   if (parsedPart) {
     return (
-      <ChatTemplateMessageText
+      <ChatTemplateMessageTextPart
         text={parsedPart.text.text}
         templateFormat={templateFormat}
       />
@@ -138,13 +138,16 @@ function ChatMessageContentPart({
   parsedPart = asToolCallPart(part);
   if (parsedPart) {
     return (
-      <ChatTemplateMessageToolCall toolCall={parsedPart} provider={provider} />
+      <ChatTemplateMessageToolCallPart
+        toolCall={parsedPart}
+        provider={provider}
+      />
     );
   }
 
   parsedPart = asToolResultPart(part);
   if (parsedPart) {
-    return <ChatTemplateMessageToolResult toolResult={parsedPart} />;
+    return <ChatTemplateMessageToolResultPart toolResult={parsedPart} />;
   }
 
   return null;
@@ -167,7 +170,7 @@ function ChatMessages({
     <Flex direction="column" gap="size-200">
       {messages.map((message, i) => {
         return (
-          <ChatTemplateMessage key={i} role={message.role as string}>
+          <ChatTemplateMessageCard key={i} role={message.role as string}>
             {message.content.map((content, i) => (
               <ChatMessageContentPart
                 key={`${i}-${content.__typename}`}
@@ -176,7 +179,7 @@ function ChatMessages({
                 provider={provider}
               />
             ))}
-          </ChatTemplateMessage>
+          </ChatTemplateMessageCard>
         );
       })}
     </Flex>
