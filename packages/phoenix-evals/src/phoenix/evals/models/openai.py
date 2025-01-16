@@ -14,7 +14,7 @@ from typing import (
     get_origin,
 )
 
-from phoenix.evals.exceptions import PhoenixContextLimitExceeded
+from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
 from phoenix.evals.models.base import BaseModel
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.templates import MultimodalPrompt, PromptPartContentType
@@ -36,6 +36,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-4-vision-preview": 128000,
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
+SUPPORTED_AUDIO_FORMATS = {"mp3", "wav"}
 logger = logging.getLogger(__name__)
 
 
@@ -287,6 +288,9 @@ class OpenAIModel(BaseModel):
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": part.content})
             elif part.content_type == PromptPartContentType.AUDIO:
+                format = str(get_audio_format_from_base64(part.content))
+                if format not in SUPPORTED_AUDIO_FORMATS:
+                    raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
                 messages.append(
                     {
                         "role": "user",
