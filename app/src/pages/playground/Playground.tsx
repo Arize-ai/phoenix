@@ -1,13 +1,7 @@
 import React, { Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import {
-  BlockerFunction,
-  Outlet,
-  useBlocker,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { BlockerFunction, useBlocker, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -32,6 +26,7 @@ import {
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import { PlaygroundProps } from "@phoenix/store";
 
 import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
@@ -131,7 +126,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
         <PlaygroundContent />
       </div>
       <Suspense>
-        <Outlet />
+        <PlaygroundExamplePage />
       </Suspense>
     </PlaygroundProvider>
   );
@@ -215,7 +210,8 @@ function PlaygroundContent() {
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
-  const { datasetId } = useParams<{ datasetId: string }>();
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
   const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
