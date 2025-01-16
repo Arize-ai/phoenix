@@ -4,11 +4,18 @@ import strawberry
 from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
+    ImageContentValue,
     PromptChatTemplateV1,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolDefinition,
-    TextPromptMessage,
+    TextContentValue,
+    ToolCallContentValue,
+    ToolCallFunction,
+    ToolResultContentValue,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    PromptMessage as PromptMessageModel,
 )
 
 
@@ -22,15 +29,51 @@ class JSONSchemaInput:
     definition: JSON
 
 
-@strawberry.experimental.pydantic.input(TextPromptMessage)
-class TextPromptMessageInput:
-    role: strawberry.auto
-    content: strawberry.auto
+@strawberry.experimental.pydantic.input(TextContentValue)
+class TextContentValueInput:
+    text: str
+
+
+@strawberry.experimental.pydantic.input(ImageContentValue)
+class ImageContentValueInput:
+    url: str
+
+
+@strawberry.experimental.pydantic.input(ToolResultContentValue)
+class ToolResultContentValueInput:
+    tool_call_id: strawberry.auto
+    result: JSON
+
+
+@strawberry.experimental.pydantic.input(ToolCallFunction)
+class ToolCallFunctionInput:
+    name: strawberry.auto
+    arguments: strawberry.auto
+
+
+@strawberry.experimental.pydantic.input(ToolCallContentValue)
+class ToolCallContentValueInput:
+    tool_call_id: strawberry.auto
+    tool_call: ToolCallFunctionInput
+
+
+@strawberry.input(one_of=True)
+class ContentPartInput:
+    text: Optional[TextContentValueInput] = strawberry.UNSET
+    image: Optional[ImageContentValueInput] = strawberry.UNSET
+    tool_call: Optional[ToolCallContentValueInput] = strawberry.UNSET
+    tool_result: Optional[ToolResultContentValueInput] = strawberry.UNSET
+
+
+@strawberry.experimental.pydantic.input(PromptMessageModel)
+class PromptMessageInput:
+    role: str
+    content: list[ContentPartInput] = strawberry.field(default_factory=list)
 
 
 @strawberry.experimental.pydantic.input(PromptChatTemplateV1)
 class PromptChatTemplateInput:
-    messages: list[TextPromptMessageInput]
+    messages: list[PromptMessageInput]
 
 
 @strawberry.input
