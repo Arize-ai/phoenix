@@ -466,7 +466,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-1106",
-        "gpt-3.5-turbo-instruct",
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
