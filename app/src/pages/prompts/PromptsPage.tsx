@@ -26,7 +26,7 @@ export function PromptsPage() {
               navigate("/playground");
             }}
           >
-            Create Prompt Template
+            Create Prompt
           </Button>
         </Flex>
       </View>
