@@ -1,0 +1,4 @@
+-r common.txt
+vertexai>=1.71.1
+asgi-lifespan
+pytest-postgresql

@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
-from typing_extensions import TypeAlias
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from typing_extensions import Annotated, TypeAlias
 
 from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
 
@@ -49,19 +49,72 @@ class PromptModel(BaseModel):
     )
 
 
-class TextPromptMessage(PromptModel):
-    role: PromptMessageRole
-    content: str
+class PartBase(BaseModel):
+    type: Literal["text", "image", "tool", "tool_call", "tool_result"]
 
 
-class JSONPromptMessage(PromptModel):
+class TextContentValue(BaseModel):
+    text: str
+
+
+class TextContentPart(PartBase):
+    type: Literal["text"] = Field(default="text")
+    text: TextContentValue
+
+
+class ImageContentValue(BaseModel):
+    # http url, or base64 encoded image
+    url: str
+    # detail: Optional[Literal["auto", "low", "high"]]
+
+
+class ImageContentPart(PartBase):
+    type: Literal["image"] = Field(default="image")
+    # the image data
+    image: ImageContentValue
+
+
+class ToolCallFunction(BaseModel):
+    type: Literal["function"] = Field(default="function")
+    name: str
+    arguments: str
+
+
+class ToolCallContentValue(BaseModel):
+    tool_call_id: str
+    tool_call: ToolCallFunction
+
+
+class ToolCallContentPart(PartBase):
+    type: Literal["tool_call"] = Field(default="tool_call")
+    # the identifier of the tool call function
+    tool_call: ToolCallContentValue
+
+
+class ToolResultContentValue(BaseModel):
+    tool_call_id: str
+    result: JSONSerializable
+
+
+class ToolResultContentPart(PartBase):
+    type: Literal["tool_result"] = Field(default="tool_result")
+    tool_result: ToolResultContentValue
+
+
+ContentPart: TypeAlias = Annotated[
+    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
+    Field(),
+]
+
+
+class PromptMessage(PromptModel):
     role: PromptMessageRole
-    content: JSONSerializable
+    content: list[ContentPart]
 
 
 class PromptChatTemplateV1(PromptModel):
     _version: str = "messages-v1"
-    messages: list[Union[TextPromptMessage, JSONPromptMessage]]
+    messages: list[PromptMessage]
 
 
 class PromptStringTemplateV1(PromptModel):

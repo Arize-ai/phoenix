@@ -25,7 +25,7 @@ import {
   generateToolId,
   PlaygroundInstance,
 } from "@phoenix/store/playground";
-import { Mutable } from "@phoenix/typeUtils";
+import { isObject, Mutable } from "@phoenix/typeUtils";
 
 import {
   fetchPlaygroundPromptQuery,
@@ -36,6 +36,12 @@ import {
 type PromptVersion = NonNullable<
   fetchPlaygroundPromptQuery$data["prompt"]["promptVersions"]
 >["edges"][0]["promptVersion"];
+
+export const isTextPart = (part: unknown): part is { text: { text: string } } =>
+  isObject(part) &&
+  "text" in part &&
+  isObject(part.text) &&
+  "text" in part.text;
 
 /**
  * Converts a playground chat message role to a prompt message role
@@ -158,11 +164,22 @@ export const promptVersionToInstance = ({
       __type: "chat",
       messages:
         "messages" in promptVersion.template
-          ? promptVersion.template.messages.map((m) => ({
-              ...m,
-              id: generateMessageId(),
-              role: getChatRole(m.role?.toLocaleLowerCase() as string),
-            }))
+          ? promptVersion.template.messages.map((m) => {
+              const maybeTextPart = m.content.find(isTextPart);
+              if (isTextPart(maybeTextPart)) {
+                return {
+                  id: generateMessageId(),
+                  role: getChatRole(m.role?.toLocaleLowerCase() as string),
+                  content: maybeTextPart.text.text,
+                };
+              }
+              // TODO(apowell): Break out into switch statement, rendering each message part type
+              return {
+                id: generateMessageId(),
+                role: getChatRole(m.role?.toLocaleLowerCase() as string),
+                content: "",
+              };
+            })
           : [],
     },
     tools: promptVersion.tools.map((t) => ({
@@ -325,9 +342,30 @@ const fetchPlaygroundPromptQuery = graphql`
                 __typename
                 ... on PromptChatTemplate {
                   messages {
-                    ... on TextPromptMessage {
-                      content
-                      role
+                    role
+                    content {
+                      __typename
+                      ... on TextContentPart {
+                        text {
+                          text
+                        }
+                      }
+                      ... on ImageContentPart {
+                        image {
+                          url
+                        }
+                      }
+                      ... on ToolCallContentPart {
+                        toolCall {
+                          toolCallId
+                        }
+                      }
+                      ... on ToolResultContentPart {
+                        toolResult {
+                          toolCallId
+                          result
+                        }
+                      }
                     }
                   }
                 }

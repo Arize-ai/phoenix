@@ -1722,6 +1722,37 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImageContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "image",
+            "title": "Type",
+            "default": "image"
+          },
+          "image": {
+            "$ref": "#/components/schemas/ImageContentValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image"
+        ],
+        "title": "ImageContentPart"
+      },
+      "ImageContentValue": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ImageContentValue"
+      },
       "InsertedSpanAnnotation": {
         "properties": {
           "id": {
@@ -1735,47 +1766,6 @@
           "id"
         ],
         "title": "InsertedSpanAnnotation"
-      },
-      "JSONPromptMessage": {
-        "properties": {
-          "role": {
-            "$ref": "#/components/schemas/PromptMessageRole"
-          },
-          "content": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "object"
-              },
-              {
-                "items": {},
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "role",
-          "content"
-        ],
-        "title": "JSONPromptMessage"
       },
       "ListDatasetExamplesData": {
         "properties": {
@@ -1891,14 +1881,7 @@
         "properties": {
           "messages": {
             "items": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TextPromptMessage"
-                },
-                {
-                  "$ref": "#/components/schemas/JSONPromptMessage"
-                }
-              ]
+              "$ref": "#/components/schemas/PromptMessage"
             },
             "type": "array",
             "title": "Messages"
@@ -1925,6 +1908,40 @@
         ],
         "title": "PromptJSONSchema",
         "description": "A JSON schema definition used to guide an LLM's output"
+      },
+      "PromptMessage": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/PromptMessageRole"
+          },
+          "content": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextContentPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ImageContentPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolCallContentPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolResultContentPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "PromptMessage"
       },
       "PromptMessageRole": {
         "type": "string",
@@ -2171,23 +2188,154 @@
         "type": "object",
         "title": "SpanAnnotationResult"
       },
-      "TextPromptMessage": {
+      "TextContentPart": {
         "properties": {
-          "role": {
-            "$ref": "#/components/schemas/PromptMessageRole"
-          },
-          "content": {
+          "type": {
             "type": "string",
-            "title": "Content"
+            "const": "text",
+            "title": "Type",
+            "default": "text"
+          },
+          "text": {
+            "$ref": "#/components/schemas/TextContentValue"
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
-          "role",
-          "content"
+          "text"
         ],
-        "title": "TextPromptMessage"
+        "title": "TextContentPart"
+      },
+      "TextContentValue": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TextContentValue"
+      },
+      "ToolCallContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool_call",
+            "title": "Type",
+            "default": "tool_call"
+          },
+          "tool_call": {
+            "$ref": "#/components/schemas/ToolCallContentValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_call"
+        ],
+        "title": "ToolCallContentPart"
+      },
+      "ToolCallContentValue": {
+        "properties": {
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id"
+          },
+          "tool_call": {
+            "$ref": "#/components/schemas/ToolCallFunction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_call_id",
+          "tool_call"
+        ],
+        "title": "ToolCallContentValue"
+      },
+      "ToolCallFunction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type",
+            "default": "function"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCallFunction"
+      },
+      "ToolResultContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool_result",
+            "title": "Type",
+            "default": "tool_result"
+          },
+          "tool_result": {
+            "$ref": "#/components/schemas/ToolResultContentValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_result"
+        ],
+        "title": "ToolResultContentPart"
+      },
+      "ToolResultContentValue": {
+        "properties": {
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_call_id",
+          "result"
+        ],
+        "title": "ToolResultContentValue"
       },
       "UploadDatasetData": {
         "properties": {

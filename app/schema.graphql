@@ -1,3 +1,5 @@
+directive @oneOf on INPUT_OBJECT
+
 input AddExamplesToDatasetInput {
   datasetId: GlobalID!
   examples: [DatasetExampleInput!]!
@@ -248,6 +250,15 @@ type Cluster {
 input ClusterInput {
   eventIds: [ID!]!
   id: ID
+}
+
+union ContentPart = TextContentPart | ImageContentPart | ToolCallContentPart | ToolResultContentPart
+
+input ContentPartInput @oneOf {
+  text: TextContentValueInput
+  image: ImageContentValueInput
+  toolCall: ToolCallContentValueInput
+  toolResult: ToolResultContentValueInput
 }
 
 input CreateApiKeyInput {
@@ -1034,6 +1045,18 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+type ImageContentPart {
+  image: ImageContentValue!
+}
+
+type ImageContentValue {
+  url: String!
+}
+
+input ImageContentValueInput {
+  url: String!
+}
+
 type Inferences {
   """The start bookend of the data"""
   startTime: DateTime!
@@ -1121,11 +1144,6 @@ type JSONInvocationParameter implements InvocationParameterBase {
   required: Boolean!
   invocationInputField: InvocationInputField!
   defaultValue: JSON
-}
-
-type JSONPromptMessage {
-  role: PromptMessageRole!
-  content: JSON!
 }
 
 type JSONSchema {
@@ -1444,11 +1462,11 @@ type Prompt implements Node {
 }
 
 type PromptChatTemplate {
-  messages: [PromptTemplateMessage!]!
+  messages: [PromptMessage!]!
 }
 
 input PromptChatTemplateInput {
-  messages: [TextPromptMessageInput!]!
+  messages: [PromptMessageInput!]!
 }
 
 """A connection to a list of items."""
@@ -1467,6 +1485,16 @@ type PromptEdge {
 
   """The item at the end of the edge"""
   node: Prompt!
+}
+
+type PromptMessage {
+  role: PromptMessageRole!
+  content: [ContentPart!]!
+}
+
+input PromptMessageInput {
+  role: String!
+  content: [ContentPartInput!]!
 }
 
 enum PromptMessageRole {
@@ -1495,8 +1523,6 @@ enum PromptTemplateFormat {
   FSTRING
   NONE
 }
-
-union PromptTemplateMessage = TextPromptMessage | JSONPromptMessage
 
 enum PromptTemplateType {
   STRING
@@ -1901,14 +1927,16 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
   content: String!
 }
 
-type TextPromptMessage {
-  role: PromptMessageRole!
-  content: String!
+type TextContentPart {
+  text: TextContentValue!
 }
 
-input TextPromptMessageInput {
-  role: PromptMessageRole!
-  content: String!
+type TextContentValue {
+  text: String!
+}
+
+input TextContentValueInput {
+  text: String!
 }
 
 input TimeRange {
@@ -1940,12 +1968,50 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   function: FunctionCallChunk!
 }
 
+type ToolCallContentPart {
+  toolCall: ToolCallContentValue!
+}
+
+type ToolCallContentValue {
+  toolCallId: String!
+  toolCall: ToolCallFunction!
+}
+
+input ToolCallContentValueInput {
+  toolCallId: String!
+  toolCall: ToolCallFunctionInput!
+}
+
+type ToolCallFunction {
+  name: String!
+  arguments: String!
+}
+
+input ToolCallFunctionInput {
+  name: String!
+  arguments: String!
+}
+
 type ToolDefinition {
   definition: JSON!
 }
 
 input ToolDefinitionInput {
   definition: JSON!
+}
+
+type ToolResultContentPart {
+  toolResult: ToolResultContentValue!
+}
+
+type ToolResultContentValue {
+  toolCallId: String!
+  result: JSON!
+}
+
+input ToolResultContentValueInput {
+  toolCallId: String!
+  result: JSON!
 }
 
 type Trace implements Node {
