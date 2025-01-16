@@ -12,7 +12,7 @@ from phoenix.db.types.identifier import Identifier
         "a b c",
         "αβγ",
         *string.punctuation,
-        *[f"x{p}y" for p in string.punctuation if p != "-"],
+        *(f"x{p}y" for p in string.punctuation if p not in ("-")),
     ],
 )
 def test_invalid_identifier(name: str) -> None:

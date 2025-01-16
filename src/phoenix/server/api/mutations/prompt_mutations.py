@@ -115,8 +115,9 @@ class PromptMutationMixin:
                 model_provider=pydantic_prompt_version.model_provider,
                 model_name=pydantic_prompt_version.model_name,
             )
+            name = IdentifierModel.model_validate(str(input.name))
             prompt = models.Prompt(
-                name=IdentifierModel.model_validate(str(input.name)),
+                name=name,
                 description=input.description,
                 prompt_versions=[prompt_version],
             )
@@ -228,8 +229,9 @@ class PromptMutationMixin:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
             # Create new prompt
+            name = IdentifierModel.model_validate(str(input.name))
             new_prompt = models.Prompt(
-                name=IdentifierModel.model_validate(str(input.name)),
+                name=name,
                 description=input.description,
                 source_prompt_id=prompt_id,
             )
