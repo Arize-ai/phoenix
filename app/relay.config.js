@@ -10,6 +10,7 @@ module.exports = {
     GlobalID: "string",
     DateTime: "string",
     UUID: "string",
+    Identifier: "string",
   },
   typescriptExcludeUndefinedFromNullableUnion: true,
 };

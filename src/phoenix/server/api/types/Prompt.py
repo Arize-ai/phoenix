@@ -11,6 +11,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -29,7 +30,7 @@ from .PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 class Prompt(Node):
     id_attr: NodeID[int]
     source_prompt_id: Optional[GlobalID]
-    name: str
+    name: Identifier
     description: Optional[str]
     created_at: datetime
 
@@ -127,7 +128,7 @@ def to_gql_prompt_from_orm(orm_model: "models.Prompt") -> Prompt:
     return Prompt(
         id_attr=orm_model.id,
         source_prompt_id=source_prompt_gid,
-        name=orm_model.name,
+        name=Identifier(orm_model.name.root),
         description=orm_model.description,
         created_at=orm_model.created_at,
     )
