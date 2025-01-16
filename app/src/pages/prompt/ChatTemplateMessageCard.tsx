@@ -54,7 +54,9 @@ export function ChatTemplateMessageToolResultPart({
             <Text weight="heavy" size="XS">
               Tool ID
             </Text>
-            <Text size="XS">{toolResult.toolResult.toolCallId}</Text>
+            <View paddingX="size-300">
+              <Text size="XS">{toolResult.toolResult.toolCallId}</Text>
+            </View>
           </Flex>
         </View>
         <Flex direction="column">
