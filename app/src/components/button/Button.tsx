@@ -9,6 +9,8 @@ import { SizingProps, StylableProps, Variant } from "@phoenix/components/types";
 
 import { buttonCSS } from "./styles";
 
+type ButtonVariant = Exclude<Variant, "info">;
+
 interface ButtonProps extends AriaButtonProps, SizingProps, StylableProps {
   /**
    * An optional prefixed icon for the button
@@ -18,7 +20,7 @@ interface ButtonProps extends AriaButtonProps, SizingProps, StylableProps {
    * The variant of the button
    * @default: 'default'
    */
-  variant?: Exclude<Variant, "info">;
+  variant?: ButtonVariant;
 }
 
 function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
