@@ -7,13 +7,14 @@ from phoenix.db.types.identifier import Identifier
 
 
 @pytest.mark.parametrize(
-    "value",
+    "name",
     [
         "a b c",
         "αβγ",
         *string.punctuation,
+        *[f"x{p}y" for p in string.punctuation if p != "-"],
     ],
 )
-def test_invalid_identifier(value: str) -> None:
+def test_invalid_identifier(name: str) -> None:
     with pytest.raises(ValidationError):
-        Identifier.model_validate(value)
+        Identifier.model_validate(name)

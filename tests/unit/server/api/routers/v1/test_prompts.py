@@ -1,8 +1,10 @@
+import string
 from secrets import token_hex
 from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import httpx
+import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -41,6 +43,24 @@ class TestPrompts:
             assert (response := await httpx_client.get(url)).is_success
             assert isinstance((data := response.json()["data"]), dict)
             self._compare_prompt_version(data, prompt_version)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "a b c",
+            "αβγ",
+            *[f"x{p}y" for p in string.punctuation if p not in ("-", ".", "/")],
+        ],
+    )
+    async def test_invalid_identifier(
+        self,
+        name: str,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = f"/v1/prompts/{quote_plus(name)}/tags/production"
+        assert (await httpx_client.get(url)).status_code == 422
+        url = f"/v1/prompts/abc/tags/{quote_plus(name)}"
+        assert (await httpx_client.get(url)).status_code == 422
 
     @staticmethod
     def _compare_prompt_version(
