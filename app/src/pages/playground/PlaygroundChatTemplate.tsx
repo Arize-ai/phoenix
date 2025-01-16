@@ -61,7 +61,7 @@ import { PlaygroundTools } from "./PlaygroundTools";
 import {
   areInvocationParamsEqual,
   createToolCallForProvider,
-  normalizeMessageAttributeValue,
+  normalizeMessageContent,
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -224,7 +224,7 @@ function MessageEditor({
     );
   }
   if (message.role === "tool") {
-    const toolMessageContent = normalizeMessageAttributeValue(message.content);
+    const toolMessageContent = message.content || "";
     return (
       <Form
         onSubmit={(e) => {
@@ -449,7 +449,7 @@ function SortableMessageItem({
               text={
                 aiMessageMode === "toolCalls"
                   ? JSON.stringify(message.toolCalls)
-                  : normalizeMessageAttributeValue(message.content)
+                  : normalizeMessageContent(message.content)
               }
             />
             <Button
