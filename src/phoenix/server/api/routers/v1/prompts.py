@@ -82,12 +82,12 @@ async def get_prompts(
     ),
 ) -> GetPromptsResponseBody:
     async with request.app.state.db() as session:
-        query = select(Prompt).order_by(Prompt.id.desc())
+        query = select(models.Prompt).order_by(models.Prompt.id.desc())
 
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
-                query = query.filter(Prompt.id <= int(cursor_id))
+                query = query.filter(models.Prompt.id <= int(cursor_id))
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",
