@@ -219,7 +219,7 @@ input ClearProjectInput {
 }
 
 input ClonePromptInput {
-  name: String!
+  name: Identifier!
   description: String = null
   promptId: GlobalID!
 }
@@ -269,7 +269,7 @@ input CreateApiKeyInput {
 }
 
 input CreateChatPromptInput {
-  name: String!
+  name: Identifier!
   description: String = null
   promptVersion: ChatPromptVersionInput!
 }
@@ -1050,6 +1050,8 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+scalar Identifier
+
 type ImageContentPart {
   image: ImageContentValue!
 }
@@ -1457,7 +1459,7 @@ type Prompt implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   sourcePromptId: GlobalID
-  name: String!
+  name: Identifier!
   description: String
   createdAt: DateTime!
   version(versionId: GlobalID = null): PromptVersion!
@@ -1579,7 +1581,7 @@ type PromptVersionTag implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   promptVersionId: GlobalID!
-  name: String!
+  name: Identifier!
   description: String
 }
 
@@ -1671,7 +1673,7 @@ type Segments {
 
 input SetPromptVersionTagInput {
   promptVersionId: GlobalID!
-  name: String!
+  name: Identifier!
   description: String = null
 }
 

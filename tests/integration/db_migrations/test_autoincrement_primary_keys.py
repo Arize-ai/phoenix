@@ -2,6 +2,7 @@ from secrets import token_hex
 
 from alembic.config import Config
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import sessionmaker
 
@@ -15,7 +16,8 @@ def test_prompt_versions(
     _up(_engine, _alembic_config, "bc8fea3c2bc8")
     db = sessionmaker(bind=_engine, expire_on_commit=False)
     with db.begin() as session:
-        prompt = models.Prompt(name=token_hex(16))
+        name = Identifier.model_validate(token_hex(16))
+        prompt = models.Prompt(name=name)
         session.add(prompt)
     values = dict(
         prompt_id=prompt.id,

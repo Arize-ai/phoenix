@@ -1060,7 +1060,7 @@ class TestPromptMutations:
             pytest.param(
                 {
                     "input": {
-                        "name": "prompt-name (copy)",
+                        "name": "prompt-name-copy",
                         "description": "new prompt-description",
                         "promptId": str(GlobalID("Prompt", "1")),
                     }
