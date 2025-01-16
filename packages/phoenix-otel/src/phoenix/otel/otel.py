@@ -71,9 +71,9 @@ def register(
     tracer_provider = TracerProvider(resource=resource, verbose=False, protocol=protocol)
     span_processor: SpanProcessor
     if batch:
-        span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers)
+        span_processor = BatchSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
     else:
-        span_processor = SimpleSpanProcessor(endpoint=endpoint, headers=headers)
+        span_processor = SimpleSpanProcessor(endpoint=endpoint, headers=headers, protocol=protocol)
     tracer_provider.add_span_processor(span_processor)
     tracer_provider._default_processor = True
 
