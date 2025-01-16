@@ -15,7 +15,7 @@ import {
   PopoverArrow,
   View,
 } from "@phoenix/components";
-import { DEFAULT_PROMPT_VERSTION_TAGS } from "@phoenix/constants";
+import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import { TagPromptVersionButtonTagsQuery } from "./__generated__/TagPromptVersionButtonTagsQuery.graphql";
@@ -132,29 +132,36 @@ function TagList({
     { fetchKey, fetchPolicy: "store-and-network" }
   );
 
-  const versionTags = useMemo(() => {
+  const allVersionTags = useMemo(() => {
+    return data?.prompt?.versionTags?.map((tag) => tag.name) || [];
+  }, [data?.prompt?.versionTags]);
+
+  const tagsSetOnVersion = useMemo(() => {
     return data?.promptVersion?.tags?.map((tag) => tag.name) || [];
   }, [data?.promptVersion?.tags]);
 
-  const allVersionTags = useMemo(() => {
+  const allVersionTagsWithDefaults = useMemo(() => {
     return Array.from(
       new Set([
-        ...DEFAULT_PROMPT_VERSTION_TAGS.map(
+        ...DEFAULT_PROMPT_VERSION_TAGS.map(
           (tagDefinition) => tagDefinition.name
         ),
-        ...versionTags,
+        ...allVersionTags,
       ])
     );
-  }, [versionTags]);
+  }, [allVersionTags]);
+
   const [commitSetTag, isCommitting] = useMutation(graphql`
     mutation TagPromptVersionButtonSetTagMutation(
       $input: SetPromptVersionTagInput!
-      $promptVersionId: GlobalID!
+      $promptId: GlobalID!
     ) {
       setPromptVersionTag(input: $input) {
         query {
-          node(id: $promptVersionId) {
-            ...PromptVersionTagsList_data
+          prompt: node(id: $promptId) {
+            ... on Prompt {
+              ...PromptVersionsList__main
+            }
           }
         }
       }
@@ -162,8 +169,8 @@ function TagList({
   `);
   return (
     <ul>
-      {allVersionTags.map((tagName: string) => {
-        const isTagSet = versionTags.includes(tagName);
+      {allVersionTagsWithDefaults.map((tagName: string) => {
+        const isTagSet = tagsSetOnVersion.includes(tagName);
         return (
           <li key={tagName}>
             <View
@@ -180,10 +187,10 @@ function TagList({
                   disabled={isTagSet || isCommitting}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      const isCreate = !versionTags.includes(tagName);
+                      const isCreate = !tagsSetOnVersion.includes(tagName);
                       let description = "";
                       if (isCreate) {
-                        const tagDefinition = DEFAULT_PROMPT_VERSTION_TAGS.find(
+                        const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
                           (tagDefinition) => tagDefinition.name === tagName
                         );
                         description = tagDefinition?.description || "";
@@ -196,7 +203,7 @@ function TagList({
                             promptVersionId: versionId,
                             description,
                           },
-                          promptVersionId: versionId,
+                          promptId: promptId,
                         },
                         onCompleted: () => {
                           onTagSet(tagName);
