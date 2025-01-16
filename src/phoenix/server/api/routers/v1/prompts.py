@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptJSONSchema,
@@ -94,11 +95,12 @@ async def get_prompt_version_by_tag_name(
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
     tag_name: str = Path(description="The tag of the prompt version"),
 ) -> GetPromptResponseBody:
+    name = Identifier.model_validate(tag_name)
     stmt = (
         select(models.PromptVersion)
         .join_from(models.PromptVersion, models.PromptVersionTag)
         .join_from(models.PromptVersionTag, models.Prompt)
-        .where(models.PromptVersionTag.name == tag_name)
+        .where(models.PromptVersionTag.name == name)
     )
     stmt = _filter_by_prompt_identifier(stmt, prompt_identifier)
     async with request.app.state.db() as session:
@@ -140,7 +142,8 @@ def _filter_by_prompt_identifier(
     if isinstance(identifier, _PromptId):
         return stmt.where(models.Prompt.id == int(identifier))
     if isinstance(identifier, _PromptName):
-        return stmt.where(models.Prompt.name == str(identifier))
+        name = Identifier.model_validate(str(identifier))
+        return stmt.where(models.Prompt.name == name)
     assert_never(identifier)
 
 
