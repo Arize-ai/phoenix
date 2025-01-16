@@ -11,6 +11,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
@@ -21,6 +22,7 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.bearer_auth import PhoenixUser
@@ -28,7 +30,7 @@ from phoenix.server.bearer_auth import PhoenixUser
 
 @strawberry.input
 class CreateChatPromptInput:
-    name: str
+    name: Identifier
     description: Optional[str] = None
     prompt_version: ChatPromptVersionInput
 
@@ -46,7 +48,7 @@ class DeletePromptInput:
 
 @strawberry.input
 class ClonePromptInput:
-    name: str
+    name: Identifier
     description: Optional[str] = None
     prompt_id: GlobalID
 
@@ -118,8 +120,9 @@ class PromptMutationMixin:
                 model_provider=pydantic_prompt_version.model_provider,
                 model_name=pydantic_prompt_version.model_name,
             )
+            name = IdentifierModel.model_validate(str(input.name))
             prompt = models.Prompt(
-                name=input.name,
+                name=name,
                 description=input.description,
                 prompt_versions=[prompt_version],
             )
@@ -233,8 +236,9 @@ class PromptMutationMixin:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
             # Create new prompt
+            name = IdentifierModel.model_validate(str(input.name))
             new_prompt = models.Prompt(
-                name=input.name,
+                name=name,
                 description=input.description,
                 source_prompt_id=prompt_id,
             )

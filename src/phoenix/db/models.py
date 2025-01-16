@@ -39,6 +39,7 @@ from sqlalchemy.sql import expression
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.identifier import Identifier
 
 
 class AuthMethod(Enum):
@@ -98,6 +99,19 @@ class UtcTimeStamp(TypeDecorator[datetime]):
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[datetime]:
         return normalize_datetime(value, timezone.utc)
+
+
+class _Identifier(TypeDecorator[Identifier]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[Identifier], _: Dialect) -> Optional[str]:
+        assert isinstance(value, Identifier) or value is None
+        return None if value is None else value.root
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[Identifier]:
+        return None if value is None else Identifier.model_validate(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -832,7 +846,7 @@ class Prompt(Base):
         index=True,
         nullable=True,
     )
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -933,7 +947,7 @@ class PromptVersionTag(Base):
     __tablename__ = "prompt_version_tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     prompt_id: Mapped[int] = mapped_column(
         ForeignKey("prompts.id", ondelete="CASCADE"),
