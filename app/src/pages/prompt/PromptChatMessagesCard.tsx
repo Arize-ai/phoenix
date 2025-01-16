@@ -6,14 +6,26 @@ import { Card } from "@arizeai/components";
 import { Flex, Text } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
-import { isTextPart } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
+import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
+import { AnyPart } from "@phoenix/schemas/promptSchemas";
+import {
+  asTextPart,
+  asToolCallPart,
+  asToolResultPart,
+} from "@phoenix/utils/promptUtils";
 
 import {
   PromptChatMessagesCard__main$data,
   PromptChatMessagesCard__main$key,
   PromptTemplateFormat,
 } from "./__generated__/PromptChatMessagesCard__main.graphql";
-import { ChatTemplateMessage } from "./ChatTemplateMessage";
+import {
+  ChatTemplateMessageCard,
+  ChatTemplateMessageTextPart,
+  ChatTemplateMessageToolCallPart,
+  ChatTemplateMessageToolResultPart,
+} from "./ChatTemplateMessageCard";
 
 const convertTemplateFormat = (
   templateFormat: PromptTemplateFormat
@@ -31,9 +43,10 @@ export function PromptChatMessages({
 }: {
   promptVersion: PromptChatMessagesCard__main$key;
 }) {
-  const { template, templateFormat } = useFragment(
+  const { template, templateFormat, provider } = useFragment(
     graphql`
       fragment PromptChatMessagesCard__main on PromptVersion {
+        provider: modelProvider
         template {
           __typename
           ... on PromptChatTemplate {
@@ -54,6 +67,10 @@ export function PromptChatMessages({
                 ... on ToolCallContentPart {
                   toolCall {
                     toolCallId
+                    toolCall {
+                      arguments
+                      name
+                    }
                   }
                 }
                 ... on ToolResultContentPart {
@@ -84,6 +101,10 @@ export function PromptChatMessages({
       <ChatMessages
         template={template}
         templateFormat={convertTemplateFormat(templateFormat)}
+        provider={
+          openInferenceModelProviderToPhoenixModelProvider(provider) ||
+          DEFAULT_MODEL_PROVIDER
+        }
       />
     );
   }
@@ -92,32 +113,86 @@ export function PromptChatMessages({
   }
 }
 
+function ChatMessageContentPart({
+  part,
+  templateFormat,
+  provider,
+  isOnlyChild,
+}: {
+  part: Extract<
+    PromptChatMessagesCard__main$data["template"],
+    { __typename: "PromptChatTemplate" }
+  >["messages"][number]["content"][number];
+  templateFormat: TemplateLanguage;
+  provider: ModelProvider;
+  isOnlyChild?: boolean;
+}) {
+  let parsedPart: AnyPart | null = asTextPart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageTextPart
+        text={parsedPart.text.text}
+        templateFormat={templateFormat}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  parsedPart = asToolCallPart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageToolCallPart
+        toolCall={parsedPart}
+        provider={provider}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  parsedPart = asToolResultPart(part);
+  if (parsedPart) {
+    return (
+      <ChatTemplateMessageToolResultPart
+        toolResult={parsedPart}
+        isOnlyChild={isOnlyChild}
+      />
+    );
+  }
+
+  return null;
+}
+
 function ChatMessages({
   template,
   templateFormat,
+  provider,
 }: {
   template: Extract<
     PromptChatMessagesCard__main$data["template"],
     { __typename: "PromptChatTemplate" }
   >;
   templateFormat: TemplateLanguage;
+  provider: ModelProvider;
 }) {
   const { messages } = template;
   return (
     <Flex direction="column" gap="size-200">
       {messages.map((message, i) => {
-        const textPart = message.content.find(isTextPart);
-        // TODO(apowell): Break out into switch statement, rendering each message part type
-        if (!isTextPart(textPart)) {
-          return null;
-        }
+        const isOnlyChild =
+          message.content.length === 1 &&
+          message.content.find(asTextPart) != null;
         return (
-          <ChatTemplateMessage
-            key={i}
-            role={message.role as string}
-            content={textPart.text.text}
-            templateFormat={templateFormat}
-          />
+          <ChatTemplateMessageCard key={i} role={message.role as string}>
+            {message.content.map((content, i) => (
+              <ChatMessageContentPart
+                key={`${i}-${content.__typename}`}
+                part={content}
+                templateFormat={templateFormat}
+                provider={provider}
+                isOnlyChild={isOnlyChild}
+              />
+            ))}
+          </ChatTemplateMessageCard>
         );
       })}
     </Flex>
