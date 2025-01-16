@@ -25,7 +25,7 @@ import {
   ChatTemplateMessageTextPart,
   ChatTemplateMessageToolCallPart,
   ChatTemplateMessageToolResultPart,
-} from "./ChatTemplateMessage";
+} from "./ChatTemplateMessageCard";
 
 const convertTemplateFormat = (
   templateFormat: PromptTemplateFormat
