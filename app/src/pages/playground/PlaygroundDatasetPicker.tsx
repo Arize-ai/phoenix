@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
@@ -31,9 +31,8 @@ const playgroundDatasetPickerCSS = css`
 `;
 
 export function PlaygroundDatasetPicker() {
-  const navigate = useNavigate();
-  const { datasetId } = useParams<{ datasetId: string }>();
-  const selectedDatasetId = datasetId ?? "";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedDatasetId = searchParams.get("datasetId") ?? "";
 
   return (
     <div css={playgroundDatasetPickerCSS}>
@@ -43,17 +42,26 @@ export function PlaygroundDatasetPicker() {
         selectedKey={selectedDatasetId}
         onSelectionChange={(datasetId) => {
           if (selectedDatasetId !== null && datasetId === selectedDatasetId) {
-            navigate("/playground");
+            setSearchParams((prev) => {
+              prev.delete("datasetId");
+              return prev;
+            });
             return;
           }
-          navigate(`/playground/datasets/${datasetId}`);
+          setSearchParams((prev) => {
+            prev.set("datasetId", String(datasetId));
+            return prev;
+          });
         }}
       />
       <Button
         size="S"
         icon={<Icon svg={<Icons.CloseOutline />} />}
         onPress={() => {
-          navigate("/playground");
+          setSearchParams((prev) => {
+            prev.delete("datasetId");
+            return prev;
+          });
         }}
       />
     </div>
