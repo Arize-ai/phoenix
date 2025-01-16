@@ -117,6 +117,7 @@ function ChatMessageContentPart({
   part,
   templateFormat,
   provider,
+  isOnlyChild,
 }: {
   part: Extract<
     PromptChatMessagesCard__main$data["template"],
@@ -124,6 +125,7 @@ function ChatMessageContentPart({
   >["messages"][number]["content"][number];
   templateFormat: TemplateLanguage;
   provider: ModelProvider;
+  isOnlyChild?: boolean;
 }) {
   let parsedPart: AnyPart | null = asTextPart(part);
   if (parsedPart) {
@@ -131,6 +133,7 @@ function ChatMessageContentPart({
       <ChatTemplateMessageTextPart
         text={parsedPart.text.text}
         templateFormat={templateFormat}
+        isOnlyChild={isOnlyChild}
       />
     );
   }
@@ -141,13 +144,19 @@ function ChatMessageContentPart({
       <ChatTemplateMessageToolCallPart
         toolCall={parsedPart}
         provider={provider}
+        isOnlyChild={isOnlyChild}
       />
     );
   }
 
   parsedPart = asToolResultPart(part);
   if (parsedPart) {
-    return <ChatTemplateMessageToolResultPart toolResult={parsedPart} />;
+    return (
+      <ChatTemplateMessageToolResultPart
+        toolResult={parsedPart}
+        isOnlyChild={isOnlyChild}
+      />
+    );
   }
 
   return null;
@@ -169,6 +178,9 @@ function ChatMessages({
   return (
     <Flex direction="column" gap="size-200">
       {messages.map((message, i) => {
+        const isOnlyChild =
+          message.content.length === 1 &&
+          message.content.find(asTextPart) != null;
         return (
           <ChatTemplateMessageCard key={i} role={message.role as string}>
             {message.content.map((content, i) => (
@@ -177,6 +189,7 @@ function ChatMessages({
                 part={content}
                 templateFormat={templateFormat}
                 provider={provider}
+                isOnlyChild={isOnlyChild}
               />
             ))}
           </ChatTemplateMessageCard>

@@ -32,39 +32,46 @@ const PART_TYPE_TITLES = Object.values(PART_TYPE_TITLE);
 
 export type ChatTemplateMessageToolResultPartProps = {
   toolResult: ToolResultPart;
+  isOnlyChild?: boolean;
 };
 
 export function ChatTemplateMessageToolResultPart({
   toolResult,
+  isOnlyChild,
 }: ChatTemplateMessageToolResultPartProps) {
   const value = useMemo(() => {
     const convertedToolResult = toolResult.toolResult.result;
     return normalizeMessageContent(convertedToolResult);
   }, [toolResult]);
   return (
-    <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.toolResult}>
+    <ChatTemplateMessagePartContainer
+      title={PART_TYPE_TITLE.toolResult}
+      isOnlyChild={isOnlyChild}
+    >
       <Flex direction="column">
         <View paddingX="size-200" paddingTop="size-100">
-          <Flex
-            direction="row"
-            justifyContent="start"
-            alignItems="center"
-            gap="size-200"
-          >
+          <Flex direction="column" justifyContent="start" gap="size-100">
             <Text weight="heavy" size="XS">
               Tool ID
             </Text>
             <Text size="XS">{toolResult.toolResult.toolCallId}</Text>
           </Flex>
         </View>
-        <TemplateEditorWrap readOnly>
-          <TemplateEditor
-            readOnly
-            height="100%"
-            value={value}
-            templateLanguage={TemplateLanguages.NONE}
-          />
-        </TemplateEditorWrap>
+        <Flex direction="column">
+          <View paddingX="size-200" paddingTop="size-100">
+            <Text weight="heavy" size="XS">
+              Tool Result
+            </Text>
+          </View>
+          <TemplateEditorWrap readOnly>
+            <TemplateEditor
+              readOnly
+              height="100%"
+              value={value}
+              templateLanguage={TemplateLanguages.NONE}
+            />
+          </TemplateEditorWrap>
+        </Flex>
       </Flex>
     </ChatTemplateMessagePartContainer>
   );
@@ -73,18 +80,23 @@ export function ChatTemplateMessageToolResultPart({
 export type ChatTemplateMessageToolCallPartProps = {
   toolCall: ToolCallPart;
   provider: ModelProvider;
+  isOnlyChild?: boolean;
 };
 
 export function ChatTemplateMessageToolCallPart({
   provider,
   toolCall,
+  isOnlyChild,
 }: ChatTemplateMessageToolCallPartProps) {
   const value = useMemo(() => {
     const convertedToolCall = fromPromptToolCallPart(toolCall, provider);
     return safelyStringifyJSON(convertedToolCall, null, 2).json || "";
   }, [provider, toolCall]);
   return (
-    <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.toolCall}>
+    <ChatTemplateMessagePartContainer
+      title={PART_TYPE_TITLE.toolCall}
+      isOnlyChild={isOnlyChild}
+    >
       <TemplateEditorWrap readOnly>
         <TemplateEditor
           readOnly
@@ -100,14 +112,18 @@ export function ChatTemplateMessageToolCallPart({
 export type ChatTemplateMessageTextPartProps = {
   text: string;
   templateFormat: TemplateLanguage;
+  isOnlyChild?: boolean;
 };
 
 export function ChatTemplateMessageTextPart(
   props: ChatTemplateMessageTextPartProps
 ) {
-  const { text, templateFormat } = props;
+  const { text, templateFormat, isOnlyChild } = props;
   return (
-    <ChatTemplateMessagePartContainer title={PART_TYPE_TITLE.text}>
+    <ChatTemplateMessagePartContainer
+      title={PART_TYPE_TITLE.text}
+      isOnlyChild={isOnlyChild}
+    >
       <TemplateEditorWrap readOnly>
         <TemplateEditor
           readOnly
@@ -126,7 +142,11 @@ export function ChatTemplateMessageTextPart(
 function ChatTemplateMessagePartContainer({
   title,
   children,
-}: PropsWithChildren<{ title?: string }>) {
+  isOnlyChild,
+}: PropsWithChildren<{ title?: string; isOnlyChild?: boolean }>) {
+  if (isOnlyChild) {
+    return <>{children}</>;
+  }
   return (
     <Disclosure id={title}>
       <DisclosureTrigger>
