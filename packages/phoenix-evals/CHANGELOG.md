@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.1...arize-phoenix-evals-v0.19.0) (2025-01-16)
+
+
+### Features
+
+* Audio evals & data processor for llm_classify() ([#5616](https://github.com/Arize-ai/phoenix/issues/5616)) ([0eda8ce](https://github.com/Arize-ai/phoenix/commit/0eda8ce9d1443d679734fe76cd6481f9a352e59b))
+
 ## [0.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.0...arize-phoenix-evals-v0.18.1) (2025-01-07)
 
 
