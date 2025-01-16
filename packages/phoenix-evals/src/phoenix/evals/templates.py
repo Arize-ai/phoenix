@@ -33,6 +33,7 @@ class DotKeyFormatter(Formatter):
 class PromptPartContentType(str, Enum):
     TEXT = "text"
     AUDIO = "audio"
+    IMAGE = "image"
 
 
 @dataclass
