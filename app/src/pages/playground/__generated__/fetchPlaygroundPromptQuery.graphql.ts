@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52adb3f1af76540f66b7c9b35640cc2a>>
+ * @generated SignedSource<<ecaf6a266c76a642b412810e9ba5e2a6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,6 +48,10 @@ export type fetchPlaygroundPromptQuery$data = {
               } | {
                 readonly __typename: "ToolCallContentPart";
                 readonly toolCall: {
+                  readonly toolCall: {
+                    readonly arguments: string;
+                    readonly name: string;
+                  };
                   readonly toolCallId: string;
                 };
               } | {
@@ -323,7 +327,26 @@ v9 = {
                                   "name": "toolCall",
                                   "plural": false,
                                   "selections": [
-                                    (v8/*: any*/)
+                                    (v8/*: any*/),
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "concreteType": "ToolCallFunction",
+                                      "kind": "LinkedField",
+                                      "name": "toolCall",
+                                      "plural": false,
+                                      "selections": [
+                                        (v3/*: any*/),
+                                        {
+                                          "alias": null,
+                                          "args": null,
+                                          "kind": "ScalarField",
+                                          "name": "arguments",
+                                          "storageKey": null
+                                        }
+                                      ],
+                                      "storageKey": null
+                                    }
                                   ],
                                   "storageKey": null
                                 }
@@ -460,16 +483,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c527131d26161a8a6aa9fa210c2ab42b",
+    "cacheID": "b0cdb62a6b7b92da3065266cff26b193",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            outputSchema {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ImageContentPart {\n                      image {\n                        url\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            outputSchema {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ImageContentPart {\n                      image {\n                        url\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4b6cf6d5af54eed4f5ef542a8a652cb9";
+(node as any).hash = "0ab7fb596eed681196bc4e0d015d86c3";
 
 export default node;

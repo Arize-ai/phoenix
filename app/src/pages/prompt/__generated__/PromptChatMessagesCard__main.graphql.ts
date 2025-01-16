@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bd981f3e2d95665c6dd8ddb62b0ab888>>
+ * @generated SignedSource<<c193e0c5bccce5eade388c5337f72527>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
 import { FragmentRefs } from "relay-runtime";
 export type PromptChatMessagesCard__main$data = {
+  readonly provider: string;
   readonly template: {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
@@ -30,6 +31,10 @@ export type PromptChatMessagesCard__main$data = {
       } | {
         readonly __typename: "ToolCallContentPart";
         readonly toolCall: {
+          readonly toolCall: {
+            readonly arguments: string;
+            readonly name: string;
+          };
           readonly toolCallId: string;
         };
       } | {
@@ -83,6 +88,13 @@ return {
   "metadata": null,
   "name": "PromptChatMessagesCard__main",
   "selections": [
+    {
+      "alias": "provider",
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelProvider",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -180,7 +192,32 @@ return {
                           "name": "toolCall",
                           "plural": false,
                           "selections": [
-                            (v1/*: any*/)
+                            (v1/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "ToolCallFunction",
+                              "kind": "LinkedField",
+                              "name": "toolCall",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "arguments",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "name",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
                           ],
                           "storageKey": null
                         }
@@ -261,6 +298,6 @@ return {
 };
 })();
 
-(node as any).hash = "44723a43af8510b118d12b46f396f0b9";
+(node as any).hash = "ab2a1196a5dc4d79e1cbba22c7e7ba07";
 
 export default node;

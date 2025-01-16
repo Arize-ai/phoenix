@@ -37,6 +37,7 @@ import {
   getToolsFromAttributes,
   getVariablesMapFromInstances,
   mergeInvocationParametersWithDefaults,
+  normalizeMessageContent,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -1528,5 +1529,43 @@ describe("mergeInvocationParametersWithDefaults", () => {
       },
       { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
     ]);
+  });
+});
+
+describe("normalizeMessageContent", () => {
+  it("should return the content as a string", () => {
+    const content = "Hello, world!";
+    expect(normalizeMessageContent(content)).toBe(content);
+  });
+
+  it("should return the content as a stringified JSON with pretty printing", () => {
+    const content = { foo: "bar" };
+    expect(normalizeMessageContent(content)).toBe(
+      JSON.stringify(content, null, 2)
+    );
+  });
+
+  it("should return the content as a string if it is not a string or object", () => {
+    const content = 123;
+    expect(normalizeMessageContent(content)).toBe("123");
+  });
+
+  it("should return arrays as a stringified JSON", () => {
+    const content = [1, "2", 3, { foo: "bar" }];
+    expect(normalizeMessageContent(content)).toBe(
+      `[
+  1,
+  "2",
+  3,
+  {
+    "foo": "bar"
+  }
+]`
+    );
+  });
+
+  it("should handle double quoted strings", () => {
+    const content = `"\\"Hello, world!\\""`;
+    expect(normalizeMessageContent(content)).toBe(`"Hello, world!"`);
   });
 });

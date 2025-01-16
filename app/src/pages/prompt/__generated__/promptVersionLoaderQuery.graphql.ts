@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c7e193d3e9ea1908cd31026b75d0511>>
+ * @generated SignedSource<<20b611834a86353387ff858047a0ed60>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -210,6 +210,13 @@ return {
             "selections": [
               (v5/*: any*/),
               {
+                "alias": "provider",
+                "args": null,
+                "kind": "ScalarField",
+                "name": "modelProvider",
+                "storageKey": null
+              },
+              {
                 "alias": null,
                 "args": null,
                 "concreteType": null,
@@ -306,7 +313,26 @@ return {
                                     "name": "toolCall",
                                     "plural": false,
                                     "selections": [
-                                      (v10/*: any*/)
+                                      (v10/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "ToolCallFunction",
+                                        "kind": "LinkedField",
+                                        "name": "toolCall",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "arguments",
+                                            "storageKey": null
+                                          },
+                                          (v9/*: any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
                                     ],
                                     "storageKey": null
                                   }
@@ -424,12 +450,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9ebfe951452606a4f60c6a5416639175",
+    "cacheID": "855083c07021eaf4434ff7cbff11a30a",
     "id": null,
     "metadata": {},
     "name": "promptVersionLoaderQuery",
     "operationKind": "query",
-    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      ...PromptVersionTagsList_data\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      tags {\n        name\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ImageContentPart {\n            image {\n              url\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ImageContentPart {\n            __typename\n            image {\n              url\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptOutputSchemaFragment\n}\n\nfragment PromptOutputSchemaFragment on PromptVersion {\n  outputSchema {\n    definition\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    definition\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
+    "text": "query promptVersionLoaderQuery(\n  $id: GlobalID!\n) {\n  promptVersion: node(id: $id) {\n    __typename\n    id\n    ... on PromptVersion {\n      ...PromptInvocationParameters__main\n      ...PromptChatMessagesCard__main\n      ...PromptCodeExportCard__main\n      ...PromptModelConfigurationCard__main\n      ...PromptVersionTagsList_data\n      description\n      invocationParameters\n      modelName\n      tools {\n        definition\n      }\n      tags {\n        name\n      }\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ImageContentPart {\n            image {\n              url\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptCodeExportCard__main on PromptVersion {\n  invocationParameters\n  modelName\n  modelProvider\n  outputSchema {\n    definition\n  }\n  tools {\n    definition\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            __typename\n            text {\n              text\n            }\n          }\n          ... on ImageContentPart {\n            __typename\n            image {\n              url\n            }\n          }\n          ... on ToolCallContentPart {\n            __typename\n            toolCall {\n              toolCallId\n            }\n          }\n          ... on ToolResultContentPart {\n            __typename\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateFormat\n  templateType\n}\n\nfragment PromptInvocationParameters__main on PromptVersion {\n  invocationParameters\n}\n\nfragment PromptModelConfigurationCard__main on PromptVersion {\n  ...PromptInvocationParameters__main\n  ...PromptTools__main\n  ...PromptOutputSchemaFragment\n}\n\nfragment PromptOutputSchemaFragment on PromptVersion {\n  outputSchema {\n    definition\n  }\n}\n\nfragment PromptTools__main on PromptVersion {\n  tools {\n    definition\n  }\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n"
   }
 };
 })();
