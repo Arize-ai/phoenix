@@ -11,6 +11,7 @@ import {
 } from "@phoenix/components";
 import { PromptModelConfigurationCard__main$key } from "@phoenix/pages/prompt/__generated__/PromptModelConfigurationCard__main.graphql";
 import { PromptInvocationParameters } from "@phoenix/pages/prompt/PromptInvocationParameters";
+import { PromptLLM } from "@phoenix/pages/prompt/PromptLLM";
 import { PromptOutputSchema } from "@phoenix/pages/prompt/PromptOutputSchema";
 import { PromptTools } from "@phoenix/pages/prompt/PromptTools";
 
@@ -22,6 +23,9 @@ export function PromptModelConfigurationCard({
   const promptVersion = useFragment<PromptModelConfigurationCard__main$key>(
     graphql`
       fragment PromptModelConfigurationCard__main on PromptVersion {
+        model: modelName
+        provider: modelProvider
+        ...PromptLLM__main
         ...PromptInvocationParameters__main
         ...PromptTools__main
         ...PromptOutputSchemaFragment
@@ -37,11 +41,13 @@ export function PromptModelConfigurationCard({
     >
       <DisclosureGroup
         defaultExpandedKeys={[
+          "llm",
           "invocation-parameters",
           "tools",
           "output-schema",
         ]}
       >
+        <PromptLLM promptVersion={promptVersion} />
         <Disclosure id="invocation-parameters">
           <DisclosureTrigger>Invocation Parameters</DisclosureTrigger>
           <DisclosurePanel>
