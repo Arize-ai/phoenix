@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f3e504e38941a8f03594af12b1525ad1>>
+ * @generated SignedSource<<8e709a5628ea7235eacc28dfa5bb7277>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
-export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
+export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
