@@ -1,6 +1,8 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
+import { Card } from "@arizeai/components";
+
 import {
   Disclosure,
   DisclosureGroup,
@@ -10,7 +12,6 @@ import {
   DisclosureTrigger,
   DisclosureTriggerProps,
   Text,
-  View,
 } from "@phoenix/components";
 
 const meta: Meta = {
@@ -24,20 +25,26 @@ const meta: Meta = {
 export default meta;
 
 const Template: StoryFn<DisclosureGroupProps> = (args) => (
-  <DisclosureGroup {...args}>
-    <Disclosure id="content">
-      <DisclosureTrigger>First Item Title</DisclosureTrigger>
-      <DisclosurePanel>
-        <Text>First Item Content</Text>
-      </DisclosurePanel>
-    </Disclosure>
-    <Disclosure id="content-2">
-      <DisclosureTrigger>Second Item Title</DisclosureTrigger>
-      <DisclosurePanel>
-        <Text>Second Item Content</Text>
-      </DisclosurePanel>
-    </Disclosure>
-  </DisclosureGroup>
+  <Card
+    title="Disclosure"
+    bodyStyle={{ padding: 0, width: "600px" }}
+    variant="compact"
+  >
+    <DisclosureGroup {...args}>
+      <Disclosure id="content">
+        <DisclosureTrigger>First Item Title</DisclosureTrigger>
+        <DisclosurePanel>
+          <Text>First Item Content</Text>
+        </DisclosurePanel>
+      </Disclosure>
+      <Disclosure id="content-2">
+        <DisclosureTrigger>Second Item Title</DisclosureTrigger>
+        <DisclosurePanel>
+          <Text>Second Item Content</Text>
+        </DisclosurePanel>
+      </Disclosure>
+    </DisclosureGroup>
+  </Card>
 );
 
 export const Default: Meta<typeof DisclosureGroup> = {
@@ -46,14 +53,12 @@ export const Default: Meta<typeof DisclosureGroup> = {
 };
 
 const SingleItemStory: StoryFn<DisclosureProps> = (args) => (
-  <View height="600px" width="300px">
-    <Disclosure id="content" {...args}>
-      <DisclosureTrigger>Content Title</DisclosureTrigger>
-      <DisclosurePanel>
-        <Text>Content</Text>
-      </DisclosurePanel>
-    </Disclosure>
-  </View>
+  <Disclosure id="content" {...args}>
+    <DisclosureTrigger>Content Title</DisclosureTrigger>
+    <DisclosurePanel>
+      <Text>Content</Text>
+    </DisclosurePanel>
+  </Disclosure>
 );
 
 export const SingleItem: Meta<typeof SingleItemStory> = {
@@ -76,7 +81,11 @@ export const SingleItem: Meta<typeof SingleItemStory> = {
 };
 
 const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
-  <View height="600px" width="600px">
+  <Card
+    title="Disclosure"
+    bodyStyle={{ padding: 0, width: "600px" }}
+    variant="compact"
+  >
     <DisclosureGroup>
       <Disclosure id="content" {...args}>
         <DisclosureTrigger {...args}>
@@ -103,7 +112,7 @@ const ExtraTitleContentStory: StoryFn<DisclosureTriggerProps> = (args) => (
         </DisclosurePanel>
       </Disclosure>
     </DisclosureGroup>
-  </View>
+  </Card>
 );
 
 export const ExtraTitleContent: Meta<typeof ExtraTitleContentStory> = {
