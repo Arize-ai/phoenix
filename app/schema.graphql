@@ -284,6 +284,11 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
+input CreatePromptLabelInput {
+  name: Identifier!
+  description: String = null
+}
+
 input CreateSpanAnnotationInput {
   spanId: GlobalID!
   name: String!
@@ -533,6 +538,10 @@ input DeleteExperimentsInput {
 
 input DeletePromptInput {
   promptId: GlobalID!
+}
+
+input DeletePromptLabelInput {
+  promptLabelId: GlobalID!
 }
 
 type DeletePromptMutationPayload {
@@ -1241,6 +1250,11 @@ type Mutation {
   patchPrompt(input: PatchPromptInput!): Prompt!
   deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
   setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
+  patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
+  setPromptLabelSingleQuery(input: SetPromptLabelInput!): PromptLabelMutationPayload!
+  removePromptLabel(input: RemovePromptLabelInput!): PromptLabelMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1311,6 +1325,12 @@ input PatchDatasetInput {
 input PatchPromptInput {
   promptId: GlobalID!
   description: String!
+}
+
+input PatchPromptLabelInput {
+  promptLabelId: GlobalID!
+  name: Identifier = null
+  description: String = null
 }
 
 input PatchUserInput {
@@ -1493,6 +1513,19 @@ type PromptEdge {
   node: Prompt!
 }
 
+type PromptLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: Identifier!
+  description: String
+  prompts: [Prompt!]!
+}
+
+type PromptLabelMutationPayload {
+  promptLabel: PromptLabel
+  query: Query!
+}
+
 type PromptMessage {
   role: PromptMessageRole!
   content: [ContentPart!]!
@@ -1631,6 +1664,11 @@ type Query {
   ): [Cluster!]!
 }
 
+input RemovePromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
+}
+
 type Retrieval {
   queryId: ID!
   documentId: ID!
@@ -1662,6 +1700,11 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+input SetPromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
 }
 
 input SetPromptVersionTagInput {
