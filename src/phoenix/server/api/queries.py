@@ -61,6 +61,7 @@ from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, co
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
@@ -583,6 +584,15 @@ class Query:
                     return to_gql_prompt_version(orm_prompt_version)
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
+        elif type_name == PromptLabel.__name__:
+            async with info.context.db() as session:
+                if not (
+                    prompt_label := await session.scalar(
+                        select(models.PromptLabel).where(models.PromptLabel.id == node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown prompt label: {id}")
+            return to_gql_prompt_label(prompt_label)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
