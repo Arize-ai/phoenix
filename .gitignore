@@ -35,6 +35,17 @@ examples/agent_framework_comparison/utils/saved_traces/*.parquet
 .conda
 .venv
 
+/packages/__init__.py
+/packages/phoenix-client/__init__.py
+/packages/phoenix-client/src/__init__.py
+/packages/phoenix-client/src/phoenix/__init__.py
+/packages/phoenix-evals/__init__.py
+/packages/phoenix-evals/src/__init__.py
+/packages/phoenix-evals/src/phoenix/__init__.py
+/packages/phoenix-otel/__init__.py
+/packages/phoenix-otel/src/__init__.py
+/packages/phoenix-otel/src/phoenix/__init__.py
+
 # Symbolic links
 # Note that this can affect hatch build for those packages. That's why
 # we need to un-ignore it if it's an actual folder (i.e. with the trailing /).
