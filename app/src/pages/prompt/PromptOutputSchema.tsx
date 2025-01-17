@@ -49,7 +49,9 @@ export function PromptOutputSchema({
         <DisclosurePanel>
           <View padding="size-200">
             <Flex justifyContent="center" alignItems="center">
-              <Text>No output schema specified for this prompt</Text>
+              <Text color="text-300">
+                No output schema specified for this prompt
+              </Text>
             </Flex>
           </View>
         </DisclosurePanel>
