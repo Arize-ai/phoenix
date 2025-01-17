@@ -9,7 +9,7 @@ export function useChatMessageStyles(
     const normalizedRole = role.toLowerCase();
     if (normalizedRole === "user" || normalizedRole === "human") {
       return {
-        backgroundColor: "grey-100",
+        backgroundColor: "grey-200",
         borderColor: "grey-500",
       };
     } else if (normalizedRole === "assistant" || normalizedRole === "ai") {

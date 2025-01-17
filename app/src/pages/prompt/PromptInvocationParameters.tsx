@@ -23,8 +23,10 @@ function PromptInvocationParameterItem({
   return (
     <View paddingStart="size-100" paddingEnd="size-100">
       <Flex direction="row" justifyContent="space-between">
-        <Text weight="heavy">{keyName}</Text>
-        <Text>{json}</Text>
+        <Text size="XS" color="text-700">
+          {keyName}
+        </Text>
+        <Text size="XS">{json}</Text>
       </Flex>
     </View>
   );
@@ -60,7 +62,7 @@ export function PromptInvocationParameters({
     return (
       <View padding="size-200">
         <Flex justifyContent="center" alignItems="center">
-          <Text>No parameters saved for this prompt</Text>
+          <Text color="text-700">No parameters saved for this prompt</Text>
         </Flex>
       </View>
     );
