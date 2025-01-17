@@ -640,6 +640,29 @@ class Query:
             )
 
     @strawberry.field
+    async def prompt_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[PromptLabel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            prompt_labels = await session.stream_scalars(select(models.PromptLabel))
+        data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+        return connection_from_list(
+            data=data,
+            args=args,
+        )
+
+    @strawberry.field
     def clusters(
         self,
         clusters: list[ClusterInput],
