@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89a0965570719eab85a61133888d2666>>
+ * @generated SignedSource<<6b54d1dfb8ff8b872c51e9b1de590e59>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,9 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptModelConfigurationCard__main$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main" | "PromptOutputSchemaFragment" | "PromptTools__main">;
+  readonly model: string;
+  readonly provider: string;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParameters__main" | "PromptLLM__main" | "PromptOutputSchemaFragment" | "PromptTools__main">;
   readonly " $fragmentType": "PromptModelConfigurationCard__main";
 };
 export type PromptModelConfigurationCard__main$key = {
@@ -25,6 +27,25 @@ const node: ReaderFragment = {
   "metadata": null,
   "name": "PromptModelConfigurationCard__main",
   "selections": [
+    {
+      "alias": "model",
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelName",
+      "storageKey": null
+    },
+    {
+      "alias": "provider",
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelProvider",
+      "storageKey": null
+    },
+    {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "PromptLLM__main"
+    },
     {
       "args": null,
       "kind": "FragmentSpread",
@@ -45,6 +66,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "7ec5f9f00217c6d2f622362726028683";
+(node as any).hash = "d4da6036f4ce3b8793d09dd0a78b343d";
 
 export default node;
