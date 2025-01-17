@@ -207,7 +207,7 @@ class TraceDataset:
                     "status_code": row["status_code"],
                     "status_message": row.get("status_message") or "",
                     "attributes": attributes,
-                    "events": row.get("events") or [],
+                    "events": row.get("events").tolist() if isinstance(row.get("events"), np.ndarray) else row.get("events") or [],
                     "conversation": row.get("conversation"),
                 }
             )
