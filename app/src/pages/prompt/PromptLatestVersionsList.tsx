@@ -7,6 +7,8 @@ import { Flex, Link } from "@phoenix/components";
 import { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
 import { PromptVersionSummary } from "./PromptVersionSummary";
 
+const NUM_VERSIONS_TO_SHOW = 5;
+
 const versionListItemCSS = css`
   padding-bottom: var(--ac-global-dimension-size-200);
   position: relative;
@@ -46,12 +48,14 @@ export function PromptLatestVersionsList(props: {
   return (
     <div>
       <ul>
-        {versions.map((version) => {
+        {versions.map((version, index) => {
+          const isLastConnector = index === NUM_VERSIONS_TO_SHOW - 1;
           return (
             <li key={version.id} css={versionListItemCSS}>
               <PromptVersionSummary promptVersion={version} />
-              {/* TODO(prompts): show that there are more */}
-              {version.sequenceNumber != 1 ? <VersionsConnector /> : null}
+              {version.sequenceNumber != 1 ? (
+                <VersionsConnector isLastConnector={isLastConnector} />
+              ) : null}
             </li>
           );
         })}
@@ -66,10 +70,31 @@ export function PromptLatestVersionsList(props: {
 const versionsConnectorCSS = css`
   position: absolute;
   top: 25px;
-  left: 10px;
+  left: 11px;
   height: calc(100% - 32px);
-  border-right: 2px dashed var(--ac-global-color-grey-500);
+  width: 2px;
+  --connector-color: var(--ac-global-color-grey-400);
+  background: repeating-linear-gradient(
+      to bottom,
+      transparent 0 4px,
+      var(--ac-global-color-grey-50) 4px 8px
+    ),
+    var(--connector-color);
+  background-size: 4px 100%;
+  background-position: 80%;
+  background-repeat: no-repeat;
+  &[data-last="true"] {
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0 4px,
+        var(--ac-global-color-grey-50) 4px 8px
+      ),
+      linear-gradient(to bottom, var(--connector-color), transparent);
+  }
 `;
-function VersionsConnector() {
-  return <div css={versionsConnectorCSS} />;
+
+/**
+ */
+function VersionsConnector({ isLastConnector }: { isLastConnector?: boolean }) {
+  return <div css={versionsConnectorCSS} data-last={isLastConnector} />;
 }
