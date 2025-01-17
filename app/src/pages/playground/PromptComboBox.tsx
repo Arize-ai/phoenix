@@ -39,7 +39,7 @@ export function PromptComboBox({
       }
     `,
     {},
-    { fetchPolicy: "network-only" }
+    { fetchPolicy: "store-and-network", fetchKey: promptId ?? undefined }
   );
   const prompts = data.prompts.edges;
   const items = useMemo(() => {
