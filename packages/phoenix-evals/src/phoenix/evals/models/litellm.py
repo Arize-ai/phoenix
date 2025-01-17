@@ -136,5 +136,7 @@ class LiteLLMModel(BaseModel):
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"content": part.content, "role": "user"})
             else:
-                raise ValueError(f"Unsupported content type: {part.content_type}")
+                raise ValueError(
+                    f"Unsupported content type for {LiteLLMModel.__name__}: {part.content_type}"
+                )
         return messages

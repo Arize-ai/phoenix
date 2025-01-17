@@ -60,6 +60,9 @@ class MultimodalPrompt:
         )
 
     def to_text_only_prompt(self) -> str:
+        if any(part.content_type != PromptPartContentType.TEXT for part in self.parts):
+            raise ValueError("This model does not support multimodal prompts")
+
         return "\n\n".join(
             [part.content for part in self.parts if part.content_type == PromptPartContentType.TEXT]
         )
