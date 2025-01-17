@@ -1,3 +1,4 @@
+import base64
 import logging
 import warnings
 from dataclasses import dataclass, field, fields
@@ -13,6 +14,7 @@ from typing import (
     get_args,
     get_origin,
 )
+from urllib.parse import urlparse
 
 from phoenix.evals.exceptions import PhoenixContextLimitExceeded, PhoenixUnsupportedAudioFormat
 from phoenix.evals.models.base import BaseModel
@@ -282,8 +284,8 @@ class OpenAIModel(BaseModel):
 
     def _build_messages(
         self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
-    ) -> List[Dict[str, str]]:
-        messages = []
+    ) -> List[Dict[str, Any]]:
+        messages: List[Dict[str, Any]] = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "system", "content": part.content})
@@ -294,7 +296,7 @@ class OpenAIModel(BaseModel):
                 messages.append(
                     {
                         "role": "user",
-                        "content": [  # type: ignore
+                        "content": [
                             {
                                 "type": "input_audio",
                                 "input_audio": {
@@ -305,8 +307,28 @@ class OpenAIModel(BaseModel):
                         ],
                     }
                 )
+            elif part.content_type == PromptPartContentType.IMAGE:
+                if _is_base64(part.content):
+                    content_url = f"data:image/jpeg;base64,{part.content}"
+                elif _is_url(part.content):
+                    content_url = part.content
+                else:
+                    raise ValueError("Only base64 encoded images or image URLs are supported")
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": content_url},
+                            }
+                        ],
+                    }
+                )
             else:
-                raise ValueError(f"Unsupported content type: {part.content_type}")
+                raise ValueError(
+                    f"Unsupported content type for {OpenAIModel.__name__}: {part.content_type}"
+                )
         if system_instruction:
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
@@ -455,3 +477,16 @@ class OpenAIModel(BaseModel):
         if self._model_uses_legacy_completion_api:
             return False
         return True
+
+
+def _is_url(url: str) -> bool:
+    parsed_url = urlparse(url)
+    return bool(parsed_url.scheme and parsed_url.netloc)
+
+
+def _is_base64(s: str) -> bool:
+    try:
+        base64.b64decode(s, validate=True)
+        return True
+    except Exception:
+        return False

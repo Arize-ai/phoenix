@@ -177,5 +177,7 @@ class MistralAIModel(BaseModel):
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "user", "content": part.content})
             else:
-                raise ValueError(f"Unsupported content type: {part.content_type}")
+                raise ValueError(
+                    f"Unsupported content type for {MistralAIModel.__name__}: {part.content_type}"
+                )
         return messages
