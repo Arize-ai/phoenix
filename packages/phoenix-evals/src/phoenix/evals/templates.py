@@ -92,9 +92,11 @@ class PromptTemplate:
         prompt = self.prompt(options)
         prompt_messages = []
         for template_message in prompt:
+            prompt_message = template_message.template
+
             if self._start_delim == "{" and self._end_delim == "}":
                 self.formatter = DotKeyFormatter()
-                prompt_message = self.formatter.format(template_message.template, **variable_values)
+                prompt_message = self.formatter.format(prompt_message, **variable_values)
             else:
                 for variable_name in self.variables:
                     prompt_message = prompt_message.replace(
