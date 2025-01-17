@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Tag, TagGroup, TagList } from "@phoenix/components";
+import { Label } from "@arizeai/components";
+
+import { Flex } from "@phoenix/components";
+import { ColorValue } from "@phoenix/components/types";
 
 import { PromptVersionTagsList_data$key } from "./__generated__/PromptVersionTagsList_data.graphql";
 
@@ -22,13 +25,27 @@ export function PromptVersionTagsList({
     promptVersion
   );
 
-  const tags = data.tags.map((tag) => ({
-    id: tag.id,
-    name: tag.name,
-  }));
   return (
-    <TagGroup aria-label="Prompt Version Tags">
-      <TagList items={tags}>{(tag) => <Tag>{tag.name}</Tag>}</TagList>
-    </TagGroup>
+    <Flex direction="row" gap="size-50" alignItems="center" wrap="wrap">
+      {data.tags.map((tag) => (
+        <VersionLabel key={tag.id}>{tag.name}</VersionLabel>
+      ))}
+    </Flex>
   );
+}
+
+function VersionLabel({ children }: { children: string }) {
+  const color: ColorValue = useMemo(() => {
+    switch (children) {
+      case "production":
+        return "green-1000";
+      case "staging":
+        return "yellow-1000";
+      case "development":
+        return "blue-1000";
+      default:
+        return "grey-900";
+    }
+  }, [children]);
+  return <Label color={color}>{children}</Label>;
 }

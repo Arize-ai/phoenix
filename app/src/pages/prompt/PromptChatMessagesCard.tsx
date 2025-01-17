@@ -176,7 +176,7 @@ function ChatMessages({
 }) {
   const { messages } = template;
   return (
-    <Flex direction="column" gap="size-200">
+    <Flex direction="column" gap="size-100">
       {messages.map((message, i) => {
         const isOnlyChild =
           message.content.length === 1 &&

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1df5dc81b46e31805c9fe34ad88f02a6>>
+ * @generated SignedSource<<f49df54377ae22a20a68f5c8e28d1607>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,10 +14,8 @@ export type PromptVersionsList__main$data = {
   readonly promptVersions: {
     readonly edges: ReadonlyArray<{
       readonly version: {
-        readonly createdAt: string;
-        readonly description: string | null;
         readonly id: string;
-        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionTagsList_data">;
+        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionSummaryFragment">;
       };
     }>;
   };
@@ -66,23 +64,9 @@ const node: ReaderFragment = {
                   "storageKey": null
                 },
                 {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "description",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "createdAt",
-                  "storageKey": null
-                },
-                {
                   "args": null,
                   "kind": "FragmentSpread",
-                  "name": "PromptVersionTagsList_data"
+                  "name": "PromptVersionSummaryFragment"
                 }
               ],
               "storageKey": null
@@ -98,6 +82,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "380ac9d926f313c14e1d3fd421f9896e";
+(node as any).hash = "30cac642c3466fa8405eb71f29d27be3";
 
 export default node;
