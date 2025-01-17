@@ -168,7 +168,7 @@ function SaveButton({ instanceId, setDialog, dirty }: SaveButtonProps) {
 
   return (
     <>
-      <TooltipTrigger delay={100}>
+      <TooltipTrigger delay={100} offset={5} placement="top">
         <TriggerWrap>
           <Button
             variant={dirty ? "primary" : undefined}
