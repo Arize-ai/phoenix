@@ -1,5 +1,18 @@
 # Changelog
 
+## [7.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.7.2...arize-phoenix-v7.8.0) (2025-01-17)
+
+
+### Features
+
+* Prettify mutations with user facing errors ([#6049](https://github.com/Arize-ai/phoenix/issues/6049)) ([f14a4ec](https://github.com/Arize-ai/phoenix/commit/f14a4eca14d3c7e72bec9c419488baedda37de19))
+
+
+### Bug Fixes
+
+* correct errors in run experiment python code snippet ([#6103](https://github.com/Arize-ai/phoenix/issues/6103)) ([0f04e2a](https://github.com/Arize-ai/phoenix/commit/0f04e2a53da17065f4934685acea20a84ee6089b))
+* **playground:** remove gpt-3.5-turbo-instruct ([#6081](https://github.com/Arize-ai/phoenix/issues/6081)) ([7c59f66](https://github.com/Arize-ai/phoenix/commit/7c59f66c1db7ddc76950131cea98b66908d43391))
+
 ## [7.7.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.7.1...arize-phoenix-v7.7.2) (2025-01-15)
 
 
