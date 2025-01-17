@@ -20,7 +20,7 @@ const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platf
 function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   let setBaseURLPython =
     `import os\n` +
-    `# Set the phoenix collector endpoint. Commonly http://localhost:6060 \n` +
+    `# Set the phoenix collector endpoint. Commonly http://localhost:6006 \n` +
     `os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<your-phoenix-url>"`;
   if (isAuthEnabled) {
     setBaseURLPython +=
