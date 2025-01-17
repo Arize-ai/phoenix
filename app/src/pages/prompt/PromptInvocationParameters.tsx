@@ -9,7 +9,7 @@ import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
 
-export function PromptInvocationParameterItem({
+function PromptInvocationParameterItem({
   keyName,
   value,
 }: {
