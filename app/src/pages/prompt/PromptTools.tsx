@@ -60,7 +60,7 @@ export function PromptTools({
         <DisclosurePanel>
           <View padding="size-200">
             <Flex justifyContent="center" alignItems="center">
-              <Text>No tools specified for this prompt</Text>
+              <Text color="text-300">No tools specified for this prompt</Text>
             </Flex>
           </View>
         </DisclosurePanel>

@@ -1,14 +1,16 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
-import { formatRelative } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import { Flex, Link } from "@phoenix/components";
 
 import { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
+import { PromptVersionSummary } from "./PromptVersionSummary";
+
+const NUM_VERSIONS_TO_SHOW = 5;
 
 const versionListItemCSS = css`
-  padding-bottom: var(--ac-global-dimension-size-300);
+  padding-bottom: var(--ac-global-dimension-size-200);
   position: relative;
 `;
 export function PromptLatestVersionsList(props: {
@@ -25,6 +27,8 @@ export function PromptLatestVersionsList(props: {
               ... on PromptVersion {
                 description
                 createdAt
+                sequenceNumber
+                ...PromptVersionSummaryFragment
               }
             }
           }
@@ -42,44 +46,55 @@ export function PromptLatestVersionsList(props: {
   }
 
   return (
-    <ul>
-      {versions.map((version) => {
-        return (
-          <li key={version.id} css={versionListItemCSS}>
-            <Flex direction="row" gap="size-200" alignItems="start">
-              <Icon svg={<Icons.Commit />} />
-              <Flex direction="column" width="100%" gap="size-50">
-                <View width="100%">
-                  <Flex
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                  >
-                    <span>{version.id}</span>
-                    <Text color="text-300">
-                      {formatRelative(version.createdAt, Date.now())}
-                    </Text>
-                  </Flex>
-                </View>
-                <Text color="text-700">{version.description}</Text>
-              </Flex>
-            </Flex>
-            {/* TODO(prompts): show that there are more */}
-            <VersionsConnector />
-          </li>
-        );
-      })}
-    </ul>
+    <div>
+      <ul>
+        {versions.map((version, index) => {
+          const isLastConnector = index === NUM_VERSIONS_TO_SHOW - 1;
+          return (
+            <li key={version.id} css={versionListItemCSS}>
+              <PromptVersionSummary promptVersion={version} />
+              {version.sequenceNumber != 1 ? (
+                <VersionsConnector isLastConnector={isLastConnector} />
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <Flex direction="row" justifyContent="end">
+        <Link to="versions">View all versions</Link>
+      </Flex>
+    </div>
   );
 }
 
 const versionsConnectorCSS = css`
   position: absolute;
-  top: 24px;
-  left: 9px;
-  height: calc(100% - 28px);
-  border-right: 2px dashed var(--ac-global-color-grey-500);
+  top: 25px;
+  left: 11px;
+  height: calc(100% - 32px);
+  width: 2px;
+  --connector-color: var(--ac-global-color-grey-400);
+  background: repeating-linear-gradient(
+      to bottom,
+      transparent 0 4px,
+      var(--ac-global-color-grey-50) 4px 8px
+    ),
+    var(--connector-color);
+  background-size: 4px 100%;
+  background-position: 80%;
+  background-repeat: no-repeat;
+  &[data-last="true"] {
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0 4px,
+        var(--ac-global-color-grey-50) 4px 8px
+      ),
+      linear-gradient(to bottom, var(--connector-color), transparent);
+  }
 `;
-function VersionsConnector() {
-  return <div css={versionsConnectorCSS} />;
+
+/**
+ */
+function VersionsConnector({ isLastConnector }: { isLastConnector?: boolean }) {
+  return <div css={versionsConnectorCSS} data-last={isLastConnector} />;
 }

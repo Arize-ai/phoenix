@@ -27,25 +27,6 @@ function PromptVersionDetailsPageContent({
 }) {
   return (
     <View width="100%" overflow="auto" elementType="section">
-      <View
-        paddingX="size-200"
-        paddingY="size-100"
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-      >
-        <Flex direction="row" justifyContent="space-between">
-          <Flex direction="row" gap="size-100">
-            <Heading level={2}>{`Version: ${promptVersion.id}`}</Heading>
-            <PromptVersionTagsList promptVersion={promptVersion} />
-          </Flex>
-          <Flex direction="row" gap="size-100">
-            <CopyToClipboardButton text={promptVersion.id}>
-              Version ID
-            </CopyToClipboardButton>
-            <TagPromptVersionButton />
-          </Flex>
-        </Flex>
-      </View>
       <View padding="size-200" width="100%" overflow="auto">
         <Flex
           direction="column"
@@ -54,6 +35,18 @@ function PromptVersionDetailsPageContent({
           marginStart="auto"
           marginEnd="auto"
         >
+          <Flex direction="row" justifyContent="space-between">
+            <Flex direction="row" gap="size-100">
+              <Heading level={2}>{`Version: ${promptVersion.id}`}</Heading>
+              <PromptVersionTagsList promptVersion={promptVersion} />
+            </Flex>
+            <Flex direction="row" gap="size-100">
+              <CopyToClipboardButton text={promptVersion.id}>
+                Version ID
+              </CopyToClipboardButton>
+              <TagPromptVersionButton />
+            </Flex>
+          </Flex>
           <PromptChatMessagesCard promptVersion={promptVersion} />
           <PromptModelConfigurationCard promptVersion={promptVersion} />
           <PromptCodeExportCard promptVersion={promptVersion} />

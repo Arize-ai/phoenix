@@ -2,7 +2,7 @@ import React from "react";
 import { Heading } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
@@ -42,7 +42,6 @@ export function PromptIndexPageContent({
   );
 
   const latestVersion = data?.promptVersions?.edges?.[0]?.node;
-
   return (
     <Flex direction="row" height="100%">
       <View
@@ -91,6 +90,7 @@ function PromptIndexPageAside({
     `,
     prompt
   );
+  const hasDescription = Boolean(data?.description);
   return (
     <View
       flex="none"
@@ -101,7 +101,9 @@ function PromptIndexPageAside({
       <View paddingStart="size-200" paddingEnd="size-200">
         <Heading level={3}>Description</Heading>
         {/* TODO: Add a markdown view here */}
-        <p>{data.description || "No description"}</p>
+        <Text color={hasDescription ? "text-900" : "text-700"}>
+          {data.description || "No Description"}
+        </Text>
         <section>
           <Heading level={3}>Latest Versions</Heading>
           <PromptLatestVersionsList prompt={data} />

@@ -1,17 +1,15 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router-dom";
-import { formatRelative } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/utility/Truncate";
+import { Flex, View } from "@phoenix/components";
 
 import {
   PromptVersionsList__main$data,
   PromptVersionsList__main$key,
 } from "./__generated__/PromptVersionsList__main.graphql";
-import { PromptVersionTagsList } from "./PromptVersionTagsList";
+import { PromptVersionSummary } from "./PromptVersionSummary";
 
 export type PromptVersionItemProps = {
   version: PromptVersionsList__main$data["promptVersions"]["edges"][number]["version"];
@@ -49,24 +47,7 @@ export const PromptVersionItem = ({
     <div css={promptVersionItemCSS} data-active={active}>
       <Link to={`${version.id}`}>
         <View width="100%" paddingY="size-100" paddingX="size-200">
-          <Flex direction="column" gap="size-50">
-            <View width="100%">
-              <Flex
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-              >
-                <span>{version.id}</span>
-                <Text color="text-300">
-                  {formatRelative(version.createdAt, Date.now())}
-                </Text>
-              </Flex>
-            </View>
-            <Truncate maxWidth={"100%"}>
-              <Text color="text-700">{version.description}</Text>
-            </Truncate>
-            <PromptVersionTagsList promptVersion={version} />
-          </Flex>
+          <PromptVersionSummary promptVersion={version} />
         </View>
       </Link>
     </div>
@@ -78,7 +59,7 @@ type PromptVersionsListProps = {
   itemActive?: (version: PromptVersion) => boolean;
 };
 
-const PROMPT_VERSIONS_LIST_WIDTH = 350;
+const PROMPT_VERSIONS_LIST_WIDTH = 400;
 
 /**
  * Full height, scrollable, list of prompt versions
@@ -95,10 +76,7 @@ export const PromptVersionsList = ({
             version: node {
               id
               ... on PromptVersion {
-                id
-                description
-                createdAt
-                ...PromptVersionTagsList_data
+                ...PromptVersionSummaryFragment
               }
             }
           }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<31e402c4eceae4679cae3a3c0e9eb272>>
+ * @generated SignedSource<<df0ba3fb39954a8217e7b9704ae36898>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,8 @@ export type PromptLatestVersionsListFragment$data = {
         readonly createdAt: string;
         readonly description: string | null;
         readonly id: string;
+        readonly sequenceNumber: number;
+        readonly " $fragmentSpreads": FragmentRefs<"PromptVersionSummaryFragment">;
       };
     }>;
   };
@@ -83,6 +85,18 @@ const node: ReaderFragment = {
                   "kind": "ScalarField",
                   "name": "createdAt",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "sequenceNumber",
+                  "storageKey": null
+                },
+                {
+                  "args": null,
+                  "kind": "FragmentSpread",
+                  "name": "PromptVersionSummaryFragment"
                 }
               ],
               "storageKey": null
@@ -98,6 +112,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "5442dc979627471880a0ee9b6f089a21";
+(node as any).hash = "a473a6f0d927379542694312449a4c63";
 
 export default node;
