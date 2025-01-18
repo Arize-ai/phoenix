@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.6.1...arize-phoenix-otel-v0.7.0) (2025-01-18)
+
+
+### Features
+
+* `phoenix.otel` infers GRPC port from env ([#6017](https://github.com/Arize-ai/phoenix/issues/6017)) ([4e036e7](https://github.com/Arize-ai/phoenix/commit/4e036e735cf6abda2352b73d28ed3b095724f04c))
+
+
+### Documentation
+
+* update sessions (GITBOOK-940) ([88dc135](https://github.com/Arize-ai/phoenix/commit/88dc135f99b03697387df0140533a0808454a88e))
+
 ## [0.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.6.0...arize-phoenix-otel-v0.6.1) (2024-10-17)
 
 
