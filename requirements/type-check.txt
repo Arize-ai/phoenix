@@ -21,6 +21,7 @@ requests  # this is needed to type-check third-party packages
 strawberry-graphql[opentelemetry]==0.253.1  # need to pin version because we're monkey-patching
 tenacity
 types-cachetools
+types-jsonschema
 types-protobuf
 types-psutil
 types-requests

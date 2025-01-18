@@ -15,6 +15,7 @@ export const fieldBaseCSS = css`
     transition: all 0.2s ease-in-out;
     margin: 0;
     flex: 1 1 auto;
+    font-size: var(--ac-global-font-size-s);
     min-width: var(--ac-global-input-field-min-width);
     background-color: var(--ac-global-input-field-background-color);
     color: var(--ac-global-text-color-900);

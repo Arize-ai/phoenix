@@ -117,6 +117,7 @@ export function PlaygroundChatTemplateFooter({
                   }),
                 ],
               },
+              dirty: true,
             });
           }}
         >
@@ -143,6 +144,7 @@ export function PlaygroundChatTemplateFooter({
                 ],
               },
             },
+            dirty: true,
           });
         }}
       >

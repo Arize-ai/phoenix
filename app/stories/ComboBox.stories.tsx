@@ -1,15 +1,12 @@
 import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Flex } from "@arizeai/components";
-
+import { Flex, View } from "@phoenix/components";
 import {
   ComboBox,
   ComboBoxItem,
   ComboBoxProps,
 } from "@phoenix/components/combobox/ComboBox";
-
-import { ThemeWrapper } from "./components/ThemeWrapper";
 
 const meta: Meta = {
   title: "ComboBox",
@@ -53,16 +50,15 @@ const meta: Meta = {
       },
     },
   },
-
   parameters: {
-    controls: { expanded: true },
+    layout: "centered",
   },
 };
 
 export default meta;
 
 const Template: StoryFn<ComboBoxProps<object>> = (args) => (
-  <ThemeWrapper>
+  <View width="300px">
     <ComboBox {...args}>
       <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
         Chocolate
@@ -77,7 +73,7 @@ const Template: StoryFn<ComboBoxProps<object>> = (args) => (
         Vanilla
       </ComboBoxItem>
     </ComboBox>
-  </ThemeWrapper>
+  </View>
 );
 
 export const Default = Template.bind({});
@@ -88,65 +84,63 @@ Default.args = {
 
 export function Gallery() {
   return (
-    <ThemeWrapper>
-      <Flex direction="column" gap="size-200">
-        <ComboBox label="Ice cream flavor">
-          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-            Chocolate
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Mint" key={"mint"}>
-            Mint
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-            Strawberry
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-            Vanilla
-          </ComboBoxItem>
-        </ComboBox>
-        <ComboBox label="Ice cream flavor (Invalid)" isInvalid>
-          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-            Chocolate
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Mint" key={"mint"}>
-            Mint
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-            Strawberry
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-            Vanilla
-          </ComboBoxItem>
-        </ComboBox>
-        <ComboBox label="Ice cream flavor (Disabled)" isDisabled>
-          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-            Chocolate
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Mint" key={"mint"}>
-            Mint
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-            Strawberry
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-            Vanilla
-          </ComboBoxItem>
-        </ComboBox>
-        <ComboBox label="Ice cream flavor (L)" size="L">
-          <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
-            Chocolate
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Mint" key={"mint"}>
-            Mint
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
-            Strawberry
-          </ComboBoxItem>
-          <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
-            Vanilla
-          </ComboBoxItem>
-        </ComboBox>
-      </Flex>
-    </ThemeWrapper>
+    <Flex direction="column" gap="size-200">
+      <ComboBox label="Ice cream flavor">
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+      <ComboBox label="Ice cream flavor (Invalid)" isInvalid>
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+      <ComboBox label="Ice cream flavor (Disabled)" isDisabled>
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+      <ComboBox label="Ice cream flavor (L)" size="L">
+        <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
+          Chocolate
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Mint" key={"mint"}>
+          Mint
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Strawberry" key={"strawberry"}>
+          Strawberry
+        </ComboBoxItem>
+        <ComboBoxItem textValue="Vanilla" key={"vanilla"}>
+          Vanilla
+        </ComboBoxItem>
+      </ComboBox>
+    </Flex>
   );
 }

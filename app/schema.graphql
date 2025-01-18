@@ -1,3 +1,5 @@
+directive @oneOf on INPUT_OBJECT
+
 input AddExamplesToDatasetInput {
   datasetId: GlobalID!
   examples: [DatasetExampleInput!]!
@@ -196,11 +198,29 @@ type ChatCompletionToolCall {
   function: ChatCompletionFunctionCall!
 }
 
+input ChatPromptVersionInput {
+  description: String = null
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptChatTemplateInput!
+  invocationParameters: JSON! = {}
+  tools: [ToolDefinitionInput!]! = []
+  outputSchema: JSONSchemaInput = null
+  modelProvider: String!
+  modelName: String!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
   """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
+}
+
+input ClonePromptInput {
+  name: Identifier!
+  description: String = null
+  promptId: GlobalID!
 }
 
 type Cluster {
@@ -232,10 +252,30 @@ input ClusterInput {
   id: ID
 }
 
+union ContentPart = TextContentPart | ImageContentPart | ToolCallContentPart | ToolResultContentPart
+
+input ContentPartInput @oneOf {
+  text: TextContentValueInput
+  image: ImageContentValueInput
+  toolCall: ToolCallContentValueInput
+  toolResult: ToolResultContentValueInput
+}
+
 input CreateApiKeyInput {
   name: String!
   description: String
   expiresAt: DateTime
+}
+
+input CreateChatPromptInput {
+  name: Identifier!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+}
+
+input CreateChatPromptVersionInput {
+  promptId: GlobalID!
+  promptVersion: ChatPromptVersionInput!
 }
 
 input CreateDatasetInput {
@@ -489,6 +529,18 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
+}
+
+input DeletePromptInput {
+  promptId: GlobalID!
+}
+
+type DeletePromptMutationPayload {
+  query: Query!
+}
+
+input DeletePromptVersionTagInput {
+  promptVersionTagId: GlobalID!
 }
 
 input DeleteUsersInput {
@@ -997,6 +1049,20 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+scalar Identifier
+
+type ImageContentPart {
+  image: ImageContentValue!
+}
+
+type ImageContentValue {
+  url: String!
+}
+
+input ImageContentValueInput {
+  url: String!
+}
+
 type Inferences {
   """The start bookend of the data"""
   startTime: DateTime!
@@ -1086,6 +1152,14 @@ type JSONInvocationParameter implements InvocationParameterBase {
   defaultValue: JSON
 }
 
+type JSONSchema {
+  definition: JSON!
+}
+
+input JSONSchemaInput {
+  definition: JSON!
+}
+
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -1160,6 +1234,13 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
+  createChatPrompt(input: CreateChatPromptInput!): Prompt!
+  createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
+  deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
+  clonePrompt(input: ClonePromptInput!): Prompt!
+  patchPrompt(input: PatchPromptInput!): Prompt!
+  deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1225,6 +1306,11 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
+}
+
+input PatchPromptInput {
+  promptId: GlobalID!
+  description: String!
 }
 
 input PatchUserInput {
@@ -1368,12 +1454,140 @@ input ProjectSessionSort {
   dir: SortDir!
 }
 
+type Prompt implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  sourcePromptId: GlobalID
+  name: Identifier!
+  description: String
+  createdAt: DateTime!
+  version(versionId: GlobalID = null): PromptVersion!
+  versionTags: [PromptVersionTag!]!
+  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
+  sourcePrompt: Prompt
+}
+
+type PromptChatTemplate {
+  messages: [PromptMessage!]!
+}
+
+input PromptChatTemplateInput {
+  messages: [PromptMessageInput!]!
+}
+
+"""A connection to a list of items."""
+type PromptConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Prompt!
+}
+
+type PromptMessage {
+  role: PromptMessageRole!
+  content: [ContentPart!]!
+}
+
+input PromptMessageInput {
+  role: String!
+  content: [ContentPartInput!]!
+}
+
+enum PromptMessageRole {
+  USER
+  SYSTEM
+  AI
+  TOOL
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
 
   """The response generated by the LLM"""
   response: String
+}
+
+type PromptStringTemplate {
+  template: String!
+}
+
+union PromptTemplate = PromptStringTemplate | PromptChatTemplate
+
+enum PromptTemplateFormat {
+  MUSTACHE
+  FSTRING
+  NONE
+}
+
+enum PromptTemplateType {
+  STRING
+  CHAT
+}
+
+type PromptVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  description: String
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  invocationParameters: JSON
+  tools: [ToolDefinition!]!
+  outputSchema: JSONSchema
+  modelName: String!
+  modelProvider: String!
+  createdAt: DateTime!
+  tags: [PromptVersionTag!]!
+  user: User
+  previousVersion: PromptVersion
+
+  """
+  Sequence number (1-based) of prompt versions belonging to the same prompt
+  """
+  sequenceNumber: Int!
+}
+
+"""A connection to a list of items."""
+type PromptVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptVersion!
+}
+
+type PromptVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  promptVersionId: GlobalID!
+  name: Identifier!
+  description: String
+}
+
+type PromptVersionTagMutationPayload {
+  promptVersionTag: PromptVersionTag
+  prompt: Prompt!
+  query: Query!
 }
 
 type Query {
@@ -1394,6 +1608,7 @@ type Query {
   model: Model!
   node(id: GlobalID!): Node!
   viewer: User
+  prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
@@ -1447,6 +1662,12 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+input SetPromptVersionTagInput {
+  promptVersionId: GlobalID!
+  name: Identifier!
+  description: String = null
 }
 
 enum SortDir {
@@ -1712,6 +1933,18 @@ type TextChunk implements ChatCompletionSubscriptionPayload {
   content: String!
 }
 
+type TextContentPart {
+  text: TextContentValue!
+}
+
+type TextContentValue {
+  text: String!
+}
+
+input TextContentValueInput {
+  text: String!
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -1739,6 +1972,52 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   id: String!
   function: FunctionCallChunk!
+}
+
+type ToolCallContentPart {
+  toolCall: ToolCallContentValue!
+}
+
+type ToolCallContentValue {
+  toolCallId: String!
+  toolCall: ToolCallFunction!
+}
+
+input ToolCallContentValueInput {
+  toolCallId: String!
+  toolCall: ToolCallFunctionInput!
+}
+
+type ToolCallFunction {
+  name: String!
+  arguments: String!
+}
+
+input ToolCallFunctionInput {
+  name: String!
+  arguments: String!
+}
+
+type ToolDefinition {
+  definition: JSON!
+}
+
+input ToolDefinitionInput {
+  definition: JSON!
+}
+
+type ToolResultContentPart {
+  toolResult: ToolResultContentValue!
+}
+
+type ToolResultContentValue {
+  toolCallId: String!
+  result: JSON!
+}
+
+input ToolResultContentValueInput {
+  toolCallId: String!
+  result: JSON!
 }
 
 type Trace implements Node {

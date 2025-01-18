@@ -84,6 +84,17 @@ export type Tool = {
   definition: LlmProviderToolDefinition;
 };
 
+export type PlaygroundInstancePrompt = {
+  /**
+   * The id of the prompt
+   */
+  id: string;
+  /**
+   * The version of the prompt. Assumes latest version if not provided.
+   */
+  version?: string;
+};
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -110,6 +121,14 @@ export interface PlaygroundInstance {
    * The id of the experiment associated with the last playground run on the instance if any
    */
   experimentId?: string | null;
+  /**
+   * Details about the prompt hub prompt associated with the instance, if any
+   */
+  prompt?: PlaygroundInstancePrompt | null;
+  /**
+   * Whether the instance has been modified since the instance was created
+   */
+  dirty: boolean;
 }
 
 /**
@@ -137,7 +156,6 @@ export interface PlaygroundProps {
    * Defaults to a single instance until a second instance is added
    */
   instances: Array<PlaygroundInstance>;
-
   /**
    * The current template language for all instances
    * @default "mustache"
@@ -189,6 +207,12 @@ export interface PlaygroundState extends PlaygroundProps {
   updateInstance: (params: {
     instanceId: number;
     patch: Partial<PlaygroundInstance>;
+    /**
+     * Should this update mark the instance as dirty?
+     *
+     * null means the dirty state should not be changed
+     */
+    dirty: boolean | null;
   }) => void;
   /**
    * Update the invocation parameters for a model
@@ -261,4 +285,8 @@ export interface PlaygroundState extends PlaygroundProps {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
+  /**
+   * Set the dirty state of an instance
+   */
+  setDirty: (instanceId: number, dirty: boolean) => void;
 }
