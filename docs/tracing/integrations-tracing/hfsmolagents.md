@@ -110,7 +110,7 @@ tracer_provider = register(
 )
 ```
 
-For more info on using Phoenix with Docker, see [#docker](openai-1.md#docker "mention")
+For more info on using Phoenix with Docker, see [#docker](hfsmolagents.md#docker "mention")
 {% endtab %}
 
 {% tab title="Notebook" %}

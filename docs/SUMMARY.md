@@ -33,7 +33,7 @@
   * [Bedrock](tracing/integrations-tracing/bedrock.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
   * [Groq](tracing/integrations-tracing/groq.md)
-  * [Hugging Face smolagents](tracing/integrations-tracing/openai-1.md)
+  * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [CrewAI](tracing/integrations-tracing/crewai.md)
   * [LiteLLM](tracing/integrations-tracing/litellm.md)
