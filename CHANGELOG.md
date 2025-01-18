@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.8.0...arize-phoenix-v7.8.1) (2025-01-18)
+
+
+### Bug Fixes
+
+* reduce query memory usage in DatasetExampleRevisionsDataLoader ([#6116](https://github.com/Arize-ai/phoenix/issues/6116)) ([7412bb9](https://github.com/Arize-ai/phoenix/commit/7412bb9cc92390d090a956f6a573fa353347efb3))
+
 ## [7.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.7.2...arize-phoenix-v7.8.0) (2025-01-17)
 
 
