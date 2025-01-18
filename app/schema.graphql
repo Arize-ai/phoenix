@@ -93,6 +93,7 @@ enum CanonicalParameterName {
   RANDOM_SEED
   TOOL_CHOICE
   RESPONSE_FORMAT
+  REASONING_EFFORT
 }
 
 type ChatCompletionFunctionCall {

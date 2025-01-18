@@ -37,6 +37,7 @@ from phoenix.server.api.input_types.InvocationParameters import (
     InvocationParameter,
     InvocationParameterInput,
     JSONInvocationParameter,
+    StringInvocationParameter,
     StringListInvocationParameter,
     extract_parameter,
     validate_invocation_parameters,
@@ -501,6 +502,11 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
+            StringInvocationParameter(
+                invocation_name="reasoning_effort",
+                label="Reasoning Effort",
+                canonical_name=CanonicalParameterName.REASONING_EFFORT,
+            ),
             IntInvocationParameter(
                 invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
@@ -523,6 +529,49 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
             ),
         ]
 
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        from openai import NOT_GIVEN
+
+        # Convert standard messages to OpenAI messages
+        openai_messages = []
+        for message in messages:
+            openai_message = self.to_openai_chat_completion_param(*message)
+            if openai_message is not None:
+                openai_messages.append(openai_message)
+
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
+        response = await throttled_create(
+            messages=openai_messages,
+            model=self.model_name,
+            stream=False,
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        )
+
+        if response.usage is not None:
+            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+
+        choice = response.choices[0]
+        if choice.message.content:
+            yield TextChunk(content=choice.message.content)
+
+        if choice.message.tool_calls:
+            for tool_call in choice.message.tool_calls:
+                yield ToolCallChunk(
+                    id=tool_call.id,
+                    function=FunctionCallChunk(
+                        name=tool_call.function.name,
+                        arguments=tool_call.function.arguments,
+                    ),
+                )
+
     def to_openai_chat_completion_param(
         self,
         role: ChatCompletionMessageRole,
@@ -532,6 +581,7 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
+            ChatCompletionDeveloperMessageParam,
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
@@ -544,7 +594,12 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 }
             )
         if role is ChatCompletionMessageRole.SYSTEM:
-            return None  # System messages are not supported for o1 models
+            return ChatCompletionDeveloperMessageParam(
+                {
+                    "content": content,
+                    "role": "developer",
+                }
+            )
         if role is ChatCompletionMessageRole.AI:
             if tool_calls is None:
                 return ChatCompletionAssistantMessageParam(

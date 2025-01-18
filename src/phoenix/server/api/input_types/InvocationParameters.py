@@ -15,6 +15,7 @@ class CanonicalParameterName(str, Enum):
     RANDOM_SEED = "random_seed"
     TOOL_CHOICE = "tool_choice"
     RESPONSE_FORMAT = "response_format"
+    REASONING_EFFORT = "reasoning_effort"
 
 
 @strawberry.enum
