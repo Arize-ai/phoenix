@@ -27,7 +27,7 @@ export function App() {
 export function AppContent() {
   const { theme: componentsTheme } = useTheme();
   return (
-    <Provider theme={componentsTheme}>
+    <Provider theme={componentsTheme} mountGlobalStyles={false}>
       <RelayEnvironmentProvider environment={RelayEnvironment}>
         <GlobalStyles />
         <FeatureFlagsProvider>

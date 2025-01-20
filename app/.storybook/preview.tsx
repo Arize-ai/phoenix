@@ -2,6 +2,7 @@ import React from "react";
 import type { Preview } from "@storybook/react";
 import { Provider } from "@arizeai/components";
 import { GlobalStyles } from "../src/GlobalStyles";
+import { ThemeProvider } from "../src/contexts";
 
 const preview: Preview = {
   parameters: {
@@ -36,9 +37,11 @@ const preview: Preview = {
     (Story, { parameters, globals }) => {
       const theme = globals.theme || "light";
       return (
-        <Provider theme={theme}>
-          <GlobalStyles />
-          <Story />
+        <Provider theme={theme} mountGlobalStyles={false}>
+          <ThemeProvider>
+            <GlobalStyles />
+            <Story />
+          </ThemeProvider>
         </Provider>
       );
     },
