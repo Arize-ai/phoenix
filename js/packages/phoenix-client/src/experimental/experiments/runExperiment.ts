@@ -12,16 +12,16 @@ import type {
 import { promisifyResult } from "../../utils/promisifyResult";
 import invariant from "tiny-invariant";
 import { pluralize } from "../../utils/pluralize";
+import { ClientFn } from "../../types/core";
 import { getDatasetLike } from "../../utils/getDatasetLike";
 import { type Logger } from "../../types/logger";
 
-export type RunExperimentParams = {
+export type RunExperimentParams = ClientFn & {
   /**
    * An optional name for the experiment.
    * Defaults to the dataset name + a timestamp
    */
   experimentName?: string;
-  client?: PhoenixClient;
   dataset: Dataset | string | Example[];
   task: ExperimentTask;
   evaluators?: Evaluator[];
