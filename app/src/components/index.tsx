@@ -11,6 +11,8 @@ export type {
   LabelProps,
   FieldErrorProps,
   DialogTriggerProps,
+  DateValue,
+  TimeValue,
 } from "react-aria-components";
 export { classNames } from "@arizeai/components";
 
@@ -34,3 +36,4 @@ export * from "./content";
 export * from "./textfield";
 export * from "./tag";
 export * from "./overlay";
+export * from "./datetime";
