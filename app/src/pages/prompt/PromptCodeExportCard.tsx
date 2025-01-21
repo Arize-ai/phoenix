@@ -11,6 +11,7 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
+  Text,
   View,
 } from "@phoenix/components";
 import {
@@ -63,6 +64,10 @@ export function PromptCodeExportCard({
                   __typename
                   toolCall {
                     toolCallId
+                    toolCall {
+                      name
+                      arguments
+                    }
                   }
                 }
                 ... on ToolResultContentPart {
@@ -89,6 +94,19 @@ export function PromptCodeExportCard({
     () => mapPromptToSnippet({ promptVersion: data, language }),
     [data, language]
   );
+  if (!snippet) {
+    return (
+      <Card title="Code" variant="compact" bodyStyle={{ padding: 0 }}>
+        <View padding="size-100">
+          <Flex justifyContent="center" alignItems="center">
+            <Text color="text-300">
+              No code snippet available for this prompt
+            </Text>
+          </Flex>
+        </View>
+      </Card>
+    );
+  }
   return (
     <Card
       title="Code"
