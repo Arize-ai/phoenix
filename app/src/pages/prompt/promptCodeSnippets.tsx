@@ -1,6 +1,11 @@
 import { template } from "lodash";
 
 import { CodeLanguage } from "@phoenix/components/code";
+import {
+  fromOpenAIMessage,
+  LlmProviderMessage,
+  promptMessageToOpenAI,
+} from "@phoenix/schemas/messageSchemas";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
 
@@ -18,8 +23,11 @@ export type PromptToSnippetParams = ({
   | "modelProvider"
   | "outputSchema"
   | "tools"
-  | "template"
->) => string;
+> & {
+  template: {
+    messages: LlmProviderMessage[];
+  };
+}) => string;
 
 const TAB = "  ";
 
@@ -118,10 +126,10 @@ response.then((completion) => console.log(completion.choices[0].message));
  * accessible via context from the top level code component.
  */
 export const promptCodeSnippets: Record<
-  CodeLanguage,
+  string,
   Record<string, PromptToSnippetParams>
 > = {
-  Python: {
+  python: {
     openai: (prompt) => {
       if (!("messages" in prompt.template)) {
         throw new Error("Prompt template does not contain messages");
@@ -133,7 +141,8 @@ export const promptCodeSnippets: Record<
       }
       if (prompt.invocationParameters) {
         const invocationArgs = Object.entries(prompt.invocationParameters).map(
-          ([key, value]) => `${key}=${value}`
+          ([key, value]) =>
+            typeof value === "string" ? `${key}="${value}"` : `${key}=${value}`
         );
         args.push(...invocationArgs);
       }
@@ -171,7 +180,7 @@ export const promptCodeSnippets: Record<
       });
     },
   },
-  TypeScript: {
+  typescript: {
     openai: (prompt) => {
       if (!("messages" in prompt.template)) {
         throw new Error("Prompt template does not contain messages");
@@ -183,7 +192,10 @@ export const promptCodeSnippets: Record<
       }
       if (prompt.invocationParameters) {
         const invocationArgs = Object.entries(prompt.invocationParameters).map(
-          ([key, value]) => `${key}: ${value}`
+          ([key, value]) =>
+            typeof value === "string"
+              ? `${key}: "${value}"`
+              : `${key}: ${value}`
         );
         args.push(...invocationArgs);
       }
@@ -234,11 +246,38 @@ export const mapPromptToSnippet = ({
   language: CodeLanguage;
 }) => {
   const generator =
-    promptCodeSnippets[language][
+    promptCodeSnippets[language.toLocaleLowerCase()][
       promptVersion.modelProvider?.toLocaleLowerCase()
     ];
   if (!generator) {
     return `We do not have a code snippet for ${language} + ${promptVersion.modelProvider}`;
   }
-  return generator(promptVersion);
+
+  if (!("messages" in promptVersion.template)) {
+    return "Code snippets are not yet available to text templates";
+  }
+
+  const convertedPrompt = {
+    ...promptVersion,
+    template: {
+      ...promptVersion.template,
+      messages: promptVersion.template.messages
+        .map((message) => {
+          try {
+            return fromOpenAIMessage({
+              message: promptMessageToOpenAI.parse(message),
+              targetProvider: promptVersion.modelProvider as ModelProvider,
+            });
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn("Cannot convert message");
+            // eslint-disable-next-line no-console
+            console.error(e);
+            return null;
+          }
+        })
+        .filter(Boolean),
+    },
+  };
+  return generator(convertedPrompt);
 };

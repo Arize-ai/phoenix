@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7af3b4cffcf0087c63719990c2dee8f9>>
+ * @generated SignedSource<<0c15c22e4b090188bf9bba848c0495fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,6 +36,10 @@ export type PromptCodeExportCard__main$data = {
       } | {
         readonly __typename: "ToolCallContentPart";
         readonly toolCall: {
+          readonly toolCall: {
+            readonly arguments: string;
+            readonly name: string;
+          };
           readonly toolCallId: string;
         };
       } | {
@@ -241,7 +245,32 @@ return {
                           "name": "toolCall",
                           "plural": false,
                           "selections": [
-                            (v2/*: any*/)
+                            (v2/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "ToolCallFunction",
+                              "kind": "LinkedField",
+                              "name": "toolCall",
+                              "plural": false,
+                              "selections": [
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "name",
+                                  "storageKey": null
+                                },
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "arguments",
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
                           ],
                           "storageKey": null
                         }
@@ -323,6 +352,6 @@ return {
 };
 })();
 
-(node as any).hash = "cff368e8df9f93cf218f786acce0d304";
+(node as any).hash = "561aeba2f09f0c879f7a2a502ee33cd8";
 
 export default node;

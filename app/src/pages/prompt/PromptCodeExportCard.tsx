@@ -63,6 +63,10 @@ export function PromptCodeExportCard({
                   __typename
                   toolCall {
                     toolCallId
+                    toolCall {
+                      name
+                      arguments
+                    }
                   }
                 }
                 ... on ToolResultContentPart {
