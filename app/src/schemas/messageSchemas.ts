@@ -4,6 +4,14 @@ import zodToJsonSchema from "zod-to-json-schema";
 import { ModelProviders } from "@phoenix/constants/generativeConstants";
 import { normalizeMessageContent } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import {
+  asTextPart,
+  asToolCallPart,
+  asToolResultPart,
+  makeTextPart,
+  makeToolCallPart,
+  makeToolResultPart,
+} from "@phoenix/utils/promptUtils";
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 import {
@@ -220,13 +228,9 @@ export const promptMessageToOpenAI = promptMessageSchema.transform(
   (prompt): OpenAIMessage => {
     // Special handling for TOOL role messages
     if (prompt.role === "TOOL") {
-      // A TOOL role message must have a tool result in its content
-      const toolResult = prompt.content.find(
-        (
-          part
-        ): part is ToolResultPart & { __typename: "ToolResultContentPart" } =>
-          part.__typename === "ToolResultContentPart"
-      );
+      const toolResult = prompt.content
+        .map((part) => asToolResultPart(part))
+        .find((part): part is ToolResultPart => !!part);
 
       if (!toolResult) {
         throw new Error("TOOL role message must have a ToolResultContentPart");
@@ -246,23 +250,20 @@ export const promptMessageToOpenAI = promptMessageSchema.transform(
           SYSTEM: "system",
           USER: "user",
           AI: "assistant",
+          TOOL: "tool",
         } as const
       )[prompt.role],
       content: prompt.content
-        .filter(
-          (part): part is TextPart & { __typename: "TextContentPart" } =>
-            part.__typename === "TextContentPart"
-        )
+        .map((part) => asTextPart(part))
+        .filter((text): text is TextPart => !!text)
         .map((part) => part.text.text)
         .join("\n"),
     };
 
     // Find tool calls in content
     const toolCalls = prompt.content
-      .filter(
-        (part): part is ToolCallPart & { __typename: "ToolCallContentPart" } =>
-          part.__typename === "ToolCallContentPart"
-      )
+      .map((part) => asToolCallPart(part))
+      .filter((part): part is ToolCallPart => !!part)
       .map((part) => ({
         id: part.toolCall.toolCallId,
         function: {
@@ -292,37 +293,64 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
   (openai): PromptMessage => {
     const content: PromptContentPart[] = [];
 
-    // Convert content to text part
-    if (openai.content) {
-      content.push({
-        __typename: "TextContentPart",
-        text: {
-          text: openai.content,
-        },
-      });
+    // Special handling for tool messages
+    if (openai.role === "tool" && openai.tool_call_id) {
+      const toolResultPart = makeToolResultPart(
+        openai.tool_call_id,
+        openai.content
+      );
+      if (toolResultPart) {
+        content.push({
+          __typename: "ToolResultContentPart",
+          ...toolResultPart,
+        });
+      }
+      return {
+        role: "TOOL",
+        content,
+      };
     }
 
-    // Convert tool calls
+    // Convert content to text part if it exists
+    if (openai.content) {
+      const textPart = makeTextPart(openai.content);
+      if (textPart) {
+        content.push({
+          __typename: "TextContentPart",
+          ...textPart,
+        });
+      }
+    }
+
+    // Convert tool calls if they exist
     if (openai.tool_calls) {
       openai.tool_calls.forEach((tc) => {
-        content.push({
-          __typename: "ToolCallContentPart",
-          toolCall: {
-            toolCallId: tc.id,
-            toolCall: {
-              name: tc.function.name,
-              arguments:
-                typeof tc.function.arguments === "string"
-                  ? tc.function.arguments
-                  : JSON.stringify(tc.function.arguments),
-            },
-          },
+        const toolCallPart = makeToolCallPart({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: tc.function.arguments,
         });
+        if (toolCallPart) {
+          content.push({
+            __typename: "ToolCallContentPart",
+            ...toolCallPart,
+          });
+        }
       });
     }
 
+    // Map roles
+    const roleMap = {
+      system: "SYSTEM",
+      user: "USER",
+      assistant: "AI",
+      tool: "TOOL",
+      developer: "SYSTEM", // Map developer to SYSTEM
+      function: "TOOL", // Map function to TOOL
+    } as const;
+
     return {
-      role: openai.role as PromptMessageRole,
+      role: roleMap[openai.role] as PromptMessageRole,
       content,
     };
   }
