@@ -28,7 +28,7 @@ const Template: StoryFn<DateFieldProps<DateValue>> = (args) => (
 );
 
 /**
- * Buttons are used to perform actions within the UI
+ * DateFields are used to type in dates within the UI
  */
 export const Default = Template.bind({});
 

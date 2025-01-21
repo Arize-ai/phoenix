@@ -12,6 +12,7 @@ export type {
   FieldErrorProps,
   DialogTriggerProps,
   DateValue,
+  TimeValue,
 } from "react-aria-components";
 export { classNames } from "@arizeai/components";
 

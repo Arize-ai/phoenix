@@ -1,16 +1,16 @@
 import React, { forwardRef, Ref } from "react";
 import {
-  DateField as AriaDateField,
-  DateFieldProps as AriaDateFieldProps,
-  DateValue,
+  TimeField as AriaTimeField,
+  TimeFieldProps as AriaTimeFieldProps,
+  TimeValue,
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
 import { fieldBaseCSS } from "../field/styles";
 
-export type DateFieldProps<T extends DateValue> = AriaDateFieldProps<T>;
+export type TimeFieldProps<T extends TimeValue> = AriaTimeFieldProps<T>;
 
-const dateFieldCSS = css`
+const timeFieldCSS = css`
   --date-field-vertical-padding: 6px;
   --date-field-horizontal-padding: 8px;
   color: var(--ac-global-text-color-900);
@@ -58,14 +58,15 @@ const dateFieldCSS = css`
     }
   }
 `;
-function DateField<T extends DateValue>(
-  props: DateFieldProps<T>,
+
+function TimeField<T extends TimeValue>(
+  props: TimeFieldProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
   return (
-    <AriaDateField css={css(fieldBaseCSS, dateFieldCSS)} {...props} ref={ref} />
+    <AriaTimeField css={css(fieldBaseCSS, timeFieldCSS)} {...props} ref={ref} />
   );
 }
 
-const _DateField = forwardRef(DateField);
-export { _DateField as DateField };
+const _TimeField = forwardRef(TimeField);
+export { _TimeField as TimeField };

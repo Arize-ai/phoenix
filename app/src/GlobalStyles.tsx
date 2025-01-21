@@ -1,7 +1,9 @@
 import React from "react";
 import { css, Global } from "@emotion/react";
 
-import { ThemeContextType, useTheme } from "./contexts";
+import { useProvider } from "@arizeai/components";
+
+import { ThemeContextType } from "./contexts";
 
 /**
  * Medium size root CSS variables
@@ -939,6 +941,12 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-border-color-light: var(--ac-global-color-grey-400);
     --ac-global-border-color-dark: var(--ac-global-color-grey-300);
 
+    --ac-highlight-foreground: var(--ac-global-text-color-900);
+    --ac-highlight-background: var(--ac-global-color-primary-300);
+
+    // Text
+    --ac-text-color-placeholder: var(--ac-global-color-grey-700);
+
     // Styles for text fields etc
     --ac-global-input-field-border-color: var(--ac-global-color-grey-400);
     --ac-global-input-field-border-color-hover: var(--ac-global-color-grey-300);
@@ -1155,7 +1163,7 @@ const reactAriaGlobalStylesCSS = css`
 `;
 
 export function GlobalStyles() {
-  const { theme } = useTheme();
+  const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
   return (
     <Global

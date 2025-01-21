@@ -38,7 +38,7 @@ export const fieldBaseCSS = css`
       border-color: var(--ac-global-color-danger);
     }
     &::placeholder {
-      color: var(--ac-global-text-color-300);
+      color: var(--ac-text-color-placeholder);
       font-style: italic;
     }
   }
