@@ -1143,25 +1143,6 @@ const appGlobalStylesCSS = css`
   }
 `;
 
-const reactAriaGlobalStylesCSS = css`
-  /* React Aria Global Styles */
-  .react-aria-Popover[data-trigger="DateRangePicker"] {
-    max-width: unset;
-  }
-
-  .react-aria-DateInput {
-    border: 1px solid var(--border-color);
-    background: var(--field-background);
-    white-space: nowrap;
-    forced-color-adjust: none;
-    border-radius: var(--ac-global-rounding-small);
-    width: fit-content;
-    min-width: 150px;
-    padding: var(--ac-global-dimension-size-100);
-    display: flex;
-  }
-`;
-
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1174,8 +1155,7 @@ export function GlobalStyles() {
         derivedCSS(theme),
         mediumRootCSS,
         opacitiesCSS,
-        appGlobalStylesCSS,
-        reactAriaGlobalStylesCSS
+        appGlobalStylesCSS
       )}
     />
   );
