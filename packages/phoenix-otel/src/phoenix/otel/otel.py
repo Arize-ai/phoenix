@@ -37,7 +37,9 @@ class OTLPTransportProtocol(str, Enum):
     GRPC = "grpc"
 
     @classmethod
-    def _missing_(cls, value: str) -> "OTLPTransportProtocol":
+    def _missing_(cls, value: object) -> "OTLPTransportProtocol":
+        if not isinstance(value, str):
+            raise ValueError(f"Invalid protocol: {value}. Must be a string.")
         if "http" in value:
             raise ValueError(
                 (
