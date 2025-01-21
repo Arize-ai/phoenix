@@ -19,7 +19,13 @@ interface GetPromptByTag {
 export interface GetPromptParams extends ClientFn {
   prompt: GetPromptById | GetPromptByName | GetPromptByVersion | GetPromptByTag;
 }
+/**
+ *
+ * @experimental
+ */
 export function getPrompt({ client: _client, prompt }: GetPromptParams) {
-  const client = _client ?? createClient();
+  const _pxClient = _client ?? createClient();
   // TODO: Implement
 }
+
+getPrompt({ prompt: { promptId: "123" } });
