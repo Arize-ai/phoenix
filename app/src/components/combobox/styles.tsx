@@ -1,5 +1,7 @@
 import { css } from "@emotion/react";
 
+import { fieldPopoverCSS } from "../field/styles";
+
 export const comboBoxCSS = css`
   &[data-size="M"] {
     --combobox-vertical-padding: 6px;
@@ -51,22 +53,18 @@ export const comboBoxCSS = css`
   }
 `;
 
-export const comboBoxPopoverCSS = css`
-  width: var(--trigger-width);
-  background-color: var(--ac-global-menu-background-color);
-  border-radius: var(--ac-global-rounding-small);
-  color: var(--ac-global-text-color-900);
-  box-shadow: 0px 4px 10px var(--px-overlay-shadow-color);
-  border: 1px solid var(--ac-global-menu-border-color);
-  max-height: inherit;
-  .react-aria-ListBox {
-    display: block;
-    width: unset;
-    max-height: inherit;
-    min-height: unset;
-    border: none;
-  }
-`;
+export const comboBoxPopoverCSS = css(
+  fieldPopoverCSS,
+  css`
+    .react-aria-ListBox {
+      display: block;
+      width: unset;
+      max-height: inherit;
+      min-height: unset;
+      border: none;
+    }
+  `
+);
 
 export const comboBoxItemCSS = css`
   outline: none;
