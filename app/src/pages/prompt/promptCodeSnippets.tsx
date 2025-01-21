@@ -250,11 +250,11 @@ export const mapPromptToSnippet = ({
       promptVersion.modelProvider?.toLocaleLowerCase()
     ];
   if (!generator) {
-    return `We do not have a code snippet for ${language} + ${promptVersion.modelProvider}`;
+    return null;
   }
 
   if (!("messages" in promptVersion.template)) {
-    return "Code snippets are not yet available to text templates";
+    return null;
   }
 
   const convertedPrompt = {
