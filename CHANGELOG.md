@@ -1,5 +1,18 @@
 # Changelog
 
+## [7.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.8.1...arize-phoenix-v7.9.0) (2025-01-21)
+
+
+### Features
+
+* Add support for o1 dev messages + reasoning param ([#6110](https://github.com/Arize-ai/phoenix/issues/6110)) ([1b90c33](https://github.com/Arize-ai/phoenix/commit/1b90c33929837454bc01aa47f6949cdbebf7fac3))
+
+
+### Documentation
+
+* add smolagents to the readme ([#6121](https://github.com/Arize-ai/phoenix/issues/6121)) ([26205d0](https://github.com/Arize-ai/phoenix/commit/26205d02c181e06f0c6eee44975ed56a8c84c40a))
+* Update README.md ([c1f8612](https://github.com/Arize-ai/phoenix/commit/c1f8612b3a1212c28fc78c1fa6e92df0191b69f9))
+
 ## [7.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.8.0...arize-phoenix-v7.8.1) (2025-01-18)
 
 
