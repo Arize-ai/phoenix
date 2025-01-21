@@ -196,6 +196,17 @@ class TraceDataset:
             end_time: Optional[datetime] = cast(datetime, row.get("end_time"))
             if end_time is pd.NaT:
                 end_time = None
+            events = cast(Any, row.get("events"))
+            if isinstance(events, np.ndarray):
+                events = events.tolist()
+            elif isinstance(events, str):
+                events = json.loads(events)
+                assert isinstance(events, list)
+            elif isinstance(events, Iterable):
+                events = list(events)
+            elif pd.isna(events):
+                events = []
+            assert isinstance(events, list)
             yield json_to_span(
                 {
                     "name": row["name"],
@@ -207,9 +218,7 @@ class TraceDataset:
                     "status_code": row["status_code"],
                     "status_message": row.get("status_message") or "",
                     "attributes": attributes,
-                    "events": row.get("events").tolist()
-                    if isinstance(row.get("events"), np.ndarray)
-                    else row.get("events") or [],
+                    "events": events,
                     "conversation": row.get("conversation"),
                 }
             )
