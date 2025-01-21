@@ -15,14 +15,18 @@ from typing import (
 )
 
 import strawberry
+from fastapi import WebSocketException
+from grpc_interceptor.exceptions import Unauthenticated
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import and_, func, insert, select
 from sqlalchemy.orm import load_only
+from starlette.status import HTTP_401_UNAUTHORIZED
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.auth import ClaimSetStatus
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
@@ -60,6 +64,7 @@ from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -93,6 +98,16 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        # check authorization on each subscription request
+        if info.context.auth_enabled:
+            user = info.context.user
+            if not isinstance(user, PhoenixUser):
+                raise WebSocketException(code=HTTP_401_UNAUTHORIZED, reason="Invalid token")
+            if user.claims.status is ClaimSetStatus.EXPIRED:
+                raise Unauthenticated(details="Expired token")
+            if user.claims.status is not ClaimSetStatus.VALID:
+                raise Unauthenticated(details="Invalid token")
+
         provider_key = input.model.provider_key
         llm_client_class = PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, input.model.name)
         if llm_client_class is None:
