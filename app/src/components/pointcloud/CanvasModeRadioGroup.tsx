@@ -1,15 +1,9 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import {
-  Radio,
-  RadioGroup,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, Radio, RadioGroup } from "@phoenix/components";
 import { CanvasMode } from "@phoenix/store";
 
 const radioItemCSS = css`
@@ -33,8 +27,7 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
   return (
     <RadioGroup
       defaultValue={props.mode}
-      variant="inline-button"
-      size="compact"
+      aria-label="Canvas Mode"
       onChange={(v) => {
         if (isCanvasMode(v)) {
           props.onChange(v);
@@ -43,7 +36,7 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
         }
       }}
     >
-      <Radio label="Move" value={CanvasMode.move}>
+      <Radio aria-label="Move" value={CanvasMode.move}>
         <TooltipTrigger placement="top" delay={0} offset={10}>
           <TriggerWrap>
             <div css={radioItemCSS}>
@@ -53,7 +46,7 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
           <Tooltip>Move around the canvas using orbital controls</Tooltip>
         </TooltipTrigger>
       </Radio>
-      <Radio label="Select" value={CanvasMode.select}>
+      <Radio aria-label="Select" value={CanvasMode.select}>
         <TooltipTrigger placement="top" delay={0} offset={10}>
           <TriggerWrap>
             <div css={radioItemCSS}>

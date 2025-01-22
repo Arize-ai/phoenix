@@ -2,14 +2,12 @@ import React from "react";
 
 import {
   FileTextOutline,
-  Radio,
-  RadioGroup,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, Radio, RadioGroup } from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
@@ -23,14 +21,13 @@ export function MarkdownModeRadioGroup({
 }) {
   return (
     <RadioGroup
-      size="compact"
-      variant="inline-button"
+      aria-label="Markdown Mode"
       value={mode}
       onChange={(value) => {
         onModeChange(value as MarkdownDisplayMode);
       }}
     >
-      <Radio label="text" value="text">
+      <Radio aria-label="text" value="text">
         <TooltipTrigger placement="top" delay={1000} offset={10}>
           <TriggerWrap>
             <Icon svg={<Icons.TextOutline />} />
@@ -38,7 +35,7 @@ export function MarkdownModeRadioGroup({
           <Tooltip>Text</Tooltip>
         </TooltipTrigger>
       </Radio>
-      <Radio label="markdown" value="markdown">
+      <Radio aria-label="markdown" value="markdown">
         <TooltipTrigger placement="top" delay={1000} offset={10}>
           <TriggerWrap>
             <Icon svg={<FileTextOutline />} />

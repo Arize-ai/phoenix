@@ -1,14 +1,8 @@
 import React from "react";
 
-import {
-  Radio,
-  RadioGroup,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, Radio, RadioGroup } from "@phoenix/components";
 
 export type AIMessageMode = "text" | "toolCalls";
 export type MessageMode = AIMessageMode;
@@ -27,8 +21,7 @@ export function AIMessageContentRadioGroup({
   return (
     <RadioGroup
       defaultValue={messageMode}
-      variant="inline-button"
-      size="compact"
+      aria-label="Message Mode"
       onChange={(v) => {
         if (isAIMessageMode(v)) {
           onChange(v);
@@ -37,7 +30,7 @@ export function AIMessageContentRadioGroup({
         }
       }}
     >
-      <Radio label="text input" value={"text"}>
+      <Radio aria-label="text input" value={"text"}>
         <TooltipTrigger placement="top" delay={0} offset={10}>
           <TriggerWrap>
             <Icon svg={<Icons.MessageSquareOutline />} />
@@ -45,7 +38,7 @@ export function AIMessageContentRadioGroup({
           <Tooltip>Text input</Tooltip>
         </TooltipTrigger>
       </Radio>
-      <Radio label="tool calling" value={"toolCalls"}>
+      <Radio aria-label="tool calling" value={"toolCalls"}>
         <TooltipTrigger placement="top" delay={0} offset={10}>
           <TriggerWrap>
             <Icon svg={<Icons.Code />} />

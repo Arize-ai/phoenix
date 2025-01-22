@@ -1,21 +1,23 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
+import { Radio, RadioGroup } from "@phoenix/components";
+import { SizingProps } from "@phoenix/components/types";
 
 export type CodeLanguage = "Python" | "TypeScript";
 
 export function CodeLanguageRadioGroup({
   language,
   onChange,
+  size,
 }: {
   language: CodeLanguage;
   onChange: (language: CodeLanguage) => void;
-}) {
+} & SizingProps) {
   return (
     <RadioGroup
+      size={size}
       defaultValue={language}
-      variant="inline-button"
-      size="compact"
+      aria-label="Code Language"
       onChange={(v) => {
         if (v === "Python" || v === "TypeScript") {
           onChange(v);
@@ -24,10 +26,10 @@ export function CodeLanguageRadioGroup({
         }
       }}
     >
-      <Radio label="Python" value={"Python"}>
+      <Radio aria-label="Python" value={"Python"}>
         Python
       </Radio>
-      <Radio label="TypeScript" value={"TypeScript"}>
+      <Radio aria-label="TypeScript" value={"TypeScript"}>
         TypeScript
       </Radio>
     </RadioGroup>

@@ -1,7 +1,6 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
-
+import { Radio, RadioGroup } from "@phoenix/components";
 import { SelectionGridSize } from "@phoenix/constants/pointCloudConstants";
 
 /**
@@ -25,7 +24,8 @@ export function SelectionGridSizeRadioGroup(
   return (
     <RadioGroup
       defaultValue={props.size}
-      variant="inline-button"
+      size="L"
+      aria-label="Selection Grid Size"
       onChange={(v) => {
         if (isSelectionGridSize(v)) {
           props.onChange(v);
@@ -34,13 +34,13 @@ export function SelectionGridSizeRadioGroup(
         }
       }}
     >
-      <Radio label="Small" value={SelectionGridSize.small}>
+      <Radio aria-label="Small" value={SelectionGridSize.small}>
         S
       </Radio>
-      <Radio label="Medium" value={SelectionGridSize.medium}>
+      <Radio aria-label="Medium" value={SelectionGridSize.medium}>
         M
       </Radio>
-      <Radio label="Large" value={SelectionGridSize.large}>
+      <Radio aria-label="Large" value={SelectionGridSize.large}>
         L
       </Radio>
     </RadioGroup>

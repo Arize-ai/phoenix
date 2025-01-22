@@ -1,7 +1,6 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
-
+import { Radio, RadioGroup } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { GenAIOperationType } from "@phoenix/store";
 
@@ -17,17 +16,17 @@ export function PlaygroundOperationTypeRadioGroup() {
   return (
     <RadioGroup
       value={operationType}
-      variant="inline-button"
+      aria-label="Operation Type"
       onChange={(v) => {
         if (isGenAIOperationType(v)) {
           setOperationType(v);
         }
       }}
     >
-      <Radio label="Chat" value={"chat"}>
+      <Radio aria-label="Chat" value={"chat"}>
         Chat
       </Radio>
-      <Radio label="Completion" value={"text_completion"}>
+      <Radio aria-label="Completion" value={"text_completion"}>
         Completion
       </Radio>
     </RadioGroup>
