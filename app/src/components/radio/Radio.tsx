@@ -9,20 +9,48 @@ import { classNames } from "@phoenix/components";
 import { StylableProps } from "@phoenix/components/types";
 
 const baseRadioCSS = css(`
-    padding: var(--ac-global-dimension-size-50) var(--ac-global-dimension-size-100);
-    border: 1px solid var(--ac-global-input-field-border-color);
-    background-color: var(--ac-global-input-field-background-color);
-    color: var(--ac-global-text-color-900);
-    &[data-selected="true"] {
-      background-color: var(--ac-global-button-primary-background-color);
-    }
-    &[data-hovered]:not([data-disabled]):not([data-selected="true"]) {
-      background-color: var(--ac-global-button-primary-background-color-hover);
+  display: flex;
+  align-items: center;
+  gap: var(--ac-global-dimension-size-50);
+  font-size: 14px;
+  color: var(--ac-global-text-color-900);
+  forced-color-adjust: none;
+
+  &:before {
+    content: '';
+    display: block;
+    width: 1.286rem;
+    height: 1.286rem;
+    box-sizing: border-box;
+    border: 0.143rem solid var(--ac-global-input-field-border-color);
+    background: var(--ac-global-input-field-background-color);
+    border-radius: 1.286rem;
+    transition: all 200ms;
+  }
+
+  &[data-pressed]:before {
+    border-color: var(--ac-global-input-field-border-color-active);
+  }
+
+  &[data-selected] {
+    &:before {
+      border-color: var(--ac-global-button-primary-background-color);
+      border-width: 0.429rem;
     }
 
-    &[data-disabled] {
-      opacity: var(--ac-global-opacity-disabled);
+    &[data-pressed]:before {
+      border-color: var(--ac-global-button-primary-background-color-active);
     }
+  }
+
+  &[data-focus-visible]:before {
+    outline: 2px solid var(--ac-global-input-field-border-color-active);
+    outline-offset: 2px;
+  }
+
+  &[data-disabled] {
+    opacity: var(--ac-global-opacity-disabled);
+  }
 `);
 
 export type RadioProps = AriaRadioProps;

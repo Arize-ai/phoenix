@@ -18,7 +18,7 @@ const baseRadioGroupCSS = css(`
   flex-direction: row;
   align-items: center;
   width: fit-content;
-
+  gap: var(--ac-global-dimension-size-200);
   font-size: 14px;
   line-height: 20px;
 
@@ -32,6 +32,10 @@ const baseRadioGroupCSS = css(`
 
   & > .ac-radio:last-child {
     border-radius: 0 4px 4px 0;
+  }
+
+  &[data-direction="column"] {
+    flex-direction: column;
   }
 
   &[data-size="S"] {
@@ -50,7 +54,7 @@ const baseRadioGroupCSS = css(`
   &:has(.ac-radio[data-focus-visible]) {
     border-radius: 4px;
     outline: 1px solid var(--ac-global-input-field-border-color-active);
-    outline-offset: 1px;
+    outline-offset: 8px;
   }
 `);
 
@@ -60,11 +64,15 @@ export const RadioGroup = ({
   size,
   css: cssProp,
   className,
+  direction,
   ...props
-}: RadioGroupProps & SizingProps & StylableProps) => {
+}: RadioGroupProps &
+  SizingProps &
+  StylableProps & { direction?: "row" | "column" }) => {
   return (
     <AriaRadioGroup
       data-size={size}
+      data-direction={direction}
       className={classNames("ac-radio-group", className)}
       css={css(baseRadioGroupCSS, cssProp)}
       {...props}
