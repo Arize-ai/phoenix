@@ -106,9 +106,10 @@ Connect your application to your cloud instance using:
 import os
 from phoenix.otel import register
 
-# Add Phoenix API Key for tracing
+# If you have set up auth on your local Phoenix instance, include:
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_API_KEY] = "{PHOENIX_API_KEY}"
 
 # configure the Phoenix tracer
 tracer_provider = register(
