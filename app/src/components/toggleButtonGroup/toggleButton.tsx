@@ -13,15 +13,25 @@ const baseToggleButtonCSS = css(`
     border: 1px solid var(--ac-global-input-field-border-color);
     background-color: var(--ac-global-input-field-background-color);
     color: var(--ac-global-text-color-900);
+    outline: none;
+
     &[data-selected="true"] {
       background-color: var(--ac-global-button-primary-background-color);
+      border-color: var(--ac-global-button-primary-background-color);
+    }
+    &[data-selected="true"]:not(:first-child) {
+      margin-left: -1px;
     }
     &[data-hovered]:not([data-disabled]):not([data-selected="true"]) {
       background-color: var(--ac-global-button-primary-background-color-hover);
+      border-color: var(--ac-global-button-primary-background-color-hover);
     }
-
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);
+    }
+    &[data-focus-visible] {
+      outline: 1px solid var(--ac-global-input-field-border-color-active);
+      outline-offset: -2px;
     }
 `);
 

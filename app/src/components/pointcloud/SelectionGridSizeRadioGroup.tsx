@@ -1,6 +1,6 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@phoenix/components";
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { SelectionGridSize } from "@phoenix/constants/pointCloudConstants";
 
 /**
@@ -22,27 +22,31 @@ export function SelectionGridSizeRadioGroup(
   props: SelectionGridSizeRadioGroupProps
 ) {
   return (
-    <RadioGroup
-      defaultValue={props.size}
+    <ToggleButtonGroup
+      selectedKeys={[props.size]}
       size="L"
       aria-label="Selection Grid Size"
-      onChange={(v) => {
-        if (isSelectionGridSize(v)) {
-          props.onChange(v);
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const size = v.keys().next().value;
+        if (isSelectionGridSize(size)) {
+          props.onChange(size);
         } else {
-          throw new Error(`Unknown grid size: ${v}`);
+          throw new Error(`Unknown grid size: ${size}`);
         }
       }}
     >
-      <Radio aria-label="Small" value={SelectionGridSize.small}>
+      <ToggleButton aria-label="Small" id={SelectionGridSize.small}>
         S
-      </Radio>
-      <Radio aria-label="Medium" value={SelectionGridSize.medium}>
+      </ToggleButton>
+      <ToggleButton aria-label="Medium" id={SelectionGridSize.medium}>
         M
-      </Radio>
-      <Radio aria-label="Large" value={SelectionGridSize.large}>
+      </ToggleButton>
+      <ToggleButton aria-label="Large" id={SelectionGridSize.large}>
         L
-      </Radio>
-    </RadioGroup>
+      </ToggleButton>
+    </ToggleButtonGroup>
   );
 }

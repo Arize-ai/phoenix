@@ -1,6 +1,11 @@
 import React from "react";
 
-import { Icon, Icons, Radio, RadioGroup } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@phoenix/components";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 
 /**
@@ -22,23 +27,27 @@ export function SelectionDisplayRadioGroup(
   props: SelectionDisplayRadioGroupProps
 ) {
   return (
-    <RadioGroup
-      defaultValue={props.mode}
+    <ToggleButtonGroup
+      selectedKeys={[props.mode]}
       size="L"
-      onChange={(v) => {
-        if (isSelectionDisplay(v)) {
-          props.onChange(v);
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const mode = v.keys().next().value;
+        if (isSelectionDisplay(mode)) {
+          props.onChange(mode);
         } else {
-          throw new Error(`Unknown view mode: ${v}`);
+          throw new Error(`Unknown view mode: ${mode}`);
         }
       }}
     >
-      <Radio aria-label="List" value={SelectionDisplay.list}>
+      <ToggleButton aria-label="List" id={SelectionDisplay.list}>
         <Icon svg={<Icons.ListOutline />} />
-      </Radio>
-      <Radio aria-label="Grid" value={SelectionDisplay.gallery}>
+      </ToggleButton>
+      <ToggleButton aria-label="Grid" id={SelectionDisplay.gallery}>
         <Icon svg={<Icons.Grid />} />
-      </Radio>
-    </RadioGroup>
+      </ToggleButton>
+    </ToggleButtonGroup>
   );
 }

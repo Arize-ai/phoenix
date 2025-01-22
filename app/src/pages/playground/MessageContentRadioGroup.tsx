@@ -1,8 +1,13 @@
 import React from "react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Icon, Icons, Radio, RadioGroup } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@phoenix/components";
 
 export type AIMessageMode = "text" | "toolCalls";
 export type MessageMode = AIMessageMode;
@@ -19,33 +24,31 @@ export function AIMessageContentRadioGroup({
   onChange: (messageMode: AIMessageMode) => void;
 }) {
   return (
-    <RadioGroup
-      defaultValue={messageMode}
+    <ToggleButtonGroup
+      selectedKeys={[messageMode]}
       aria-label="Message Mode"
-      onChange={(v) => {
-        if (isAIMessageMode(v)) {
-          onChange(v);
-        } else {
-          throw new Error(`Unknown message mode: ${v}`);
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const mode = v.keys().next().value;
+        if (isAIMessageMode(mode)) {
+          onChange(mode);
         }
       }}
     >
-      <Radio aria-label="text input" value={"text"}>
-        <TooltipTrigger placement="top" delay={0} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<Icons.MessageSquareOutline />} />
-          </TriggerWrap>
-          <Tooltip>Text input</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-      <Radio aria-label="tool calling" value={"toolCalls"}>
-        <TooltipTrigger placement="top" delay={0} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<Icons.Code />} />
-          </TriggerWrap>
-          <Tooltip>Tool calling</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-    </RadioGroup>
+      <TooltipTrigger placement="top" delay={0} offset={10}>
+        <ToggleButton aria-label="text input" id={"text"}>
+          <Icon svg={<Icons.MessageSquareOutline />} />
+        </ToggleButton>
+        <Tooltip>Text input</Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger placement="top" delay={0} offset={10}>
+        <ToggleButton aria-label="tool calling" id={"toolCalls"}>
+          <Icon svg={<Icons.Code />} />
+        </ToggleButton>
+        <Tooltip>Tool calling</Tooltip>
+      </TooltipTrigger>
+    </ToggleButtonGroup>
   );
 }

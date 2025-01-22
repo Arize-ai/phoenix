@@ -1,7 +1,7 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Radio, RadioGroup } from "@phoenix/components";
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { isTemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -19,25 +19,29 @@ export function TemplateLanguageRadioGroup() {
         }
       `}
     >
-      <RadioGroup
-        value={language}
+      <ToggleButtonGroup
+        defaultSelectedKeys={[language]}
         aria-label="Template Language"
-        onChange={(v) => {
-          if (isTemplateLanguage(v)) {
-            setLanguage(v);
+        onSelectionChange={(v) => {
+          if (v.size === 0) {
+            return;
+          }
+          const lang = v.keys().next().value;
+          if (isTemplateLanguage(lang)) {
+            setLanguage(lang);
           }
         }}
       >
-        <Radio aria-label="None" value={TemplateLanguages.NONE}>
+        <ToggleButton aria-label="None" id={TemplateLanguages.NONE}>
           None
-        </Radio>
-        <Radio aria-label="Mustache" value={TemplateLanguages.Mustache}>
+        </ToggleButton>
+        <ToggleButton aria-label="Mustache" id={TemplateLanguages.Mustache}>
           Mustache
-        </Radio>
-        <Radio aria-label="F-String" value={TemplateLanguages.FString}>
+        </ToggleButton>
+        <ToggleButton aria-label="F-String" id={TemplateLanguages.FString}>
           F-String
-        </Radio>
-      </RadioGroup>
+        </ToggleButton>
+      </ToggleButtonGroup>
     </div>
   );
 }
