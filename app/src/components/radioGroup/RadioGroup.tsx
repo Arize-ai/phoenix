@@ -43,6 +43,7 @@ const baseRadioGroupCSS = css(`
   &[data-size="L"] {
     .ac-radio {
       padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
+      line-height: 21px;
     }
   }
 
