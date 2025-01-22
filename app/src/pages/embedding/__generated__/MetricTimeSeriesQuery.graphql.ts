@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d6bff22c80e8f3c35047a0a9d9448e8>>
+ * @generated SignedSource<<4293107506e89e5b5651c3f750a55761>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type PerformanceMetric = "accuracyScore";
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type Granularity = {
   evaluationWindowMinutes: number;

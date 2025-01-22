@@ -4,7 +4,7 @@ from itertools import accumulate, repeat, takewhile
 
 import strawberry
 
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.core import model_schema
 
 
 @strawberry.input(
@@ -38,7 +38,7 @@ class Granularity:
 
 
 def to_timestamps(
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
 ) -> Iterator[datetime]:
     if not granularity.sampling_interval_minutes:
@@ -51,6 +51,6 @@ def to_timestamps(
                     minutes=granularity.sampling_interval_minutes,
                 )
             ),
-            initial=time_range.end,
+            initial=time_range.stop,
         ),
     )

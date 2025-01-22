@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f43d965d6e82b578db92882c9a27eeac>>
+ * @generated SignedSource<<5298fa98081065363a342c9b58fbe0b0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,8 +23,8 @@ export type EvalResultKey = {
   name: string;
 };
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type TracesTableQuery$variables = {
   after?: string | null;
