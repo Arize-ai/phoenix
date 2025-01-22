@@ -12,6 +12,7 @@ const baseRadioGroupCSS = css(`
   display: flex;
   flex-direction: row;
   align-items: center;
+  width: fit-content;
 
   font-size: 14px;
   line-height: 20px;
