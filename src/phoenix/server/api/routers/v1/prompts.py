@@ -13,13 +13,15 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
-    PromptOutputSchema,
+    PromptChatTemplateV1,
+    PromptJSONSchema,
+    PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolsV1,
 )
-from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.pydantic_compat import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
@@ -45,7 +47,7 @@ class PromptVersion(V1RoutesBaseModel):
     template_format: PromptTemplateFormat = Field(default=PromptTemplateFormat.MUSTACHE)
     invocation_parameters: dict[str, Any] = Field(default_factory=dict)
     tools: Optional[PromptToolsV1] = None
-    output_schema: Optional[PromptOutputSchema] = None
+    output_schema: Optional[PromptJSONSchema] = None
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -53,6 +55,10 @@ class GetPromptResponseBody(ResponseBody[PromptVersion]):
 
 
 class GetPromptsResponseBody(ResponseBody[list[Prompt]]):
+    pass
+
+
+class GetPromptVersionsResponseBody(ResponseBody[list[PromptVersion]]):
     pass
 
 
@@ -110,6 +116,64 @@ async def get_prompts(
 
 
 @router.get(
+    "/prompts/{prompt_id}/versions",
+    operation_id="listPromptVersions",
+    summary="List all prompt versions for a given prompt",
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def list_prompt_versions(
+    request: Request,
+    prompt_id: str = Path(..., description="The ID of the prompt"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination (base64-encoded promptVersion ID)",
+    ),
+    limit: int = Query(
+        default=100, description="The max number of prompt versions to return at a time.", gt=0
+    ),
+) -> GetPromptVersionsResponseBody:
+    try:
+        prompt_gid = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_id),
+            PromptNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt ID")
+    async with request.app.state.db() as session:
+        query = (
+            select(models.PromptVersion)
+            .where(models.PromptVersion.prompt_id == prompt_gid)
+            .order_by(models.PromptVersion.id.desc())
+        )
+
+        if cursor:
+            try:
+                cursor_id = GlobalID.from_id(cursor).node_id
+                query = query.filter(models.PromptVersion.id <= int(cursor_id))
+            except ValueError:
+                raise HTTPException(
+                    detail=f"Invalid cursor format: {cursor}",
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+
+        query = query.limit(limit + 1)
+        result = await session.execute(query)
+        orm_versions = result.scalars().all()
+
+        if not orm_versions:
+            return GetPromptVersionsResponseBody(next_cursor=None, data=[])
+
+        next_cursor = None
+        if len(orm_versions) == limit + 1:
+            last_version = orm_versions[-1]
+            next_cursor = str(GlobalID(PromptVersionNodeType.__name__, str(last_version.id)))
+            orm_versions = orm_versions[:-1]
+
+        versions = [_prompt_version_from_orm_version(orm_version) for orm_version in orm_versions]
+        return GetPromptVersionsResponseBody(next_cursor=next_cursor, data=versions)
+
+
+@router.get(
     "/prompt_versions/{prompt_version_id}",
     operation_id="getPromptVersionByPromptVersionId",
     summary="Get prompt by prompt version ID",
@@ -135,7 +199,8 @@ async def get_prompt_version_by_prompt_version_id(
         prompt_version = await session.get(models.PromptVersion, id_)
         if prompt_version is None:
             raise HTTPException(HTTP_404_NOT_FOUND)
-    return _prompt_version_response_body(prompt_version)
+    data = _prompt_version_from_orm_version(prompt_version)
+    return GetPromptResponseBody(data=data)
 
 
 @router.get(
@@ -169,31 +234,8 @@ async def get_prompt_version_by_tag_name(
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
             raise HTTPException(HTTP_404_NOT_FOUND)
-    return _prompt_version_response_body(prompt_version)
-
-
-@router.get(
-    "/prompts/{prompt_identifier}/latest",
-    operation_id="getPromptVersionLatest",
-    summary="Get the latest prompt version",
-    responses=add_errors_to_responses(
-        [
-            HTTP_404_NOT_FOUND,
-            HTTP_422_UNPROCESSABLE_ENTITY,
-        ]
-    ),
-)
-async def get_prompt_version_by_latest(
-    request: Request,
-    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
-) -> GetPromptResponseBody:
-    stmt = select(models.PromptVersion).order_by(models.PromptVersion.id.desc()).limit(1)
-    stmt = _filter_by_prompt_identifier(stmt, prompt_identifier)
-    async with request.app.state.db() as session:
-        prompt_version: models.PromptVersion = await session.scalar(stmt)
-        if prompt_version is None:
-            raise HTTPException(HTTP_404_NOT_FOUND)
-    return _prompt_version_response_body(prompt_version)
+    data = _prompt_version_from_orm_version(prompt_version)
+    return GetPromptResponseBody(data=data)
 
 
 class _PromptId(int): ...
@@ -232,24 +274,39 @@ def _filter_by_prompt_identifier(
     assert_never(identifier)
 
 
-def _prompt_version_response_body(
+def _prompt_version_from_orm_version(
     prompt_version: models.PromptVersion,
-) -> GetPromptResponseBody:
+) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
+    template: PromptTemplate
+    if prompt_template_type is PromptTemplateType.CHAT:
+        template = PromptChatTemplateV1.model_validate(prompt_version.template)
+    elif prompt_template_type is PromptTemplateType.STRING:
+        template = PromptStringTemplateV1.model_validate(prompt_version.template)
+    else:
+        assert_never(prompt_template_type)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    return GetPromptResponseBody(
-        data=PromptVersion(
-            id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
-            description=prompt_version.description or "",
-            model_provider=prompt_version.model_provider,
-            model_name=prompt_version.model_name,
-            template=prompt_version.template,
-            template_type=prompt_template_type,
-            template_format=prompt_template_format,
-            invocation_parameters=prompt_version.invocation_parameters,
-            tools=prompt_version.tools,
-            output_schema=prompt_version.output_schema,
-        )
+    tools = (
+        PromptToolsV1.model_validate(prompt_version.tools)
+        if prompt_version.tools is not None
+        else None
+    )
+    output_schema = (
+        PromptJSONSchema.model_validate(prompt_version.output_schema)
+        if prompt_version.output_schema is not None
+        else None
+    )
+    return PromptVersion(
+        id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
+        description=prompt_version.description or "",
+        model_provider=prompt_version.model_provider,
+        model_name=prompt_version.model_name,
+        template=template,
+        template_type=prompt_template_type,
+        template_format=prompt_template_format,
+        invocation_parameters=prompt_version.invocation_parameters,
+        tools=tools,
+        output_schema=output_schema,
     )
 
 
