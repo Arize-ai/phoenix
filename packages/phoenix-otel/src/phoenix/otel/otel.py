@@ -35,12 +35,15 @@ PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 class OTLPTransportProtocol(str, Enum):
     HTTP_PROTOBUF = "http/protobuf"
     GRPC = "grpc"
+    INFER = "infer"
 
     @classmethod
     def _missing_(cls, value: object) -> "OTLPTransportProtocol":
-        if not isinstance(value, str):
+        if not isinstance(value, (str, type(None))):
             raise ValueError(f"Invalid protocol: {value}. Must be a string.")
-        if "http" in value:
+        if value is None:
+            return cls.INFER
+        elif "http" in value:
             raise ValueError(
                 (
                     f"Invalid protocol: {value}. Must be one of {cls._valid_protocols_str()}. "
