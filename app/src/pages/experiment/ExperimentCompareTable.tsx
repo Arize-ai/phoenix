@@ -412,7 +412,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [experimentIds, experimentInfoById, datasetId, displayFullText]);
 
   const columns = useMemo(() => {
-    return [...baseColumns, ...experimentColumns, { id: "tail", minSize: 500 }];
+    return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
   const table = useReactTable<TableRow>({
@@ -536,6 +536,7 @@ function TableBody<T>({ table }: { table: Table<T> }) {
                 key={cell.id}
                 style={{
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  wordBreak: "break-all",
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
