@@ -20,7 +20,7 @@ const INSTALL_PHOENIX_PYTHON = `pip install arize-phoenix>=${window.Config.platf
 function getSetBaseUrlPython({ isAuthEnabled }: { isAuthEnabled: boolean }) {
   let setBaseURLPython =
     `import os\n` +
-    `# Set the phoenix collector endpoint. Commonly http://localhost:6060 \n` +
+    `# Set the phoenix collector endpoint. Commonly http://localhost:6006 \n` +
     `os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "<your-phoenix-url>"`;
   if (isAuthEnabled) {
     setBaseURLPython +=
@@ -36,7 +36,7 @@ const TASK_PYTHON =
   `# Typically should be an LLM call or a call to your application\n` +
   `def my_task(example: Example) -> str:\n` +
   `    # This is just an example of how to return a JSON serializable value\n` +
-  `    return f"Hello {example.input["person"]}"`;
+  `    return f"Hello {example.input['person']}"`;
 
 const EVALUATOR_PYTHON =
   `# Define an evaluator. This just an example.\n` +

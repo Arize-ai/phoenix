@@ -53,3 +53,14 @@ def test_template_with_default_delimiters_accepts_keys_with_dots():
         str(template.format(variable_values={"my.name": "world"}))
         == 'Hello, world! Look at this JSON { "hello": "world" }'
     )
+
+
+def test_template_with_alternate_delimiters():
+    template = PromptTemplate(
+        template='Hello, ~name~! Look at this JSON {"hello": "world"}',
+        delimiters=("~", "~"),
+    )
+    assert (
+        str(template.format(variable_values={"name": "world"}))
+        == 'Hello, world! Look at this JSON {"hello": "world"}'
+    )

@@ -2,11 +2,15 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from secrets import token_hex
+from typing import Any
 from uuid import UUID, uuid4
 
+import numpy as np
 import pandas as pd
 import pyarrow
 import pytest
+from faker import Faker
 from pandas.testing import assert_frame_equal
 from pyarrow import parquet
 
@@ -380,3 +384,51 @@ def test_to_span_fully_unflattens_all_dot_separators() -> None:
     assert actual[0].attributes["llm"] == {
         "input_messages": [{"message": {"content": "hello", "role": "user"}}]
     }
+
+
+def _row() -> dict[str, Any]:
+    return {
+        "name": Faker().pystr(),
+        "span_kind": Faker().pystr(),
+        "parent_id": None,
+        "start_time": datetime.now(),
+        "end_time": datetime.now(),
+        "status_code": "OK",
+        "status_message": "",
+        "context.trace_id": token_hex(16),
+        "context.span_id": token_hex(8),
+    }
+
+
+def _exception() -> dict[str, Any]:
+    return {
+        "name": "exception",
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        pytest.param([{"end_time": np.nan}], id="end_time is np.nan"),
+        pytest.param([{"end_time": None}], id="end_time is None"),
+        pytest.param([{"end_time": pd.NaT}], id="end_time is pd.NaT"),
+        pytest.param([{"events": None}], id="events is None"),
+        pytest.param([{"events": np.nan}], id="events is np.nan"),
+        pytest.param([{"events": np.ndarray(0)}], id="events is empty ndarray"),
+        pytest.param([{"events": ()}], id="events is empty tuple"),
+        pytest.param([{"events": []}], id="events is empty list"),
+        pytest.param(
+            [{"events": np.array([_exception()])}],
+            id="events is non-empty ndarray",
+        ),
+        pytest.param(
+            [{"events": json.dumps([_exception()])}],
+            id="events is json string",
+        ),
+    ],
+)
+def test_to_spans_from_df(rows: list[dict[str, Any]]) -> None:
+    df = pd.DataFrame({**_row(), **row} for row in rows)
+    spans = list(TraceDataset(df).to_spans())
+    assert len(spans) == len(df)
