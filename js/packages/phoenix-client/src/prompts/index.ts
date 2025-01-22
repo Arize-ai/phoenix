@@ -23,7 +23,10 @@ export interface GetPromptParams extends ClientFn {
  *
  * @experimental
  */
-export function getPrompt({ client: _client, prompt }: GetPromptParams) {
+export function getPrompt({
+  client: _client,
+  prompt: _prompt,
+}: GetPromptParams) {
   const _pxClient = _client ?? createClient();
   // TODO: Implement
 }
