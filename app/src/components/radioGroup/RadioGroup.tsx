@@ -9,6 +9,11 @@ import { classNames } from "@phoenix/components";
 import { SizingProps, StylableProps } from "@phoenix/components/types";
 
 const baseRadioGroupCSS = css(`
+  // fixes esoteric overflow bug with VisuallyHidden, which is used by Radio
+  // If position is not set to relative, the radio group will explode the parent layout
+  // This will impact any other react aria component that uses VisuallyHidden
+  // https://github.com/adobe/react-spectrum/issues/5094
+  position: relative;
   display: flex;
   flex-direction: row;
   align-items: center;
