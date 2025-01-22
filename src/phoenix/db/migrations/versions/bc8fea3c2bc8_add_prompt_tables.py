@@ -64,6 +64,7 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.String, unique=True, index=True, nullable=False),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column("color", sa.String, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
@@ -140,6 +141,7 @@ def upgrade() -> None:
         sa.Column("output_schema", JSON_, nullable=True),
         sa.Column("model_provider", sa.String, nullable=False),
         sa.Column("model_name", sa.String, nullable=False),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
