@@ -6,7 +6,7 @@ description: AI Observability and Evaluation
 
 Phoenix is an open-source observability library designed for experimentation, evaluation, and troubleshooting. It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues, and export data to improve.\
 \
-Phoenix is built by [Arize AI](https://www.arize.com), the company behind the the industry-leading AI observability platform, and a set of core contributors.
+Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
 
 ## Install Phoenix
 
@@ -66,6 +66,6 @@ The main Phoenix package is arize-phoenix. We offer several helper packages belo
 
 Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more.
 
-### [Community](https://join.slack.com/t/arize-ai/shared\_invite/zt-1ppbtg5dd-1CYmQO4dWF4zvXFiONTjMg)
+### [Community](https://join.slack.com/t/arize-ai/shared_invite/zt-1ppbtg5dd-1CYmQO4dWF4zvXFiONTjMg)
 
 Join the Phoenix Slack community to ask questions, share findings, provide feedback, and connect with other developers.
