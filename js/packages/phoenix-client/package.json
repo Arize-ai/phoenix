@@ -46,9 +46,6 @@
   "license": "ELv2",
   "devDependencies": {
     "@types/node": "^20.14.11",
-    "ai": "^4.1.0",
-    "openai": "^4.77.0",
-    "openai": "^4.77.0",
     "openapi-typescript": "^7.4.1",
     "tsx": "^4.19.1"
   },
@@ -62,6 +59,7 @@
     "node": ">=18"
   },
   "peerDependencies": {
+    "ai": "^4.1.0",
     "openai": "^4.77.0"
   }
 }
