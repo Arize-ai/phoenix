@@ -1279,7 +1279,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
               "description": "The ID of the prompt",
               "title": "Prompt Id"
             },
