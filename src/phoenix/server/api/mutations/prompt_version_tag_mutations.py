@@ -3,6 +3,7 @@ from typing import Optional
 import strawberry
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -96,28 +97,10 @@ class PromptVersionTagMutationMixin:
             )
             if not prompt:
                 raise BadRequest("All prompt version tags must belong to a prompt")
-            name = IdentifierModel.model_validate(str(input.name))
-            existing_tag = await session.scalar(
-                select(models.PromptVersionTag).where(
-                    models.PromptVersionTag.prompt_id == prompt_id,
-                    models.PromptVersionTag.name == name,
-                )
-            )
 
-            if existing_tag:
-                existing_tag.prompt_version_id = prompt_version_id
-                if input.description is not None:
-                    existing_tag.description = input.description
-                updated_tag = existing_tag
-            else:
-                new_tag = models.PromptVersionTag(
-                    name=name,
-                    description=input.description,
-                    prompt_id=prompt_id,
-                    prompt_version_id=prompt_version_id,
-                )
-                session.add(new_tag)
-                updated_tag = new_tag
+            updated_tag = await upsert_prompt_version_tag(
+                session, prompt_id, prompt_version_id, input.name, input.description
+            )
 
             if not updated_tag:
                 raise BadRequest("Failed to create or update PromptVersionTag.")
@@ -131,3 +114,35 @@ class PromptVersionTagMutationMixin:
             return PromptVersionTagMutationPayload(
                 prompt_version_tag=version_tag, prompt=to_gql_prompt_from_orm(prompt), query=Query()
             )
+
+
+async def upsert_prompt_version_tag(
+    session: AsyncSession,
+    prompt_id: int,
+    prompt_version_id: int,
+    name_str: str,
+    description: Optional[str] = None,
+) -> models.PromptVersionTag:
+    name = IdentifierModel.model_validate(name_str)
+
+    existing_tag = await session.scalar(
+        select(models.PromptVersionTag).where(
+            models.PromptVersionTag.prompt_id == prompt_id,
+            models.PromptVersionTag.name == name,
+        )
+    )
+
+    if existing_tag:
+        existing_tag.prompt_version_id = prompt_version_id
+        if description is not None:
+            existing_tag.description = description
+        return existing_tag
+    else:
+        new_tag = models.PromptVersionTag(
+            name=name,
+            description=description,
+            prompt_id=prompt_id,
+            prompt_version_id=prompt_version_id,
+        )
+        session.add(new_tag)
+        return new_tag
