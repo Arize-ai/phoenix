@@ -1,8 +1,6 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
-
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, Radio, RadioGroup } from "@phoenix/components";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 
 /**
@@ -26,7 +24,7 @@ export function SelectionDisplayRadioGroup(
   return (
     <RadioGroup
       defaultValue={props.mode}
-      variant="inline-button"
+      size="L"
       onChange={(v) => {
         if (isSelectionDisplay(v)) {
           props.onChange(v);
@@ -35,10 +33,10 @@ export function SelectionDisplayRadioGroup(
         }
       }}
     >
-      <Radio label="List" value={SelectionDisplay.list}>
+      <Radio aria-label="List" value={SelectionDisplay.list}>
         <Icon svg={<Icons.ListOutline />} />
       </Radio>
-      <Radio label="Grid" value={SelectionDisplay.gallery}>
+      <Radio aria-label="Grid" value={SelectionDisplay.gallery}>
         <Icon svg={<Icons.Grid />} />
       </Radio>
     </RadioGroup>
