@@ -7,6 +7,9 @@ import {
   Button,
   ComboBox,
   ComboBoxItem,
+  DateField,
+  DateInput,
+  DateSegment,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -19,6 +22,7 @@ import {
   TagList,
   Text,
   TextField,
+  TimeField,
   View,
 } from "@phoenix/components";
 
@@ -61,7 +65,11 @@ const Template: StoryFn = () => {
           gap="size-200"
           alignItems={direction === "row" ? "center" : "start"}
         >
-          <ComboBox label="Ice cream flavor" description={"pick a flavor"}>
+          <ComboBox
+            label="Ice cream flavor"
+            description={"pick a flavor"}
+            placeholder="Select a flavor"
+          >
             <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
               Chocolate
             </ComboBoxItem>
@@ -75,6 +83,20 @@ const Template: StoryFn = () => {
               Vanilla
             </ComboBoxItem>
           </ComboBox>
+          <DateField>
+            <Label>Birth date</Label>
+            <DateInput>
+              {(segment) => <DateSegment segment={segment} />}
+            </DateInput>
+            <Text slot="description">your birthday</Text>
+          </DateField>
+          <TimeField>
+            <Label>Event Time</Label>
+            <DateInput>
+              {(segment) => <DateSegment segment={segment} />}
+            </DateInput>
+            <Text slot="description">the time of your event</Text>
+          </TimeField>
           <Picker label="Toppings" size="compact" description={"pick a flavor"}>
             <Item key="chocolate">Chocolate</Item>
             <Item key="mint">Mint</Item>
