@@ -103,6 +103,8 @@
 
 * [Overview: Prompts](prompt-engineering/overview-prompts.md)
 * [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
+* [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
+  * [Crate a prompt](prompt-engineering/how-to-prompts/crate-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 
 ## 🗄️ Datasets & Experiments
