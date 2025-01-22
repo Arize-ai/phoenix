@@ -50,6 +50,8 @@ When using the `endpoint` argument, we must pass in the fully qualified OTel end
 * **HTTP**: simpler
   * by default exposed on port **6006 and /v1/traces**: `<PHOENIX_HOST>:6006/v1/traces`
 
+When passing in an `endpoint`directly, the transport protocol (`http`or `gRPC` ) will be inferred from the endpoint. However, when using a custom endpoint, the protocol can be enforced by passing in a `protocol`argument, specifying either: `http/protobuf`or `grpc`.
+
 **phoenix.otel** can be further configured for things like batch span processing and specifying resources. For the full details of how to configure **phoenix.otel,** please consult the package repository ([https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel))
 
 ## Log to a specific project
