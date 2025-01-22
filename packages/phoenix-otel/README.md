@@ -63,7 +63,8 @@ tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
 
 Additionally, the `protocol` argument can be used to enforce the OTLP transport protocol
 regardless of the endpoint specified. This might be useful in cases such as when the GRPC
-endpoint is bound to a different port than the default (4317).
+endpoint is bound to a different port than the default (4317). The valid protocols are:
+"http/protobuf", and "grpc".
 
 ```
 from phoenix.otel import register
