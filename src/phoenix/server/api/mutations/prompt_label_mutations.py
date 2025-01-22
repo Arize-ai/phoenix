@@ -82,9 +82,6 @@ class PromptLabelMutationMixin:
     async def patch_prompt_label(
         self, info: Info[Context, None], input: PatchPromptLabelInput
     ) -> PromptLabelMutationPayload:
-        """
-        Updates (patches) an existing PromptLabel by ID.
-        """
         validated_name = IdentifierModel.model_validate(str(input.name)) if input.name else None
         async with info.context.db() as session:
             label_id = from_global_id_with_expected_type(
