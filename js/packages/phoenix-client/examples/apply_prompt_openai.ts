@@ -38,7 +38,7 @@ const main = async () => {
     prompt,
     sdk: "openai",
     variables: {
-      question: "What is the capital of France?",
+      question: "When does Monster Hunter Wilds come out?",
     },
   });
 
@@ -70,6 +70,8 @@ const main = async () => {
       } catch {
         console.log(responseText);
       }
+    } else if (chunk.choices[0]?.delta?.tool_calls) {
+      console.log(chunk.choices[0]?.delta?.tool_calls);
     }
   }
 
