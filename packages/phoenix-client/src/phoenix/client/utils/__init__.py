@@ -1,5 +1,5 @@
-from .prompt import to_messages
+from .prompt import to_chat_messages_and_kwargs
 
 __all__ = [
-    "to_messages",
+    "to_chat_messages_and_kwargs",
 ]

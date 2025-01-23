@@ -46,11 +46,11 @@ logger = logging.getLogger(__name__)
 
 
 __all__ = [
-    "to_messages",
+    "to_chat_messages_and_kwargs",
 ]
 
 
-def to_messages(
+def to_chat_messages_and_kwargs(
     obj: PromptVersion,
     /,
     *,
@@ -484,6 +484,6 @@ if TYPE_CHECKING:
         top_p: float
 
     def _(obj: PromptVersion) -> None:
-        messages, kwargs = to_messages(obj)
+        messages, kwargs = to_chat_messages_and_kwargs(obj)
         MessageCreateParamsBase(messages=messages, **kwargs)
         Anthropic().messages.create(messages=messages, **kwargs)

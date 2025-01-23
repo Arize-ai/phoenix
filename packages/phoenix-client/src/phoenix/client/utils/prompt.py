@@ -4,8 +4,10 @@ from typing import Any, Literal, Mapping, Optional, cast
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.client.__generated__.v1 import PromptVersion
-from phoenix.client.helpers.sdk.anthropic.messages import to_messages as to_messages_anthropic
-from phoenix.client.helpers.sdk.openai.chat import to_messages as to_messages_openai
+from phoenix.client.helpers.sdk.anthropic.messages import (
+    to_chat_messages_and_kwargs as to_messages_anthropic,
+)
+from phoenix.client.helpers.sdk.openai.chat import to_chat_messages_and_kwargs as to_messages_openai
 from phoenix.client.utils.template_formatters import TemplateFormatter
 
 SDK: TypeAlias = Literal[
@@ -20,7 +22,7 @@ SDK: TypeAlias = Literal[
 ]
 
 
-def to_messages(
+def to_chat_messages_and_kwargs(
     obj: PromptVersion,
     /,
     *,
