@@ -224,6 +224,29 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
 6. Under **Client credentials**, click **Add a certificate or secret**. Create a client secret and copy and save its value.
 7. Deploy Phoenix using the three environment variables described above, substituting `MICROSOFT_ENTRA_ID` for `<IDP>`.
 
+### Keycloak
+1. From the Keycloak Console create a **new Realm** or skip this part if you want to reuse a existing Realm
+2. Select **Clients**.
+3. Click on **new Client**
+   1. Enter the **Client ID** phoenix
+   2. Enter the **Name** Phoenix Client
+   3. Enter below **Root URL** the root url of your phoenix instance, like `https://example.com/subpath/subpath`
+   4. Enter below **Home URL** the home url of your phoenix instance, like `/subpath/subpath`
+   5. Enter below **Valid redirect URIs** a redirect url to your phoenix instance, like `https://example.com/subpath/subpath/*`
+   6. Enter below **Valid post logout redirect URIs** +
+   7. Enter below **Web origins** your url, like `https://example.com`
+   8. Enter below **Admin URL** your admin url, like `https://example.com/subpath/subpath/`
+   9. Enable **Client authentication**
+   10. Ensure that only **Standard flow** and **Direct access grants** is enabled
+   11. Hit the **Save button**
+4. Go to the Client **phoenix** and to the tab credentials and copy the **client-secret**
+     
+4. Deploy Phoenix using the three environment variables described above, substituting `KEYCLOAK` for `<IDP>`.
+    1. PHOENIX_OAUTH2_KEYCLOAK_CLIENT_ID="<client-id>"
+    2. PHOENIX_OAUTH2_KEYCLOAK_OIDC_CONFIG_URL="https://<keycloak-url>/<subpaths>/**realms**/<realm>/**.well-known/openid-configuration**"
+    3. PHOENIX_OAUTH2_KEYCLOAK_CLIENT_SECRET="<client-secret>"
+   
+
 ### Other Identity Providers
 
 Phoenix can integrate with any OAuth2 IDP that supports OpenID Connect and has a well-known configuration endpoint. Detailed instructions will vary by IDP, but the general steps remain the same:
