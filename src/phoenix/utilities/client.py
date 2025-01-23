@@ -18,6 +18,8 @@ class VersionedClient(httpx.Client):
 
         super().__init__(*args, **kwargs)
 
+        # Preserve headers set via instantiation, since
+        # they were explicitly entered by the user.
         for k, v in get_env_client_headers().items():
             if k not in self.headers:
                 self.headers[k] = v
@@ -80,6 +82,8 @@ class VersionedAsyncClient(httpx.AsyncClient):
 
         super().__init__(*args, **kwargs)
 
+        # Preserve headers set via instantiation, since
+        # they were explicitly entered by the user.
         for k, v in get_env_client_headers().items():
             if k not in self.headers:
                 self.headers[k] = v
