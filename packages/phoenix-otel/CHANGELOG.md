@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.7.0...arize-phoenix-otel-v0.7.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* use openinference tracer provider in phoenix.otel.register ([#6140](https://github.com/Arize-ai/phoenix/issues/6140)) ([2ec414f](https://github.com/Arize-ai/phoenix/commit/2ec414f16b08817b36c5cad8861165fa7323a76a))
+
 ## [0.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.6.1...arize-phoenix-otel-v0.7.0) (2025-01-22)
 
 
