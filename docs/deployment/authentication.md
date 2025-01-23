@@ -230,12 +230,12 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
 3. Click on **new Client**
    1. Enter the **Client ID** phoenix
    2. Enter the **Name** Phoenix Client
-   3. Enter below **Root URL** your root url of your phoenix example: https://domain.com/subpath/subpath
-   4. Enter below **Home URL** your home url of your phoenix example: /subpath/subpath
-   5. Enter below **Valid redirect URIs** your redirct url example: https://domain.com/subpath/subpath/*
+   3. Enter below **Root URL** the root url of your phoenix instance, like `https://example.com/subpath/subpath`
+   4. Enter below **Home URL** the home url of your phoenix instance, like `/subpath/subpath`
+   5. Enter below **Valid redirect URIs** a redirect url to your phoenix instance, like `https://example.com/subpath/subpath/*`
    6. Enter below **Valid post logout redirect URIs** +
-   7. Enter below **Web origins** your url example: https://domain.com
-   8. Enter below **Admin URL** your admin url example: https://domain.com/subpath/subpath/
+   7. Enter below **Web origins** your url, like `https://example.com`
+   8. Enter below **Admin URL** your admin url, like `https://example.com/subpath/subpath/`
    9. Enable **Client authentication**
    10. Ensure that only **Standard flow** and **Direct access grants** is enabled
    11. Hit the **Save button**
