@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
+from openinference.instrumentation import TracerProvider as _TracerProvider
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
 from opentelemetry import trace as trace_api
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
@@ -16,7 +17,6 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
 )
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.sdk.trace import TracerProvider as _TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SimpleSpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter
