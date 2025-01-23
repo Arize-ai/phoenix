@@ -16,22 +16,23 @@ const baseToggleButtonGroupCSS = css(`
   width: fit-content;
 
   font-size: 14px;
-  line-height: 20px;
+  line-height: 21px;
 
   & > .ac-toggle-button:not(:first-child):not([data-selected="true"]) {
     border-left: none;
   }
 
   & > .ac-toggle-button:first-child {
-    border-radius: 4px 0 0 4px;
+    border-radius: var(--ac-global-rounding-small) 0 0 var(--ac-global-rounding-small);
   }
 
   & > .ac-toggle-button:last-child {
-    border-radius: 0 4px 4px 0;
+    border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 
   &[data-size="S"] {
     .ac-toggle-button {
+      min-height: unset;
       padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-100);
     }
   }
@@ -39,12 +40,11 @@ const baseToggleButtonGroupCSS = css(`
   &[data-size="L"] {
     .ac-toggle-button {
       padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
-      line-height: 21px;
     }
   }
 
   &:has(.ac-toggle-button[data-focus-visible]) {
-    border-radius: 4px;
+    border-radius: var(--ac-global-rounding-small);
     outline: 1px solid var(--ac-global-input-field-border-color-active);
     outline-offset: 1px;
   }

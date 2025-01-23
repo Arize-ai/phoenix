@@ -4,9 +4,10 @@ import { css } from "@emotion/react";
 import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { isTemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { SizingProps } from "@phoenix/components/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
-export function TemplateLanguageRadioGroup() {
+export function TemplateLanguageRadioGroup({ size }: SizingProps) {
   const language = usePlaygroundContext((state) => state.templateLanguage);
   const setLanguage = usePlaygroundContext(
     (state) => state.setTemplateLanguage
@@ -20,6 +21,7 @@ export function TemplateLanguageRadioGroup() {
       `}
     >
       <ToggleButtonGroup
+        size={size}
         defaultSelectedKeys={[language]}
         aria-label="Template Language"
         onSelectionChange={(v) => {

@@ -14,6 +14,7 @@ const baseToggleButtonCSS = css(`
     background-color: var(--ac-global-input-field-background-color);
     color: var(--ac-global-text-color-900);
     outline: none;
+    min-height: 30px;
 
     &[data-selected="true"] {
       background-color: var(--ac-global-button-primary-background-color);
@@ -23,8 +24,7 @@ const baseToggleButtonCSS = css(`
       margin-left: -1px;
     }
     &[data-hovered]:not([data-disabled]):not([data-selected="true"]) {
-      background-color: var(--ac-global-button-primary-background-color-hover);
-      border-color: var(--ac-global-button-primary-background-color-hover);
+      background-color: var(--ac-global-input-field-border-color-hover);
     }
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);

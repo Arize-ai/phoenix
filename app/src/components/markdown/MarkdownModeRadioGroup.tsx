@@ -1,11 +1,6 @@
 import React from "react";
 
-import {
-  FileTextOutline,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { FileTextOutline, Tooltip, TooltipTrigger } from "@arizeai/components";
 
 import {
   Icon,
@@ -52,22 +47,18 @@ export function MarkdownModeRadioGroup({
         }
       }}
     >
-      <ToggleButton aria-label="text" id="text">
-        <TooltipTrigger placement="top" delay={1000} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<Icons.TextOutline />} />
-          </TriggerWrap>
-          <Tooltip>Text</Tooltip>
-        </TooltipTrigger>
-      </ToggleButton>
-      <ToggleButton aria-label="markdown" id="markdown">
-        <TooltipTrigger placement="top" delay={1000} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<FileTextOutline />} />
-          </TriggerWrap>
-          <Tooltip>Markdown</Tooltip>
-        </TooltipTrigger>
-      </ToggleButton>
+      <TooltipTrigger placement="top" delay={1000} offset={10}>
+        <ToggleButton aria-label="text" id="text">
+          <Icon svg={<Icons.TextOutline />} />
+        </ToggleButton>
+        <Tooltip>Text</Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger placement="top" delay={1000} offset={10}>
+        <ToggleButton aria-label="markdown" id="markdown">
+          <Icon svg={<FileTextOutline />} />
+        </ToggleButton>
+        <Tooltip>Markdown</Tooltip>
+      </TooltipTrigger>
     </ToggleButtonGroup>
   );
 }

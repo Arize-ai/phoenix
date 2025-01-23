@@ -20,18 +20,18 @@ const baseRadioGroupCSS = css(`
   width: fit-content;
   gap: var(--ac-global-dimension-size-200);
   font-size: 14px;
-  line-height: 20px;
+  line-height: 21px;
 
   & > .ac-radio:not(:first-child) {
     border-left: none;
   }
 
   & > .ac-radio:first-child {
-    border-radius: 4px 0 0 4px;
+    border-radius: var(--ac-global-rounding-small) 0 0 var(--ac-global-rounding-small);
   }
 
   & > .ac-radio:last-child {
-    border-radius: 0 4px 4px 0;
+    border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 
   &[data-direction="column"] {
@@ -47,12 +47,11 @@ const baseRadioGroupCSS = css(`
   &[data-size="L"] {
     .ac-radio {
       padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
-      line-height: 21px;
     }
   }
 
   &:has(.ac-radio[data-focus-visible]) {
-    border-radius: 4px;
+    border-radius: var(--ac-global-rounding-small);
     outline: 1px solid var(--ac-global-input-field-border-color-active);
     outline-offset: 8px;
   }
