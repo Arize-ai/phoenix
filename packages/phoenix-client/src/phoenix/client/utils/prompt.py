@@ -1,5 +1,7 @@
 from types import MappingProxyType
-from typing import Any, Literal, Mapping, Optional, TypeAlias, assert_never, cast
+from typing import Any, Literal, Mapping, Optional, cast
+
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.client.__generated__.v1 import PromptVersion
 from phoenix.client.helpers.sdk.anthropic.messages import to_messages as to_messages_anthropic
