@@ -1,13 +1,13 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
-
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { isTemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { SizingProps } from "@phoenix/components/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
-export function TemplateLanguageRadioGroup() {
+export function TemplateLanguageRadioGroup({ size }: SizingProps) {
   const language = usePlaygroundContext((state) => state.templateLanguage);
   const setLanguage = usePlaygroundContext(
     (state) => state.setTemplateLanguage
@@ -20,27 +20,30 @@ export function TemplateLanguageRadioGroup() {
         }
       `}
     >
-      <RadioGroup
-        value={language}
-        variant="inline-button"
+      <ToggleButtonGroup
+        size={size}
+        defaultSelectedKeys={[language]}
         aria-label="Template Language"
-        size="compact"
-        onChange={(v) => {
-          if (isTemplateLanguage(v)) {
-            setLanguage(v);
+        onSelectionChange={(v) => {
+          if (v.size === 0) {
+            return;
+          }
+          const lang = v.keys().next().value;
+          if (isTemplateLanguage(lang)) {
+            setLanguage(lang);
           }
         }}
       >
-        <Radio label="None" value={TemplateLanguages.NONE}>
+        <ToggleButton aria-label="None" id={TemplateLanguages.NONE}>
           None
-        </Radio>
-        <Radio label="Mustache" value={TemplateLanguages.Mustache}>
+        </ToggleButton>
+        <ToggleButton aria-label="Mustache" id={TemplateLanguages.Mustache}>
           Mustache
-        </Radio>
-        <Radio label="F-String" value={TemplateLanguages.FString}>
+        </ToggleButton>
+        <ToggleButton aria-label="F-String" id={TemplateLanguages.FString}>
           F-String
-        </Radio>
-      </RadioGroup>
+        </ToggleButton>
+      </ToggleButtonGroup>
     </div>
   );
 }
