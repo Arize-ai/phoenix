@@ -23,6 +23,27 @@ export type PromptLike =
   | GetPromptByVersion
   | GetPromptByTag;
 
+/**
+ * The prompt version type from the API.
+ *
+ * aka the prompt at a specific point in time
+ */
 export type PromptVersion = components["schemas"]["PromptVersion"];
 
+/**
+ * The format of the prompt template message(s).
+ */
+export type PromptTemplateFormat = PromptVersion["template_format"];
+
+/**
+ * Extracts the chat message type from the prompt template who may be a StringTemplate or ChatTemplate.
+ */
+export type PromptChatMessage = Extract<
+  PromptVersion["template"],
+  { messages: unknown[] }
+>["messages"][number];
+
+/**
+ * The prompt type from the API.
+ */
 export type Prompt = components["schemas"]["Prompt"];

@@ -6,6 +6,7 @@ import { findToolCallId } from "./toolCallSchemas";
 import { safelyStringifyJSON } from "../../utils/safelyStringifyJSON";
 
 export const textPartSchema = z.object({
+  type: z.literal("text"),
   text: z.object({
     text: z.string(),
   }),
@@ -14,6 +15,7 @@ export const textPartSchema = z.object({
 export type TextPart = z.infer<typeof textPartSchema>;
 
 export const toolCallPartSchema = z.object({
+  type: z.literal("tool_call"),
   toolCall: z.object({
     toolCallId: z.string(),
     toolCall: z.object({
@@ -26,6 +28,7 @@ export const toolCallPartSchema = z.object({
 export type ToolCallPart = z.infer<typeof toolCallPartSchema>;
 
 export const toolResultPartSchema = z.object({
+  type: z.literal("tool_result"),
   toolResult: z.object({
     toolCallId: z.string(),
     result: jsonLiteralSchema,
@@ -64,6 +67,7 @@ export const makeToolCallPart = (maybeToolCall: unknown) => {
     safelyStringifyJSON(toolCallArguments).json || "";
   // then, parse it into the optimistic tool call part shape
   const optimisticToolCallPart: ToolCallPart = {
+    type: "tool_call",
     toolCall: {
       toolCallId,
       toolCall: {

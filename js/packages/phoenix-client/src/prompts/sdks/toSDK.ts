@@ -2,7 +2,7 @@ import invariant from "tiny-invariant";
 import { toAI } from "./toAI";
 import { toAnthropic } from "./toAnthropic";
 import { toOpenAI } from "./toOpenAI";
-import { toSDKParamsBase } from "./types";
+import { Variables, toSDKParamsBase } from "./types";
 import { assertUnreachable } from "../../utils/assertUnreachable";
 
 const SUPPORTED_SDKS = ["openai", "anthropic", "ai"] as const;
@@ -36,6 +36,7 @@ const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
 
 type ToSDKParams<T extends SupportedSDK> = {
   sdk: T;
+  variables?: Variables;
 };
 
 export const toSDK = <T extends SupportedSDK>({
