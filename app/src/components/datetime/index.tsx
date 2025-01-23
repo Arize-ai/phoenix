@@ -4,3 +4,4 @@ export * from "./LastNTimeRangePicker";
 export * from "./ConnectedLastNTimeRangePicker";
 export * from "./DateField";
 export * from "./TimeField";
+export * from "./TimeRangeForm";
