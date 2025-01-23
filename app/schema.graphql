@@ -1254,8 +1254,8 @@ type Mutation {
   createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
   patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
   deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
-  setPromptLabelSingleQuery(input: SetPromptLabelInput!): PromptLabelMutationPayload!
-  removePromptLabel(input: RemovePromptLabelInput!): PromptLabelMutationPayload!
+  setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
+  unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1682,11 +1682,6 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-}
-
-input RemovePromptLabelInput {
-  promptId: GlobalID!
-  promptLabelId: GlobalID!
 }
 
 type Retrieval {
@@ -2162,6 +2157,11 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+input UnsetPromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
 }
 
 type User implements Node {
