@@ -1,12 +1,26 @@
 import re
+import string
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from string import Formatter
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any, Mapping, Protocol
+
+from typing_extensions import assert_never
+
+from phoenix.client.__generated__.v1 import PromptVersion
 
 
-class TemplateFormatter(ABC):
+class TemplateFormatter(Protocol):
+    def format(
+        self,
+        template: str,
+        /,
+        *,
+        variables: Mapping[str, str],
+    ) -> str: ...
+
+
+class BaseTemplateFormatter(ABC):
     @abstractmethod
     def parse(self, template: str) -> set[str]:
         """
@@ -17,6 +31,8 @@ class TemplateFormatter(ABC):
     def format(
         self,
         template: str,
+        /,
+        *,
         variables: Mapping[str, str] = MappingProxyType({}),
     ) -> str:
         """
@@ -39,13 +55,13 @@ class TemplateFormatter(ABC):
         raise NotImplementedError
 
 
-class NoOpFormatter(TemplateFormatter):
+class NoOpFormatterBase(BaseTemplateFormatter):
     """
     No-op template formatter.
 
     Examples:
 
-    >>> formatter = NoOpFormatter()
+    >>> formatter = NoOpFormatterBase()
     >>> formatter.format("hello")
     'hello'
     """
@@ -57,19 +73,21 @@ class NoOpFormatter(TemplateFormatter):
         return template
 
 
-class FStringTemplateFormatter(TemplateFormatter):
+class FStringBaseTemplateFormatter(BaseTemplateFormatter):
     """
     Regular f-string template formatter.
 
     Examples:
 
-    >>> formatter = FStringTemplateFormatter()
+    >>> formatter = FStringBaseTemplateFormatter()
     >>> formatter.format("{hello}", {"hello": "world"})
     'world'
     """
 
     def parse(self, template: str) -> set[str]:
-        return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
+        return set(
+            field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name
+        )
 
     def _format(
         self,
@@ -80,13 +98,13 @@ class FStringTemplateFormatter(TemplateFormatter):
         return template.format(**variables)
 
 
-class MustacheTemplateFormatter(TemplateFormatter):
+class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
     """
     Mustache template formatter.
 
     Examples:
 
-    >>> formatter = MustacheTemplateFormatter()
+    >>> formatter = MustacheBaseTemplateFormatter()
     >>> formatter.format("{{ hello }}", {"hello": "world"})
     'world'
     """
@@ -119,6 +137,19 @@ class TemplateFormatterError(Exception):
     pass
 
 
-F_STRING_TEMPLATE_FORMATTER = FStringTemplateFormatter()
-MUSTACHE_TEMPLATE_FORMATTER = MustacheTemplateFormatter()
-NO_OP_FORMATER = NoOpFormatter()
+F_STRING_TEMPLATE_FORMATTER = FStringBaseTemplateFormatter()
+MUSTACHE_TEMPLATE_FORMATTER = MustacheBaseTemplateFormatter()
+NO_OP_FORMATER = NoOpFormatterBase()
+
+
+def to_formatter(obj: PromptVersion) -> BaseTemplateFormatter:
+    if obj.template_format is None:
+        return MUSTACHE_TEMPLATE_FORMATTER
+    elif obj.template_format == "MUSTACHE":
+        return MUSTACHE_TEMPLATE_FORMATTER
+    elif obj.template_format == "FSTRING":
+        return F_STRING_TEMPLATE_FORMATTER
+    elif obj.template_format == "NONE":
+        return NO_OP_FORMATER
+    else:
+        assert_never(obj.template_format)

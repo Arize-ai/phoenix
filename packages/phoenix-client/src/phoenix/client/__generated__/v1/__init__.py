@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Mapping, Optional, Sequence, Union
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
@@ -22,7 +22,8 @@ class CreateExperimentRequestBody(BaseModel):
         Field(description="An optional description of the experiment", title="Description"),
     ] = None
     metadata: Annotated[
-        Optional[dict[str, Any]], Field(description="Metadata for the experiment", title="Metadata")
+        Optional[Mapping[str, Any]],
+        Field(description="Metadata for the experiment", title="Metadata"),
     ] = None
     version_id: Annotated[
         Optional[str],
@@ -45,7 +46,7 @@ class Dataset(BaseModel):
     id: Annotated[str, Field(title="Id")]
     name: Annotated[str, Field(title="Name")]
     description: Annotated[Optional[str], Field(title="Description")] = None
-    metadata: Annotated[dict[str, Any], Field(title="Metadata")]
+    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
@@ -53,9 +54,9 @@ class Dataset(BaseModel):
 class DatasetExample(BaseModel):
     model_config = ConfigDict(frozen=True)
     id: Annotated[str, Field(title="Id")]
-    input: Annotated[dict[str, Any], Field(title="Input")]
-    output: Annotated[dict[str, Any], Field(title="Output")]
-    metadata: Annotated[dict[str, Any], Field(title="Metadata")]
+    input: Annotated[Mapping[str, Any], Field(title="Input")]
+    output: Annotated[Mapping[str, Any], Field(title="Output")]
+    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
 
 
@@ -63,7 +64,7 @@ class DatasetVersion(BaseModel):
     model_config = ConfigDict(frozen=True)
     version_id: Annotated[str, Field(title="Version Id")]
     description: Annotated[Optional[str], Field(title="Description")] = None
-    metadata: Annotated[dict[str, Any], Field(title="Metadata")]
+    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
     created_at: Annotated[datetime, Field(title="Created At")]
 
 
@@ -72,7 +73,7 @@ class DatasetWithExampleCount(BaseModel):
     id: Annotated[str, Field(title="Id")]
     name: Annotated[str, Field(title="Name")]
     description: Annotated[Optional[str], Field(title="Description")] = None
-    metadata: Annotated[dict[str, Any], Field(title="Metadata")]
+    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     example_count: Annotated[int, Field(title="Example Count")]
@@ -98,7 +99,7 @@ class Experiment(BaseModel):
         int, Field(description="Number of times the experiment is repeated", title="Repetitions")
     ]
     metadata: Annotated[
-        dict[str, Any], Field(description="Metadata of the experiment", title="Metadata")
+        Mapping[str, Any], Field(description="Metadata of the experiment", title="Metadata")
     ]
     project_name: Annotated[
         Optional[str],
@@ -140,7 +141,7 @@ class ListDatasetExamplesData(BaseModel):
     model_config = ConfigDict(frozen=True)
     dataset_id: Annotated[str, Field(title="Dataset Id")]
     version_id: Annotated[str, Field(title="Version Id")]
-    examples: list[Annotated[DatasetExample, Field(title="Examples")]]
+    examples: Sequence[Annotated[DatasetExample, Field(title="Examples")]]
 
 
 class ListDatasetExamplesResponseBody(BaseModel):
@@ -150,19 +151,19 @@ class ListDatasetExamplesResponseBody(BaseModel):
 
 class ListDatasetVersionsResponseBody(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[Annotated[DatasetVersion, Field(title="Data")]]
+    data: Sequence[Annotated[DatasetVersion, Field(title="Data")]]
     next_cursor: Annotated[Optional[str], Field(title="Next Cursor")] = None
 
 
 class ListDatasetsResponseBody(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[Annotated[Dataset, Field(title="Data")]]
+    data: Sequence[Annotated[Dataset, Field(title="Data")]]
     next_cursor: Annotated[Optional[str], Field(title="Next Cursor")] = None
 
 
 class ListExperimentsResponseBody(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[Annotated[Experiment, Field(title="Data")]]
+    data: Sequence[Annotated[Experiment, Field(title="Data")]]
 
 
 class Prompt(BaseModel):
@@ -175,7 +176,7 @@ class Prompt(BaseModel):
 
 class PromptJSONSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    definition: Annotated[dict[str, Any], Field(title="Definition")]
+    definition: Annotated[Mapping[str, Any], Field(title="Definition")]
 
 
 class PromptStringTemplateV1(BaseModel):
@@ -185,13 +186,13 @@ class PromptStringTemplateV1(BaseModel):
 
 class PromptToolDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    definition: Annotated[dict[str, Any], Field(title="Definition")]
+    definition: Annotated[Mapping[str, Any], Field(title="Definition")]
 
 
 class PromptToolsV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     version: Annotated[Literal["tools-v1"], Field(title="Version")] = "tools-v1"
-    tool_definitions: list[Annotated[PromptToolDefinition, Field(title="Tool Definitions")]]
+    tool_definitions: Sequence[Annotated[PromptToolDefinition, Field(title="Tool Definitions")]]
 
 
 class SpanAnnotationResult(BaseModel):
@@ -224,7 +225,8 @@ class ToolResultContentValue(BaseModel):
     model_config = ConfigDict(frozen=True)
     tool_call_id: Annotated[str, Field(title="Tool Call Id")]
     result: Annotated[
-        Optional[Union[bool, int, float, str, dict[str, Any], list[Any]]], Field(title="Result")
+        Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]],
+        Field(title="Result"),
     ] = None
 
 
@@ -240,14 +242,14 @@ class UploadDatasetResponseBody(BaseModel):
 
 class ValidationError(BaseModel):
     model_config = ConfigDict(frozen=True)
-    loc: list[Annotated[Union[str, int], Field(title="Location")]]
+    loc: Sequence[Annotated[Union[str, int], Field(title="Location")]]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
 
 
 class AnnotateSpansResponseBody(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[Annotated[InsertedSpanAnnotation, Field(title="Data")]]
+    data: Sequence[Annotated[InsertedSpanAnnotation, Field(title="Data")]]
 
 
 class CreateExperimentResponseBody(BaseModel):
@@ -257,12 +259,12 @@ class CreateExperimentResponseBody(BaseModel):
 
 class GetPromptsResponseBody(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[Annotated[Prompt, Field(title="Data")]]
+    data: Sequence[Annotated[Prompt, Field(title="Data")]]
 
 
 class HTTPValidationError(BaseModel):
     model_config = ConfigDict(frozen=True)
-    detail: Annotated[Optional[list[ValidationError]], Field(title="Detail")] = None
+    detail: Annotated[Optional[Sequence[ValidationError]], Field(title="Detail")] = None
 
 
 class ImageContentPart(BaseModel):
@@ -285,7 +287,8 @@ class SpanAnnotation(BaseModel):
         Optional[SpanAnnotationResult], Field(description="The result of the annotation")
     ] = None
     metadata: Annotated[
-        Optional[dict[str, Any]], Field(description="Metadata for the annotation", title="Metadata")
+        Optional[Mapping[str, Any]],
+        Field(description="Metadata for the annotation", title="Metadata"),
     ] = None
 
 
@@ -309,7 +312,7 @@ class ToolResultContentPart(BaseModel):
 
 class AnnotateSpansRequestBody(BaseModel):
     model_config = ConfigDict(frozen=True)
-    data: list[Annotated[SpanAnnotation, Field(title="Data")]]
+    data: Sequence[Annotated[SpanAnnotation, Field(title="Data")]]
 
 
 class ToolCallContentPart(BaseModel):
@@ -321,7 +324,7 @@ class ToolCallContentPart(BaseModel):
 class PromptMessage(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     role: Annotated[Literal["USER", "SYSTEM", "AI", "TOOL"], Field(title="PromptMessageRole")]
-    content: list[
+    content: Sequence[
         Annotated[
             Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
             Field(title="Content"),
@@ -331,7 +334,7 @@ class PromptMessage(BaseModel):
 
 class PromptChatTemplateV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    messages: list[Annotated[PromptMessage, Field(title="Messages")]]
+    messages: Sequence[Annotated[PromptMessage, Field(title="Messages")]]
 
 
 class PromptVersion(BaseModel):
@@ -350,7 +353,7 @@ class PromptVersion(BaseModel):
         Optional[Literal["MUSTACHE", "FSTRING", "NONE"]], Field(title="PromptTemplateFormat")
     ] = "MUSTACHE"
     invocation_parameters: Annotated[
-        Optional[dict[str, Any]], Field(title="Invocation Parameters")
+        Optional[Mapping[str, Any]], Field(title="Invocation Parameters")
     ] = None
     tools: Optional[PromptToolsV1] = None
     output_schema: Optional[PromptJSONSchema] = None

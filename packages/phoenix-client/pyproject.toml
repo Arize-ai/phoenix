@@ -25,7 +25,6 @@ version = "0.1.0-alpha.1"
 dependencies = [
   "httpx",
   "pydantic>2",
-  "python-dateutil",
   "typing-extensions",
 ]
 
@@ -76,7 +75,7 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
-"src/phoenix/client/types/v1/__init__.py" = ["F401", "E501"]
+"src/phoenix/client/__generated__/v1/__init__.py" = ["F401", "E501"]
 
 [tool.ruff.format]
 line-ending = "native"
@@ -94,6 +93,7 @@ exclude = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "tests",
 ]

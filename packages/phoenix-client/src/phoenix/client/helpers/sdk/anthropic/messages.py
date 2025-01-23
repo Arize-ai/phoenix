@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from os import PathLike
 from types import MappingProxyType
 from typing import (
@@ -12,17 +13,19 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    TypedDict,
     Union,
     overload,
 )
 
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import Required, TypeAlias, assert_never
 
-from phoenix.client.types.v1 import (
+from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     ImageContentValue,
     PromptChatTemplateV1,
     PromptMessage,
+    PromptToolDefinition,
     PromptToolsV1,
     PromptVersion,
     TextContentPart,
@@ -31,152 +34,169 @@ from phoenix.client.types.v1 import (
     ToolCallContentValue,
     ToolCallFunction,
     ToolResultContentPart,
+    ToolResultContentValue,
 )
 from phoenix.client.utils.template_formatters import (
-    F_STRING_TEMPLATE_FORMATTER,
     MUSTACHE_TEMPLATE_FORMATTER,
-    NO_OP_FORMATER,
     TemplateFormatter,
+    to_formatter,
 )
 
-if TYPE_CHECKING:
-    from anthropic.types import (
-        ContentBlock,
-        DocumentBlockParam,
-        ImageBlockParam,
-        MessageParam,
-        TextBlock,
-        TextBlockParam,
-        ToolParam,
-        ToolResultBlockParam,
-        ToolUseBlock,
-        ToolUseBlockParam,
-    )
-    from anthropic.types.image_block_param import Source
-
-    _BlockParam: TypeAlias = Union[
-        TextBlockParam,
-        ImageBlockParam,
-        ToolUseBlockParam,
-        ToolResultBlockParam,
-        DocumentBlockParam,
-        ContentBlock,
-    ]
-    _ContentPart: TypeAlias = Union[
-        ImageContentPart,
-        TextContentPart,
-        ToolCallContentPart,
-        ToolResultContentPart,
-    ]
+logger = logging.getLogger(__name__)
 
 
-def to_kwargs(
+__all__ = [
+    "to_messages",
+]
+
+
+def to_messages(
     obj: PromptVersion,
     /,
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
-) -> dict[str, Any]:
-    formatter: TemplateFormatter
-    if obj.template_format is None:
-        formatter = MUSTACHE_TEMPLATE_FORMATTER
-    elif obj.template_format == "MUSTACHE":
-        formatter = MUSTACHE_TEMPLATE_FORMATTER
-    elif obj.template_format == "FSTRING":
-        formatter = F_STRING_TEMPLATE_FORMATTER
-    elif obj.template_format == "NONE":
-        formatter = NO_OP_FORMATER
-    else:
-        assert_never(obj.template_format)
+    formatter: Optional[TemplateFormatter] = None,
+    **_: Any,
+) -> tuple[list[MessageParam], _ModelKwargs]:
+    formatter = formatter or to_formatter(obj)
+    assert formatter is not None
     assert isinstance(obj.template, PromptChatTemplateV1)
     system_messages: list[str] = []
     messages: list[MessageParam] = []
     for message in obj.template.messages:
         if message.role in ("SYSTEM",):
-            for block in to_content(message.content, variables, formatter):
+            for block in _to_content(message.content, variables, formatter):
                 if isinstance(block, dict) and block["type"] == "text":
                     system_messages.append(block["text"])
-                elif isinstance(block, TextBlock) and block.text:
-                    system_messages.append(block.text)
         else:
-            messages.extend(to_message_params(message, variables, formatter))
-    model = obj.model_name
-    system = "\n\n".join(system_messages)
-    kwargs: dict[str, Any] = {
-        "messages": messages,
-        "model": model,
-        "system": system,
-    }
-    for k, v in (obj.invocation_parameters or {}).items():
-        kwargs[k] = v
-    tools: list[ToolParam] = to_tools(obj)
-    if tools:
-        kwargs["tools"] = tools
-        if tool_choice := kwargs.get("tool_choice"):
-            kwargs["tool_choice"] = {"type": tool_choice}
-    else:
-        kwargs.pop("tool_choice", None)
-    if "max_tokens" not in kwargs:
-        kwargs["max_tokens"] = 100
-    return kwargs
+            messages.extend(_to_message_params(message, variables, formatter))
+    kwargs: _ModelKwargs = _to_model_kwargs(obj)
+    if system_messages:
+        if len(system_messages) == 1:
+            kwargs["system"] = system_messages[0]
+        else:
+            kwargs["system"] = [{"type": "text", "text": text} for text in system_messages]
+    return messages, kwargs
 
 
-def from_kwargs(
-    kwargs: Mapping[str, Any],
-) -> PromptVersion:
-    raise NotImplementedError
-
-
-def to_tools(
+def _to_model_kwargs(
     obj: PromptVersion,
-) -> list[ToolParam]:
-    tools: list[ToolParam] = []
-    if isinstance(obj.tools, PromptToolsV1):
-        for tool_definition in obj.tools.tool_definitions:
-            definition = tool_definition.definition
-            if "name" in definition and "input_schema" in definition:
-                tool: ToolParam = {
-                    "name": definition["name"],
-                    "input_schema": definition["input_schema"],
+) -> _ModelKwargs:
+    parameters = obj.invocation_parameters or {}
+
+    max_tokens = 100
+    if (v := parameters.get("max_tokens")) is not None:
+        try:
+            max_tokens = int(v)
+        except (ValueError, TypeError):
+            pass
+    ans: _ModelKwargs = {
+        "max_tokens": max_tokens,
+        "model": obj.model_name,
+    }
+    if (v := parameters.get("stop_sequences")) is not None:
+        try:
+            ans["stop_sequences"] = list(map(str, v))
+        except (ValueError, TypeError):
+            pass
+    if (v := parameters.get("temperature")) is not None:
+        try:
+            ans["temperature"] = float(v)
+        except (ValueError, TypeError):
+            pass
+    if (v := parameters.get("top_k")) is not None:
+        try:
+            ans["top_k"] = int(v)
+        except (ValueError, TypeError):
+            pass
+    if (v := parameters.get("top_p")) is not None:
+        try:
+            ans["top_p"] = float(v)
+        except (ValueError, TypeError):
+            pass
+
+    if obj.tools:
+        ans["tools"] = list(_to_tools(obj.tools))
+        if (tool_choice := parameters.get("tool_choice")) is not None:
+            if tool_choice == "any":
+                ans["tool_choice"] = {"type": "any"}
+            elif isinstance(tool_choice, str) and tool_choice != "auto":
+                ans["tool_choice"] = {"type": "tool", "name": tool_choice}
+        else:
+            ans["tool_choice"] = {"type": "auto"}
+
+    return ans
+
+
+def _to_tools(
+    obj: PromptToolsV1,
+) -> Iterator[ToolParam]:
+    for tool_definition in obj.tool_definitions:
+        definition = tool_definition.definition
+        if "name" in definition and "input_schema" in definition:
+            tool: ToolParam = {
+                "name": definition["name"],
+                "input_schema": definition["input_schema"],
+            }
+            if "description" in definition:
+                tool["description"] = definition["description"]
+            yield tool
+
+
+def _from_tools(
+    tools: Iterable[ToolParam],
+) -> PromptToolsV1:
+    return PromptToolsV1(
+        tool_definitions=[
+            PromptToolDefinition(
+                definition={
+                    "name": tool["name"],
+                    "input_schema": tool["input_schema"],
+                    **(
+                        {"description": description}
+                        if (description := tool.get("description"))
+                        else {}
+                    ),
                 }
-                if "description" in definition:
-                    tool["description"] = definition["description"]
-                tools.append(tool)
-    return tools
+            )
+            for tool in tools
+        ]
+    )
 
 
-def to_message_params(
+def _to_message_params(
     obj: PromptMessage,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
     /,
 ) -> Iterator[MessageParam]:
-    blocks = to_content(obj.content, variables, formatter)
-    role = to_role(obj)
+    blocks = list(_to_content(obj.content, variables, formatter))
+    role = _to_role(obj)
     if len(blocks) == 1 and blocks[0]["type"] == "text":
         yield {"role": role, "content": blocks[0]["text"]}
         return
     yield {"role": role, "content": blocks}
 
 
-def from_message_param(
+def _from_message_param(
     obj: MessageParam,
 ) -> PromptMessage:
-    content = from_content(obj["content"])
-    role = from_role(obj)
+    content = _from_content(obj["content"])
+    role = _from_role(obj)
     return PromptMessage(role=role, content=content)
 
 
-def to_text_block_param(
+def _to_text_block_param(
     obj: TextContentPart,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
     /,
 ) -> TextBlockParam:
-    text = formatter.format(obj.text.text, variables)
+    text = formatter.format(obj.text.text, variables=variables)
     return {"type": "text", "text": text}
 
 
-def from_text_block(
+def _from_text_block(
     obj: TextBlock,
 ) -> TextContentPart:
     return TextContentPart(
@@ -185,7 +205,7 @@ def from_text_block(
     )
 
 
-def from_text_block_param(
+def _from_text_block_param(
     obj: TextBlockParam,
 ) -> TextContentPart:
     return TextContentPart(
@@ -195,7 +215,7 @@ def from_text_block_param(
     )
 
 
-def to_image_block_param(
+def _to_image_block_param(
     obj: ImageContentPart,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
@@ -211,7 +231,7 @@ def to_image_block_param(
     }
 
 
-def from_image_block(
+def _from_image_block_param(
     obj: ImageBlockParam,
 ) -> ImageContentPart:
     source: Source = obj["source"]
@@ -230,7 +250,7 @@ def from_image_block(
     )
 
 
-def to_tool_use_block_param(
+def _to_tool_use_block_param(
     obj: ToolCallContentPart,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
@@ -245,7 +265,7 @@ def to_tool_use_block_param(
     }
 
 
-def from_tool_use_block(
+def _from_tool_use_block(
     obj: ToolUseBlock,
 ) -> ToolCallContentPart:
     if isinstance(obj.input, (dict, list)):
@@ -264,7 +284,7 @@ def from_tool_use_block(
     )
 
 
-def from_tool_use_block_param(
+def _from_tool_use_block_param(
     obj: ToolUseBlockParam,
 ) -> ToolCallContentPart:
     if isinstance(obj["input"], (dict, list)):
@@ -283,72 +303,79 @@ def from_tool_use_block_param(
     )
 
 
-def to_tool_result_block_param(
+def _to_tool_result_block_param(
     obj: ToolResultContentPart,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
     /,
-    *,
-    str_content: bool = False,
 ) -> ToolResultBlockParam:
-    raise NotImplementedError
+    content = str(obj.tool_result.result)  # TODO: relax this
+    return {
+        "type": "tool_result",
+        "tool_use_id": obj.tool_result.tool_call_id,
+        "content": content,
+    }
 
 
-def from_tool_result_block_param(
+def _from_tool_result_block_param(
     obj: ToolResultBlockParam,
 ) -> ToolResultContentPart:
-    raise NotImplementedError
+    result = str(obj["content"]) if "content" in obj else None  # TODO: relax this
+    return ToolResultContentPart(
+        tool_result=ToolResultContentValue(
+            tool_call_id=obj["tool_use_id"],
+            result=result,
+        )
+    )
 
 
 @overload
-def to_content(
-    obj: list[_ContentPart],
+def _to_content(
+    parts: Iterable[_ContentPart],
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
     /,
     *,
     text_only: Literal[True] = True,
-) -> list[TextBlockParam]: ...
+) -> Iterator[TextBlockParam]: ...
 
 
 @overload
-def to_content(
-    obj: list[_ContentPart],
+def _to_content(
+    parts: Iterable[_ContentPart],
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
     /,
     *,
     text_only: Literal[False] = False,
-) -> list[_BlockParam]: ...
+) -> Iterator[_BlockParam]: ...
 
 
-def to_content(
-    obj: list[_ContentPart],
+def _to_content(
+    parts: Iterable[_ContentPart],
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: TemplateFormatter = MUSTACHE_TEMPLATE_FORMATTER,
     /,
     *,
     text_only: bool = False,
 ) -> Any:
-    content: list[_BlockParam] = []
-    for part in obj:
+    for part in parts:
         if isinstance(part, TextContentPart):
-            content.append(to_text_block_param(part, variables, formatter))
+            yield _to_text_block_param(part, variables, formatter)
         elif text_only:
             continue
         elif isinstance(part, ImageContentPart):
-            content.append(to_image_block_param(part, variables, formatter))
+            yield _to_image_block_param(part, variables, formatter)
         elif isinstance(part, ToolResultContentPart):
-            content.append(to_tool_result_block_param(part, variables, formatter))
+            yield _to_tool_result_block_param(part, variables, formatter)
         elif isinstance(part, ToolCallContentPart):
-            content.append(to_tool_use_block_param(part, variables, formatter))
+            yield _to_tool_use_block_param(part, variables, formatter)
         else:
             assert_never(part)
-    return content
 
 
-def from_content(
-    obj: Optional[Union[str, Iterable[_BlockParam]]],
+def _from_content(
+    obj: Optional[Union[str, Iterable[Union[_BlockParam, ContentBlock]]]],
 ) -> list[_ContentPart]:
     if isinstance(obj, str):
         return [
@@ -359,32 +386,36 @@ def from_content(
         ]
     content: list[_ContentPart] = []
     for block in obj or ():
-        if isinstance(block, TextBlock):
-            content.append(from_text_block(block))
-        elif isinstance(block, ToolUseBlock):
-            content.append(from_tool_use_block(block))
-        elif block["type"] == "text":
-            content.append(from_text_block_param(block))
-        elif block["type"] == "image":
-            content.append(from_image_block(block))
-        elif block["type"] == "tool_use":
-            content.append(from_tool_use_block_param(block))
-        elif block["type"] == "tool_result":
-            content.append(from_tool_result_block_param(block))
-        elif block["type"] == "document":
-            raise NotImplementedError
+        if isinstance(block, dict):
+            if block["type"] == "text":
+                content.append(_from_text_block_param(block))
+            elif block["type"] == "image":
+                content.append(_from_image_block_param(block))
+            elif block["type"] == "tool_use":
+                content.append(_from_tool_use_block_param(block))
+            elif block["type"] == "tool_result":
+                content.append(_from_tool_result_block_param(block))
+            elif block["type"] == "document":
+                raise NotImplementedError
+            else:
+                assert_never(block["type"])
         else:
-            assert_never(block["type"])
+            from anthropic.types import TextBlock, ToolUseBlock
+
+            if isinstance(block, TextBlock):
+                content.append(_from_text_block(block))
+            elif isinstance(block, ToolUseBlock):
+                content.append(_from_tool_use_block(block))
     return content
 
 
-def to_role(
+def _to_role(
     obj: PromptMessage,
 ) -> Literal["user", "assistant"]:
-    if obj.role == "AI":
-        return "assistant"
     if obj.role == "USER":
         return "user"
+    if obj.role == "AI":
+        return "assistant"
     if obj.role == "TOOL":
         return "user"
     if obj.role == "SYSTEM":
@@ -392,7 +423,7 @@ def to_role(
     assert_never(obj.role)
 
 
-def from_role(
+def _from_role(
     obj: MessageParam,
 ) -> Literal["USER", "AI", "TOOL"]:
     if obj["role"] == "assistant":
@@ -406,3 +437,53 @@ def from_role(
                     continue
         return "USER"
     assert_never(obj["role"])
+
+
+if TYPE_CHECKING:
+    from anthropic import Anthropic
+    from anthropic.types import (
+        ContentBlock,
+        DocumentBlockParam,
+        ImageBlockParam,
+        MessageParam,
+        ModelParam,
+        TextBlock,
+        TextBlockParam,
+        ToolChoiceParam,
+        ToolParam,
+        ToolResultBlockParam,
+        ToolUseBlock,
+        ToolUseBlockParam,
+    )
+    from anthropic.types.image_block_param import Source
+    from anthropic.types.message_create_params import MessageCreateParamsBase
+
+    _BlockParam: TypeAlias = Union[
+        TextBlockParam,
+        ImageBlockParam,
+        ToolUseBlockParam,
+        ToolResultBlockParam,
+        DocumentBlockParam,
+    ]
+    _ContentPart: TypeAlias = Union[
+        ImageContentPart,
+        TextContentPart,
+        ToolCallContentPart,
+        ToolResultContentPart,
+    ]
+
+    class _ModelKwargs(TypedDict, total=False):
+        max_tokens: Required[int]
+        model: Required[ModelParam]
+        stop_sequences: list[str]
+        system: Union[str, list[TextBlockParam]]
+        temperature: float
+        tool_choice: ToolChoiceParam
+        tools: list[ToolParam]
+        top_k: int
+        top_p: float
+
+    def _(obj: PromptVersion) -> None:
+        messages, kwargs = to_messages(obj)
+        MessageCreateParamsBase(messages=messages, **kwargs)
+        Anthropic().messages.create(messages=messages, **kwargs)

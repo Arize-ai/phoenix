@@ -1,33 +1,49 @@
+from typing import Optional
+
 import httpx
 
-from phoenix.client.types.v1 import GetPromptResponseBody, PromptVersion
+from phoenix.client.__generated__.v1 import GetPromptResponseBody, PromptVersion
 
 
 class Prompts:
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
-    def get_version_by_id(self, version_id: str) -> PromptVersion:
-        response = self._client.get(f"v1/prompt_versions/{version_id}")
-        response.raise_for_status()
-        return GetPromptResponseBody.model_validate_json(response.content).data
-
-    def get_version_by_tag(self, prompt_identifier: str, tag: str) -> PromptVersion:
-        response = self._client.get(f"v1/prompts/{prompt_identifier}/tags/{tag}")
-        response.raise_for_status()
-        return GetPromptResponseBody.model_validate_json(response.content).data
+    def get(
+        self,
+        *,
+        prompt_version_id: Optional[str] = None,
+        prompt_identifier: Optional[str] = None,
+        tag: Optional[str] = None,
+    ) -> PromptVersion:
+        if prompt_version_id is not None:
+            response = self._client.get(f"v1/prompt_versions/{prompt_version_id}")
+            response.raise_for_status()
+            return GetPromptResponseBody.model_validate_json(response.content).data
+        if prompt_identifier is not None and tag is not None:
+            response = self._client.get(f"v1/prompts/{prompt_identifier}/tags/{tag}")
+            response.raise_for_status()
+            return GetPromptResponseBody.model_validate_json(response.content).data
+        raise NotImplementedError
 
 
 class AsyncPrompts:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
-    async def get_version_by_id(self, version_id: str) -> PromptVersion:
-        response = await self._client.get(f"v1/prompt_versions/{version_id}")
-        response.raise_for_status()
-        return GetPromptResponseBody.model_validate_json(response.content).data
-
-    async def get_version_by_tag(self, prompt_identifier: str, tag: str) -> PromptVersion:
-        response = await self._client.get(f"v1/prompts/{prompt_identifier}/tag/{tag}")
-        response.raise_for_status()
-        return GetPromptResponseBody.model_validate_json(response.content).data
+    async def get(
+        self,
+        *,
+        prompt_version_id: Optional[str] = None,
+        prompt_identifier: Optional[str] = None,
+        tag: Optional[str] = None,
+    ) -> PromptVersion:
+        if prompt_version_id is not None:
+            response = await self._client.get(f"v1/prompt_versions/{prompt_version_id}")
+            response.raise_for_status()
+            return GetPromptResponseBody.model_validate_json(response.content).data
+        if prompt_identifier is not None and tag is not None:
+            response = await self._client.get(f"v1/prompts/{prompt_identifier}/tags/{tag}")
+            response.raise_for_status()
+            return GetPromptResponseBody.model_validate_json(response.content).data
+        raise NotImplementedError
