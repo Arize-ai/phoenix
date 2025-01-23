@@ -18,7 +18,9 @@ class VersionedClient(httpx.Client):
 
         super().__init__(*args, **kwargs)
 
-        self.headers.update(get_env_client_headers())
+        for k, v in get_env_client_headers().items():
+            if k not in self.headers:
+                self.headers[k] = v
 
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
@@ -78,7 +80,9 @@ class VersionedAsyncClient(httpx.AsyncClient):
 
         super().__init__(*args, **kwargs)
 
-        self.headers.update(get_env_client_headers())
+        for k, v in get_env_client_headers().items():
+            if k not in self.headers:
+                self.headers[k] = v
 
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False

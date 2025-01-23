@@ -19,6 +19,7 @@ from phoenix.experiments.evaluators import (
     HelpfulnessEvaluator,
     create_evaluator,
 )
+from phoenix.experiments.functions import _get_tracer
 from phoenix.experiments.types import (
     AnnotatorKind,
     Dataset,
@@ -331,3 +332,8 @@ async def test_get_experiment_client_method(
     experiment = px_client.get_experiment(experiment_id=str(experiment_gid))
     assert experiment
     assert isinstance(experiment, Experiment)
+
+
+def test_get_tracer_has_headers() -> None:
+    tracer, _ = _get_tracer()
+    tracer
