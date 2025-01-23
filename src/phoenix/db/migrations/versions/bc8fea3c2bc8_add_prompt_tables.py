@@ -96,6 +96,10 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.UniqueConstraint(
+            "prompt_label_id",
+            "prompt_id",
+        ),
     )
 
     op.create_table(

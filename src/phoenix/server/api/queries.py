@@ -656,11 +656,11 @@ class Query:
         )
         async with info.context.db() as session:
             prompt_labels = await session.stream_scalars(select(models.PromptLabel))
-        data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
-        return connection_from_list(
-            data=data,
-            args=args,
-        )
+            data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
 
     @strawberry.field
     def clusters(

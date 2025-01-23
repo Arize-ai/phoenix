@@ -1,6 +1,5 @@
 # file: PromptLabelMutations.py
 
-# file: PromptLabelMutations.py
 from typing import Optional
 
 import strawberry
@@ -46,7 +45,7 @@ class SetPromptLabelInput:
 
 
 @strawberry.input
-class RemovePromptLabelInput:
+class UnsetPromptLabelInput:
     prompt_id: GlobalID
     prompt_label_id: GlobalID
 
@@ -118,11 +117,12 @@ class PromptLabelMutationMixin:
             label_id = from_global_id_with_expected_type(
                 input.prompt_label_id, PromptLabel.__name__
             )
-            label_orm = await session.get(models.PromptLabel, label_id)
-            if not label_orm:
+            stmt = delete(models.PromptLabel).where(models.PromptLabel.id == label_id)
+            result = await session.execute(stmt)
+
+            if result.rowcount == 0:
                 raise NotFound(f"PromptLabel with ID {input.prompt_label_id} not found")
 
-            await session.delete(label_orm)
             await session.commit()
 
             return PromptLabelMutationPayload(
@@ -131,7 +131,7 @@ class PromptLabelMutationMixin:
             )
 
     @strawberry.mutation
-    async def set_prompt_label_single_query(
+    async def set_prompt_label(
         self, info: Info[Context, None], input: SetPromptLabelInput
     ) -> PromptLabelMutationPayload:
         async with info.context.db() as session:
@@ -161,11 +161,11 @@ class PromptLabelMutationMixin:
             )
 
     @strawberry.mutation
-    async def remove_prompt_label(
-        self, info: Info[Context, None], input: RemovePromptLabelInput
+    async def unset_prompt_label(
+        self, info: Info[Context, None], input: UnsetPromptLabelInput
     ) -> PromptLabelMutationPayload:
         """
-        Removes a PromptLabel from a Prompt by removing the row in the crosswalk.
+        Unsets a PromptLabel from a Prompt by removing the row in the crosswalk.
         """
         async with info.context.db() as session:
             prompt_id = from_global_id_with_expected_type(input.prompt_id, Prompt.__name__)
