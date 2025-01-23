@@ -74,10 +74,10 @@ importers:
     dependencies:
       ai:
         specifier: ^4.1.0
-        version: 4.1.0(react@19.0.0)(zod@3.24.0)
+        version: 4.1.0(react@19.0.0)(zod@3.24.1)
       openai:
         specifier: ^4.77.0
-        version: 4.77.0(zod@3.24.0)
+        version: 4.77.0(zod@3.24.1)
       openapi-fetch:
         specifier: ^0.12.2
         version: 0.12.5
@@ -85,9 +85,15 @@ importers:
         specifier: ^1.3.3
         version: 1.3.3
       zod:
-        specifier: ^3.23.8
-        version: 3.24.0
+        specifier: ^3.24.1
+        version: 3.24.1
+      zod-to-json-schema:
+        specifier: ^3.24.1
+        version: 3.24.1(zod@3.24.1)
     devDependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.35.0
+        version: 0.35.0
       '@types/node':
         specifier: ^20.14.11
         version: 20.17.9
@@ -133,6 +139,9 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@anthropic-ai/sdk@0.35.0':
+    resolution: {integrity: sha512-JxVuNIRLjcXZbDW/rJa3vSIoYB5c0wgIQUPsjueeqli9OJyCJpInj0UlvKSSk6R2oCYyg0y2M0H8n8Wyt0l1IA==}
 
   '@asteasolutions/zod-to-openapi@6.4.0':
     resolution: {integrity: sha512-8cxfF7AHHx2PqnN4Cd8/O8CBu/nVYJP9DpnfVLW3BFb66VJDnqI/CczZnkqMc3SNh6J9GiX7JbJ5T4BSP4HZ2Q==}
@@ -1991,43 +2000,58 @@ packages:
   zod@3.24.0:
     resolution: {integrity: sha512-Hz+wiY8yD0VLA2k/+nsg2Abez674dDGTai33SwNvMPuf9uIrBC9eFgIMQxBBbHFxVXi8W+5nX9DcAh9YNSQm/w==}
 
+  zod@3.24.1:
+    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
+
 snapshots:
 
-  '@ai-sdk/provider-utils@2.1.0(zod@3.24.0)':
+  '@ai-sdk/provider-utils@2.1.0(zod@3.24.1)':
     dependencies:
       '@ai-sdk/provider': 1.0.4
       eventsource-parser: 3.0.0
       nanoid: 3.3.8
       secure-json-parse: 2.7.0
     optionalDependencies:
-      zod: 3.24.0
+      zod: 3.24.1
 
   '@ai-sdk/provider@1.0.4':
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@1.1.0(react@19.0.0)(zod@3.24.0)':
+  '@ai-sdk/react@1.1.0(react@19.0.0)(zod@3.24.1)':
     dependencies:
-      '@ai-sdk/provider-utils': 2.1.0(zod@3.24.0)
-      '@ai-sdk/ui-utils': 1.1.0(zod@3.24.0)
+      '@ai-sdk/provider-utils': 2.1.0(zod@3.24.1)
+      '@ai-sdk/ui-utils': 1.1.0(zod@3.24.1)
       swr: 2.3.0(react@19.0.0)
       throttleit: 2.1.0
     optionalDependencies:
       react: 19.0.0
-      zod: 3.24.0
+      zod: 3.24.1
 
-  '@ai-sdk/ui-utils@1.1.0(zod@3.24.0)':
+  '@ai-sdk/ui-utils@1.1.0(zod@3.24.1)':
     dependencies:
       '@ai-sdk/provider': 1.0.4
-      '@ai-sdk/provider-utils': 2.1.0(zod@3.24.0)
-      zod-to-json-schema: 3.24.1(zod@3.24.0)
+      '@ai-sdk/provider-utils': 2.1.0(zod@3.24.1)
+      zod-to-json-schema: 3.24.1(zod@3.24.1)
     optionalDependencies:
-      zod: 3.24.0
+      zod: 3.24.1
 
-  '@asteasolutions/zod-to-openapi@6.4.0(zod@3.24.0)':
+  '@anthropic-ai/sdk@0.35.0':
+    dependencies:
+      '@types/node': 18.19.68
+      '@types/node-fetch': 2.6.12
+      abort-controller: 3.0.0
+      agentkeepalive: 4.5.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@asteasolutions/zod-to-openapi@6.4.0(zod@3.24.1)':
     dependencies:
       openapi3-ts: 4.4.0
-      zod: 3.24.0
+      zod: 3.24.1
 
   '@babel/code-frame@7.26.2':
     dependencies:
@@ -2043,9 +2067,9 @@ snapshots:
 
   '@braintrust/core@0.0.71':
     dependencies:
-      '@asteasolutions/zod-to-openapi': 6.4.0(zod@3.24.0)
+      '@asteasolutions/zod-to-openapi': 6.4.0(zod@3.24.1)
       uuid: 9.0.1
-      zod: 3.24.0
+      zod: 3.24.1
 
   '@changesets/apply-release-plan@7.0.6':
     dependencies:
@@ -2670,17 +2694,17 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
-  ai@4.1.0(react@19.0.0)(zod@3.24.0):
+  ai@4.1.0(react@19.0.0)(zod@3.24.1):
     dependencies:
       '@ai-sdk/provider': 1.0.4
-      '@ai-sdk/provider-utils': 2.1.0(zod@3.24.0)
-      '@ai-sdk/react': 1.1.0(react@19.0.0)(zod@3.24.0)
-      '@ai-sdk/ui-utils': 1.1.0(zod@3.24.0)
+      '@ai-sdk/provider-utils': 2.1.0(zod@3.24.1)
+      '@ai-sdk/react': 1.1.0(react@19.0.0)(zod@3.24.1)
+      '@ai-sdk/ui-utils': 1.1.0(zod@3.24.1)
       '@opentelemetry/api': 1.9.0
       jsondiffpatch: 0.6.0
     optionalDependencies:
       react: 19.0.0
-      zod: 3.24.0
+      zod: 3.24.1
 
   ajv@6.12.6:
     dependencies:
@@ -3414,6 +3438,20 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
+  openai@4.77.0(zod@3.24.1):
+    dependencies:
+      '@types/node': 18.19.68
+      '@types/node-fetch': 2.6.12
+      abort-controller: 3.0.0
+      agentkeepalive: 4.5.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0
+    optionalDependencies:
+      zod: 3.24.1
+    transitivePeerDependencies:
+      - encoding
+
   openapi-fetch@0.12.5:
     dependencies:
       openapi-typescript-helpers: 0.0.15
@@ -3859,4 +3897,10 @@ snapshots:
     dependencies:
       zod: 3.24.0
 
+  zod-to-json-schema@3.24.1(zod@3.24.1):
+    dependencies:
+      zod: 3.24.1
+
   zod@3.24.0: {}
+
+  zod@3.24.1: {}
