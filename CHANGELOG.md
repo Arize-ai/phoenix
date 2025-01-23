@@ -1,5 +1,17 @@
 # Changelog
 
+## [7.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.1...arize-phoenix-v7.9.2) (2025-01-23)
+
+
+### Bug Fixes
+
+* incorporate headers from environment for the trace span exporter when running experiments ([#6161](https://github.com/Arize-ai/phoenix/issues/6161)) ([b7a1bd5](https://github.com/Arize-ai/phoenix/commit/b7a1bd5a2d696c165d655067ae7c0bbb4c357f0f))
+
+
+### Documentation
+
+* fix typo in readme ([#6155](https://github.com/Arize-ai/phoenix/issues/6155)) ([9a7eae2](https://github.com/Arize-ai/phoenix/commit/9a7eae2fc9e6286fbdf209484795accad680c65b))
+
 ## [7.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.0...arize-phoenix-v7.9.1) (2025-01-23)
 
 
