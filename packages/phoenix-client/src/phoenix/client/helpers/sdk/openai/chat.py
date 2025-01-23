@@ -10,14 +10,13 @@ from typing import (
     Literal,
     Mapping,
     Optional,
-    Required,
     Sequence,
     TypedDict,
     Union,
     overload,
 )
 
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import Required, TypeAlias, assert_never
 
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
