@@ -9,6 +9,7 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 import phoenix.core.model_schema as ms
+from phoenix.core import model_schema
 from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, ScalarDimension
 from phoenix.metrics import binning
 from phoenix.metrics.metrics import Count
@@ -71,14 +72,14 @@ class Dimension(Node):
         if model[REFERENCE].empty:
             return None
         inferences = model[PRIMARY]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             inferences,
             time_range,
         )
         data = get_drift_timeseries_data(
             self.dimension,
             metric,
-            time_range,
+            resolved_time_range,
             granularity,
             pd.DataFrame(
                 {self.dimension.name: self.dimension[REFERENCE]},
@@ -103,14 +104,14 @@ class Dimension(Node):
         if not isinstance(inferences_role, InferencesRole):
             inferences_role = InferencesRole.primary
         inferences = info.context.model[inferences_role.value]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             inferences,
             time_range,
         )
         data = get_data_quality_timeseries_data(
             self.dimension,
             metric,
-            time_range,
+            resolved_time_range,
             granularity,
             inferences_role,
         )
@@ -150,7 +151,7 @@ class Dimension(Node):
         if not isinstance(inferences_role, InferencesRole):
             inferences_role = InferencesRole.primary
         inferences = info.context.model[inferences_role.value]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             inferences,
             time_range,
             granularity,
@@ -159,7 +160,7 @@ class Dimension(Node):
             data=get_data_quality_timeseries_data(
                 self.dimension,
                 metric,
-                time_range,
+                resolved_time_range,
                 granularity,
                 inferences_role,
             )
@@ -184,7 +185,7 @@ class Dimension(Node):
         if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
         inferences = model[PRIMARY]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             inferences,
             time_range,
             granularity,
@@ -193,7 +194,7 @@ class Dimension(Node):
             data=get_drift_timeseries_data(
                 self.dimension,
                 metric,
-                time_range,
+                resolved_time_range,
                 granularity,
                 pd.DataFrame(
                     {self.dimension.name: self.dimension[REFERENCE]},
@@ -229,10 +230,14 @@ class Dimension(Node):
             if (df := model[role]).empty:
                 continue
             if time_range:
+                resolved_time_range = model_schema.TimeRange(
+                    start=time_range.start or df.time_range.start,
+                    stop=time_range.end or df.time_range.stop,
+                )
                 start, stop = row_interval_from_sorted_time_index(
                     df.index,
-                    time_range.start,
-                    time_range.end,
+                    resolved_time_range.start,
+                    resolved_time_range.stop,
                 )
                 df = df.iloc[start:stop]
             summaries[role] = binning_method.segmented_summary(

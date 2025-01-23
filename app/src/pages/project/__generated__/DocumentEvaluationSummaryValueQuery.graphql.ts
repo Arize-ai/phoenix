@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eb1441a6fa51d5f393026b7cd14db970>>
+ * @generated SignedSource<<052bbcf57a56fca328ce65731c870ada>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type DocumentEvaluationSummaryValueQuery$variables = {
   evaluationName: string;

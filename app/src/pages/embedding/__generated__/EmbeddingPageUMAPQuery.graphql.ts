@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1eb5a6b7613dcd11f94a7c41457061e3>>
+ * @generated SignedSource<<6c06a6f8759197a001caf60113f60f6d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type PerformanceMetric = "accuracyScore";
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type EmbeddingPageUMAPQuery$variables = {
   clusterMinSamples: number;

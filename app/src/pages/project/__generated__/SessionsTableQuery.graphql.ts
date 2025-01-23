@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6337a5efca223566f1627d6d85941459>>
+ * @generated SignedSource<<d83ed070bf0ea0d9ef5ce12a8defbcc8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,8 +17,8 @@ export type ProjectSessionSort = {
   dir: SortDir;
 };
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type SessionsTableQuery$variables = {
   after?: string | null;

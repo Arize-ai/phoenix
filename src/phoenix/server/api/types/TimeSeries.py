@@ -8,6 +8,7 @@ import pandas as pd
 import strawberry
 from strawberry import UNSET
 
+from phoenix.core import model_schema
 from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dimension, Inferences
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
@@ -69,13 +70,13 @@ class TimeSeries:
 def get_timeseries_data(
     df: pd.DataFrame,
     metric: Metric,
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
 ) -> list[TimeSeriesDataPoint]:
     return df.pipe(
         timeseries(
             start_time=time_range.start,
-            end_time=time_range.end,
+            end_time=time_range.stop,
             evaluation_window=timedelta(
                 minutes=granularity.evaluation_window_minutes,
             ),
@@ -99,7 +100,7 @@ class DataQualityTimeSeries(TimeSeries):
 def get_data_quality_timeseries_data(
     dimension: Dimension,
     metric: DataQualityMetric,
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
     inferences_role: InferencesRole,
 ) -> list[TimeSeriesDataPoint]:
@@ -129,7 +130,7 @@ class DriftTimeSeries(TimeSeries):
 def get_drift_timeseries_data(
     dimension: Dimension,
     metric: Union[ScalarDriftMetric, VectorDriftMetric],
-    time_range: TimeRange,
+    time_range: model_schema.TimeRange,
     granularity: Granularity,
     reference_data: pd.DataFrame,
 ) -> list[TimeSeriesDataPoint]:
@@ -165,14 +166,15 @@ class PerformanceTimeSeries(TimeSeries):
 
 def ensure_timeseries_parameters(
     inferences: Inferences,
-    time_range: Optional[TimeRange] = UNSET,
+    time_range_input: Optional[TimeRange] = UNSET,
     granularity: Optional[Granularity] = UNSET,
-) -> tuple[TimeRange, Granularity]:
-    if not isinstance(time_range, TimeRange):
-        start, stop = inferences.time_range
-        time_range = TimeRange(start=start, end=stop)
+) -> tuple[model_schema.TimeRange, Granularity]:
+    time_range = model_schema.TimeRange(
+        start=(time_range_input and time_range_input.start) or inferences.time_range.start,
+        stop=(time_range_input and time_range_input.end) or inferences.time_range.stop,
+    )
     if not isinstance(granularity, Granularity):
-        total_minutes = int((time_range.end - time_range.start).total_seconds()) // 60
+        total_minutes = int((time_range.stop - time_range.start).total_seconds()) // 60
         granularity = Granularity(
             evaluation_window_minutes=total_minutes,
             sampling_interval_minutes=total_minutes,
