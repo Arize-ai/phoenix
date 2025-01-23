@@ -116,14 +116,14 @@ async def get_prompts(
 
 
 @router.get(
-    "/prompts/{prompt_id}/versions",
+    "/prompts/{prompt_identifier}/versions",
     operation_id="listPromptVersions",
     summary="List all prompt versions for a given prompt",
     responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
 )
 async def list_prompt_versions(
     request: Request,
-    prompt_id: str = Path(..., description="The ID of the prompt"),
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
     cursor: Optional[str] = Query(
         default=None,
         description="Cursor for pagination (base64-encoded promptVersion ID)",
@@ -132,20 +132,13 @@ async def list_prompt_versions(
         default=100, description="The max number of prompt versions to return at a time.", gt=0
     ),
 ) -> GetPromptVersionsResponseBody:
-    try:
-        prompt_gid = from_global_id_with_expected_type(
-            GlobalID.from_id(prompt_id),
-            PromptNodeType.__name__,
-        )
-    except ValueError:
-        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt ID")
-    async with request.app.state.db() as session:
-        query = (
-            select(models.PromptVersion)
-            .where(models.PromptVersion.prompt_id == prompt_gid)
-            .order_by(models.PromptVersion.id.desc())
-        )
+    query = (
+        select(models.PromptVersion)
+    )
+    query = _filter_by_prompt_identifier(query, prompt_identifier)
+    query = query.order_by(models.PromptVersion.id.desc())
 
+    async with request.app.state.db() as session:
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
