@@ -30,7 +30,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode, Tracer
 from typing_extensions import TypeAlias
 
-from phoenix.config import get_base_url
+from phoenix.config import get_base_url, get_env_client_headers
 from phoenix.evals.executors import get_executor_on_sync_context
 from phoenix.evals.models.rate_limiters import RateLimiter
 from phoenix.evals.utils import get_tqdm_progress_bar_formatter
@@ -671,7 +671,12 @@ def _get_tracer(project_name: Optional[str] = None) -> tuple[Tracer, Resource]:
     resource = Resource({ResourceAttributes.PROJECT_NAME: project_name} if project_name else {})
     tracer_provider = trace_sdk.TracerProvider(resource=resource)
     span_processor = (
-        SimpleSpanProcessor(OTLPSpanExporter(urljoin(f"{get_base_url()}", "v1/traces")))
+        SimpleSpanProcessor(
+            OTLPSpanExporter(
+                endpoint=urljoin(f"{get_base_url()}", "v1/traces"),
+                headers=get_env_client_headers(),
+            )
+        )
         if project_name
         else _NoOpProcessor()
     )
