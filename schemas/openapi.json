@@ -1266,7 +1266,7 @@
         }
       }
     },
-    "/v1/prompts/{prompt_id}/versions": {
+    "/v1/prompts/{prompt_identifier}/versions": {
       "get": {
         "tags": [
           "prompts"
@@ -1275,15 +1275,15 @@
         "operationId": "listPromptVersions",
         "parameters": [
           {
-            "name": "prompt_id",
+            "name": "prompt_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the prompt",
-              "title": "Prompt Id"
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
             },
-            "description": "The ID of the prompt"
+            "description": "The identifier of the prompt, i.e. name or ID."
           },
           {
             "name": "cursor",
