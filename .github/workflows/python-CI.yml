@@ -537,3 +537,37 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run canary tests for ${{ matrix.pkg }}
         run: uvx --with tox-uv tox run -e canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
+
+  phoenix-client-canary-tests-sdk:
+    name: Phoenix Client Canary Tests for Third-Party SDKs
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        py: [ 3.9 ]
+        pkg: [ openai, anthropic ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            requirements/
+            packages/phoenix-client/
+      - name: Set up Python ${{ matrix.py }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 0.5.15
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            requirements/ci.txt
+            requirements/canary/sdk/${{ matrix.pkg }}.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run canary tests for ${{ matrix.pkg }}
+        run: uvx --with tox-uv tox run -e phoenix_client_canary_tests_sdk_${{ matrix.pkg }} -- -ra -x
