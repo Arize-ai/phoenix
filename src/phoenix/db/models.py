@@ -849,6 +849,7 @@ class Prompt(Base):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()

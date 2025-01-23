@@ -65,6 +65,7 @@ def upgrade() -> None:
         ),
         sa.Column("name", sa.String, unique=True, index=True, nullable=False),
         sa.Column("description", sa.String, nullable=True),
+        sa.Column("metadata", JSON_, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
