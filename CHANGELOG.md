@@ -1,5 +1,13 @@
 # Changelog
 
+## [7.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.0...arize-phoenix-v7.9.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* Allow experiment table resize for large inputs ([#6134](https://github.com/Arize-ai/phoenix/issues/6134)) ([b87c3c7](https://github.com/Arize-ai/phoenix/commit/b87c3c733120cee45e55ec6e48a0da37b5c0611f))
+* handle span events as ndarray for `TraceDataset.to_span` ([#6135](https://github.com/Arize-ai/phoenix/issues/6135)) ([42c0ae5](https://github.com/Arize-ai/phoenix/commit/42c0ae5bc705f62519737d6800867cf0551f9dd7))
+
 ## [7.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.8.1...arize-phoenix-v7.9.0) (2025-01-21)
 
 
