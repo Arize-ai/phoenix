@@ -1,35 +1,50 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
+import { SizingProps } from "@phoenix/components/types";
 
 export type CodeLanguage = "Python" | "TypeScript";
+
+const codeLanguages: CodeLanguage[] = ["Python", "TypeScript"];
+
+/**
+ * TypeGuard for the code language
+ */
+function isCodeLanguage(l: unknown): l is CodeLanguage {
+  return typeof l === "string" && codeLanguages.includes(l as CodeLanguage);
+}
 
 export function CodeLanguageRadioGroup({
   language,
   onChange,
+  size,
 }: {
   language: CodeLanguage;
   onChange: (language: CodeLanguage) => void;
-}) {
+} & SizingProps) {
   return (
-    <RadioGroup
-      defaultValue={language}
-      variant="inline-button"
-      size="compact"
-      onChange={(v) => {
-        if (v === "Python" || v === "TypeScript") {
-          onChange(v);
+    <ToggleButtonGroup
+      size={size}
+      selectedKeys={[language]}
+      aria-label="Code Language"
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const language = v.keys().next().value;
+        if (isCodeLanguage(language)) {
+          onChange(language);
         } else {
-          throw new Error(`Unknown language: ${v}`);
+          throw new Error(`Unknown language: ${language}`);
         }
       }}
     >
-      <Radio label="Python" value={"Python"}>
+      <ToggleButton aria-label="Python" id="Python">
         Python
-      </Radio>
-      <Radio label="TypeScript" value={"TypeScript"}>
+      </ToggleButton>
+      <ToggleButton aria-label="TypeScript" id="TypeScript">
         TypeScript
-      </Radio>
-    </RadioGroup>
+      </ToggleButton>
+    </ToggleButtonGroup>
   );
 }

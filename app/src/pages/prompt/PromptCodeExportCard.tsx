@@ -113,7 +113,7 @@ export function PromptCodeExportCard({
       variant="compact"
       bodyStyle={{ padding: 0 }}
       extra={
-        <Flex gap="size-100">
+        <Flex gap="size-100" alignItems="center">
           <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
           <CopyToClipboardButton text={snippet} />
         </Flex>

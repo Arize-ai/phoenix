@@ -266,7 +266,7 @@ function PlaygroundContent() {
                   Prompts
                   <StopPropagation>
                     <Flex direction="row" gap="size-100" alignItems="center">
-                      <TemplateLanguageRadioGroup />
+                      <TemplateLanguageRadioGroup size="M" />
                       <AddPromptButton />
                     </Flex>
                   </StopPropagation>
