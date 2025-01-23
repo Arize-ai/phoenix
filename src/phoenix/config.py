@@ -625,10 +625,13 @@ def get_env_enable_prometheus() -> bool:
     )
 
 
-def get_env_client_headers() -> Optional[dict[str, str]]:
-    if headers_str := os.getenv(ENV_PHOENIX_CLIENT_HEADERS):
-        return parse_env_headers(headers_str)
-    return None
+def get_env_client_headers() -> dict[str, str]:
+    headers = parse_env_headers(os.getenv(ENV_PHOENIX_CLIENT_HEADERS))
+    if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
+        k.lower() for k in headers
+    ]:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
 
 
 def get_base_url() -> str:
