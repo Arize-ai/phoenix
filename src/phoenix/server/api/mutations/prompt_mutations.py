@@ -21,6 +21,10 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptVersion,
 )
 from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.mutations.prompt_version_tag_mutations import (
+    SetPromptVersionTagInput,
+    upsert_prompt_version_tag,
+)
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -39,6 +43,7 @@ class CreateChatPromptInput:
 class CreateChatPromptVersionInput:
     prompt_id: GlobalID
     prompt_version: ChatPromptVersionInput
+    tags: Optional[list[SetPromptVersionTagInput]] = None
 
 
 @strawberry.input
@@ -198,6 +203,16 @@ class PromptMutationMixin:
                 model_name=pydantic_prompt_version.model_name,
             )
             session.add(prompt_version)
+
+        # ensure prompt_version is flushed to the database before creating tags against the
+        # prompt_version id
+        await session.flush()
+
+        if input.tags:
+            for tag in input.tags:
+                await upsert_prompt_version_tag(
+                    session, prompt_id, prompt_version.id, tag.name, tag.description
+                )
 
         return to_gql_prompt_from_orm(prompt)
 
