@@ -9,7 +9,9 @@ import {
   openAIToolDefinitionSchema,
   promptMessageToOpenAI,
 } from "../../schemas/llm";
+import { promptMessageFormatter } from "../../utils/promptMessageFormatter";
 
+// We must re-export these types so that they are included in the phoenix-client distribution
 export type {
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
@@ -20,6 +22,7 @@ export type ToOpenAIParams = toSDKParamsBase;
 
 export const toOpenAI = ({
   prompt,
+  variables,
 }: ToOpenAIParams): ChatCompletionCreateParams | null => {
   try {
     // parts of the prompt that can be directly converted to OpenAI params
@@ -33,7 +36,17 @@ export const toOpenAI = ({
       return null;
     }
 
-    const messages = prompt.template.messages.map((message) =>
+    let formattedMessages = prompt.template.messages;
+
+    if (variables) {
+      formattedMessages = promptMessageFormatter(
+        prompt.template_format,
+        formattedMessages,
+        variables
+      );
+    }
+
+    const messages = formattedMessages.map((message) =>
       promptMessageToOpenAI.parse(message)
     ) as ChatCompletionMessageParam[];
 

@@ -37,6 +37,9 @@ const main = async () => {
   const openAIParams = toSDK({
     prompt,
     sdk: "openai",
+    variables: {
+      question: "What is the capital of France?",
+    },
   });
 
   if (!openAIParams) {
@@ -54,8 +57,20 @@ const main = async () => {
 
   console.log(`Streaming response from OpenAI:\n\n`);
 
+  let responseText = "";
   for await (const chunk of response) {
-    console.log(chunk.choices[0]?.delta?.content);
+    if (chunk.choices[0]?.delta?.content) {
+      responseText += chunk.choices[0]?.delta?.content;
+      console.clear();
+      console.log("Input:\n");
+      console.log(JSON.stringify(openAIParams.messages, null, 2));
+      console.log("\nOutput:\n");
+      try {
+        console.log(JSON.stringify(JSON.parse(responseText), null, 2));
+      } catch {
+        console.log(responseText);
+      }
+    }
   }
 
   console.log("\n\n");
