@@ -277,6 +277,7 @@ input CreateChatPromptInput {
 input CreateChatPromptVersionInput {
   promptId: GlobalID!
   promptVersion: ChatPromptVersionInput!
+  tags: [SetPromptVersionTagInput!] = null
 }
 
 input CreateDatasetInput {
