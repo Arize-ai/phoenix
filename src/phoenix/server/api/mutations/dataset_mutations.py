@@ -4,7 +4,11 @@ from typing import Any
 
 import strawberry
 from openinference.semconv.trace import (
+    MessageAttributes,
+    MessageContentAttributes,
     SpanAttributes,
+    ToolAttributes,
+    ToolCallAttributes,
 )
 from sqlalchemy import and_, delete, distinct, func, insert, select, update
 from strawberry import UNSET
@@ -182,7 +186,14 @@ class DatasetMutationMixin:
             DatasetExampleRevision = models.DatasetExampleRevision
 
             all_span_attributes = {
-                k: v for k, v in SpanAttributes.__dict__ if not k.startswith("_")
+                **SpanAttributes.__dict__,
+                **MessageAttributes.__dict__,
+                **MessageContentAttributes.__dict__,
+                **ToolCallAttributes.__dict__,
+                **ToolAttributes.__dict__,
+            }
+            nonprivate_span_attributes = {
+                k: v for k, v in all_span_attributes.items() if not k.startswith("_")
             }
 
             await session.execute(
@@ -196,7 +207,9 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.metadata_.key: {
                             **(span.attributes.get(SpanAttributes.METADATA) or dict()),
                             **{
-                                k: v for k, v in span.attributes.items() if k in all_span_attributes
+                                k: v
+                                for k, v in span.attributes.items()
+                                if k in nonprivate_span_attributes
                             },
                             "span_kind": span.span_kind,
                             **(
