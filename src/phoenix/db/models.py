@@ -897,6 +897,8 @@ class PromptPromptLabel(Base):
     )
     prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompts_prompt_labels")
 
+    __table_args__ = (UniqueConstraint("prompt_label_id", "prompt_id"),)
+
 
 class PromptVersion(Base):
     __tablename__ = "prompt_versions"

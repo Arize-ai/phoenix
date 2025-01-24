@@ -281,7 +281,11 @@ input ClusterInput {
   id: ID
 }
 
-union ContentPart = TextContentPart | ImageContentPart | ToolCallContentPart | ToolResultContentPart
+union ContentPart =
+  | TextContentPart
+  | ImageContentPart
+  | ToolCallContentPart
+  | ToolResultContentPart
 
 input ContentPartInput @oneOf {
   text: TextContentValueInput
@@ -312,6 +316,11 @@ input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
+}
+
+input CreatePromptLabelInput {
+  name: Identifier!
+  description: String = null
 }
 
 input CreateSpanAnnotationInput {
@@ -633,6 +642,10 @@ input DeleteExperimentsInput {
 
 input DeletePromptInput {
   promptId: GlobalID!
+}
+
+input DeletePromptLabelInput {
+  promptLabelId: GlobalID!
 }
 
 type DeletePromptMutationPayload {
@@ -1560,6 +1573,11 @@ type Mutation {
   setPromptVersionTag(
     input: SetPromptVersionTagInput!
   ): PromptVersionTagMutationPayload!
+  createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
+  patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
+  setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
+  unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
   createSpanAnnotations(
     input: [CreateSpanAnnotationInput!]!
   ): SpanAnnotationMutationPayload!
@@ -1658,6 +1676,12 @@ input PatchDatasetInput {
 input PatchPromptInput {
   promptId: GlobalID!
   description: String!
+}
+
+input PatchPromptLabelInput {
+  promptLabelId: GlobalID!
+  name: Identifier = null
+  description: String = null
 }
 
 input PatchUserInput {
@@ -1926,6 +1950,51 @@ type PromptEdge {
   node: Prompt!
 }
 
+type PromptLabel implements Node {
+  """
+  The Globally Unique ID of this object
+  """
+  id: GlobalID!
+  name: Identifier!
+  description: String
+  prompts: [Prompt!]!
+}
+
+"""
+A connection to a list of items.
+"""
+type PromptLabelConnection {
+  """
+  Pagination data for this connection
+  """
+  pageInfo: PageInfo!
+
+  """
+  Contains the nodes in this connection
+  """
+  edges: [PromptLabelEdge!]!
+}
+
+"""
+An edge in a connection.
+"""
+type PromptLabelEdge {
+  """
+  A cursor for use in pagination
+  """
+  cursor: String!
+
+  """
+  The item at the end of the edge
+  """
+  node: PromptLabel!
+}
+
+type PromptLabelMutationPayload {
+  promptLabel: PromptLabel
+  query: Query!
+}
+
 type PromptMessage {
   role: PromptMessageRole!
   content: [ContentPart!]!
@@ -2090,6 +2159,12 @@ type Query {
     after: String
     before: String
   ): PromptConnection!
+  promptLabels(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+  ): PromptLabelConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """
@@ -2155,6 +2230,11 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+input SetPromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
 }
 
 input SetPromptVersionTagInput {
@@ -2677,6 +2757,11 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+input UnsetPromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
 }
 
 type User implements Node {

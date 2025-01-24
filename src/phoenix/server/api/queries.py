@@ -61,6 +61,7 @@ from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, co
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span, to_gql_span
@@ -583,6 +584,15 @@ class Query:
                     return to_gql_prompt_version(orm_prompt_version)
                 else:
                     raise NotFound(f"Unknown prompt version: {id}")
+        elif type_name == PromptLabel.__name__:
+            async with info.context.db() as session:
+                if not (
+                    prompt_label := await session.scalar(
+                        select(models.PromptLabel).where(models.PromptLabel.id == node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown prompt label: {id}")
+            return to_gql_prompt_label(prompt_label)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -624,6 +634,29 @@ class Query:
         async with info.context.db() as session:
             orm_prompts = await session.stream_scalars(stmt)
             data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
+
+    @strawberry.field
+    async def prompt_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[PromptLabel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            prompt_labels = await session.stream_scalars(select(models.PromptLabel))
+            data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
             return connection_from_list(
                 data=data,
                 args=args,
