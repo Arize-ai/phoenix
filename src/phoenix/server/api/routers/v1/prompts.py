@@ -174,6 +174,30 @@ async def get_prompt_version_by_tag_name(
     return _prompt_version_response_body(prompt_version)
 
 
+@router.get(
+    "/prompts/{prompt_identifier}/latest",
+    operation_id="getPromptVersionLatest",
+    summary="Get the latest prompt version",
+    responses=add_errors_to_responses(
+        [
+            HTTP_404_NOT_FOUND,
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+)
+async def get_prompt_version_by_latest(
+    request: Request,
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+) -> GetPromptResponseBody:
+    stmt = select(models.PromptVersion).order_by(models.PromptVersion.id.desc()).limit(1)
+    stmt = _filter_by_prompt_identifier(stmt, prompt_identifier)
+    async with request.app.state.db() as session:
+        prompt_version: models.PromptVersion = await session.scalar(stmt)
+        if prompt_version is None:
+            raise HTTPException(HTTP_404_NOT_FOUND)
+    return _prompt_version_response_body(prompt_version)
+
+
 class _PromptId(int): ...
 
 
