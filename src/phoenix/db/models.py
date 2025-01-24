@@ -36,11 +36,17 @@ from sqlalchemy.orm import (
     relationship,
 )
 from sqlalchemy.sql import expression
+from typing_extensions import assert_never
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.helpers.prompts.models import PromptTemplate, PromptTemplateWrapper
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplateV1,
+    PromptStringTemplateV1,
+    PromptTemplate,
+    PromptTemplateWrapper,
+)
 
 
 class AuthMethod(Enum):
@@ -123,6 +129,14 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     def process_bind_param(
         self, value: Optional[PromptTemplate], _: Dialect
     ) -> Optional[dict[str, Any]]:
+        if (
+            value is None
+            or isinstance(value, PromptChatTemplateV1)
+            or isinstance(value, PromptStringTemplateV1)
+        ):
+            pass
+        else:
+            assert_never(value)
         return value.dict() if value is not None else None
 
     def process_result_value(
