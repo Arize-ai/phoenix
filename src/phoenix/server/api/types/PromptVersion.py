@@ -40,6 +40,7 @@ class PromptVersion(Node):
     output_schema: Optional[JSONSchema] = None
     model_name: str
     model_provider: str
+    metadata: JSON
     created_at: datetime
     cached_sequence_number: Private[Optional[int]] = None
 
@@ -132,6 +133,7 @@ def to_gql_prompt_version(
         output_schema=output_schema,
         model_name=prompt_version.model_name,
         model_provider=prompt_version.model_provider,
+        metadata=prompt_version.metadata_,
         created_at=prompt_version.created_at,
         cached_sequence_number=sequence_number,
     )
