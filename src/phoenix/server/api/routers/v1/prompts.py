@@ -132,9 +132,7 @@ async def list_prompt_versions(
         default=100, description="The max number of prompt versions to return at a time.", gt=0
     ),
 ) -> GetPromptVersionsResponseBody:
-    query = (
-        select(models.PromptVersion)
-    )
+    query = select(models.PromptVersion)
     query = _filter_by_prompt_identifier(query, prompt_identifier)
     query = query.order_by(models.PromptVersion.id.desc())
 
