@@ -828,6 +828,7 @@ class PromptLabel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, nullable=True)
 
     prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
         "PromptPromptLabel",
@@ -848,6 +849,7 @@ class Prompt(Base):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -931,6 +933,7 @@ class PromptVersion(Base):
     )
     model_provider: Mapped[str]
     model_name: Mapped[str]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_versions")
