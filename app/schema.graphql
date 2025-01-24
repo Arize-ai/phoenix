@@ -1656,14 +1656,8 @@ type Query {
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
-  compareExperiments(
-    experimentIds: [GlobalID!]!
-    filterCondition: String
-  ): [ExperimentComparison!]!
-  validateExperimentRunFilterCondition(
-    condition: String!
-    experimentIds: [GlobalID!]!
-  ): ValidationResult!
+  compareExperiments(experimentIds: [GlobalID!]!, filterCondition: String): [ExperimentComparison!]!
+  validateExperimentRunFilterCondition(condition: String!, experimentIds: [GlobalID!]!): ValidationResult!
   functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
@@ -2013,10 +2007,10 @@ input TextContentValueInput {
 
 input TimeRange {
   """The start of the time range"""
-  start: DateTime!
+  start: DateTime
 
   """The end of the time range. Right exclusive."""
-  end: DateTime!
+  end: DateTime
 }
 
 interface TimeSeries {
