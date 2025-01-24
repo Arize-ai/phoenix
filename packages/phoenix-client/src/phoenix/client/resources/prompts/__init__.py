@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import quote_plus
 
 import httpx
 
@@ -16,15 +17,10 @@ class Prompts:
         prompt_identifier: Optional[str] = None,
         tag: Optional[str] = None,
     ) -> PromptVersion:
-        if prompt_version_id is not None:
-            response = self._client.get(f"v1/prompt_versions/{prompt_version_id}")
-            response.raise_for_status()
-            return GetPromptResponseBody.model_validate_json(response.content).data
-        if prompt_identifier is not None and tag is not None:
-            response = self._client.get(f"v1/prompts/{prompt_identifier}/tags/{tag}")
-            response.raise_for_status()
-            return GetPromptResponseBody.model_validate_json(response.content).data
-        raise NotImplementedError
+        url = _url(prompt_version_id, prompt_identifier, tag)
+        response = self._client.get(url)
+        response.raise_for_status()
+        return GetPromptResponseBody.model_validate_json(response.content).data
 
 
 class AsyncPrompts:
@@ -38,12 +34,22 @@ class AsyncPrompts:
         prompt_identifier: Optional[str] = None,
         tag: Optional[str] = None,
     ) -> PromptVersion:
-        if prompt_version_id is not None:
-            response = await self._client.get(f"v1/prompt_versions/{prompt_version_id}")
-            response.raise_for_status()
-            return GetPromptResponseBody.model_validate_json(response.content).data
-        if prompt_identifier is not None and tag is not None:
-            response = await self._client.get(f"v1/prompts/{prompt_identifier}/tags/{tag}")
-            response.raise_for_status()
-            return GetPromptResponseBody.model_validate_json(response.content).data
-        raise NotImplementedError
+        url = _url(prompt_version_id, prompt_identifier, tag)
+        response = await self._client.get(url)
+        response.raise_for_status()
+        return GetPromptResponseBody.model_validate_json(response.content).data
+
+
+def _url(
+    prompt_version_id: Optional[str] = None,
+    prompt_identifier: Optional[str] = None,
+    tag: Optional[str] = None,
+) -> str:
+    if isinstance(prompt_version_id, str):
+        return f"v1/prompt_versions/{quote_plus(prompt_version_id)}"
+    assert isinstance(
+        prompt_identifier, str
+    ), "Must specify either `prompt_version_id` or `prompt_identifier`"
+    if isinstance(tag, str):
+        return f"v1/prompts/{quote_plus(prompt_identifier)}/tags/{quote_plus(tag)}"
+    return f"v1/prompts/{quote_plus(prompt_identifier)}/latest"
