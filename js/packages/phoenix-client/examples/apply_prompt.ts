@@ -26,7 +26,6 @@ const client = createClient({
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
-  baseURL: "http://m4-mini:11434/v1",
 });
 
 const main = async () => {
