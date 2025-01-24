@@ -181,6 +181,10 @@ class DatasetMutationMixin:
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
 
+            all_span_attributes = {
+                k: v for k, v in SpanAttributes.__dict__ if not k.startswith("_")
+            }
+
             await session.execute(
                 insert(DatasetExampleRevision),
                 [
@@ -190,6 +194,10 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.input.key: get_dataset_example_input(span),
                         DatasetExampleRevision.output.key: get_dataset_example_output(span),
                         DatasetExampleRevision.metadata_.key: {
+                            **(span.attributes.get(SpanAttributes.METADATA) or dict()),
+                            **{
+                                k: v for k, v in span.attributes.items() if k in all_span_attributes
+                            },
                             "span_kind": span.span_kind,
                             **(
                                 {"annotations": annotations}
