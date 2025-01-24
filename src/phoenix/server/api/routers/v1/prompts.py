@@ -13,9 +13,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplateV1,
     PromptJSONSchema,
-    PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
@@ -238,13 +236,6 @@ def _prompt_version_response_body(
     prompt_version: models.PromptVersion,
 ) -> GetPromptResponseBody:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
-    template: PromptTemplate
-    if prompt_template_type is PromptTemplateType.CHAT:
-        template = PromptChatTemplateV1.model_validate(prompt_version.template)
-    elif prompt_template_type is PromptTemplateType.STRING:
-        template = PromptStringTemplateV1.model_validate(prompt_version.template)
-    else:
-        assert_never(prompt_template_type)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     tools = (
         PromptToolsV1.model_validate(prompt_version.tools)
@@ -262,7 +253,7 @@ def _prompt_version_response_body(
             description=prompt_version.description or "",
             model_provider=prompt_version.model_provider,
             model_name=prompt_version.model_name,
-            template=template,
+            template=prompt_version.template,
             template_type=prompt_template_type,
             template_format=prompt_template_format,
             invocation_parameters=prompt_version.invocation_parameters,

@@ -40,6 +40,7 @@ from sqlalchemy.sql import expression
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.helpers.prompts.models import PromptTemplate, PromptTemplateWrapper
 
 
 class AuthMethod(Enum):
@@ -112,6 +113,23 @@ class _Identifier(TypeDecorator[Identifier]):
 
     def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[Identifier]:
         return None if value is None else Identifier.model_validate(value)
+
+
+class _PromptTemplate(TypeDecorator[PromptTemplate]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(self, value: PromptTemplate, _: Dialect) -> Optional[dict[str, Any]]:
+        return value.dict() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptTemplate]:
+        if value is None:
+            return None
+        wrapped_template = PromptTemplateWrapper.model_validate({"template": value})
+        return wrapped_template.template
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -927,7 +945,7 @@ class PromptVersion(Base):
         ),
         nullable=False,
     )
-    template: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
     invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
     tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=Null(), nullable=True)
     output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(

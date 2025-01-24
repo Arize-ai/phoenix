@@ -113,16 +113,22 @@ class PromptMessage(PromptModel):
 
 
 class PromptChatTemplateV1(PromptModel):
-    _version: str = "messages-v1"
+    version: Literal["chat-template-v1"] = "chat-template-v1"
     messages: list[PromptMessage]
 
 
 class PromptStringTemplateV1(PromptModel):
-    _version: str = "string-v1"
+    version: Literal["string-template-v1"] = "string-template-v1"
     template: str
 
 
-PromptTemplate: TypeAlias = Union[PromptChatTemplateV1, PromptStringTemplateV1]
+PromptTemplate: TypeAlias = Annotated[
+    Union[PromptChatTemplateV1, PromptStringTemplateV1], Field(..., discriminator="version")
+]
+
+
+class PromptTemplateWrapper(PromptModel):
+    template: PromptTemplate
 
 
 class PromptJSONSchema(PromptModel):
