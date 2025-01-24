@@ -52,7 +52,16 @@ export async function getPromptVersionLike({
     return response.data.data;
   }
   if ("name" in prompt) {
-    throw new Error("Prompt by name not implemented");
+    const response = await client.GET(
+      `/v1/prompts/{prompt_identifier}/tags/{tag_name}`,
+      {
+        params: {
+          path: { prompt_identifier: prompt.name, tag_name: "latest" },
+        },
+      }
+    );
+    invariant(response.data?.data, `Prompt ${prompt.name} not found`);
+    return response.data.data;
   }
   throw new Error("Invalid prompt");
 }

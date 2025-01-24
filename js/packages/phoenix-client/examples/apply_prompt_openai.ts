@@ -1,9 +1,25 @@
 /* eslint-disable no-console */
 import { createClient, getPrompt, toSDK } from "../src";
 import OpenAI from "openai";
+import { PromptLike } from "../src/types/prompts";
 
+const PROMPT_NAME = process.env.PROMPT_NAME!;
+const PROMPT_TAG = process.env.PROMPT_TAG!;
 const PROMPT_VERSION_ID = process.env.PROMPT_VERSION_ID!;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
+
+// get first argument from command line
+const question = process.argv[2];
+
+if (!question) {
+  throw new Error(
+    "Usage: pnpx tsx examples/apply_prompt_openai.ts 'What is the capital of France?'\nAssumes that the prompt has a variable named 'question'"
+  );
+}
+
+if (!OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY must be provided in the environment");
+}
 
 const client = createClient({
   options: {
@@ -16,12 +32,24 @@ const openai = new OpenAI({
 });
 
 const main = async () => {
+  const promptArgument: PromptLike | null = PROMPT_VERSION_ID
+    ? { versionId: PROMPT_VERSION_ID }
+    : PROMPT_TAG && PROMPT_NAME
+      ? { name: PROMPT_NAME, tag: PROMPT_TAG }
+      : PROMPT_NAME
+        ? { name: PROMPT_NAME }
+        : null;
+  if (!promptArgument) {
+    throw new Error(
+      `Either PROMPT_VERSION_ID, PROMPT_TAG and PROMPT_NAME, or PROMPT_NAME must be provided in the environment`
+    );
+  }
   console.log(`Getting prompt ${PROMPT_VERSION_ID}`);
 
   // TODO: Apply variable replacement to the prompt
   const prompt = await getPrompt({
     client,
-    prompt: { versionId: PROMPT_VERSION_ID },
+    prompt: promptArgument,
   });
 
   if (!prompt) {
@@ -38,7 +66,7 @@ const main = async () => {
     prompt,
     sdk: "openai",
     variables: {
-      question: "When does Monster Hunter Wilds come out?",
+      question,
     },
   });
 
