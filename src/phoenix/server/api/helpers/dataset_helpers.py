@@ -7,6 +7,7 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolAttributes,
     ToolCallAttributes,
 )
 
@@ -27,12 +28,14 @@ def get_dataset_example_input(span: Span) -> dict[str, Any]:
     input_mime_type = get_attribute_value(attributes, INPUT_MIME_TYPE)
     prompt_template_variables = get_attribute_value(attributes, LLM_PROMPT_TEMPLATE_VARIABLES)
     input_messages = get_attribute_value(attributes, LLM_INPUT_MESSAGES)
+    tool_definition = get_attribute_value(attributes, TOOL_DEFINITION)
     if span_kind == LLM:
         return _get_llm_span_input(
             input_messages=input_messages,
             input_value=input_value,
             input_mime_type=input_mime_type,
             prompt_template_variables=prompt_template_variables,
+            tool_definition=tool_definition,
         )
     return _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
 
@@ -71,6 +74,7 @@ def _get_llm_span_input(
     input_value: Any,
     input_mime_type: Optional[str],
     prompt_template_variables: Any,
+    tool_definition: Any,
 ) -> dict[str, Any]:
     """
     Extracts the input value from an LLM span and returns it as a dictionary.
@@ -84,6 +88,8 @@ def _get_llm_span_input(
         input = _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
     if prompt_template_variables_data := _safely_json_decode(prompt_template_variables):
         input["prompt_template_variables"] = prompt_template_variables_data
+    if tool_definition_data := _safely_json_decode(tool_definition):
+        input["tool_definition"] = tool_definition_data
     return input
 
 
@@ -215,3 +221,6 @@ RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 # ToolCallAttributes
 TOOL_CALL_FUNCTION_ARGUMENTS_JSON = ToolCallAttributes.TOOL_CALL_FUNCTION_ARGUMENTS_JSON
 TOOL_CALL_FUNCTION_NAME = ToolCallAttributes.TOOL_CALL_FUNCTION_NAME
+
+# ToolAttributes
+TOOL_DEFINITION = ToolAttributes.ToolAttributes.TOOL_JSON_SCHEMA
