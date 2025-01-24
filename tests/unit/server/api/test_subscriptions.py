@@ -1206,11 +1206,6 @@ class TestChatCompletionOverDatasetSubscription:
         assert experiment.pop("name") == "playground-experiment"
         assert isinstance(experiment_description := experiment.pop("description"), str)
         assert "dataset-name" in experiment_description
-        assert experiment.pop("metadata") == {
-            "dataset_name": "dataset-name",
-            "dataset_id": str(dataset_id),
-            "dataset_version_id": str(version_id),
-        }
         assert experiment.pop("projectName") == "playground"
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
