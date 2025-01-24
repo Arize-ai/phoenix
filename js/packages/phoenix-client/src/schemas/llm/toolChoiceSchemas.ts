@@ -24,11 +24,21 @@ export type OpenaiToolChoice = z.infer<typeof openAIToolChoiceSchema>;
  *
  * @see https://docs.anthropic.com/en/api/messages
  */
-export const anthropicToolChoiceSchema = z.object({
-  type: z.union([z.literal("auto"), z.literal("any"), z.literal("tool")]),
-  disable_parallel_tool_use: z.boolean().optional(),
-  name: z.string().optional(),
-});
+export const anthropicToolChoiceSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("tool"),
+    name: z.string(),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("auto"),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("any"),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+]);
 
 export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 
@@ -58,7 +68,7 @@ export const openAIToolChoiceToAnthropicToolChoice =
     }
     return {
       type: "tool",
-      name: openAI.function.name,
+      name: openAI.function.name ?? "",
     };
   });
 
