@@ -278,12 +278,7 @@ class Subscription:
                 description=input.experiment_description
                 or _default_playground_experiment_description(dataset_name=dataset.name),
                 repetitions=1,
-                metadata_=input.experiment_metadata
-                or _default_playground_experiment_metadata(
-                    dataset_name=dataset.name,
-                    dataset_id=input.dataset_id,
-                    version_id=GlobalID(DatasetVersion.__name__, str(resolved_version_id)),
-                ),
+                metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
             )
             session.add(experiment)
@@ -579,16 +574,6 @@ def _default_playground_experiment_name() -> str:
 
 def _default_playground_experiment_description(dataset_name: str) -> str:
     return f'Playground experiment for dataset "{dataset_name}"'
-
-
-def _default_playground_experiment_metadata(
-    dataset_name: str, dataset_id: GlobalID, version_id: GlobalID
-) -> dict[str, Any]:
-    return {
-        "dataset_name": dataset_name,
-        "dataset_id": str(dataset_id),
-        "dataset_version_id": str(version_id),
-    }
 
 
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
