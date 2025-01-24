@@ -120,7 +120,9 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     cache_ok = True
     impl = JSON_
 
-    def process_bind_param(self, value: PromptTemplate, _: Dialect) -> Optional[dict[str, Any]]:
+    def process_bind_param(
+        self, value: Optional[PromptTemplate], _: Dialect
+    ) -> Optional[dict[str, Any]]:
         return value.dict() if value is not None else None
 
     def process_result_value(
