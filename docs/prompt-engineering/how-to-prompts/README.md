@@ -12,7 +12,7 @@ Organize and manage prompts with Phoenix to streamline your development workflow
 Prompt management is currently available on a feature branch only and will be released in the next major version.
 {% endhint %}
 
-* [crate-a-prompt.md](crate-a-prompt.md "mention")
+* [create-a-prompt.md](create-a-prompt.md "mention")
 * Update a prompt
 * Tag a prompt
 
