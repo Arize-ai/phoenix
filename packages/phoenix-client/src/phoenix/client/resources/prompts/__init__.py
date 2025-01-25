@@ -45,11 +45,14 @@ def _url(
     prompt_identifier: Optional[str] = None,
     tag: Optional[str] = None,
 ) -> str:
-    if isinstance(prompt_version_id, str):
+    if prompt_version_id is not None:
+        assert isinstance(prompt_version_id, str)
         return f"v1/prompt_versions/{quote_plus(prompt_version_id)}"
-    assert isinstance(
-        prompt_identifier, str
+    assert (
+        prompt_identifier is not None
     ), "Must specify either `prompt_version_id` or `prompt_identifier`"
-    if isinstance(tag, str):
+    assert isinstance(prompt_identifier, str)
+    if tag is not None:
+        assert isinstance(tag, str)
         return f"v1/prompts/{quote_plus(prompt_identifier)}/tags/{quote_plus(tag)}"
     return f"v1/prompts/{quote_plus(prompt_identifier)}/latest"
