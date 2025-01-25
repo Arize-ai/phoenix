@@ -53,10 +53,10 @@ export async function getPromptVersionLike({
   }
   if ("name" in prompt) {
     const response = await client.GET(
-      `/v1/prompts/{prompt_identifier}/tags/{tag_name}`,
+      `/v1/prompts/{prompt_identifier}/latest`,
       {
         params: {
-          path: { prompt_identifier: prompt.name, tag_name: "latest" },
+          path: { prompt_identifier: prompt.name },
         },
       }
     );
