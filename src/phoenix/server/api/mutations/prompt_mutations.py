@@ -96,18 +96,15 @@ class PromptMutationMixin:
             )
             template = PromptChatTemplateV1.model_validate(
                 strawberry.asdict(input.prompt_version.template)
-            ).dict()
+            )
             pydantic_prompt_version = PromptVersion(
-                user_id=user_id,
-                description=input.prompt_version.description,
-                template_type=input.prompt_version.template_type.value,
-                template_format=input.prompt_version.template_format.value,
-                template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
-                tools=tools,
-                output_schema=output_schema,
-                model_name=input.prompt_version.model_name,
-                model_provider=input.prompt_version.model_provider,
+                **{
+                    **strawberry.asdict(input.prompt_version),
+                    "user_id": user_id,
+                    "output_schema": output_schema,
+                    "tools": tools,
+                    "template": template,
+                }
             )
         except ValidationError as error:
             raise BadRequest(str(error))
@@ -165,18 +162,15 @@ class PromptMutationMixin:
             )
             template = PromptChatTemplateV1.model_validate(
                 strawberry.asdict(input.prompt_version.template)
-            ).dict()
+            )
             pydantic_prompt_version = PromptVersion(
-                user_id=user_id,
-                description=input.prompt_version.description,
-                template_type=input.prompt_version.template_type.value,
-                template_format=input.prompt_version.template_format.value,
-                template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
-                tools=tools,
-                output_schema=output_schema,
-                model_name=input.prompt_version.model_name,
-                model_provider=input.prompt_version.model_provider,
+                **{
+                    **strawberry.asdict(input.prompt_version),
+                    "user_id": user_id,
+                    "output_schema": output_schema,
+                    "tools": tools,
+                    "template": template,
+                }
             )
         except ValidationError as error:
             raise BadRequest(str(error))
