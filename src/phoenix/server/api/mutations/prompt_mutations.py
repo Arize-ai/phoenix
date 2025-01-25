@@ -16,7 +16,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
-    PromptJSONSchema,
     PromptToolsV1,
     PromptVersion,
 )
@@ -87,13 +86,6 @@ class PromptMutationMixin:
                 pydantic_tool = tool.to_pydantic()
                 tool_definitions.append(pydantic_tool)
             tools = PromptToolsV1(tool_definitions=tool_definitions)
-            output_schema = (
-                PromptJSONSchema.model_validate(
-                    strawberry.asdict(input.prompt_version.output_schema)
-                ).dict()
-                if input.prompt_version.output_schema is not None
-                else None
-            )
             template = PromptChatTemplateV1.model_validate(
                 strawberry.asdict(input.prompt_version.template)
             )
@@ -101,7 +93,6 @@ class PromptMutationMixin:
                 **{
                     **strawberry.asdict(input.prompt_version),
                     "user_id": user_id,
-                    "output_schema": output_schema,
                     "tools": tools,
                     "template": template,
                 }
@@ -153,13 +144,6 @@ class PromptMutationMixin:
                 pydantic_tool = tool.to_pydantic()
                 tool_definitions.append(pydantic_tool)
             tools = PromptToolsV1(tool_definitions=tool_definitions)
-            output_schema = (
-                PromptJSONSchema.model_validate(
-                    strawberry.asdict(input.prompt_version.output_schema)
-                ).dict()
-                if input.prompt_version.output_schema is not None
-                else None
-            )
             template = PromptChatTemplateV1.model_validate(
                 strawberry.asdict(input.prompt_version.template)
             )
@@ -167,7 +151,6 @@ class PromptMutationMixin:
                 **{
                     **strawberry.asdict(input.prompt_version),
                     "user_id": user_id,
-                    "output_schema": output_schema,
                     "tools": tools,
                     "template": template,
                 }
