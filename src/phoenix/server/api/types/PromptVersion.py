@@ -11,7 +11,6 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
-    PromptOutputSchema,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolsV1,
@@ -115,9 +114,7 @@ def to_gql_prompt_version(
     else:
         tools = []
     output_schema = (
-        to_gql_output_schema_from_pydantic(
-            PromptOutputSchema.model_validate(prompt_version.output_schema)
-        )
+        to_gql_output_schema_from_pydantic(prompt_version.output_schema)
         if prompt_version.output_schema is not None
         else None
     )
