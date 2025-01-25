@@ -1,0 +1,28 @@
+name: Publish Any Pull Request
+on:
+  pull_request:
+    paths:
+      - "js/**"
+      - ".github/workflows/typescript-packages-publish-experimental.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - run: pnpx pkg-pr-new publish ./js/packages/phoenix-client
