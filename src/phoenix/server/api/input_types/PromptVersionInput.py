@@ -5,7 +5,6 @@ from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue,
-    PromptChatTemplateV1,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolDefinition,
@@ -71,9 +70,10 @@ class PromptMessageInput:
     content: list[ContentPartInput] = strawberry.field(default_factory=list)
 
 
-@strawberry.experimental.pydantic.input(PromptChatTemplateV1)
+@strawberry.input
 class PromptChatTemplateInput:
     messages: list[PromptMessageInput]
+    version: strawberry.Private[str] = "chat-template-v1"
 
 
 @strawberry.input

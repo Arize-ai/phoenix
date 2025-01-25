@@ -15,7 +15,6 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplateV1,
     PromptToolsV1,
     PromptVersion,
 )
@@ -86,15 +85,11 @@ class PromptMutationMixin:
                 pydantic_tool = tool.to_pydantic()
                 tool_definitions.append(pydantic_tool)
             tools = PromptToolsV1(tool_definitions=tool_definitions)
-            template = PromptChatTemplateV1.model_validate(
-                strawberry.asdict(input.prompt_version.template)
-            )
             pydantic_prompt_version = PromptVersion(
                 **{
                     **strawberry.asdict(input.prompt_version),
                     "user_id": user_id,
                     "tools": tools,
-                    "template": template,
                 }
             )
         except ValidationError as error:
@@ -144,15 +139,11 @@ class PromptMutationMixin:
                 pydantic_tool = tool.to_pydantic()
                 tool_definitions.append(pydantic_tool)
             tools = PromptToolsV1(tool_definitions=tool_definitions)
-            template = PromptChatTemplateV1.model_validate(
-                strawberry.asdict(input.prompt_version.template)
-            )
             pydantic_prompt_version = PromptVersion(
                 **{
                     **strawberry.asdict(input.prompt_version),
                     "user_id": user_id,
                     "tools": tools,
-                    "template": template,
                 }
             )
         except ValidationError as error:
