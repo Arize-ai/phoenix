@@ -27,7 +27,7 @@ jobs:
 
       - name: Build
         working-directory: ./js
-        run: pnpm build
+        run: pnpm -r build
 
       - name: Publish
         working-directory: ./js
