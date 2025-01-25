@@ -88,9 +88,9 @@ class PromptMutationMixin:
             pydantic_prompt_version = PromptVersion(
                 **{
                     **strawberry.asdict(input.prompt_version),
-                    "user_id": user_id,
                     "tools": tools,
-                }
+                },
+                user_id=user_id,
             )
         except ValidationError as error:
             raise BadRequest(str(error))
@@ -142,9 +142,9 @@ class PromptMutationMixin:
             pydantic_prompt_version = PromptVersion(
                 **{
                     **strawberry.asdict(input.prompt_version),
-                    "user_id": user_id,
                     "tools": tools,
-                }
+                },
+                user_id=user_id,
             )
         except ValidationError as error:
             raise BadRequest(str(error))
