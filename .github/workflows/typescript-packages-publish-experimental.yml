@@ -19,6 +19,7 @@ jobs:
         with:
           node-version: 20
           cache: "pnpm"
+          cache-dependency-path: ./js
 
       - name: Install dependencies
         working-directory: ./js
