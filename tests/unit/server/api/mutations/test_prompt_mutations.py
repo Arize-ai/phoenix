@@ -309,7 +309,7 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {"definition": {"foo": "bar"}},
+                            "outputSchema": {"definition": {"type": "object"}},
                         },
                     }
                 },
@@ -420,7 +420,7 @@ class TestPromptMutations:
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
                             "outputSchema": {
-                                "definition": ["hello", "world"],  # definition should be a dict
+                                "definition": {"type": "object"},
                             },
                         },
                     }
@@ -475,8 +475,10 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
-                                "definition": ["hello", "world"],  # definition should be a dict
+                            "outputSchema": {  # invalid jsonschema
+                                "definition": {
+                                    "type": "invalid_jsonschema_type",
+                                },
                             },
                         },
                     }
@@ -691,7 +693,9 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {"definition": {"foo": "bar"}},
+                            "outputSchema": {
+                                "definition": {"type": "object"},
+                            },
                         },
                     }
                 },
@@ -917,8 +921,8 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
-                                "definition": ["hello", "world"],  # definition should be a dict
+                            "outputSchema": {  # invalid jsonschema type
+                                "definition": {"type": "invalid_jsonschema_type"},
                             },
                         },
                     }

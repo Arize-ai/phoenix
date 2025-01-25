@@ -43,6 +43,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
+    PromptOutputSchema,
     PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateWrapper,
@@ -163,6 +164,22 @@ class _Tools(TypeDecorator[PromptToolsV1]):
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptToolsV1]:
         return PromptToolsV1.model_validate(value) if value is not None else None
+
+
+class _PromptOutputSchema(TypeDecorator[PromptOutputSchema]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptOutputSchema], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.dict() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptOutputSchema]:
+        return PromptOutputSchema.model_validate(value) if value is not None else None
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -981,8 +998,8 @@ class PromptVersion(Base):
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
     invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
     tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
-    output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
-        JsonDict, default=Null(), nullable=True
+    output_schema: Mapped[Optional[PromptOutputSchema]] = mapped_column(
+        _PromptOutputSchema, default=Null(), nullable=True
     )
     model_provider: Mapped[str]
     model_name: Mapped[str]

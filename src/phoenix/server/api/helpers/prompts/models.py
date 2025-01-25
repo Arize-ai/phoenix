@@ -131,10 +131,8 @@ class PromptTemplateWrapper(PromptModel):
     template: PromptTemplate
 
 
-class PromptJSONSchema(PromptModel):
-    """A JSON schema definition used to guide an LLM's output"""
-
-    definition: dict[str, Any]
+class PromptOutputSchema(PromptModel):
+    definition: JSONSchemaObjectDefinition
 
 
 class PromptToolDefinition(PromptModel):
@@ -154,7 +152,7 @@ class PromptVersion(PromptModel):
     template: PromptTemplate
     invocation_parameters: Optional[dict[str, Any]]
     tools: PromptToolsV1
-    output_schema: Optional[dict[str, Any]]
+    output_schema: Optional[PromptOutputSchema]
     model_name: str
     model_provider: str
 
