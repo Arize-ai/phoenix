@@ -2096,21 +2096,6 @@
         ],
         "title": "PromptChatTemplateV1"
       },
-      "PromptJSONSchema": {
-        "properties": {
-          "definition": {
-            "type": "object",
-            "title": "Definition"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "definition"
-        ],
-        "title": "PromptJSONSchema",
-        "description": "A JSON schema definition used to guide an LLM's output"
-      },
       "PromptMessage": {
         "properties": {
           "role": {
@@ -2154,6 +2139,20 @@
           "TOOL"
         ],
         "title": "PromptMessageRole"
+      },
+      "PromptOutputSchema": {
+        "properties": {
+          "definition": {
+            "type": "object",
+            "title": "Definition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "definition"
+        ],
+        "title": "PromptOutputSchema"
       },
       "PromptStringTemplateV1": {
         "properties": {
@@ -2290,7 +2289,7 @@
           "output_schema": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PromptJSONSchema"
+                "$ref": "#/components/schemas/PromptOutputSchema"
               },
               {
                 "type": "null"
