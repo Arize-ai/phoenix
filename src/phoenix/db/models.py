@@ -46,6 +46,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateWrapper,
+    PromptToolsV1,
 )
 
 
@@ -146,6 +147,22 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
             return None
         wrapped_template = PromptTemplateWrapper.model_validate({"template": value})
         return wrapped_template.template
+
+
+class _Tools(TypeDecorator[PromptToolsV1]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptToolsV1], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.dict() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptToolsV1]:
+        return PromptToolsV1.model_validate(value) if value is not None else None
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -963,7 +980,7 @@ class PromptVersion(Base):
     )
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
     invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
-    tools: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, default=Null(), nullable=True)
+    tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
     output_schema: Mapped[Optional[dict[str, Any]]] = mapped_column(
         JsonDict, default=Null(), nullable=True
     )

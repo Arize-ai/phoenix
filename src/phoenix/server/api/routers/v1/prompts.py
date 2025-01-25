@@ -237,11 +237,6 @@ def _prompt_version_response_body(
 ) -> GetPromptResponseBody:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    tools = (
-        PromptToolsV1.model_validate(prompt_version.tools)
-        if prompt_version.tools is not None
-        else None
-    )
     output_schema = (
         PromptJSONSchema.model_validate(prompt_version.output_schema)
         if prompt_version.output_schema is not None
@@ -257,7 +252,7 @@ def _prompt_version_response_body(
             template_type=prompt_template_type,
             template_format=prompt_template_format,
             invocation_parameters=prompt_version.invocation_parameters,
-            tools=tools,
+            tools=prompt_version.tools,
             output_schema=output_schema,
         )
     )
