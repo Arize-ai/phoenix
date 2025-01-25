@@ -30,4 +30,4 @@ jobs:
 
       - name: Publish
         working-directory: ./js
-        run: pnpx pkg-pr-new publish ./js/packages/phoenix-client
+        run: pnpx pkg-pr-new publish ./packages/phoenix-client
