@@ -28,6 +28,7 @@ import {
   openAIToolCallToAnthropic,
 } from "./toolCallSchemas";
 import {
+  AnthropicImageBlock,
   AnthropicMessagePart,
   AnthropicTextBlock,
   AnthropicToolUseBlock,
@@ -267,18 +268,20 @@ export const openAIMessageToAnthropic = openAIMessageSchema.transform(
       role === "user" || role === "assistant",
       `Unexpected openai role: ${role}`
     );
-    if (typeof openai.content === "string") {
+    if (typeof openai.content === "string" && openai.role !== "tool") {
       content.push({ type: "text", text: openai.content });
     } else if (Array.isArray(openai.content)) {
       map(
         filter(
           openai.content,
-          (part): part is OpenAIChatPartText => part.type === "text"
+          (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
+            part.type === "text" || part.type === "image_url"
         ),
         (part) =>
-          openAIChatPartToAnthropicMessagePart.parse(
-            part
-          ) as AnthropicTextBlock | null
+          openAIChatPartToAnthropicMessagePart.parse(part) as
+            | AnthropicTextBlock
+            | AnthropicImageBlock
+            | null
       ).forEach((tp) => {
         if (tp) {
           content.push(tp);

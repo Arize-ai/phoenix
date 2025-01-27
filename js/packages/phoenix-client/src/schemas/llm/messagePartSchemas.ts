@@ -145,16 +145,38 @@ export const openAIChatPartToAnthropicMessagePart =
     switch (type) {
       case "text":
         return { type: "text", text: openai.text } satisfies AnthropicTextBlock;
-      case "image_url":
+      case "image_url": {
+        if (!openai.image_url.url.startsWith("data:image/")) {
+          return null;
+        }
+        let mediaType: "jpeg" | "png" | "gif" | "webp" | "jpg" =
+          openai.image_url.url?.split(";")?.[0]?.split("/")[1] as
+            | "jpeg"
+            | "png"
+            | "gif"
+            | "webp"
+            | "jpg";
+        if (
+          mediaType !== "jpeg" &&
+          mediaType !== "jpg" &&
+          mediaType !== "png" &&
+          mediaType !== "gif" &&
+          mediaType !== "webp"
+        ) {
+          return null;
+        }
+        if (mediaType === "jpg") {
+          mediaType = "jpeg" as const;
+        }
         return {
           type: "image",
           source: {
             data: openai.image_url.url,
-            // TODO: these are bad assumptions. We should get the actual media type from the image / url
-            media_type: "image/jpeg",
+            media_type: `image/${mediaType}`,
             type: "base64",
           },
         } satisfies AnthropicImageBlock;
+      }
       default:
         return assertUnreachable(type);
     }

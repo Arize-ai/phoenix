@@ -1,9 +1,9 @@
 import { describe, it, assertType, expect } from "vitest";
-import { toOpenAI } from "../../../src/prompts/sdks/toOpenAI";
 import { toSDK } from "../../../src/prompts/sdks/toSDK";
-import type OpenAI from "openai";
 import { PromptVersion } from "../../../src/types/prompts";
 import invariant from "tiny-invariant";
+import type { MessageCreateParams } from "@anthropic-ai/sdk/resources";
+import { toAnthropic } from "../../../src/prompts/sdks/toAnthropic";
 
 const BASE_MOCK_PROMPT_VERSION = {
   id: "test",
@@ -25,38 +25,34 @@ const BASE_MOCK_PROMPT_VERSION = {
   },
 } satisfies Partial<PromptVersion>;
 
-type ChatCompletionCreateParams = Parameters<
-  typeof OpenAI.prototype.chat.completions.create
->[0];
-
-describe("toOpenAI type compatibility", () => {
-  it("toOpenAI output should be assignable to OpenAI chat completion params", () => {
+describe("toAnthropic type compatibility", () => {
+  it("toAnthropic output should be assignable to Anthropic message params", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
     } satisfies PromptVersion;
 
-    const result = toOpenAI({ prompt: mockPrompt });
+    const result = toAnthropic({ prompt: mockPrompt });
 
     expect(result).toBeDefined();
     invariant(result, "Expected non-null result");
 
-    assertType<ChatCompletionCreateParams>(result);
+    assertType<MessageCreateParams>(result);
   });
 
-  it("toSDK with openai should be assignable to OpenAI chat completion params", () => {
+  it("toSDK with anthropic should be assignable to Anthropic message params", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
     };
 
     const result = toSDK({
-      sdk: "openai",
+      sdk: "anthropic",
       prompt: mockPrompt,
     });
 
     expect(result).toBeDefined();
     invariant(result, "Expected non-null result");
 
-    assertType<ChatCompletionCreateParams>(result);
+    assertType<MessageCreateParams>(result);
   });
 
   it("should handle tools and response format type compatibility", () => {
@@ -92,14 +88,14 @@ describe("toOpenAI type compatibility", () => {
     } satisfies PromptVersion;
 
     const result = toSDK({
-      sdk: "openai",
+      sdk: "anthropic",
       prompt: mockPrompt,
     });
 
     expect(result).toBeDefined();
     invariant(result, "Expected non-null result");
 
-    assertType<ChatCompletionCreateParams>(result);
+    assertType<MessageCreateParams>(result);
   });
 
   it("should handle complex message types", () => {
@@ -138,7 +134,14 @@ describe("toOpenAI type compatibility", () => {
             role: "USER",
             content: [
               { type: "text", text: { text: "Can you edit this image?" } },
-              { type: "image", image: { url: "test.jpg" } },
+              {
+                type: "image",
+                image: {
+                  // Anthropic only supports base64 images
+                  // if this is any other url, image parts will be dropped
+                  url: "data:image/jpeg;base64,test.jpg",
+                },
+              },
             ],
           },
           {
@@ -180,14 +183,14 @@ describe("toOpenAI type compatibility", () => {
     } satisfies PromptVersion;
 
     const result = toSDK({
-      sdk: "openai",
+      sdk: "anthropic",
       prompt: mockPrompt,
     });
 
     expect(result).toBeDefined();
     invariant(result, "Expected non-null result");
 
-    assertType<ChatCompletionCreateParams>(result);
+    assertType<MessageCreateParams>(result);
 
     expect(result).toStrictEqual({
       messages: [
@@ -198,10 +201,12 @@ describe("toOpenAI type compatibility", () => {
               type: "text",
             },
             {
-              image_url: {
-                url: "test.jpg",
+              source: {
+                data: "data:image/jpeg;base64,test.jpg",
+                media_type: "image/jpeg",
+                type: "base64",
               },
-              type: "image_url",
+              type: "image",
             },
           ],
           role: "user",
@@ -212,49 +217,46 @@ describe("toOpenAI type compatibility", () => {
               text: "Yes I can edit this image",
               type: "text",
             },
-          ],
-          role: "assistant",
-          tool_calls: [
             {
-              function: {
-                name: "edit_image",
-                arguments: '{"image_url":"test.jpg","edit_type":"blur"}',
-              },
-              type: "function",
               id: "123",
+              input: '{"image_url":"test.jpg","edit_type":"blur"}',
+              name: "edit_image",
+              type: "tool_use",
             },
           ],
+          role: "assistant",
         },
         {
-          content: '{"new_image_url":"test_edited.jpg"}',
-          role: "tool",
-          tool_call_id: "123",
+          content: [
+            {
+              content: '{"new_image_url":"test_edited.jpg"}',
+              tool_use_id: "123",
+              type: "tool_result",
+            },
+          ],
+          role: "user",
         },
       ],
       model: "gpt-4",
-      response_format: undefined,
       temperature: 0.7,
       tool_choice: undefined,
       tools: [
         {
-          type: "function",
-          function: {
-            name: "edit_image",
-            description: "edit an image",
-            parameters: {
-              type: "object",
-              properties: {
-                image_url: {
-                  type: "string",
-                  description: "the url of the image to edit",
-                },
-                edit_type: {
-                  type: "string",
-                  description: "the type of edit to perform",
-                },
+          description: "edit an image",
+          input_schema: {
+            properties: {
+              edit_type: {
+                description: "the type of edit to perform",
+                type: "string",
+              },
+              image_url: {
+                description: "the url of the image to edit",
+                type: "string",
               },
             },
+            type: "object",
           },
+          name: "edit_image",
         },
       ],
     });

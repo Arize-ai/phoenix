@@ -125,11 +125,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
     id: openai.id,
     type: "tool_use",
     name: openai.function.name,
-    // TODO(parker): see comment in openai schema above, fix this here https://github.com/Arize-ai/phoenix/issues/5269
-    input:
-      typeof openai.function.arguments === "string"
-        ? { [openai.function.arguments]: openai.function.arguments }
-        : (openai.function.arguments ?? {}),
+    input: openai.function.arguments,
   })
 );
 
