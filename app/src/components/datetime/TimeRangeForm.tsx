@@ -184,7 +184,7 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
           size="S"
           excludeFromTabOrder
           onPress={onEndClear}
-          aria-label="Clear start date and time"
+          aria-label="Clear end date and time"
           icon={<Icon svg={<Icons.Refresh />} />}
         />
       </div>
