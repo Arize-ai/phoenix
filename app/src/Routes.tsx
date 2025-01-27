@@ -204,7 +204,7 @@ const router = createBrowserRouter(
           <Route
             path="/prompts"
             handle={{
-              crumb: () => "Prompts",
+              crumb: () => "prompts",
             }}
           >
             <Route index element={<PromptsPage />} loader={promptsLoader} />
@@ -247,7 +247,7 @@ const router = createBrowserRouter(
                 element={<PromptPlaygroundPage />}
                 loader={promptPlaygroundLoader}
                 handle={{
-                  crumb: () => "Playground",
+                  crumb: () => "playground",
                 }}
               />
             </Route>
@@ -263,14 +263,14 @@ const router = createBrowserRouter(
             path="/support"
             element={<SupportPage />}
             handle={{
-              crumb: () => "Support",
+              crumb: () => "support",
             }}
           />
           <Route
             path="/settings"
             element={<SettingsPage />}
             handle={{
-              crumb: () => "Settings",
+              crumb: () => "settings",
             }}
           />
         </Route>
