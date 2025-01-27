@@ -131,11 +131,9 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     def process_bind_param(
         self, value: Optional[PromptTemplate], _: Dialect
     ) -> Optional[dict[str, Any]]:
-        if (
-            value is None
-            or isinstance(value, PromptChatTemplateV1)
-            or isinstance(value, PromptStringTemplateV1)
-        ):
+        if value is None:
+            raise ValueError("cannot be None")
+        if isinstance(value, PromptChatTemplateV1) or isinstance(value, PromptStringTemplateV1):
             pass
         else:
             assert_never(value)
@@ -145,7 +143,7 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptTemplate]:
         if value is None:
-            return None
+            raise ValueError("cannot be None")
         wrapped_template = PromptTemplateWrapper.model_validate({"template": value})
         return wrapped_template.template
 
