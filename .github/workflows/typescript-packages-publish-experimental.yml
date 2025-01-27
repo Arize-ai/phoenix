@@ -1,12 +1,33 @@
 name: Publish Any Pull Request
+# TODO: Only publish on pull requests by arize team members
 on:
   pull_request:
-    paths:
-      - "js/**"
-      - ".github/workflows/typescript-packages-publish-experimental.yml"
 
 jobs:
-  build:
+  # JOB to run change detection
+  changes:
+    runs-on: ubuntu-latest
+    # Required permissions
+    permissions:
+      pull-requests: read
+    # Set job outputs to values from filter step
+    outputs:
+      workflow_file: ${{ steps.filter.outputs.workflow_file }}
+      phoenix-client: ${{ steps.filter.outputs.phoenix-client }}
+    steps:
+      # For pull requests it's not necessary to checkout the code
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            phoenix-client:
+              - 'js/packages/phoenix-client/**'
+            workflow_file:
+              - '.github/workflows/typescript-packages-publish-experimental.yml'
+
+  publish-experimental-packages:
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.workflow_file == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
