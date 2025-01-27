@@ -22,7 +22,7 @@ Being a maintainer of Phoenix and Openinference means you are responsible for th
 
 ### Priority Levels
 
-- P0: should fix ASAP
+- P0: should fix ASAP. drop other tasks
 - P1: should fix within one week
 - P2: should fix within the next sprint. there's workaround but the bug is high visibility
 - P3: backlog
