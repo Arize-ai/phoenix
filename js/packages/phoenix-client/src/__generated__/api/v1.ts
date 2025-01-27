@@ -312,7 +312,7 @@ export interface components {
              * Metadata
              * @description Metadata for the experiment
              */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /**
              * Version Id
              * @description ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)
@@ -338,7 +338,7 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Created At
              * Format: date-time
@@ -355,11 +355,11 @@ export interface components {
             /** Id */
             id: string;
             /** Input */
-            input: Record<string, never>;
+            input: Record<string, unknown>;
             /** Output */
-            output: Record<string, never>;
+            output: Record<string, unknown>;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Updated At
              * Format: date-time
@@ -373,7 +373,7 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Created At
              * Format: date-time
@@ -389,7 +389,7 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Created At
              * Format: date-time
@@ -429,7 +429,7 @@ export interface components {
              * Metadata
              * @description Metadata of the experiment
              */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Project Name
              * @description The name of the project associated with the experiment
@@ -547,7 +547,7 @@ export interface components {
          */
         PromptJSONSchema: {
             /** Definition */
-            definition: Record<string, never>;
+            definition: Record<string, unknown>;
         };
         /** PromptMessage */
         PromptMessage: {
@@ -578,7 +578,7 @@ export interface components {
         /** PromptToolDefinition */
         PromptToolDefinition: {
             /** Definition */
-            definition: Record<string, never>;
+            definition: Record<string, unknown>;
         };
         /** PromptToolsV1 */
         PromptToolsV1: {
@@ -608,7 +608,7 @@ export interface components {
             /** @default MUSTACHE */
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters?: Record<string, never>;
+            invocation_parameters?: Record<string, unknown>;
             tools?: components["schemas"]["PromptToolsV1"] | null;
             output_schema?: components["schemas"]["PromptJSONSchema"] | null;
         };
@@ -636,7 +636,7 @@ export interface components {
              * Metadata
              * @description Metadata for the annotation
              */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
@@ -715,7 +715,7 @@ export interface components {
             /** Tool Call Id */
             tool_call_id: string;
             /** Result */
-            result: boolean | number | string | Record<string, never> | unknown[] | null;
+            result: boolean | number | string | Record<string, unknown> | unknown[] | null;
         };
         /** UploadDatasetData */
         UploadDatasetData: {
@@ -950,9 +950,9 @@ export interface operations {
                     action?: "create" | "append";
                     name: string;
                     description?: string;
-                    inputs: Record<string, never>[];
-                    outputs?: Record<string, never>[];
-                    metadata?: Record<string, never>[];
+                    inputs: Record<string, unknown>[];
+                    outputs?: Record<string, unknown>[];
+                    metadata?: Record<string, unknown>[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */

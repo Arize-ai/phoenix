@@ -28,7 +28,7 @@ export const toOpenAI = ({
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       model: prompt.model_name,
-      // TODO: Do we need to map over the invocation_parameters? Probably.
+      // Invocation parameters are validated on the phoenix-side
       ...prompt.invocation_parameters,
     } satisfies Partial<ChatCompletionCreateParams>;
 
@@ -48,7 +48,7 @@ export const toOpenAI = ({
 
     const messages = formattedMessages.map((message) =>
       promptMessageToOpenAI.parse(message)
-    ) as ChatCompletionMessageParam[];
+    );
 
     const tools = prompt.tools?.tool_definitions.map((tool) =>
       openAIToolDefinitionSchema.parse(tool.definition)
