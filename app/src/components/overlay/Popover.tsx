@@ -25,7 +25,6 @@ const popoverCSS = css`
   background: var(--background-color);
   color: var(--ac-global-text-color-900);
   outline: none;
-  max-width: 250px;
 
   .react-aria-OverlayArrow svg {
     display: block;

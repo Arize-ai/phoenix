@@ -8,7 +8,6 @@ import {
   DialogTriggerProps,
   Popover,
   PopoverArrow,
-  PopoverProps,
   View,
 } from "@phoenix/components";
 
