@@ -7,8 +7,11 @@ import {
 import { css } from "@emotion/react";
 
 import { fieldBaseCSS } from "../field/styles";
+import { StylableProps } from "../types";
 
-export type DateFieldProps<T extends DateValue> = AriaDateFieldProps<T>;
+export interface DateFieldProps<T extends DateValue>
+  extends AriaDateFieldProps<T>,
+    StylableProps {}
 
 const dateFieldCSS = css`
   --date-field-vertical-padding: 6px;
@@ -24,6 +27,7 @@ const dateFieldCSS = css`
     border-radius: var(--ac-global-rounding-small);
     background-color: var(--ac-global-input-field-background-color);
     width: fit-content;
+    box-sizing: border-box;
     min-width: 150px;
     white-space: nowrap;
     forced-color-adjust: none;
@@ -31,6 +35,10 @@ const dateFieldCSS = css`
     &[data-focus-within] {
       outline: 1px solid var(--ac-global-color-primary);
       outline-offset: -1px;
+    }
+
+    &[data-invalid] {
+      border-color: var(--ac-global-color-danger);
     }
   }
 
@@ -58,12 +66,21 @@ const dateFieldCSS = css`
     }
   }
 `;
+
+/**
+ * A date field, can be used to input just a date as well as a date and time.
+ */
 function DateField<T extends DateValue>(
   props: DateFieldProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
+  const { css: propsCSS, ...restProps } = props;
   return (
-    <AriaDateField css={css(fieldBaseCSS, dateFieldCSS)} {...props} ref={ref} />
+    <AriaDateField
+      css={css(fieldBaseCSS, dateFieldCSS, propsCSS)}
+      {...restProps}
+      ref={ref}
+    />
   );
 }
 
