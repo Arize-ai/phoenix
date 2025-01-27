@@ -237,11 +237,6 @@ def _prompt_version_response_body(
 ) -> GetPromptResponseBody:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    output_schema = (
-        PromptOutputSchema.model_validate(prompt_version.output_schema)
-        if prompt_version.output_schema is not None
-        else None
-    )
     return GetPromptResponseBody(
         data=PromptVersion(
             id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
@@ -253,7 +248,7 @@ def _prompt_version_response_body(
             template_format=prompt_template_format,
             invocation_parameters=prompt_version.invocation_parameters,
             tools=prompt_version.tools,
-            output_schema=output_schema,
+            output_schema=prompt_version.output_schema,
         )
     )
 
