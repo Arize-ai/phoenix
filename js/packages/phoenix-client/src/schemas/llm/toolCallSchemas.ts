@@ -7,6 +7,7 @@ import { safelyParseJSON } from "../../utils/safelyParseJSON";
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 import { PhoenixModelProvider } from "../../constants";
+import { safelyStringifyJSON } from "../../utils/safelyStringifyJSON";
 
 /**
  * The schema for an OpenAI tool call, this is what a message that calls a tool looks like
@@ -16,14 +17,15 @@ import { PhoenixModelProvider } from "../../constants";
  * to define their own tool calls according
  */
 export const openAIToolCallSchema = z.object({
+  type: z
+    .literal("function")
+    .optional()
+    .transform(() => "function" as const),
   id: z.string().describe("The ID of the tool call"),
   function: z
     .object({
       name: z.string().describe("The name of the function"),
-      // TODO(Parker): The arguments here should not actually be a string, however this is a relic from the current way we stream tool calls where the chunks will come in as strings of partial json objects fix this here: https://github.com/Arize-ai/phoenix/issues/5269
-      arguments: z
-        .record(z.unknown())
-        .describe("The arguments for the function"),
+      arguments: z.string().describe("The arguments for the function"),
     })
     .describe("The function that is being called")
     .passthrough(),
@@ -68,7 +70,7 @@ export const anthropicToolCallSchema = z
     id: z.string().describe("The ID of the tool call"),
     type: z.literal("tool_use"),
     name: z.string().describe("The name of the tool"),
-    input: z.record(z.unknown()).describe("The input for the tool"),
+    input: z.unknown().describe("The input for the tool"),
   })
   .passthrough();
 
@@ -103,10 +105,14 @@ export const anthropicToolCallsJSONSchema = zodToJsonSchema(
  */
 export const anthropicToolCallToOpenAI = anthropicToolCallSchema.transform(
   (anthropic): OpenAIToolCall => ({
+    type: "function",
     id: anthropic.id,
     function: {
       name: anthropic.name,
-      arguments: anthropic.input,
+      arguments:
+        typeof anthropic.input === "string"
+          ? anthropic.input
+          : (safelyStringifyJSON(anthropic.input).json ?? ""),
     },
   })
 );
@@ -249,12 +255,17 @@ export const fromPromptToolCallPart = (
   targetProvider: PhoenixModelProvider
 ) => {
   const toolCall = toOpenAIToolCall({
-    id: part.toolCall.toolCallId,
+    type: "function",
+    id: part.tool_call.tool_call_id,
     function: {
-      name: part.toolCall.toolCall.name,
-      arguments: safelyParseJSON(part.toolCall.toolCall.arguments).json || "",
+      name: part.tool_call.tool_call.name,
+      arguments:
+        typeof part.tool_call.tool_call.arguments === "string"
+          ? part.tool_call.tool_call.arguments
+          : (safelyStringifyJSON(part.tool_call.tool_call.arguments).json ??
+            ""),
     },
-  });
+  } satisfies OpenAIToolCall);
   if (!toolCall) {
     return null;
   }
@@ -266,10 +277,11 @@ export const fromPromptToolCallPart = (
  */
 export function createOpenAIToolCall(): OpenAIToolCall {
   return {
+    type: "function",
     id: "",
     function: {
       name: "",
-      arguments: {},
+      arguments: "{}",
     },
   };
 }

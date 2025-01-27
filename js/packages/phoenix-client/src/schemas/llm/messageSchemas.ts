@@ -1,12 +1,12 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
+import { filter, map } from "remeda";
 
 import { PhoenixModelProvider } from "../../constants";
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import {
-  asTextPart,
-  asToolCallPart,
   asToolResultPart,
+  imagePartSchema,
   makeTextPart,
   makeToolCallPart,
   makeToolResultPart,
@@ -14,7 +14,6 @@ import {
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 import {
-  type TextPart,
   textPartSchema,
   type ToolCallPart,
   toolCallPartSchema,
@@ -22,15 +21,33 @@ import {
   toolResultPartSchema,
 } from "./promptSchemas";
 import {
-  anthropicToolCallSchema,
+  OpenAIToolCall,
   anthropicToolCallToOpenAI,
+  fromPromptToolCallPart,
   openAIToolCallSchema,
   openAIToolCallToAnthropic,
 } from "./toolCallSchemas";
+import {
+  AnthropicMessagePart,
+  AnthropicTextBlock,
+  AnthropicToolUseBlock,
+  OpenAIChatPart,
+  OpenAIChatPartImage,
+  OpenAIChatPartText,
+  anthropicMessagePartSchema,
+  openAIChatPartToAnthropicMessagePart,
+  openaiChatPartImageSchema,
+  openaiChatPartTextSchema,
+  promptMessagePartToOpenAIChatPart,
+  toOpenAIChatPart,
+} from "./messagePartSchemas";
 import { safelyStringifyJSON } from "../../utils/safelyStringifyJSON";
+import invariant from "tiny-invariant";
 
 /**
+ *
  * OpenAI Message Schemas
+ *
  */
 export const openAIMessageRoleSchema = z.enum([
   "system",
@@ -43,15 +60,55 @@ export const openAIMessageRoleSchema = z.enum([
 
 export type OpenAIMessageRole = z.infer<typeof openAIMessageRoleSchema>;
 
-export const openAIMessageSchema = z
-  .object({
-    role: openAIMessageRoleSchema,
-    content: z.string().nullable(),
-    name: z.string().optional(),
-    tool_call_id: z.string().optional(),
-    tool_calls: z.array(openAIToolCallSchema).optional(),
-  })
-  .passthrough();
+export const openAIMessageSchema = z.discriminatedUnion("role", [
+  z
+    .object({
+      role: z.literal("assistant"),
+      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+      name: z.string().optional(),
+      tool_call_id: z.string().optional(),
+      tool_calls: z.array(openAIToolCallSchema).optional(),
+    })
+    .passthrough(),
+  z
+    .object({
+      role: z.literal("tool"),
+      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+      tool_call_id: z.string(),
+    })
+    .passthrough(),
+  z
+    .object({
+      role: z.literal("function"),
+      content: z.string().nullable(),
+      name: z.string().optional(),
+    })
+    .passthrough(),
+  z
+    .object({
+      role: z.literal("user"),
+      content: z.union([
+        z.array(z.union([openaiChatPartTextSchema, openaiChatPartImageSchema])),
+        z.string(),
+      ]),
+      name: z.string().optional(),
+    })
+    .passthrough(),
+  z
+    .object({
+      role: z.literal("system"),
+      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+      name: z.string().optional(),
+    })
+    .passthrough(),
+  z
+    .object({
+      role: z.literal("developer"),
+      content: z.union([openaiChatPartTextSchema.array(), z.string()]),
+      name: z.string().optional(),
+    })
+    .passthrough(),
+]);
 
 export type OpenAIMessage = z.infer<typeof openAIMessageSchema>;
 
@@ -62,33 +119,18 @@ export const openAIMessagesJSONSchema = zodToJsonSchema(openAIMessagesSchema, {
 });
 
 /**
+ *
  * Anthropic Message Schemas
+ *
  */
-export const anthropicMessageRoleSchema = z.enum(["user", "assistant", "tool"]);
+export const anthropicMessageRoleSchema = z.enum(["user", "assistant"]);
 
 export type AnthropicMessageRole = z.infer<typeof anthropicMessageRoleSchema>;
-
-export const anthropicBlockSchema = z.object({
-  type: z.string(),
-  text: z.string().optional(),
-  id: z.string().optional(),
-  name: z.string().optional(),
-  input: z.record(jsonLiteralSchema).optional(),
-  source: z
-    .object({
-      type: z.string(),
-      media_type: z.string().optional(),
-      data: z.string().optional(),
-    })
-    .optional(),
-});
 
 export const anthropicMessageSchema = z
   .object({
     role: anthropicMessageRoleSchema,
-    content: z.union([z.string(), z.array(anthropicBlockSchema)]),
-    tool_calls: z.array(anthropicToolCallSchema).optional(),
-    tool_call_id: z.string().optional(),
+    content: z.union([z.string(), z.array(anthropicMessagePartSchema)]),
   })
   .passthrough();
 
@@ -104,23 +146,18 @@ export const anthropicMessagesJSONSchema = zodToJsonSchema(
 );
 
 /**
+ *
  * Prompt Message Schemas
+ *
  */
+
 export const promptMessageRoleSchema = z.enum(["SYSTEM", "USER", "AI", "TOOL"]);
 
 export type PromptMessageRole = z.infer<typeof promptMessageRoleSchema>;
 
-export const promptImagePartSchema = z.object({
-  image: z.object({
-    url: z.string(),
-  }),
-});
-
-export type PromptImagePart = z.infer<typeof promptImagePartSchema>;
-
-export const promptContentPartSchema = z.union([
+export const promptContentPartSchema = z.discriminatedUnion("type", [
   textPartSchema,
-  promptImagePartSchema,
+  imagePartSchema,
   toolCallPartSchema,
   toolResultPartSchema,
 ]);
@@ -130,7 +167,7 @@ export type PromptContentPart = z.infer<typeof promptContentPartSchema>;
 export const promptMessageSchema = z
   .object({
     role: promptMessageRoleSchema,
-    content: z.array(promptContentPartSchema),
+    content: promptContentPartSchema.array(),
   })
   .passthrough();
 
@@ -142,7 +179,7 @@ export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
   removeAdditionalStrategy: "passthrough",
 });
 
-/**
+/*
  * Conversion Functions
  *
  * These follow a hub-and-spoke model where OpenAI is the hub format.
@@ -154,33 +191,62 @@ export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
  */
 export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
   (anthropic): OpenAIMessage => {
-    const base: OpenAIMessage = {
-      role: anthropic.role as OpenAIMessageRole,
-      content: Array.isArray(anthropic.content)
-        ? anthropic.content
-            .filter((block) => block.type === "text" && block.text)
-            .map((block) => block.text!)
-            .join("\n")
-        : anthropic.content,
-    };
+    let role = openAIMessageRoleSchema.parse(anthropic.role);
 
-    if (anthropic.tool_calls) {
-      return {
-        ...base,
-        tool_calls: anthropic.tool_calls.map((tc) =>
-          anthropicToolCallToOpenAI.parse(tc)
-        ),
-      };
+    if (
+      Array.isArray(anthropic.content) &&
+      anthropic.content.some((part) => part.type === "tool_result")
+    ) {
+      role = "tool";
     }
 
-    if (anthropic.tool_call_id) {
-      return {
-        ...base,
-        tool_call_id: anthropic.tool_call_id,
-      };
-    }
+    const initialContentArray: AnthropicMessagePart[] =
+      typeof anthropic.content === "string"
+        ? [{ type: "text", text: anthropic.content }]
+        : anthropic.content;
+    const toolCallParts = filter(
+      initialContentArray,
+      (part): part is AnthropicToolUseBlock => part.type === "tool_use"
+    );
+    const nonToolCallParts = filter(
+      initialContentArray,
+      (part) => part.type !== "tool_use"
+    );
 
-    return base;
+    invariant(
+      role === "user" || role === "assistant",
+      `Unexpected anthropic role: ${role}`
+    );
+
+    switch (role) {
+      case "assistant": {
+        const content = filter(
+          map(nonToolCallParts, (part) => toOpenAIChatPart(part)),
+          (part): part is OpenAIChatPartText =>
+            part !== null && part.type === "text"
+        );
+        return {
+          role: "assistant",
+          tool_calls:
+            toolCallParts.length > 0
+              ? toolCallParts.map((tc) => anthropicToolCallToOpenAI.parse(tc))
+              : undefined,
+          content,
+        };
+      }
+      case "user": {
+        const content = filter(
+          map(nonToolCallParts, (part) => toOpenAIChatPart(part)),
+          (part): part is OpenAIChatPart => part !== null
+        );
+        return {
+          role: "user",
+          content,
+        };
+      }
+      default:
+        return assertUnreachable(role);
+    }
   }
 );
 
@@ -189,101 +255,138 @@ export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
  */
 export const openAIMessageToAnthropic = openAIMessageSchema.transform(
   (openai): AnthropicMessage => {
-    const base: AnthropicMessage = {
-      role:
-        openai.role === "system"
-          ? "user"
-          : (openai.role as AnthropicMessageRole),
-      content: openai.content ? [{ type: "text", text: openai.content }] : [],
-    };
+    let role = openai.role;
+    const content: AnthropicMessagePart[] = [];
 
-    if (openai.tool_calls) {
-      return {
-        ...base,
-        tool_calls: openai.tool_calls.map((tc) =>
-          openAIToolCallToAnthropic.parse(tc)
+    // convert all roles except assistant to user
+    if (openai.role !== "assistant") {
+      role = "user";
+    }
+
+    invariant(
+      role === "user" || role === "assistant",
+      `Unexpected openai role: ${role}`
+    );
+    if (typeof openai.content === "string") {
+      content.push({ type: "text", text: openai.content });
+    } else if (Array.isArray(openai.content)) {
+      map(
+        filter(
+          openai.content,
+          (part): part is OpenAIChatPartText => part.type === "text"
         ),
-      };
+        (part) =>
+          openAIChatPartToAnthropicMessagePart.parse(
+            part
+          ) as AnthropicTextBlock | null
+      ).forEach((tp) => {
+        if (tp) {
+          content.push(tp);
+        }
+      });
     }
 
-    if (openai.tool_call_id) {
-      return {
-        ...base,
-        tool_call_id: openai.tool_call_id,
-      };
+    let toolCallParts: AnthropicToolUseBlock[] = [];
+    if (openai.role === "assistant" && "tool_calls" in openai) {
+      toolCallParts =
+        openai.tool_calls?.map((tc) => openAIToolCallToAnthropic.parse(tc)) ??
+        [];
+    }
+    if (toolCallParts.length > 0) {
+      toolCallParts.forEach((tc) => {
+        content.push(tc);
+      });
     }
 
-    return base;
+    if (openai.role === "tool") {
+      content.push({
+        type: "tool_result",
+        tool_use_id: openai.tool_call_id,
+        content: openai.content,
+      });
+    }
+
+    return {
+      role,
+      content,
+    };
   }
 );
 
 /**
  * Spoke → Hub: Convert a Prompt message to OpenAI format
  */
-export const promptMessageToOpenAI = promptMessageSchema.transform(
-  (prompt): OpenAIMessage => {
-    // Special handling for TOOL role messages
-    if (prompt.role === "TOOL") {
-      const toolResult = prompt.content
-        .map((part) => asToolResultPart(part))
-        .find((part): part is ToolResultPart => !!part);
+export const promptMessageToOpenAI = promptMessageSchema.transform((prompt) => {
+  // Special handling for TOOL role messages
+  if (prompt.role === "TOOL") {
+    const toolResult = prompt.content
+      .map((part) => asToolResultPart(part))
+      .find((part): part is ToolResultPart => !!part);
 
-      if (!toolResult) {
-        throw new Error("TOOL role message must have a ToolResultContentPart");
-      }
-
-      return {
-        role: "tool",
-        content:
-          typeof toolResult.toolResult.result === "string"
-            ? toolResult.toolResult.result
-            : safelyStringifyJSON(toolResult.toolResult.result).json || "",
-        tool_call_id: toolResult.toolResult.toolCallId,
-      };
+    if (!toolResult) {
+      throw new Error("TOOL role message must have a ToolResultContentPart");
     }
 
-    // Handle other roles
-    const base: OpenAIMessage = {
-      role: (
-        {
-          SYSTEM: "system",
-          USER: "user",
-          AI: "assistant",
-          TOOL: "tool",
-        } as const
-      )[prompt.role],
-      content: prompt.content
-        .map((part) => asTextPart(part))
-        .filter((text): text is TextPart => !!text)
-        .map((part) => part.text.text)
-        .join("\n"),
-    };
-
-    // Find tool calls in content
-    const toolCalls = prompt.content
-      .map((part) => asToolCallPart(part))
-      .filter((part): part is ToolCallPart => !!part)
-      .map((part) => ({
-        id: part.toolCall.toolCallId,
-        function: {
-          name: part.toolCall.toolCall.name,
-          arguments:
-            typeof part.toolCall.toolCall.arguments === "string"
-              ? JSON.parse(part.toolCall.toolCall.arguments)
-              : part.toolCall.toolCall.arguments,
-        },
-      }));
-
-    if (toolCalls.length > 0) {
-      return {
-        ...base,
-        tool_calls: toolCalls,
-      };
-    }
-
-    return base;
+    return {
+      role: "tool",
+      content:
+        typeof toolResult.tool_result.result === "string"
+          ? toolResult.tool_result.result
+          : safelyStringifyJSON(toolResult.tool_result.result).json || "",
+      tool_call_id: toolResult.tool_result.tool_call_id,
+    } satisfies OpenAIMessage;
   }
-);
+
+  // Handle other roles
+  const role = prompt.role;
+  switch (role) {
+    case "SYSTEM":
+      return {
+        role: "system",
+        content: filter(
+          map(prompt.content, (part) =>
+            promptMessagePartToOpenAIChatPart.parse(part)
+          ),
+          (part): part is OpenAIChatPartText =>
+            part !== null && part.type === "text"
+        ),
+      } satisfies OpenAIMessage;
+    case "USER":
+      return {
+        role: "user",
+        content: filter(
+          map(prompt.content, (part) =>
+            promptMessagePartToOpenAIChatPart.parse(part)
+          ),
+          (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
+            part !== null && (part.type === "text" || part.type === "image_url")
+        ),
+      } satisfies OpenAIMessage;
+    case "AI":
+      return {
+        role: "assistant",
+        content: filter(
+          map(prompt.content, (part) =>
+            promptMessagePartToOpenAIChatPart.parse(part)
+          ),
+          (part): part is OpenAIChatPartText =>
+            part !== null && part.type === "text"
+        ),
+        tool_calls: prompt.content.some((part) => part.type === "tool_call")
+          ? map(
+              filter(
+                prompt.content,
+                (part): part is ToolCallPart =>
+                  part !== null && part.type === "tool_call"
+              ),
+              (part) => fromPromptToolCallPart(part, "OPENAI")
+            ).filter((part): part is OpenAIToolCall => part !== null)
+          : undefined,
+      } satisfies OpenAIMessage;
+    default:
+      return assertUnreachable(role);
+  }
+});
 
 /**
  * Hub → Spoke: Convert an OpenAI message to Prompt format
@@ -308,15 +411,27 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
     }
 
     // Convert content to text part if it exists
-    if (openai.content) {
+    if (typeof openai.content === "string") {
       const textPart = makeTextPart(openai.content);
       if (textPart) {
         content.push(textPart);
       }
+    } else if (Array.isArray(openai.content)) {
+      map(
+        filter(
+          openai.content,
+          (part): part is OpenAIChatPartText => part.type === "text"
+        ),
+        (part) => makeTextPart(part.text)
+      ).forEach((text) => {
+        if (text) {
+          content.push(text);
+        }
+      });
     }
 
     // Convert tool calls if they exist
-    if (openai.tool_calls) {
+    if (openai.role === "assistant" && openai.tool_calls) {
       openai.tool_calls.forEach((tc) => {
         const toolCallPart = makeToolCallPart({
           id: tc.id,
@@ -396,7 +511,8 @@ export const toOpenAIMessage = (
   message: LlmProviderMessage
 ): OpenAIMessage | null => {
   const { provider, validatedMessage } = detectMessageProvider(message);
-  switch (provider as MessageProvider) {
+  const messageProvider = provider as MessageProvider;
+  switch (messageProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return validatedMessage as OpenAIMessage;
@@ -407,9 +523,9 @@ export const toOpenAIMessage = (
       return null;
     case "UNKNOWN":
       return null;
+    default:
+      return assertUnreachable(messageProvider);
   }
-  // This will never happen due to the exhaustive switch above
-  return assertUnreachable(provider as never);
 };
 
 /**

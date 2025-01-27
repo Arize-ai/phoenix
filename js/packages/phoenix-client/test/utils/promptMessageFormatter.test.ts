@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { promptMessageFormatter } from "../src/utils/promptMessageFormatter";
-import { PromptChatMessage } from "../src/types/prompts";
-import { TextPart } from "../src/schemas/llm/promptSchemas";
+import { promptMessageFormatter } from "../../src/utils/promptMessageFormatter";
+import { PromptChatMessage } from "../../src/types/prompts";
+import { TextPart } from "../../src/schemas/llm/promptSchemas";
 
 describe("promptMessageFormatter", () => {
   it("should only format TextPart content", () => {

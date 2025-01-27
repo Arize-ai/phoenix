@@ -231,7 +231,7 @@ type ProviderToToolDefinitionMap = {
  * Convert from any tool call format to OpenAI format if possible
  */
 export const toOpenAIToolDefinition = (
-  toolDefinition: LlmProviderToolDefinition
+  toolDefinition: unknown
 ): OpenAIToolDefinition | null => {
   const { provider, validatedToolDefinition } =
     detectToolDefinitionProvider(toolDefinition);

@@ -14,11 +14,18 @@ export const textPartSchema = z.object({
 
 export type TextPart = z.infer<typeof textPartSchema>;
 
+export const imagePartSchema = z.object({
+  type: z.literal("image"),
+  image: z.object({
+    url: z.string(),
+  }),
+});
+
 export const toolCallPartSchema = z.object({
   type: z.literal("tool_call"),
-  toolCall: z.object({
-    toolCallId: z.string(),
-    toolCall: z.object({
+  tool_call: z.object({
+    tool_call_id: z.string(),
+    tool_call: z.object({
       name: z.string(),
       arguments: z.string(),
     }),
@@ -29,15 +36,22 @@ export type ToolCallPart = z.infer<typeof toolCallPartSchema>;
 
 export const toolResultPartSchema = z.object({
   type: z.literal("tool_result"),
-  toolResult: z.object({
-    toolCallId: z.string(),
+  tool_result: z.object({
+    tool_call_id: z.string(),
     result: jsonLiteralSchema,
   }),
 });
 
 export type ToolResultPart = z.infer<typeof toolResultPartSchema>;
 
-export type AnyPart = TextPart | ToolCallPart | ToolResultPart;
+export const promptPartSchema = z.union([
+  textPartSchema,
+  imagePartSchema,
+  toolCallPartSchema,
+  toolResultPartSchema,
+]);
+
+export type AnyPart = z.infer<typeof promptPartSchema>;
 
 export const asTextPart = (maybePart: unknown): TextPart | null => {
   const parsed = textPartSchema.safeParse(maybePart);
@@ -47,6 +61,12 @@ export const asTextPart = (maybePart: unknown): TextPart | null => {
 export const makeTextPart = (text?: string | null) => {
   const optimisticTextPart = { text: { text } };
   const parsed = textPartSchema.safeParse(optimisticTextPart);
+  return parsed.success ? parsed.data : null;
+};
+
+export const makeImagePart = (url?: string | null) => {
+  const optimisticImagePart = { image: { url } };
+  const parsed = imagePartSchema.safeParse(optimisticImagePart);
   return parsed.success ? parsed.data : null;
 };
 
@@ -68,9 +88,9 @@ export const makeToolCallPart = (maybeToolCall: unknown) => {
   // then, parse it into the optimistic tool call part shape
   const optimisticToolCallPart: ToolCallPart = {
     type: "tool_call",
-    toolCall: {
-      toolCallId,
-      toolCall: {
+    tool_call: {
+      tool_call_id: toolCallId,
+      tool_call: {
         name: toolCallName || toolCallId,
         arguments: safelyStringifiedArguments,
       },
