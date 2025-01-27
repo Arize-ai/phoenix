@@ -21,7 +21,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateType,
     PromptToolsV1,
 )
-from phoenix.server.api.routers.v1.pydantic_compat import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
