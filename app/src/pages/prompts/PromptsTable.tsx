@@ -110,7 +110,9 @@ export function PromptsTable(props: PromptsTableProps) {
                 onPress={() => {
                   navigate(`${row.original.id}/playground`);
                 }}
-              />
+              >
+                Playground
+              </Button>
               <PromptActionMenu
                 promptId={row.original.id}
                 onDeleted={() => {
