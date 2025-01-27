@@ -2,6 +2,7 @@ import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -9,7 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Link } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -73,8 +74,10 @@ export function PromptsTable(props: PromptsTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
-  const table = useReactTable({
-    columns: [
+
+  type TableRow = (typeof tableData)[number];
+  const columns = useMemo(() => {
+    const cols: ColumnDef<TableRow>[] = [
       {
         header: "name",
         accessorKey: "name",
@@ -100,6 +103,16 @@ export function PromptsTable(props: PromptsTableProps) {
               justifyContent="end"
               width="100%"
             >
+              <Button
+                icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+                size="S"
+                aria-label="Open in playground"
+                onPress={() => {
+                  navigate(`${row.original.id}/playground`);
+                }}
+              >
+                Playground
+              </Button>
               <PromptActionMenu
                 promptId={row.original.id}
                 onDeleted={() => {
@@ -110,7 +123,11 @@ export function PromptsTable(props: PromptsTableProps) {
           );
         },
       },
-    ],
+    ];
+    return cols;
+  }, [refetch, navigate]);
+  const table = useReactTable({
+    columns,
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
