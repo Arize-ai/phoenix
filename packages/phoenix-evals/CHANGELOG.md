@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.19.0...arize-phoenix-evals-v0.19.1) (2025-01-27)
+
+
+### Bug Fixes
+
+* local variable 'prompt_message' referenced before assignment ([#6102](https://github.com/Arize-ai/phoenix/issues/6102)) ([10b1535](https://github.com/Arize-ai/phoenix/commit/10b1535dc7c9c5016d2b7c30574fa7e771601992))
+
 ## [0.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.1...arize-phoenix-evals-v0.19.0) (2025-01-16)
 
 
