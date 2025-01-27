@@ -96,7 +96,6 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
   }, [resetField]);
 
   const onEndClear = useCallback(() => {
-    alert("onEndClear");
     resetField("endDate", { defaultValue: null });
   }, [resetField]);
 
