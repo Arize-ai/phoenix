@@ -37,7 +37,7 @@ const textFieldCSS = css`
       var(--textfield-horizontal-padding);
     box-sizing: border-box;
     outline-offset: -1px;
-    outline: 1px solid transparent;
+    outline: var(--ac-global-border-size-thin) solid transparent;
     &[data-focused] {
       outline: 1px solid var(--ac-global-input-field-border-color-active);
     }
