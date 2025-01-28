@@ -3,8 +3,6 @@ import { Meta, StoryFn } from "@storybook/react";
 
 import { Icon, Icons } from "@phoenix/components";
 
-import { ThemeWrapper } from "./components/ThemeWrapper";
-
 const meta: Meta = {
   title: "Icons",
   component: Icon,
@@ -44,22 +42,20 @@ function IconsGrid() {
   });
 
   return (
-    <ThemeWrapper>
-      <ul
-        style={{
-          listStyle: "none",
-          margin: 0,
-          padding: 0,
-          display: "flex",
-          width: 1000,
-          flexWrap: "wrap",
-        }}
-      >
-        {iconsArray.map((el, i) => (
-          <li key={i}>{el}</li>
-        ))}
-      </ul>
-    </ThemeWrapper>
+    <ul
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        display: "flex",
+        width: 1000,
+        flexWrap: "wrap",
+      }}
+    >
+      {iconsArray.map((el, i) => (
+        <li key={i}>{el}</li>
+      ))}
+    </ul>
   );
 }
 

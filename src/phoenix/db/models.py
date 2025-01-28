@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     MetaData,
+    Null,
     String,
     TypeDecorator,
     UniqueConstraint,
@@ -35,9 +36,19 @@ from sqlalchemy.orm import (
     relationship,
 )
 from sqlalchemy.sql import expression
+from typing_extensions import assert_never
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplateV1,
+    PromptOutputSchema,
+    PromptStringTemplateV1,
+    PromptTemplate,
+    PromptTemplateWrapper,
+    PromptToolsV1,
+)
 
 
 class AuthMethod(Enum):
@@ -97,6 +108,76 @@ class UtcTimeStamp(TypeDecorator[datetime]):
 
     def process_result_value(self, value: Optional[Any], _: Dialect) -> Optional[datetime]:
         return normalize_datetime(value, timezone.utc)
+
+
+class _Identifier(TypeDecorator[Identifier]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[Identifier], _: Dialect) -> Optional[str]:
+        assert isinstance(value, Identifier) or value is None
+        return None if value is None else value.root
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[Identifier]:
+        return None if value is None else Identifier.model_validate(value)
+
+
+class _PromptTemplate(TypeDecorator[PromptTemplate]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptTemplate], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        if value is None:
+            raise ValueError("cannot be None")
+        if isinstance(value, PromptChatTemplateV1) or isinstance(value, PromptStringTemplateV1):
+            pass
+        else:
+            assert_never(value)
+        return value.dict() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptTemplate]:
+        if value is None:
+            raise ValueError("cannot be None")
+        wrapped_template = PromptTemplateWrapper.model_validate({"template": value})
+        return wrapped_template.template
+
+
+class _Tools(TypeDecorator[PromptToolsV1]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptToolsV1], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.dict() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptToolsV1]:
+        return PromptToolsV1.model_validate(value) if value is not None else None
+
+
+class _PromptOutputSchema(TypeDecorator[PromptOutputSchema]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptOutputSchema], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.dict() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptOutputSchema]:
+        return PromptOutputSchema.model_validate(value) if value is not None else None
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -805,3 +886,159 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class PromptLabel(Base):
+    __tablename__ = "prompt_labels"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, nullable=True)
+
+    prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
+        "PromptPromptLabel",
+        back_populates="prompt_label",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class Prompt(Base):
+    __tablename__ = "prompts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_prompt_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
+        "PromptPromptLabel",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    prompt_versions: Mapped[list["PromptVersion"]] = relationship(
+        "PromptVersion",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    prompt_version_tags: Mapped[list["PromptVersionTag"]] = relationship(
+        "PromptVersionTag",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class PromptPromptLabel(Base):
+    __tablename__ = "prompts_prompt_labels"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prompt_label_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_labels.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    prompt_label: Mapped["PromptLabel"] = relationship(
+        "PromptLabel", back_populates="prompts_prompt_labels"
+    )
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompts_prompt_labels")
+
+    __table_args__ = (UniqueConstraint("prompt_label_id", "prompt_id"),)
+
+
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    template_type: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint("template_type IN ('CHAT', 'STR')", name="template_type"),
+        nullable=False,
+    )
+    template_format: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "template_format IN ('FSTRING', 'MUSTACHE', 'NONE')", name="template_format"
+        ),
+        nullable=False,
+    )
+    template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
+    invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
+    output_schema: Mapped[Optional[PromptOutputSchema]] = mapped_column(
+        _PromptOutputSchema, default=Null(), nullable=True
+    )
+    model_provider: Mapped[str]
+    model_name: Mapped[str]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_versions")
+
+    prompt_version_tags: Mapped[list["PromptVersionTag"]] = relationship(
+        "PromptVersionTag",
+        back_populates="prompt_version",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class PromptVersionTag(Base):
+    __tablename__ = "prompt_version_tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    prompt_version_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_version_tags")
+    prompt_version: Mapped["PromptVersion"] = relationship(
+        "PromptVersion", back_populates="prompt_version_tags"
+    )
+
+    __table_args__ = (UniqueConstraint("name", "prompt_id"),)
