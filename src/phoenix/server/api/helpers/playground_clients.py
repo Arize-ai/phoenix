@@ -795,12 +795,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     pass
                 elif isinstance(event, anthropic_streaming.InputJsonEvent):
                     raise NotImplementedError
-                elif event:
-                    # 2025-01-28 Unix CI fails due to unhandled "CitationEvent"
-                    warnings.warn(f"Unhandled event type: {type(event)}")
-                    pass
                 else:
-                    assert_never(event)
+                    # 2025-01-28 Unix CI fails due to unhandled "CitationEvent"
+                    assert_never(event)  # type: ignore
 
     def _build_anthropic_messages(
         self,
