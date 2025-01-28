@@ -24,6 +24,7 @@ export default defineConfig(() => {
     },
     server: {
       open: "http://localhost:6006",
+      cors: true
     },
     resolve: {
       alias: {
