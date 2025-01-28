@@ -10,6 +10,7 @@ export type JSONLiteral =
   | Literal
   | { [key: string]: JSONLiteral }
   | JSONLiteral[];
+
 /**
  * The zod schema for JSON
  * @see {@link https://zod.dev/?id=json-type|Zod Documentation}

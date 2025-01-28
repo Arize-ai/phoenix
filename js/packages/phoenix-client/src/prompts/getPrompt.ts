@@ -3,14 +3,15 @@ import { ClientFn } from "../types/core";
 import { PromptLike, PromptVersion } from "../types/prompts";
 import { getPromptVersionLike } from "../utils/getPromptVersionLike";
 
+/**
+ * Parameters for the getPrompt function
+ */
 export interface GetPromptParams extends ClientFn {
   prompt: PromptLike;
 }
 
 /**
  * Get a prompt from the Phoenix API.
- *
- * @experimental
  */
 export async function getPrompt({
   client: _client,

@@ -8,19 +8,33 @@ import { assertUnreachable } from "../../utils/assertUnreachable";
 const SUPPORTED_SDKS = ["openai", "anthropic", "ai"] as const;
 type SupportedSDK = (typeof SUPPORTED_SDKS)[number];
 
-// base params + toX params, inferred from the sdk by T
+/**
+ * Parameters for an SDK conversion function
+ *
+ * @example
+ * ```ts
+ * const params: SDKParams<"openai"> = { ... }
+ * toOpenAI(params)
+ * ```
+ */
 export type SDKParams<T extends SupportedSDK> = Parameters<
   (typeof PROVIDER_TO_SDK)[T]
 >[0] extends toSDKParamsBase
   ? Parameters<(typeof PROVIDER_TO_SDK)[T]>[0]
   : never;
 
+/**
+ * Map of SDK names to their corresponding conversion functions
+ */
 const PROVIDER_TO_SDK = {
   openai: toOpenAI,
   anthropic: toAnthropic,
   ai: toAI,
 };
 
+/**
+ * Get the conversion function for a specific SDK name
+ */
 const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
   switch (sdk) {
     case "openai":
@@ -34,11 +48,32 @@ const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
   }
 };
 
+/**
+ * Parameters specific to the toSDK function
+ */
 type ToSDKParams<T extends SupportedSDK> = {
+  /**
+   * String representing the SDK to convert to
+   */
   sdk: T;
+  /**
+   * Optional variables to format the prompt with
+   * Keys are the variable names, values are the variable values
+   * The variable format is determined via prompt.template_format
+   */
   variables?: Variables;
 };
 
+/**
+ * Convert a Phoenix prompt to a specific SDK's parameters
+ *
+ * @example
+ * ```ts
+ * const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
+ * const openaiParams = toSDK({ sdk: "openai", prompt });
+ * const response = await openai.chat.completions.create(openaiParams);
+ * ```
+ */
 export const toSDK = <T extends SupportedSDK>({
   sdk: _sdk,
   ...rest

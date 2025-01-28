@@ -20,6 +20,9 @@ export type {
 
 export type ToOpenAIParams = toSDKParamsBase;
 
+/**
+ * Convert a Phoenix prompt to OpenAI client sdk parameters
+ */
 export const toOpenAI = ({
   prompt,
   variables,

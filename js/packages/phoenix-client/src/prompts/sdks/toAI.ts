@@ -8,6 +8,9 @@ export type PartialStreamTextParams = Omit<
 
 export type ToAIParams = toSDKParamsBase;
 
+/**
+ * @todo
+ */
 export const toAI = ({
   prompt: _prompt,
 }: ToAIParams): PartialStreamTextParams | null => {

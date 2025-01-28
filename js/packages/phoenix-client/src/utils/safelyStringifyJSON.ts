@@ -2,7 +2,7 @@
  * Safely stringify a JSON object
  *
  * @param args - The arguments to pass to JSON.stringify
- * @returns An object with the stringified JSON or an error if the stringification fails
+ * @returns An object containing both the stringified JSON and the error if there was one
  */
 export function safelyStringifyJSON(
   ...args: Parameters<typeof JSON.stringify>
