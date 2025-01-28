@@ -14,14 +14,14 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
-    PromptJSONSchema,
+    PromptOutputSchema,
     PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolsV1,
 )
-from phoenix.server.api.routers.v1.pydantic_compat import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
@@ -47,7 +47,7 @@ class PromptVersion(V1RoutesBaseModel):
     template_format: PromptTemplateFormat = Field(default=PromptTemplateFormat.MUSTACHE)
     invocation_parameters: dict[str, Any] = Field(default_factory=dict)
     tools: Optional[PromptToolsV1] = None
-    output_schema: Optional[PromptJSONSchema] = None
+    output_schema: Optional[PromptOutputSchema] = None
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
