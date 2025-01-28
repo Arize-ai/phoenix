@@ -1,8 +1,11 @@
 /* eslint-disable no-console */
 import { createClient, getPrompt, toSDK } from "../src";
 import OpenAI from "openai";
+import { PromptLike } from "../src/types/prompts";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
+const PROMPT_TAG = process.env.PROMPT_TAG!;
+const PROMPT_VERSION_ID = process.env.PROMPT_VERSION_ID!;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 
 // get first argument from command line
@@ -29,9 +32,23 @@ const openai = new OpenAI({
 });
 
 const main = async () => {
+  const promptArgument: PromptLike | null = PROMPT_VERSION_ID
+    ? { versionId: PROMPT_VERSION_ID }
+    : PROMPT_TAG && PROMPT_NAME
+      ? { name: PROMPT_NAME, tag: PROMPT_TAG }
+      : PROMPT_NAME
+        ? { name: PROMPT_NAME }
+        : null;
+  if (!promptArgument) {
+    throw new Error(
+      `Either PROMPT_VERSION_ID, PROMPT_TAG and PROMPT_NAME, or PROMPT_NAME must be provided in the environment`
+    );
+  }
+  console.log(`Getting prompt ${JSON.stringify(promptArgument)}`);
+
   const prompt = await getPrompt({
     client,
-    prompt: { name: PROMPT_NAME },
+    prompt: promptArgument,
   });
 
   const openAIParams = toSDK({

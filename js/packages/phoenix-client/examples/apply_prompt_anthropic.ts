@@ -44,9 +44,8 @@ const main = async () => {
       `Either PROMPT_VERSION_ID, PROMPT_TAG and PROMPT_NAME, or PROMPT_NAME must be provided in the environment`
     );
   }
-  console.log(`Getting prompt ${PROMPT_VERSION_ID}`);
+  console.log(`Getting prompt ${JSON.stringify(promptArgument)}`);
 
-  // TODO: Apply variable replacement to the prompt
   const prompt = await getPrompt({
     client,
     prompt: promptArgument,
