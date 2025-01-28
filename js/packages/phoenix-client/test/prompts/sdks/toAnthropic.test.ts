@@ -13,6 +13,7 @@ const BASE_MOCK_PROMPT_VERSION = {
   template_type: "CHAT",
   template_format: "MUSTACHE",
   template: {
+    version: "chat-template-v1",
     messages: [
       {
         role: "USER",
@@ -129,6 +130,7 @@ describe("toAnthropic type compatibility", () => {
         ],
       },
       template: {
+        version: "chat-template-v1",
         messages: [
           {
             role: "USER",
