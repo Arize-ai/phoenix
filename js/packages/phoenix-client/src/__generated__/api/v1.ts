@@ -228,6 +228,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/prompts/{prompt_identifier}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all prompt versions for a given prompt */
+        get: operations["listPromptVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/prompt_versions/{prompt_version_id}": {
         parameters: {
             query?: never;
@@ -460,6 +477,11 @@ export interface components {
         GetPromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
         };
+        /** GetPromptVersionsResponseBody */
+        GetPromptVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["PromptVersion"][];
+        };
         /** GetPromptsResponseBody */
         GetPromptsResponseBody: {
             /** Data */
@@ -538,16 +560,13 @@ export interface components {
         };
         /** PromptChatTemplateV1 */
         PromptChatTemplateV1: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            version: "chat-template-v1";
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
-        };
-        /**
-         * PromptJSONSchema
-         * @description A JSON schema definition used to guide an LLM's output
-         */
-        PromptJSONSchema: {
-            /** Definition */
-            definition: Record<string, unknown>;
         };
         /** PromptMessage */
         PromptMessage: {
@@ -560,8 +579,18 @@ export interface components {
          * @enum {string}
          */
         PromptMessageRole: "USER" | "SYSTEM" | "AI" | "TOOL";
+        /** PromptOutputSchema */
+        PromptOutputSchema: {
+            /** Definition */
+            definition: Record<string, unknown>;
+        };
         /** PromptStringTemplateV1 */
         PromptStringTemplateV1: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            version: "string-template-v1";
             /** Template */
             template: string;
         };
@@ -610,7 +639,7 @@ export interface components {
             /** Invocation Parameters */
             invocation_parameters?: Record<string, unknown>;
             tools?: components["schemas"]["PromptToolsV1"] | null;
-            output_schema?: components["schemas"]["PromptJSONSchema"] | null;
+            output_schema?: components["schemas"]["PromptOutputSchema"] | null;
         };
         /** SpanAnnotation */
         SpanAnnotation: {
@@ -1511,6 +1540,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetPromptsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listPromptVersions: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded promptVersion ID) */
+                cursor?: string | null;
+                /** @description The max number of prompt versions to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
                 };
             };
             /** @description Forbidden */
