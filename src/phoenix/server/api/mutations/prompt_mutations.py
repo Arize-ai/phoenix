@@ -15,8 +15,6 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplateV1,
-    PromptJSONSchema,
     PromptToolsV1,
     PromptVersion,
 )
@@ -87,27 +85,12 @@ class PromptMutationMixin:
                 pydantic_tool = tool.to_pydantic()
                 tool_definitions.append(pydantic_tool)
             tools = PromptToolsV1(tool_definitions=tool_definitions)
-            output_schema = (
-                PromptJSONSchema.model_validate(
-                    strawberry.asdict(input.prompt_version.output_schema)
-                ).dict()
-                if input.prompt_version.output_schema is not None
-                else None
-            )
-            template = PromptChatTemplateV1.model_validate(
-                strawberry.asdict(input.prompt_version.template)
-            ).dict()
             pydantic_prompt_version = PromptVersion(
+                **{
+                    **strawberry.asdict(input.prompt_version),
+                    "tools": tools,
+                },
                 user_id=user_id,
-                description=input.prompt_version.description,
-                template_type=input.prompt_version.template_type.value,
-                template_format=input.prompt_version.template_format.value,
-                template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
-                tools=tools,
-                output_schema=output_schema,
-                model_name=input.prompt_version.model_name,
-                model_provider=input.prompt_version.model_provider,
             )
         except ValidationError as error:
             raise BadRequest(str(error))
@@ -118,9 +101,9 @@ class PromptMutationMixin:
                 user_id=pydantic_prompt_version.user_id,
                 template_type=pydantic_prompt_version.template_type,
                 template_format=pydantic_prompt_version.template_format,
-                template=pydantic_prompt_version.template.dict(),
+                template=pydantic_prompt_version.template,
                 invocation_parameters=pydantic_prompt_version.invocation_parameters,
-                tools=pydantic_prompt_version.tools.dict(),
+                tools=pydantic_prompt_version.tools,
                 output_schema=pydantic_prompt_version.output_schema,
                 model_provider=pydantic_prompt_version.model_provider,
                 model_name=pydantic_prompt_version.model_name,
@@ -156,27 +139,12 @@ class PromptMutationMixin:
                 pydantic_tool = tool.to_pydantic()
                 tool_definitions.append(pydantic_tool)
             tools = PromptToolsV1(tool_definitions=tool_definitions)
-            output_schema = (
-                PromptJSONSchema.model_validate(
-                    strawberry.asdict(input.prompt_version.output_schema)
-                ).dict()
-                if input.prompt_version.output_schema is not None
-                else None
-            )
-            template = PromptChatTemplateV1.model_validate(
-                strawberry.asdict(input.prompt_version.template)
-            ).dict()
             pydantic_prompt_version = PromptVersion(
+                **{
+                    **strawberry.asdict(input.prompt_version),
+                    "tools": tools,
+                },
                 user_id=user_id,
-                description=input.prompt_version.description,
-                template_type=input.prompt_version.template_type.value,
-                template_format=input.prompt_version.template_format.value,
-                template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
-                tools=tools,
-                output_schema=output_schema,
-                model_name=input.prompt_version.model_name,
-                model_provider=input.prompt_version.model_provider,
             )
         except ValidationError as error:
             raise BadRequest(str(error))
@@ -195,9 +163,9 @@ class PromptMutationMixin:
                 description=pydantic_prompt_version.description,
                 template_type=pydantic_prompt_version.template_type,
                 template_format=pydantic_prompt_version.template_format,
-                template=pydantic_prompt_version.template.dict(),
+                template=pydantic_prompt_version.template,
                 invocation_parameters=pydantic_prompt_version.invocation_parameters,
-                tools=pydantic_prompt_version.tools.dict(),
+                tools=pydantic_prompt_version.tools,
                 output_schema=pydantic_prompt_version.output_schema,
                 model_provider=pydantic_prompt_version.model_provider,
                 model_name=pydantic_prompt_version.model_name,

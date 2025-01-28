@@ -5,7 +5,6 @@ from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue,
-    PromptChatTemplateV1,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolDefinition,
@@ -25,7 +24,7 @@ class ToolDefinitionInput:
 
 
 @strawberry.input
-class JSONSchemaInput:
+class OutputSchemaInput:
     definition: JSON
 
 
@@ -71,9 +70,10 @@ class PromptMessageInput:
     content: list[ContentPartInput] = strawberry.field(default_factory=list)
 
 
-@strawberry.experimental.pydantic.input(PromptChatTemplateV1)
+@strawberry.input
 class PromptChatTemplateInput:
     messages: list[PromptMessageInput]
+    version: strawberry.Private[str] = "chat-template-v1"
 
 
 @strawberry.input
@@ -84,6 +84,6 @@ class ChatPromptVersionInput:
     template: PromptChatTemplateInput
     invocation_parameters: JSON = strawberry.field(default_factory=dict)
     tools: list[ToolDefinitionInput] = strawberry.field(default_factory=list)
-    output_schema: Optional[JSONSchemaInput] = None
+    output_schema: Optional[OutputSchemaInput] = None
     model_provider: str
     model_name: str

@@ -2075,6 +2075,12 @@
       },
       "PromptChatTemplateV1": {
         "properties": {
+          "version": {
+            "type": "string",
+            "const": "chat-template-v1",
+            "title": "Version",
+            "default": "chat-template-v1"
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/PromptMessage"
@@ -2089,21 +2095,6 @@
           "messages"
         ],
         "title": "PromptChatTemplateV1"
-      },
-      "PromptJSONSchema": {
-        "properties": {
-          "definition": {
-            "type": "object",
-            "title": "Definition"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "definition"
-        ],
-        "title": "PromptJSONSchema",
-        "description": "A JSON schema definition used to guide an LLM's output"
       },
       "PromptMessage": {
         "properties": {
@@ -2149,8 +2140,28 @@
         ],
         "title": "PromptMessageRole"
       },
+      "PromptOutputSchema": {
+        "properties": {
+          "definition": {
+            "type": "object",
+            "title": "Definition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "definition"
+        ],
+        "title": "PromptOutputSchema"
+      },
       "PromptStringTemplateV1": {
         "properties": {
+          "version": {
+            "type": "string",
+            "const": "string-template-v1",
+            "title": "Version",
+            "default": "string-template-v1"
+          },
           "template": {
             "type": "string",
             "title": "Template"
@@ -2236,7 +2247,7 @@
             "title": "Model Name"
           },
           "template": {
-            "anyOf": [
+            "oneOf": [
               {
                 "$ref": "#/components/schemas/PromptChatTemplateV1"
               },
@@ -2244,7 +2255,14 @@
                 "$ref": "#/components/schemas/PromptStringTemplateV1"
               }
             ],
-            "title": "Template"
+            "title": "Template",
+            "discriminator": {
+              "propertyName": "version",
+              "mapping": {
+                "chat-template-v1": "#/components/schemas/PromptChatTemplateV1",
+                "string-template-v1": "#/components/schemas/PromptStringTemplateV1"
+              }
+            }
           },
           "template_type": {
             "$ref": "#/components/schemas/PromptTemplateType",
@@ -2271,7 +2289,7 @@
           "output_schema": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PromptJSONSchema"
+                "$ref": "#/components/schemas/PromptOutputSchema"
               },
               {
                 "type": "null"

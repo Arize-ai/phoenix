@@ -174,7 +174,7 @@ class Prompt(BaseModel):
     description: Annotated[Optional[str], Field(title="Description")] = None
 
 
-class PromptJSONSchema(BaseModel):
+class PromptOutputSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     definition: Annotated[Mapping[str, Any], Field(title="Definition")]
 
@@ -356,7 +356,7 @@ class PromptVersion(BaseModel):
         Optional[Mapping[str, Any]], Field(title="Invocation Parameters")
     ] = None
     tools: Optional[PromptToolsV1] = None
-    output_schema: Optional[PromptJSONSchema] = None
+    output_schema: Optional[PromptOutputSchema] = None
 
 
 class GetPromptResponseBody(BaseModel):

@@ -11,10 +11,8 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
-    PromptJSONSchema,
     PromptTemplateFormat,
     PromptTemplateType,
-    PromptToolsV1,
 )
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 from phoenix.server.api.types.PromptVersionTemplate import (
@@ -22,7 +20,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     to_gql_template_from_orm,
 )
 
-from .JSONSchema import JSONSchema, to_gql_json_schema_from_pydantic
+from .OutputSchema import OutputSchema, to_gql_output_schema_from_pydantic
 from .ToolDefinition import ToolDefinition
 from .User import User, to_gql_user
 
@@ -37,7 +35,7 @@ class PromptVersion(Node):
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
     tools: list[ToolDefinition]
-    output_schema: Optional[JSONSchema] = None
+    output_schema: Optional[OutputSchema] = None
     model_name: str
     model_provider: str
     metadata: JSON
@@ -108,16 +106,12 @@ def to_gql_prompt_version(
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     if prompt_version.tools is not None:
-        prompt_tools = PromptToolsV1.model_validate(prompt_version.tools)
-        tools = [
-            ToolDefinition(definition=tool.definition) for tool in prompt_tools.tool_definitions
-        ]
+        tool_definitions = prompt_version.tools.tool_definitions
+        tools = [ToolDefinition(definition=tool.definition) for tool in tool_definitions]
     else:
         tools = []
     output_schema = (
-        to_gql_json_schema_from_pydantic(
-            PromptJSONSchema.model_validate(prompt_version.output_schema)
-        )
+        to_gql_output_schema_from_pydantic(prompt_version.output_schema)
         if prompt_version.output_schema is not None
         else None
     )
