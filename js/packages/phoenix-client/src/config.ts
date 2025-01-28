@@ -42,6 +42,11 @@ const phoenixEnvironmentToClientOptions = (
     },
   };
 
+  // if headers is an empty object, delete it
+  if (options.headers && Object.keys(options.headers).length === 0) {
+    delete options.headers;
+  }
+
   // filter out undefined values
   // this will prevent clobbering over default values when merging
   return Object.fromEntries(
