@@ -13,9 +13,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplateV1,
     PromptOutputSchema,
-    PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
@@ -269,35 +267,18 @@ def _prompt_version_from_orm_version(
     prompt_version: models.PromptVersion,
 ) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
-    template: PromptTemplate
-    if prompt_template_type is PromptTemplateType.CHAT:
-        template = PromptChatTemplateV1.model_validate(prompt_version.template)
-    elif prompt_template_type is PromptTemplateType.STRING:
-        template = PromptStringTemplateV1.model_validate(prompt_version.template)
-    else:
-        assert_never(prompt_template_type)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    tools = (
-        PromptToolsV1.model_validate(prompt_version.tools)
-        if prompt_version.tools is not None
-        else None
-    )
-    output_schema = (
-        PromptJSONSchema.model_validate(prompt_version.output_schema)
-        if prompt_version.output_schema is not None
-        else None
-    )
     return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
         description=prompt_version.description or "",
         model_provider=prompt_version.model_provider,
         model_name=prompt_version.model_name,
-        template=template,
+        template=prompt_version.template,
         template_type=prompt_template_type,
         template_format=prompt_template_format,
         invocation_parameters=prompt_version.invocation_parameters,
-        tools=tools,
-        output_schema=output_schema,
+        tools=prompt_version.tools,
+        output_schema=prompt_version.output_schema,
     )
 
 
