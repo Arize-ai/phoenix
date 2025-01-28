@@ -3,6 +3,9 @@ import { PromptLike } from "../types/prompts";
 import { ClientFn } from "../types/core";
 import { createClient } from "../client";
 
+/**
+ * Parameters for the getPromptVersionLike function
+ */
 export type GetPromptVersionLikeParams = ClientFn & {
   prompt: PromptLike;
 };
@@ -16,7 +19,6 @@ export type GetPromptVersionLikeParams = ClientFn & {
  * if the input is a prompt name, fetch the latest prompt version from the client.
  *
  * @throws {Error} if the input is invalid or the prompt version is not found
- * @experimental until all the cases are implemented
  */
 export async function getPromptVersionLike({
   client: _client,

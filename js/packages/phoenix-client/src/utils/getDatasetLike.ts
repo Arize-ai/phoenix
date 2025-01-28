@@ -5,6 +5,14 @@ import { Example } from "../types/datasets";
 import { Dataset } from "../types/datasets";
 
 /**
+ * Parameters for the getDatasetLike function
+ */
+export type GetDatasetLikeParams = {
+  dataset: Dataset | string | Example[];
+  client: PhoenixClient;
+};
+
+/**
  * Return a dataset object from the input.
  *
  * If the input is a string, assume it is a dataset id and fetch the dataset from the client.
@@ -17,10 +25,7 @@ import { Dataset } from "../types/datasets";
 export async function getDatasetLike({
   dataset,
   client,
-}: {
-  dataset: Dataset | string | Example[];
-  client: PhoenixClient;
-}): Promise<Dataset> {
+}: GetDatasetLikeParams): Promise<Dataset> {
   if (typeof dataset === "string") {
     const datasetResponse = await client
       .GET(`/v1/datasets/{id}`, { params: { path: { id: dataset } } })

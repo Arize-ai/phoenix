@@ -3,6 +3,14 @@ import { PromptChatMessage, PromptTemplateFormat } from "../types/prompts";
 import { assertUnreachable } from "./assertUnreachable";
 import { TextPart, asTextPart } from "../schemas/llm/promptSchemas";
 
+/**
+ * Format a prompt message
+ *
+ * @param format - The format of the prompt message variables, e.g. MUSTACHE, FSTRING, NONE
+ * @param promptMessages - The prompt messages to format
+ * @param variables - The variables to use in the formatting
+ * @returns The formatted prompt messages
+ */
 export function promptMessageFormatter(
   format: PromptTemplateFormat,
   promptMessages: PromptChatMessage[],

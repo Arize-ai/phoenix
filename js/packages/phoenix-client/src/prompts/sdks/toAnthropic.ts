@@ -15,10 +15,14 @@ import {
 } from "../../schemas/llm/toolSchemas";
 import invariant from "tiny-invariant";
 
+// We must re-export these types so that they are included in the phoenix-client distribution
 export type { MessageCreateParams };
 
 export type ToAnthropicParams = toSDKParamsBase;
 
+/**
+ * Convert a Phoenix prompt to Anthropic client sdk parameters
+ */
 export const toAnthropic = ({
   prompt,
   variables,

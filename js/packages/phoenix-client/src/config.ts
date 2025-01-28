@@ -2,6 +2,7 @@ import type { ClientOptions } from "openapi-fetch";
 import z from "zod";
 
 const phoenixEnvironmentSchema = z.object({
+  PHOENIX_API_KEY: z.string().optional(),
   PHOENIX_HOST: z.string().optional(),
   PHOENIX_CLIENT_HEADERS: z
     .string()
@@ -33,7 +34,12 @@ const phoenixEnvironmentToClientOptions = (
 ): Partial<ClientOptions> => {
   const options: Partial<ClientOptions> = {
     baseUrl: environment.PHOENIX_HOST,
-    headers: environment.PHOENIX_CLIENT_HEADERS,
+    headers: {
+      ...(environment.PHOENIX_CLIENT_HEADERS ?? {}),
+      ...(environment.PHOENIX_API_KEY
+        ? { Authorization: `Bearer ${environment.PHOENIX_API_KEY}` }
+        : {}),
+    },
   };
 
   // filter out undefined values
