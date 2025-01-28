@@ -146,11 +146,17 @@ class ClassificationTemplate(PromptTemplate):
         self.rails = rails
         self.template = self._normalize_template(template)
         self.explanation_template: Optional[List[PromptPartTemplate]]
+
         if explanation_template:
             self.explanation_template = self._normalize_template(explanation_template)
+            self.explanation_parser = parse_label_from_chain_of_thought_response
         else:
-            self.explanation_template = None
-        self.explanation_label_parser = explanation_label_parser
+            self.explanation_template = patched_explanation_template(self.template)
+            self.explanation_parser = parse_label_from_patched_explanation_response
+
+        if explanation_label_parser:
+            self.explanation_label_parser = explanation_label_parser
+
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
         for _template in [self.template, self.explanation_template]:
@@ -192,6 +198,14 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
     parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
     if len(parts) == 2:
         return parts[1]
+    return NOT_PARSABLE
+
+
+def parse_label_from_patched_explanation_response(raw_string: str) -> str:
+    explanation_delimiter = r"\W*EXPLANATION\W*"
+    parts = re.split(explanation_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+    if parts:
+        return parts[0]
     return NOT_PARSABLE
 
 
@@ -238,6 +252,27 @@ def normalize_prompt_template(template: Union[PromptTemplate, str]) -> PromptTem
         "Invalid type for argument `template`. Expected a string or PromptTemplate "
         f"but found {type(template)}."
     )
+
+
+def patched_explanation_template(
+    template_parts: List[PromptPartTemplate],
+) -> List[PromptPartTemplate]:
+    """
+    Attempts to patch a template to additionally include an explanation part.
+    """
+    patched_explanation_template_text = (
+        "*****\n\n"
+        "After following the previous instructions, add a paragraph that starts with "
+        "`EXPLANATION: ` and then provide a concise explanation of your reasoning."
+    )
+
+    return [
+        *template_parts,
+        PromptPartTemplate(
+            content_type=PromptPartContentType.TEXT,
+            template=patched_explanation_template_text,
+        ),
+    ]
 
 
 def map_template(
