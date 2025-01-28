@@ -4,7 +4,6 @@ import inspect
 import json
 import os
 import time
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import wraps
