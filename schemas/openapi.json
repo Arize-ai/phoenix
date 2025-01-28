@@ -1266,6 +1266,91 @@
         }
       }
     },
+    "/v1/prompts/{prompt_identifier}/versions": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "List all prompt versions for a given prompt",
+        "operationId": "listPromptVersions",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded promptVersion ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded promptVersion ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of prompt versions to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of prompt versions to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptVersionsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/prompt_versions/{prompt_version_id}": {
       "get": {
         "tags": [
@@ -1846,6 +1931,22 @@
           "data"
         ],
         "title": "GetPromptResponseBody"
+      },
+      "GetPromptVersionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PromptVersion"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetPromptVersionsResponseBody"
       },
       "GetPromptsResponseBody": {
         "properties": {
