@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c15c22e4b090188bf9bba848c0495fa>>
+ * @generated SignedSource<<60275d9862dc87be2d8defa7b40de9ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -129,7 +129,7 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "JSONSchema",
+      "concreteType": "OutputSchema",
       "kind": "LinkedField",
       "name": "outputSchema",
       "plural": false,
