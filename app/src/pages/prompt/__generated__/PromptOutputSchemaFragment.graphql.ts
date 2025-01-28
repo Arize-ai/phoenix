@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7139cf9a5f6fc643763e8524384b90b6>>
+ * @generated SignedSource<<af2571352cefa40fd18eef7b964d851d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,7 +30,7 @@ const node: ReaderFragment = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "JSONSchema",
+      "concreteType": "OutputSchema",
       "kind": "LinkedField",
       "name": "outputSchema",
       "plural": false,

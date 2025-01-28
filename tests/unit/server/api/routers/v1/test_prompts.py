@@ -9,6 +9,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.helpers.prompts.models import PromptChatTemplateV1
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
@@ -92,7 +93,7 @@ class TestPrompts:
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider
         assert data.pop("output_schema") == prompt_version.output_schema
-        assert data.pop("template") == prompt_version.template
+        assert data.pop("template") == prompt_version.template.dict()
         assert data.pop("template_format") == prompt_version.template_format
         assert data.pop("template_type") == prompt_version.template_type
         assert data.pop("tools") == prompt_version.tools
@@ -134,40 +135,42 @@ class TestPrompts:
                         prompt_id=prompt.id,
                         template_type="CHAT",
                         template_format="MUSTACHE",
-                        template={
-                            "messages": [
-                                {
-                                    "role": "USER",
-                                    "content": [
-                                        {"type": "text", "text": {"text": "hi"}},
-                                        {
-                                            "type": "image",
-                                            "image": {
-                                                "url": "https://example.com/image.jpg",
-                                            },
-                                        },
-                                        {
-                                            "type": "tool_call",
-                                            "tool_call": {
-                                                "tool_call_id": "1234",
-                                                "tool_call": {
-                                                    "type": "function",
-                                                    "name": token_hex(16),
-                                                    "arguments": token_hex(16),
+                        template=PromptChatTemplateV1.model_validate(
+                            {
+                                "messages": [
+                                    {
+                                        "role": "USER",
+                                        "content": [
+                                            {"type": "text", "text": {"text": "hi"}},
+                                            {
+                                                "type": "image",
+                                                "image": {
+                                                    "url": "https://example.com/image.jpg",
                                                 },
                                             },
-                                        },
-                                        {
-                                            "type": "tool_result",
-                                            "tool_result": {
-                                                "tool_call_id": "1234",
-                                                "result": {"foo": "bar"},
+                                            {
+                                                "type": "tool_call",
+                                                "tool_call": {
+                                                    "tool_call_id": "1234",
+                                                    "tool_call": {
+                                                        "type": "function",
+                                                        "name": token_hex(16),
+                                                        "arguments": token_hex(16),
+                                                    },
+                                                },
                                             },
-                                        },
-                                    ],
-                                }
-                            ]
-                        },
+                                            {
+                                                "type": "tool_result",
+                                                "tool_result": {
+                                                    "tool_call_id": "1234",
+                                                    "result": {"foo": "bar"},
+                                                },
+                                            },
+                                        ],
+                                    }
+                                ]
+                            }
+                        ),
                         invocation_parameters={},
                         model_provider=token_hex(16),
                         model_name=token_hex(16),

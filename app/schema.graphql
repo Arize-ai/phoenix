@@ -224,7 +224,7 @@ input ChatPromptVersionInput {
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}
   tools: [ToolDefinitionInput!]! = []
-  outputSchema: JSONSchemaInput = null
+  outputSchema: OutputSchemaInput = null
   modelProvider: String!
   modelName: String!
 }
@@ -1433,14 +1433,6 @@ type JSONInvocationParameter implements InvocationParameterBase {
   defaultValue: JSON
 }
 
-type JSONSchema {
-  definition: JSON!
-}
-
-input JSONSchemaInput {
-  definition: JSON!
-}
-
 type LabelFraction {
   label: String!
   fraction: Float!
@@ -1623,6 +1615,14 @@ type NominalBin {
 type NumericRange {
   start: Float!
   end: Float!
+}
+
+type OutputSchema {
+  definition: JSON!
+}
+
+input OutputSchemaInput {
+  definition: JSON!
 }
 
 """
@@ -2052,7 +2052,7 @@ type PromptVersion implements Node {
   template: PromptTemplate!
   invocationParameters: JSON
   tools: [ToolDefinition!]!
-  outputSchema: JSONSchema
+  outputSchema: OutputSchema
   modelName: String!
   modelProvider: String!
   metadata: JSON!

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9a947ee6c970f814888877c14a0ebb3>>
+ * @generated SignedSource<<d998309b669bd3877fd67e8f83f419ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type ChatPromptVersionInput = {
   invocationParameters?: any;
   modelName: string;
   modelProvider: string;
-  outputSchema?: JSONSchemaInput | null;
+  outputSchema?: OutputSchemaInput | null;
   template: PromptChatTemplateInput;
   templateFormat: PromptTemplateFormat;
   templateType: PromptTemplateType;
@@ -61,7 +61,7 @@ export type ToolResultContentValueInput = {
 export type ToolDefinitionInput = {
   definition: any;
 };
-export type JSONSchemaInput = {
+export type OutputSchemaInput = {
   definition: any;
 };
 export type UpsertPromptFromTemplateDialogCreateMutation$variables = {
