@@ -90,6 +90,7 @@ class PromptMutationMixin:
                     **strawberry.asdict(input.prompt_version),
                     "tools": tools,
                 },
+                template_type="CHAT",
                 user_id=user_id,
             )
         except ValidationError as error:
@@ -144,6 +145,7 @@ class PromptMutationMixin:
                     **strawberry.asdict(input.prompt_version),
                     "tools": tools,
                 },
+                template_type="CHAT",
                 user_id=user_id,
             )
         except ValidationError as error:
