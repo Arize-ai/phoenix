@@ -2284,19 +2284,79 @@
         ],
         "title": "PromptMessageRole"
       },
-      "PromptOutputSchema": {
+      "PromptOpenAIJSONSchema": {
         "properties": {
-          "definition": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "schema": {
             "type": "object",
-            "title": "Definition"
+            "title": "Schema"
+          },
+          "strict": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strict"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "name",
+          "schema"
+        ],
+        "title": "PromptOpenAIJSONSchema",
+        "description": "Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L13"
+      },
+      "PromptOpenAIOutputSchema": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "const": "openai-output-schema-v1",
+            "title": "Version"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/PromptOpenAIResponseFormatJSONSchema"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
           "definition"
         ],
-        "title": "PromptOutputSchema"
+        "title": "PromptOpenAIOutputSchema"
+      },
+      "PromptOpenAIResponseFormatJSONSchema": {
+        "properties": {
+          "json_schema": {
+            "$ref": "#/components/schemas/PromptOpenAIJSONSchema"
+          },
+          "type": {
+            "type": "string",
+            "const": "json_schema",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "json_schema",
+          "type"
+        ],
+        "title": "PromptOpenAIResponseFormatJSONSchema",
+        "description": "Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L40"
       },
       "PromptStringTemplateV1": {
         "properties": {
@@ -2429,12 +2489,23 @@
           "output_schema": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PromptOutputSchema"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PromptOpenAIOutputSchema"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "version",
+                  "mapping": {
+                    "openai-output-schema-v1": "#/components/schemas/PromptOpenAIOutputSchema"
+                  }
+                }
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Output Schema"
           }
         },
         "type": "object",
