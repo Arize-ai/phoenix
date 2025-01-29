@@ -326,7 +326,23 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {"definition": {"type": "object"}},
+                            "outputSchema": {
+                                "definition": {
+                                    "type": "json_schema",
+                                    "json_schema": {
+                                        "name": "response",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "foo": {"type": "string"},
+                                            },
+                                            "required": ["foo"],
+                                            "additionalProperties": False,
+                                        },
+                                        "strict": True,
+                                    },
+                                }
+                            },
                         },
                     }
                 },
@@ -723,7 +739,21 @@ class TestPromptMutations:
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
                             "outputSchema": {
-                                "definition": {"type": "object"},
+                                "definition": {
+                                    "type": "json_schema",
+                                    "json_schema": {
+                                        "name": "response",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "foo": {"type": "string"},
+                                            },
+                                            "required": ["foo"],
+                                            "additionalProperties": False,
+                                        },
+                                        "strict": True,
+                                    },
+                                }
                             },
                         },
                     }

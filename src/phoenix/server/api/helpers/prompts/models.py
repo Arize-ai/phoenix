@@ -136,11 +136,12 @@ PromptTemplate: TypeAlias = Annotated[
 
 
 class PromptTemplateWrapper(PromptModel):
+    """
+    Discriminated union types don't have pydantic methods such as
+    `model_validate`, so a wrapper around the union type is needed.
+    """
+
     template: PromptTemplate
-
-
-class PromptOutputSchema(PromptModel):
-    definition: JSONSchemaObjectDefinition
 
 
 class PromptFunctionToolV1(PromptModel):
@@ -157,6 +158,51 @@ class PromptFunctionToolV1(PromptModel):
 class PromptToolsV1(PromptModel):
     type: Literal["tools-v1"]
     tools: list[Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]]
+
+
+class PromptOpenAIJSONSchema(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L13
+    """
+
+    name: str
+    description: str = Field(default=None)  # type: ignore[assignment]
+    schema_: JSONSchemaObjectDefinition = Field(
+        ...,
+        alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
+    )
+    strict: Optional[bool] = Field(default=None)
+
+
+class PromptOpenAIResponseFormatJSONSchema(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L40
+    """
+
+    json_schema: PromptOpenAIJSONSchema
+    type: Literal["json_schema"]
+
+
+class PromptOpenAIOutputSchema(PromptModel):
+    version: Literal["openai-output-schema-v1"]
+    definition: PromptOpenAIResponseFormatJSONSchema
+
+
+PromptOutputSchema: TypeAlias = Annotated[
+    Union[PromptOpenAIOutputSchema], Field(..., discriminator="version")
+]
+
+
+class PromptOutputSchemaWrapper(PromptModel):
+    """
+    Discriminated union types don't have pydantic methods such as
+    `model_validate`, so a wrapper around the union type is needed.
+    """
+
+    schema_: PromptOutputSchema = Field(
+        ...,
+        alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
+    )
 
 
 def _get_tool_definition_model(
