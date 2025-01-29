@@ -158,7 +158,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -183,7 +182,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -209,7 +207,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -248,7 +245,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -296,7 +292,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -377,7 +372,6 @@ class TestPromptMutations:
                 "description": "prompt-description",
                 "promptVersion": {
                     "description": "prompt-version-description",
-                    "templateType": "CHAT",
                     "templateFormat": "MUSTACHE",
                     "template": {
                         "messages": [
@@ -413,7 +407,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
@@ -434,7 +427,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -462,7 +454,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -492,7 +483,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -531,7 +521,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -593,7 +582,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -617,7 +605,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -642,7 +629,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -680,7 +666,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -707,7 +692,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -765,7 +749,6 @@ class TestPromptMutations:
                     "description": "prompt-description",
                     "promptVersion": {
                         "description": "initial-version",
-                        "templateType": "CHAT",
                         "templateFormat": "MUSTACHE",
                         "template": {
                             "messages": [
@@ -837,7 +820,6 @@ class TestPromptMutations:
                 "promptId": str(GlobalID("Prompt", "100")),
                 "promptVersion": {
                     "description": "prompt-version-description",
-                    "templateType": "CHAT",
                     "templateFormat": "MUSTACHE",
                     "template": {
                         "messages": [
@@ -864,7 +846,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
@@ -881,7 +862,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -908,7 +888,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -935,7 +914,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -973,7 +951,6 @@ class TestPromptMutations:
                         "promptId": str(GlobalID("Prompt", "1")),
                         "promptVersion": {
                             "description": "prompt-version-description",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -1034,7 +1011,6 @@ class TestPromptMutations:
                     "description": "prompt-description",
                     "promptVersion": {
                         "description": "initial-version",
-                        "templateType": "CHAT",
                         "templateFormat": "MUSTACHE",
                         "template": {
                             "messages": [
@@ -1075,7 +1051,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "initial-version",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [
@@ -1164,7 +1139,6 @@ class TestPromptMutations:
                         "description": "prompt-description",
                         "promptVersion": {
                             "description": "initial-version",
-                            "templateType": "CHAT",
                             "templateFormat": "MUSTACHE",
                             "template": {
                                 "messages": [

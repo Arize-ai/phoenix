@@ -348,7 +348,6 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
   const newPromptVersion = {
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
-    templateType: "CHAT",
     template: {
       messages: templateMessages,
     },
