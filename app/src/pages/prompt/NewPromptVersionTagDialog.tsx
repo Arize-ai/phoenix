@@ -21,6 +21,8 @@ import {
   View,
 } from "@phoenix/components";
 
+import { identifierPattern } from "../../utils/identifierUtils";
+
 type PromptVersionTagFormParams = {
   name: string;
   description: string;
@@ -99,11 +101,7 @@ export function NewPromptVersionDialog({
               control={control}
               rules={{
                 required: "Name is required",
-                pattern: {
-                  value: /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/,
-                  message:
-                    "Invalid identifier. Must be alphanumeric and with dashes",
-                },
+                pattern: identifierPattern,
               }}
               render={({
                 field: { name, onChange, onBlur, value },
