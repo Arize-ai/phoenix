@@ -78,8 +78,8 @@ def _to_model_kwargs(
     ans: _ModelKwargs = {
         "model": obj.model_name,
     }
-    if obj.tools:
-        ans["tools"] = list(_to_tools(obj.tools))
+    if obj.tools and (tools := list(_to_tools(obj.tools))):
+        ans["tools"] = tools
     parameters = obj.invocation_parameters or {}
     if (v := parameters.get("temperature")) is not None:
         try:
