@@ -33,10 +33,14 @@ def test_classification_template_can_beinstantiated_with_no_explanation_template
     template = ClassificationTemplate(
         rails=["relevant", "irrelevant"], template="is this irrelevant?"
     )
-    assert template.explanation_template is None
+    assert template.explanation_template is not None
+    assert len(template.explanation_template) == 2
 
     explanation_options = PromptOptions(provide_explanation=True)
     assert template.prompt(options=explanation_options)[0].template == "is this irrelevant?"
+    assert (
+        "provide a concise explanation" in template.prompt(options=explanation_options)[1].template
+    )
 
 
 def test_template_with_default_delimiters_uses_python_string_formatting():
