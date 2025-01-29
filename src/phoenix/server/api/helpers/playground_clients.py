@@ -795,7 +795,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 elif isinstance(event, anthropic_streaming.InputJsonEvent):
                     raise NotImplementedError
                 else:
-                    assert_never(event)
+                    assert_never(event)  # type: ignore
 
     def _build_anthropic_messages(
         self,
