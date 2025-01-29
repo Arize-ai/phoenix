@@ -6,7 +6,6 @@ from strawberry.scalars import JSON
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue,
     PromptTemplateFormat,
-    PromptTemplateType,
     PromptToolDefinition,
     TextContentValue,
     ToolCallContentValue,
@@ -79,7 +78,6 @@ class PromptChatTemplateInput:
 @strawberry.input
 class ChatPromptVersionInput:
     description: Optional[str] = None
-    template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
     invocation_parameters: JSON = strawberry.field(default_factory=dict)
