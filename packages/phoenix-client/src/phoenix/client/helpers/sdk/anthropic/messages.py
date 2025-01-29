@@ -115,8 +115,8 @@ def _to_model_kwargs(
         except (ValueError, TypeError):
             pass
 
-    if obj.tools:
-        ans["tools"] = list(_to_tools(obj.tools))
+    if obj.tools and (tools := list(_to_tools(obj.tools))):
+        ans["tools"] = tools
         if (tool_choice := parameters.get("tool_choice")) is not None:
             if tool_choice == "any":
                 ans["tool_choice"] = {"type": "any"}
