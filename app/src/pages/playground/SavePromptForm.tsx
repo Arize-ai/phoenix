@@ -8,6 +8,8 @@ import { Button, Flex, View } from "@phoenix/components";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 
+import { identifierPattern } from "../../utils/identifierUtils";
+
 export type SavePromptSubmitHandler = (params: SavePromptFormParams) => void;
 
 export type SavePromptFormParams = {
@@ -100,6 +102,7 @@ export function SavePromptForm({
               message: "Prompt is required",
               value: true,
             },
+            pattern: identifierPattern,
           }}
           render={({ field: { onBlur, onChange } }) => (
             <PromptComboBox

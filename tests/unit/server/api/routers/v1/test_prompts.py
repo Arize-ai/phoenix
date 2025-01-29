@@ -65,7 +65,7 @@ class TestPrompts:
             "a b c",
             "αβγ",
             *(p for p in string.punctuation if p not in (".", "/")),
-            *(f"x{p}y" for p in string.punctuation if p not in ("-", ".", "/")),
+            *(f"x{p}y" for p in string.punctuation if p not in ("_", "-", ".", "/")),
         ],
     )
     async def test_invalid_identifier(
