@@ -39,7 +39,10 @@ from phoenix.otel import register
 tracer_provider = register(
     project_name="my-llm-app",
     endpoint="http:/localhost:4317"  # or http at "http://localhost:6006/v1/traces"
-    headers={"api_key": "<your-api-key>"}, # E.x. credentials for app.phoenix.arize.com
+    headers={"authorization": "<your-api-key>"}, 
+    # NOTE: For app.phoenix.arize.com, set the api key in the
+    # headers via "api_key" instead of "authorization", i.e.
+    # headers={"api_key": "<your-api-key>"}, 
 )
 ```
 
