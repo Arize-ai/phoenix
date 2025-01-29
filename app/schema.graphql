@@ -219,7 +219,6 @@ type ChatCompletionToolCall {
 
 input ChatPromptVersionInput {
   description: String = null
-  templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}

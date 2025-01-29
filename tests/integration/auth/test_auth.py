@@ -1012,7 +1012,6 @@ class TestPrompts:
                     "description": "prompt-description",
                     "promptVersion": {
                         "description": "prompt-version-description",
-                        "templateType": "CHAT",
                         "templateFormat": "MUSTACHE",
                         "template": {
                             "messages": [
@@ -1058,7 +1057,6 @@ class TestPrompts:
                     "promptId": prompt_id,
                     "promptVersion": {
                         "description": "new-version-description",
-                        "templateType": "CHAT",
                         "templateFormat": "MUSTACHE",
                         "template": {
                             "messages": [
