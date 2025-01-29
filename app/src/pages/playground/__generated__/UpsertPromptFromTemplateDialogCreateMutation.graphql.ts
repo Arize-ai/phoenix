@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d998309b669bd3877fd67e8f83f419ae>>
+ * @generated SignedSource<<6625e5bd96ea93dc899253cf49068055>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,6 @@
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
-export type PromptTemplateType = "CHAT" | "STRING";
 export type CreateChatPromptInput = {
   description?: string | null;
   name: string;
@@ -24,7 +23,6 @@ export type ChatPromptVersionInput = {
   outputSchema?: OutputSchemaInput | null;
   template: PromptChatTemplateInput;
   templateFormat: PromptTemplateFormat;
-  templateType: PromptTemplateType;
   tools?: ReadonlyArray<ToolDefinitionInput>;
 };
 export type PromptChatTemplateInput = {
