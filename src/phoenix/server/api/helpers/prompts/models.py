@@ -49,7 +49,7 @@ class PromptModel(BaseModel):
     )
 
 
-class PartBase(BaseModel):
+class PartBase(PromptModel):
     type: Literal["text", "image", "tool", "tool_call", "tool_result"]
 
 
@@ -58,7 +58,7 @@ class TextContentValue(BaseModel):
 
 
 class TextContentPart(PartBase):
-    type: Literal["text"] = Field(default="text")
+    type: Literal["text"]
     text: TextContentValue
 
 
@@ -69,7 +69,7 @@ class ImageContentValue(BaseModel):
 
 
 class ImageContentPart(PartBase):
-    type: Literal["image"] = Field(default="image")
+    type: Literal["image"]
     # the image data
     image: ImageContentValue
 
@@ -86,7 +86,7 @@ class ToolCallContentValue(BaseModel):
 
 
 class ToolCallContentPart(PartBase):
-    type: Literal["tool_call"] = Field(default="tool_call")
+    type: Literal["tool_call"]
     # the identifier of the tool call function
     tool_call: ToolCallContentValue
 
@@ -97,13 +97,13 @@ class ToolResultContentValue(BaseModel):
 
 
 class ToolResultContentPart(PartBase):
-    type: Literal["tool_result"] = Field(default="tool_result")
+    type: Literal["tool_result"]
     tool_result: ToolResultContentValue
 
 
 ContentPart: TypeAlias = Annotated[
     Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
-    Field(),
+    Field(..., discriminator="type"),
 ]
 
 
@@ -113,12 +113,12 @@ class PromptMessage(PromptModel):
 
 
 class PromptChatTemplateV1(PromptModel):
-    version: Literal["chat-template-v1"] = "chat-template-v1"
+    version: Literal["chat-template-v1"]
     messages: list[PromptMessage]
 
 
 class PromptStringTemplateV1(PromptModel):
-    version: Literal["string-template-v1"] = "string-template-v1"
+    version: Literal["string-template-v1"]
     template: str
 
 

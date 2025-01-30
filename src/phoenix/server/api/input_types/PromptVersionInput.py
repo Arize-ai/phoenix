@@ -1,15 +1,23 @@
 from typing import Optional
 
 import strawberry
+from strawberry import UNSET
 from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
+    ContentPart,
+    ImageContentPart,
     ImageContentValue,
+    PromptChatTemplateV1,
+    PromptMessage,
     PromptTemplateFormat,
     PromptToolDefinition,
+    TextContentPart,
     TextContentValue,
+    ToolCallContentPart,
     ToolCallContentValue,
     ToolCallFunction,
+    ToolResultContentPart,
     ToolResultContentValue,
 )
 from phoenix.server.api.helpers.prompts.models import (
@@ -85,3 +93,50 @@ class ChatPromptVersionInput:
     output_schema: Optional[OutputSchemaInput] = None
     model_provider: str
     model_name: str
+
+
+def to_pydantic_prompt_chat_template_v1(
+    prompt_chat_template_input: PromptChatTemplateInput,
+) -> PromptChatTemplateV1:
+    return PromptChatTemplateV1(
+        version="chat-template-v1",
+        messages=[
+            to_pydantic_prompt_message(message) for message in prompt_chat_template_input.messages
+        ],
+    )
+
+
+def to_pydantic_prompt_message(prompt_message_input: PromptMessageInput) -> PromptMessage:
+    return PromptMessage(
+        role=prompt_message_input.role,
+        content=[
+            to_pydantic_content_part(content_part) for content_part in prompt_message_input.content
+        ],
+    )
+
+
+def to_pydantic_content_part(content_part_input: ContentPartInput) -> ContentPart:
+    content_part_cls: type[ContentPart]
+    if content_part_input.text is not UNSET:
+        content_part_cls = TextContentPart
+        content_part_type = "text"
+    elif content_part_input.image is not UNSET:
+        content_part_cls = ImageContentPart
+        content_part_type = "image"
+    elif content_part_input.tool_call is not UNSET:
+        content_part_cls = ToolCallContentPart
+        content_part_type = "tool_call"
+    elif content_part_input.tool_result is not UNSET:
+        content_part_cls = ToolResultContentPart
+        content_part_type = "tool_result"
+    else:
+        raise ValueError("content part input has no content")
+    content_part_data = {
+        k: v for k, v in strawberry.asdict(content_part_input).items() if v is not UNSET
+    }
+    return content_part_cls.model_validate(
+        {
+            "type": content_part_type,
+            **content_part_data,
+        }
+    )
