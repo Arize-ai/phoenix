@@ -60,7 +60,6 @@ class BaseModel(ABC):
         ...
 
     @property
-    @abstractmethod
     def _timeout(self) -> Optional[int]:
         return None
 

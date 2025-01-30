@@ -416,8 +416,11 @@ def run_evals(
     # use the maximum timeout of all the evaluators
     timeout = None
     for evaluator in evaluators:
-        if evaluator.model._timeout:
-            timeout = max(timeout, evaluator.model._timeout)
+        if evaluator_timeout := evaluator._model._timeout:
+            if timeout is None:
+                timeout = evaluator_timeout
+            else:
+                timeout = max(timeout, evaluator_timeout)
 
     # clients need to be reloaded to ensure that async evals work properly
     for evaluator in evaluators:
