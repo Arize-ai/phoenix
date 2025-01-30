@@ -2007,10 +2007,10 @@ input TextContentValueInput {
 
 input TimeRange {
   """The start of the time range"""
-  start: DateTime
+  start: DateTime = null
 
   """The end of the time range. Right exclusive."""
-  end: DateTime
+  end: DateTime = null
 }
 
 interface TimeSeries {

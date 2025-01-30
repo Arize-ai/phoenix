@@ -7,9 +7,11 @@ import strawberry
 @strawberry.input
 class TimeRange:
     start: Optional[datetime] = strawberry.field(
+        default=None,
         description="The start of the time range",
     )
     end: Optional[datetime] = strawberry.field(
+        default=None,
         description="The end of the time range. Right exclusive.",
     )
 
