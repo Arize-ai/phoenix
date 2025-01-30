@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.9.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.2...arize-phoenix-v7.9.3) (2025-01-30)
+
+
+### Bug Fixes
+
+* upgrading wrapt to 1.17.2 to fix cross-platform issues ([#6209](https://github.com/Arize-ai/phoenix/issues/6209)) ([0de4b7d](https://github.com/Arize-ai/phoenix/commit/0de4b7da69b2ac488e0d2741b80b36ddfdcf0ea7))
+
 ## [7.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.1...arize-phoenix-v7.9.2) (2025-01-23)
 
 
