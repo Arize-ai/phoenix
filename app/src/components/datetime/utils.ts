@@ -46,10 +46,14 @@ export function getTimeRangeFromLastNTimeRangeKey(
 }
 
 /**
+ * Type guard for the last N time range key
+ */
+export function isLastNTimeRangeKey(key: unknown): key is LastNTimeRangeKey {
+  return LAST_N_TIME_RANGES.some((range) => range.key === key);
+}
+/**
  * Type guard for the time range key
  */
 export function isTimeRangeKey(key: unknown): key is TimeRangeKey {
-  return (
-    LAST_N_TIME_RANGES.some((range) => range.key === key) || key === "custom"
-  );
+  return isLastNTimeRangeKey(key) || key === "custom";
 }

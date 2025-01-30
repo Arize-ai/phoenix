@@ -1,10 +1,12 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useCallback, useState } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-import { LAST_N_TIME_RANGES } from "./constants";
 import { OpenTimeRangeWithKey } from "./types";
-import { getTimeRangeFromLastNTimeRangeKey } from "./utils";
+import {
+  getTimeRangeFromLastNTimeRangeKey,
+  isLastNTimeRangeKey,
+} from "./utils";
 
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
@@ -33,14 +35,14 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     (state) => state.lastNTimeRangeKey
   );
 
+  const setStoredLastNTimeRangeKey = usePreferencesContext(
+    (state) => state.setLastNTimeRangeKey
+  );
+
   // Default to the last N time range stored in preferences
-  const [timeRange, setTimeRange] = useState<OpenTimeRangeWithKey>(() => {
+  const [timeRange, _setTimeRange] = useState<OpenTimeRangeWithKey>(() => {
     // Just to be safe, we check if the stored time range key is valid
-    if (
-      LAST_N_TIME_RANGES.map((timeRange) => timeRange.key).includes(
-        storedLastNTimeRangeKey
-      )
-    ) {
+    if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
       return {
         timeRangeKey: storedLastNTimeRangeKey,
         ...getTimeRangeFromLastNTimeRangeKey(storedLastNTimeRangeKey),
@@ -53,6 +55,17 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       };
     }
   });
+
+  const setTimeRange = useCallback(
+    (timeRange: OpenTimeRangeWithKey) => {
+      _setTimeRange(timeRange);
+      // Store the last N time range key in preferences
+      if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+        setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
+      }
+    },
+    [setStoredLastNTimeRangeKey]
+  );
 
   return (
     <TimeRangeContext.Provider
