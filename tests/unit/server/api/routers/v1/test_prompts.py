@@ -137,6 +137,7 @@ class TestPrompts:
                         template_format="MUSTACHE",
                         template=PromptChatTemplateV1.model_validate(
                             {
+                                "version": "chat-template-v1",
                                 "messages": [
                                     {
                                         "role": "USER",
@@ -168,7 +169,7 @@ class TestPrompts:
                                             },
                                         ],
                                     }
-                                ]
+                                ],
                             }
                         ),
                         invocation_parameters={},
