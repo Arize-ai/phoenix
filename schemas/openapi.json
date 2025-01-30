@@ -1982,15 +1982,16 @@
           "type": {
             "type": "string",
             "const": "image",
-            "title": "Type",
-            "default": "image"
+            "title": "Type"
           },
           "image": {
             "$ref": "#/components/schemas/ImageContentValue"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "image"
         ],
         "title": "ImageContentPart"
@@ -2179,8 +2180,7 @@
           "version": {
             "type": "string",
             "const": "chat-template-v1",
-            "title": "Version",
-            "default": "chat-template-v1"
+            "title": "Version"
           },
           "messages": {
             "items": {
@@ -2193,6 +2193,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "version",
           "messages"
         ],
         "title": "PromptChatTemplateV1"
@@ -2204,7 +2205,7 @@
           },
           "content": {
             "items": {
-              "anyOf": [
+              "oneOf": [
                 {
                   "$ref": "#/components/schemas/TextContentPart"
                 },
@@ -2217,7 +2218,16 @@
                 {
                   "$ref": "#/components/schemas/ToolResultContentPart"
                 }
-              ]
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "image": "#/components/schemas/ImageContentPart",
+                  "text": "#/components/schemas/TextContentPart",
+                  "tool_call": "#/components/schemas/ToolCallContentPart",
+                  "tool_result": "#/components/schemas/ToolResultContentPart"
+                }
+              }
             },
             "type": "array",
             "title": "Content"
@@ -2260,8 +2270,7 @@
           "version": {
             "type": "string",
             "const": "string-template-v1",
-            "title": "Version",
-            "default": "string-template-v1"
+            "title": "Version"
           },
           "template": {
             "type": "string",
@@ -2271,6 +2280,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "version",
           "template"
         ],
         "title": "PromptStringTemplateV1"
@@ -2508,15 +2518,16 @@
           "type": {
             "type": "string",
             "const": "text",
-            "title": "Type",
-            "default": "text"
+            "title": "Type"
           },
           "text": {
             "$ref": "#/components/schemas/TextContentValue"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "text"
         ],
         "title": "TextContentPart"
@@ -2539,15 +2550,16 @@
           "type": {
             "type": "string",
             "const": "tool_call",
-            "title": "Type",
-            "default": "tool_call"
+            "title": "Type"
           },
           "tool_call": {
             "$ref": "#/components/schemas/ToolCallContentValue"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "tool_call"
         ],
         "title": "ToolCallContentPart"
@@ -2598,15 +2610,16 @@
           "type": {
             "type": "string",
             "const": "tool_result",
-            "title": "Type",
-            "default": "tool_result"
+            "title": "Type"
           },
           "tool_result": {
             "$ref": "#/components/schemas/ToolResultContentValue"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "tool_result"
         ],
         "title": "ToolResultContentPart"

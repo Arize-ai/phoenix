@@ -18,7 +18,10 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptToolsV1,
     PromptVersion,
 )
-from phoenix.server.api.input_types.PromptVersionInput import ChatPromptVersionInput
+from phoenix.server.api.input_types.PromptVersionInput import (
+    ChatPromptVersionInput,
+    to_pydantic_prompt_chat_template_v1,
+)
 from phoenix.server.api.mutations.prompt_version_tag_mutations import (
     SetPromptVersionTagInput,
     upsert_prompt_version_tag,
@@ -89,6 +92,7 @@ class PromptMutationMixin:
                 **{
                     **strawberry.asdict(input.prompt_version),
                     "tools": tools,
+                    "template": to_pydantic_prompt_chat_template_v1(input.prompt_version.template),
                 },
                 template_type="CHAT",
                 user_id=user_id,
@@ -144,6 +148,7 @@ class PromptMutationMixin:
                 **{
                     **strawberry.asdict(input.prompt_version),
                     "tools": tools,
+                    "template": to_pydantic_prompt_chat_template_v1(input.prompt_version.template),
                 },
                 template_type="CHAT",
                 user_id=user_id,
