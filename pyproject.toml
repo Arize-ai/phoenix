@@ -121,7 +121,7 @@ pg = [
   "psycopg[binary,pool]",
 ]
 container = [
-  "anthropic",
+  "anthropic>=0.45.2",
   "google-generativeai",
   "prometheus-client",
   "openai>=1.0.0",

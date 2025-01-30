@@ -746,6 +746,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
+        from anthropic.lib.streaming._types import CitationEvent
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
@@ -793,6 +794,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     # event types emitted by the stream that don't contain useful information
                     pass
                 elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                    raise NotImplementedError
+                elif isinstance(event, CitationEvent):
                     raise NotImplementedError
                 else:
                     assert_never(event)
