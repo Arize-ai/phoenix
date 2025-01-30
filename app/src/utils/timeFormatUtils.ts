@@ -20,6 +20,6 @@ export const timeRangeFormatter = (timeRange: OpenTimeRange) => {
   } else if (timeRange.end) {
     return `Until ${fullTimeFormatter(timeRange.end)}`;
   } else {
-    return "--";
+    return "All Time";
   }
 };

@@ -943,6 +943,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
     --ac-highlight-background: var(--ac-global-color-primary-300);
+    --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
     --ac-text-color-placeholder: var(--ac-global-color-grey-700);
