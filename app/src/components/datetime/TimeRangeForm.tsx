@@ -189,7 +189,6 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
         />
       </div>
       <div data-testid="controls" css={controlsRowCSS}>
-        <Button size="S">Cancel</Button>
         <Button isDisabled={!isValid} size="S" type="submit" variant="primary">
           Apply
         </Button>
