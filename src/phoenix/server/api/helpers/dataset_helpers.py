@@ -39,7 +39,7 @@ def get_dataset_example_input(span: Span) -> dict[str, Any]:
             input_value=input_value,
             input_mime_type=input_mime_type,
             prompt_template_variables=prompt_template_variables,
-            tool_definitions=tool_definitions,
+            tools=tool_definitions,
         )
     return _get_generic_io_value(io_value=input_value, mime_type=input_mime_type, kind="input")
 
@@ -78,7 +78,7 @@ def _get_llm_span_input(
     input_value: Any,
     input_mime_type: Optional[str],
     prompt_template_variables: Any,
-    tool_definitions: Any,
+    tools: Any,
 ) -> dict[str, Any]:
     """
     Extracts the input value from an LLM span and returns it as a dictionary.
@@ -93,9 +93,9 @@ def _get_llm_span_input(
     if prompt_template_variables_data := _safely_json_decode(prompt_template_variables):
         input["prompt_template_variables"] = prompt_template_variables_data
     if tool_definitions_data := [
-        _safely_json_decode(tool_definition) for tool_definition in tool_definitions
+        _safely_json_decode(tool_definition) for tool_definition in tools
     ]:
-        input["tool_definitions"] = tool_definitions_data
+        input["tools"] = tool_definitions_data
     return input
 
 
