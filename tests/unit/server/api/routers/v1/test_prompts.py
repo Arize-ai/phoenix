@@ -14,6 +14,7 @@ from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue,
     PromptChatTemplateV1,
     PromptMessage,
+    PromptMessageRole,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -146,7 +147,7 @@ class TestPrompts:
                     version="chat-template-v1",
                     messages=[
                         PromptMessage(
-                            role="USER",
+                            role=PromptMessageRole.USER,
                             content=[
                                 TextContentPart(
                                     type="text",
