@@ -22,7 +22,7 @@ def test_prompt_versions(
         session.add(prompt)
     values = dict(
         prompt_id=prompt.id,
-        template=PromptChatTemplateV1(messages=[]),
+        template=PromptChatTemplateV1(version="chat-template-v1", messages=[]),
         template_type="CHAT",
         template_format="MUSTACHE",
         model_provider=token_hex(16),
