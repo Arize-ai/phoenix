@@ -478,6 +478,12 @@ class OpenAIModel(BaseModel):
             return False
         return True
 
+    @property
+    def _timeout(self) -> Optional[int]:
+        if "o1" in self.model:
+            return 240
+        return None
+
 
 def _is_url(url: str) -> bool:
     parsed_url = urlparse(url)

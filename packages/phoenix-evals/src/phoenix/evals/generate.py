@@ -137,6 +137,7 @@ def llm_generate(
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
         fallback_return_value=fallback_return_value,
+        timeout=model._timeout,
     )
     results, _ = executor.run(list(enumerate(prompts)))
     return pd.DataFrame.from_records(results, index=dataframe.index)
