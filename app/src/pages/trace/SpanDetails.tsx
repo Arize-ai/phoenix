@@ -605,7 +605,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const hasOutputMessages = outputMessages.length > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
-    Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+    Object.keys(safelyParseJSON(invocation_parameters_str).json || {}).length >
+    0;
   const hasPromptTemplateObject = promptTemplateObject != null;
 
   return (
@@ -1323,6 +1324,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
+                const parsedArguments = safelyParseJSON(
+                  toolCall?.function?.arguments as string
+                );
+
                 return (
                   <pre
                     key={idx}
@@ -1332,13 +1337,9 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     `}
                   >
                     {toolCall?.function?.name as string}(
-                    {typeof toolCall?.function?.arguments === "string"
-                      ? JSON.stringify(
-                          JSON.parse(toolCall?.function?.arguments as string),
-                          null,
-                          2
-                        )
-                      : ""}
+                    {parsedArguments.json
+                      ? JSON.stringify(parsedArguments.json, null, 2)
+                      : `${toolCall?.function?.arguments}`}
                     )
                   </pre>
                 );
