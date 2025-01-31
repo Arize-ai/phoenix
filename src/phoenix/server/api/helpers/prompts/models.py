@@ -143,15 +143,6 @@ class PromptOutputSchema(PromptModel):
     definition: JSONSchemaObjectDefinition
 
 
-class PromptToolDefinition(PromptModel):
-    definition: dict[str, Any]
-
-
-class PromptToolsV1(PromptModel):
-    version: Literal["tools-v1"] = "tools-v1"
-    tool_definitions: list[PromptToolDefinition]
-
-
 class PromptCacheControlParam(PromptModel):
     type: Literal["ephemeral"]
 
