@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
-from typing_extensions import Annotated, TypeAlias
+from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
 
@@ -46,7 +46,15 @@ class PromptTemplateFormat(str, Enum):
 class PromptModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",  # disallow extra attributes
+        use_enum_values=True,
     )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs = {k: v for k, v in kwargs.items() if v is not UNDEFINED}
+        super().__init__(*args, **kwargs)
+
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return super().model_dump(*args, exclude_unset=True, by_alias=True, **kwargs)
 
 
 class PartBase(PromptModel):
@@ -75,7 +83,7 @@ class ImageContentPart(PartBase):
 
 
 class ToolCallFunction(BaseModel):
-    type: Literal["function"] = Field(default="function")
+    type: Literal["function"]
     name: str
     arguments: str
 
@@ -142,6 +150,27 @@ class PromptToolDefinition(PromptModel):
 class PromptToolsV1(PromptModel):
     version: Literal["tools-v1"] = "tools-v1"
     tool_definitions: list[PromptToolDefinition]
+
+
+class PromptCacheControlParam(PromptModel):
+    type: Literal["ephemeral"]
+
+
+class PromptFunctionToolV2(PromptModel):
+    type: Literal["function-tool-v1"]
+    name: str
+    description: str = UNDEFINED
+    schema_: JSONSchemaObjectDefinition = Field(
+        default=UNDEFINED,
+        alias="schema",  # avoid conflict with pydantic schema class method
+    )
+    strict: Optional[bool] = UNDEFINED
+    cache_control: Optional[PromptCacheControlParam] = UNDEFINED
+
+
+class PromptToolsV2(PromptModel):
+    type: Literal["tools-v1"]
+    tools: list[Annotated[Union[PromptFunctionToolV2], Field(..., discriminator="type")]]
 
 
 class PromptVersion(PromptModel):
@@ -220,3 +249,81 @@ class AnthropicToolDefinition(PromptModel):
     name: str
     cache_control: Optional[AnthropicCacheControlEphemeralParam] = UNDEFINED
     description: str = UNDEFINED
+
+
+def _openai_to_prompt_tool(
+    tool: OpenAIToolDefinition,
+) -> PromptFunctionToolV2:
+    function_definition = tool.function
+    name = function_definition.name
+    description = function_definition.description
+    parameters = function_definition.parameters
+    strict = function_definition.strict
+    return PromptFunctionToolV2(
+        type="function-tool-v1",
+        name=name,
+        description=description,
+        schema=parameters,
+        strict=strict,
+    )
+
+
+def _prompt_to_openai_tool(
+    tool: PromptFunctionToolV2,
+) -> OpenAIToolDefinition:
+    return OpenAIToolDefinition(
+        type="function",
+        function=OpenAIFunctionDefinition(
+            name=tool.name,
+            description=tool.description,
+            parameters=tool.schema_,
+            strict=tool.strict,
+        ),
+    )
+
+
+def _anthropic_to_prompt_tool(
+    tool: AnthropicToolDefinition,
+) -> PromptFunctionToolV2:
+    return PromptFunctionToolV2(
+        type="function-tool-v1",
+        name=tool.name,
+        description=tool.description,
+        schema=tool.input_schema,
+        cache_control=_anthropic_to_prompt_cache_control(tool.cache_control)
+        if tool.cache_control is not UNDEFINED
+        else UNDEFINED,
+    )
+
+
+def _anthropic_to_prompt_cache_control(
+    cache_control: Optional[AnthropicCacheControlEphemeralParam],
+) -> Optional[PromptCacheControlParam]:
+    if cache_control is None:
+        return cache_control
+    if cache_control.type == "ephemeral":
+        return PromptCacheControlParam(type="ephemeral")
+    assert_never(cache_control)
+
+
+def _prompt_to_anthropic_tool(
+    tool: PromptFunctionToolV2,
+) -> AnthropicToolDefinition:
+    return AnthropicToolDefinition(
+        input_schema=tool.schema_,
+        name=tool.name,
+        description=tool.description,
+        cache_control=_prompt_to_anthropic_cache_control(tool.cache_control)
+        if tool.cache_control is not UNDEFINED
+        else UNDEFINED,
+    )
+
+
+def _prompt_to_anthropic_cache_control(
+    cache_control: Optional[PromptCacheControlParam],
+) -> Optional[AnthropicCacheControlEphemeralParam]:
+    if cache_control is None:
+        return cache_control
+    if cache_control.type == "ephemeral":
+        return AnthropicCacheControlEphemeralParam(type="ephemeral")
+    assert_never(cache_control)
