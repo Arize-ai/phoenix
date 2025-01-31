@@ -11,6 +11,7 @@ interface LinkButtonProps
 
 const linkButtonCSS = css`
   text-decoration: none;
+  user-select: none;
 `;
 /**
  * A link that is rendered as a button
