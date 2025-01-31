@@ -24,8 +24,8 @@ from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     ImageContentValue,
     PromptChatTemplateV1,
+    PromptFunctionToolV1,
     PromptMessage,
-    PromptToolDefinition,
     PromptToolsV1,
     PromptVersion,
     TextContentPart,
@@ -131,36 +131,30 @@ def _to_model_kwargs(
 def _to_tools(
     obj: PromptToolsV1,
 ) -> Iterator[ToolParam]:
-    for tool_definition in obj.tool_definitions:
-        definition = tool_definition.definition
-        if "name" in definition and "input_schema" in definition:
-            tool: ToolParam = {
-                "name": definition["name"],
-                "input_schema": definition["input_schema"],
-            }
-            if "description" in definition:
-                tool["description"] = definition["description"]
-            yield tool
+    for t in obj.tools:
+        tool: ToolParam = {
+            "name": t.name,
+            "input_schema": dict(t.schema_ or {}),
+        }
+        if t.description:
+            tool["description"] = t.description
+        yield tool
 
 
 def _from_tools(
     tools: Iterable[ToolParam],
 ) -> PromptToolsV1:
     return PromptToolsV1(
-        tool_definitions=[
-            PromptToolDefinition(
-                definition={
-                    "name": tool["name"],
-                    "input_schema": tool["input_schema"],
-                    **(
-                        {"description": description}
-                        if (description := tool.get("description"))
-                        else {}
-                    ),
-                }
+        type="tools-v1",
+        tools=[
+            PromptFunctionToolV1(
+                type="function-tool-v1",
+                name=tool["name"],
+                schema=tool["input_schema"],  # type: ignore[call-arg]
+                description=tool.get("description"),
             )
             for tool in tools
-        ]
+        ],
     )
 
 
@@ -209,6 +203,7 @@ def _from_text_block_param(
     obj: TextBlockParam,
 ) -> TextContentPart:
     return TextContentPart(
+        type="text",
         text=TextContentValue(
             text=obj["text"],
         ),
@@ -244,6 +239,7 @@ def _from_image_block_param(
     else:
         assert_never(source["data"])
     return ImageContentPart(
+        type="image",
         image=ImageContentValue(
             url=url,
         ),
@@ -274,13 +270,15 @@ def _from_tool_use_block(
         arguments = str(obj.input)
     assert isinstance(arguments, str)
     return ToolCallContentPart(
+        type="tool_call",
         tool_call=ToolCallContentValue(
             tool_call_id=obj.id,
             tool_call=ToolCallFunction(
+                type="function",
                 name=obj.name,
                 arguments=arguments,
             ),
-        )
+        ),
     )
 
 
@@ -293,13 +291,15 @@ def _from_tool_use_block_param(
         arguments = str(obj["input"])
     assert isinstance(arguments, str)
     return ToolCallContentPart(
+        type="tool_call",
         tool_call=ToolCallContentValue(
             tool_call_id=obj["id"],
             tool_call=ToolCallFunction(
+                type="function",
                 name=obj["name"],
                 arguments=arguments,
             ),
-        )
+        ),
     )
 
 
@@ -322,10 +322,11 @@ def _from_tool_result_block_param(
 ) -> ToolResultContentPart:
     result = str(obj["content"]) if "content" in obj else None  # TODO: relax this
     return ToolResultContentPart(
+        type="tool_result",
         tool_result=ToolResultContentValue(
             tool_call_id=obj["tool_use_id"],
             result=result,
-        )
+        ),
     )
 
 
