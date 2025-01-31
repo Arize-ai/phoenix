@@ -1,14 +1,20 @@
 import React from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData } from "react-router";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  LinkButton,
+  View,
+} from "@phoenix/components";
 
 import { promptsLoaderQuery$data } from "./__generated__/promptsLoaderQuery.graphql";
 import { PromptsTable } from "./PromptsTable";
 
 export function PromptsPage() {
   const loaderData = useLoaderData() as promptsLoaderQuery$data;
-  const navigate = useNavigate();
   return (
     <Flex direction="column" height="100%">
       <View
@@ -19,15 +25,13 @@ export function PromptsPage() {
       >
         <Flex direction="row" justifyContent="space-between">
           <Heading level={1}>Prompts</Heading>
-          <Button
+          <LinkButton
             size="S"
             icon={<Icon svg={<Icons.PlusOutline />} />}
-            onPress={() => {
-              navigate("/playground");
-            }}
+            to="/playground"
           >
             Create Prompt
-          </Button>
+          </LinkButton>
         </Flex>
       </View>
       <PromptsTable query={loaderData} />

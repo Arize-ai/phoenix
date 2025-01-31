@@ -1,6 +1,5 @@
 import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -10,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -26,7 +25,6 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
-  const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -103,16 +101,14 @@ export function PromptsTable(props: PromptsTableProps) {
               justifyContent="end"
               width="100%"
             >
-              <Button
+              <LinkButton
                 icon={<Icon svg={<Icons.PlayCircleOutline />} />}
                 size="S"
                 aria-label="Open in playground"
-                onPress={() => {
-                  navigate(`${row.original.id}/playground`);
-                }}
+                to={`${row.original.id}/playground`}
               >
                 Playground
-              </Button>
+              </LinkButton>
               <PromptActionMenu
                 promptId={row.original.id}
                 onDeleted={() => {
@@ -125,7 +121,7 @@ export function PromptsTable(props: PromptsTableProps) {
       },
     ];
     return cols;
-  }, [refetch, navigate]);
+  }, [refetch]);
   const table = useReactTable({
     columns,
     data: tableData,
@@ -197,12 +193,22 @@ export function PromptsTable(props: PromptsTableProps) {
               return (
                 <tr
                   key={row.id}
-                  onClick={() => {
-                    navigate(`${row.original.id}`);
-                  }}
+                  css={css`
+                    &:hover {
+                      cursor: pointer;
+                      background-color: var(--spectrum-global-color-gray-200);
+                    }
+                  `}
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    return (
+                  <Link
+                    to={`${row.original.id}`}
+                    css={css`
+                      text-decoration: none;
+                      color: inherit;
+                      display: contents;
+                    `}
+                  >
+                    {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
                         align={cell.column.columnDef.meta?.textAlign}
@@ -212,8 +218,8 @@ export function PromptsTable(props: PromptsTableProps) {
                           cell.getContext()
                         )}
                       </td>
-                    );
-                  })}
+                    ))}
+                  </Link>
                 </tr>
               );
             })}

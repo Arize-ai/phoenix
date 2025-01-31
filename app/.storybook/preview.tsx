@@ -3,7 +3,7 @@ import type { Preview } from "@storybook/react";
 import { Provider } from "@arizeai/components";
 import { GlobalStyles } from "../src/GlobalStyles";
 import { ThemeProvider } from "../src/contexts";
-
+import { MemoryRouter } from "react-router";
 const preview: Preview = {
   parameters: {
     controls: {
@@ -39,8 +39,10 @@ const preview: Preview = {
       return (
         <Provider theme={theme} mountGlobalStyles={false}>
           <ThemeProvider>
-            <GlobalStyles />
-            <Story />
+            <MemoryRouter initialEntries={["/"]}>
+              <GlobalStyles />
+              <Story />
+            </MemoryRouter>
           </ThemeProvider>
         </Provider>
       );
