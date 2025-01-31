@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router-dom";
 import {
   ColumnDef,
   flexRender,
@@ -25,6 +26,7 @@ type PromptsTableProps = {
 };
 
 export function PromptsTable(props: PromptsTableProps) {
+  const navigate = useNavigate();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -193,33 +195,21 @@ export function PromptsTable(props: PromptsTableProps) {
               return (
                 <tr
                   key={row.id}
-                  css={css`
-                    &:hover {
-                      cursor: pointer;
-                      background-color: var(--spectrum-global-color-gray-200);
-                    }
-                  `}
+                  onClick={() => {
+                    navigate(`${row.original.id}`);
+                  }}
                 >
-                  <Link
-                    to={`${row.original.id}`}
-                    css={css`
-                      text-decoration: none;
-                      color: inherit;
-                      display: contents;
-                    `}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        align={cell.column.columnDef.meta?.textAlign}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    ))}
-                  </Link>
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      align={cell.column.columnDef.meta?.textAlign}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
                 </tr>
               );
             })}
