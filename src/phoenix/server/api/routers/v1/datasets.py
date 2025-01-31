@@ -928,8 +928,11 @@ def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) 
 
         record_dict = {
             "messages": input_messages + output_messages,
-            "tools": ex.input.get("tools", []),
         }
+
+        tools = ex.input.get("tools", [])
+        if tools:
+            record_dict["tools"] = tools
 
         records.write((json.dumps(record_dict, ensure_ascii=False) + "\n").encode())
 
