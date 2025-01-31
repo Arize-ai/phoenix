@@ -32,6 +32,7 @@ export function PlaygroundChatTemplateFooter({
 }: PlaygroundChatTemplateFooterProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const addMessage = usePlaygroundContext((state) => state.addMessage);
   const upsertInvocationParameterInput = usePlaygroundContext(
     (state) => state.upsertInvocationParameterInput
   );
@@ -129,22 +130,13 @@ export function PlaygroundChatTemplateFooter({
         size="S"
         icon={<Icon svg={<Icons.PlusOutline />} />}
         onPress={() => {
-          updateInstance({
-            instanceId,
-            patch: {
-              template: {
-                __type: "chat",
-                messages: [
-                  ...template.messages,
-                  {
-                    id: generateMessageId(),
-                    role: "user",
-                    content: "",
-                  },
-                ],
-              },
+          addMessage({
+            playgroundInstanceId: instanceId,
+            messages: {
+              id: generateMessageId(),
+              role: "user",
+              content: "",
             },
-            dirty: true,
           });
         }}
       >
