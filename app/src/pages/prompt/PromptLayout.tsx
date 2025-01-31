@@ -6,7 +6,16 @@ import { css } from "@emotion/react";
 
 import { Counter, DialogContainer, TabPane, Tabs } from "@arizeai/components";
 
-import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Link,
+  Text,
+  View,
+} from "@phoenix/components";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
 
 import { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
@@ -58,6 +67,10 @@ export function PromptLayout() {
         id
         name
         description
+        sourcePrompt {
+          id
+          name
+        }
         promptVersions {
           edges {
             node {
@@ -84,7 +97,18 @@ export function PromptLayout() {
           justifyContent="space-between"
           alignItems="center"
         >
-          <Heading level={1}>{loaderData.prompt.name}</Heading>
+          <Flex direction="column">
+            <Heading level={1}>{loaderData.prompt.name}</Heading>
+            {data.sourcePrompt && (
+              <Text color="text-700">
+                cloned from{" "}
+                <Link to={`/prompts/${data.sourcePrompt.id}`}>
+                  {data.sourcePrompt.name}
+                </Link>
+              </Text>
+            )}
+          </Flex>
+
           <Flex direction="row" gap="size-100">
             <Button
               size="S"

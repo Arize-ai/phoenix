@@ -47,7 +47,7 @@ export const ClonePromptDialog = ({
     reValidateMode: "onBlur",
     mode: "onChange",
     defaultValues: {
-      name: `${promptName} (Clone)`,
+      name: `${promptName}-clone`,
       description: promptDescription,
     },
   });
