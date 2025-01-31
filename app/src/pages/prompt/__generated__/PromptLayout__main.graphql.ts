@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9bb0b567dbba35e8d71a077f77a57bf4>>
+ * @generated SignedSource<<0b6bc301be121efc3ca6c938bebdbeb9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,10 @@ export type PromptLayout__main$data = {
       };
     }>;
   };
+  readonly sourcePrompt: {
+    readonly id: string;
+    readonly name: string;
+  } | null;
   readonly " $fragmentType": "PromptLayout__main";
 };
 export type PromptLayout__main$key = {
@@ -35,6 +39,13 @@ var v0 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
+},
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
 };
 return {
   "argumentDefinitions": [],
@@ -43,18 +54,25 @@ return {
   "name": "PromptLayout__main",
   "selections": [
     (v0/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    },
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
       "name": "description",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Prompt",
+      "kind": "LinkedField",
+      "name": "sourcePrompt",
+      "plural": false,
+      "selections": [
+        (v0/*: any*/),
+        (v1/*: any*/)
+      ],
       "storageKey": null
     },
     {
@@ -97,6 +115,6 @@ return {
 };
 })();
 
-(node as any).hash = "6431d40ed67848e82e6dd5e826d11ed3";
+(node as any).hash = "3f2a7eb87a4a433362def455a9151d45";
 
 export default node;
