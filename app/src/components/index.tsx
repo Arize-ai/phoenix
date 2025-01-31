@@ -17,7 +17,6 @@ export type {
 export { classNames } from "@arizeai/components";
 
 export * from "./Link";
-export * from "./LinkButton";
 export * from "./ExternalLink";
 export * from "./LoadingMask";
 export * from "./Loading";
