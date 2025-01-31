@@ -14,10 +14,7 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.prompts.models import (
-    PromptVersion,
-    normalize_tools,
-)
+from phoenix.server.api.helpers.prompts.models import PromptOutputSchema, normalize_tools
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
     to_pydantic_prompt_chat_template_v1,
@@ -82,33 +79,33 @@ class PromptMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
+        input_prompt_version = input.prompt_version
+        tool_definitions = [tool.definition for tool in input_prompt_version.tools]
         try:
-            tool_definitions = [tool.definition for tool in input.prompt_version.tools]
-            tools = normalize_tools(tool_definitions, input.prompt_version.model_provider)
-            pydantic_prompt_version = PromptVersion(
-                **{
-                    **strawberry.asdict(input.prompt_version),
-                    "tools": tools,
-                    "template": to_pydantic_prompt_chat_template_v1(input.prompt_version.template),
-                },
-                template_type="CHAT",
-                user_id=user_id,
+            tools = normalize_tools(tool_definitions, input_prompt_version.model_provider)
+            template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
+            output_schema = (
+                PromptOutputSchema.model_validate(
+                    strawberry.asdict(input_prompt_version.output_schema)
+                )
+                if input_prompt_version.output_schema
+                else None
             )
         except ValidationError as error:
             raise BadRequest(str(error))
 
         async with info.context.db() as session:
             prompt_version = models.PromptVersion(
-                description=pydantic_prompt_version.description,
-                user_id=pydantic_prompt_version.user_id,
-                template_type=pydantic_prompt_version.template_type,
-                template_format=pydantic_prompt_version.template_format,
-                template=pydantic_prompt_version.template,
-                invocation_parameters=pydantic_prompt_version.invocation_parameters,
-                tools=pydantic_prompt_version.tools,
-                output_schema=pydantic_prompt_version.output_schema,
-                model_provider=pydantic_prompt_version.model_provider,
-                model_name=pydantic_prompt_version.model_name,
+                description=input_prompt_version.description,
+                user_id=user_id,
+                template_type="CHAT",
+                template_format=input_prompt_version.template_format,
+                template=template,
+                invocation_parameters=input_prompt_version.invocation_parameters,
+                tools=tools,
+                output_schema=output_schema,
+                model_provider=input_prompt_version.model_provider,
+                model_name=input_prompt_version.model_name,
             )
             name = IdentifierModel.model_validate(str(input.name))
             prompt = models.Prompt(
@@ -135,17 +132,17 @@ class PromptMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
+        input_prompt_version = input.prompt_version
+        tool_definitions = [tool.definition for tool in input.prompt_version.tools]
         try:
-            tool_definitions = [tool.definition for tool in input.prompt_version.tools]
             tools = normalize_tools(tool_definitions, input.prompt_version.model_provider)
-            pydantic_prompt_version = PromptVersion(
-                **{
-                    **strawberry.asdict(input.prompt_version),
-                    "tools": tools,
-                    "template": to_pydantic_prompt_chat_template_v1(input.prompt_version.template),
-                },
-                template_type="CHAT",
-                user_id=user_id,
+            template = to_pydantic_prompt_chat_template_v1(input.prompt_version.template)
+            output_schema = (
+                PromptOutputSchema.model_validate(
+                    strawberry.asdict(input_prompt_version.output_schema)
+                )
+                if input_prompt_version.output_schema
+                else None
             )
         except ValidationError as error:
             raise BadRequest(str(error))
@@ -160,16 +157,16 @@ class PromptMutationMixin:
 
             prompt_version = models.PromptVersion(
                 prompt_id=prompt_id,
-                user_id=pydantic_prompt_version.user_id,
-                description=pydantic_prompt_version.description,
-                template_type=pydantic_prompt_version.template_type,
-                template_format=pydantic_prompt_version.template_format,
-                template=pydantic_prompt_version.template,
-                invocation_parameters=pydantic_prompt_version.invocation_parameters,
-                tools=pydantic_prompt_version.tools,
-                output_schema=pydantic_prompt_version.output_schema,
-                model_provider=pydantic_prompt_version.model_provider,
-                model_name=pydantic_prompt_version.model_name,
+                description=input.prompt_version.description,
+                user_id=user_id,
+                template_type="CHAT",
+                template_format=input.prompt_version.template_format,
+                template=template,
+                invocation_parameters=input.prompt_version.invocation_parameters,
+                tools=tools,
+                output_schema=output_schema,
+                model_provider=input.prompt_version.model_provider,
+                model_name=input.prompt_version.model_name,
             )
             session.add(prompt_version)
 

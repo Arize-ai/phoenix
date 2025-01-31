@@ -164,19 +164,6 @@ class PromptToolsV1(PromptModel):
     tools: list[Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]]
 
 
-class PromptVersion(PromptModel):
-    user_id: Optional[int]
-    description: Optional[str]
-    template_type: PromptTemplateType
-    template_format: PromptTemplateFormat
-    template: PromptTemplate
-    invocation_parameters: Optional[dict[str, Any]]
-    tools: PromptToolsV1
-    output_schema: Optional[PromptOutputSchema]
-    model_name: str
-    model_provider: str
-
-
 def _get_tool_definition_model(
     model_provider: str,
 ) -> Optional[Union[type["OpenAIToolDefinition"], type["AnthropicToolDefinition"]]]:
