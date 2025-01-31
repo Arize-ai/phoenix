@@ -1,5 +1,13 @@
 # Changelog
 
+## [7.9.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.3...arize-phoenix-v7.9.4) (2025-01-31)
+
+
+### Bug Fixes
+
+* **graphql:** add default values for TimeRange input ([#6212](https://github.com/Arize-ai/phoenix/issues/6212)) ([5089881](https://github.com/Arize-ai/phoenix/commit/5089881367fe0ae99f0b198ffd560867cb5a746f))
+* Prevent error when parsing invalid json out of tool calls ([#6217](https://github.com/Arize-ai/phoenix/issues/6217)) ([0482e87](https://github.com/Arize-ai/phoenix/commit/0482e877c0e91473aed08b612661d905d952c135))
+
 ## [7.9.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.2...arize-phoenix-v7.9.3) (2025-01-30)
 
 
