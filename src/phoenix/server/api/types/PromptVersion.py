@@ -13,6 +13,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
+    denormalize_tools,
 )
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 from phoenix.server.api.types.PromptVersionTemplate import (
@@ -106,8 +107,8 @@ def to_gql_prompt_version(
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     if prompt_version.tools is not None:
-        tool_definitions = prompt_version.tools.tool_definitions
-        tools = [ToolDefinition(definition=tool.definition) for tool in tool_definitions]
+        tool_schemas = denormalize_tools(prompt_version.tools, prompt_version.model_provider)
+        tools = [ToolDefinition(definition=schema) for schema in tool_schemas]
     else:
         tools = []
     output_schema = (

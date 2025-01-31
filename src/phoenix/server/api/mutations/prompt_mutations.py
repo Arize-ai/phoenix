@@ -15,8 +15,8 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
-    PromptToolsV1,
     PromptVersion,
+    normalize_tools,
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
@@ -83,11 +83,8 @@ class PromptMutationMixin:
             user_id = int(user.identity)
 
         try:
-            tool_definitions = []
-            for tool in input.prompt_version.tools:
-                pydantic_tool = tool.to_pydantic()
-                tool_definitions.append(pydantic_tool)
-            tools = PromptToolsV1(tool_definitions=tool_definitions)
+            tool_definitions = [tool.definition for tool in input.prompt_version.tools]
+            tools = normalize_tools(tool_definitions, input.prompt_version.model_provider)
             pydantic_prompt_version = PromptVersion(
                 **{
                     **strawberry.asdict(input.prompt_version),
@@ -139,11 +136,8 @@ class PromptMutationMixin:
             user_id = int(user.identity)
 
         try:
-            tool_definitions = []
-            for tool in input.prompt_version.tools:
-                pydantic_tool = tool.to_pydantic()
-                tool_definitions.append(pydantic_tool)
-            tools = PromptToolsV1(tool_definitions=tool_definitions)
+            tool_definitions = [tool.definition for tool in input.prompt_version.tools]
+            tools = normalize_tools(tool_definitions, input.prompt_version.model_provider)
             pydantic_prompt_version = PromptVersion(
                 **{
                     **strawberry.asdict(input.prompt_version),

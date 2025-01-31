@@ -47,7 +47,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateWrapper,
-    PromptToolsV1,
+    PromptToolsV2,
 )
 
 
@@ -148,20 +148,20 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
         return wrapped_template.template
 
 
-class _Tools(TypeDecorator[PromptToolsV1]):
+class _Tools(TypeDecorator[PromptToolsV2]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[PromptToolsV1], _: Dialect
+        self, value: Optional[PromptToolsV2], _: Dialect
     ) -> Optional[dict[str, Any]]:
         return value.model_dump() if value is not None else None
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[PromptToolsV1]:
-        return PromptToolsV1.model_validate(value) if value is not None else None
+    ) -> Optional[PromptToolsV2]:
+        return PromptToolsV2.model_validate(value) if value is not None else None
 
 
 class _PromptOutputSchema(TypeDecorator[PromptOutputSchema]):
@@ -995,7 +995,7 @@ class PromptVersion(Base):
     )
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
     invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
-    tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
+    tools: Mapped[Optional[PromptToolsV2]] = mapped_column(_Tools, default=Null(), nullable=True)
     output_schema: Mapped[Optional[PromptOutputSchema]] = mapped_column(
         _PromptOutputSchema, default=Null(), nullable=True
     )

@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
@@ -180,24 +180,10 @@ class PromptVersion(PromptModel):
     template_format: PromptTemplateFormat
     template: PromptTemplate
     invocation_parameters: Optional[dict[str, Any]]
-    tools: PromptToolsV1
+    tools: PromptToolsV2
     output_schema: Optional[PromptOutputSchema]
     model_name: str
     model_provider: str
-
-    @model_validator(mode="after")
-    def validate_tool_definitions_for_known_model_providers(self) -> "PromptVersion":
-        tool_definitions = [tool_def.definition for tool_def in self.tools.tool_definitions]
-        tool_definition_model = _get_tool_definition_model(self.model_provider)
-        if tool_definition_model:
-            for tool_definition_index, tool_definition in enumerate(tool_definitions):
-                try:
-                    tool_definition_model.model_validate(tool_definition)
-                except ValidationError as error:
-                    raise ValueError(
-                        f"Invalid tool definition at index {tool_definition_index}: {error}"
-                    )
-        return self
 
 
 def _get_tool_definition_model(
@@ -249,6 +235,31 @@ class AnthropicToolDefinition(PromptModel):
     name: str
     cache_control: Optional[AnthropicCacheControlEphemeralParam] = UNDEFINED
     description: str = UNDEFINED
+
+
+def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV2:
+    tools: list[PromptFunctionToolV2]
+    if model_provider.lower() == "openai":
+        openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
+    elif model_provider.lower() == "anthropic":
+        anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
+    return PromptToolsV2(type="tools-v1", tools=tools)
+
+
+def denormalize_tools(tools: PromptToolsV2, model_provider: str) -> list[dict[str, Any]]:
+    assert tools.type == "tools-v1"
+    denormalized_tools: list[PromptModel]
+    if model_provider.lower() == "openai":
+        denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
+    elif model_provider.lower() == "anthropic":
+        denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
+    return [tool.model_dump() for tool in denormalized_tools]
 
 
 def _openai_to_prompt_tool(
