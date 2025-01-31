@@ -26,6 +26,7 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
+from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -70,8 +71,10 @@ class streaming_llm_span:
     ) -> None:
         self._input = input
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
+
         self._attributes.update(
             chain(
+                prompt_id_metadata(input.prompt_id),
                 llm_span_kind(),
                 llm_model_name(input.model.name),
                 llm_tools(input.tools or []),
@@ -264,6 +267,10 @@ def input_value_and_mime_type(
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
+def prompt_id_metadata(prompt_id: Optional[GlobalID]) -> Iterator[tuple[str, Any]]:
+    yield METADATA, {"phoenix-prompt-id": str(prompt_id)}
+
+
 def _merge_tool_call_chunks(
     chunks_by_id: defaultdict[str, list[ToolCallChunk]],
 ) -> list[dict[str, Any]]:
@@ -442,6 +449,7 @@ LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+METADATA = SpanAttributes.METADATA
 
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
