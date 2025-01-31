@@ -946,7 +946,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
-    --ac-text-color-placeholder: var(--ac-global-color-grey-700);
+    --ac-text-color-placeholder: var(--ac-global-color-grey-400);
 
     // Styles for text fields etc
     --ac-global-input-field-border-color: var(--ac-global-color-grey-400);
