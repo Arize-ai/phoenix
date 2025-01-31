@@ -98,6 +98,12 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
+ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_EMAIL = "PHOENIX_DEFAULT_ADMIN_INITIAL_EMAIL"
+"""
+The initial email for the default admin account, which defaults to ‘admin@localhost’ if not
+explicitly set. Note that changing this value will have no effect if the default admin
+record already exists in the database.
+"""
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
 The initial password for the default admin account, which defaults to ‘admin’ if not
@@ -280,6 +286,12 @@ def get_env_phoenix_secret() -> Optional[str]:
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
     return phoenix_secret
+
+
+def get_env_default_admin_initial_email() -> str:
+    from phoenix.auth import DEFAULT_ADMIN_EMAIL
+
+    return os.environ.get(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_EMAIL) or DEFAULT_ADMIN_EMAIL
 
 
 def get_env_default_admin_initial_password() -> str:
