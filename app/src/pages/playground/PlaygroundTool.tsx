@@ -32,12 +32,20 @@ import { PlaygroundInstanceProps } from "./types";
  */
 const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
 
+/**
+ * A tool editor that is used to edit the definition of a tool.
+ *
+ * This is a mostly un-controlled editor that re-mounts when the tool definition changes externally.
+ * This is necessary because controlled react-codemirror editors incessantly remount and reset
+ * cursor position when value is updated.
+ */
 export function PlaygroundTool({
   playgroundInstanceId,
   toolId,
 }: PlaygroundInstanceProps & {
   toolId: Tool["id"];
 }) {
+  const [version, setVersion] = useState(0);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
 
   const instance = usePlaygroundContext((state) =>
@@ -56,7 +64,7 @@ export function PlaygroundTool({
     throw new Error(`Tool ${toolId} not found`);
   }
 
-  const [editorValue, setEditorValue] = useState(
+  const [initialEditorValue, setEditorValue] = useState(
     JSON.stringify(tool.definition, null, 2)
   );
 
@@ -71,12 +79,15 @@ export function PlaygroundTool({
     ) {
       setLastValidDefinition(tool.definition);
       setEditorValue(JSON.stringify(tool.definition, null, 2));
+      setVersion((prev) => prev + 1);
     }
   }, [tool.definition, lastValidDefinition]);
 
   const onChange = useCallback(
     (value: string) => {
-      setEditorValue(value);
+      // note that we do not update initialEditorValue here, we only want to update it when
+      // we are okay with the editor state resetting, which is basically only when the provider
+      // changes
       const { json: definition } = safelyParseJSON(value);
       if (definition == null) {
         return;
@@ -141,7 +152,7 @@ export function PlaygroundTool({
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={editorValue} />
+          <CopyToClipboardButton text={initialEditorValue} />
           <Button
             aria-label="Delete tool"
             icon={<Icon svg={<Icons.TrashOutline />} />}
@@ -177,7 +188,10 @@ export function PlaygroundTool({
         preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
       >
         <JSONEditor
-          value={editorValue}
+          // force remount of the editor when the tool definition changes externally
+          // usually when switching between providers
+          key={version}
+          value={initialEditorValue}
           onChange={onChange}
           jsonSchema={toolDefinitionJSONSchema}
         />

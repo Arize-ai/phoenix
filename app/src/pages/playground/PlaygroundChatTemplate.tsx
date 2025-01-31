@@ -199,6 +199,12 @@ function MessageEditor({
   updateMessage: (patch: Partial<ChatMessage>) => void;
   messageMode: MessageMode;
 }) {
+  const onChange = useCallback(
+    (val: string) => {
+      updateMessage({ content: val });
+    },
+    [updateMessage]
+  );
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -262,18 +268,15 @@ function MessageEditor({
       </Form>
     );
   }
+
   return (
     <TemplateEditorWrap>
       <TemplateEditor
         height="100%"
-        value={
-          typeof message.content === "string"
-            ? message.content
-            : JSON.stringify(message.content, null, 2)
-        }
+        defaultValue={message.content || ""}
         aria-label="Message content"
         templateLanguage={templateLanguage}
-        onChange={(val) => updateMessage({ content: val })}
+        onChange={onChange}
         placeholder={
           message.role === "system"
             ? "You are a helpful assistant"
