@@ -147,7 +147,7 @@ class PromptCacheControlParam(PromptModel):
     type: Literal["ephemeral"]
 
 
-class PromptFunctionToolV2(PromptModel):
+class PromptFunctionToolV1(PromptModel):
     type: Literal["function-tool-v1"]
     name: str
     description: str = UNDEFINED
@@ -159,9 +159,9 @@ class PromptFunctionToolV2(PromptModel):
     cache_control: Optional[PromptCacheControlParam] = UNDEFINED
 
 
-class PromptToolsV2(PromptModel):
+class PromptToolsV1(PromptModel):
     type: Literal["tools-v1"]
-    tools: list[Annotated[Union[PromptFunctionToolV2], Field(..., discriminator="type")]]
+    tools: list[Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]]
 
 
 class PromptVersion(PromptModel):
@@ -171,7 +171,7 @@ class PromptVersion(PromptModel):
     template_format: PromptTemplateFormat
     template: PromptTemplate
     invocation_parameters: Optional[dict[str, Any]]
-    tools: PromptToolsV2
+    tools: PromptToolsV1
     output_schema: Optional[PromptOutputSchema]
     model_name: str
     model_provider: str
@@ -228,8 +228,8 @@ class AnthropicToolDefinition(PromptModel):
     description: str = UNDEFINED
 
 
-def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV2:
-    tools: list[PromptFunctionToolV2]
+def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV1:
+    tools: list[PromptFunctionToolV1]
     if model_provider.lower() == "openai":
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -238,10 +238,10 @@ def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> Promp
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
-    return PromptToolsV2(type="tools-v1", tools=tools)
+    return PromptToolsV1(type="tools-v1", tools=tools)
 
 
-def denormalize_tools(tools: PromptToolsV2, model_provider: str) -> list[dict[str, Any]]:
+def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[str, Any]]:
     assert tools.type == "tools-v1"
     denormalized_tools: list[PromptModel]
     if model_provider.lower() == "openai":
@@ -255,13 +255,13 @@ def denormalize_tools(tools: PromptToolsV2, model_provider: str) -> list[dict[st
 
 def _openai_to_prompt_tool(
     tool: OpenAIToolDefinition,
-) -> PromptFunctionToolV2:
+) -> PromptFunctionToolV1:
     function_definition = tool.function
     name = function_definition.name
     description = function_definition.description
     parameters = function_definition.parameters
     strict = function_definition.strict
-    return PromptFunctionToolV2(
+    return PromptFunctionToolV1(
         type="function-tool-v1",
         name=name,
         description=description,
@@ -271,7 +271,7 @@ def _openai_to_prompt_tool(
 
 
 def _prompt_to_openai_tool(
-    tool: PromptFunctionToolV2,
+    tool: PromptFunctionToolV1,
 ) -> OpenAIToolDefinition:
     return OpenAIToolDefinition(
         type="function",
@@ -286,8 +286,8 @@ def _prompt_to_openai_tool(
 
 def _anthropic_to_prompt_tool(
     tool: AnthropicToolDefinition,
-) -> PromptFunctionToolV2:
-    return PromptFunctionToolV2(
+) -> PromptFunctionToolV1:
+    return PromptFunctionToolV1(
         type="function-tool-v1",
         name=tool.name,
         description=tool.description,
@@ -309,7 +309,7 @@ def _anthropic_to_prompt_cache_control(
 
 
 def _prompt_to_anthropic_tool(
-    tool: PromptFunctionToolV2,
+    tool: PromptFunctionToolV1,
 ) -> AnthropicToolDefinition:
     return AnthropicToolDefinition(
         input_schema=tool.schema_,

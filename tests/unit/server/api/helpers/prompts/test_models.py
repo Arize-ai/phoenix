@@ -5,7 +5,7 @@ import pytest
 from phoenix.server.api.helpers.prompts.models import (
     AnthropicToolDefinition,
     OpenAIToolDefinition,
-    PromptFunctionToolV2,
+    PromptFunctionToolV1,
     _anthropic_to_prompt_tool,
     _openai_to_prompt_tool,
     _prompt_to_anthropic_tool,
@@ -140,7 +140,7 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
     prompt_tool = _anthropic_to_prompt_tool(anthropic_tool)
     prompt_tool_schema = prompt_tool.model_dump()
     assert prompt_tool_schema == expected_prompt_tool_schema
-    rehydrated_prompt_tool = PromptFunctionToolV2.model_validate(prompt_tool_schema)
+    rehydrated_prompt_tool = PromptFunctionToolV1.model_validate(prompt_tool_schema)
     rehydrated_anthropic_tool = _prompt_to_anthropic_tool(rehydrated_prompt_tool)
     assert rehydrated_anthropic_tool.model_dump() == anthropic_tool_schema
 
@@ -261,6 +261,6 @@ def test_openai_tool_normalization_and_round_tripping_preserves_data(
     prompt_tool = _openai_to_prompt_tool(openai_tool)
     prompt_tool_schema = prompt_tool.model_dump()
     assert prompt_tool_schema == expected_prompt_tool_schema
-    rehydrated_prompt_tool = PromptFunctionToolV2.model_validate(prompt_tool_schema)
+    rehydrated_prompt_tool = PromptFunctionToolV1.model_validate(prompt_tool_schema)
     rehydrated_openai_tool = _prompt_to_openai_tool(rehydrated_prompt_tool)
     assert rehydrated_openai_tool.model_dump() == openai_tool_schema
