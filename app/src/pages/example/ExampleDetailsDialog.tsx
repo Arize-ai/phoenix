@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Card, CardProps, Dialog, DialogContainer } from "@arizeai/components";
 
 import {
-  Button,
   CopyToClipboardButton,
   Flex,
   Heading,
+  LinkButton,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
@@ -80,7 +79,6 @@ export function ExampleDetailsDialog({
     };
   }, [data]);
   const { input, output, metadata } = revision;
-  const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   return (
     <DialogContainer type="slideOver" isDismissable onDismiss={onDismiss}>
@@ -90,16 +88,12 @@ export function ExampleDetailsDialog({
         extra={
           <Flex direction="row" gap="size-100">
             {sourceSpanInfo ? (
-              <Button
+              <LinkButton
                 size="S"
-                onPress={() => {
-                  navigate(
-                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`
-                  );
-                }}
+                to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`}
               >
                 View Source Span
-              </Button>
+              </LinkButton>
             ) : null}
             <EditExampleButton
               exampleId={exampleId as string}
