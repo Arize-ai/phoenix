@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import {
   ColumnDef,
   flexRender,
@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Button, Flex, Icon, Icons, Link } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -103,16 +103,14 @@ export function PromptsTable(props: PromptsTableProps) {
               justifyContent="end"
               width="100%"
             >
-              <Button
+              <LinkButton
                 icon={<Icon svg={<Icons.PlayCircleOutline />} />}
                 size="S"
                 aria-label="Open in playground"
-                onPress={() => {
-                  navigate(`${row.original.id}/playground`);
-                }}
+                to={`${row.original.id}/playground`}
               >
                 Playground
-              </Button>
+              </LinkButton>
               <PromptActionMenu
                 promptId={row.original.id}
                 onDeleted={() => {
@@ -125,7 +123,7 @@ export function PromptsTable(props: PromptsTableProps) {
       },
     ];
     return cols;
-  }, [refetch, navigate]);
+  }, [refetch]);
   const table = useReactTable({
     columns,
     data: tableData,
@@ -201,19 +199,17 @@ export function PromptsTable(props: PromptsTableProps) {
                     navigate(`${row.original.id}`);
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => {
-                    return (
-                      <td
-                        key={cell.id}
-                        align={cell.column.columnDef.meta?.textAlign}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </td>
-                    );
-                  })}
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      align={cell.column.columnDef.meta?.textAlign}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
                 </tr>
               );
             })}
