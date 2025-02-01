@@ -379,6 +379,7 @@ class TestChatMessageRoundTrip:
             for tool_call in obj.get("tool_calls") or ():
                 content.append(
                     ToolCallContentPart(
+                        type="tool_call",
                         tool_call=ToolCallContentValue(
                             tool_call_id=tool_call["id"],
                             tool_call=ToolCallFunction(
@@ -386,7 +387,7 @@ class TestChatMessageRoundTrip:
                                 name=tool_call["function"]["name"],
                                 arguments=tool_call["function"]["arguments"],
                             ),
-                        )
+                        ),
                     )
                 )
             return PromptMessage(
