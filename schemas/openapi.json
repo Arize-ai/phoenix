@@ -2217,9 +2217,9 @@
             "type": "object",
             "title": "Schema"
           },
-          "additional_parameters": {
+          "extra_parameters": {
             "type": "object",
-            "title": "Additional Parameters"
+            "title": "Extra Parameters"
           }
         },
         "additionalProperties": false,
@@ -2227,7 +2227,7 @@
         "required": [
           "type",
           "name",
-          "additional_parameters"
+          "extra_parameters"
         ],
         "title": "PromptFunctionToolV1"
       },

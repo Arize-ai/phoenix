@@ -39,7 +39,7 @@ from phoenix.server.api.helpers.prompts.models import (
                         },
                     },
                 },
-                "additional_parameters": {},
+                "extra_parameters": {},
             },
             id="minimal-tool",
         ),
@@ -68,7 +68,7 @@ from phoenix.server.api.helpers.prompts.models import (
                         },
                     },
                 },
-                "additional_parameters": {},
+                "extra_parameters": {},
             },
             id="tool-with-description",
         ),
@@ -98,7 +98,7 @@ from phoenix.server.api.helpers.prompts.models import (
                         },
                     },
                 },
-                "additional_parameters": {
+                "extra_parameters": {
                     "cache_control": {
                         "type": "ephemeral",
                     },
@@ -130,7 +130,7 @@ from phoenix.server.api.helpers.prompts.models import (
                         },
                     },
                 },
-                "additional_parameters": {
+                "extra_parameters": {
                     "cache_control": None,
                 },
             },
@@ -180,7 +180,7 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
                         },
                     },
                 },
-                "additional_parameters": {},
+                "extra_parameters": {},
             },
             id="minimal-tool",
         ),
@@ -212,7 +212,7 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
                         },
                     },
                 },
-                "additional_parameters": {},
+                "extra_parameters": {},
             },
             id="tool-with-description",
         ),
@@ -226,7 +226,7 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function-tool-v1",
                 "name": "tool-name",
-                "additional_parameters": {},
+                "extra_parameters": {},
             },
             id="tool-with-no-parameters",
         ),
@@ -241,7 +241,7 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function-tool-v1",
                 "name": "tool-name",
-                "additional_parameters": {"strict": True},
+                "extra_parameters": {"strict": True},
             },
             id="tool-with-strict-set-to-bool",
         ),
@@ -256,7 +256,7 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function-tool-v1",
                 "name": "tool-name",
-                "additional_parameters": {"strict": None},
+                "extra_parameters": {"strict": None},
             },
             id="tool-with-strict-set-to-none",
         ),

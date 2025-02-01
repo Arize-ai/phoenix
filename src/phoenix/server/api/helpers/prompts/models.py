@@ -151,7 +151,7 @@ class PromptFunctionToolV1(PromptModel):
         default=UNDEFINED,
         alias="schema",  # avoid conflict with pydantic schema class method
     )
-    additional_parameters: dict[str, Any]
+    extra_parameters: dict[str, Any]
 
 
 class PromptToolsV1(PromptModel):
@@ -242,15 +242,15 @@ def _openai_to_prompt_tool(
     name = function_definition.name
     description = function_definition.description
     parameters = function_definition.parameters
-    additional_parameters = {}
+    extra_parameters = {}
     if (strict := function_definition.strict) is not UNDEFINED:
-        additional_parameters["strict"] = strict
+        extra_parameters["strict"] = strict
     return PromptFunctionToolV1(
         type="function-tool-v1",
         name=name,
         description=description,
         schema=parameters,
-        additional_parameters=additional_parameters,
+        extra_parameters=extra_parameters,
     )
 
 
@@ -263,7 +263,7 @@ def _prompt_to_openai_tool(
             name=tool.name,
             description=tool.description,
             parameters=tool.schema_,
-            strict=tool.additional_parameters.get("strict", UNDEFINED),
+            strict=tool.extra_parameters.get("strict", UNDEFINED),
         ),
     )
 
@@ -271,12 +271,12 @@ def _prompt_to_openai_tool(
 def _anthropic_to_prompt_tool(
     tool: AnthropicToolDefinition,
 ) -> PromptFunctionToolV1:
-    additional_parameters: dict[str, Any] = {}
+    extra_parameters: dict[str, Any] = {}
     if (cache_control := tool.cache_control) is not UNDEFINED:
         if cache_control is None:
-            additional_parameters["cache_control"] = None
+            extra_parameters["cache_control"] = None
         elif isinstance(cache_control, AnthropicCacheControlEphemeralParam):
-            additional_parameters["cache_control"] = cache_control.model_dump()
+            extra_parameters["cache_control"] = cache_control.model_dump()
         else:
             assert_never(cache_control)
     return PromptFunctionToolV1(
@@ -284,14 +284,14 @@ def _anthropic_to_prompt_tool(
         name=tool.name,
         description=tool.description,
         schema=tool.input_schema,
-        additional_parameters=additional_parameters,
+        extra_parameters=extra_parameters,
     )
 
 
 def _prompt_to_anthropic_tool(
     tool: PromptFunctionToolV1,
 ) -> AnthropicToolDefinition:
-    cache_control = tool.additional_parameters.get("cache_control", UNDEFINED)
+    cache_control = tool.extra_parameters.get("cache_control", UNDEFINED)
     anthropic_cache_control: Optional[AnthropicCacheControlEphemeralParam]
     if cache_control is UNDEFINED:
         anthropic_cache_control = UNDEFINED
