@@ -133,7 +133,7 @@ class TestTextBlockParam:
         assert not DeepDiff(block, new_block)
 
     def test_formatter(self) -> None:
-        obj = TextContentPart(text=TextContentValue(text=token_hex(8)))
+        obj = TextContentPart(type="text", text=TextContentValue(text=token_hex(8)))
         variables = Faker().pydict(value_types=(str, int, float, bool))
         block: TextBlockParam = _to_text_block_param(obj, variables, _MockFormatter())
         assert block["text"] == json.dumps(variables)

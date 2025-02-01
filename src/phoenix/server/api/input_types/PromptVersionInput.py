@@ -11,7 +11,6 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptMessage,
     PromptTemplateFormat,
-    PromptToolDefinition,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -25,7 +24,7 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 
 
-@strawberry.experimental.pydantic.input(PromptToolDefinition)
+@strawberry.input
 class ToolDefinitionInput:
     definition: JSON
 
