@@ -1,7 +1,9 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
+import { ToolCallPart } from "@phoenix/schemas/promptSchemas";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 
@@ -197,9 +199,9 @@ type ProviderToToolCallMap = {
  * @returns the tool call parsed to the OpenAI format
  */
 export const toOpenAIToolCall = (
-  toolCall: LlmProviderToolCall
+  maybeToolCall: unknown
 ): OpenAIToolCall | null => {
-  const { provider, validatedToolCall } = detectToolCallProvider(toolCall);
+  const { provider, validatedToolCall } = detectToolCallProvider(maybeToolCall);
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
@@ -241,6 +243,23 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
   }
 };
 
+export const fromPromptToolCallPart = (
+  part: ToolCallPart,
+  targetProvider: ModelProvider
+) => {
+  const toolCall = toOpenAIToolCall({
+    id: part.toolCall.toolCallId,
+    function: {
+      name: part.toolCall.toolCall.name,
+      arguments: safelyParseJSON(part.toolCall.toolCall.arguments).json || "",
+    },
+  });
+  if (!toolCall) {
+    return null;
+  }
+  return fromOpenAIToolCall({ toolCall, targetProvider });
+};
+
 /**
  * Creates an empty OpenAI tool call with fields but no values filled in
  */
@@ -264,4 +283,100 @@ export function createAnthropicToolCall(): AnthropicToolCall {
     name: "",
     input: {},
   };
+}
+
+/**
+ * A schema for a tool call that is not in the first class supported format
+ *
+ * This is used to heuristically find the id, name, and arguments of a tool call
+ * based on common patterns in tool calls, allowing us to poke around in an unknown tool call
+ * and extract the id, name, and arguments
+ */
+export const toolCallHeuristicSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
+  arguments: z.record(z.unknown()).optional(),
+  function: z
+    .object({
+      name: z.string().optional(),
+      arguments: z.record(z.unknown()).optional(),
+    })
+    .optional(),
+});
+
+export function findToolCallId(maybeToolCall: unknown): string | null {
+  let subject = maybeToolCall;
+  if (typeof maybeToolCall === "string") {
+    const parsed = safelyParseJSON(maybeToolCall);
+    subject = parsed.json;
+  }
+  const toolCall = toOpenAIToolCall(subject);
+
+  if (toolCall) {
+    return toolCall.id;
+  }
+
+  // we don't have first class support for the incoming tool call
+  // try some heuristics to find the id
+  const heuristic = toolCallHeuristicSchema.safeParse(subject);
+  if (heuristic.success) {
+    return heuristic.data.id ?? heuristic.data.name ?? null;
+  }
+
+  return null;
+}
+
+export function findToolCallName(maybeToolCall: unknown): string | null {
+  let subject = maybeToolCall;
+  if (typeof maybeToolCall === "string") {
+    const parsed = safelyParseJSON(maybeToolCall);
+    subject = parsed.json;
+  }
+
+  const toolCall = toOpenAIToolCall(subject);
+
+  if (toolCall) {
+    return toolCall.function.name;
+  }
+
+  // we don't have first class support for the incoming tool call
+  // try some heuristics to find the name
+  const heuristic = toolCallHeuristicSchema.safeParse(subject);
+  if (heuristic.success) {
+    return (
+      heuristic.data.function?.name ??
+      heuristic.data.name ??
+      // fallback to id if we don't have a name
+      heuristic.data.id ??
+      null
+    );
+  }
+
+  return null;
+}
+
+export function findToolCallArguments(
+  maybeToolCall: unknown
+): JSONLiteral | null {
+  let subject = maybeToolCall;
+  if (typeof maybeToolCall === "string") {
+    const parsed = safelyParseJSON(maybeToolCall);
+    subject = parsed.json;
+  }
+  const toolCall = toOpenAIToolCall(subject);
+  if (toolCall) {
+    return toolCall.function.arguments as JSONLiteral;
+  }
+
+  // we don't have first class support for the incoming tool call
+  // try some heuristics to find the arguments
+  const heuristic = toolCallHeuristicSchema.safeParse(subject);
+  if (heuristic.success) {
+    return (
+      ((heuristic.data.arguments ??
+        heuristic.data.function?.arguments) as JSONLiteral) ?? null
+    );
+  }
+
+  return null;
 }

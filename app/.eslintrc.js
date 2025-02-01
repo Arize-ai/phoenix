@@ -98,6 +98,16 @@ module.exports = {
         name: "theme",
         module: "@arizeai/components",
       },
+      {
+        name: "RadioGroup",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
+      {
+        name: "Radio",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

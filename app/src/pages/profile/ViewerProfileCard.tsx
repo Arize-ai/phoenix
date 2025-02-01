@@ -1,11 +1,17 @@
 import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
-import { useNavigate } from "react-router";
 
 import { Card, Form, TextField } from "@arizeai/components";
 
-import { Button, Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Heading,
+  LinkButton,
+  Text,
+  View,
+} from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
@@ -26,7 +32,6 @@ export function ViewerProfileCard() {
       }
     }
   `);
-  const navigate = useNavigate();
   const {
     control,
     handleSubmit,
@@ -74,14 +79,9 @@ export function ViewerProfileCard() {
       bodyStyle={{ padding: 0 }}
       extra={
         viewer.authMethod === "LOCAL" && (
-          <Button
-            size="S"
-            onPress={() => {
-              navigate("/reset-password");
-            }}
-          >
+          <LinkButton size="S" to="/reset-password">
             Reset Password
-          </Button>
+          </LinkButton>
         )
       }
     >

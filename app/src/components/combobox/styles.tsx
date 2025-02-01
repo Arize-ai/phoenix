@@ -1,13 +1,17 @@
 import { css } from "@emotion/react";
 
+import { fieldPopoverCSS } from "../field/styles";
+
 export const comboBoxCSS = css`
   &[data-size="M"] {
     --combobox-vertical-padding: 6px;
-    --combobox-horizontal-padding: 6px;
+    --combobox-start-padding: 8px;
+    --combobox-end-padding: 6px;
   }
   &[data-size="L"] {
     --combobox-vertical-padding: 10px;
-    --combobox-horizontal-padding: var(--ac-global-dimension-static-size-200);
+    --combobox-start-padding: var(--ac-global-dimension-static-size-200);
+    --combobox-end-padding: var(--ac-global-dimension-static-size-200);
   }
   color: var(--ac-global-text-color-900);
   &[data-required] {
@@ -25,8 +29,8 @@ export const comboBoxCSS = css`
     position: relative;
 
     .react-aria-Input {
-      padding: var(--combobox-vertical-padding)
-        var(--combobox-horizontal-padding);
+      padding: var(--combobox-vertical-padding) var(--combobox-end-padding)
+        var(--combobox-vertical-padding) var(--combobox-start-padding);
     }
     .react-aria-Button {
       background: none;
@@ -49,22 +53,18 @@ export const comboBoxCSS = css`
   }
 `;
 
-export const comboBoxPopoverCSS = css`
-  width: var(--trigger-width);
-  background-color: var(--ac-global-menu-background-color);
-  border-radius: var(--ac-global-rounding-small);
-  color: var(--ac-global-text-color-900);
-  box-shadow: 0px 4px 10px var(--px-overlay-shadow-color);
-  border: 1px solid var(--ac-global-menu-border-color);
-  max-height: inherit;
-  .react-aria-ListBox {
-    display: block;
-    width: unset;
-    max-height: inherit;
-    min-height: unset;
-    border: none;
-  }
-`;
+export const comboBoxPopoverCSS = css(
+  fieldPopoverCSS,
+  css`
+    .react-aria-ListBox {
+      display: block;
+      width: unset;
+      max-height: inherit;
+      min-height: unset;
+      border: none;
+    }
+  `
+);
 
 export const comboBoxItemCSS = css`
   outline: none;

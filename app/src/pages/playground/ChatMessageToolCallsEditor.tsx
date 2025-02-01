@@ -79,6 +79,7 @@ export function ChatMessageToolCallsEditor({
             ),
           },
         },
+        dirty: true,
       });
     },
     [messageId, playgroundInstanceId, templateMessages, updateInstance]

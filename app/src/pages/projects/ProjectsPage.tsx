@@ -14,7 +14,7 @@ import { useNotification } from "@arizeai/components";
 import { Flex, Heading, Link, Loading, Text, View } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
-  useLastNTimeRange,
+  useTimeRange,
 } from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -35,7 +35,7 @@ const REFRESH_INTERVAL_MS = 10000;
 const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
-  const { timeRange } = useLastNTimeRange();
+  const { timeRange } = useTimeRange();
 
   return (
     <Suspense fallback={<Loading />}>
@@ -44,7 +44,11 @@ export function ProjectsPage() {
   );
 }
 
-export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
+export function ProjectsPageContent({
+  timeRange,
+}: {
+  timeRange: OpenTimeRange;
+}) {
   const autoRefreshEnabled = usePreferencesContext(
     (state) => state.projectsAutoRefreshEnabled
   );
@@ -52,8 +56,8 @@ export function ProjectsPageContent({ timeRange }: { timeRange: TimeRange }) {
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
     return {
-      start: timeRange.start.toISOString(),
-      end: timeRange.end.toISOString(),
+      start: timeRange?.start?.toISOString(),
+      end: timeRange?.end?.toISOString(),
     };
   }, [timeRange]);
 

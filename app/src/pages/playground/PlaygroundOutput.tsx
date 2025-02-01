@@ -245,6 +245,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           patch: {
             spanId: chatCompletion.span.id,
           },
+          dirty: null,
         });
         return;
       }
@@ -279,6 +280,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
         patch: {
           spanId: response.chatCompletion.span.id,
         },
+        dirty: null,
       });
       if (errors) {
         notifyError({
@@ -315,6 +317,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       patch: {
         spanId: null,
       },
+      dirty: null,
     });
   }, [instanceId, updateInstance]);
 

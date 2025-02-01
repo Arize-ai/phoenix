@@ -1,19 +1,9 @@
-import React, { ReactNode, Ref } from "react";
-import {
-  Button as AriaButton,
-  ButtonProps as AriaButtonProps,
-} from "react-aria-components";
-
-import { SizingProps, VarianceProps } from "@phoenix/components/types";
+import React, { Ref } from "react";
+import { Button as AriaButton } from "react-aria-components";
+import { css } from "@emotion/react";
 
 import { buttonCSS } from "./styles";
-
-interface ButtonProps extends AriaButtonProps, SizingProps, VarianceProps {
-  /**
-   * An optional prefixed icon for the button
-   */
-  icon?: ReactNode;
-}
+import { ButtonProps } from "./types";
 
 function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
   const {
@@ -21,8 +11,10 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
     variant = "default",
     icon,
     children,
+    css: propCSS,
     ...otherProps
   } = props;
+
   return (
     <AriaButton
       {...otherProps}
@@ -30,7 +22,7 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
       data-size={size}
       data-variant={variant}
       data-childless={!children}
-      css={buttonCSS}
+      css={css(buttonCSS, propCSS)}
     >
       {icon}
       <>{children}</>
@@ -39,4 +31,4 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
 }
 
 const _Button = React.forwardRef(Button);
-export { _Button as Button, ButtonProps };
+export { _Button as Button };
