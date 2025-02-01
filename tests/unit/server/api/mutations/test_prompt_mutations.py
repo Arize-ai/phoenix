@@ -192,9 +192,31 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "unknown",
-                            "modelName": "unknown",
-                            "tools": [{"definition": {"foo": "bar"}}],
+                            "modelProvider": "openai",
+                            "modelName": "gpt-4o",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "description": "Get current temperature for a given location.",  # noqa: E501
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "location": {
+                                                        "type": "string",
+                                                        "description": "City and country e.g. Bogotá, Colombia",  # noqa: E501
+                                                    }
+                                                },
+                                                "required": ["location"],
+                                                "additionalProperties": False,
+                                            },
+                                            "strict": True,
+                                        },
+                                    }
+                                }
+                            ],
                         },
                     }
                 },
@@ -615,9 +637,31 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "unknown",
-                            "modelName": "unknown",
-                            "tools": [{"definition": {"foo": "bar"}}],
+                            "modelProvider": "openai",
+                            "modelName": "gpt-4o",
+                            "tools": [
+                                {
+                                    "definition": {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "get_weather",
+                                            "description": "Get current temperature for a given location.",  # noqa: E501
+                                            "parameters": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "location": {
+                                                        "type": "string",
+                                                        "description": "City and country e.g. Bogotá, Colombia",  # noqa: E501
+                                                    }
+                                                },
+                                                "required": ["location"],
+                                                "additionalProperties": False,
+                                            },
+                                            "strict": True,
+                                        },
+                                    }
+                                }
+                            ],
                         },
                     }
                 },

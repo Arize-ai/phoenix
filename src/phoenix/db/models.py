@@ -137,7 +137,7 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
             pass
         else:
             assert_never(value)
-        return value.dict() if value is not None else None
+        return value.model_dump() if value is not None else None
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
@@ -156,7 +156,7 @@ class _Tools(TypeDecorator[PromptToolsV1]):
     def process_bind_param(
         self, value: Optional[PromptToolsV1], _: Dialect
     ) -> Optional[dict[str, Any]]:
-        return value.dict() if value is not None else None
+        return value.model_dump() if value is not None else None
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
@@ -172,7 +172,7 @@ class _PromptOutputSchema(TypeDecorator[PromptOutputSchema]):
     def process_bind_param(
         self, value: Optional[PromptOutputSchema], _: Dialect
     ) -> Optional[dict[str, Any]]:
-        return value.dict() if value is not None else None
+        return value.model_dump() if value is not None else None
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect

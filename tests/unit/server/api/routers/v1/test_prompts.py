@@ -106,7 +106,7 @@ class TestPrompts:
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider
         assert data.pop("output_schema") == prompt_version.output_schema
-        assert data.pop("template") == prompt_version.template.dict()
+        assert data.pop("template") == prompt_version.template.model_dump()
         assert data.pop("template_format") == prompt_version.template_format
         assert data.pop("template_type") == prompt_version.template_type
         assert data.pop("tools") == prompt_version.tools
@@ -162,7 +162,9 @@ class TestPrompts:
                                     tool_call=ToolCallContentValue(
                                         tool_call_id="1234",
                                         tool_call=ToolCallFunction(
-                                            name=token_hex(16), arguments=token_hex(16)
+                                            type="function",
+                                            name=token_hex(16),
+                                            arguments=token_hex(16),
                                         ),
                                     ),
                                 ),
