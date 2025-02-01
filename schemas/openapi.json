@@ -2175,21 +2175,6 @@
         ],
         "title": "Prompt"
       },
-      "PromptCacheControlParam": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "ephemeral",
-            "title": "Type"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "PromptCacheControlParam"
-      },
       "PromptChatTemplateV1": {
         "properties": {
           "version": {
@@ -2232,33 +2217,17 @@
             "type": "object",
             "title": "Schema"
           },
-          "strict": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Strict"
-          },
-          "cache_control": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PromptCacheControlParam"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "additional_parameters": {
+            "type": "object",
+            "title": "Additional Parameters"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
-          "name"
+          "name",
+          "additional_parameters"
         ],
         "title": "PromptFunctionToolV1"
       },
