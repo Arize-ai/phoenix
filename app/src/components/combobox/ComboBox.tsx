@@ -67,6 +67,7 @@ export function ComboBox<T extends object>({
   width,
   stopPropagation,
   renderEmptyState,
+  isInvalid,
   ...props
 }: ComboBoxProps<T>) {
   return (
@@ -74,6 +75,7 @@ export function ComboBox<T extends object>({
       {...props}
       css={css(fieldBaseCSS, comboBoxCSS)}
       data-size={size}
+      isInvalid={isInvalid || Boolean(errorMessage)}
       style={{
         width,
       }}

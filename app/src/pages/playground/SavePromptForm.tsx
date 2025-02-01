@@ -7,8 +7,7 @@ import { Form, TextArea } from "@arizeai/components";
 import { Button, Flex, View } from "@phoenix/components";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
-
-import { identifierPattern } from "../../utils/identifierUtils";
+import { identifierPattern } from "@phoenix/utils/identifierUtils";
 
 export type SavePromptSubmitHandler = (params: SavePromptFormParams) => void;
 
@@ -62,7 +61,8 @@ export function SavePromptForm({
   const {
     control,
     handleSubmit,
-    formState: { isDirty, isValid, errors },
+    formState: { isDirty, isValid },
+    trigger,
   } = useForm<SavePromptFormParams>({
     values: {
       promptId: selectedPromptId ?? undefined,
@@ -104,20 +104,24 @@ export function SavePromptForm({
             },
             pattern: identifierPattern,
           }}
-          render={({ field: { onBlur, onChange } }) => (
+          render={({ field: { onBlur, onChange }, fieldState }) => (
             <PromptComboBox
               label="Prompt"
               description="The prompt to update, or prompt name to create"
-              placeholder="Select a prompt, or enter a new prompt name"
+              placeholder="Select or enter new prompt name"
               isRequired
               onBlur={onBlur}
               defaultInputValue={promptInputValue}
-              onInputChange={setPromptInputValue}
+              onInputChange={(value) => {
+                setPromptInputValue(value);
+                onChange(value);
+                trigger("name");
+              }}
               // this seems... not great. not sure how else to get a stable element reference that doesn't use a ref
               // https://react-spectrum.adobe.com/react-aria/Popover.html#props
               // eslint-disable-next-line react-compiler/react-compiler
               container={flexContainer.current ?? undefined}
-              errorMessage={errors.name?.message}
+              errorMessage={fieldState.error?.message}
               allowsCustomValue
               onChange={(promptId) => {
                 onChange(promptId);

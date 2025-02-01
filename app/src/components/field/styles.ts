@@ -25,16 +25,19 @@ export const fieldBaseCSS = css`
     vertical-align: middle;
 
     &[data-focused] {
+      // TODO: figure out focus ring behavior. For now the color is enough
       outline: none;
+    }
+    &[data-focused]:not([data-invalid]) {
       border: 1px solid var(--ac-global-input-field-border-color-active);
     }
-    &[data-hovered]:not([data-disabled]) {
+    &[data-hovered]:not([data-disabled]):not([data-invalid]) {
       border: 1px solid var(--ac-global-input-field-border-color-active);
     }
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);
     }
-    &[data-invalid]:not([data-focused]) {
+    &[data-invalid] {
       border-color: var(--ac-global-color-danger);
     }
     &::placeholder {
