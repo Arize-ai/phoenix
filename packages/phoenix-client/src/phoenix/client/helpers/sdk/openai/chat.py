@@ -22,8 +22,8 @@ from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     ImageContentValue,
     PromptChatTemplateV1,
+    PromptFunctionToolV1,
     PromptMessage,
-    PromptToolDefinition,
     PromptToolsV1,
     PromptVersion,
     TextContentPart,
@@ -117,29 +117,33 @@ def _to_model_kwargs(
 def _to_tools(
     obj: PromptToolsV1,
 ) -> Iterable[ChatCompletionToolParam]:
-    for tool_definition in obj.tool_definitions:
-        if "function" in tool_definition.definition:
-            definition = tool_definition.definition["function"]
-            if "name" in definition:
-                function: FunctionDefinition = {"name": definition["name"]}
-                if "parameters" in definition:
-                    function["parameters"] = definition["parameters"]
-                if "description" in definition:
-                    function["description"] = definition["description"]
-                if "strict" in definition:
-                    function["strict"] = definition["strict"]
-                yield {"type": "function", "function": function}
+    for t in obj.tools:
+        function: FunctionDefinition = {"name": t.name}
+        if t.description:
+            function["description"] = t.description
+        if t.schema_:
+            function["parameters"] = dict(t.schema_)
+        if t.strict is not None:
+            function["strict"] = t.strict
+        yield {"type": "function", "function": function}
 
 
 def _from_tools(
     tools: Iterable[ChatCompletionToolParam],
 ) -> PromptToolsV1:
     return PromptToolsV1(
-        tool_definitions=[
-            PromptToolDefinition(definition={"function": dict(tool["function"])})
+        type="tools-v1",
+        tools=[
+            PromptFunctionToolV1(
+                type="function-tool-v1",
+                name=tool["function"]["name"],
+                description=tool["function"].get("description"),
+                schema=tool["function"].get("parameters"),  # type: ignore[call-arg]
+                strict=tool["function"].get("strict"),
+            )
             for tool in tools
             if tool["type"] == "function"
-        ]
+        ],
     )
 
 
@@ -349,6 +353,7 @@ def _from_tool_call(
         tool_call=ToolCallContentValue(
             tool_call_id=obj["id"],
             tool_call=ToolCallFunction(
+                type="function",
                 name=obj["function"]["name"],
                 arguments=obj["function"]["arguments"],
             ),

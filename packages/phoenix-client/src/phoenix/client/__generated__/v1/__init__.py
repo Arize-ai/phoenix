@@ -174,6 +174,21 @@ class Prompt(BaseModel):
     description: Annotated[Optional[str], Field(title="Description")] = None
 
 
+class PromptCacheControlParam(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: Annotated[Literal["ephemeral"], Field(title="Type")]
+
+
+class PromptFunctionToolV1(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: Annotated[Literal["function-tool-v1"], Field(title="Type")]
+    name: Annotated[str, Field(title="Name")]
+    description: Annotated[Optional[str], Field(title="Description")] = None
+    schema_: Annotated[Optional[Mapping[str, Any]], Field(alias="schema", title="Schema")] = None
+    strict: Annotated[Optional[bool], Field(title="Strict")] = None
+    cache_control: Optional[PromptCacheControlParam] = None
+
+
 class PromptOutputSchema(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     definition: Annotated[Mapping[str, Any], Field(title="Definition")]
@@ -181,18 +196,14 @@ class PromptOutputSchema(BaseModel):
 
 class PromptStringTemplateV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+    version: Annotated[Literal["string-template-v1"], Field(title="Version")]
     template: Annotated[str, Field(title="Template")]
-
-
-class PromptToolDefinition(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    definition: Annotated[Mapping[str, Any], Field(title="Definition")]
 
 
 class PromptToolsV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
-    version: Annotated[Literal["tools-v1"], Field(title="Version")] = "tools-v1"
-    tool_definitions: Sequence[Annotated[PromptToolDefinition, Field(title="Tool Definitions")]]
+    type: Annotated[Literal["tools-v1"], Field(title="Type")]
+    tools: Sequence[Annotated[PromptFunctionToolV1, Field(discriminator="type", title="Tools")]]
 
 
 class SpanAnnotationResult(BaseModel):
@@ -216,7 +227,7 @@ class TextContentValue(BaseModel):
 
 class ToolCallFunction(BaseModel):
     model_config = ConfigDict(frozen=True)
-    type: Annotated[Literal["function"], Field(title="Type")] = "function"
+    type: Annotated[Literal["function"], Field(title="Type")]
     name: Annotated[str, Field(title="Name")]
     arguments: Annotated[str, Field(title="Arguments")]
 
@@ -268,8 +279,8 @@ class HTTPValidationError(BaseModel):
 
 
 class ImageContentPart(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Annotated[Literal["image"], Field(title="Type")] = "image"
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: Annotated[Literal["image"], Field(title="Type")]
     image: ImageContentValue
 
 
@@ -293,8 +304,8 @@ class SpanAnnotation(BaseModel):
 
 
 class TextContentPart(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Annotated[Literal["text"], Field(title="Type")] = "text"
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: Annotated[Literal["text"], Field(title="Type")]
     text: TextContentValue
 
 
@@ -305,8 +316,8 @@ class ToolCallContentValue(BaseModel):
 
 
 class ToolResultContentPart(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Annotated[Literal["tool_result"], Field(title="Type")] = "tool_result"
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: Annotated[Literal["tool_result"], Field(title="Type")]
     tool_result: ToolResultContentValue
 
 
@@ -316,8 +327,8 @@ class AnnotateSpansRequestBody(BaseModel):
 
 
 class ToolCallContentPart(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Annotated[Literal["tool_call"], Field(title="Type")] = "tool_call"
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    type: Annotated[Literal["tool_call"], Field(title="Type")]
     tool_call: ToolCallContentValue
 
 
@@ -327,13 +338,14 @@ class PromptMessage(BaseModel):
     content: Sequence[
         Annotated[
             Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
-            Field(title="Content"),
+            Field(discriminator="type", title="Content"),
         ]
     ]
 
 
 class PromptChatTemplateV1(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+    version: Annotated[Literal["chat-template-v1"], Field(title="Version")]
     messages: Sequence[Annotated[PromptMessage, Field(title="Messages")]]
 
 
@@ -344,7 +356,8 @@ class PromptVersion(BaseModel):
     model_provider: Annotated[str, Field(title="Model Provider")]
     model_name: Annotated[str, Field(title="Model Name")]
     template: Annotated[
-        Union[PromptChatTemplateV1, PromptStringTemplateV1], Field(title="Template")
+        Union[PromptChatTemplateV1, PromptStringTemplateV1],
+        Field(discriminator="version", title="Template"),
     ]
     template_type: Annotated[
         Optional[Literal["STR", "CHAT"]], Field(title="PromptTemplateType")
@@ -362,3 +375,8 @@ class PromptVersion(BaseModel):
 class GetPromptResponseBody(BaseModel):
     model_config = ConfigDict(frozen=True)
     data: PromptVersion
+
+
+class GetPromptVersionsResponseBody(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    data: Sequence[Annotated[PromptVersion, Field(title="Data")]]

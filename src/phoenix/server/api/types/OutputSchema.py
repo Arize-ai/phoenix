@@ -12,4 +12,4 @@ class OutputSchema:
 
 
 def to_gql_output_schema_from_pydantic(pydantic_output_schema: PromptOutputSchema) -> OutputSchema:
-    return OutputSchema(**pydantic_output_schema.dict())
+    return OutputSchema(**pydantic_output_schema.model_dump())
