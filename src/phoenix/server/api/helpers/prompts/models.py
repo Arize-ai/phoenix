@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
-from typing_extensions import Annotated, TypeAlias
+from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
 
@@ -46,7 +46,15 @@ class PromptTemplateFormat(str, Enum):
 class PromptModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",  # disallow extra attributes
+        use_enum_values=True,
     )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs = {k: v for k, v in kwargs.items() if v is not UNDEFINED}
+        super().__init__(*args, **kwargs)
+
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return super().model_dump(*args, exclude_unset=True, by_alias=True, **kwargs)
 
 
 class PartBase(PromptModel):
@@ -75,7 +83,7 @@ class ImageContentPart(PartBase):
 
 
 class ToolCallFunction(BaseModel):
-    type: Literal["function"] = Field(default="function")
+    type: Literal["function"]
     name: str
     arguments: str
 
@@ -135,40 +143,20 @@ class PromptOutputSchema(PromptModel):
     definition: JSONSchemaObjectDefinition
 
 
-class PromptToolDefinition(PromptModel):
-    definition: dict[str, Any]
+class PromptFunctionToolV1(PromptModel):
+    type: Literal["function-tool-v1"]
+    name: str
+    description: str = UNDEFINED
+    schema_: JSONSchemaObjectDefinition = Field(
+        default=UNDEFINED,
+        alias="schema",  # avoid conflict with pydantic schema class method
+    )
+    extra_parameters: dict[str, Any]
 
 
 class PromptToolsV1(PromptModel):
-    version: Literal["tools-v1"] = "tools-v1"
-    tool_definitions: list[PromptToolDefinition]
-
-
-class PromptVersion(PromptModel):
-    user_id: Optional[int]
-    description: Optional[str]
-    template_type: PromptTemplateType
-    template_format: PromptTemplateFormat
-    template: PromptTemplate
-    invocation_parameters: Optional[dict[str, Any]]
-    tools: PromptToolsV1
-    output_schema: Optional[PromptOutputSchema]
-    model_name: str
-    model_provider: str
-
-    @model_validator(mode="after")
-    def validate_tool_definitions_for_known_model_providers(self) -> "PromptVersion":
-        tool_definitions = [tool_def.definition for tool_def in self.tools.tool_definitions]
-        tool_definition_model = _get_tool_definition_model(self.model_provider)
-        if tool_definition_model:
-            for tool_definition_index, tool_definition in enumerate(tool_definitions):
-                try:
-                    tool_definition_model.model_validate(tool_definition)
-                except ValidationError as error:
-                    raise ValueError(
-                        f"Invalid tool definition at index {tool_definition_index}: {error}"
-                    )
-        return self
+    type: Literal["tools-v1"]
+    tools: list[Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]]
 
 
 def _get_tool_definition_model(
@@ -220,3 +208,100 @@ class AnthropicToolDefinition(PromptModel):
     name: str
     cache_control: Optional[AnthropicCacheControlEphemeralParam] = UNDEFINED
     description: str = UNDEFINED
+
+
+def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV1:
+    tools: list[PromptFunctionToolV1]
+    if model_provider.lower() == "openai":
+        openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
+    elif model_provider.lower() == "anthropic":
+        anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
+        tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
+    return PromptToolsV1(type="tools-v1", tools=tools)
+
+
+def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[str, Any]]:
+    assert tools.type == "tools-v1"
+    denormalized_tools: list[PromptModel]
+    if model_provider.lower() == "openai":
+        denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
+    elif model_provider.lower() == "anthropic":
+        denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
+    else:
+        raise ValueError(f"Unsupported model provider: {model_provider}")
+    return [tool.model_dump() for tool in denormalized_tools]
+
+
+def _openai_to_prompt_tool(
+    tool: OpenAIToolDefinition,
+) -> PromptFunctionToolV1:
+    function_definition = tool.function
+    name = function_definition.name
+    description = function_definition.description
+    parameters = function_definition.parameters
+    extra_parameters = {}
+    if (strict := function_definition.strict) is not UNDEFINED:
+        extra_parameters["strict"] = strict
+    return PromptFunctionToolV1(
+        type="function-tool-v1",
+        name=name,
+        description=description,
+        schema=parameters,
+        extra_parameters=extra_parameters,
+    )
+
+
+def _prompt_to_openai_tool(
+    tool: PromptFunctionToolV1,
+) -> OpenAIToolDefinition:
+    return OpenAIToolDefinition(
+        type="function",
+        function=OpenAIFunctionDefinition(
+            name=tool.name,
+            description=tool.description,
+            parameters=tool.schema_,
+            strict=tool.extra_parameters.get("strict", UNDEFINED),
+        ),
+    )
+
+
+def _anthropic_to_prompt_tool(
+    tool: AnthropicToolDefinition,
+) -> PromptFunctionToolV1:
+    extra_parameters: dict[str, Any] = {}
+    if (cache_control := tool.cache_control) is not UNDEFINED:
+        if cache_control is None:
+            extra_parameters["cache_control"] = None
+        elif isinstance(cache_control, AnthropicCacheControlEphemeralParam):
+            extra_parameters["cache_control"] = cache_control.model_dump()
+        else:
+            assert_never(cache_control)
+    return PromptFunctionToolV1(
+        type="function-tool-v1",
+        name=tool.name,
+        description=tool.description,
+        schema=tool.input_schema,
+        extra_parameters=extra_parameters,
+    )
+
+
+def _prompt_to_anthropic_tool(
+    tool: PromptFunctionToolV1,
+) -> AnthropicToolDefinition:
+    cache_control = tool.extra_parameters.get("cache_control", UNDEFINED)
+    anthropic_cache_control: Optional[AnthropicCacheControlEphemeralParam]
+    if cache_control is UNDEFINED:
+        anthropic_cache_control = UNDEFINED
+    elif cache_control is None:
+        anthropic_cache_control = None
+    else:
+        anthropic_cache_control = AnthropicCacheControlEphemeralParam.model_validate(cache_control)
+    return AnthropicToolDefinition(
+        input_schema=tool.schema_,
+        name=tool.name,
+        description=tool.description,
+        cache_control=anthropic_cache_control,
+    )

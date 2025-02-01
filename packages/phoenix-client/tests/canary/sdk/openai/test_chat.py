@@ -164,7 +164,7 @@ class TestChatCompletionContentPartTextParam:
         assert not DeepDiff(part, new_part)
 
     def test_formatter(self) -> None:
-        obj = TextContentPart(text=TextContentValue(text=_str()))
+        obj = TextContentPart(type="text", text=TextContentValue(text=_str()))
         variables = Faker().pydict(value_types=(str, int, float, bool))
         part: ChatCompletionContentPartTextParam = _to_text_param(obj, variables, _MockFormatter())
         assert part["text"] == json.dumps(variables)

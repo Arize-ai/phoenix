@@ -2198,6 +2198,39 @@
         ],
         "title": "PromptChatTemplateV1"
       },
+      "PromptFunctionToolV1": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function-tool-v1",
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "schema": {
+            "type": "object",
+            "title": "Schema"
+          },
+          "extra_parameters": {
+            "type": "object",
+            "title": "Extra Parameters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "extra_parameters"
+        ],
+        "title": "PromptFunctionToolV1"
+      },
       "PromptMessage": {
         "properties": {
           "role": {
@@ -2302,40 +2335,36 @@
         ],
         "title": "PromptTemplateType"
       },
-      "PromptToolDefinition": {
-        "properties": {
-          "definition": {
-            "type": "object",
-            "title": "Definition"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "definition"
-        ],
-        "title": "PromptToolDefinition"
-      },
       "PromptToolsV1": {
         "properties": {
-          "version": {
+          "type": {
             "type": "string",
             "const": "tools-v1",
-            "title": "Version",
-            "default": "tools-v1"
+            "title": "Type"
           },
-          "tool_definitions": {
+          "tools": {
             "items": {
-              "$ref": "#/components/schemas/PromptToolDefinition"
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PromptFunctionToolV1"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "function-tool-v1": "#/components/schemas/PromptFunctionToolV1"
+                }
+              }
             },
             "type": "array",
-            "title": "Tool Definitions"
+            "title": "Tools"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "tool_definitions"
+          "type",
+          "tools"
         ],
         "title": "PromptToolsV1"
       },
@@ -2586,8 +2615,7 @@
           "type": {
             "type": "string",
             "const": "function",
-            "title": "Type",
-            "default": "function"
+            "title": "Type"
           },
           "name": {
             "type": "string",
@@ -2600,6 +2628,7 @@
         },
         "type": "object",
         "required": [
+          "type",
           "name",
           "arguments"
         ],
