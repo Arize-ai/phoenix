@@ -317,17 +317,69 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
         ),
     ],
 )
-def test_openai_tool_normalization_and_denormalization_preserves_data(
+async def test_openai_tool_are_round_tripped_without_data_loss(
     openai_tool_dict: dict[str, Any],
     expected_normalized_tool_dict: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
 ) -> None:
+    # normalize tools
     normalized_tools = normalize_tools([openai_tool_dict], "openai")
-    assert len(normalized_tools.tools) == 1
-    normalized_tool_dict = normalized_tools.tools[0].model_dump()
-    assert normalized_tool_dict == expected_normalized_tool_dict
-    denormalized_tools_dicts = denormalize_tools(normalized_tools, "openai")
-    assert len(denormalized_tools_dicts) == 1
-    assert denormalized_tools_dicts[0] == openai_tool_dict
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplateV1(
+                version="chat-template-v1",
+                messages=[],
+            ),
+            invocation_parameters={},
+            tools=normalized_tools,
+            output_schema=None,
+            model_provider="anthropic",
+            model_name="claude-3-5-sonnet",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_tools = await session.scalar(
+            select(text("tools"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_tool_dict = json.loads(materialized_tools)
+    else:
+        materialized_tool_dict = materialized_tools
+    assert materialized_tool_dict == {
+        "type": "tools-v1",
+        "tools": [
+            expected_normalized_tool_dict,
+        ],
+    }
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize tools and check they match the input tools
+    rehydrated_tools = rehydrated_prompt_version.tools
+    assert rehydrated_tools is not None
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "openai")
+    assert len(denormalized_tool_dicts) == 1
+    assert denormalized_tool_dicts[0] == openai_tool_dict
 
 
 @pytest.mark.parametrize(
