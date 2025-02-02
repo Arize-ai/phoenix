@@ -346,8 +346,8 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             invocation_parameters={},
             tools=normalized_tools,
             output_schema=None,
-            model_provider="anthropic",
-            model_name="claude-3-5-sonnet",
+            model_provider="openai",
+            model_name="gpt-4o",
         )
         session.add(prompt_version)
 
@@ -556,12 +556,60 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
         ),
     ],
 )
-def test_openai_output_schema_normalization_and_denormalization_preserves_data(
+async def test_openai_output_schema_are_round_tripped_without_data_loss(
     openai_output_schema_dict: dict[str, Any],
     expected_normalized_output_schema_dict: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
 ) -> None:
+    # normalize output schema
     normalized_output_schema = normalize_output_schema(openai_output_schema_dict, "openai")
-    normalized_output_schema_dict = normalized_output_schema.model_dump()
-    assert normalized_output_schema_dict == expected_normalized_output_schema_dict
-    denormalized_output_schema_dict = denormalize_output_schema(normalized_output_schema, "openai")
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplateV1(
+                version="chat-template-v1",
+                messages=[],
+            ),
+            invocation_parameters={},
+            tools=None,
+            output_schema=normalized_output_schema,
+            model_provider="openai",
+            model_name="gpt-4o",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_output_schema = await session.scalar(
+            select(text("output_schema"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_output_schema_dict = json.loads(materialized_output_schema)
+    else:
+        materialized_output_schema_dict = materialized_output_schema
+    assert materialized_output_schema_dict == expected_normalized_output_schema_dict
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize output schema and check it matches the input output schema
+    rehydrated_output_schema = rehydrated_prompt_version.output_schema
+    assert rehydrated_output_schema is not None
+    denormalized_output_schema_dict = denormalize_output_schema(rehydrated_output_schema, "openai")
     assert denormalized_output_schema_dict == openai_output_schema_dict
