@@ -3,22 +3,15 @@ from typing import Any
 import pytest
 
 from phoenix.server.api.helpers.prompts.models import (
-    AnthropicToolDefinition,
-    OpenAIToolDefinition,
-    PromptFunctionToolV1,
-    PromptOpenAIOutputSchema,
-    PromptOutputSchema,
-    _anthropic_to_prompt_tool,
-    _openai_to_prompt_output_schema,
-    _openai_to_prompt_tool,
-    _prompt_to_anthropic_tool,
-    _prompt_to_openai_output_schema,
-    _prompt_to_openai_tool,
+    denormalize_output_schema,
+    denormalize_tools,
+    normalize_output_schema,
+    normalize_tools,
 )
 
 
 @pytest.mark.parametrize(
-    "anthropic_tool_dict,expected_prompt_tool_dict",
+    "anthropic_tool_dict,expected_normalized_tool_dict",
     [
         pytest.param(
             {
@@ -142,21 +135,21 @@ from phoenix.server.api.helpers.prompts.models import (
         ),
     ],
 )
-def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
+def test_anthropic_tool_normalization_and_denormalization_preserves_data(
     anthropic_tool_dict: dict[str, Any],
-    expected_prompt_tool_dict: dict[str, Any],
+    expected_normalized_tool_dict: dict[str, Any],
 ) -> None:
-    anthropic_tool = AnthropicToolDefinition.model_validate(anthropic_tool_dict)
-    prompt_tool = _anthropic_to_prompt_tool(anthropic_tool)
-    prompt_tool_dict = prompt_tool.model_dump()
-    assert prompt_tool_dict == expected_prompt_tool_dict
-    rehydrated_prompt_tool = PromptFunctionToolV1.model_validate(prompt_tool_dict)
-    rehydrated_anthropic_tool = _prompt_to_anthropic_tool(rehydrated_prompt_tool)
-    assert rehydrated_anthropic_tool.model_dump() == anthropic_tool_dict
+    normalized_tools = normalize_tools([anthropic_tool_dict], "anthropic")
+    assert len(normalized_tools.tools) == 1
+    normalized_tools_dict = normalized_tools.tools[0].model_dump()
+    assert normalized_tools_dict == expected_normalized_tool_dict
+    denormalized_tool_dicts = denormalize_tools(normalized_tools, "anthropic")
+    assert len(denormalized_tool_dicts) == 1
+    assert denormalized_tool_dicts[0] == anthropic_tool_dict
 
 
 @pytest.mark.parametrize(
-    "openai_tool_dict,expected_prompt_tool_dict",
+    "openai_tool_dict,expected_normalized_tool_dict",
     [
         pytest.param(
             {
@@ -266,21 +259,21 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
         ),
     ],
 )
-def test_openai_tool_normalization_and_round_tripping_preserves_data(
+def test_openai_tool_normalization_and_denormalization_preserves_data(
     openai_tool_dict: dict[str, Any],
-    expected_prompt_tool_dict: dict[str, Any],
+    expected_normalized_tool_dict: dict[str, Any],
 ) -> None:
-    openai_tool = OpenAIToolDefinition.model_validate(openai_tool_dict)
-    prompt_tool = _openai_to_prompt_tool(openai_tool)
-    prompt_tool_dict = prompt_tool.model_dump()
-    assert prompt_tool_dict == expected_prompt_tool_dict
-    rehydrated_prompt_tool = PromptFunctionToolV1.model_validate(prompt_tool_dict)
-    rehydrated_openai_tool = _prompt_to_openai_tool(rehydrated_prompt_tool)
-    assert rehydrated_openai_tool.model_dump() == openai_tool_dict
+    normalized_tools = normalize_tools([openai_tool_dict], "openai")
+    assert len(normalized_tools.tools) == 1
+    normalized_tool_dict = normalized_tools.tools[0].model_dump()
+    assert normalized_tool_dict == expected_normalized_tool_dict
+    denormalized_tools_dicts = denormalize_tools(normalized_tools, "openai")
+    assert len(denormalized_tools_dicts) == 1
+    assert denormalized_tools_dicts[0] == openai_tool_dict
 
 
 @pytest.mark.parametrize(
-    "openai_output_schema_dict,expected_prompt_output_schema_dict",
+    "openai_output_schema_dict,expected_normalized_output_schema_dict",
     [
         pytest.param(
             {
@@ -453,16 +446,12 @@ def test_openai_tool_normalization_and_round_tripping_preserves_data(
         ),
     ],
 )
-def test_openai_output_schema_normalization_and_round_tripping_preserves_data(
+def test_openai_output_schema_normalization_and_denormalization_preserves_data(
     openai_output_schema_dict: dict[str, Any],
-    expected_prompt_output_schema_dict: dict[str, Any],
+    expected_normalized_output_schema_dict: dict[str, Any],
 ) -> None:
-    openai_output_schema = PromptOpenAIOutputSchema.model_validate(openai_output_schema_dict)
-    prompt_output_schema = _openai_to_prompt_output_schema(openai_output_schema)
-    prompt_output_schema_dict = prompt_output_schema.model_dump()
-    assert prompt_output_schema_dict == expected_prompt_output_schema_dict
-    rehydrated_prompt_output_schema = PromptOutputSchema.model_validate(prompt_output_schema_dict)
-    rehydrated_openai_output_schema = _prompt_to_openai_output_schema(
-        rehydrated_prompt_output_schema
-    )
-    assert rehydrated_openai_output_schema.model_dump() == openai_output_schema_dict
+    normalized_output_schema = normalize_output_schema(openai_output_schema_dict, "openai")
+    normalized_output_schema_dict = normalized_output_schema.model_dump()
+    assert normalized_output_schema_dict == expected_normalized_output_schema_dict
+    denormalized_output_schema_dict = denormalize_output_schema(normalized_output_schema, "openai")
+    assert denormalized_output_schema_dict == openai_output_schema_dict
