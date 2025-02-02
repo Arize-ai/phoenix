@@ -213,11 +213,11 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "get_weather",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "city": {
                                 "type": "string",
                             }
                         },
@@ -226,13 +226,13 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
-                        },
+                        }
                     },
                 },
                 "extra_parameters": {},
@@ -243,12 +243,12 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
-                    "description": "tool-description",
+                    "name": "get_weather",
+                    "description": "Gets current weather for a given city",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "city": {
                                 "type": "string",
                             }
                         },
@@ -257,14 +257,14 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "description": "tool-description",
+                "name": "get_weather",
+                "description": "Gets current weather for a given city",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
-                        },
+                        }
                     },
                 },
                 "extra_parameters": {},
@@ -275,12 +275,12 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "escalate_to_human_customer_support",
                 },
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "escalate_to_human_customer_support",
                 "extra_parameters": {},
             },
             id="tool-with-no-parameters",
@@ -289,31 +289,38 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "get_weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["city"],
+                        "additionalProperties": False,
+                    },
                     "strict": True,
                 },
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "extra_parameters": {"strict": True},
-            },
-            id="tool-with-strict-set-to-bool",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "tool-name",
-                    "strict": None,
+                "name": "get_weather",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                        }
+                    },
+                    "required": ["city"],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": True,
                 },
             },
-            {
-                "type": "function-tool-v1",
-                "name": "tool-name",
-                "extra_parameters": {"strict": None},
-            },
-            id="tool-with-strict-set-to-none",
+            id="tool-with-strict-set-to-bool",
         ),
     ],
 )
