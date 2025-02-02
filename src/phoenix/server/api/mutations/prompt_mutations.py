@@ -14,7 +14,10 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
-from phoenix.server.api.helpers.prompts.models import PromptOutputSchema, normalize_tools
+from phoenix.server.api.helpers.prompts.models import (
+    normalize_output_schema,
+    normalize_tools,
+)
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
     to_pydantic_prompt_chat_template_v1,
@@ -85,8 +88,9 @@ class PromptMutationMixin:
             tools = normalize_tools(tool_definitions, input_prompt_version.model_provider)
             template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
             output_schema = (
-                PromptOutputSchema.model_validate(
-                    strawberry.asdict(input_prompt_version.output_schema)
+                normalize_output_schema(
+                    input_prompt_version.output_schema.definition,
+                    input_prompt_version.model_provider,
                 )
                 if input_prompt_version.output_schema
                 else None
@@ -138,8 +142,9 @@ class PromptMutationMixin:
             tools = normalize_tools(tool_definitions, input.prompt_version.model_provider)
             template = to_pydantic_prompt_chat_template_v1(input.prompt_version.template)
             output_schema = (
-                PromptOutputSchema.model_validate(
-                    strawberry.asdict(input_prompt_version.output_schema)
+                normalize_output_schema(
+                    input_prompt_version.output_schema.definition,
+                    input_prompt_version.model_provider,
                 )
                 if input_prompt_version.output_schema
                 else None
