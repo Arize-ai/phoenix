@@ -432,7 +432,7 @@ class OpenAIModel(BaseModel):
         if "gpt" in self.model:
             return "system"
         if "o1-mini" in self.model:
-            return "user"
+            return "user"  # o1-mini does not support either "system" or "developer" roles
         if "o1" in self.model:
             return "developer"
         if "o3" in self.model:
