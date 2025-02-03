@@ -367,7 +367,6 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     return {
       modelConfig: {
         modelName: data.llm.model_name,
-        baseUrl: null,
         provider,
         invocationParameters: [],
         supportedInvocationParameters: [],

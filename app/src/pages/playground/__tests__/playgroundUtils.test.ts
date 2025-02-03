@@ -62,7 +62,6 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
-    baseUrl: null,
     invocationParameters: [],
     supportedInvocationParameters: [],
   },
@@ -81,7 +80,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
-    baseUrl: null,
     invocationParameters: [],
     supportedInvocationParameters: [],
   },
@@ -132,7 +130,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",
-          baseUrl: null,
           invocationParameters: [],
           supportedInvocationParameters: [],
         },
@@ -618,7 +615,6 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     }).toEqual({
       modelConfig: {
         modelName: "gpt-3.5-turbo",
-        baseUrl: null,
         provider: "OPENAI",
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -856,7 +852,6 @@ describe("getModelConfigFromAttributes", () => {
     expect(getBaseModelConfigFromAttributes(parsedAttributes)).toEqual({
       modelConfig: {
         modelName: "gpt-3.5-turbo",
-        baseUrl: null,
         provider: "OPENAI",
         // getBaseModelConfigFromAttributes does not parse invocation parameters
         invocationParameters: [],
@@ -888,7 +883,6 @@ describe("getModelConfigFromAttributes", () => {
     }).toEqual({
       modelConfig: {
         modelName: "gpt-3.5-turbo",
-        baseUrl: null,
         provider: "OPENAI",
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -994,7 +988,6 @@ describe("getVariablesMapFromInstances", () => {
     model: {
       provider: "OPENAI",
       modelName: "gpt-3.5-turbo",
-      baseUrl: null,
       invocationParameters: [],
       supportedInvocationParameters: [],
     },

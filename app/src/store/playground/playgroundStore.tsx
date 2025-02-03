@@ -108,7 +108,6 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
-      baseUrl: null,
       modelName: DEFAULT_MODEL_NAME,
       invocationParameters: [],
       supportedInvocationParameters: [],
