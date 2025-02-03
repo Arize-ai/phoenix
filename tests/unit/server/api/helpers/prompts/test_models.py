@@ -7,13 +7,153 @@ from sqlalchemy import select, text
 from phoenix.db.models import Prompt, PromptVersion
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
+    ImageContentPart,
+    ImageContentValue,
     PromptChatTemplateV1,
+    PromptMessage,
+    PromptMessageRole,
+    TextContentPart,
+    TextContentValue,
+    ToolCallContentPart,
+    ToolCallContentValue,
+    ToolCallFunction,
+    ToolResultContentPart,
+    ToolResultContentValue,
     denormalize_output_schema,
     denormalize_tools,
     normalize_output_schema,
     normalize_tools,
 )
 from phoenix.server.types import DbSessionFactory
+
+
+async def test_template_round_trip(
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    # create a template
+    template = PromptChatTemplateV1(
+        version="chat-template-v1",
+        messages=[
+            PromptMessage(
+                role=PromptMessageRole.USER,
+                content=[
+                    TextContentPart(
+                        type="text",
+                        text=TextContentValue(text="foo"),
+                    ),
+                    ImageContentPart(
+                        type="image",
+                        image=ImageContentValue(url="url"),
+                    ),
+                    ToolCallContentPart(
+                        type="tool_call",
+                        tool_call=ToolCallContentValue(
+                            tool_call_id="1234",
+                            tool_call=ToolCallFunction(
+                                type="function",
+                                name="tool-name",
+                                arguments="{}",
+                            ),
+                        ),
+                    ),
+                    ToolResultContentPart(
+                        type="tool_result",
+                        tool_result=ToolResultContentValue(
+                            tool_call_id="1234",
+                            result={"foo": "bar"},
+                        ),
+                    ),
+                ],
+            )
+        ],
+    )
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=template,
+            invocation_parameters={},
+            tools=None,
+            output_schema=None,
+            model_provider="anthropic",
+            model_name="claude-3-5-sonnet",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_template = await session.scalar(
+            select(text("template"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_template_dict = json.loads(materialized_template)
+    else:
+        materialized_template_dict = materialized_template
+    assert materialized_template_dict == {
+        "version": "chat-template-v1",
+        "messages": [
+            {
+                "role": "USER",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": {
+                            "text": "foo",
+                        },
+                    },
+                    {
+                        "type": "image",
+                        "image": {
+                            "url": "url",
+                        },
+                    },
+                    {
+                        "type": "tool_call",
+                        "tool_call": {
+                            "tool_call_id": "1234",
+                            "tool_call": {
+                                "type": "function",
+                                "name": "tool-name",
+                                "arguments": "{}",
+                            },
+                        },
+                    },
+                    {
+                        "type": "tool_result",
+                        "tool_result": {
+                            "tool_call_id": "1234",
+                            "result": {
+                                "foo": "bar",
+                            },
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize template and check it matches the input template
+    rehydrated_template = rehydrated_prompt_version.template
+    assert rehydrated_template is not None
+    assert rehydrated_template.model_dump() == template.model_dump()
 
 
 @pytest.mark.parametrize(
