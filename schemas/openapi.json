@@ -2604,6 +2604,7 @@
         },
         "type": "object",
         "required": [
+          "tool_call_id",
           "tool_call"
         ],
         "title": "ToolCallContentValue"
@@ -2627,7 +2628,8 @@
         "type": "object",
         "required": [
           "type",
-          "name"
+          "name",
+          "arguments"
         ],
         "title": "ToolCallFunction"
       },
@@ -2686,6 +2688,7 @@
         },
         "type": "object",
         "required": [
+          "tool_call_id",
           "result"
         ],
         "title": "ToolResultContentValue"

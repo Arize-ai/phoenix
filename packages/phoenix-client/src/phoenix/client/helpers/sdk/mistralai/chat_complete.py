@@ -367,6 +367,7 @@ def _from_tool_message(
     id_ = obj["tool_call_id"] if "tool_call_id" in obj else ""
     if isinstance(obj["content"], str):
         tool_result = ToolResultContentValue(
+            tool_call_id="",
             result=obj["content"],
         )
         if id_:

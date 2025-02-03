@@ -54,13 +54,7 @@ class PromptModel(BaseModel):
         super().__init__(*args, **kwargs)
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        return super().model_dump(
-            *args,
-            exclude_unset=True,
-            exclude_none=True,
-            by_alias=True,
-            **kwargs,
-        )
+        return super().model_dump(*args, exclude_unset=True, by_alias=True, **kwargs)
 
 
 class TextContentValue(BaseModel):
@@ -87,11 +81,11 @@ class ImageContentPart(PromptModel):
 class ToolCallFunction(BaseModel):
     type: Literal["function"]
     name: str
-    arguments: str = UNDEFINED
+    arguments: str
 
 
 class ToolCallContentValue(BaseModel):
-    tool_call_id: str = UNDEFINED
+    tool_call_id: str
     tool_call: ToolCallFunction
 
 
@@ -102,7 +96,7 @@ class ToolCallContentPart(PromptModel):
 
 
 class ToolResultContentValue(BaseModel):
-    tool_call_id: str = UNDEFINED
+    tool_call_id: str
     result: JSONSerializable
 
 

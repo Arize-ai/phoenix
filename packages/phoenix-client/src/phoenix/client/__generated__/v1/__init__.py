@@ -142,13 +142,13 @@ class TextContentValue(TypedDict):
 
 class ToolCallFunction(TypedDict):
     name: str
+    arguments: str
     type: Literal["function"]
-    arguments: NotRequired[str]
 
 
 class ToolResultContentValue(TypedDict):
+    tool_call_id: str
     result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
-    tool_call_id: NotRequired[str]
 
 
 class UploadDatasetData(TypedDict):
@@ -200,8 +200,8 @@ class TextContentPart(TypedDict):
 
 
 class ToolCallContentValue(TypedDict):
+    tool_call_id: str
     tool_call: ToolCallFunction
-    tool_call_id: NotRequired[str]
 
 
 class ToolResultContentPart(TypedDict):
