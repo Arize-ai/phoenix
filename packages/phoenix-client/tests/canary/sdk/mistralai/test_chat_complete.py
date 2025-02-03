@@ -1,24 +1,26 @@
 import json
-from typing import Any, Iterable, Mapping, Optional, Union
+from typing import Any, Iterable, Mapping, Optional
 
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionContentPartImageParam,
-    ChatCompletionContentPartParam,
-    ChatCompletionContentPartTextParam,
-    ChatCompletionMessageToolCallParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionToolParam,
-    ChatCompletionUserMessageParam,
+from mistralai.models import (
+    AssistantMessageContentTypedDict,
+    AssistantMessageTypedDict,
+    FunctionCallTypedDict,
+    FunctionTypedDict,
+    ImageURLChunkTypedDict,
+    ImageURLTypedDict,
+    SystemMessageContentTypedDict,
+    SystemMessageTypedDict,
+    TextChunkTypedDict,
+    ToolCallTypedDict,
+    ToolMessageContentTypedDict,
+    ToolMessageTypedDict,
+    ToolTypedDict,
+    UserMessageContentTypedDict,
+    UserMessageTypedDict,
 )
-from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-from openai.types.chat.chat_completion_content_part_image_param import ImageURL
-from openai.types.chat.chat_completion_message_tool_call_param import Function
-from openai.types.shared_params import FunctionDefinition
 
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
@@ -27,7 +29,7 @@ from phoenix.client.__generated__.v1 import (
     TextContentValue,
     ToolCallContentPart,
 )
-from phoenix.client.helpers.sdk.openai.chat import (
+from phoenix.client.helpers.sdk.mistralai.chat_complete import (
     _from_image,
     _from_message,
     _from_text,
@@ -53,39 +55,39 @@ def _str() -> str:
 
 
 def _user_msg(
-    content: Union[str, Iterable[ChatCompletionContentPartParam]],
-) -> ChatCompletionUserMessageParam:
-    return ChatCompletionUserMessageParam(
+    content: UserMessageContentTypedDict,
+) -> UserMessageTypedDict:
+    return UserMessageTypedDict(
         role="user",
         content=content,
     )
 
 
 def _assistant_msg(
-    content: Optional[Union[str, Iterable[ContentArrayOfContentPart]]] = None,
-    tool_calls: Iterable[ChatCompletionMessageToolCallParam] = (),
-) -> ChatCompletionAssistantMessageParam:
+    content: Optional[AssistantMessageContentTypedDict] = None,
+    tool_calls: Iterable[ToolCallTypedDict] = (),
+) -> AssistantMessageTypedDict:
     if not tool_calls:
-        return ChatCompletionAssistantMessageParam(
+        return AssistantMessageTypedDict(
             role="assistant",
             content=content,
         )
     if content is None:
-        return ChatCompletionAssistantMessageParam(
+        return AssistantMessageTypedDict(
             role="assistant",
-            tool_calls=tool_calls,
+            tool_calls=list(tool_calls),
         )
-    return ChatCompletionAssistantMessageParam(
+    return AssistantMessageTypedDict(
         role="assistant",
         content=content,
-        tool_calls=tool_calls,
+        tool_calls=list(tool_calls),
     )
 
 
 def _tool_msg(
-    content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
-) -> ChatCompletionToolMessageParam:
-    return ChatCompletionToolMessageParam(
+    content: ToolMessageContentTypedDict,
+) -> ToolMessageTypedDict:
+    return ToolMessageTypedDict(
         role="tool",
         content=content,
         tool_call_id=_str(),
@@ -93,42 +95,42 @@ def _tool_msg(
 
 
 def _system_msg(
-    content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
-) -> ChatCompletionSystemMessageParam:
-    return ChatCompletionSystemMessageParam(
+    content: SystemMessageContentTypedDict,
+) -> SystemMessageTypedDict:
+    return SystemMessageTypedDict(
         role="system",
         content=content,
     )
 
 
-def _text() -> ChatCompletionContentPartTextParam:
-    return ChatCompletionContentPartTextParam(
-        type="text",
-        text=_str(),
-    )
+def _text() -> TextChunkTypedDict:
+    return TextChunkTypedDict(type="text", text=_str())
 
 
-def _image() -> ChatCompletionContentPartImageParam:
-    return ChatCompletionContentPartImageParam(
+def _image() -> ImageURLChunkTypedDict:
+    return ImageURLChunkTypedDict(
         type="image_url",
-        image_url=ImageURL(
+        image_url=ImageURLTypedDict(
             url=fake.image_url(),
         ),
     )
 
 
-def _tool_call() -> ChatCompletionMessageToolCallParam:
-    return ChatCompletionMessageToolCallParam(
+def _tool_call() -> ToolCallTypedDict:
+    return ToolCallTypedDict(
         id=_str(),
         type="function",
-        function=Function(name=_str(), arguments=json.dumps(_dict())),
+        function=FunctionCallTypedDict(
+            name=_str(),
+            arguments=json.dumps(_dict()),
+        ),
     )
 
 
-def _tool() -> ChatCompletionToolParam:
-    return ChatCompletionToolParam(
+def _tool() -> ToolTypedDict:
+    return ToolTypedDict(
         type="function",
-        function=FunctionDefinition(
+        function=FunctionTypedDict(
             name=_str(),
             description=_str(),
             parameters={
@@ -144,7 +146,7 @@ def _tool() -> ChatCompletionToolParam:
     )
 
 
-class TestChatCompletionUserMessageParam:
+class TestUserMessageTypedDict:
     @pytest.mark.parametrize(
         "obj",
         [
@@ -152,12 +154,12 @@ class TestChatCompletionUserMessageParam:
             _user_msg([_text(), _text()]),
         ],
     )
-    def test_round_trip(self, obj: ChatCompletionUserMessageParam) -> None:
+    def test_round_trip(self, obj: UserMessageTypedDict) -> None:
         x: PromptMessage = _from_message(obj)
         assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
 
 
-class TestChatCompletionSystemMessageParam:
+class TestSystemMessageTypedDict:
     @pytest.mark.parametrize(
         "obj",
         [
@@ -165,12 +167,12 @@ class TestChatCompletionSystemMessageParam:
             _system_msg([_text(), _text()]),
         ],
     )
-    def test_round_trip(self, obj: ChatCompletionSystemMessageParam) -> None:
+    def test_round_trip(self, obj: SystemMessageTypedDict) -> None:
         x: PromptMessage = _from_message(obj)
         assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
 
 
-class TestChatCompletionAssistantMessageParam:
+class TestAssistantMessageTypedDict:
     @pytest.mark.parametrize(
         "obj",
         [
@@ -179,12 +181,12 @@ class TestChatCompletionAssistantMessageParam:
             _assistant_msg(None, [_tool_call(), _tool_call()]),
         ],
     )
-    def test_round_trip(self, obj: ChatCompletionAssistantMessageParam) -> None:
+    def test_round_trip(self, obj: AssistantMessageTypedDict) -> None:
         x: PromptMessage = _from_message(obj)
         assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
 
 
-class TestChatCompletionToolMessageParam:
+class TestToolMessageTypedDict:
     @pytest.mark.parametrize(
         "obj",
         [
@@ -192,48 +194,48 @@ class TestChatCompletionToolMessageParam:
             _tool_msg([_text(), _text()]),
         ],
     )
-    def test_round_trip(self, obj: ChatCompletionToolMessageParam) -> None:
+    def test_round_trip(self, obj: ToolMessageTypedDict) -> None:
         x: PromptMessage = _from_message(obj)
         assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
 
 
-class TestChatCompletionToolParam:
+class TestToolTypedDict:
     @pytest.mark.parametrize(
         "tools",
         [[_tool() for _ in range(3)]],
     )
-    def test_round_trip(self, tools: Iterable[ChatCompletionToolParam]) -> None:
+    def test_round_trip(self, tools: Iterable[ToolTypedDict]) -> None:
         new_tools = list(_to_tools(_from_tools(tools)))
         assert not DeepDiff(list(tools), new_tools)
 
 
-class TestChatCompletionContentPartTextParam:
+class TestTextChunkTypedDict:
     def test_round_trip(self) -> None:
-        obj: ChatCompletionContentPartTextParam = _text()
+        obj: TextChunkTypedDict = _text()
         x: TextContentPart = _from_text(obj)
-        new_obj: ChatCompletionContentPartTextParam = _to_text(x, {}, NO_OP_FORMATTER)
+        new_obj: TextChunkTypedDict = _to_text(x, {}, NO_OP_FORMATTER)
         assert not DeepDiff(obj, new_obj)
 
     def test_formatter(self) -> None:
         x = TextContentPart(type="text", text=TextContentValue(text=_str()))
         formatter, variables = _MockFormatter(), _dict()
-        ans: ChatCompletionContentPartTextParam = _to_text(x, variables, formatter)
+        ans: TextChunkTypedDict = _to_text(x, variables, formatter)
         assert ans["text"] == formatter.format(x["text"]["text"], variables=variables)
 
 
-class TestChatCompletionMessageToolCallParam:
+class TestToolCallTypedDict:
     def test_round_trip(self) -> None:
-        obj: ChatCompletionMessageToolCallParam = _tool_call()
+        obj: ToolCallTypedDict = _tool_call()
         x: ToolCallContentPart = _from_tool_call(obj)
-        new_obj: ChatCompletionMessageToolCallParam = _to_tool_call(x, {}, NO_OP_FORMATTER)
+        new_obj: ToolCallTypedDict = _to_tool_call(x, {}, NO_OP_FORMATTER)
         assert not DeepDiff(obj, new_obj)
 
 
-class TestChatCompletionContentPartImageParam:
+class TestImageURLChunkTypedDict:
     def test_round_trip(self) -> None:
-        obj: ChatCompletionContentPartImageParam = _image()
+        obj: ImageURLChunkTypedDict = _image()
         x: ImageContentPart = _from_image(obj)
-        new_obj: ChatCompletionContentPartImageParam = _to_image(x, {}, NO_OP_FORMATTER)
+        new_obj: ImageURLChunkTypedDict = _to_image(x, {}, NO_OP_FORMATTER)
         assert not DeepDiff(obj, new_obj)
 
 

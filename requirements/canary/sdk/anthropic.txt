@@ -1,2 +1,2 @@
 -r common.txt
-anthropic>=0.43.0
+anthropic>=0.45.2

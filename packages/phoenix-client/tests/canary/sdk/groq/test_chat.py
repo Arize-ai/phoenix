@@ -4,7 +4,7 @@ from typing import Any, Iterable, Mapping, Optional, Union
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
-from openai.types.chat import (
+from groq.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
     ChatCompletionContentPartParam,
@@ -15,10 +15,9 @@ from openai.types.chat import (
     ChatCompletionToolParam,
     ChatCompletionUserMessageParam,
 )
-from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-from openai.types.chat.chat_completion_content_part_image_param import ImageURL
-from openai.types.chat.chat_completion_message_tool_call_param import Function
-from openai.types.shared_params import FunctionDefinition
+from groq.types.chat.chat_completion_content_part_image_param import ImageURL
+from groq.types.chat.chat_completion_message_tool_call_param import Function
+from groq.types.shared_params import FunctionDefinition
 
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
@@ -27,7 +26,7 @@ from phoenix.client.__generated__.v1 import (
     TextContentValue,
     ToolCallContentPart,
 )
-from phoenix.client.helpers.sdk.openai.chat import (
+from phoenix.client.helpers.sdk.groq.chat import (
     _from_image,
     _from_message,
     _from_text,
@@ -62,7 +61,7 @@ def _user_msg(
 
 
 def _assistant_msg(
-    content: Optional[Union[str, Iterable[ContentArrayOfContentPart]]] = None,
+    content: Optional[str] = None,
     tool_calls: Iterable[ChatCompletionMessageToolCallParam] = (),
 ) -> ChatCompletionAssistantMessageParam:
     if not tool_calls:
@@ -83,7 +82,7 @@ def _assistant_msg(
 
 
 def _tool_msg(
-    content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
+    content: str,
 ) -> ChatCompletionToolMessageParam:
     return ChatCompletionToolMessageParam(
         role="tool",
@@ -93,7 +92,7 @@ def _tool_msg(
 
 
 def _system_msg(
-    content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
+    content: str,
 ) -> ChatCompletionSystemMessageParam:
     return ChatCompletionSystemMessageParam(
         role="system",
@@ -162,7 +161,6 @@ class TestChatCompletionSystemMessageParam:
         "obj",
         [
             _system_msg(_str()),
-            _system_msg([_text(), _text()]),
         ],
     )
     def test_round_trip(self, obj: ChatCompletionSystemMessageParam) -> None:
@@ -175,7 +173,6 @@ class TestChatCompletionAssistantMessageParam:
         "obj",
         [
             _assistant_msg(_str()),
-            _assistant_msg([_text(), _text()]),
             _assistant_msg(None, [_tool_call(), _tool_call()]),
         ],
     )
@@ -189,7 +186,6 @@ class TestChatCompletionToolMessageParam:
         "obj",
         [
             _tool_msg(_str()),
-            _tool_msg([_text(), _text()]),
         ],
     )
     def test_round_trip(self, obj: ChatCompletionToolMessageParam) -> None:
