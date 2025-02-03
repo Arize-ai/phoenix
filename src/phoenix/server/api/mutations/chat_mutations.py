@@ -309,7 +309,6 @@ class ChatCompletionMutationMixin:
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
 
-
         if input.prompt_id:
             attributes.update(*prompt_id_metadata(input.prompt_id))
 
