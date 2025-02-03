@@ -21,11 +21,11 @@ from phoenix.server.types import DbSessionFactory
     [
         pytest.param(
             {
-                "name": "tool-name",
+                "name": "get_weather",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -33,11 +33,11 @@ from phoenix.server.types import DbSessionFactory
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -48,12 +48,12 @@ from phoenix.server.types import DbSessionFactory
         ),
         pytest.param(
             {
-                "name": "tool-name",
-                "description": "tool-description",
+                "name": "get_weather",
+                "description": "Gets the current weather for a given city",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -61,12 +61,12 @@ from phoenix.server.types import DbSessionFactory
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "description": "tool-description",
+                "name": "get_weather",
+                "description": "Gets the current weather for a given city",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -77,11 +77,11 @@ from phoenix.server.types import DbSessionFactory
         ),
         pytest.param(
             {
-                "name": "tool-name",
+                "name": "get_weather",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -92,11 +92,11 @@ from phoenix.server.types import DbSessionFactory
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -111,11 +111,11 @@ from phoenix.server.types import DbSessionFactory
         ),
         pytest.param(
             {
-                "name": "tool-name",
+                "name": "get_weather",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -124,11 +124,11 @@ from phoenix.server.types import DbSessionFactory
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
