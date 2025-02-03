@@ -31,6 +31,7 @@ from phoenix.config import (
     get_working_dir,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
+from phoenix.db import get_printable_db_url
 from phoenix.inferences.inferences import EMPTY_INFERENCES, Inferences
 from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import (
@@ -48,7 +49,6 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.db import get_printable_db_url
 
 try:
     from IPython.display import IFrame  # type: ignore
