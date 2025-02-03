@@ -21,7 +21,6 @@ from phoenix.auth import (
     validate_email_format,
     validate_password_format,
 )
-from phoenix.config import get_env_default_admin_initial_email
 from phoenix.db import enums, models
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
@@ -229,7 +228,7 @@ class UserMutationMixin:
                     and_(
                         models.User.user_role_id == admin_user_role_id,
                         models.User.username == DEFAULT_ADMIN_USERNAME,
-                        models.User.email == get_env_default_admin_initial_email(),
+                        models.User.email == DEFAULT_ADMIN_EMAIL,
                     )
                 )
             )
