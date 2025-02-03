@@ -171,7 +171,7 @@ class PromptOpenAIJSONSchema(PromptModel):
     name: str
     description: str = UNDEFINED
     schema_: JSONSchemaObjectDefinition = Field(
-        default=UNDEFINED,
+        ...,
         alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
     )
     strict: Optional[bool] = UNDEFINED

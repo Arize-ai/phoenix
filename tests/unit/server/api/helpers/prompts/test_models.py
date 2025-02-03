@@ -433,33 +433,37 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "output-schema-name",
+                    "name": "classify_user_intent",
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "user_intent": {
                                 "type": "string",
-                            },
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
                         },
-                        "required": [
-                            "foo",
-                        ],
                     },
                 },
             },
             {
                 "type": "output-schema-v1",
-                "name": "output-schema-name",
+                "name": "classify_user_intent",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "user_intent": {
                             "type": "string",
-                        },
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
+                        }
                     },
-                    "required": [
-                        "foo",
-                    ],
                 },
                 "extra_parameters": {},
             },
@@ -469,34 +473,46 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "output-schema-name",
+                    "name": "classify_user_intent",
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "user_intent": {
                                 "type": "string",
-                            },
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
                         },
                         "required": [
-                            "foo",
+                            "user_intent",
                         ],
+                        "additionalProperties": False,
                     },
                     "strict": True,
                 },
             },
             {
                 "type": "output-schema-v1",
-                "name": "output-schema-name",
+                "name": "classify_user_intent",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "user_intent": {
                             "type": "string",
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
                         },
                     },
                     "required": [
-                        "foo",
+                        "user_intent",
                     ],
+                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": True,
@@ -508,34 +524,46 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "output-schema-name",
+                    "name": "classify_user_intent",
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "user_intent": {
                                 "type": "string",
-                            },
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
                         },
                         "required": [
-                            "foo",
+                            "user_intent",
                         ],
+                        "additionalProperties": False,
                     },
                     "strict": None,
                 },
             },
             {
                 "type": "output-schema-v1",
-                "name": "output-schema-name",
+                "name": "classify_user_intent",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "user_intent": {
                             "type": "string",
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
                         },
                     },
                     "required": [
-                        "foo",
+                        "user_intent",
                     ],
+                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": None,
@@ -547,56 +575,50 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             {
                 "type": "json_schema",
                 "json_schema": {
-                    "name": "output-schema-name",
-                    "description": "output-schema-description",
+                    "name": "classify_user_intent",
+                    "description": "Classifies the user's intent into one of several categories",
                     "schema": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "user_intent": {
                                 "type": "string",
-                            },
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
                         },
-                        "required": [
-                            "foo",
-                        ],
+                        "required": ["user_intent"],
+                        "additionalProperties": False,
                     },
                     "strict": True,
                 },
             },
             {
                 "type": "output-schema-v1",
-                "name": "output-schema-name",
-                "description": "output-schema-description",
+                "name": "classify_user_intent",
+                "description": "Classifies the user's intent into one of several categories",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "user_intent": {
                             "type": "string",
-                        },
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
+                        }
                     },
-                    "required": [
-                        "foo",
-                    ],
+                    "required": ["user_intent"],
+                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": True,
                 },
             },
             id="with-description",
-        ),
-        pytest.param(
-            {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "output-schema-name",
-                },
-            },
-            {
-                "type": "output-schema-v1",
-                "name": "output-schema-name",
-                "extra_parameters": {},
-            },
-            id="without-schema",
         ),
     ],
 )
