@@ -105,6 +105,7 @@
 * [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
 * [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
   * [Create a prompt](prompt-engineering/how-to-prompts/create-a-prompt.md)
+  * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 
 ## 🗄️ Datasets & Experiments

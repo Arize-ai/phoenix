@@ -14,7 +14,7 @@ Prompt management is currently available on a feature branch only and will be re
 
 * [create-a-prompt.md](create-a-prompt.md "mention")
 * Update a prompt
-* Tag a prompt
+* [tag-a-prompt.md](tag-a-prompt.md "mention")
 
 ## Playground
 

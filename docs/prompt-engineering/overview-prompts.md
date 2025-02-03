@@ -18,6 +18,8 @@ Prompts refer to the message(s) that are passed into the language model.
 
 Prompt Templates refer a way of formatting information to get the prompt to hold the information you want (such as context and examples) Prompt templates can include placeholders (variables) for things such as examples (e.x. few-shot), outside context (RAG), or any other external data that is needed.
 
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_template.png" alt=""><figcaption></figcaption></figure>
+
 ## Prompt Playground
 
 Phoenix's Prompt Playground makes the process of iterating and testing prompts quick and easy.\
@@ -33,6 +35,12 @@ In the playground you can:
 * Run multiple prompts and compare
 * Run prompts over datasets
 * Observe the outputs
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3_prompt.gif" alt=""><figcaption></figcaption></figure>
+
+
+
+
 
 ## Span Replay
 
