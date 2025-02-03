@@ -367,6 +367,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     return {
       modelConfig: {
         modelName: data.llm.model_name,
+        baseUrl: null,
         provider,
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -972,6 +973,7 @@ const getBaseChatCompletionInput = ({
     model: {
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
+      baseUrl: instance.model.baseUrl,
       ...azureModelParams,
     },
     invocationParameters: invocationParameters,

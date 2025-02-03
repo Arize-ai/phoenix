@@ -69,6 +69,7 @@ export type PlaygroundInput = {
 
 export type ModelConfig = {
   provider: ModelProvider;
+  baseUrl: string | null;
   modelName: string | null;
   endpoint?: string | null;
   apiVersion?: string | null;

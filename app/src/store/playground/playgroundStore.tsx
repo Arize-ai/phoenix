@@ -108,6 +108,7 @@ export function createPlaygroundInstance(): PlaygroundInstance {
     template: generateChatCompletionTemplate(),
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
+      baseUrl: null,
       modelName: DEFAULT_MODEL_NAME,
       invocationParameters: [],
       supportedInvocationParameters: [],
@@ -275,6 +276,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             }
           : {
               modelName: null,
+              baseUrl: null,
               // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
               invocationParameters: [],
               // Reset supported invocation parameters to unset, these will be subsequently fetched and updated from the server

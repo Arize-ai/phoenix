@@ -62,6 +62,7 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
+    baseUrl: null,
     invocationParameters: [],
     supportedInvocationParameters: [],
   },
@@ -80,6 +81,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
+    baseUrl: null,
     invocationParameters: [],
     supportedInvocationParameters: [],
   },
@@ -988,6 +990,7 @@ describe("getVariablesMapFromInstances", () => {
     model: {
       provider: "OPENAI",
       modelName: "gpt-3.5-turbo",
+      baseUrl: null,
       invocationParameters: [],
       supportedInvocationParameters: [],
     },

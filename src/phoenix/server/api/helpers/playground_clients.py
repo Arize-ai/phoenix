@@ -168,6 +168,8 @@ class PlaygroundStreamingClient(ABC):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         self._attributes: dict[str, Any] = dict()
 
@@ -239,10 +241,11 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         client: Union["AsyncOpenAI", "AsyncAzureOpenAI"],
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         from openai import RateLimitError as OpenAIRateLimitError
 
-        super().__init__(model=model, api_key=api_key)
+        super().__init__(model=model, api_key=api_key, **kwargs)
         self.client = client
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
@@ -474,15 +477,17 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
     ) -> None:
         from openai import AsyncOpenAI
 
-        # todo: check if custom base url is set before raising error to allow
-        # for custom endpoints that don't require an API key
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+        if not (base_url := base_url or os.environ.get("OPENAI_BASE_URL")):
             raise BadRequest("An API key is required for OpenAI models")
-        client = AsyncOpenAI(api_key=api_key)
-        super().__init__(client=client, model=model, api_key=api_key)
+        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+            if base_url.startswith("https://api.openai.com/"):
+                raise BadRequest("An API key is required for OpenAI models")
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        super().__init__(client=client, model=model, api_key=api_key, base_url=base_url)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
@@ -646,6 +651,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
+        **kwargs: Any,
     ):
         from openai import AsyncAzureOpenAI
 
@@ -660,7 +666,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
             azure_endpoint=endpoint,
             api_version=api_version,
         )
-        super().__init__(client=client, model=model, api_key=api_key)
+        super().__init__(client=client, model=model, api_key=api_key, **kwargs)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
 
@@ -684,6 +690,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         import anthropic
 
@@ -863,10 +870,11 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         self,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
         import google.generativeai as google_genai
 
-        super().__init__(model=model, api_key=api_key)
+        super().__init__(model=model, api_key=api_key, **kwargs)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
         if not (
