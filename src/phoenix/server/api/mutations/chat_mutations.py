@@ -135,7 +135,6 @@ class ChatCompletionMutationMixin:
             llm_client = llm_client_class(
                 model=input.model,
                 api_key=input.api_key,
-                base_url=input.model.base_url,
             )
         except CustomGraphQLError:
             raise
