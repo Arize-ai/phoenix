@@ -2226,8 +2226,7 @@
         "type": "object",
         "required": [
           "type",
-          "name",
-          "extra_parameters"
+          "name"
         ],
         "title": "PromptFunctionToolV1"
       },
@@ -2605,7 +2604,6 @@
         },
         "type": "object",
         "required": [
-          "tool_call_id",
           "tool_call"
         ],
         "title": "ToolCallContentValue"
@@ -2629,8 +2627,7 @@
         "type": "object",
         "required": [
           "type",
-          "name",
-          "arguments"
+          "name"
         ],
         "title": "ToolCallFunction"
       },
@@ -2689,7 +2686,6 @@
         },
         "type": "object",
         "required": [
-          "tool_call_id",
           "result"
         ],
         "title": "ToolResultContentValue"

@@ -1,382 +1,251 @@
+# pyright: reportUnusedImport=false
 """Do not edit"""
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated, Any, Literal, Mapping, Optional, Sequence, Union
+from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
-
-
-class CreateExperimentRequestBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    name: Annotated[
-        Optional[str],
-        Field(
-            description="Name of the experiment (if omitted, a random name will be generated)",
-            title="Name",
-        ),
-    ] = None
-    description: Annotated[
-        Optional[str],
-        Field(description="An optional description of the experiment", title="Description"),
-    ] = None
-    metadata: Annotated[
-        Optional[Mapping[str, Any]],
-        Field(description="Metadata for the experiment", title="Metadata"),
-    ] = None
-    version_id: Annotated[
-        Optional[str],
-        Field(
-            description="ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)",
-            title="Version Id",
-        ),
-    ] = None
-    repetitions: Annotated[
-        Optional[int],
-        Field(
-            description="Number of times the experiment should be repeated for each example",
-            title="Repetitions",
-        ),
-    ] = 1
+from typing_extensions import NotRequired
 
 
-class Dataset(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(title="Id")]
-    name: Annotated[str, Field(title="Name")]
-    description: Annotated[Optional[str], Field(title="Description")] = None
-    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
-    created_at: Annotated[datetime, Field(title="Created At")]
-    updated_at: Annotated[datetime, Field(title="Updated At")]
+class CreateExperimentRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    version_id: NotRequired[str]
+    repetitions: NotRequired[int]
 
 
-class DatasetExample(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(title="Id")]
-    input: Annotated[Mapping[str, Any], Field(title="Input")]
-    output: Annotated[Mapping[str, Any], Field(title="Output")]
-    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
-    updated_at: Annotated[datetime, Field(title="Updated At")]
+class Dataset(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    metadata: Mapping[str, Any]
+    created_at: str
+    updated_at: str
 
 
-class DatasetVersion(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    version_id: Annotated[str, Field(title="Version Id")]
-    description: Annotated[Optional[str], Field(title="Description")] = None
-    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
-    created_at: Annotated[datetime, Field(title="Created At")]
+class DatasetExample(TypedDict):
+    id: str
+    input: Mapping[str, Any]
+    output: Mapping[str, Any]
+    metadata: Mapping[str, Any]
+    updated_at: str
 
 
-class DatasetWithExampleCount(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(title="Id")]
-    name: Annotated[str, Field(title="Name")]
-    description: Annotated[Optional[str], Field(title="Description")] = None
-    metadata: Annotated[Mapping[str, Any], Field(title="Metadata")]
-    created_at: Annotated[datetime, Field(title="Created At")]
-    updated_at: Annotated[datetime, Field(title="Updated At")]
-    example_count: Annotated[int, Field(title="Example Count")]
+class DatasetVersion(TypedDict):
+    version_id: str
+    description: Optional[str]
+    metadata: Mapping[str, Any]
+    created_at: str
 
 
-class Experiment(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(description="The ID of the experiment", title="Id")]
-    dataset_id: Annotated[
-        str,
-        Field(
-            description="The ID of the dataset associated with the experiment", title="Dataset Id"
-        ),
-    ]
-    dataset_version_id: Annotated[
-        str,
-        Field(
-            description="The ID of the dataset version associated with the experiment",
-            title="Dataset Version Id",
-        ),
-    ]
-    repetitions: Annotated[
-        int, Field(description="Number of times the experiment is repeated", title="Repetitions")
-    ]
-    metadata: Annotated[
-        Mapping[str, Any], Field(description="Metadata of the experiment", title="Metadata")
-    ]
-    project_name: Annotated[
-        Optional[str],
-        Field(
-            description="The name of the project associated with the experiment",
-            title="Project Name",
-        ),
-    ] = None
-    created_at: Annotated[
-        datetime, Field(description="The creation timestamp of the experiment", title="Created At")
-    ]
-    updated_at: Annotated[
-        datetime,
-        Field(description="The last update timestamp of the experiment", title="Updated At"),
-    ]
+class DatasetWithExampleCount(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    metadata: Mapping[str, Any]
+    created_at: str
+    updated_at: str
+    example_count: int
 
 
-class GetDatasetResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class Experiment(TypedDict):
+    id: str
+    dataset_id: str
+    dataset_version_id: str
+    repetitions: int
+    metadata: Mapping[str, Any]
+    project_name: Optional[str]
+    created_at: str
+    updated_at: str
+
+
+class GetDatasetResponseBody(TypedDict):
     data: DatasetWithExampleCount
 
 
-class GetExperimentResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class GetExperimentResponseBody(TypedDict):
     data: Experiment
 
 
-class ImageContentValue(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    url: Annotated[str, Field(title="Url")]
+class ImageContentValue(TypedDict):
+    url: str
 
 
-class InsertedSpanAnnotation(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(description="The ID of the inserted span annotation", title="Id")]
+class InsertedSpanAnnotation(TypedDict):
+    id: str
 
 
-class ListDatasetExamplesData(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    dataset_id: Annotated[str, Field(title="Dataset Id")]
-    version_id: Annotated[str, Field(title="Version Id")]
-    examples: Sequence[Annotated[DatasetExample, Field(title="Examples")]]
+class ListDatasetExamplesData(TypedDict):
+    dataset_id: str
+    version_id: str
+    examples: Sequence[DatasetExample]
 
 
-class ListDatasetExamplesResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
-class ListDatasetVersionsResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[DatasetVersion, Field(title="Data")]]
-    next_cursor: Annotated[Optional[str], Field(title="Next Cursor")] = None
+class ListDatasetVersionsResponseBody(TypedDict):
+    data: Sequence[DatasetVersion]
+    next_cursor: Optional[str]
 
 
-class ListDatasetsResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[Dataset, Field(title="Data")]]
-    next_cursor: Annotated[Optional[str], Field(title="Next Cursor")] = None
+class ListDatasetsResponseBody(TypedDict):
+    data: Sequence[Dataset]
+    next_cursor: Optional[str]
 
 
-class ListExperimentsResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[Experiment, Field(title="Data")]]
+class ListExperimentsResponseBody(TypedDict):
+    data: Sequence[Experiment]
 
 
-class Prompt(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(title="Id")]
-    source_prompt_id: Annotated[Optional[str], Field(title="Source Prompt Id")] = None
-    name: Annotated[str, Field(title="Name")]
-    description: Annotated[Optional[str], Field(title="Description")] = None
+class Prompt(TypedDict):
+    id: str
+    source_prompt_id: Optional[str]
+    name: str
+    description: Optional[str]
 
 
-class PromptCacheControlParam(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["ephemeral"], Field(title="Type")]
+class PromptFunctionToolV1(TypedDict):
+    name: str
+    type: Literal["function-tool-v1"]
+    description: NotRequired[str]
+    schema: NotRequired[Mapping[str, Any]]
+    extra_parameters: NotRequired[Mapping[str, Any]]
 
 
-class PromptFunctionToolV1(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["function-tool-v1"], Field(title="Type")]
-    name: Annotated[str, Field(title="Name")]
-    description: Annotated[Optional[str], Field(title="Description")] = None
-    schema_: Annotated[Optional[Mapping[str, Any]], Field(alias="schema", title="Schema")] = None
-    strict: Annotated[Optional[bool], Field(title="Strict")] = None
-    cache_control: Optional[PromptCacheControlParam] = None
+class PromptOutputSchema(TypedDict):
+    definition: Mapping[str, Any]
 
 
-class PromptOutputSchema(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    definition: Annotated[Mapping[str, Any], Field(title="Definition")]
+class PromptStringTemplateV1(TypedDict):
+    template: str
+    version: Literal["string-template-v1"]
 
 
-class PromptStringTemplateV1(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    version: Annotated[Literal["string-template-v1"], Field(title="Version")]
-    template: Annotated[str, Field(title="Template")]
+class PromptToolsV1(TypedDict):
+    tools: Sequence[PromptFunctionToolV1]
+    type: Literal["tools-v1"]
 
 
-class PromptToolsV1(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["tools-v1"], Field(title="Type")]
-    tools: Sequence[Annotated[PromptFunctionToolV1, Field(discriminator="type", title="Tools")]]
+class SpanAnnotationResult(TypedDict):
+    label: NotRequired[str]
+    score: NotRequired[float]
+    explanation: NotRequired[str]
 
 
-class SpanAnnotationResult(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    label: Annotated[
-        Optional[str], Field(description="The label assigned by the annotation", title="Label")
-    ] = None
-    score: Annotated[
-        Optional[float], Field(description="The score assigned by the annotation", title="Score")
-    ] = None
-    explanation: Annotated[
-        Optional[str],
-        Field(description="Explanation of the annotation result", title="Explanation"),
-    ] = None
+class TextContentValue(TypedDict):
+    text: str
 
 
-class TextContentValue(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    text: Annotated[str, Field(title="Text")]
+class ToolCallFunction(TypedDict):
+    name: str
+    type: Literal["function"]
+    arguments: NotRequired[str]
 
 
-class ToolCallFunction(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    type: Annotated[Literal["function"], Field(title="Type")]
-    name: Annotated[str, Field(title="Name")]
-    arguments: Annotated[str, Field(title="Arguments")]
+class ToolResultContentValue(TypedDict):
+    result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
+    tool_call_id: NotRequired[str]
 
 
-class ToolResultContentValue(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    tool_call_id: Annotated[str, Field(title="Tool Call Id")]
-    result: Annotated[
-        Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]],
-        Field(title="Result"),
-    ] = None
+class UploadDatasetData(TypedDict):
+    dataset_id: str
 
 
-class UploadDatasetData(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    dataset_id: Annotated[str, Field(title="Dataset Id")]
-
-
-class UploadDatasetResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class UploadDatasetResponseBody(TypedDict):
     data: UploadDatasetData
 
 
-class ValidationError(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    loc: Sequence[Annotated[Union[str, int], Field(title="Location")]]
-    msg: Annotated[str, Field(title="Message")]
-    type: Annotated[str, Field(title="Error Type")]
+class ValidationError(TypedDict):
+    loc: Sequence[Union[str, int]]
+    msg: str
+    type: str
 
 
-class AnnotateSpansResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[InsertedSpanAnnotation, Field(title="Data")]]
+class AnnotateSpansResponseBody(TypedDict):
+    data: Sequence[InsertedSpanAnnotation]
 
 
-class CreateExperimentResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
-class GetPromptsResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[Prompt, Field(title="Data")]]
+class GetPromptsResponseBody(TypedDict):
+    data: Sequence[Prompt]
 
 
-class HTTPValidationError(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    detail: Annotated[Optional[Sequence[ValidationError]], Field(title="Detail")] = None
+class HTTPValidationError(TypedDict):
+    detail: NotRequired[Sequence[ValidationError]]
 
 
-class ImageContentPart(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["image"], Field(title="Type")]
+class ImageContentPart(TypedDict):
     image: ImageContentValue
+    type: Literal["image"]
 
 
-class SpanAnnotation(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    span_id: Annotated[
-        str, Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)", title="Span Id")
-    ]
-    name: Annotated[str, Field(description="The name of the annotation", title="Name")]
-    annotator_kind: Annotated[
-        Literal["LLM", "HUMAN"],
-        Field(description="The kind of annotator used for the annotation", title="Annotator Kind"),
-    ]
-    result: Annotated[
-        Optional[SpanAnnotationResult], Field(description="The result of the annotation")
-    ] = None
-    metadata: Annotated[
-        Optional[Mapping[str, Any]],
-        Field(description="Metadata for the annotation", title="Metadata"),
-    ] = None
+class SpanAnnotation(TypedDict):
+    span_id: str
+    name: str
+    annotator_kind: Literal["LLM", "HUMAN"]
+    result: NotRequired[SpanAnnotationResult]
+    metadata: NotRequired[Mapping[str, Any]]
 
 
-class TextContentPart(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["text"], Field(title="Type")]
+class TextContentPart(TypedDict):
     text: TextContentValue
+    type: Literal["text"]
 
 
-class ToolCallContentValue(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    tool_call_id: Annotated[str, Field(title="Tool Call Id")]
+class ToolCallContentValue(TypedDict):
     tool_call: ToolCallFunction
+    tool_call_id: NotRequired[str]
 
 
-class ToolResultContentPart(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["tool_result"], Field(title="Type")]
+class ToolResultContentPart(TypedDict):
     tool_result: ToolResultContentValue
+    type: Literal["tool_result"]
 
 
-class AnnotateSpansRequestBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[SpanAnnotation, Field(title="Data")]]
+class AnnotateSpansRequestBody(TypedDict):
+    data: Sequence[SpanAnnotation]
 
 
-class ToolCallContentPart(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    type: Annotated[Literal["tool_call"], Field(title="Type")]
+class ToolCallContentPart(TypedDict):
     tool_call: ToolCallContentValue
+    type: Literal["tool_call"]
 
 
-class PromptMessage(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    role: Annotated[Literal["USER", "SYSTEM", "AI", "TOOL"], Field(title="PromptMessageRole")]
+class PromptMessage(TypedDict):
+    role: Literal["USER", "SYSTEM", "AI", "TOOL"]
     content: Sequence[
-        Annotated[
-            Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
-            Field(discriminator="type", title="Content"),
-        ]
+        Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart]
     ]
 
 
-class PromptChatTemplateV1(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    version: Annotated[Literal["chat-template-v1"], Field(title="Version")]
-    messages: Sequence[Annotated[PromptMessage, Field(title="Messages")]]
+class PromptChatTemplateV1(TypedDict):
+    messages: Sequence[PromptMessage]
+    version: Literal["chat-template-v1"]
 
 
-class PromptVersion(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    id: Annotated[str, Field(title="Id")]
-    description: Annotated[str, Field(title="Description")]
-    model_provider: Annotated[str, Field(title="Model Provider")]
-    model_name: Annotated[str, Field(title="Model Name")]
-    template: Annotated[
-        Union[PromptChatTemplateV1, PromptStringTemplateV1],
-        Field(discriminator="version", title="Template"),
-    ]
-    template_type: Annotated[
-        Optional[Literal["STR", "CHAT"]], Field(title="PromptTemplateType")
-    ] = "CHAT"
-    template_format: Annotated[
-        Optional[Literal["MUSTACHE", "FSTRING", "NONE"]], Field(title="PromptTemplateFormat")
-    ] = "MUSTACHE"
-    invocation_parameters: Annotated[
-        Optional[Mapping[str, Any]], Field(title="Invocation Parameters")
-    ] = None
-    tools: Optional[PromptToolsV1] = None
-    output_schema: Optional[PromptOutputSchema] = None
+class PromptVersion(TypedDict):
+    id: str
+    description: str
+    model_provider: str
+    model_name: str
+    template: Union[PromptChatTemplateV1, PromptStringTemplateV1]
+    template_type: NotRequired[Literal["STR", "CHAT"]]
+    template_format: NotRequired[Literal["MUSTACHE", "FSTRING", "NONE"]]
+    invocation_parameters: NotRequired[Mapping[str, Any]]
+    tools: NotRequired[PromptToolsV1]
+    output_schema: NotRequired[PromptOutputSchema]
 
 
-class GetPromptResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class GetPromptResponseBody(TypedDict):
     data: PromptVersion
 
 
-class GetPromptVersionsResponseBody(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    data: Sequence[Annotated[PromptVersion, Field(title="Data")]]
+class GetPromptVersionsResponseBody(TypedDict):
+    data: Sequence[PromptVersion]

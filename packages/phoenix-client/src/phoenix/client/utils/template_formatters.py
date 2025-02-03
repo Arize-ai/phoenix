@@ -139,17 +139,19 @@ class TemplateFormatterError(Exception):
 
 F_STRING_TEMPLATE_FORMATTER = FStringBaseTemplateFormatter()
 MUSTACHE_TEMPLATE_FORMATTER = MustacheBaseTemplateFormatter()
-NO_OP_FORMATER = NoOpFormatterBase()
+NO_OP_FORMATTER = NoOpFormatterBase()
 
 
 def to_formatter(obj: PromptVersion) -> BaseTemplateFormatter:
-    if obj.template_format is None:
+    if (
+        "template_format" not in obj
+        or not obj["template_format"]
+        or obj["template_format"] == "MUSTACHE"
+    ):
         return MUSTACHE_TEMPLATE_FORMATTER
-    elif obj.template_format == "MUSTACHE":
-        return MUSTACHE_TEMPLATE_FORMATTER
-    elif obj.template_format == "FSTRING":
+    elif obj["template_format"] == "FSTRING":
         return F_STRING_TEMPLATE_FORMATTER
-    elif obj.template_format == "NONE":
-        return NO_OP_FORMATER
+    elif obj["template_format"] == "NONE":
+        return NO_OP_FORMATTER
     else:
-        assert_never(obj.template_format)
+        assert_never(obj["template_format"])

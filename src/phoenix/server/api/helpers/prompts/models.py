@@ -54,18 +54,20 @@ class PromptModel(BaseModel):
         super().__init__(*args, **kwargs)
 
     def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        return super().model_dump(*args, exclude_unset=True, by_alias=True, **kwargs)
-
-
-class PartBase(PromptModel):
-    type: Literal["text", "image", "tool", "tool_call", "tool_result"]
+        return super().model_dump(
+            *args,
+            exclude_unset=True,
+            exclude_none=True,
+            by_alias=True,
+            **kwargs,
+        )
 
 
 class TextContentValue(BaseModel):
     text: str
 
 
-class TextContentPart(PartBase):
+class TextContentPart(PromptModel):
     type: Literal["text"]
     text: TextContentValue
 
@@ -76,7 +78,7 @@ class ImageContentValue(BaseModel):
     # detail: Optional[Literal["auto", "low", "high"]]
 
 
-class ImageContentPart(PartBase):
+class ImageContentPart(PromptModel):
     type: Literal["image"]
     # the image data
     image: ImageContentValue
@@ -85,26 +87,26 @@ class ImageContentPart(PartBase):
 class ToolCallFunction(BaseModel):
     type: Literal["function"]
     name: str
-    arguments: str
+    arguments: str = UNDEFINED
 
 
 class ToolCallContentValue(BaseModel):
-    tool_call_id: str
+    tool_call_id: str = UNDEFINED
     tool_call: ToolCallFunction
 
 
-class ToolCallContentPart(PartBase):
+class ToolCallContentPart(PromptModel):
     type: Literal["tool_call"]
     # the identifier of the tool call function
     tool_call: ToolCallContentValue
 
 
 class ToolResultContentValue(BaseModel):
-    tool_call_id: str
+    tool_call_id: str = UNDEFINED
     result: JSONSerializable
 
 
-class ToolResultContentPart(PartBase):
+class ToolResultContentPart(PromptModel):
     type: Literal["tool_result"]
     tool_result: ToolResultContentValue
 
@@ -151,7 +153,7 @@ class PromptFunctionToolV1(PromptModel):
         default=UNDEFINED,
         alias="schema",  # avoid conflict with pydantic schema class method
     )
-    extra_parameters: dict[str, Any]
+    extra_parameters: dict[str, Any] = UNDEFINED
 
 
 class PromptToolsV1(PromptModel):

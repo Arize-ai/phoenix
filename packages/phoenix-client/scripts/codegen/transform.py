@@ -2,39 +2,94 @@ import ast
 import sys
 
 
-class SwapSequenceAnnotated(ast.NodeTransformer):
-    """
-    Converts `Annotated[Sequence[...], Field(...)]` to `Sequence[Annotated[..., Field(...)]]`,
-    because the former is invalid for a discriminated union, resulting in runtime error.
-    """
+class ConvertDataClassToTypedDict(ast.NodeTransformer):
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
+        if node.module == "dataclasses":
+            # Replace `from dataclasses import dataclass` with
+            # `from typing import TypedDict`
+            return ast.copy_location(
+                ast.ImportFrom(
+                    module="typing",
+                    names=[ast.alias(name="TypedDict", asname=None)],
+                    level=0,
+                ),
+                node,
+            )
+        return node
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
+        # Redefine all classes as TypedDict
+        return ast.copy_location(
+            ast.ClassDef(
+                name=node.name,
+                bases=[ast.Name(id="TypedDict", ctx=ast.Load())],
+                keywords=node.keywords,
+                body=[self.visit(child) for child in node.body],
+                decorator_list=[],
+            ),
+            node,
+        )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
-        if (
-            isinstance(node.annotation, ast.Subscript)
-            and isinstance(node.annotation.value, ast.Name)
-            and node.annotation.value.id == "Annotated"
-            and isinstance(node.annotation.slice, ast.Tuple)
-            and node.annotation.slice.elts
-            and isinstance(node.annotation.slice.elts[0], ast.Subscript)
-            and isinstance(node.annotation.slice.elts[0].value, ast.Name)
-            and node.annotation.slice.elts[0].value.id == "Sequence"
-        ):
-            return ast.AnnAssign(
-                target=node.target,
-                annotation=ast.Subscript(
-                    value=ast.Name(id="Sequence"),
-                    slice=ast.Subscript(
-                        value=ast.Name(id="Annotated"),
-                        slice=ast.Tuple(
-                            elts=[
-                                node.annotation.slice.elts[0].slice,
-                                *node.annotation.slice.elts[1:],
-                            ]
-                        ),
-                    ),
+        if isinstance(node.target, ast.Name) and node.target.id == "schema_":
+            # Convert `schema_: xyz` to `schema: xyz`
+            node = ast.copy_location(
+                ast.AnnAssign(
+                    target=ast.Name(id="schema", ctx=ast.Store()),
+                    annotation=node.annotation,
+                    value=node.value,
+                    simple=node.simple,
                 ),
-                value=node.value,
-                simple=node.simple,
+                node,
+            )
+        if isinstance(node.value, ast.Constant):
+            if (
+                isinstance(node.target, ast.Name)
+                and node.target.id == "type"
+                and isinstance(node.annotation, ast.Name)
+                and node.annotation.id == "str"
+            ):
+                # Convert `type: str = "xyz"` to `type: Literal["xyz"]`
+                return ast.copy_location(
+                    ast.AnnAssign(
+                        target=node.target,
+                        annotation=ast.Subscript(
+                            value=ast.Name(id="Literal", ctx=ast.Load()),
+                            slice=node.value,
+                            ctx=ast.Load(),
+                        ),
+                        simple=node.simple,
+                    ),
+                    node,
+                )
+            if (
+                isinstance(node.annotation, ast.Subscript)
+                and isinstance(node.annotation.value, ast.Name)
+                and node.annotation.value.id == "Optional"
+            ):
+                # Convert `abc: Optional[xyz]` to `abc: xyz`
+                node = ast.copy_location(
+                    ast.AnnAssign(
+                        target=node.target,
+                        annotation=node.annotation.slice,
+                        value=node.value,
+                        simple=node.simple,
+                    ),
+                    node,
+                )
+            # Remove default value, e.g.
+            # convert `abc: xyz = 123` to `abc: NotRequired[xyz]`
+            return ast.copy_location(
+                ast.AnnAssign(
+                    target=node.target,
+                    annotation=ast.Subscript(
+                        value=ast.Name(id="NotRequired", ctx=ast.Load()),
+                        slice=node.annotation,
+                        ctx=ast.Load(),
+                    ),
+                    simple=node.simple,
+                ),
+                node,
             )
         return node
 
@@ -47,8 +102,24 @@ if __name__ == "__main__":
     with open(file_path, "r") as file:
         code = file.read()
     parsed = ast.parse(code)
-    transformed = SwapSequenceAnnotated().visit(parsed)
+    for i, node in enumerate(parsed.body):
+        if isinstance(node, ast.ClassDef):
+            parsed.body = (
+                parsed.body[:i]
+                + [
+                    # Add `from typing_extensions import NotRequired`
+                    ast.ImportFrom(
+                        module="typing_extensions",
+                        names=[ast.alias(name="NotRequired")],
+                        level=0,
+                    )
+                ]
+                + parsed.body[i:]
+            )
+            break
+    transformed = ConvertDataClassToTypedDict().visit(parsed)
     unparsed = ast.unparse(transformed)
     with open(file_path, "w") as file:
+        file.write("# pyright: reportUnusedImport=false\n")
         file.write('"""Do not edit"""\n\n')
         file.write(unparsed)
