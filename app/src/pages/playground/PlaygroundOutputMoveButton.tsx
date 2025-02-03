@@ -7,7 +7,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   ChatMessage,
   generateMessageId,
-  PlaygroundInstance,
+  PlaygroundNormalizedInstance,
 } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -21,13 +21,13 @@ export const PlaygroundOutputMoveButton = ({
   toolCalls,
   cleanupOutput,
 }: {
-  instance: PlaygroundInstance;
+  instance: PlaygroundNormalizedInstance;
   outputContent?: string | ChatMessage[];
   toolCalls: PartialOutputToolCall[];
   cleanupOutput: () => void;
 }) => {
   const instanceId = instance.id;
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const addMessage = usePlaygroundContext((state) => state.addMessage);
   return (
     <TooltipTrigger delay={500} offset={10}>
       <Button
@@ -67,15 +67,9 @@ export const PlaygroundOutputMoveButton = ({
               }),
             });
           }
-          updateInstance({
-            instanceId,
-            patch: {
-              template: {
-                __type: "chat",
-                messages: [...instance.template.messages, ...messages],
-              },
-            },
-            dirty: true,
+          addMessage({
+            playgroundInstanceId: instanceId,
+            messages,
           });
           cleanupOutput();
         }}

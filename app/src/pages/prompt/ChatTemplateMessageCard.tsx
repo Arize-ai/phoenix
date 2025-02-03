@@ -69,7 +69,7 @@ export function ChatTemplateMessageToolResultPart({
             <TemplateEditor
               readOnly
               height="100%"
-              value={value}
+              defaultValue={value}
               templateLanguage={TemplateLanguages.NONE}
             />
           </TemplateEditorWrap>
@@ -103,7 +103,7 @@ export function ChatTemplateMessageToolCallPart({
         <TemplateEditor
           readOnly
           height="100%"
-          value={value}
+          defaultValue={value}
           templateLanguage={TemplateLanguages.NONE}
         />
       </TemplateEditorWrap>
@@ -130,7 +130,7 @@ export function ChatTemplateMessageTextPart(
         <TemplateEditor
           readOnly
           height="100%"
-          value={text}
+          defaultValue={text}
           templateLanguage={templateFormat}
         />
       </TemplateEditorWrap>

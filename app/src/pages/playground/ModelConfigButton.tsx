@@ -31,7 +31,10 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { PlaygroundInstance } from "@phoenix/store";
+import {
+  PlaygroundInstance,
+  PlaygroundNormalizedInstance,
+} from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
@@ -67,7 +70,7 @@ const modelConfigFormCSS = css`
 function AzureOpenAiModelConfigFormField({
   instance,
 }: {
-  instance: PlaygroundInstance;
+  instance: PlaygroundNormalizedInstance;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(

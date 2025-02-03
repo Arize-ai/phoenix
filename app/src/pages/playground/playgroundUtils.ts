@@ -19,13 +19,14 @@ import {
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   ChatMessage,
-  createPlaygroundInstance,
+  createNormalizedPlaygroundInstance,
   CredentialsState,
   generateMessageId,
   generateToolId,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
+  PlaygroundNormalizedInstance,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store";
@@ -516,7 +517,14 @@ export function transformSpanAttributesToPlaygroundInstance(
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
 } {
-  const basePlaygroundInstance = createPlaygroundInstance();
+  const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+  const basePlaygroundInstance: PlaygroundInstance = {
+    ...instance,
+    template: {
+      __type: "chat",
+      messages: Object.values(instanceMessages),
+    },
+  };
   const { json: parsedAttributes, parseError } = safelyParseJSON(
     span.attributes
   );
@@ -907,7 +915,7 @@ const getBaseChatCompletionInput = ({
   credentials: CredentialsState;
 }) => {
   // We pull directly from the store in this function so that it always has up to date values at the time of calling
-  const { instances } = playgroundStore.getState();
+  const { instances, instanceMessages } = playgroundStore.getState();
   const instance = instances.find((instance) => {
     return instance.id === instanceId;
   });
@@ -918,6 +926,12 @@ const getBaseChatCompletionInput = ({
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
+
+  const thisInstanceMessages = instance.template.messageIds
+    .map((messageId) => {
+      return instanceMessages[messageId];
+    })
+    .filter((message) => message != null);
 
   const supportedInvocationParameters =
     instance.model.supportedInvocationParameters;
@@ -969,7 +983,7 @@ const getBaseChatCompletionInput = ({
       : {};
 
   return {
-    messages: instance.template.messages.map(toGqlChatCompletionMessage),
+    messages: thisInstanceMessages.map(toGqlChatCompletionMessage),
     model: {
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
@@ -981,6 +995,33 @@ const getBaseChatCompletionInput = ({
       : undefined,
     apiKey: credentials[instance.model.provider] || null,
   } as const;
+};
+
+/**
+ * Denormalize a playground instance with the actual messages
+ *
+ * A playground instance differs from a playground normalized instance in that it contains the actual messages
+ * and not just the messageIds. This function will replace the messageIds with the actual messages.
+ */
+export const denormalizePlaygroundInstance = (
+  instance: PlaygroundNormalizedInstance,
+  instanceMessages: Record<number, ChatMessage>
+): PlaygroundInstance => {
+  if (instance.template.__type === "chat") {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { messageIds: _, ...rest } = instance.template;
+    return {
+      ...instance,
+      template: {
+        ...rest,
+        messages: instance.template.messageIds.map(
+          (messageId) => instanceMessages[messageId]
+        ),
+      },
+    } satisfies PlaygroundInstance;
+  }
+  // it cannot be a normalized instance if it is not a chat template
+  return instance as PlaygroundInstance;
 };
 
 /**
@@ -1001,10 +1042,16 @@ export const getChatCompletionInput = ({
     credentials,
   });
 
-  const { instances, templateLanguage, input } = playgroundStore.getState();
+  const { instances, templateLanguage, input, instanceMessages } =
+    playgroundStore.getState();
+
+  // convert playgroundStateInstances to playgroundInstances
+  const playgroundInstances = instances.map((instance) => {
+    return denormalizePlaygroundInstance(instance, instanceMessages);
+  });
 
   const { variablesMap } = getVariablesMapFromInstances({
-    instances,
+    instances: playgroundInstances,
     input,
     templateLanguage,
   });

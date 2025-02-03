@@ -79,6 +79,7 @@ import {
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
 import {
+  denormalizePlaygroundInstance,
   extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
@@ -417,6 +418,9 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const instanceMessages = usePlaygroundContext(
+    (state) => state.instanceMessages
+  );
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
@@ -756,8 +760,12 @@ export function PlaygroundDatasetExamplesTable({
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
-      const instanceVariables = extractVariablesFromInstance({
+      const enrichedInstance = denormalizePlaygroundInstance(
         instance,
+        instanceMessages
+      );
+      const instanceVariables = extractVariablesFromInstance({
+        instance: enrichedInstance,
         templateLanguage,
       });
       return {
@@ -784,7 +792,7 @@ export function PlaygroundDatasetExamplesTable({
         size: 500,
       };
     });
-  }, [hasSomeRunIds, instances, templateLanguage]);
+  }, [hasSomeRunIds, instances, templateLanguage, instanceMessages]);
 
   const columns: ColumnDef<TableRow>[] = [
     {

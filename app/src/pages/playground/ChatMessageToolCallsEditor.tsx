@@ -8,32 +8,40 @@ import {
   llmProviderToolCallsSchema,
   openAIToolCallsJSONSchema,
 } from "@phoenix/schemas/toolCallSchemas";
-import { ChatMessage } from "@phoenix/store";
+import {
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceMessage,
+} from "@phoenix/store/playground/selectors";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-
-import { PlaygroundInstanceProps } from "./types";
 
 /**
  * Editor for message tool calls
  */
 export function ChatMessageToolCallsEditor({
   playgroundInstanceId,
-  toolCalls,
-  templateMessages,
   messageId,
-}: PlaygroundInstanceProps & {
-  toolCalls: ChatMessage["toolCalls"];
-  templateMessages: ChatMessage[];
+}: {
+  playgroundInstanceId: number;
   messageId: number;
 }) {
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-  const instance = usePlaygroundContext((state) =>
-    state.instances.find((instance) => instance.id === playgroundInstanceId)
+  const instanceSelector = useMemo(
+    () => selectPlaygroundInstance(playgroundInstanceId),
+    [playgroundInstanceId]
   );
-
+  const instance = usePlaygroundContext(instanceSelector);
   if (instance == null) {
-    throw new Error(`Playground instance ${playgroundInstanceId} not found`);
+    throw new Error(`Instance ${playgroundInstanceId} not found`);
   }
+  const messageSelector = useMemo(
+    () => selectPlaygroundInstanceMessage(messageId),
+    [messageId]
+  );
+  const message = usePlaygroundContext(messageSelector);
+  if (message == null) {
+    throw new Error(`Message ${messageId} not found`);
+  }
+  const toolCalls = message.toolCalls;
+  const updateMessage = usePlaygroundContext((state) => state.updateMessage);
   const [editorValue, setEditorValue] = useState(() =>
     JSON.stringify(toolCalls, null, 2)
   );
@@ -64,25 +72,15 @@ export function ChatMessageToolCallsEditor({
         return;
       }
       setLastValidToolCalls(toolCalls);
-      updateInstance({
+      updateMessage({
         instanceId: playgroundInstanceId,
+        messageId,
         patch: {
-          template: {
-            __type: "chat",
-            messages: templateMessages.map((m) =>
-              messageId === m.id
-                ? {
-                    ...m,
-                    toolCalls,
-                  }
-                : m
-            ),
-          },
+          toolCalls,
         },
-        dirty: true,
       });
     },
-    [messageId, playgroundInstanceId, templateMessages, updateInstance]
+    [playgroundInstanceId, messageId, updateMessage]
   );
 
   const toolCallsJSONSchema = useMemo((): JSONSchema7 | null => {

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, {
@@ -16,8 +16,9 @@ import { MustacheLikeTemplating } from "./language/mustacheLike";
 import { TemplateLanguages } from "./constants";
 import { TemplateLanguage } from "./types";
 
-type TemplateEditorProps = ReactCodeMirrorProps & {
+type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
   templateLanguage: TemplateLanguage;
+  defaultValue: string;
 };
 
 const basicSetupOptions: BasicSetupOptions = {
@@ -28,10 +29,22 @@ const basicSetupOptions: BasicSetupOptions = {
   bracketMatching: false,
 };
 
+/**
+ * A template editor that is used to edit the template of a tool.
+ *
+ * This is an uncontrolled editor.
+ * You can only reset the value of the editor by triggering a re-mount, like with the `key` prop,
+ * or, when the readOnly prop is true, the editor will reset on all value changes.
+ * This is necessary because controlled react-codemirror editors incessantly reset
+ * cursor position when value is updated.
+ */
 export const TemplateEditor = ({
   templateLanguage,
+  defaultValue,
+  readOnly,
   ...props
 }: TemplateEditorProps) => {
+  const [value, setValue] = useState(() => defaultValue);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
@@ -51,12 +64,20 @@ export const TemplateEditor = ({
     return ext;
   }, [templateLanguage]);
 
+  useEffect(() => {
+    if (readOnly) {
+      setValue(defaultValue);
+    }
+  }, [readOnly, defaultValue]);
+
   return (
     <CodeMirror
       theme={codeMirrorTheme}
       extensions={extensions}
       basicSetup={basicSetupOptions}
+      readOnly={readOnly}
       {...props}
+      value={value}
     />
   );
 };
