@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useEffect } from "react";
+import React, { Fragment, Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { BlockerFunction, useBlocker, useSearchParams } from "react-router-dom";
@@ -205,6 +205,9 @@ const playgroundInputOutputPanelContentCSS = css`
  */
 const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
 
+const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
+const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
+
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
   const templateLanguage = usePlaygroundContext(
@@ -246,7 +249,7 @@ function PlaygroundContent() {
   }, [isRunning, anyDirtyInstances]);
 
   return (
-    <>
+    <Fragment key="playground-content">
       <PanelGroup
         direction={
           isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"
@@ -257,7 +260,7 @@ function PlaygroundContent() {
       >
         <Panel>
           <div css={playgroundPromptPanelContentCSS}>
-            <DisclosureGroup defaultExpandedKeys={["prompts"]}>
+            <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
               <Disclosure id="prompts" size="L">
                 <DisclosureTrigger
                   arrowPosition="start"
@@ -277,11 +280,10 @@ function PlaygroundContent() {
                       {instances.map((instance) => (
                         <View
                           flex="1 1 0px"
-                          key={instance.id}
+                          key={`${instance.id}-prompt`}
                           minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                         >
                           <PlaygroundTemplate
-                            key={instance.id}
                             playgroundInstanceId={instance.id}
                           />
                         </View>
@@ -301,7 +303,7 @@ function PlaygroundContent() {
             </Suspense>
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>
-              <DisclosureGroup defaultExpandedKeys={["input", "output"]}>
+              <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PARAMS}>
                 {templateLanguage !== TemplateLanguages.NONE ? (
                   <Disclosure id="input" size="L">
                     <DisclosureTrigger arrowPosition="start">
@@ -321,10 +323,9 @@ function PlaygroundContent() {
                   <DisclosurePanel>
                     <View padding="size-200" height="100%">
                       <Flex direction="row" gap="size-200">
-                        {instances.map((instance, i) => (
-                          <View key={i} flex="1 1 0px">
+                        {instances.map((instance) => (
+                          <View key={`${instance.id}-output`} flex="1 1 0px">
                             <PlaygroundOutput
-                              key={i}
                               playgroundInstanceId={instance.id}
                             />
                           </View>
@@ -348,6 +349,6 @@ function PlaygroundContent() {
           }
         />
       )}
-    </>
+    </Fragment>
   );
 }
