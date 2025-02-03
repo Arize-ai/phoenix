@@ -1,4 +1,5 @@
 deepdiff==8.1.1
 faker==33.3.1
+pyright[nodejs]==1.1.393
 pytest-randomly==3.16.0
 pytest-socket==0.7.0
