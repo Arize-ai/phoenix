@@ -5,6 +5,7 @@ from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
@@ -21,7 +22,7 @@ class ChatCompletionInput:
     tools: Optional[list[JSON]] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
     template: Optional[TemplateOptions] = UNSET
-    prompt_id: Optional[GlobalID] = None
+    prompt_identifier: Optional[Identifier] = None
 
 
 @strawberry.input
@@ -37,4 +38,4 @@ class ChatCompletionOverDatasetInput:
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
-    prompt_id: Optional[GlobalID] = None
+    prompt_identifier: Optional[Identifier] = None

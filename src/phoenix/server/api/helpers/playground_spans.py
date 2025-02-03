@@ -26,7 +26,6 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator as DefaultOTelIDGenerator
 from opentelemetry.trace import StatusCode
-from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -42,6 +41,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
 )
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import (
     SpanEvent,
@@ -72,8 +72,8 @@ class streaming_llm_span:
         self._input = input
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
 
-        if input.prompt_id:
-            self._attributes.update(*prompt_id_metadata(input.prompt_id))
+        if input.prompt_identifier:
+            self._attributes.update(*prompt_id_metadata(input.prompt_identifier))
 
         self._attributes.update(
             chain(
@@ -269,8 +269,8 @@ def input_value_and_mime_type(
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
-def prompt_id_metadata(prompt_id: Optional[GlobalID]) -> Iterator[tuple[str, Any]]:
-    yield METADATA, {"phoenix-prompt-id": str(prompt_id)}
+def prompt_id_metadata(prompt_identifier: Optional[Identifier]) -> Iterator[tuple[str, Any]]:
+    yield METADATA, {"phoenixPromptId": prompt_identifier}
 
 
 def _merge_tool_call_chunks(
