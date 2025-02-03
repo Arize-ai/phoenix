@@ -9,6 +9,12 @@ from phoenix.client.__generated__.v1 import PromptVersion
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,  # pyright: ignore[reportUnknownVariableType]
 )
+from phoenix.client.helpers.sdk.groq.chat import (
+    to_chat_messages_and_kwargs as to_messages_groq,  # pyright: ignore[reportUnknownVariableType]
+)
+from phoenix.client.helpers.sdk.mistralai.chat_complete import (
+    to_chat_messages_and_kwargs as to_messages_mistralai,  # pyright: ignore[reportUnknownVariableType]
+)
 from phoenix.client.helpers.sdk.openai.chat import (
     to_chat_messages_and_kwargs as to_messages_openai,  # pyright: ignore[reportUnknownVariableType]
 )
@@ -20,6 +26,7 @@ SDK: TypeAlias = Literal[
     "bedrock",  # https://pypi.org/project/boto3/
     "cohere",  # https://pypi.org/project/cohere/
     "google_generativeai",  # https://pypi.org/project/google-generativeai/
+    "groq",  # https://pypi.org/project/groq/
     "huggingface_hub",  # https://pypi.org/project/huggingface-hub/
     "mistralai",  # https://pypi.org/project/mistralai/
     "openai",  # https://pypi.org/project/openai/
@@ -75,11 +82,29 @@ def to_chat_messages_and_kwargs(
     if sdk == "huggingface_hub":
         raise NotImplementedError
     if sdk == "mistralai":
-        raise NotImplementedError
+        return cast(
+            tuple[list[dict[str, Any]], dict[str, Any]],
+            to_messages_mistralai(
+                obj,
+                variables=variables,
+                formatter=formatter,
+                **kwargs,
+            ),
+        )
     if sdk == "vertexai":
         raise NotImplementedError
     if sdk == "cohere":
         raise NotImplementedError
+    if sdk == "groq":
+        return cast(
+            tuple[list[dict[str, Any]], dict[str, Any]],
+            to_messages_groq(
+                obj,
+                variables=variables,
+                formatter=formatter,
+                **kwargs,
+            ),
+        )
     assert_never(sdk)
 
 

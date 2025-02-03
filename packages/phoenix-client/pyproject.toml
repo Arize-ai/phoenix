@@ -92,11 +92,13 @@ exclude = [
 
 [tool.pyright]
 typeCheckingMode = "strict"
+pythonVersion = "3.9"
 reportUnusedFunction = false
 exclude = [
   "dist/",
   "examples",
   "tests/canary/",
+  "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
 

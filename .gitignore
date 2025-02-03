@@ -25,6 +25,8 @@ coverage.xml
 
 # devtools
 pyrightconfig.json
+!/packages/phoenix-client/src/phoenix/client/helpers/sdk/pyrightconfig.json
+!/packages/phoenix-client/tests/canary/sdk/pyrightconfig.json
 
 # Demo data
 tutorials/internal/demo_llama_index/*.json
