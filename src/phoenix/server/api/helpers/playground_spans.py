@@ -72,8 +72,8 @@ class streaming_llm_span:
         self._input = input
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
 
-        if input.prompt_identifier:
-            self._attributes.update(*prompt_id_metadata(input.prompt_identifier))
+        if input.prompt_name:
+            self._attributes.update(*prompt_id_metadata(input.prompt_name))
 
         self._attributes.update(
             chain(
@@ -269,8 +269,8 @@ def input_value_and_mime_type(
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
-def prompt_id_metadata(prompt_identifier: Optional[Identifier]) -> Iterator[tuple[str, Any]]:
-    yield METADATA, {"phoenixPromptId": prompt_identifier}
+def prompt_id_metadata(prompt_name: Optional[Identifier]) -> Iterator[tuple[str, Any]]:
+    yield METADATA, {"phoenixPromptId": prompt_name}
 
 
 def _merge_tool_call_chunks(

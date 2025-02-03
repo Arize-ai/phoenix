@@ -214,7 +214,7 @@ class ChatCompletionMutationMixin:
                                 language=input.template_language,
                                 variables=revision.input,
                             ),
-                            prompt_identifier=input.prompt_identifier,
+                            prompt_name=input.prompt_name,
                         ),
                     )
                     for revision in batch
@@ -309,8 +309,8 @@ class ChatCompletionMutationMixin:
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
 
-        if input.prompt_identifier:
-            attributes.update(*prompt_id_metadata(input.prompt_identifier))
+        if input.prompt_name:
+            attributes.update(*prompt_id_metadata(input.prompt_name))
 
         messages = [
             (

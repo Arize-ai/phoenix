@@ -22,7 +22,7 @@ class ChatCompletionInput:
     tools: Optional[list[JSON]] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
     template: Optional[TemplateOptions] = UNSET
-    prompt_identifier: Optional[Identifier] = None
+    prompt_name: Optional[Identifier] = None
 
 
 @strawberry.input
@@ -38,4 +38,4 @@ class ChatCompletionOverDatasetInput:
     experiment_name: Optional[str] = None
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[JSON] = strawberry.field(default_factory=dict)
-    prompt_identifier: Optional[Identifier] = None
+    prompt_name: Optional[Identifier] = None
