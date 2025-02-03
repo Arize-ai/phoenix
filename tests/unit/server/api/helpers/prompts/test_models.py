@@ -27,7 +27,7 @@ from phoenix.server.api.helpers.prompts.models import (
 from phoenix.server.types import DbSessionFactory
 
 
-async def test_template_round_trip(
+async def test_chat_template_materializes_to_expected_format(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
