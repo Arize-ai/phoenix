@@ -19,7 +19,6 @@ describe("getInitialInstances", () => {
       ...createPlaygroundInstance(),
       model: {
         modelName: "test-model",
-        baseUrl: null,
         provider: "OPENAI" as const,
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -52,7 +51,6 @@ describe("getInitialInstances", () => {
       modelConfigByProvider: {
         OPENAI: {
           modelName: "test-model",
-          baseUrl: null,
           provider: "OPENAI",
           invocationParameters: [],
         },
@@ -71,13 +69,11 @@ describe("getInitialInstances", () => {
       modelConfigByProvider: {
         OPENAI: {
           modelName: "test-model-openai",
-          baseUrl: null,
           provider: "OPENAI",
           invocationParameters: [],
         },
         ANTHROPIC: {
           modelName: "test-model-anthropic",
-          baseUrl: null,
           provider: "ANTHROPIC",
           invocationParameters: [],
         },
@@ -96,7 +92,6 @@ describe("getInitialInstances", () => {
       modelConfigByProvider: {
         ANTHROPIC: {
           modelName: "test-model-anthropic",
-          baseUrl: null,
           provider: "ANTHROPIC",
           invocationParameters: [],
         },
