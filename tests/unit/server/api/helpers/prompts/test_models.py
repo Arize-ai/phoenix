@@ -1,28 +1,31 @@
+import json
 from typing import Any
 
 import pytest
+from sqlalchemy import select, text
 
+from phoenix.db.models import Prompt, PromptVersion
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
-    AnthropicToolDefinition,
-    OpenAIToolDefinition,
-    PromptFunctionToolV1,
-    _anthropic_to_prompt_tool,
-    _openai_to_prompt_tool,
-    _prompt_to_anthropic_tool,
-    _prompt_to_openai_tool,
+    PromptChatTemplateV1,
+    denormalize_output_schema,
+    denormalize_tools,
+    normalize_output_schema,
+    normalize_tools,
 )
+from phoenix.server.types import DbSessionFactory
 
 
 @pytest.mark.parametrize(
-    "anthropic_tool_schema,expected_prompt_tool_schema",
+    "anthropic_tool_dict,expected_normalized_tool_dict",
     [
         pytest.param(
             {
-                "name": "tool-name",
+                "name": "get_weather",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -30,11 +33,11 @@ from phoenix.server.api.helpers.prompts.models import (
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -45,12 +48,12 @@ from phoenix.server.api.helpers.prompts.models import (
         ),
         pytest.param(
             {
-                "name": "tool-name",
-                "description": "tool-description",
+                "name": "get_weather",
+                "description": "Gets the current weather for a given city",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -58,12 +61,12 @@ from phoenix.server.api.helpers.prompts.models import (
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "description": "tool-description",
+                "name": "get_weather",
+                "description": "Gets the current weather for a given city",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -74,11 +77,11 @@ from phoenix.server.api.helpers.prompts.models import (
         ),
         pytest.param(
             {
-                "name": "tool-name",
+                "name": "get_weather",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -89,11 +92,11 @@ from phoenix.server.api.helpers.prompts.models import (
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -108,11 +111,11 @@ from phoenix.server.api.helpers.prompts.models import (
         ),
         pytest.param(
             {
-                "name": "tool-name",
+                "name": "get_weather",
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -121,11 +124,11 @@ from phoenix.server.api.helpers.prompts.models import (
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
                         },
                     },
@@ -138,31 +141,83 @@ from phoenix.server.api.helpers.prompts.models import (
         ),
     ],
 )
-def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
-    anthropic_tool_schema: dict[str, Any],
-    expected_prompt_tool_schema: dict[str, Any],
+async def test_anthropic_tool_are_round_tripped_without_data_loss(
+    anthropic_tool_dict: dict[str, Any],
+    expected_normalized_tool_dict: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
 ) -> None:
-    anthropic_tool = AnthropicToolDefinition.model_validate(anthropic_tool_schema)
-    prompt_tool = _anthropic_to_prompt_tool(anthropic_tool)
-    prompt_tool_schema = prompt_tool.model_dump()
-    assert prompt_tool_schema == expected_prompt_tool_schema
-    rehydrated_prompt_tool = PromptFunctionToolV1.model_validate(prompt_tool_schema)
-    rehydrated_anthropic_tool = _prompt_to_anthropic_tool(rehydrated_prompt_tool)
-    assert rehydrated_anthropic_tool.model_dump() == anthropic_tool_schema
+    # normalize tools
+    normalized_tools = normalize_tools([anthropic_tool_dict], "anthropic")
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplateV1(
+                version="chat-template-v1",
+                messages=[],
+            ),
+            invocation_parameters={},
+            tools=normalized_tools,
+            output_schema=None,
+            model_provider="anthropic",
+            model_name="claude-3-5-sonnet",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_tools = await session.scalar(
+            select(text("tools"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_tool_dict = json.loads(materialized_tools)
+    else:
+        materialized_tool_dict = materialized_tools
+    assert materialized_tool_dict == {
+        "type": "tools-v1",
+        "tools": [
+            expected_normalized_tool_dict,
+        ],
+    }
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize tools and check they match the input tools
+    rehydrated_tools = rehydrated_prompt_version.tools
+    assert rehydrated_tools is not None
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "anthropic")
+    assert len(denormalized_tool_dicts) == 1
+    assert denormalized_tool_dicts[0] == anthropic_tool_dict
 
 
 @pytest.mark.parametrize(
-    "openai_tool_schema,expected_prompt_tool_schema",
+    "openai_tool_dict,expected_normalized_tool_dict",
     [
         pytest.param(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "get_weather",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "city": {
                                 "type": "string",
                             }
                         },
@@ -171,13 +226,13 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "get_weather",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
-                        },
+                        }
                     },
                 },
                 "extra_parameters": {},
@@ -188,12 +243,12 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
-                    "description": "tool-description",
+                    "name": "get_weather",
+                    "description": "Gets current weather for a given city",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "foo": {
+                            "city": {
                                 "type": "string",
                             }
                         },
@@ -202,14 +257,14 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "description": "tool-description",
+                "name": "get_weather",
+                "description": "Gets current weather for a given city",
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "foo": {
+                        "city": {
                             "type": "string",
-                        },
+                        }
                     },
                 },
                 "extra_parameters": {},
@@ -220,12 +275,12 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "escalate_to_human_customer_support",
                 },
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
+                "name": "escalate_to_human_customer_support",
                 "extra_parameters": {},
             },
             id="tool-with-no-parameters",
@@ -234,14 +289,36 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "get_weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["city"],
+                        "additionalProperties": False,
+                    },
                     "strict": True,
                 },
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "extra_parameters": {"strict": True},
+                "name": "get_weather",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                        }
+                    },
+                    "required": ["city"],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": True,
+                },
             },
             id="tool-with-strict-set-to-bool",
         ),
@@ -249,27 +326,356 @@ def test_anthropic_tool_normalization_and_round_tripping_preserves_data(
             {
                 "type": "function",
                 "function": {
-                    "name": "tool-name",
+                    "name": "get_weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["city"],
+                        "additionalProperties": False,
+                    },
                     "strict": None,
                 },
             },
             {
                 "type": "function-tool-v1",
-                "name": "tool-name",
-                "extra_parameters": {"strict": None},
+                "name": "get_weather",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                        }
+                    },
+                    "required": ["city"],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": None,
+                },
             },
             id="tool-with-strict-set-to-none",
         ),
     ],
 )
-def test_openai_tool_normalization_and_round_tripping_preserves_data(
-    openai_tool_schema: dict[str, Any],
-    expected_prompt_tool_schema: dict[str, Any],
+async def test_openai_tool_are_round_tripped_without_data_loss(
+    openai_tool_dict: dict[str, Any],
+    expected_normalized_tool_dict: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
 ) -> None:
-    openai_tool = OpenAIToolDefinition.model_validate(openai_tool_schema)
-    prompt_tool = _openai_to_prompt_tool(openai_tool)
-    prompt_tool_schema = prompt_tool.model_dump()
-    assert prompt_tool_schema == expected_prompt_tool_schema
-    rehydrated_prompt_tool = PromptFunctionToolV1.model_validate(prompt_tool_schema)
-    rehydrated_openai_tool = _prompt_to_openai_tool(rehydrated_prompt_tool)
-    assert rehydrated_openai_tool.model_dump() == openai_tool_schema
+    # normalize tools
+    normalized_tools = normalize_tools([openai_tool_dict], "openai")
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplateV1(
+                version="chat-template-v1",
+                messages=[],
+            ),
+            invocation_parameters={},
+            tools=normalized_tools,
+            output_schema=None,
+            model_provider="openai",
+            model_name="gpt-4o",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_tools = await session.scalar(
+            select(text("tools"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_tool_dict = json.loads(materialized_tools)
+    else:
+        materialized_tool_dict = materialized_tools
+    assert materialized_tool_dict == {
+        "type": "tools-v1",
+        "tools": [
+            expected_normalized_tool_dict,
+        ],
+    }
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize tools and check they match the input tools
+    rehydrated_tools = rehydrated_prompt_version.tools
+    assert rehydrated_tools is not None
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "openai")
+    assert len(denormalized_tool_dicts) == 1
+    assert denormalized_tool_dicts[0] == openai_tool_dict
+
+
+@pytest.mark.parametrize(
+    "openai_output_schema_dict,expected_normalized_output_schema_dict",
+    [
+        pytest.param(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "classify_user_intent",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
+                        },
+                    },
+                },
+            },
+            {
+                "type": "output-schema-v1",
+                "name": "classify_user_intent",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "user_intent": {
+                            "type": "string",
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
+                        }
+                    },
+                },
+                "extra_parameters": {},
+            },
+            id="minimal-output-schema",
+        ),
+        pytest.param(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "classify_user_intent",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
+                        },
+                        "required": [
+                            "user_intent",
+                        ],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                },
+            },
+            {
+                "type": "output-schema-v1",
+                "name": "classify_user_intent",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "user_intent": {
+                            "type": "string",
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "user_intent",
+                    ],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": True,
+                },
+            },
+            id="with-strict-set-to-bool",
+        ),
+        pytest.param(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "classify_user_intent",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
+                        },
+                        "required": [
+                            "user_intent",
+                        ],
+                        "additionalProperties": False,
+                    },
+                    "strict": None,
+                },
+            },
+            {
+                "type": "output-schema-v1",
+                "name": "classify_user_intent",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "user_intent": {
+                            "type": "string",
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
+                        },
+                    },
+                    "required": [
+                        "user_intent",
+                    ],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": None,
+                },
+            },
+            id="with-strict-set-to-none",
+        ),
+        pytest.param(
+            {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "classify_user_intent",
+                    "description": "Classifies the user's intent into one of several categories",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
+                        },
+                        "required": ["user_intent"],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                },
+            },
+            {
+                "type": "output-schema-v1",
+                "name": "classify_user_intent",
+                "description": "Classifies the user's intent into one of several categories",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "user_intent": {
+                            "type": "string",
+                            "enum": [
+                                "complaint",
+                                "query",
+                                "other",
+                            ],
+                        }
+                    },
+                    "required": ["user_intent"],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": True,
+                },
+            },
+            id="with-description",
+        ),
+    ],
+)
+async def test_openai_output_schema_are_round_tripped_without_data_loss(
+    openai_output_schema_dict: dict[str, Any],
+    expected_normalized_output_schema_dict: dict[str, Any],
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    # normalize output schema
+    normalized_output_schema = normalize_output_schema(openai_output_schema_dict, "openai")
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplateV1(
+                version="chat-template-v1",
+                messages=[],
+            ),
+            invocation_parameters={},
+            tools=None,
+            output_schema=normalized_output_schema,
+            model_provider="openai",
+            model_name="gpt-4o",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_output_schema = await session.scalar(
+            select(text("output_schema"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_output_schema_dict = json.loads(materialized_output_schema)
+    else:
+        materialized_output_schema_dict = materialized_output_schema
+    assert materialized_output_schema_dict == expected_normalized_output_schema_dict
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize output schema and check it matches the input output schema
+    rehydrated_output_schema = rehydrated_prompt_version.output_schema
+    assert rehydrated_output_schema is not None
+    denormalized_output_schema_dict = denormalize_output_schema(rehydrated_output_schema, "openai")
+    assert denormalized_output_schema_dict == openai_output_schema_dict
