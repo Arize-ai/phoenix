@@ -496,9 +496,11 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
         "o1-mini-2024-09-12",
         "o1-preview",
         "o1-preview-2024-09-12",
+        "o3-mini",
+        "o3-mini-2025-01-31",
     ],
 )
-class OpenAIO1StreamingClient(OpenAIStreamingClient):
+class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
