@@ -276,7 +276,7 @@ class OpenAIFunctionDefinition(PromptModel):
     name: str
     description: str = UNDEFINED
     parameters: JSONSchemaObjectDefinition = UNDEFINED
-    strict: bool = UNDEFINED
+    strict: Optional[bool] = UNDEFINED
 
 
 class OpenAIToolDefinition(PromptModel):

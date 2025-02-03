@@ -322,6 +322,43 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             },
             id="tool-with-strict-set-to-bool",
         ),
+        pytest.param(
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["city"],
+                        "additionalProperties": False,
+                    },
+                    "strict": None,
+                },
+            },
+            {
+                "type": "function-tool-v1",
+                "name": "get_weather",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "city": {
+                            "type": "string",
+                        }
+                    },
+                    "required": ["city"],
+                    "additionalProperties": False,
+                },
+                "extra_parameters": {
+                    "strict": None,
+                },
+            },
+            id="tool-with-strict-set-to-none",
+        ),
     ],
 )
 async def test_openai_tool_are_round_tripped_without_data_loss(
