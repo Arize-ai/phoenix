@@ -138,7 +138,12 @@ interface PlaygroundInstanceActionParams {
   playgroundInstanceId: number;
 }
 
-export interface AddMessageParams extends PlaygroundInstanceActionParams {}
+export interface AddMessageParams extends PlaygroundInstanceActionParams {
+  /**
+   * If not provided, a default empty message will be added
+   */
+  messages?: ChatMessage[];
+}
 
 export interface PlaygroundProps {
   /**
@@ -172,7 +177,39 @@ export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
 };
 
-export interface PlaygroundState extends PlaygroundProps {
+/**
+ * A chat completion template, with normalized message ids
+ *
+ * The chat template only contains references to message ids, which are normalized to be unique
+ * and stored elsewhere in the state
+ */
+export type PlaygroundNormalizedChatTemplate = Omit<
+  PlaygroundChatTemplate,
+  "messages"
+> & {
+  messageIds: number[];
+};
+
+/**
+ * A playground instance, with normalized chat completion template messages
+ */
+export type PlaygroundNormalizedInstance = Omit<
+  PlaygroundInstance,
+  "template"
+> & {
+  template: PlaygroundTextCompletionTemplate | PlaygroundNormalizedChatTemplate;
+};
+
+export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
+  instances: Array<PlaygroundNormalizedInstance>;
+
+  /**
+   * A map of message id to message
+   *
+   * message ids must be globally unique across all instances
+   */
+  allInstanceMessages: Record<number, ChatMessage>;
+
   /**
    * Setter for the invocation mode
    * @param operationType
@@ -202,11 +239,24 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   addMessage: (params: AddMessageParams) => void;
   /**
+   * Update a message in a playground instance
+   */
+  updateMessage: (params: {
+    instanceId: number;
+    messageId: number;
+    patch: Partial<ChatMessage>;
+  }) => void;
+  /**
+   * Delete a message from a playground instance
+   */
+  deleteMessage: (params: { instanceId: number; messageId: number }) => void;
+
+  /**
    * Update an instance of the playground
    */
   updateInstance: (params: {
     instanceId: number;
-    patch: Partial<PlaygroundInstance>;
+    patch: Partial<PlaygroundNormalizedInstance>;
     /**
      * Should this update mark the instance as dirty?
      *

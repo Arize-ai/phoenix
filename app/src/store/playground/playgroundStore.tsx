@@ -20,10 +20,13 @@ import {
   convertMessageToolCallsToProvider,
 } from "./playgroundStoreUtils";
 import {
+  ChatMessage,
   GenAIOperationType,
   InitialPlaygroundState,
   PlaygroundChatTemplate,
   PlaygroundInstance,
+  PlaygroundNormalizedChatTemplate,
+  PlaygroundNormalizedInstance,
   PlaygroundState,
   PlaygroundTextCompletionTemplate,
 } from "./types";
@@ -97,6 +100,22 @@ const generateChatCompletionTemplate = (): PlaygroundChatTemplate => ({
   ],
 });
 
+export const normalizeChatTemplate = (template: PlaygroundChatTemplate) => {
+  return {
+    template: {
+      __type: "chat",
+      messageIds: template.messages.map((message) => message.id),
+    } satisfies PlaygroundNormalizedChatTemplate,
+    messages: template.messages.reduce(
+      (acc, message) => {
+        acc[message.id] = message;
+        return acc;
+      },
+      {} as Record<number, ChatMessage>
+    ),
+  };
+};
+
 const DEFAULT_TEXT_COMPLETION_TEMPLATE: PlaygroundTextCompletionTemplate = {
   __type: "text_completion",
   prompt: "{{question}}",
@@ -119,11 +138,22 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     dirty: false,
   }) satisfies Partial<PlaygroundInstance>;
 
-export function createPlaygroundInstance(): PlaygroundInstance {
+/**
+ * Creates a new normalized playground instance, and an object of instance messages that can be merged
+ * into a normalized store of messages
+ *
+ * @returns an object containing the instance and the instance messages
+ */
+export function createNormalizedPlaygroundInstance() {
+  const template = generateChatCompletionTemplate();
+  const normalizedTemplate = normalizeChatTemplate(template);
   return {
-    id: generateInstanceId(),
-    template: generateChatCompletionTemplate(),
-    ...DEFAULT_INSTANCE_PARAMS(),
+    instance: {
+      id: generateInstanceId(),
+      template: normalizedTemplate.template,
+      ...DEFAULT_INSTANCE_PARAMS(),
+    } as PlaygroundNormalizedInstance,
+    instanceMessages: normalizedTemplate.messages,
   };
 }
 
@@ -146,21 +176,46 @@ export function createOpenAIResponseFormat(): OpenAIResponseFormat {
 /**
  * Gets the initial instances for the playground store
  * If the initial props has instances, those will be used.
+ * Incoming instances are normalized on entry, and should not be normalized before passing to this function
  * If not a default instance will be created and saved model config defaults will be used if present.
- * @returns a list of {@link PlaygroundInstance} instances
+ * @returns a list of {@link PlaygroundNormalizedInstance} instances
  *
  * NB: This function is only exported for testing
  */
-export function getInitialInstances(initialProps: InitialPlaygroundState) {
+export function getInitialInstances(initialProps: InitialPlaygroundState): {
+  instances: Array<PlaygroundNormalizedInstance>;
+  instanceMessages: Record<number, ChatMessage>;
+} {
   if (initialProps.instances != null && initialProps.instances.length > 0) {
-    return initialProps.instances;
+    let initialInstancesMessageMap: Record<number, ChatMessage> = {};
+    const normalizedInstances = initialProps.instances.map((instance) => {
+      if (instance.template.__type === "chat") {
+        const normalizedTemplate = normalizeChatTemplate(instance.template);
+        initialInstancesMessageMap = {
+          ...initialInstancesMessageMap,
+          ...normalizedTemplate.messages,
+        };
+        return {
+          ...instance,
+          template: normalizedTemplate.template,
+        } satisfies PlaygroundNormalizedInstance;
+      }
+      return instance as PlaygroundNormalizedInstance;
+    });
+    return {
+      instances: normalizedInstances,
+      instanceMessages: initialInstancesMessageMap,
+    };
   }
-  const instance = createPlaygroundInstance();
+  const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
 
   const savedModelConfigs = Object.values(initialProps.modelConfigByProvider);
   const hasSavedModelConfig = savedModelConfigs.length > 0;
   if (!hasSavedModelConfig) {
-    return [instance];
+    return {
+      instances: [instance],
+      instanceMessages,
+    };
   }
   const savedDefaultProviderConfig =
     savedModelConfigs.find(
@@ -170,10 +225,14 @@ export function getInitialInstances(initialProps: InitialPlaygroundState) {
     ...instance.model,
     ...savedDefaultProviderConfig,
   };
-  return [instance];
+  return {
+    instances: [instance],
+    instanceMessages,
+  };
 }
 
-export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
+export const createPlaygroundStore = (props: InitialPlaygroundState) => {
+  const { instances, instanceMessages } = getInitialInstances(props);
   const playgroundStore: StateCreator<PlaygroundState> = (set, get) => ({
     streaming: true,
     operationType: "chat",
@@ -185,17 +244,31 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       variablesValueCache: {},
     },
     templateLanguage: TemplateLanguages.Mustache,
-    instances: getInitialInstances(initialProps),
+    ...props,
+    instances,
+    allInstanceMessages: instanceMessages,
     setInput: (input) => {
       set({ input });
     },
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
-        set({
-          instances: get().instances.map((instance) => ({
+        const normalizedInstances: PlaygroundNormalizedInstance[] = [];
+        let messageMap: Record<number, ChatMessage> = {};
+        get().instances.forEach((instance) => {
+          const newMessage = generateChatCompletionTemplate();
+          const normalizedTemplate = normalizeChatTemplate(newMessage);
+          messageMap = {
+            ...messageMap,
+            ...normalizedTemplate.messages,
+          };
+          normalizedInstances.push({
             ...instance,
-            template: generateChatCompletionTemplate(),
-          })),
+            template: normalizedTemplate.template,
+          });
+        });
+        set({
+          instances: normalizedInstances,
+          allInstanceMessages: messageMap,
         });
       } else {
         set({
@@ -209,15 +282,47 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
     },
     addInstance: () => {
       const instances = get().instances;
+      const instanceMessages = get().allInstanceMessages;
       const firstInstance = get().instances[0];
       if (!firstInstance) {
         return;
       }
+      let newMessageIds: number[] = [];
+      let newMessageMap: Record<number, ChatMessage> = {};
+      if (firstInstance.template.__type === "chat") {
+        const messageIdsToCopy = firstInstance.template.messageIds;
+        const copiedMessages = messageIdsToCopy
+          .map((id) => instanceMessages[id])
+          .map((message) => ({
+            ...message,
+            id: generateMessageId(),
+          }));
+        newMessageIds = copiedMessages.map((message) => message.id);
+        newMessageMap = copiedMessages.reduce(
+          (acc, message) => {
+            acc[message.id] = message;
+            return acc;
+          },
+          {} as Record<number, ChatMessage>
+        );
+      }
       set({
+        allInstanceMessages: {
+          ...instanceMessages,
+          ...newMessageMap,
+        },
         instances: [
           ...instances,
           {
             ...firstInstance,
+            ...(firstInstance.template.__type === "chat"
+              ? {
+                  template: {
+                    ...firstInstance.template,
+                    messageIds: newMessageIds,
+                  },
+                }
+              : {}),
             id: generateInstanceId(),
             activeRunId: null,
             experimentId: null,
@@ -269,7 +374,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
 
       const savedProviderConfig = modelConfigByProvider[provider];
 
-      const patch: Partial<PlaygroundInstance> = {
+      const patch: Partial<PlaygroundNormalizedInstance> = {
         // If we have a saved config for the provider, use it as the default otherwise reset the model config entirely to defaults / unset which will be controlled by invocation params coming from the server
         model: savedProviderConfig
           ? {
@@ -294,21 +399,26 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
           provider,
         }),
       };
+      const messageMapPatch: Record<number, ChatMessage> = {};
       if (instance.template.__type === "chat") {
-        patch.template = {
-          __type: "chat",
-          messages: instance.template.messages.map((message) => {
-            return {
+        instance.template.messageIds.forEach((messageId) => {
+          const message = get().allInstanceMessages[messageId];
+          if (message) {
+            messageMapPatch[messageId] = {
               ...message,
               toolCalls: convertMessageToolCallsToProvider({
                 toolCalls: message.toolCalls,
                 provider,
               }),
             };
-          }),
-        };
+          }
+        });
       }
       set({
+        allInstanceMessages: {
+          ...get().allInstanceMessages,
+          ...messageMapPatch,
+        },
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
             return {
@@ -349,11 +459,35 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         instances: instances.filter((instance) => instance.id !== instanceId),
       });
     },
-    addMessage: ({ playgroundInstanceId }) => {
+    addMessage: ({ playgroundInstanceId, messages }) => {
       const instances = get().instances;
+      let newMessages: ChatMessage[] = [];
+      if (Array.isArray(messages)) {
+        newMessages = messages;
+      } else if (messages) {
+        newMessages = [messages];
+      } else {
+        newMessages = [
+          {
+            id: generateMessageId(),
+            role: DEFAULT_CHAT_ROLE,
+            content: "",
+          },
+        ];
+      }
 
       // Update the given instance
       set({
+        allInstanceMessages: {
+          ...get().allInstanceMessages,
+          ...newMessages.reduce(
+            (acc, message) => {
+              acc[message.id] = message;
+              return acc;
+            },
+            {} as Record<number, ChatMessage>
+          ),
+        },
         instances: instances.map((instance) => {
           if (
             instance.id === playgroundInstanceId &&
@@ -363,10 +497,60 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             return {
               ...instance,
               dirty: true,
-              messages: [
-                ...instance.template.messages,
-                { role: DEFAULT_CHAT_ROLE, content: "{question}" },
-              ],
+              template: {
+                ...instance.template,
+                messageIds: [
+                  ...instance.template.messageIds,
+                  ...newMessages.map((message) => message.id),
+                ],
+              },
+            };
+          }
+          return instance;
+        }),
+      });
+    },
+    updateMessage: ({ messageId, patch, instanceId }) => {
+      const allInstanceMessages = get().allInstanceMessages;
+      set({
+        allInstanceMessages: {
+          ...allInstanceMessages,
+          [messageId]: {
+            ...allInstanceMessages[messageId],
+            ...patch,
+          },
+        },
+      });
+      get().updateInstance({
+        instanceId,
+        patch: {},
+        dirty: true,
+      });
+    },
+    deleteMessage: ({ instanceId, messageId }) => {
+      const instances = get().instances;
+      const allInstanceMessages = get().allInstanceMessages;
+      set({
+        allInstanceMessages: Object.fromEntries(
+          Object.entries(allInstanceMessages).filter(
+            ([, { id }]) => id !== messageId
+          )
+        ),
+        instances: instances.map((instance) => {
+          if (
+            instance.id === instanceId &&
+            instance?.template &&
+            instance?.template.__type === "chat"
+          ) {
+            return {
+              ...instance,
+              dirty: true,
+              template: {
+                ...instance.template,
+                messageIds: instance.template.messageIds.filter(
+                  (id) => id !== messageId
+                ),
+              },
             };
           }
           return instance;
@@ -399,8 +583,9 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
       });
     },
     cancelPlaygroundInstances: () => {
+      const instances = get().instances;
       set({
-        instances: get().instances.map((instance) => ({
+        instances: instances.map((instance) => ({
           ...instance,
           activeRunId: null,
           spanId: null,
@@ -555,7 +740,6 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
         }),
       });
     },
-    ...initialProps,
   });
   return create(devtools(playgroundStore));
 };

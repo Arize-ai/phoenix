@@ -1,4 +1,9 @@
-import React, { PropsWithChildren, useCallback, useState } from "react";
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -35,12 +40,12 @@ import {
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
-import {
-  ChatMessage,
-  PlaygroundChatTemplate as PlaygroundChatTemplateType,
-  PlaygroundInstance,
-} from "@phoenix/store";
+import { ChatMessage, PlaygroundState } from "@phoenix/store";
 import { convertMessageToolCallsToProvider } from "@phoenix/store/playground/playgroundStoreUtils";
+import {
+  selectPlaygroundInstance,
+  selectPlaygroundInstanceMessage,
+} from "@phoenix/store/playground/selectors";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -81,10 +86,9 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
-  const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-
-  const playgroundInstance = instances.find((instance) => instance.id === id);
+  const instanceSelector = useMemo(() => selectPlaygroundInstance(id), [id]);
+  const playgroundInstance = usePlaygroundContext(instanceSelector);
   if (!playgroundInstance) {
     throw new Error(`Playground instance ${id} not found`);
   }
@@ -102,6 +106,8 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
     throw new Error(`Invalid template type ${template.__type}`);
   }
 
+  const messageIds = template.messageIds;
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -116,30 +122,26 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         if (!over || active.id === over.id) {
           return;
         }
-        const activeIndex = template.messages.findIndex(
-          (message) => message.id === active.id
+        const activeIndex = messageIds.findIndex(
+          (messageId) => messageId === active.id
         );
-        const overIndex = template.messages.findIndex(
-          (message) => message.id === over.id
+        const overIndex = messageIds.findIndex(
+          (messageId) => messageId === over.id
         );
-        const newMessages = arrayMove(
-          template.messages,
-          activeIndex,
-          overIndex
-        );
+        const newMessageIds = arrayMove(messageIds, activeIndex, overIndex);
         updateInstance({
           instanceId: id,
           patch: {
             template: {
               __type: "chat",
-              messages: newMessages,
+              messageIds: newMessageIds,
             },
           },
           dirty: true,
         });
       }}
     >
-      <SortableContext items={template.messages}>
+      <SortableContext items={messageIds}>
         <ul
           css={css`
             display: flex;
@@ -148,16 +150,13 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             padding: var(--ac-global-dimension-size-200);
           `}
         >
-          {template.messages.map((message, index) => {
+          {messageIds.map((messageId) => {
             return (
               <SortableMessageItem
                 playgroundInstanceId={id}
-                instance={playgroundInstance}
                 templateLanguage={templateLanguage}
-                template={template}
-                key={message.id}
-                message={message}
-                index={index}
+                key={messageId}
+                messageId={messageId}
               />
             );
           })}
@@ -192,16 +191,20 @@ function MessageEditor({
   updateMessage,
   templateLanguage,
   playgroundInstanceId,
-  template,
   messageMode,
 }: {
   playgroundInstanceId: number;
   message: ChatMessage;
-  template: PlaygroundChatTemplateType;
   templateLanguage: TemplateLanguage;
   updateMessage: (patch: Partial<ChatMessage>) => void;
   messageMode: MessageMode;
 }) {
+  const onChange = useCallback(
+    (val: string) => {
+      updateMessage({ content: val });
+    },
+    [updateMessage]
+  );
   if (messageMode === "toolCalls") {
     return (
       <View
@@ -214,8 +217,6 @@ function MessageEditor({
           <CodeWrap width={"100%"}>
             <ChatMessageToolCallsEditor
               playgroundInstanceId={playgroundInstanceId}
-              toolCalls={message.toolCalls}
-              templateMessages={template.messages}
               messageId={message.id}
             />
           </CodeWrap>
@@ -267,18 +268,15 @@ function MessageEditor({
       </Form>
     );
   }
+
   return (
     <TemplateEditorWrap>
       <TemplateEditor
         height="100%"
-        value={
-          typeof message.content === "string"
-            ? message.content
-            : JSON.stringify(message.content, null, 2)
-        }
+        defaultValue={message.content || ""}
         aria-label="Message content"
         templateLanguage={templateLanguage}
-        onChange={(val) => updateMessage({ content: val })}
+        onChange={onChange}
         placeholder={
           message.role === "system"
             ? "You are a helpful assistant"
@@ -294,19 +292,14 @@ function MessageEditor({
 function SortableMessageItem({
   playgroundInstanceId,
   templateLanguage,
-  template,
-  message,
-  instance,
-}: PropsWithChildren<
-  PlaygroundInstanceProps & {
-    template: PlaygroundChatTemplateType;
-    message: ChatMessage;
-    templateLanguage: TemplateLanguage;
-    index: number;
-    instance: PlaygroundInstance;
-  }
->) {
-  const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  messageId,
+}: PropsWithChildren<{
+  playgroundInstanceId: number;
+  messageId: number;
+  templateLanguage: TemplateLanguage;
+}>) {
+  const updateMessage = usePlaygroundContext((state) => state.updateMessage);
+  const deleteMessage = usePlaygroundContext((state) => state.deleteMessage);
   const {
     attributes,
     listeners,
@@ -316,9 +309,25 @@ function SortableMessageItem({
     setActivatorNodeRef,
     isDragging,
   } = useSortable({
-    id: message.id,
+    id: messageId,
   });
-
+  const instanceModelSelector = useMemo(
+    () => (state: PlaygroundState) =>
+      state.instances.find((instance) => instance.id === playgroundInstanceId)
+        ?.model,
+    [playgroundInstanceId]
+  );
+  const instanceModel = usePlaygroundContext(instanceModelSelector);
+  if (!instanceModel) {
+    throw new Error(
+      `Instance model not found for instance ${playgroundInstanceId}`
+    );
+  }
+  const messageSelector = useMemo(
+    () => selectPlaygroundInstanceMessage(messageId),
+    [messageId]
+  );
+  const message = usePlaygroundContext(messageSelector);
   const messageCardStyles = useChatMessageStyles(message.role);
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
@@ -332,24 +341,6 @@ function SortableMessageItem({
     hasTools ? "toolCalls" : "text"
   );
 
-  const updateMessage = useCallback(
-    (patch: Partial<ChatMessage>) => {
-      updateInstance({
-        instanceId: playgroundInstanceId,
-        patch: {
-          template: {
-            __type: "chat",
-            messages: template.messages.map((msg) =>
-              msg.id === message.id ? { ...msg, ...patch } : msg
-            ),
-          },
-        },
-        dirty: true,
-      });
-    },
-    [message.id, playgroundInstanceId, template.messages, updateInstance]
-  );
-
   // Preserves the content of the message before switching message modes
   // Enables the user to switch back to text mode and restore the previous content
   const [previousMessageContent, setPreviousMessageContent] = useState<
@@ -360,6 +351,17 @@ function SortableMessageItem({
   const [previousMessageToolCalls, setPreviousMessageToolCalls] = useState<
     ChatMessage["toolCalls"]
   >(message.toolCalls);
+
+  const onMessageUpdate = useCallback(
+    (patch: Partial<ChatMessage>) => {
+      updateMessage({
+        instanceId: playgroundInstanceId,
+        messageId,
+        patch,
+      });
+    },
+    [playgroundInstanceId, messageId, updateMessage]
+  );
 
   return (
     <li ref={setNodeRef} style={dragAndDropLiStyles}>
@@ -386,19 +388,13 @@ function SortableMessageItem({
                   toolCalls = undefined;
                   setAIMessageMode("text");
                 }
-                updateInstance({
+                updateMessage({
                   instanceId: playgroundInstanceId,
+                  messageId,
                   patch: {
-                    template: {
-                      __type: "chat",
-                      messages: template.messages.map((msg) =>
-                        msg.id === message.id
-                          ? { ...msg, role, toolCalls }
-                          : msg
-                      ),
-                    },
+                    role,
+                    toolCalls,
                   },
-                  dirty: true,
                 });
               }}
             />
@@ -417,25 +413,33 @@ function SortableMessageItem({
                       case "text":
                         setPreviousMessageToolCalls(message.toolCalls);
                         updateMessage({
-                          content: previousMessageContent,
-                          toolCalls: undefined,
+                          instanceId: playgroundInstanceId,
+                          messageId,
+                          patch: {
+                            content: previousMessageContent,
+                            toolCalls: undefined,
+                          },
                         });
                         break;
                       case "toolCalls":
                         setPreviousMessageContent(message.content);
                         updateMessage({
-                          content: "",
-                          toolCalls:
-                            previousMessageToolCalls != null
-                              ? convertMessageToolCallsToProvider({
-                                  toolCalls: previousMessageToolCalls,
-                                  provider: instance.model.provider,
-                                })
-                              : [
-                                  createToolCallForProvider(
-                                    instance.model.provider
-                                  ),
-                                ],
+                          instanceId: playgroundInstanceId,
+                          messageId,
+                          patch: {
+                            content: "",
+                            toolCalls:
+                              previousMessageToolCalls != null
+                                ? convertMessageToolCallsToProvider({
+                                    toolCalls: previousMessageToolCalls,
+                                    provider: instanceModel.provider,
+                                  })
+                                : [
+                                    createToolCallForProvider(
+                                      instanceModel.provider
+                                    ),
+                                  ],
+                          },
                         });
                         break;
                       default:
@@ -457,17 +461,9 @@ function SortableMessageItem({
               icon={<Icon svg={<Icons.TrashOutline />} />}
               size="S"
               onPress={() => {
-                updateInstance({
+                deleteMessage({
                   instanceId: playgroundInstanceId,
-                  patch: {
-                    template: {
-                      __type: "chat",
-                      messages: template.messages.filter(
-                        (msg) => msg.id !== message.id
-                      ),
-                    },
-                  },
-                  dirty: true,
+                  messageId,
                 });
               }}
             />
@@ -484,9 +480,8 @@ function SortableMessageItem({
             message={message}
             messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}
-            template={template}
             templateLanguage={templateLanguage}
-            updateMessage={updateMessage}
+            updateMessage={onMessageUpdate}
           />
         </div>
       </Card>
