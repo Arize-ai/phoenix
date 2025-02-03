@@ -136,11 +136,12 @@ PromptTemplate: TypeAlias = Annotated[
 
 
 class PromptTemplateWrapper(PromptModel):
+    """
+    Discriminated union types don't have pydantic methods such as
+    `model_validate`, so a wrapper around the union type is needed.
+    """
+
     template: PromptTemplate
-
-
-class PromptOutputSchema(PromptModel):
-    definition: JSONSchemaObjectDefinition
 
 
 class PromptFunctionToolV1(PromptModel):
@@ -154,19 +155,116 @@ class PromptFunctionToolV1(PromptModel):
     extra_parameters: dict[str, Any]
 
 
+PromptTool: TypeAlias = Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]
+
+
 class PromptToolsV1(PromptModel):
     type: Literal["tools-v1"]
-    tools: list[Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]]
+    tools: Annotated[list[PromptTool], Field(..., min_length=1)]
 
 
-def _get_tool_definition_model(
-    model_provider: str,
-) -> Optional[Union[type["OpenAIToolDefinition"], type["AnthropicToolDefinition"]]]:
+class PromptOpenAIJSONSchema(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L13
+    """
+
+    name: str
+    description: str = UNDEFINED
+    schema_: JSONSchemaObjectDefinition = Field(
+        ...,
+        alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
+    )
+    strict: Optional[bool] = UNDEFINED
+
+
+class PromptOpenAIOutputSchema(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L40
+    """
+
+    json_schema: PromptOpenAIJSONSchema
+    type: Literal["json_schema"]
+
+
+class PromptOutputSchema(PromptModel):
+    type: Literal["output-schema-v1"]
+    name: str
+    description: str = UNDEFINED
+    schema_: JSONSchemaObjectDefinition = Field(
+        default=UNDEFINED,
+        alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
+    )
+    extra_parameters: dict[str, Any]
+
+
+class PromptOutputSchemaWrapper(PromptModel):
+    """
+    Discriminated union types don't have pydantic methods such as
+    `model_validate`, so a wrapper around the union type is needed.
+    """
+
+    schema_: Annotated[
+        Union[PromptOutputSchema],
+        Field(
+            ...,
+            discriminator="type",
+            alias="schema",  # avoid conflict with the pydantic schema class method
+        ),
+    ]
+
+
+def _openai_to_prompt_output_schema(
+    schema: PromptOpenAIOutputSchema,
+) -> PromptOutputSchema:
+    jsonschema = schema.json_schema
+    extra_parameters = {}
+    if (strict := jsonschema.strict) is not UNDEFINED:
+        extra_parameters["strict"] = strict
+    return PromptOutputSchema(
+        type="output-schema-v1",
+        name=jsonschema.name,
+        description=jsonschema.description,
+        schema=jsonschema.schema_,
+        extra_parameters=extra_parameters,
+    )
+
+
+def _prompt_to_openai_output_schema(
+    output_schema: PromptOutputSchema,
+) -> PromptOpenAIOutputSchema:
+    assert output_schema.type == "output-schema-v1"
+    name = output_schema.name
+    description = output_schema.description
+    schema = output_schema.schema_
+    extra_parameters = output_schema.extra_parameters
+    strict = extra_parameters.get("strict", UNDEFINED)
+    return PromptOpenAIOutputSchema(
+        type="json_schema",
+        json_schema=PromptOpenAIJSONSchema(
+            name=name,
+            description=description,
+            schema=schema,
+            strict=strict,
+        ),
+    )
+
+
+def normalize_output_schema(
+    output_schema: dict[str, Any], model_provider: str
+) -> PromptOutputSchema:
     if model_provider.lower() == "openai":
-        return OpenAIToolDefinition
-    if model_provider.lower() == "anthropic":
-        return AnthropicToolDefinition
-    return None
+        openai_output_schema = PromptOpenAIOutputSchema.model_validate(output_schema)
+        return _openai_to_prompt_output_schema(openai_output_schema)
+    raise ValueError(f"Unsupported model provider: {model_provider}")
+
+
+def denormalize_output_schema(
+    output_schema: PromptOutputSchema, model_provider: str
+) -> dict[str, Any]:
+    if model_provider.lower() == "openai":
+        openai_output_schema = _prompt_to_openai_output_schema(output_schema)
+        return openai_output_schema.model_dump()
+    raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
 # OpenAI tool definitions

@@ -2286,15 +2286,34 @@
       },
       "PromptOutputSchema": {
         "properties": {
-          "definition": {
+          "type": {
+            "type": "string",
+            "const": "output-schema-v1",
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "schema": {
             "type": "object",
-            "title": "Definition"
+            "title": "Schema"
+          },
+          "extra_parameters": {
+            "type": "object",
+            "title": "Extra Parameters"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "definition"
+          "type",
+          "name",
+          "extra_parameters"
         ],
         "title": "PromptOutputSchema"
       },
@@ -2357,6 +2376,7 @@
               }
             },
             "type": "array",
+            "minItems": 1,
             "title": "Tools"
           }
         },

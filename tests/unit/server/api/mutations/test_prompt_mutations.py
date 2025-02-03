@@ -326,7 +326,23 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {"definition": {"type": "object"}},
+                            "outputSchema": {
+                                "definition": {
+                                    "type": "json_schema",
+                                    "json_schema": {
+                                        "name": "response",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "foo": {"type": "string"},
+                                            },
+                                            "required": ["foo"],
+                                            "additionalProperties": False,
+                                        },
+                                        "strict": True,
+                                    },
+                                }
+                            },
                         },
                     }
                 },
@@ -488,10 +504,22 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {  # invalid jsonschema
+                            "outputSchema": {
                                 "definition": {
-                                    "type": "invalid_jsonschema_type",
-                                },
+                                    "type": "json_schema",
+                                    "json_schema": {
+                                        "name": "response",
+                                        "schema": {
+                                            "type": "invalid_type",  # valid schema other than this
+                                            "properties": {
+                                                "foo": {"type": "string"},
+                                            },
+                                            "required": ["foo"],
+                                            "additionalProperties": False,
+                                        },
+                                        "strict": True,
+                                    },
+                                }
                             },
                         },
                     }
@@ -723,7 +751,21 @@ class TestPromptMutations:
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
                             "outputSchema": {
-                                "definition": {"type": "object"},
+                                "definition": {
+                                    "type": "json_schema",
+                                    "json_schema": {
+                                        "name": "response",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "foo": {"type": "string"},
+                                            },
+                                            "required": ["foo"],
+                                            "additionalProperties": False,
+                                        },
+                                        "strict": True,
+                                    },
+                                }
                             },
                         },
                     }
@@ -944,8 +986,22 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {  # invalid jsonschema type
-                                "definition": {"type": "invalid_jsonschema_type"},
+                            "outputSchema": {
+                                "definition": {
+                                    "type": "json_schema",
+                                    "json_schema": {
+                                        "name": "response",
+                                        "schema": {
+                                            "type": "invalid_type",  # valid schema other than this
+                                            "properties": {
+                                                "foo": {"type": "string"},
+                                            },
+                                            "required": ["foo"],
+                                            "additionalProperties": False,
+                                        },
+                                        "strict": True,
+                                    },
+                                }
                             },
                         },
                     }

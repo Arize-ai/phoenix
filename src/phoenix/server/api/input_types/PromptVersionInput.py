@@ -31,6 +31,7 @@ class ToolDefinitionInput:
 
 @strawberry.input
 class OutputSchemaInput:
+    version: strawberry.Private[str] = "openai-output-schema-v1"
     definition: JSON
 
 

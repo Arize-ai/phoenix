@@ -13,6 +13,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
+    denormalize_output_schema,
     denormalize_tools,
 )
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
@@ -21,7 +22,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     to_gql_template_from_orm,
 )
 
-from .OutputSchema import OutputSchema, to_gql_output_schema_from_pydantic
+from .OutputSchema import OutputSchema
 from .ToolDefinition import ToolDefinition
 from .User import User, to_gql_user
 
@@ -112,7 +113,12 @@ def to_gql_prompt_version(
     else:
         tools = []
     output_schema = (
-        to_gql_output_schema_from_pydantic(prompt_version.output_schema)
+        OutputSchema(
+            definition=denormalize_output_schema(
+                prompt_version.output_schema,
+                prompt_version.model_provider,
+            )
+        )
         if prompt_version.output_schema is not None
         else None
     )
