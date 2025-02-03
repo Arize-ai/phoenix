@@ -510,7 +510,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         }),
       });
     },
-    updateMessage: ({ messageId, patch }) => {
+    updateMessage: ({ messageId, patch, instanceId }) => {
       const allInstanceMessages = get().allInstanceMessages;
       set({
         allInstanceMessages: {
@@ -520,6 +520,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...patch,
           },
         },
+      });
+      get().updateInstance({
+        instanceId,
+        patch: {},
+        dirty: true,
       });
     },
     deleteMessage: ({ instanceId, messageId }) => {
