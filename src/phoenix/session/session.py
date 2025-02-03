@@ -48,6 +48,7 @@ from phoenix.session.evaluation import encode_evaluations
 from phoenix.trace import Evaluations
 from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.db import get_printable_db_url
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -604,7 +605,7 @@ def launch_app(
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     if not use_temp_dir:
-        print(f"💽 Your data is being persisted to {database_url}")
+        print(f"💽 Your data is being persisted to {get_printable_db_url(database_url)}")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 
