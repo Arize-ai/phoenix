@@ -40,54 +40,46 @@ from phoenix.client.utils.template_formatters import (
 )
 
 if TYPE_CHECKING:
-    from openai._client import OpenAI
-    from openai.types.chat import (
-        ChatCompletionAssistantMessageParam,
-        ChatCompletionContentPartImageParam,
-        ChatCompletionContentPartInputAudioParam,
-        ChatCompletionContentPartParam,
-        ChatCompletionContentPartRefusalParam,
-        ChatCompletionContentPartTextParam,
-        ChatCompletionFunctionMessageParam,
-        ChatCompletionMessageParam,
-        ChatCompletionMessageToolCallParam,
-        ChatCompletionReasoningEffort,
-        ChatCompletionRole,
-        ChatCompletionSystemMessageParam,
-        ChatCompletionToolChoiceOptionParam,
-        ChatCompletionToolMessageParam,
-        ChatCompletionToolParam,
-        ChatCompletionUserMessageParam,
+    from mistralai.models import (
+        AssistantMessageTypedDict,
+        ChatCompletionRequestToolChoiceTypedDict,
+        ContentChunkTypedDict,
+        FunctionTypedDict,
+        ImageURLChunkTypedDict,
+        MessagesTypedDict,
+        ReferenceChunkTypedDict,
+        ResponseFormatTypedDict,
+        StopTypedDict,
+        SystemMessageTypedDict,
+        TextChunkTypedDict,
+        ToolCallTypedDict,
+        ToolMessageTypedDict,
+        ToolTypedDict,
+        UserMessageTypedDict,
     )
-    from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-    from openai.types.chat.completion_create_params import (
-        ResponseFormat,
-    )
-    from openai.types.shared_params import FunctionDefinition
+    from mistralai.sdk import Mistral
 
     class _ModelKwargs(TypedDict, total=False):
         model: Required[str]
-        frequency_penalty: float
-        max_tokens: int
-        parallel_tool_calls: bool
-        presence_penalty: float
-        reasoning_effort: ChatCompletionReasoningEffort
-        response_format: ResponseFormat
-        seed: int
-        stop: list[str]
         temperature: float
-        tool_choice: ChatCompletionToolChoiceOptionParam
-        tools: list[ChatCompletionToolParam]
         top_p: float
+        max_tokens: int
+        stream: bool
+        stop: StopTypedDict
+        random_seed: int
+        response_format: ResponseFormatTypedDict
+        tools: list[ToolTypedDict]
+        tool_choice: ChatCompletionRequestToolChoiceTypedDict
+        safe_prompt: bool
 
     def _(obj: PromptVersion) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
-        OpenAI().chat.completions.create(messages=messages, **kwargs)
+        Mistral().chat.complete(messages=messages, **kwargs)  # pyright: ignore[reportUnknownMemberType]
 
 
 _ContentPart: TypeAlias = Union[
-    ImageContentPart,
     TextContentPart,
+    ImageContentPart,
     ToolCallContentPart,
     ToolResultContentPart,
 ]
@@ -106,7 +98,7 @@ def to_chat_messages_and_kwargs(
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
     **_: Any,
-) -> tuple[list[ChatCompletionMessageParam], _ModelKwargs]:
+) -> tuple[list[MessagesTypedDict], _ModelKwargs]:
     return (
         list(_to_chat_completion_messages(obj, variables, formatter)),
         _to_model_kwargs(obj),
@@ -137,24 +129,6 @@ def _to_model_kwargs(
             ans["stop"] = list(map(str, v))
         except (ValueError, TypeError):
             pass
-    if (v := parameters.get("presence_penalty")) is not None:
-        try:
-            ans["presence_penalty"] = float(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("frequency_penalty")) is not None:
-        try:
-            ans["frequency_penalty"] = float(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("seed")) is not None:
-        try:
-            ans["seed"] = int(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("reasoning_effort")) is not None:
-        if v in ("low", "medium", "high"):
-            ans["reasoning_effort"] = v
     if "tools" in obj and obj["tools"] and (tools := list(_to_tools(obj["tools"]))):
         ans["tools"] = tools
     return ans
@@ -162,10 +136,10 @@ def _to_model_kwargs(
 
 def _to_chat_completion_messages(
     obj: PromptVersion,
-    variables: Mapping[str, str],
+    variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
     /,
-) -> Iterator[ChatCompletionMessageParam]:
+) -> Iterator[MessagesTypedDict]:
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
@@ -181,9 +155,12 @@ def _to_chat_completion_messages(
 
 def _to_tools(
     obj: PromptToolsV1,
-) -> Iterable[ChatCompletionToolParam]:
+) -> Iterable[ToolTypedDict]:
     for tool in obj["tools"]:
-        function: FunctionDefinition = {"name": tool["name"]}
+        function: FunctionTypedDict = {
+            "name": tool["name"],
+            "parameters": {},
+        }
         if "description" in tool:
             function["description"] = tool["description"]
         if "schema" in tool and tool["schema"]:
@@ -192,19 +169,21 @@ def _to_tools(
 
 
 def _from_tools(
-    tools: Iterable[ChatCompletionToolParam],
+    tools: Iterable[ToolTypedDict],
 ) -> PromptToolsV1:
     functions: list[PromptFunctionToolV1] = []
     for tool in tools:
-        if tool["type"] != "function":
+        if "function" not in tool:
             continue
-        definition: FunctionDefinition = tool["function"]
+        definition: FunctionTypedDict = tool["function"]
         name = definition["name"]
-        function = PromptFunctionToolV1(type="function-tool-v1", name=name)
+        function = PromptFunctionToolV1(
+            type="function-tool-v1",
+            name=name,
+            schema=definition["parameters"],
+        )
         if "description" in definition:
             function["description"] = definition["description"]
-        if "parameters" in definition:
-            function["schema"] = definition["parameters"]
         functions.append(function)
     return PromptToolsV1(type="tools-v1", tools=functions)
 
@@ -214,7 +193,7 @@ def _to_messages(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> Iterator[ChatCompletionMessageParam]:
+) -> Iterator[MessagesTypedDict]:
     if obj["role"] == "USER":
         yield from _to_user_messages(obj, variables, formatter)
     elif obj["role"] == "SYSTEM":
@@ -231,24 +210,19 @@ def _to_messages(
 
 
 def _from_message(
-    obj: ChatCompletionMessageParam,
+    obj: MessagesTypedDict,
 ) -> PromptMessage:
+    if "role" not in obj:
+        raise ValueError("role is unknown")
     if obj["role"] == "user":
         return _from_user_message(obj)
     if obj["role"] == "system":
         return _from_system_message(obj)
-    if obj["role"] == "developer":
-        raise NotImplementedError
     if obj["role"] == "assistant":
         return _from_assistant_message(obj)
     if obj["role"] == "tool":
         return _from_tool_message(obj)
-    if obj["role"] == "function":
-        return _from_function_message(obj)
-    if TYPE_CHECKING:
-        assert_never(obj["role"])
-    content = list(_from_content(obj["content"]))
-    return PromptMessage(role=obj["role"], content=content)
+    assert_never(obj["role"])
 
 
 def _to_user_messages(
@@ -256,13 +230,13 @@ def _to_user_messages(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> Iterator[ChatCompletionUserMessageParam]:
+) -> Iterator[UserMessageTypedDict]:
     content = list(_to_content(obj["content"], variables, formatter))
     yield _user_msg(content)
 
 
 def _from_user_message(
-    obj: ChatCompletionUserMessageParam,
+    obj: UserMessageTypedDict,
     /,
     *,
     role: Literal["USER"] = "USER",
@@ -276,13 +250,13 @@ def _to_system_messages(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> Iterator[ChatCompletionSystemMessageParam]:
+) -> Iterator[SystemMessageTypedDict]:
     content = list(_to_content(obj["content"], variables, formatter, text_only=True))
     yield _system_msg(content)
 
 
 def _from_system_message(
-    obj: ChatCompletionSystemMessageParam,
+    obj: SystemMessageTypedDict,
     /,
     *,
     role: Literal["SYSTEM"] = "SYSTEM",
@@ -296,9 +270,9 @@ def _to_assistant_messages(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> Iterator[ChatCompletionAssistantMessageParam]:
-    content: list[ContentArrayOfContentPart] = []
-    tool_calls: list[ChatCompletionMessageToolCallParam] = []
+) -> Iterator[AssistantMessageTypedDict]:
+    content: list[ContentChunkTypedDict] = []
+    tool_calls: list[ToolCallTypedDict] = []
     for part in obj["content"]:
         if part["type"] == "tool_call":
             if content:
@@ -310,8 +284,7 @@ def _to_assistant_messages(
             yield {"role": "assistant", "tool_calls": tool_calls}
             tool_calls.clear()
         if part["type"] == "text":
-            text = formatter.format(part["text"]["text"], variables=variables)
-            content.append({"type": "text", "text": text})
+            content.append(_to_text(part, variables, formatter))
         elif part["type"] == "tool_result":
             continue
         elif part["type"] == "image":
@@ -325,7 +298,7 @@ def _to_assistant_messages(
 
 
 def _from_assistant_message(
-    obj: ChatCompletionAssistantMessageParam,
+    obj: AssistantMessageTypedDict,
     /,
     *,
     role: Literal["AI"] = "AI",
@@ -343,9 +316,9 @@ def _to_tool_messages(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> Iterator[ChatCompletionToolMessageParam]:
+) -> Iterator[ToolMessageTypedDict]:
     current_tool_call_id: Optional[str] = None
-    current_content: list[ChatCompletionContentPartTextParam] = []
+    current_content: list[ContentChunkTypedDict] = []
     for part in obj["content"]:
         if part["type"] == "tool_result":
             tool_result = part["tool_result"]
@@ -386,48 +359,48 @@ def _str_tool_result(
 
 
 def _from_tool_message(
-    obj: ChatCompletionToolMessageParam,
+    obj: ToolMessageTypedDict,
     /,
     *,
     role: Literal["TOOL"] = "TOOL",
 ) -> PromptMessage:
+    id_ = obj["tool_call_id"] if "tool_call_id" in obj else ""
     if isinstance(obj["content"], str):
+        tool_result = ToolResultContentValue(
+            tool_call_id="",
+            result=obj["content"],
+        )
+        if id_:
+            tool_result["tool_call_id"] = id_
         return PromptMessage(
             role="TOOL",
             content=[
                 ToolResultContentPart(
                     type="tool_result",
-                    tool_result=ToolResultContentValue(
-                        tool_call_id=obj["tool_call_id"],
-                        result=obj["content"],
-                    ),
+                    tool_result=tool_result,
                 )
             ],
         )
     content: list[_ContentPart] = []
-    for part in obj["content"]:
-        if part["type"] == "text":
+    for part in obj["content"] or ():
+        if "type" in part and part["type"] == "text" or "text" in part:
+            tool_result = ToolResultContentValue(
+                result=part["text"],  # type: ignore[typeddict-item]
+            )
+            if id_:
+                tool_result["tool_call_id"] = id_
             content.append(
                 ToolResultContentPart(
                     type="tool_result",
-                    tool_result=ToolResultContentValue(
-                        tool_call_id=obj["tool_call_id"],
-                        result=part["text"],
-                    ),
+                    tool_result=tool_result,
                 )
             )
+        elif "type" in part and part["type"] == "image_url" or "image_url" in part:
+            continue
+        elif "type" in part and part["type"] == "reference" or "reference_ids" in part:
+            continue
         elif TYPE_CHECKING:
             assert_never(part)
-    return PromptMessage(role=role, content=content)
-
-
-def _from_function_message(
-    obj: ChatCompletionFunctionMessageParam,
-    /,
-    *,
-    role: Literal["TOOL"] = "TOOL",
-) -> PromptMessage:
-    content = list(_from_content(obj["content"]))
     return PromptMessage(role=role, content=content)
 
 
@@ -436,7 +409,7 @@ def _to_tool_call(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> ChatCompletionMessageToolCallParam:
+) -> ToolCallTypedDict:
     id_ = obj["tool_call"]["tool_call_id"] if "tool_call_id" in obj["tool_call"] else ""
     tool_call = obj["tool_call"]["tool_call"]
     name = tool_call["name"]
@@ -452,16 +425,21 @@ def _to_tool_call(
 
 
 def _from_tool_call(
-    obj: ChatCompletionMessageToolCallParam,
+    obj: ToolCallTypedDict,
 ) -> ToolCallContentPart:
+    arguments = obj["function"]["arguments"]
+    if isinstance(arguments, Mapping):
+        arguments = json.dumps(arguments)
+    assert isinstance(arguments, str)
+    name = obj["function"]["name"]
     return ToolCallContentPart(
         type="tool_call",
         tool_call=ToolCallContentValue(
-            tool_call_id=obj["id"],
+            tool_call_id=obj["id"] if "id" in obj else "",
             tool_call=ToolCallFunction(
                 type="function",
-                name=obj["function"]["name"],
-                arguments=obj["function"]["arguments"],
+                name=name,
+                arguments=arguments,
             ),
         ),
     )
@@ -475,7 +453,7 @@ def _to_content(
     /,
     *,
     text_only: Literal[True] = True,
-) -> Iterator[ChatCompletionContentPartTextParam]: ...
+) -> Iterator[TextChunkTypedDict]: ...
 
 
 @overload
@@ -486,7 +464,7 @@ def _to_content(
     /,
     *,
     text_only: bool,
-) -> Iterator[ChatCompletionContentPartParam]: ...
+) -> Iterator[ContentChunkTypedDict]: ...
 
 
 def _to_content(
@@ -507,7 +485,7 @@ def _to_content(
         elif part["type"] == "tool_call":
             continue
         elif part["type"] == "tool_result":
-            raise NotImplementedError
+            continue
         elif TYPE_CHECKING:
             assert_never(part)
 
@@ -517,10 +495,9 @@ def _from_content(
         str,
         Iterable[
             Union[
-                ChatCompletionContentPartTextParam,
-                ChatCompletionContentPartImageParam,
-                ChatCompletionContentPartInputAudioParam,
-                ChatCompletionContentPartRefusalParam,
+                TextChunkTypedDict,
+                ImageURLChunkTypedDict,
+                ReferenceChunkTypedDict,
             ]
         ],
         None,
@@ -531,16 +508,23 @@ def _from_content(
         yield TextContentPart(type="text", text=text)
         return
     for part in obj or ():
-        if part["type"] == "text":
+        if "type" not in part:
+            if "text" in part:
+                yield _from_text(part)  # type: ignore[arg-type]
+            elif "image_url" in part:
+                yield _from_image(part)  # type: ignore[arg-type]
+            elif "reference_ids" in part:
+                continue
+            elif TYPE_CHECKING:
+                assert_never(part)
+        elif part["type"] == "text":
             yield _from_text(part)
         elif part["type"] == "image_url":
             yield _from_image(part)
-        elif part["type"] == "input_audio":
-            continue
-        elif part["type"] == "refusal":
+        elif part["type"] == "reference":
             continue
         elif TYPE_CHECKING:
-            assert_never(part["type"])
+            assert_never(part)
 
 
 def _to_text(
@@ -548,19 +532,19 @@ def _to_text(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> ChatCompletionContentPartTextParam:
+) -> TextChunkTypedDict:
     text = formatter.format(obj["text"]["text"], variables=variables)
-    return {
-        "type": "text",
-        "text": text,
-    }
+    return {"type": "text", "text": text}
 
 
 def _from_text(
-    obj: ChatCompletionContentPartTextParam,
+    obj: TextChunkTypedDict,
 ) -> TextContentPart:
     text = TextContentValue(text=obj["text"])
-    return TextContentPart(type="text", text=text)
+    return TextContentPart(
+        type="text",
+        text=text,
+    )
 
 
 def _to_image(
@@ -568,7 +552,7 @@ def _to_image(
     variables: Mapping[str, str],
     formatter: TemplateFormatter,
     /,
-) -> ChatCompletionContentPartImageParam:
+) -> ImageURLChunkTypedDict:
     return {
         "type": "image_url",
         "image_url": {
@@ -578,9 +562,10 @@ def _to_image(
 
 
 def _from_image(
-    obj: ChatCompletionContentPartImageParam,
+    obj: ImageURLChunkTypedDict,
 ) -> ImageContentPart:
-    image = ImageContentValue(url=obj["image_url"]["url"])
+    url = obj["image_url"]["url"] if isinstance(obj["image_url"], dict) else obj["image_url"]
+    image = ImageContentValue(url=url)
     return ImageContentPart(
         type="image",
         image=image,
@@ -588,67 +573,73 @@ def _from_image(
 
 
 def _user_msg(
-    content: Sequence[ChatCompletionContentPartParam],
-) -> ChatCompletionUserMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
+    content: Sequence[ContentChunkTypedDict],
+) -> UserMessageTypedDict:
+    if len(content) == 1 and (
+        "type" in content[0] and content[0]["type"] == "text" or "text" in content[0]
+    ):
         return {
             "role": "user",
-            "content": content[0]["text"],
+            "content": content[0]["text"],  # type: ignore[typeddict-item]
         }
     return {
         "role": "user",
-        "content": content,
+        "content": list(content),
     }
 
 
 def _assistant_msg(
-    content: Sequence[ContentArrayOfContentPart],
-) -> ChatCompletionAssistantMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
+    content: Sequence[ContentChunkTypedDict],
+) -> AssistantMessageTypedDict:
+    if len(content) == 1 and (
+        "type" in content[0] and content[0]["type"] == "text" or "text" in content[0]
+    ):
         return {
             "role": "assistant",
-            "content": content[0]["text"],
+            "content": content[0]["text"],  # type: ignore[typeddict-item]
         }
     return {
         "role": "assistant",
-        "content": content,
+        "content": list(content),
     }
 
 
 def _system_msg(
-    content: Sequence[ChatCompletionContentPartTextParam],
-) -> ChatCompletionSystemMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
+    content: Sequence[TextChunkTypedDict],
+) -> SystemMessageTypedDict:
+    if len(content) == 1:
         return {
             "role": "system",
             "content": content[0]["text"],
         }
     return {
         "role": "system",
-        "content": content,
+        "content": list(content),
     }
 
 
 def _tool_msg(
     tool_call_id: str,
-    content: Sequence[ChatCompletionContentPartTextParam],
-) -> ChatCompletionToolMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
+    content: Sequence[ContentChunkTypedDict],
+) -> ToolMessageTypedDict:
+    if len(content) == 1 and (
+        "type" in content[0] and content[0]["type"] == "text" or "text" in content[0]
+    ):
         return {
             "role": "tool",
             "tool_call_id": tool_call_id,
-            "content": content[0]["text"],
+            "content": content[0]["text"],  # type: ignore[typeddict-item]
         }
     return {
         "role": "tool",
         "tool_call_id": tool_call_id,
-        "content": content,
+        "content": list(content),
     }
 
 
 def _to_role(
     obj: PromptMessage,
-) -> ChatCompletionRole:
+) -> Literal["user", "system", "assistant", "tool"]:
     role = obj["role"]
     if role == "USER":
         return "user"
@@ -664,14 +655,14 @@ def _to_role(
 
 
 def _from_role(
-    obj: ChatCompletionMessageParam,
+    obj: MessagesTypedDict,
 ) -> Literal["USER", "AI", "TOOL", "SYSTEM"]:
+    if "role" not in obj:
+        raise ValueError("role is unknown")
     if obj["role"] == "user":
         return "USER"
     if obj["role"] == "system":
         return "SYSTEM"
-    if obj["role"] == "developer":
-        raise NotImplementedError
     if obj["role"] == "assistant":
         return "AI"
     if obj["role"] == "tool":

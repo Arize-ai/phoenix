@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, cast
 from urllib.parse import quote_plus
 
 import httpx
@@ -20,7 +20,7 @@ class Prompts:
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
         response.raise_for_status()
-        return GetPromptResponseBody.model_validate_json(response.content).data
+        return cast(GetPromptResponseBody, response.content)["data"]
 
 
 class AsyncPrompts:
@@ -37,7 +37,7 @@ class AsyncPrompts:
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
         response.raise_for_status()
-        return GetPromptResponseBody.model_validate_json(response.content).data
+        return cast(GetPromptResponseBody, response.content)["data"]
 
 
 def _url(

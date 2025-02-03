@@ -4,3 +4,4 @@ pytest-xdist==3.6.1
 pytest-asyncio==0.25.1
 uvloop; platform_system != 'Windows'
 pydantic>=1.0,!=2.0.*,<3
+pyright[nodejs]==1.1.393

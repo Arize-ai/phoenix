@@ -2226,8 +2226,7 @@
         "type": "object",
         "required": [
           "type",
-          "name",
-          "extra_parameters"
+          "name"
         ],
         "title": "PromptFunctionToolV1"
       },

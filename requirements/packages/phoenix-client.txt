@@ -1,2 +1,1 @@
 -r ../ci.txt
-types-python-dateutil
