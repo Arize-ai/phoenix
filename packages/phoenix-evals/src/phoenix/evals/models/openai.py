@@ -285,17 +285,18 @@ class OpenAIModel(BaseModel):
     def _build_messages(
         self, prompt: MultimodalPrompt, system_instruction: Optional[str] = None
     ) -> List[Dict[str, Any]]:
+        system_role = self._system_role()
         messages: List[Dict[str, Any]] = []
         for part in prompt.parts:
             if part.content_type == PromptPartContentType.TEXT:
-                messages.append({"role": "system", "content": part.content})
+                messages.append({"role": system_role, "content": part.content})
             elif part.content_type == PromptPartContentType.AUDIO:
                 format = str(get_audio_format_from_base64(part.content))
                 if format not in SUPPORTED_AUDIO_FORMATS:
                     raise PhoenixUnsupportedAudioFormat(f"Unsupported audio format: {format}")
                 messages.append(
                     {
-                        "role": "user",
+                        "role": system_role,
                         "content": [
                             {
                                 "type": "input_audio",
@@ -316,7 +317,7 @@ class OpenAIModel(BaseModel):
                     raise ValueError("Only base64 encoded images or image URLs are supported")
                 messages.append(
                     {
-                        "role": "user",
+                        "role": system_role,
                         "content": [
                             {
                                 "type": "image_url",
@@ -330,7 +331,7 @@ class OpenAIModel(BaseModel):
                     f"Unsupported content type for {OpenAIModel.__name__}: {part.content_type}"
                 )
         if system_instruction:
-            messages.insert(0, {"role": "system", "content": str(system_instruction)})
+            messages.insert(0, {"role": system_role, "content": str(system_instruction)})
         return messages
 
     def verbose_generation_info(self) -> str:
@@ -425,6 +426,18 @@ class OpenAIModel(BaseModel):
                 raise e
 
         return _completion(**kwargs)
+
+    def _system_role(self) -> str:
+        # OpenAI uses different semantics for "system" roles for different models
+        if "gpt" in self.model:
+            return "system"
+        if "o1-mini" in self.model:
+            return "user"  # o1-mini does not support either "system" or "developer" roles
+        if "o1" in self.model:
+            return "developer"
+        if "o3" in self.model:
+            return "developer"
+        return "system"
 
     @property
     def public_invocation_params(self) -> Dict[str, Any]:
