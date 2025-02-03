@@ -41,7 +41,7 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_model_name,
     llm_span_kind,
     llm_tools,
-    prompt_id_metadata,
+    prompt_metadata,
 )
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -308,9 +308,7 @@ class ChatCompletionMutationMixin:
         input: ChatCompletionInput,
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
-
-        if input.prompt_name:
-            attributes.update(*prompt_id_metadata(input.prompt_name))
+        attributes.update(dict(prompt_metadata(input.prompt_name)))
 
         messages = [
             (
