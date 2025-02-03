@@ -471,6 +471,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     def __init__(
         self,
+        *,
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
