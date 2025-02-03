@@ -57,7 +57,7 @@
     "three": "~0.139.2",
     "three-stdlib": "^2.30.4",
     "use-deep-compare-effect": "^1.8.1",
-    "use-zustand": "^0.0.4",
+    "use-zustand": "^0.2.0",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.3",
     "zustand": "^4.5.4"

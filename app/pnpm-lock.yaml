@@ -165,8 +165,8 @@ importers:
         specifier: ^1.8.1
         version: 1.8.1(react@18.3.1)
       use-zustand:
-        specifier: ^0.0.4
-        version: 0.0.4(react@18.3.1)
+        specifier: ^0.2.0
+        version: 0.2.0(react@18.3.1)
       zod:
         specifier: ^3.23.8
         version: 3.23.8
@@ -4492,10 +4492,10 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
 
-  use-zustand@0.0.4:
-    resolution: {integrity: sha512-UkuONsZoniFoDsm5Xp/gEA1579UOn/ZgKbaE48gHhK+pmBx//PX4UlKdrbaWPpUnORnVTd4/0CvI/rv+1tmn4g==}
+  use-zustand@0.2.0:
+    resolution: {integrity: sha512-6BPw170RLVGe57ifpuKOS1j7VbufYX3xHByNaqmLzQYPnhWjzF+lEfmESnaVLCWyOzH6kVDIeVF3kEPsFd9pvw==}
     peerDependencies:
-      react: '*'
+      react: '>=18.0.0'
 
   util@0.12.5:
     resolution: {integrity: sha512-kZf/K6hEIrWHI6XqOFUiiMa+79wE/D8Q+NCNAWclkyg3b4d2k7s0QGepNjiABc+aR3N1PAyHL7p6UcLY6LmrnA==}
@@ -10232,7 +10232,7 @@ snapshots:
     dependencies:
       react: 18.3.1
 
-  use-zustand@0.0.4(react@18.3.1):
+  use-zustand@0.2.0(react@18.3.1):
     dependencies:
       react: 18.3.1
 

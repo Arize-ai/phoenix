@@ -27,6 +27,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const [dialog, setDialog] = useState<React.ReactNode>(null);
   const instanceId = props.playgroundInstanceId;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const addMessage = usePlaygroundContext((state) => state.addMessage);
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
@@ -44,16 +45,26 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
 
       const response = await fetchPlaygroundPromptAsInstance(promptId);
       if (response) {
+        // delete all message references from the instance
         updateInstance({
           instanceId,
           patch: {
             ...response.instance,
+            template: {
+              __type: "chat",
+              messageIds: [],
+            },
           },
           dirty: false,
         });
+        // normalize messages and add their references to the instance
+        addMessage({
+          playgroundInstanceId: instanceId,
+          messages: response.instance.template.messages,
+        });
       }
     },
-    [instanceId, updateInstance]
+    [instanceId, updateInstance, addMessage]
   );
 
   if (!instance) {
