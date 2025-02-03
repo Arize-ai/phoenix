@@ -16,16 +16,16 @@ export const selectPlaygroundInstance =
  */
 export const selectPlaygroundInstanceMessages =
   (instanceId: number) => (state: PlaygroundState) => {
-    const instance = state.instances.find(
-      (instance) => instance.id === instanceId
-    );
+    const instance = selectPlaygroundInstance(instanceId)(state);
     if (!instance) {
       return [];
     }
     if (instance.template.__type !== "chat") {
       return [];
     }
-    return instance.template.messageIds.map((id) => state.instanceMessages[id]);
+    return instance.template.messageIds.map(
+      (id) => state.allInstanceMessages[id]
+    );
   };
 
 /**
@@ -35,5 +35,5 @@ export const selectPlaygroundInstanceMessages =
  */
 export const selectPlaygroundInstanceMessage =
   (messageId: number) => (state: PlaygroundState) => {
-    return state.instanceMessages[messageId];
+    return state.allInstanceMessages[messageId];
   };

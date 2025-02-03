@@ -915,7 +915,7 @@ const getBaseChatCompletionInput = ({
   credentials: CredentialsState;
 }) => {
   // We pull directly from the store in this function so that it always has up to date values at the time of calling
-  const { instances, instanceMessages } = playgroundStore.getState();
+  const { instances, allInstanceMessages } = playgroundStore.getState();
   const instance = instances.find((instance) => {
     return instance.id === instanceId;
   });
@@ -927,9 +927,9 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
-  const thisInstanceMessages = instance.template.messageIds
+  const instanceMessages = instance.template.messageIds
     .map((messageId) => {
-      return instanceMessages[messageId];
+      return allInstanceMessages[messageId];
     })
     .filter((message) => message != null);
 
@@ -983,7 +983,7 @@ const getBaseChatCompletionInput = ({
       : {};
 
   return {
-    messages: thisInstanceMessages.map(toGqlChatCompletionMessage),
+    messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
@@ -1005,7 +1005,7 @@ const getBaseChatCompletionInput = ({
  */
 export const denormalizePlaygroundInstance = (
   instance: PlaygroundNormalizedInstance,
-  instanceMessages: Record<number, ChatMessage>
+  allInstanceMessages: Record<number, ChatMessage>
 ): PlaygroundInstance => {
   if (instance.template.__type === "chat") {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1015,7 +1015,7 @@ export const denormalizePlaygroundInstance = (
       template: {
         ...rest,
         messages: instance.template.messageIds.map(
-          (messageId) => instanceMessages[messageId]
+          (messageId) => allInstanceMessages[messageId]
         ),
       },
     } satisfies PlaygroundInstance;
@@ -1042,8 +1042,12 @@ export const getChatCompletionInput = ({
     credentials,
   });
 
-  const { instances, templateLanguage, input, instanceMessages } =
-    playgroundStore.getState();
+  const {
+    instances,
+    templateLanguage,
+    input,
+    allInstanceMessages: instanceMessages,
+  } = playgroundStore.getState();
 
   // convert playgroundStateInstances to playgroundInstances
   const playgroundInstances = instances.map((instance) => {

@@ -16,17 +16,17 @@ import {
 export const useDerivedPlaygroundVariables = () => {
   const input = usePlaygroundContext((state) => state.input);
   const instances = usePlaygroundContext((state) => state.instances);
-  const instanceMessages = usePlaygroundContext(
-    (state) => state.instanceMessages
+  const allInstanceMessages = usePlaygroundContext(
+    (state) => state.allInstanceMessages
   );
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
   const enrichedInstances = useMemo(() => {
     return instances.map((instance) =>
-      denormalizePlaygroundInstance(instance, instanceMessages)
+      denormalizePlaygroundInstance(instance, allInstanceMessages)
     );
-  }, [instances, instanceMessages]);
+  }, [instances, allInstanceMessages]);
   const { variableKeys, variablesMap } = useMemo(() => {
     return getVariablesMapFromInstances({
       instances: enrichedInstances,

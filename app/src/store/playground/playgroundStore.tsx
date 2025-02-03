@@ -187,12 +187,12 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   instanceMessages: Record<number, ChatMessage>;
 } {
   if (initialProps.instances != null && initialProps.instances.length > 0) {
-    let messageMap: Record<number, ChatMessage> = {};
+    let initialInstancesMessageMap: Record<number, ChatMessage> = {};
     const normalizedInstances = initialProps.instances.map((instance) => {
       if (instance.template.__type === "chat") {
         const normalizedTemplate = normalizeChatTemplate(instance.template);
-        messageMap = {
-          ...messageMap,
+        initialInstancesMessageMap = {
+          ...initialInstancesMessageMap,
           ...normalizedTemplate.messages,
         };
         return {
@@ -204,7 +204,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     });
     return {
       instances: normalizedInstances,
-      instanceMessages: messageMap,
+      instanceMessages: initialInstancesMessageMap,
     };
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
@@ -246,28 +246,29 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     templateLanguage: TemplateLanguages.Mustache,
     ...props,
     instances,
-    instanceMessages,
+    allInstanceMessages: instanceMessages,
     setInput: (input) => {
       set({ input });
     },
     setOperationType: (operationType: GenAIOperationType) => {
       if (operationType === "chat") {
+        const normalizedInstances: PlaygroundNormalizedInstance[] = [];
         let messageMap: Record<number, ChatMessage> = {};
-        const normalizedInstances = get().instances.map((instance) => {
+        get().instances.forEach((instance) => {
           const newMessage = generateChatCompletionTemplate();
           const normalizedTemplate = normalizeChatTemplate(newMessage);
           messageMap = {
             ...messageMap,
             ...normalizedTemplate.messages,
           };
-          return {
+          normalizedInstances.push({
             ...instance,
             template: normalizedTemplate.template,
-          };
+          });
         });
         set({
           instances: normalizedInstances,
-          instanceMessages: messageMap,
+          allInstanceMessages: messageMap,
         });
       } else {
         set({
@@ -281,7 +282,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     addInstance: () => {
       const instances = get().instances;
-      const instanceMessages = get().instanceMessages;
+      const instanceMessages = get().allInstanceMessages;
       const firstInstance = get().instances[0];
       if (!firstInstance) {
         return;
@@ -289,15 +290,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       let newMessageIds: number[] = [];
       let newMessageMap: Record<number, ChatMessage> = {};
       if (firstInstance.template.__type === "chat") {
-        const existingMessageIds = firstInstance.template.messageIds;
-        const existingMessages = existingMessageIds
+        const messageIdsToCopy = firstInstance.template.messageIds;
+        const copiedMessages = messageIdsToCopy
           .map((id) => instanceMessages[id])
           .map((message) => ({
             ...message,
             id: generateMessageId(),
           }));
-        newMessageIds = existingMessages.map((message) => message.id);
-        newMessageMap = existingMessages.reduce(
+        newMessageIds = copiedMessages.map((message) => message.id);
+        newMessageMap = copiedMessages.reduce(
           (acc, message) => {
             acc[message.id] = message;
             return acc;
@@ -306,7 +307,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         );
       }
       set({
-        instanceMessages: {
+        allInstanceMessages: {
           ...instanceMessages,
           ...newMessageMap,
         },
@@ -401,7 +402,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const messageMapPatch: Record<number, ChatMessage> = {};
       if (instance.template.__type === "chat") {
         instance.template.messageIds.forEach((messageId) => {
-          const message = get().instanceMessages[messageId];
+          const message = get().allInstanceMessages[messageId];
           if (message) {
             messageMapPatch[messageId] = {
               ...message,
@@ -414,8 +415,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         });
       }
       set({
-        instanceMessages: {
-          ...get().instanceMessages,
+        allInstanceMessages: {
+          ...get().allInstanceMessages,
           ...messageMapPatch,
         },
         instances: instances.map((instance) => {
@@ -477,8 +478,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
       // Update the given instance
       set({
-        instanceMessages: {
-          ...get().instanceMessages,
+        allInstanceMessages: {
+          ...get().allInstanceMessages,
           ...newMessages.reduce(
             (acc, message) => {
               acc[message.id] = message;
@@ -510,11 +511,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       });
     },
     updateMessage: ({ messageId, patch }) => {
+      const allInstanceMessages = get().allInstanceMessages;
       set({
-        instanceMessages: {
-          ...get().instanceMessages,
+        allInstanceMessages: {
+          ...allInstanceMessages,
           [messageId]: {
-            ...get().instanceMessages[messageId],
+            ...allInstanceMessages[messageId],
             ...patch,
           },
         },
@@ -522,9 +524,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     deleteMessage: ({ instanceId, messageId }) => {
       const instances = get().instances;
+      const allInstanceMessages = get().allInstanceMessages;
       set({
-        instanceMessages: Object.fromEntries(
-          Object.entries(get().instanceMessages).filter(
+        allInstanceMessages: Object.fromEntries(
+          Object.entries(allInstanceMessages).filter(
             ([, { id }]) => id !== messageId
           )
         ),
@@ -575,8 +578,9 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       });
     },
     cancelPlaygroundInstances: () => {
+      const instances = get().instances;
       set({
-        instances: get().instances.map((instance) => ({
+        instances: instances.map((instance) => ({
           ...instance,
           activeRunId: null,
           spanId: null,

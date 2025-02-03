@@ -418,8 +418,8 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
-  const instanceMessages = usePlaygroundContext(
-    (state) => state.instanceMessages
+  const allInstanceMessages = usePlaygroundContext(
+    (state) => state.allInstanceMessages
   );
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
@@ -762,7 +762,7 @@ export function PlaygroundDatasetExamplesTable({
     return instances.map((instance, index) => {
       const enrichedInstance = denormalizePlaygroundInstance(
         instance,
-        instanceMessages
+        allInstanceMessages
       );
       const instanceVariables = extractVariablesFromInstance({
         instance: enrichedInstance,
@@ -792,7 +792,7 @@ export function PlaygroundDatasetExamplesTable({
         size: 500,
       };
     });
-  }, [hasSomeRunIds, instances, templateLanguage, instanceMessages]);
+  }, [hasSomeRunIds, instances, templateLanguage, allInstanceMessages]);
 
   const columns: ColumnDef<TableRow>[] = [
     {

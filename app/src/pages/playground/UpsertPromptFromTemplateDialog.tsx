@@ -28,7 +28,7 @@ const getInstancePromptParamsFromStore = (
   store: ReturnType<typeof usePlaygroundStore>
 ) => {
   const state = store.getState();
-  const instanceMessages = state.instanceMessages;
+  const allInstanceMessages = state.allInstanceMessages;
   const instance = state.instances.find(
     (instance) => instance.id === instanceId
   );
@@ -37,7 +37,7 @@ const getInstancePromptParamsFromStore = (
   }
   const enrichedInstance = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    allInstanceMessages
   );
   const promptInput = instanceToPromptVersion(enrichedInstance);
   if (!promptInput) {

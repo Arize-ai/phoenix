@@ -128,13 +128,13 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
         const overIndex = messageIds.findIndex(
           (messageId) => messageId === over.id
         );
-        const newMessages = arrayMove(messageIds, activeIndex, overIndex);
+        const newMessageIds = arrayMove(messageIds, activeIndex, overIndex);
         updateInstance({
           instanceId: id,
           patch: {
             template: {
               __type: "chat",
-              messageIds: newMessages,
+              messageIds: newMessageIds,
             },
           },
           dirty: true,
@@ -352,7 +352,7 @@ function SortableMessageItem({
     ChatMessage["toolCalls"]
   >(message.toolCalls);
 
-  const updateThisMessage = useCallback(
+  const onMessageUpdate = useCallback(
     (patch: Partial<ChatMessage>) => {
       updateMessage({
         instanceId: playgroundInstanceId,
@@ -481,7 +481,7 @@ function SortableMessageItem({
             messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}
             templateLanguage={templateLanguage}
-            updateMessage={updateThisMessage}
+            updateMessage={onMessageUpdate}
           />
         </div>
       </Card>

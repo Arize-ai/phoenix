@@ -132,11 +132,13 @@ export function PlaygroundChatTemplateFooter({
         onPress={() => {
           addMessage({
             playgroundInstanceId: instanceId,
-            messages: {
-              id: generateMessageId(),
-              role: "user",
-              content: "",
-            },
+            messages: [
+              {
+                id: generateMessageId(),
+                role: "user",
+                content: "",
+              },
+            ],
           });
         }}
       >

@@ -142,7 +142,7 @@ export interface AddMessageParams extends PlaygroundInstanceActionParams {
   /**
    * If not provided, a default empty message will be added
    */
-  messages?: ChatMessage | ChatMessage[];
+  messages?: ChatMessage[];
 }
 
 export interface PlaygroundProps {
@@ -208,7 +208,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    *
    * message ids must be globally unique across all instances
    */
-  instanceMessages: Record<number, ChatMessage>;
+  allInstanceMessages: Record<number, ChatMessage>;
 
   /**
    * Setter for the invocation mode
