@@ -113,6 +113,7 @@ class OpenAIModel(BaseModel):
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 10.
+        timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
 
     Examples:
         After setting the OPENAI_API_KEY environment variable:
@@ -146,6 +147,8 @@ class OpenAIModel(BaseModel):
     n: int = 1
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    initial_rate_limit: int = 10
+    timeout: int = 120
 
     # Azure options
     api_version: Optional[str] = field(default=None)
@@ -154,7 +157,6 @@ class OpenAIModel(BaseModel):
     azure_ad_token: Optional[str] = field(default=None)
     azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
     default_headers: Optional[Mapping[str, str]] = field(default=None)
-    initial_rate_limit: int = 10
 
     # Deprecated fields
     model_name: Optional[str] = field(default=None)
@@ -477,12 +479,6 @@ class OpenAIModel(BaseModel):
         if self._model_uses_legacy_completion_api:
             return False
         return True
-
-    @property
-    def _timeout(self) -> Optional[int]:
-        if "o1" in self.model:
-            return 240
-        return None
 
 
 def _is_url(url: str) -> bool:

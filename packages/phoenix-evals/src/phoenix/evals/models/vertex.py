@@ -52,6 +52,7 @@ class GeminiModel(BaseModel):
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 5.
+        timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
 
     Example:
         .. code-block:: python
@@ -79,6 +80,7 @@ class GeminiModel(BaseModel):
     top_k: int = 32
     stop_sequences: List[str] = field(default_factory=list)
     initial_rate_limit: int = 5
+    timeout: int = 120
 
     def __post_init__(self) -> None:
         self._init_client()
