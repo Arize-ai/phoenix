@@ -155,9 +155,12 @@ class PromptFunctionToolV1(PromptModel):
     extra_parameters: dict[str, Any]
 
 
+PromptTool: TypeAlias = Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]
+
+
 class PromptToolsV1(PromptModel):
     type: Literal["tools-v1"]
-    tools: list[Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]]
+    tools: Annotated[list[PromptTool], Field(..., min_length=1)]
 
 
 class PromptOpenAIJSONSchema(PromptModel):

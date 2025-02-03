@@ -85,7 +85,11 @@ class PromptMutationMixin:
         input_prompt_version = input.prompt_version
         tool_definitions = [tool.definition for tool in input_prompt_version.tools]
         try:
-            tools = normalize_tools(tool_definitions, input_prompt_version.model_provider)
+            tools = (
+                normalize_tools(tool_definitions, input_prompt_version.model_provider)
+                if tool_definitions
+                else None
+            )
             template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
             output_schema = (
                 normalize_output_schema(
@@ -139,7 +143,11 @@ class PromptMutationMixin:
         input_prompt_version = input.prompt_version
         tool_definitions = [tool.definition for tool in input.prompt_version.tools]
         try:
-            tools = normalize_tools(tool_definitions, input.prompt_version.model_provider)
+            tools = (
+                normalize_tools(tool_definitions, input_prompt_version.model_provider)
+                if tool_definitions
+                else None
+            )
             template = to_pydantic_prompt_chat_template_v1(input.prompt_version.template)
             output_schema = (
                 normalize_output_schema(
