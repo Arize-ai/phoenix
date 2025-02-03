@@ -87,6 +87,7 @@ exclude = [
   "dist/",
   "examples",
   "tests/canary",
+  "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
 
