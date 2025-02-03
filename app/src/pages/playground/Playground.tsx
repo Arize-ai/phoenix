@@ -221,32 +221,34 @@ function PlaygroundContent() {
   const isRunning = instances.some((instance) => instance.activeRunId != null);
   const anyDirtyInstances = instances.some((instance) => instance.dirty);
 
+  // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
-      return (
-        (isRunning && currentLocation.pathname !== nextLocation.pathname) ||
-        anyDirtyInstances
-      );
+      const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
+      return (isRunning || anyDirtyInstances) && goingToNewPage;
     },
     [isRunning, anyDirtyInstances]
   );
   const blocker = useBlocker(shouldBlockUnload);
 
+  // Hard block at the browser level when a run is in progress
   // Handles blocking page reloads when a run is in progress
   useEffect(() => {
+    const shouldBlock = isRunning;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isRunning || anyDirtyInstances) {
-        e.preventDefault();
-        // This is deprecated but still necessary for cross-browser compatibility
-        e.returnValue = true;
-      }
+      e.preventDefault();
+      // This is deprecated but still necessary for cross-browser compatibility
+      e.returnValue = true;
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isRunning, anyDirtyInstances]);
+    if (shouldBlock) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    }
+  }, [isRunning]);
 
   return (
     <Fragment key="playground-content">
