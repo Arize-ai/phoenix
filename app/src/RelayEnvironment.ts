@@ -12,7 +12,7 @@ import {
   Variables,
 } from "relay-runtime";
 
-import { authFetch } from "@phoenix/authFetch";
+import { authFetch, refreshTokens } from "@phoenix/authFetch";
 import { BASE_URL, WS_BASE_URL } from "@phoenix/config";
 
 import { isObject } from "./typeUtils";
@@ -106,6 +106,18 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
 
 const wsClient = createClient({
   url: `${WS_BASE_URL}/graphql`,
+  shouldRetry: (errorOrCloseEvent) => {
+    if (
+      errorOrCloseEvent instanceof Event &&
+      errorOrCloseEvent.type === "error"
+    ) {
+      // It's fair to say that an error is due to the expired access token
+      // So we'll refresh the tokens and retry the connection until the max retries is exhausted
+      refreshTokens();
+      return true;
+    }
+    return false;
+  },
 });
 
 const subscribe: SubscribeFunction = (
