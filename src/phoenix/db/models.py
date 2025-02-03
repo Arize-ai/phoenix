@@ -44,6 +44,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
     PromptOutputSchema,
+    PromptOutputSchemaWrapper,
     PromptStringTemplateV1,
     PromptTemplate,
     PromptTemplateWrapper,
@@ -165,7 +166,7 @@ class _Tools(TypeDecorator[PromptToolsV1]):
 
 
 class _PromptOutputSchema(TypeDecorator[PromptOutputSchema]):
-    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
@@ -177,7 +178,10 @@ class _PromptOutputSchema(TypeDecorator[PromptOutputSchema]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptOutputSchema]:
-        return PromptOutputSchema.model_validate(value) if value is not None else None
+        if value is None:
+            return None
+        wrapped_schema = PromptOutputSchemaWrapper.model_validate({"schema": value})
+        return wrapped_schema.schema_
 
 
 class ExperimentRunOutput(TypedDict, total=False):
