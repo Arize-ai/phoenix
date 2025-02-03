@@ -40,18 +40,15 @@ from phoenix.client.utils.template_formatters import (
 )
 
 if TYPE_CHECKING:
-    from openai._client import OpenAI
-    from openai.types.chat import (
+    from groq._client import Groq
+    from groq.types.chat import (
         ChatCompletionAssistantMessageParam,
         ChatCompletionContentPartImageParam,
-        ChatCompletionContentPartInputAudioParam,
         ChatCompletionContentPartParam,
-        ChatCompletionContentPartRefusalParam,
         ChatCompletionContentPartTextParam,
         ChatCompletionFunctionMessageParam,
         ChatCompletionMessageParam,
         ChatCompletionMessageToolCallParam,
-        ChatCompletionReasoningEffort,
         ChatCompletionRole,
         ChatCompletionSystemMessageParam,
         ChatCompletionToolChoiceOptionParam,
@@ -59,30 +56,28 @@ if TYPE_CHECKING:
         ChatCompletionToolParam,
         ChatCompletionUserMessageParam,
     )
-    from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-    from openai.types.chat.completion_create_params import (
+    from groq.types.chat.completion_create_params import (
         ResponseFormat,
     )
-    from openai.types.shared_params import FunctionDefinition
+    from groq.types.shared_params import FunctionDefinition
 
     class _ModelKwargs(TypedDict, total=False):
         model: Required[str]
+        response_format: ResponseFormat
+        tool_choice: ChatCompletionToolChoiceOptionParam
+        tools: list[ChatCompletionToolParam]
+        parallel_tool_calls: bool
         frequency_penalty: float
         max_tokens: int
-        parallel_tool_calls: bool
         presence_penalty: float
-        reasoning_effort: ChatCompletionReasoningEffort
-        response_format: ResponseFormat
         seed: int
         stop: list[str]
         temperature: float
-        tool_choice: ChatCompletionToolChoiceOptionParam
-        tools: list[ChatCompletionToolParam]
         top_p: float
 
     def _(obj: PromptVersion) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
-        OpenAI().chat.completions.create(messages=messages, **kwargs)
+        Groq().chat.completions.create(messages=messages, **kwargs)
 
 
 _ContentPart: TypeAlias = Union[
@@ -152,9 +147,6 @@ def _to_model_kwargs(
             ans["seed"] = int(v)
         except (ValueError, TypeError):
             pass
-    if (v := parameters.get("reasoning_effort")) is not None:
-        if v in ("low", "medium", "high"):
-            ans["reasoning_effort"] = v
     if "tools" in obj and obj["tools"] and (tools := list(_to_tools(obj["tools"]))):
         ans["tools"] = tools
     return ans
@@ -237,8 +229,6 @@ def _from_message(
         return _from_user_message(obj)
     if obj["role"] == "system":
         return _from_system_message(obj)
-    if obj["role"] == "developer":
-        raise NotImplementedError
     if obj["role"] == "assistant":
         return _from_assistant_message(obj)
     if obj["role"] == "tool":
@@ -297,7 +287,7 @@ def _to_assistant_messages(
     formatter: TemplateFormatter,
     /,
 ) -> Iterator[ChatCompletionAssistantMessageParam]:
-    content: list[ContentArrayOfContentPart] = []
+    content: list[ChatCompletionContentPartTextParam] = []
     tool_calls: list[ChatCompletionMessageToolCallParam] = []
     for part in obj["content"]:
         if part["type"] == "tool_call":
@@ -310,8 +300,7 @@ def _to_assistant_messages(
             yield {"role": "assistant", "tool_calls": tool_calls}
             tool_calls.clear()
         if part["type"] == "text":
-            text = formatter.format(part["text"]["text"], variables=variables)
-            content.append({"type": "text", "text": text})
+            content.append(_to_text(part, variables, formatter))
         elif part["type"] == "tool_result":
             continue
         elif part["type"] == "image":
@@ -391,33 +380,15 @@ def _from_tool_message(
     *,
     role: Literal["TOOL"] = "TOOL",
 ) -> PromptMessage:
-    if isinstance(obj["content"], str):
-        return PromptMessage(
-            role="TOOL",
-            content=[
-                ToolResultContentPart(
-                    type="tool_result",
-                    tool_result=ToolResultContentValue(
-                        tool_call_id=obj["tool_call_id"],
-                        result=obj["content"],
-                    ),
-                )
-            ],
+    content = [
+        ToolResultContentPart(
+            type="tool_result",
+            tool_result=ToolResultContentValue(
+                tool_call_id=obj["tool_call_id"],
+                result=obj["content"],
+            ),
         )
-    content: list[_ContentPart] = []
-    for part in obj["content"]:
-        if part["type"] == "text":
-            content.append(
-                ToolResultContentPart(
-                    type="tool_result",
-                    tool_result=ToolResultContentValue(
-                        tool_call_id=obj["tool_call_id"],
-                        result=part["text"],
-                    ),
-                )
-            )
-        elif TYPE_CHECKING:
-            assert_never(part)
+    ]
     return PromptMessage(role=role, content=content)
 
 
@@ -507,7 +478,7 @@ def _to_content(
         elif part["type"] == "tool_call":
             continue
         elif part["type"] == "tool_result":
-            raise NotImplementedError
+            continue
         elif TYPE_CHECKING:
             assert_never(part)
 
@@ -519,8 +490,6 @@ def _from_content(
             Union[
                 ChatCompletionContentPartTextParam,
                 ChatCompletionContentPartImageParam,
-                ChatCompletionContentPartInputAudioParam,
-                ChatCompletionContentPartRefusalParam,
             ]
         ],
         None,
@@ -602,30 +571,20 @@ def _user_msg(
 
 
 def _assistant_msg(
-    content: Sequence[ContentArrayOfContentPart],
+    content: Sequence[ChatCompletionContentPartTextParam],
 ) -> ChatCompletionAssistantMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
-        return {
-            "role": "assistant",
-            "content": content[0]["text"],
-        }
     return {
         "role": "assistant",
-        "content": content,
+        "content": _SEP.join(part["text"] for part in content),
     }
 
 
 def _system_msg(
     content: Sequence[ChatCompletionContentPartTextParam],
 ) -> ChatCompletionSystemMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
-        return {
-            "role": "system",
-            "content": content[0]["text"],
-        }
     return {
         "role": "system",
-        "content": content,
+        "content": _SEP.join(part["text"] for part in content),
     }
 
 
@@ -633,16 +592,10 @@ def _tool_msg(
     tool_call_id: str,
     content: Sequence[ChatCompletionContentPartTextParam],
 ) -> ChatCompletionToolMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
-        return {
-            "role": "tool",
-            "tool_call_id": tool_call_id,
-            "content": content[0]["text"],
-        }
     return {
         "role": "tool",
         "tool_call_id": tool_call_id,
-        "content": content,
+        "content": _SEP.join(part["text"] for part in content),
     }
 
 
@@ -670,8 +623,6 @@ def _from_role(
         return "USER"
     if obj["role"] == "system":
         return "SYSTEM"
-    if obj["role"] == "developer":
-        raise NotImplementedError
     if obj["role"] == "assistant":
         return "AI"
     if obj["role"] == "tool":
@@ -681,3 +632,6 @@ def _from_role(
     if TYPE_CHECKING:
         assert_never(obj["role"])
     return obj["role"]
+
+
+_SEP = "\n\n"

@@ -24,7 +24,6 @@ classifiers = [
 version = "0.1.0-alpha.1"
 dependencies = [
   "httpx",
-  "pydantic>2",
   "typing-extensions",
 ]
 
@@ -86,10 +85,24 @@ explicit_package_bases = true
 strict = true
 exclude = [
   "dist/",
-  "tests/",
   "examples",
+  "tests/canary",
+  "scripts/",
   "src/phoenix/client/helpers/sdk/",
 ]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.9"
+reportUnusedFunction = false
+exclude = [
+  "dist/",
+  "examples",
+  "tests/canary/",
+  "scripts/",
+  "src/phoenix/client/helpers/sdk/",
+]
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
