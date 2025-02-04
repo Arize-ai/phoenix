@@ -44,7 +44,7 @@ class TestPromptMutations:
                 tools {
                   definition
                 }
-                outputSchema {
+                responseFormat {
                   definition
                 }
                 modelName
@@ -89,7 +89,7 @@ class TestPromptMutations:
                 tools {
                   definition
                 }
-                outputSchema {
+                responseFormat {
                   definition
                 }
                 modelName
@@ -136,7 +136,7 @@ class TestPromptMutations:
                 tools {
                   definition
                 }
-                outputSchema {
+                responseFormat {
                   definition
                 }
                 modelName
@@ -326,7 +326,7 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
+                            "responseFormat": {
                                 "definition": {
                                     "type": "json_schema",
                                     "json_schema": {
@@ -379,8 +379,8 @@ class TestPromptMutations:
         assert prompt_version.pop("invocationParameters") == {"temperature": 0.4}
         expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert prompt_version.pop("tools") == expected_tools
-        expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
-        assert prompt_version.pop("outputSchema") == expected_output_schema
+        expected_response_format = variables["input"]["promptVersion"].get("responseFormat")
+        assert prompt_version.pop("responseFormat") == expected_response_format
         assert isinstance(prompt_version.pop("createdAt"), str)
         assert isinstance(prompt_version.pop("id"), str)
 
@@ -450,7 +450,7 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
+                            "responseFormat": {
                                 "definition": {"type": "object"},
                             },
                         },
@@ -504,7 +504,7 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
+                            "responseFormat": {
                                 "definition": {
                                     "type": "json_schema",
                                     "json_schema": {
@@ -750,7 +750,7 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
+                            "responseFormat": {
                                 "definition": {
                                     "type": "json_schema",
                                     "json_schema": {
@@ -877,8 +877,8 @@ class TestPromptMutations:
         assert latest_prompt_version.pop("invocationParameters") == {"temperature": 0.4}
         expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert latest_prompt_version.pop("tools") == expected_tools
-        expected_output_schema = variables["input"]["promptVersion"].get("outputSchema")
-        assert latest_prompt_version.pop("outputSchema") == expected_output_schema
+        expected_response_format = variables["input"]["promptVersion"].get("responseFormat")
+        assert latest_prompt_version.pop("responseFormat") == expected_response_format
         assert isinstance(latest_prompt_version.pop("id"), str)
 
         # Verify messages
@@ -986,7 +986,7 @@ class TestPromptMutations:
                             "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "openai",
                             "modelName": "o1-mini",
-                            "outputSchema": {
+                            "responseFormat": {
                                 "definition": {
                                     "type": "json_schema",
                                     "json_schema": {
@@ -1216,7 +1216,9 @@ class TestPromptMutations:
         assert cloned_prompt_version.pop("modelName") == created_prompt_version["modelName"]
         assert cloned_prompt_version.pop("template") == created_prompt_version["template"]
         assert cloned_prompt_version.pop("tools") == created_prompt_version["tools"]
-        assert cloned_prompt_version.pop("outputSchema") == created_prompt_version["outputSchema"]
+        assert (
+            cloned_prompt_version.pop("responseFormat") == created_prompt_version["responseFormat"]
+        )
         assert not data["promptVersions"]["edges"][0]
         assert not cloned_prompt_version
         assert data.pop("promptVersions") is not None

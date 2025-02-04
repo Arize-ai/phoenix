@@ -104,7 +104,6 @@ class PromptMessage:
 
 @strawberry.experimental.pydantic.type(PromptChatTemplateV1)
 class PromptChatTemplate:
-    _version: strawberry.Private[str] = "chat-template-v1"
     messages: list[PromptMessage]
 
 

@@ -19,9 +19,9 @@ from phoenix.server.api.helpers.prompts.models import (
     ToolCallFunction,
     ToolResultContentPart,
     ToolResultContentValue,
-    denormalize_output_schema,
+    denormalize_response_format,
     denormalize_tools,
-    normalize_output_schema,
+    normalize_response_format,
     normalize_tools,
 )
 from phoenix.server.types import DbSessionFactory
@@ -85,7 +85,7 @@ async def test_chat_template_materializes_to_expected_format(
             template=template,
             invocation_parameters={},
             tools=None,
-            output_schema=None,
+            response_format=None,
             model_provider="anthropic",
             model_name="claude-3-5-sonnet",
         )
@@ -321,7 +321,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             ),
             invocation_parameters={},
             tools=normalized_tools,
-            output_schema=None,
+            response_format=None,
             model_provider="anthropic",
             model_name="claude-3-5-sonnet",
         )
@@ -553,7 +553,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             ),
             invocation_parameters={},
             tools=normalized_tools,
-            output_schema=None,
+            response_format=None,
             model_provider="openai",
             model_name="gpt-4o",
         )
@@ -591,7 +591,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
 
 
 @pytest.mark.parametrize(
-    "openai_output_schema_dict,expected_normalized_output_schema_dict",
+    "openai_response_format_dict,expected_normalized_response_format_dict",
     [
         pytest.param(
             {
@@ -614,7 +614,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -662,7 +662,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -716,7 +716,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -769,7 +769,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "description": "Classifies the user's intent into one of several categories",
                 "schema": {
@@ -798,14 +798,14 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
         ),
     ],
 )
-async def test_openai_output_schema_are_round_tripped_without_data_loss(
-    openai_output_schema_dict: dict[str, Any],
-    expected_normalized_output_schema_dict: dict[str, Any],
+async def test_openai_response_format_are_round_tripped_without_data_loss(
+    openai_response_format_dict: dict[str, Any],
+    expected_normalized_response_format_dict: dict[str, Any],
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
     # normalize output schema
-    normalized_output_schema = normalize_output_schema(openai_output_schema_dict, "openai")
+    normalized_response_format = normalize_response_format(openai_response_format_dict, "openai")
 
     # persist to db
     async with db() as session:
@@ -826,7 +826,7 @@ async def test_openai_output_schema_are_round_tripped_without_data_loss(
             ),
             invocation_parameters={},
             tools=None,
-            output_schema=normalized_output_schema,
+            response_format=normalized_response_format,
             model_provider="openai",
             model_name="gpt-4o",
         )
@@ -834,16 +834,16 @@ async def test_openai_output_schema_are_round_tripped_without_data_loss(
 
     # check the materialized tools
     async with db() as session:
-        materialized_output_schema = await session.scalar(
-            select(text("output_schema"))
+        materialized_response_format = await session.scalar(
+            select(text("response_format"))
             .select_from(PromptVersion)
             .where(PromptVersion.id == prompt_version.id)
         )
     if dialect == "sqlite":
-        materialized_output_schema_dict = json.loads(materialized_output_schema)
+        materialized_response_format_dict = json.loads(materialized_response_format)
     else:
-        materialized_output_schema_dict = materialized_output_schema
-    assert materialized_output_schema_dict == expected_normalized_output_schema_dict
+        materialized_response_format_dict = materialized_response_format
+    assert materialized_response_format_dict == expected_normalized_response_format_dict
 
     # fetch prompt version
     async with db() as session:
@@ -851,7 +851,9 @@ async def test_openai_output_schema_are_round_tripped_without_data_loss(
     assert rehydrated_prompt_version is not None
 
     # denormalize output schema and check it matches the input output schema
-    rehydrated_output_schema = rehydrated_prompt_version.output_schema
-    assert rehydrated_output_schema is not None
-    denormalized_output_schema_dict = denormalize_output_schema(rehydrated_output_schema, "openai")
-    assert denormalized_output_schema_dict == openai_output_schema_dict
+    rehydrated_response_format = rehydrated_prompt_version.response_format
+    assert rehydrated_response_format is not None
+    denormalized_response_format_dict = denormalize_response_format(
+        rehydrated_response_format, "openai"
+    )
+    assert denormalized_response_format_dict == openai_response_format_dict

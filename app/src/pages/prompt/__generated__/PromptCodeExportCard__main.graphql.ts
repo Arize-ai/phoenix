@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<60275d9862dc87be2d8defa7b40de9ea>>
+ * @generated SignedSource<<ff02c19a03d740388e2ee8d6037b0d55>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type PromptCodeExportCard__main$data = {
   readonly invocationParameters: any | null;
   readonly modelName: string;
   readonly modelProvider: string;
-  readonly outputSchema: {
+  readonly responseFormat: {
     readonly definition: any;
   } | null;
   readonly template: {
@@ -129,9 +129,9 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "OutputSchema",
+      "concreteType": "ResponseFormat",
       "kind": "LinkedField",
-      "name": "outputSchema",
+      "name": "responseFormat",
       "plural": false,
       "selections": (v0/*: any*/),
       "storageKey": null
@@ -352,6 +352,6 @@ return {
 };
 })();
 
-(node as any).hash = "561aeba2f09f0c879f7a2a502ee33cd8";
+(node as any).hash = "8449160e6ba1fd2bf040b8d2ce4182f7";
 
 export default node;

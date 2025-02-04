@@ -105,7 +105,7 @@ class TestPrompts:
         assert data.pop("invocation_parameters") == prompt_version.invocation_parameters
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider
-        assert data.pop("output_schema") == prompt_version.output_schema
+        assert data.pop("response_format") == prompt_version.response_format
         assert data.pop("template") == prompt_version.template.model_dump()
         assert data.pop("template_format") == prompt_version.template_format
         assert data.pop("template_type") == prompt_version.template_type

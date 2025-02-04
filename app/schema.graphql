@@ -225,7 +225,7 @@ input ChatPromptVersionInput {
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}
   tools: [ToolDefinitionInput!]! = []
-  outputSchema: OutputSchemaInput = null
+  responseFormat: ResponseFormatInput = null
   modelProvider: String!
   modelName: String!
 }
@@ -1618,14 +1618,6 @@ type NumericRange {
   end: Float!
 }
 
-type OutputSchema {
-  definition: JSON!
-}
-
-input OutputSchemaInput {
-  definition: JSON!
-}
-
 """
 Information to aid in pagination.
 """
@@ -2053,7 +2045,7 @@ type PromptVersion implements Node {
   template: PromptTemplate!
   invocationParameters: JSON
   tools: [ToolDefinition!]!
-  outputSchema: OutputSchema
+  responseFormat: ResponseFormat
   modelName: String!
   modelProvider: String!
   metadata: JSON!
@@ -2198,6 +2190,14 @@ type Query {
     """
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+}
+
+type ResponseFormat {
+  definition: JSON!
+}
+
+input ResponseFormatInput {
+  definition: JSON!
 }
 
 type Retrieval {
