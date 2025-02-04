@@ -117,7 +117,7 @@ export function GenerativeProvidersCard({
           if (row.original.apiKeySet) {
             return <Text color="success">configured on the server</Text>;
           }
-          if (credentials[row.original.key] != null) {
+          if (credentials[row.original.key]) {
             return <Text color="success">local</Text>;
           }
           return <Text color="text-700">not configured</Text>;
