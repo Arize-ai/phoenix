@@ -3,7 +3,7 @@ import React from "react";
 import { useTheme } from "@phoenix/contexts";
 
 export type GenerativeProviderIconProps = {
-  provider: "openai" | "anthropic" | "gemini" | "azure";
+  provider: ModelProvider;
   height?: number;
 };
 
@@ -15,15 +15,19 @@ export function GenerativeProviderIcon({
   height = 18,
 }: GenerativeProviderIconProps) {
   const { theme } = useTheme();
+  let providerKey: string = provider.toLowerCase();
+  if (provider === "AZURE_OPENAI") {
+    providerKey = "azure";
+  }
   return (
     <picture>
       <source
         media={`(prefers-color-scheme: ${theme})`}
-        srcSet={`https://unpkg.com/@lobehub/icons-static-png@latest/dark/${provider}.png`}
+        srcSet={`https://unpkg.com/@lobehub/icons-static-png@latest/dark/${providerKey}.png`}
       />
       <img
         height={height}
-        src={`https://unpkg.com/@lobehub/icons-static-png@latest/light/${provider}.png`}
+        src={`https://unpkg.com/@lobehub/icons-static-png@latest/light/${providerKey}.png`}
       />
     </picture>
   );

@@ -30,16 +30,16 @@ function ProviderIcon({ providerKey }: { providerKey: ProviderKey }) {
   let provider: GenerativeProviderIconProps["provider"];
   switch (providerKey) {
     case "OPENAI":
-      provider = "openai";
+      provider = "OPENAI";
       break;
     case "ANTHROPIC":
-      provider = "anthropic";
+      provider = "ANTHROPIC";
       break;
     case "GEMINI":
-      provider = "gemini";
+      provider = "GEMINI";
       break;
     case "AZURE_OPENAI":
-      provider = "azure";
+      provider = "AZURE_OPENAI";
       break;
     default:
       assertUnreachable(providerKey);
