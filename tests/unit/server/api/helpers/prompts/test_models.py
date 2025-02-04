@@ -35,10 +35,13 @@ from phoenix.server.types import DbSessionFactory
                 "type": "function-tool-v1",
                 "name": "get_weather",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            },
                         },
                     },
                 },
@@ -64,10 +67,13 @@ from phoenix.server.types import DbSessionFactory
                 "name": "get_weather",
                 "description": "Gets the current weather for a given city",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            },
                         },
                     },
                 },
@@ -94,10 +100,13 @@ from phoenix.server.types import DbSessionFactory
                 "type": "function-tool-v1",
                 "name": "get_weather",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            },
                         },
                     },
                 },
@@ -126,10 +135,13 @@ from phoenix.server.types import DbSessionFactory
                 "type": "function-tool-v1",
                 "name": "get_weather",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            },
                         },
                     },
                 },
@@ -228,11 +240,14 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "type": "function-tool-v1",
                 "name": "get_weather",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                        }
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
                     },
                 },
                 "extra_parameters": {},
@@ -260,11 +275,14 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "name": "get_weather",
                 "description": "Gets current weather for a given city",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                        }
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
                     },
                 },
                 "extra_parameters": {},
@@ -307,14 +325,17 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "type": "function-tool-v1",
                 "name": "get_weather",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                        }
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["city"],
+                        "additionalProperties": False,
                     },
-                    "required": ["city"],
-                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": True,
@@ -344,14 +365,17 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "type": "function-tool-v1",
                 "name": "get_weather",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                        }
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "city": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["city"],
+                        "additionalProperties": False,
                     },
-                    "required": ["city"],
-                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": None,
@@ -453,16 +477,19 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "type": "output-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_intent": {
-                            "type": "string",
-                            "enum": [
-                                "complaint",
-                                "query",
-                                "other",
-                            ],
-                        }
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
+                        },
                     },
                 },
                 "extra_parameters": {},
@@ -498,21 +525,24 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "type": "output-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_intent": {
-                            "type": "string",
-                            "enum": [
-                                "complaint",
-                                "query",
-                                "other",
-                            ],
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            },
                         },
+                        "required": [
+                            "user_intent",
+                        ],
+                        "additionalProperties": False,
                     },
-                    "required": [
-                        "user_intent",
-                    ],
-                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": True,
@@ -549,21 +579,24 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "type": "output-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_intent": {
-                            "type": "string",
-                            "enum": [
-                                "complaint",
-                                "query",
-                                "other",
-                            ],
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            },
                         },
+                        "required": [
+                            "user_intent",
+                        ],
+                        "additionalProperties": False,
                     },
-                    "required": [
-                        "user_intent",
-                    ],
-                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": None,
@@ -600,19 +633,22 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "name": "classify_user_intent",
                 "description": "Classifies the user's intent into one of several categories",
                 "schema": {
-                    "type": "object",
-                    "properties": {
-                        "user_intent": {
-                            "type": "string",
-                            "enum": [
-                                "complaint",
-                                "query",
-                                "other",
-                            ],
-                        }
+                    "type": "json-schema-draft-7-object-schema",
+                    "content": {
+                        "type": "object",
+                        "properties": {
+                            "user_intent": {
+                                "type": "string",
+                                "enum": [
+                                    "complaint",
+                                    "query",
+                                    "other",
+                                ],
+                            }
+                        },
+                        "required": ["user_intent"],
+                        "additionalProperties": False,
                     },
-                    "required": ["user_intent"],
-                    "additionalProperties": False,
                 },
                 "extra_parameters": {
                     "strict": True,

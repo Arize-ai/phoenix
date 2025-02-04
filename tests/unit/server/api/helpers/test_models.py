@@ -3,11 +3,14 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from phoenix.server.api.helpers.prompts.models import AnthropicToolDefinition, OpenAIToolDefinition
+from phoenix.server.api.helpers.prompts.models import (
+    denormalize_tools,
+    normalize_tools,
+)
 
 
 @pytest.mark.parametrize(
-    "tool_definition",
+    "tool_schema",
     [
         pytest.param(
             {
@@ -498,12 +501,17 @@ from phoenix.server.api.helpers.prompts.models import AnthropicToolDefinition, O
         ),
     ],
 )
-def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[str, Any]) -> None:
-    OpenAIToolDefinition.model_validate(tool_definition)
+def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_data_loss(
+    tool_schema: dict[str, Any],
+) -> None:
+    normalized_tools = normalize_tools([tool_schema], "openai")
+    denormalized_tools = denormalize_tools(normalized_tools, "openai")
+    assert len(denormalized_tools) == 1
+    assert denormalized_tools[0] == tool_schema
 
 
 @pytest.mark.parametrize(
-    "tool_definition",
+    "tool_schema",
     [
         pytest.param(
             {
@@ -583,13 +591,15 @@ def test_openai_tool_definition_passes_valid_tool_schemas(tool_definition: dict[
         ),
     ],
 )
-def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict[str, Any]) -> None:
+def test_invalid_openai_tool_schemas_raise_validation_error_when_normalized(
+    tool_schema: dict[str, Any],
+) -> None:
     with pytest.raises(ValidationError):
-        OpenAIToolDefinition.model_validate(tool_definition)
+        normalize_tools([tool_schema], "openai")
 
 
 @pytest.mark.parametrize(
-    "tool_definition",
+    "tool_schema",
     [
         pytest.param(
             {
@@ -703,7 +713,10 @@ def test_openai_tool_definition_fails_invalid_tool_schemas(tool_definition: dict
         ),
     ],
 )
-def test_anthropic_tool_definition_passes_valid_tool_schemas(
-    tool_definition: dict[str, Any],
+def test_valid_anthropic_tool_schemas_can_be_normalized_and_denormalized_without_data_loss(
+    tool_schema: dict[str, Any],
 ) -> None:
-    AnthropicToolDefinition.model_validate(tool_definition)
+    normalized_tools = normalize_tools([tool_schema], "anthropic")
+    denormalized_tools = denormalize_tools(normalized_tools, "anthropic")
+    assert len(denormalized_tools) == 1
+    assert denormalized_tools[0] == tool_schema

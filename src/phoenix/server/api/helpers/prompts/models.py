@@ -4,7 +4,10 @@ from typing import Any, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated, TypeAlias, assert_never
 
-from phoenix.server.api.helpers.jsonschema import JSONSchemaObjectDefinition
+from phoenix.server.api.helpers.jsonschema import (
+    JSONSchemaDraft7ObjectSchema,
+    JSONSchemaObjectSchema,
+)
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
@@ -144,7 +147,7 @@ class PromptFunctionToolV1(PromptModel):
     type: Literal["function-tool-v1"]
     name: str
     description: str = UNDEFINED
-    schema_: JSONSchemaObjectDefinition = Field(
+    schema_: JSONSchemaObjectSchema = Field(
         default=UNDEFINED,
         alias="schema",  # avoid conflict with pydantic schema class method
     )
@@ -166,7 +169,7 @@ class PromptOpenAIJSONSchema(PromptModel):
 
     name: str
     description: str = UNDEFINED
-    schema_: JSONSchemaObjectDefinition = Field(
+    schema_: dict[str, Any] = Field(
         ...,
         alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
     )
@@ -186,7 +189,7 @@ class PromptOutputSchema(PromptModel):
     type: Literal["output-schema-v1"]
     name: str
     description: str = UNDEFINED
-    schema_: JSONSchemaObjectDefinition = Field(
+    schema_: JSONSchemaObjectSchema = Field(
         default=UNDEFINED,
         alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
     )
@@ -212,15 +215,20 @@ class PromptOutputSchemaWrapper(PromptModel):
 def _openai_to_prompt_output_schema(
     schema: PromptOpenAIOutputSchema,
 ) -> PromptOutputSchema:
-    jsonschema = schema.json_schema
+    json_schema = schema.json_schema
     extra_parameters = {}
-    if (strict := jsonschema.strict) is not UNDEFINED:
+    if (strict := json_schema.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
     return PromptOutputSchema(
         type="output-schema-v1",
-        name=jsonschema.name,
-        description=jsonschema.description,
-        schema=jsonschema.schema_,
+        name=json_schema.name,
+        description=json_schema.description,
+        schema=JSONSchemaDraft7ObjectSchema(
+            type="json-schema-draft-7-object-schema",
+            content=json_schema.schema_,
+        )
+        if json_schema is not UNDEFINED
+        else UNDEFINED,
         extra_parameters=extra_parameters,
     )
 
@@ -239,9 +247,11 @@ def _prompt_to_openai_output_schema(
         json_schema=PromptOpenAIJSONSchema(
             name=name,
             description=description,
-            schema=schema,
+            schema=schema.content,
             strict=strict,
-        ),
+        )
+        if schema is not UNDEFINED
+        else None,
     )
 
 
@@ -271,7 +281,7 @@ class OpenAIFunctionDefinition(PromptModel):
 
     name: str
     description: str = UNDEFINED
-    parameters: JSONSchemaObjectDefinition = UNDEFINED
+    parameters: dict[str, Any] = UNDEFINED
     strict: Optional[bool] = UNDEFINED
 
 
@@ -285,7 +295,7 @@ class OpenAIToolDefinition(PromptModel):
 
 
 # Anthropic tool definitions
-class AnthropicCacheControlEphemeralParam(PromptModel):
+class AnthropicCacheControlParam(PromptModel):
     """
     Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/cache_control_ephemeral_param.py#L10
     """
@@ -298,9 +308,9 @@ class AnthropicToolDefinition(PromptModel):
     Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/tool_param.py#L22
     """
 
-    input_schema: JSONSchemaObjectDefinition
+    input_schema: dict[str, Any]
     name: str
-    cache_control: Optional[AnthropicCacheControlEphemeralParam] = UNDEFINED
+    cache_control: Optional[AnthropicCacheControlParam] = UNDEFINED
     description: str = UNDEFINED
 
 
@@ -335,7 +345,6 @@ def _openai_to_prompt_tool(
     function_definition = tool.function
     name = function_definition.name
     description = function_definition.description
-    parameters = function_definition.parameters
     extra_parameters = {}
     if (strict := function_definition.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
@@ -343,7 +352,12 @@ def _openai_to_prompt_tool(
         type="function-tool-v1",
         name=name,
         description=description,
-        schema=parameters,
+        schema=JSONSchemaDraft7ObjectSchema(
+            type="json-schema-draft-7-object-schema",
+            content=schema_content,
+        )
+        if (schema_content := function_definition.parameters) is not UNDEFINED
+        else UNDEFINED,
         extra_parameters=extra_parameters,
     )
 
@@ -356,7 +370,7 @@ def _prompt_to_openai_tool(
         function=OpenAIFunctionDefinition(
             name=tool.name,
             description=tool.description,
-            parameters=tool.schema_,
+            parameters=schema.content if (schema := tool.schema_) is not UNDEFINED else UNDEFINED,
             strict=tool.extra_parameters.get("strict", UNDEFINED),
         ),
     )
@@ -369,7 +383,7 @@ def _anthropic_to_prompt_tool(
     if (cache_control := tool.cache_control) is not UNDEFINED:
         if cache_control is None:
             extra_parameters["cache_control"] = None
-        elif isinstance(cache_control, AnthropicCacheControlEphemeralParam):
+        elif isinstance(cache_control, AnthropicCacheControlParam):
             extra_parameters["cache_control"] = cache_control.model_dump()
         else:
             assert_never(cache_control)
@@ -377,7 +391,10 @@ def _anthropic_to_prompt_tool(
         type="function-tool-v1",
         name=tool.name,
         description=tool.description,
-        schema=tool.input_schema,
+        schema=JSONSchemaDraft7ObjectSchema(
+            type="json-schema-draft-7-object-schema",
+            content=tool.input_schema,
+        ),
         extra_parameters=extra_parameters,
     )
 
@@ -386,15 +403,15 @@ def _prompt_to_anthropic_tool(
     tool: PromptFunctionToolV1,
 ) -> AnthropicToolDefinition:
     cache_control = tool.extra_parameters.get("cache_control", UNDEFINED)
-    anthropic_cache_control: Optional[AnthropicCacheControlEphemeralParam]
+    anthropic_cache_control: Optional[AnthropicCacheControlParam]
     if cache_control is UNDEFINED:
         anthropic_cache_control = UNDEFINED
     elif cache_control is None:
         anthropic_cache_control = None
     else:
-        anthropic_cache_control = AnthropicCacheControlEphemeralParam.model_validate(cache_control)
+        anthropic_cache_control = AnthropicCacheControlParam.model_validate(cache_control)
     return AnthropicToolDefinition(
-        input_schema=tool.schema_,
+        input_schema=tool.schema_.content,
         name=tool.name,
         description=tool.description,
         cache_control=anthropic_cache_control,
