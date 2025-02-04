@@ -27,6 +27,9 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 FROM node:20-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+# pin corepack to known good version with updated signatures
+# Mitigates https://github.com/nodejs/corepack/issues/612
+RUN npm i -g corepack@0.31.0
 RUN corepack enable
 WORKDIR /phoenix/app/
 COPY ./app /phoenix/app
