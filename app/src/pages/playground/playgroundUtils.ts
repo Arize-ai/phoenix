@@ -365,14 +365,11 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
-    const { baseUrl, endpoint, apiVersion } =
-      getUrlInfoFromAttributes(parsedAttributes);
+    const urlInfo = getUrlInfoFromAttributes(parsedAttributes);
     return {
       modelConfig: {
         ...Object.fromEntries(
-          Object.entries({ baseUrl, endpoint, apiVersion }).filter(
-            ([_, value]) => value !== null
-          )
+          Object.entries(urlInfo).filter(([_, value]) => value !== null)
         ),
         modelName: data.llm.model_name,
         provider,
@@ -389,7 +386,6 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   baseUrl: string | null;
   endpoint: string | null;
   apiVersion: string | null;
-  parsingErrors: string[];
 } {
   const { success, data } = urlSchema.safeParse(parsedAttributes);
   if (!success) {
@@ -397,31 +393,28 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
       baseUrl: null,
       apiVersion: null,
       endpoint: null,
-      parsingErrors: [MODEL_CONFIG_PARSING_ERROR],
     };
   }
   return {
-    baseUrl: data.url.path
-      ? data.url.full.split(data.url.path)[0]
-      : removeParams(data.url.full),
+    baseUrl: removeParams(
+      data.url.path ? data.url.full.split(data.url.path)[0] : data.url.full
+    ),
     endpoint: getOrigin(data.url.full),
     apiVersion: getParamValue(data.url.full, "api-version"),
-    parsingErrors: [],
   };
 }
 
 const getParamValue = (url: string, key: string): string | null => {
   try {
-    const params = new URL(url).searchParams;
-    return params.get(key);
+    return new URL(url).searchParams.get(key);
   } catch (error) {
     return null;
   }
 };
 const removeParams = (url: string): string | null => {
   try {
-    const parsedUrl = new URL(url);
-    return `${parsedUrl.origin}${parsedUrl.pathname}`;
+    const { origin, pathname } = new URL(url);
+    return `${origin}${pathname}`;
   } catch (error) {
     return null;
   }
