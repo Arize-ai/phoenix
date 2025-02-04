@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.0...arize-phoenix-v7.10.1) (2025-02-04)
+
+
+### Bug Fixes
+
+* Replace corepack with pinned pnpm version in Dockerfile ([#6250](https://github.com/Arize-ai/phoenix/issues/6250)) ([08195bc](https://github.com/Arize-ai/phoenix/commit/08195bc9395a1a87f062e47d931e068fef54cfe9))
+
 ## [7.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.4...arize-phoenix-v7.10.0) (2025-02-04)
 
 
