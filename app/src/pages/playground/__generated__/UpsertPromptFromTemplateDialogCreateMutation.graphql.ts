@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6625e5bd96ea93dc899253cf49068055>>
+ * @generated SignedSource<<3ce51d349033ba52f49cc7ba9b83d4dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,7 @@ export type ChatPromptVersionInput = {
   invocationParameters?: any;
   modelName: string;
   modelProvider: string;
-  outputSchema?: OutputSchemaInput | null;
+  responseFormat?: OutputSchemaInput | null;
   template: PromptChatTemplateInput;
   templateFormat: PromptTemplateFormat;
   tools?: ReadonlyArray<ToolDefinitionInput>;

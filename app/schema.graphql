@@ -207,7 +207,7 @@ input ChatPromptVersionInput {
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}
   tools: [ToolDefinitionInput!]! = []
-  outputSchema: OutputSchemaInput = null
+  responseFormat: OutputSchemaInput = null
   modelProvider: String!
   modelName: String!
 }
@@ -1598,7 +1598,7 @@ type PromptVersion implements Node {
   template: PromptTemplate!
   invocationParameters: JSON
   tools: [ToolDefinition!]!
-  outputSchema: OutputSchema
+  responseFormat: OutputSchema
   modelName: String!
   modelProvider: String!
   metadata: JSON!

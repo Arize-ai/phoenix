@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af2571352cefa40fd18eef7b964d851d>>
+ * @generated SignedSource<<bdb4f0245ff9d3351cf40abc8d442a14>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptOutputSchemaFragment$data = {
-  readonly outputSchema: {
+  readonly responseFormat: {
     readonly definition: any;
   } | null;
   readonly " $fragmentType": "PromptOutputSchemaFragment";
@@ -32,7 +32,7 @@ const node: ReaderFragment = {
       "args": null,
       "concreteType": "OutputSchema",
       "kind": "LinkedField",
-      "name": "outputSchema",
+      "name": "responseFormat",
       "plural": false,
       "selections": [
         {
@@ -50,6 +50,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "80f998ac6c2d70b49bfce3478c0fda19";
+(node as any).hash = "818475e2ef28c5f0ffb9e88d0559da0a";
 
 export default node;

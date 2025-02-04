@@ -1000,7 +1000,7 @@ class PromptVersion(Base):
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
     invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
     tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
-    output_schema: Mapped[Optional[PromptOutputSchema]] = mapped_column(
+    response_format: Mapped[Optional[PromptOutputSchema]] = mapped_column(
         _PromptOutputSchema, default=Null(), nullable=True
     )
     model_provider: Mapped[str]

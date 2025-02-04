@@ -212,7 +212,7 @@ class PromptOutputSchemaWrapper(PromptModel):
     ]
 
 
-def _openai_to_prompt_output_schema(
+def _openai_to_prompt_response_format(
     schema: PromptOpenAIOutputSchema,
 ) -> PromptOutputSchema:
     json_schema = schema.json_schema
@@ -231,14 +231,14 @@ def _openai_to_prompt_output_schema(
     )
 
 
-def _prompt_to_openai_output_schema(
-    output_schema: PromptOutputSchema,
+def _prompt_to_openai_response_format(
+    response_format: PromptOutputSchema,
 ) -> PromptOpenAIOutputSchema:
-    assert output_schema.type == "output-schema-v1"
-    name = output_schema.name
-    description = output_schema.description
-    schema = output_schema.schema_
-    extra_parameters = output_schema.extra_parameters
+    assert response_format.type == "output-schema-v1"
+    name = response_format.name
+    description = response_format.description
+    schema = response_format.schema_
+    extra_parameters = response_format.extra_parameters
     strict = extra_parameters.get("strict", UNDEFINED)
     return PromptOpenAIOutputSchema(
         type="json_schema",
@@ -251,21 +251,21 @@ def _prompt_to_openai_output_schema(
     )
 
 
-def normalize_output_schema(
-    output_schema: dict[str, Any], model_provider: str
+def normalize_response_format(
+    response_format: dict[str, Any], model_provider: str
 ) -> PromptOutputSchema:
     if model_provider.lower() == "openai":
-        openai_output_schema = PromptOpenAIOutputSchema.model_validate(output_schema)
-        return _openai_to_prompt_output_schema(openai_output_schema)
+        openai_response_format = PromptOpenAIOutputSchema.model_validate(response_format)
+        return _openai_to_prompt_response_format(openai_response_format)
     raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
-def denormalize_output_schema(
-    output_schema: PromptOutputSchema, model_provider: str
+def denormalize_response_format(
+    response_format: PromptOutputSchema, model_provider: str
 ) -> dict[str, Any]:
     if model_provider.lower() == "openai":
-        openai_output_schema = _prompt_to_openai_output_schema(output_schema)
-        return openai_output_schema.model_dump()
+        openai_response_format = _prompt_to_openai_response_format(response_format)
+        return openai_response_format.model_dump()
     raise ValueError(f"Unsupported model provider: {model_provider}")
 
 

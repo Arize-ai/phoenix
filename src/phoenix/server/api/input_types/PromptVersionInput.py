@@ -90,7 +90,7 @@ class ChatPromptVersionInput:
     template: PromptChatTemplateInput
     invocation_parameters: JSON = strawberry.field(default_factory=dict)
     tools: list[ToolDefinitionInput] = strawberry.field(default_factory=list)
-    output_schema: Optional[OutputSchemaInput] = None
+    response_format: Optional[OutputSchemaInput] = None
     model_provider: str
     model_name: str
 

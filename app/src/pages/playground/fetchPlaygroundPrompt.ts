@@ -166,9 +166,9 @@ export const promptVersionToInstance = ({
       invocationParameters: objectToInvocationParameters(
         {
           ...promptVersion.invocationParameters,
-          ...(promptVersion.outputSchema?.definition
+          ...(promptVersion.responseFormat?.definition
             ? {
-                response_format: promptVersion.outputSchema.definition,
+                response_format: promptVersion.responseFormat.definition,
               }
             : {}),
         },
@@ -356,7 +356,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     tools: instance.tools.map((tool) => ({
       definition: tool.definition,
     })),
-    outputSchema:
+    responseFormat:
       instance.model.invocationParameters
         .filter(
           (invocationParameter) =>
@@ -411,7 +411,7 @@ const fetchPlaygroundPromptQuery = graphql`
               invocationParameters
               templateType
               templateFormat
-              outputSchema {
+              responseFormat {
                 definition
               }
               template {

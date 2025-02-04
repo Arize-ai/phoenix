@@ -13,7 +13,7 @@ export type PromptToSnippetParams = ({
   invocationParameters,
   modelName,
   modelProvider,
-  outputSchema,
+  responseFormat,
   tools,
   template,
 }: Pick<
@@ -21,7 +21,7 @@ export type PromptToSnippetParams = ({
   | "invocationParameters"
   | "modelName"
   | "modelProvider"
-  | "outputSchema"
+  | "responseFormat"
   | "tools"
 > & {
   template: {
@@ -164,9 +164,9 @@ export const promptCodeSnippets: Record<
         });
         args.push(`tools=${fmt}`);
       }
-      if (prompt.outputSchema && "definition" in prompt.outputSchema) {
+      if (prompt.responseFormat && "definition" in prompt.responseFormat) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema.definition,
+          json: prompt.responseFormat.definition,
           level: 1,
         });
         args.push(`response_format=${fmt}`);
@@ -219,9 +219,9 @@ export const promptCodeSnippets: Record<
         });
         args.push(`tools: ${fmt}`);
       }
-      if (prompt.outputSchema && "definition" in prompt.outputSchema) {
+      if (prompt.responseFormat && "definition" in prompt.responseFormat) {
         const fmt = jsonFormatter({
-          json: prompt.outputSchema.definition,
+          json: prompt.responseFormat.definition,
           level: 1,
           removeKeyQuotes: true,
         });

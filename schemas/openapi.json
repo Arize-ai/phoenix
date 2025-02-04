@@ -2485,7 +2485,7 @@
               }
             ]
           },
-          "output_schema": {
+          "response_format": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/PromptOutputSchema"

@@ -45,7 +45,7 @@ class PromptVersion(V1RoutesBaseModel):
     template_format: PromptTemplateFormat = Field(default=PromptTemplateFormat.MUSTACHE)
     invocation_parameters: dict[str, Any] = Field(default_factory=dict)
     tools: Optional[PromptToolsV1] = None
-    output_schema: Optional[PromptOutputSchema] = None
+    response_format: Optional[PromptOutputSchema] = None
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -303,7 +303,7 @@ def _prompt_version_from_orm_version(
         template_format=prompt_template_format,
         invocation_parameters=prompt_version.invocation_parameters,
         tools=prompt_version.tools,
-        output_schema=prompt_version.output_schema,
+        response_format=prompt_version.response_format,
     )
 
 

@@ -18,10 +18,10 @@ export function PromptOutputSchema({
 }: {
   promptVersion: PromptOutputSchemaFragment$key;
 }) {
-  const { outputSchema } = useFragment<PromptOutputSchemaFragment$key>(
+  const { responseFormat } = useFragment<PromptOutputSchemaFragment$key>(
     graphql`
       fragment PromptOutputSchemaFragment on PromptVersion {
-        outputSchema {
+        responseFormat {
           definition
         }
       }
@@ -30,17 +30,17 @@ export function PromptOutputSchema({
   );
 
   const formattedOutputSchema = useMemo(() => {
-    if (typeof outputSchema?.definition === "string") {
+    if (typeof responseFormat?.definition === "string") {
       return (
         safelyStringifyJSON(
-          safelyParseJSON(outputSchema?.definition).json || "",
+          safelyParseJSON(responseFormat?.definition).json || "",
           null,
           2
         ).json || ""
       );
     }
-    return safelyStringifyJSON(outputSchema?.definition, null, 2).json || "";
-  }, [outputSchema?.definition]);
+    return safelyStringifyJSON(responseFormat?.definition, null, 2).json || "";
+  }, [responseFormat?.definition]);
 
   if (!formattedOutputSchema) {
     return (
