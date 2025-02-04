@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83115a7d0cd41610c964392fd634b548>>
+ * @generated SignedSource<<38e74819211a23203c221e576045b9d4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type ChatCompletionOverDatasetInput = {
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
+  promptName?: string | null;
   templateLanguage: TemplateLanguage;
   tools?: ReadonlyArray<any> | null;
 };

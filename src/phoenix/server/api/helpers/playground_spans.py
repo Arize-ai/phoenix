@@ -41,6 +41,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     TextChunk,
     ToolCallChunk,
 )
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.trace.attributes import get_attribute_value, unflatten
 from phoenix.trace.schemas import (
     SpanEvent,
@@ -70,6 +71,8 @@ class streaming_llm_span:
     ) -> None:
         self._input = input
         self._attributes: dict[str, Any] = attributes if attributes is not None else {}
+        self._attributes.update(dict(prompt_metadata(input.prompt_name)))
+
         self._attributes.update(
             chain(
                 llm_span_kind(),
@@ -264,6 +267,11 @@ def input_value_and_mime_type(
     yield INPUT_VALUE, safe_json_dumps(input_data)
 
 
+def prompt_metadata(prompt_name: Optional[Identifier]) -> Iterator[tuple[str, Any]]:
+    if prompt_name:
+        yield METADATA, {"phoenixPromptId": prompt_name}
+
+
 def _merge_tool_call_chunks(
     chunks_by_id: defaultdict[str, list[ToolCallChunk]],
 ) -> list[dict[str, Any]]:
@@ -442,6 +450,7 @@ LLM_INVOCATION_PARAMETERS = SpanAttributes.LLM_INVOCATION_PARAMETERS
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+METADATA = SpanAttributes.METADATA
 
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE

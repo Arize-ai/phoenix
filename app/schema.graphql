@@ -110,6 +110,7 @@ input ChatCompletionInput {
   tools: [JSON!]
   apiKey: String = null
   template: TemplateOptions
+  promptName: Identifier = null
 }
 
 input ChatCompletionMessageInput {
@@ -159,6 +160,7 @@ input ChatCompletionOverDatasetInput {
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
+  promptName: Identifier = null
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
