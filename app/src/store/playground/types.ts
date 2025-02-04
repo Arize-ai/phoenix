@@ -70,6 +70,7 @@ export type PlaygroundInput = {
 export type ModelConfig = {
   provider: ModelProvider;
   modelName: string | null;
+  baseUrl?: string | null;
   endpoint?: string | null;
   apiVersion?: string | null;
   invocationParameters: InvocationParameterInput[];

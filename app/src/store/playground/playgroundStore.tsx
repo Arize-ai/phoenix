@@ -275,6 +275,7 @@ export const createPlaygroundStore = (initialProps: InitialPlaygroundState) => {
             }
           : {
               modelName: null,
+              baseUrl: null,
               // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
               invocationParameters: [],
               // Reset supported invocation parameters to unset, these will be subsequently fetched and updated from the server

@@ -972,6 +972,7 @@ const getBaseChatCompletionInput = ({
     model: {
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
+      baseUrl: instance.model.baseUrl,
       ...azureModelParams,
     },
     invocationParameters: invocationParameters,

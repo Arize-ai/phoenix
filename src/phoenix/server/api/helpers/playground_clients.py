@@ -477,11 +477,10 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     ) -> None:
         from openai import AsyncOpenAI
 
-        # todo: check if custom base url is set before raising error to allow
-        # for custom endpoints that don't require an API key
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+        base_url = model.base_url or os.environ.get("OPENAI_BASE_URL")
+        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")) and not base_url:
             raise BadRequest("An API key is required for OpenAI models")
-        client = AsyncOpenAI(api_key=api_key)
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         super().__init__(client=client, model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value

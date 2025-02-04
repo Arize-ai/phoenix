@@ -960,6 +960,7 @@ type GenerativeModel {
 input GenerativeModelInput {
   providerKey: GenerativeProviderKey!
   name: String!
+  baseUrl: String
   endpoint: String
   apiVersion: String
 }

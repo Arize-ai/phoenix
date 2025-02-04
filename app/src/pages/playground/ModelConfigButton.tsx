@@ -63,6 +63,68 @@ const modelConfigFormCSS = css`
   overflow: auto;
 `;
 
+function OpenAiModelConfigFormField({
+  instance,
+  container,
+}: {
+  instance: PlaygroundInstance;
+  container: HTMLElement | null;
+}) {
+  const updateModel = usePlaygroundContext((state) => state.updateModel);
+  const updateModelConfig = useCallback(
+    ({
+      configKey,
+      value,
+    }: {
+      configKey: keyof PlaygroundInstance["model"];
+      value: string;
+    }) => {
+      updateModel({
+        instanceId: instance.id,
+        patch: {
+          ...instance.model,
+          [configKey]: value,
+        },
+      });
+    },
+    [instance.id, instance.model, updateModel]
+  );
+
+  const debouncedUpdateModelName = useMemo(
+    () =>
+      debounce((value: string) => {
+        updateModelConfig({
+          configKey: "modelName",
+          value,
+        });
+      }, 250),
+    [updateModelConfig]
+  );
+
+  return (
+    <>
+      <ModelComboBox
+        modelName={instance.model.modelName}
+        provider={instance.model.provider}
+        onChange={(value) => {
+          debouncedUpdateModelName(value);
+        }}
+        container={container ?? undefined}
+      />
+      <TextField
+        label="Base URL"
+        defaultValue={instance.model.baseUrl ?? ""}
+        onChange={(value) => {
+          updateModelConfig({
+            configKey: "baseUrl",
+            value,
+          });
+        }}
+      />
+    </>
+  );
+}
+
 function AzureOpenAiModelConfigFormField({
   instance,
 }: {
@@ -348,7 +410,12 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           });
         }}
       />
-      {instance.model.provider === "AZURE_OPENAI" ? (
+      {instance.model.provider === "OPENAI" ? (
+        <OpenAiModelConfigFormField
+          instance={instance}
+          container={container ?? null}
+        />
+      ) : instance.model.provider === "AZURE_OPENAI" ? (
         <AzureOpenAiModelConfigFormField instance={instance} />
       ) : (
         <ModelComboBox
