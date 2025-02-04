@@ -79,7 +79,6 @@ class PromptMessageInput:
 @strawberry.input
 class PromptChatTemplateInput:
     messages: list[PromptMessageInput]
-    version: strawberry.Private[str] = "chat-template-v1"
 
 
 @strawberry.input
