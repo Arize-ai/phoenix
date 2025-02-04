@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import importlib.util
 import inspect
@@ -7,8 +9,9 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
 
+import wrapt
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
     OpenInferenceLLMProviderValues,
@@ -51,11 +54,13 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
+    import httpx
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.generativeai.types import ContentType
     from openai import AsyncAzureOpenAI, AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
+    from opentelemetry.util.types import AttributeValue
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
@@ -169,7 +174,7 @@ class PlaygroundStreamingClient(ABC):
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
-        self._attributes: dict[str, Any] = dict()
+        self._attributes: dict[str, AttributeValue] = dict()
 
     @classmethod
     @abstractmethod
@@ -246,6 +251,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         self.client = client
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
+        self.client._client = _HttpxClient(self.client._client, self._attributes)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -694,6 +700,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
+        self.client._client = _HttpxClient(self.client._client, self._attributes)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -1003,3 +1010,15 @@ LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+
+
+class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+    def __init__(self, wrapped: httpx.AsyncClient, attributes: MutableMapping[str, Any]):
+        super().__init__(wrapped)
+        self._self_attributes = attributes
+
+    async def send(self, request: httpx.Request, **kwargs: Any) -> Any:
+        self._self_attributes["url.full"] = str(request.url)
+        self._self_attributes["url.path"] = request.url.path.removeprefix(self.base_url.path)
+        response = await self.__wrapped__.send(request, **kwargs)
+        return response

@@ -77,6 +77,7 @@ import {
   modelConfigWithResponseFormatSchema,
   outputSchema,
   promptTemplateSchema,
+  urlSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -364,9 +365,14 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
+    const { baseUrl, endpoint, apiVersion } =
+      getUrlInfoFromAttributes(parsedAttributes);
     return {
       modelConfig: {
         modelName: data.llm.model_name,
+        baseUrl: baseUrl,
+        endpoint: endpoint,
+        apiVersion: apiVersion,
         provider,
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -376,6 +382,49 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
 }
+
+export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
+  baseUrl: string | null;
+  endpoint: string | null;
+  apiVersion: string | null;
+  parsingErrors: string[];
+} {
+  const { success, data } = urlSchema.safeParse(parsedAttributes);
+  if (!success) {
+    return {
+      baseUrl: null,
+      apiVersion: null,
+      endpoint: null,
+      parsingErrors: [MODEL_CONFIG_PARSING_ERROR],
+    };
+  }
+  return {
+    baseUrl: data.url.path
+      ? data.url.full.split(data.url.path)[0]
+      : data.url.full,
+    endpoint: getEndpoint(data.url.full),
+    apiVersion: getParamValue(data.url.full, "api-version"),
+    parsingErrors: [],
+  };
+}
+
+const getParamValue = (url: string, key: string): string | null => {
+  try {
+    const params = new URL(url).searchParams;
+    return params.get(key);
+  } catch (error) {
+    return null;
+  }
+};
+
+const getEndpoint = (url: string): string | null => {
+  try {
+    const parsedUrl = new URL(url);
+    return `${parsedUrl.protocol}//${parsedUrl.host}`;
+  } catch (error) {
+    return null;
+  }
+};
 
 /**
  * Attempts to get llm.invocation_parameters from the span attributes.
