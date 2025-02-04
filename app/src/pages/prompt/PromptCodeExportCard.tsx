@@ -36,7 +36,7 @@ export function PromptCodeExportCard({
         invocationParameters
         modelName
         modelProvider
-        outputSchema {
+        responseFormat {
           definition
         }
         tools {

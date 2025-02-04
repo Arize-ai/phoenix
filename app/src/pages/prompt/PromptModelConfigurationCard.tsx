@@ -12,7 +12,7 @@ import {
 import { PromptModelConfigurationCard__main$key } from "@phoenix/pages/prompt/__generated__/PromptModelConfigurationCard__main.graphql";
 import { PromptInvocationParameters } from "@phoenix/pages/prompt/PromptInvocationParameters";
 import { PromptLLM } from "@phoenix/pages/prompt/PromptLLM";
-import { PromptOutputSchema } from "@phoenix/pages/prompt/PromptOutputSchema";
+import { PromptResponseFormat } from "@phoenix/pages/prompt/PromptResponseFormat";
 import { PromptTools } from "@phoenix/pages/prompt/PromptTools";
 
 export function PromptModelConfigurationCard({
@@ -28,7 +28,7 @@ export function PromptModelConfigurationCard({
         ...PromptLLM__main
         ...PromptInvocationParameters__main
         ...PromptTools__main
-        ...PromptOutputSchemaFragment
+        ...PromptResponseFormatFragment
       }
     `,
     promptVersionFragment
@@ -44,7 +44,7 @@ export function PromptModelConfigurationCard({
           "llm",
           "invocation-parameters",
           "tools",
-          "output-schema",
+          "response-format",
         ]}
       >
         <PromptLLM promptVersion={promptVersion} />
@@ -55,7 +55,7 @@ export function PromptModelConfigurationCard({
           </DisclosurePanel>
         </Disclosure>
         <PromptTools promptVersion={promptVersion} />
-        <PromptOutputSchema promptVersion={promptVersion} />
+        <PromptResponseFormat promptVersion={promptVersion} />
       </DisclosureGroup>
     </Card>
   );

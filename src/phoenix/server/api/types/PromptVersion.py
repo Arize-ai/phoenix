@@ -13,7 +13,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
     PromptTemplateType,
-    denormalize_output_schema,
+    denormalize_response_format,
     denormalize_tools,
 )
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
@@ -22,7 +22,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     to_gql_template_from_orm,
 )
 
-from .OutputSchema import OutputSchema
+from .ResponseFormat import ResponseFormat
 from .ToolDefinition import ToolDefinition
 from .User import User, to_gql_user
 
@@ -37,7 +37,7 @@ class PromptVersion(Node):
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
     tools: list[ToolDefinition]
-    output_schema: Optional[OutputSchema] = None
+    response_format: Optional[ResponseFormat] = None
     model_name: str
     model_provider: str
     metadata: JSON
@@ -112,14 +112,14 @@ def to_gql_prompt_version(
         tools = [ToolDefinition(definition=schema) for schema in tool_schemas]
     else:
         tools = []
-    output_schema = (
-        OutputSchema(
-            definition=denormalize_output_schema(
-                prompt_version.output_schema,
+    response_format = (
+        ResponseFormat(
+            definition=denormalize_response_format(
+                prompt_version.response_format,
                 prompt_version.model_provider,
             )
         )
-        if prompt_version.output_schema is not None
+        if prompt_version.response_format is not None
         else None
     )
     return PromptVersion(
@@ -131,7 +131,7 @@ def to_gql_prompt_version(
         template=prompt_template,
         invocation_parameters=prompt_version.invocation_parameters,
         tools=tools,
-        output_schema=output_schema,
+        response_format=response_format,
         model_name=prompt_version.model_name,
         model_provider=prompt_version.model_provider,
         metadata=prompt_version.metadata_,
