@@ -19,7 +19,8 @@ import { isObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";
 
-const graphQLFetch = window.Config.authenticationEnabled ? authFetch : fetch;
+const isAuthenticationEnabled = window.Config.authenticationEnabled;
+const graphQLFetch = isAuthenticationEnabled ? authFetch : fetch;
 
 /**
  * Create an observable that fetches JSON from the given input and returns an error if
@@ -108,6 +109,7 @@ const wsClient = createClient({
   url: `${WS_BASE_URL}/graphql`,
   shouldRetry: (errorOrCloseEvent) => {
     if (
+      isAuthenticationEnabled &&
       errorOrCloseEvent instanceof Event &&
       errorOrCloseEvent.type === "error"
     ) {
