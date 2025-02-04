@@ -66,11 +66,11 @@ class GenerativeProvider:
             return default_client.dependencies_are_installed()
         return False
 
-    @strawberry.field(description="The API key for the provider")
+    @strawberry.field(description="The API key for the provider")  # type: ignore
     async def api_key_env_var(self) -> str:
         return self.model_provider_to_api_key_env_var_map[self.key]
 
-    @strawberry.field(description="Whether the credentials are set on the server for the provider")
+    @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
     async def api_key_set(self) -> bool:
         return os.environ.get(self.model_provider_to_api_key_env_var_map[self.key]) is not None
 
