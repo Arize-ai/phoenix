@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.10.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.1...arize-phoenix-v7.10.2) (2025-02-04)
+
+
+### Bug Fixes
+
+* **playground:** disable retry and auth refresh if auth is disabled ([#6256](https://github.com/Arize-ai/phoenix/issues/6256)) ([8dd3ad5](https://github.com/Arize-ai/phoenix/commit/8dd3ad53d2b0d86acbc905e54ccc14d350c956a9))
+
 ## [7.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.0...arize-phoenix-v7.10.1) (2025-02-04)
 
 
