@@ -980,7 +980,7 @@ const getBaseChatCompletionInput = ({
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
     apiKey: credentials[instance.model.provider] || null,
-    promptId: instance.prompt?.id,
+    promptName: instance.prompt?.name,
   } satisfies Partial<ChatCompletionInput>;
 };
 

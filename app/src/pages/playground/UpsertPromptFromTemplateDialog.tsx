@@ -82,7 +82,7 @@ export const UpsertPromptFromTemplateDialog = ({
     `);
   // tasks to complete after either mutation completes successfully
   const onSuccess = useCallback(
-    (promptId: string) => {
+    (promptId: string, promptName: string) => {
       const state = store.getState();
       const instance = state.instances.find(
         (instance) => instance.id === instanceId
@@ -95,6 +95,7 @@ export const UpsertPromptFromTemplateDialog = ({
         patch: {
           prompt: {
             id: promptId,
+            name: promptName,
           },
         },
         dirty: false,
@@ -129,7 +130,10 @@ export const UpsertPromptFromTemplateDialog = ({
               },
             },
           });
-          onSuccess(response.createChatPrompt.id);
+          onSuccess(
+            response.createChatPrompt.id,
+            response.createChatPrompt.name
+          );
           setDialog(null);
         },
         onError: (error) => {
@@ -183,7 +187,10 @@ export const UpsertPromptFromTemplateDialog = ({
               },
             },
           });
-          onSuccess(response.createChatPromptVersion.id);
+          onSuccess(
+            response.createChatPromptVersion.id,
+            response.createChatPromptVersion.name
+          );
           setDialog(null);
         },
         onError: (error) => {
