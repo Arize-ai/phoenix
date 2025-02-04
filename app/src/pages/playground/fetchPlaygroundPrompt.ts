@@ -136,16 +136,18 @@ export const objectToInvocationParameters = (
  */
 export const promptVersionToInstance = ({
   promptId,
+  promptName,
   promptVersion,
   supportedInvocationParameters,
 }: {
   promptId: string;
+  promptName: string;
   promptVersion: PromptVersion;
   supportedInvocationParameters?: PlaygroundInstance["model"]["supportedInvocationParameters"];
 }) => {
   const newInstance = {
     ...DEFAULT_INSTANCE_PARAMS(),
-    prompt: { id: promptId },
+    prompt: { id: promptId, name: promptName },
   } satisfies Partial<PlaygroundInstance>;
 
   const modelName = promptVersion.modelName;
@@ -601,8 +603,13 @@ export const fetchPlaygroundPromptAsInstance = async (
           latestPromptVersion.modelProvider
         ),
       });
+    const promptName = response?.prompt?.name;
+    if (!promptName) {
+      throw new Error("Prompt name is required");
+    }
     const newInstance = promptVersionToInstance({
       promptId,
+      promptName,
       promptVersion: latestPromptVersion,
       supportedInvocationParameters,
     });
