@@ -190,7 +190,7 @@ class PromptOutputSchema(PromptModel):
     name: str
     description: str = UNDEFINED
     schema_: JSONSchemaObjectSchema = Field(
-        default=UNDEFINED,
+        ...,
         alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
     )
     extra_parameters: dict[str, Any]
@@ -226,9 +226,7 @@ def _openai_to_prompt_output_schema(
         schema=JSONSchemaDraft7ObjectSchema(
             type="json-schema-draft-7-object-schema",
             json=json_schema.schema_,
-        )
-        if json_schema is not UNDEFINED
-        else UNDEFINED,
+        ),
         extra_parameters=extra_parameters,
     )
 
@@ -249,9 +247,7 @@ def _prompt_to_openai_output_schema(
             description=description,
             schema=schema.json_,
             strict=strict,
-        )
-        if schema is not UNDEFINED
-        else None,
+        ),
     )
 
 

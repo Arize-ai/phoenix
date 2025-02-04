@@ -2351,6 +2351,7 @@
         "required": [
           "type",
           "name",
+          "schema",
           "extra_parameters"
         ],
         "title": "PromptOutputSchema"
