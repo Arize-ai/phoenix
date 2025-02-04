@@ -219,7 +219,7 @@ class PromptResponseFormatWrapper(PromptModel):
 
 def _openai_to_prompt_response_format(
     schema: PromptOpenAIResponseFormatJSONSchema,
-) -> PromptResponseFormatJSONSchema:
+) -> PromptResponseFormat:
     json_schema = schema.json_schema
     extra_parameters = {}
     if (strict := json_schema.strict) is not UNDEFINED:
@@ -237,9 +237,9 @@ def _openai_to_prompt_response_format(
 
 
 def _prompt_to_openai_response_format(
-    response_format: PromptResponseFormatJSONSchema,
+    response_format: PromptResponseFormat,
 ) -> PromptOpenAIResponseFormatJSONSchema:
-    assert response_format.type == "response-format-json-schema-v1"
+    assert isinstance(response_format, PromptResponseFormatJSONSchema)
     name = response_format.name
     description = response_format.description
     schema = response_format.schema_
@@ -258,7 +258,7 @@ def _prompt_to_openai_response_format(
 
 def normalize_response_format(
     response_format: dict[str, Any], model_provider: str
-) -> PromptResponseFormatJSONSchema:
+) -> PromptResponseFormat:
     if model_provider.lower() == "openai":
         openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(
             response_format
@@ -268,7 +268,7 @@ def normalize_response_format(
 
 
 def denormalize_response_format(
-    response_format: PromptResponseFormatJSONSchema, model_provider: str
+    response_format: PromptResponseFormat, model_provider: str
 ) -> dict[str, Any]:
     if model_provider.lower() == "openai":
         openai_response_format = _prompt_to_openai_response_format(response_format)
