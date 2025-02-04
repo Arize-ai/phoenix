@@ -2023,6 +2023,25 @@
         ],
         "title": "InsertedSpanAnnotation"
       },
+      "JSONSchemaDraft7ObjectSchema": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "json-schema-draft-7-object-schema",
+            "title": "Type"
+          },
+          "content": {
+            "type": "object",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "content"
+        ],
+        "title": "JSONSchemaDraft7ObjectSchema"
+      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -2214,8 +2233,18 @@
             "title": "Description"
           },
           "schema": {
-            "type": "object",
-            "title": "Schema"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
+              }
+            ],
+            "title": "Schema",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "json-schema-draft-7-object-schema": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
+              }
+            }
           },
           "extra_parameters": {
             "type": "object",
@@ -2299,8 +2328,18 @@
             "title": "Description"
           },
           "schema": {
-            "type": "object",
-            "title": "Schema"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
+              }
+            ],
+            "title": "Schema",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "json-schema-draft-7-object-schema": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
+              }
+            }
           },
           "extra_parameters": {
             "type": "object",
