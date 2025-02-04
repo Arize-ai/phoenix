@@ -67,7 +67,7 @@ class GenerativeProvider:
         return False
 
     @strawberry.field(description="The API key for the provider")
-    async def api_key(self) -> str:
+    async def api_key_env_var(self) -> str:
         return self.model_provider_to_api_key_env_var_map[self.key]
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")

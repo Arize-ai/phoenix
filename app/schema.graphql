@@ -972,7 +972,7 @@ type GenerativeProvider {
   dependenciesInstalled: Boolean!
 
   """The API key for the provider"""
-  apiKey: String!
+  apiKeyEnvVar: String!
 
   """Whether the credentials are set on the server for the provider"""
   apiKeySet: Boolean!
