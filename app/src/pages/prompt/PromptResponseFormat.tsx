@@ -10,17 +10,17 @@ import {
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
-import { PromptOutputSchemaFragment$key } from "@phoenix/pages/prompt/__generated__/PromptOutputSchemaFragment.graphql";
+import { PromptResponseFormatFragment$key } from "@phoenix/pages/prompt/__generated__/PromptResponseFormatFragment.graphql";
 import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
-export function PromptOutputSchema({
+export function PromptResponseFormat({
   promptVersion,
 }: {
-  promptVersion: PromptOutputSchemaFragment$key;
+  promptVersion: PromptResponseFormatFragment$key;
 }) {
-  const { responseFormat } = useFragment<PromptOutputSchemaFragment$key>(
+  const { responseFormat } = useFragment<PromptResponseFormatFragment$key>(
     graphql`
-      fragment PromptOutputSchemaFragment on PromptVersion {
+      fragment PromptResponseFormatFragment on PromptVersion {
         responseFormat {
           definition
         }
@@ -29,7 +29,7 @@ export function PromptOutputSchema({
     promptVersion
   );
 
-  const formattedOutputSchema = useMemo(() => {
+  const formattedResponseFormat = useMemo(() => {
     if (typeof responseFormat?.definition === "string") {
       return (
         safelyStringifyJSON(
@@ -42,15 +42,15 @@ export function PromptOutputSchema({
     return safelyStringifyJSON(responseFormat?.definition, null, 2).json || "";
   }, [responseFormat?.definition]);
 
-  if (!formattedOutputSchema) {
+  if (!formattedResponseFormat) {
     return (
-      <Disclosure id="output-schema">
-        <DisclosureTrigger>Output Schema</DisclosureTrigger>
+      <Disclosure id="response-format">
+        <DisclosureTrigger>Response Format</DisclosureTrigger>
         <DisclosurePanel>
           <View padding="size-200">
             <Flex justifyContent="center" alignItems="center">
               <Text color="text-300">
-                No output schema specified for this prompt
+                No response format specified for this prompt
               </Text>
             </Flex>
           </View>
@@ -60,10 +60,10 @@ export function PromptOutputSchema({
   }
 
   return (
-    <Disclosure id="output-schema">
-      <DisclosureTrigger>Output Schema</DisclosureTrigger>
+    <Disclosure id="response-format">
+      <DisclosureTrigger>Response Format</DisclosureTrigger>
       <DisclosurePanel>
-        <JSONBlock value={formattedOutputSchema} />
+        <JSONBlock value={formattedResponseFormat} />
       </DisclosurePanel>
     </Disclosure>
   );

@@ -88,7 +88,9 @@ export function PlaygroundResponseFormat({
 
   return (
     <Disclosure id="response-format">
-      <DisclosureTrigger arrowPosition="start">Output Schema</DisclosureTrigger>
+      <DisclosureTrigger arrowPosition="start">
+        Response Format
+      </DisclosureTrigger>
       <DisclosurePanel>
         <View padding="size-200">
           <Card
@@ -99,7 +101,7 @@ export function PlaygroundResponseFormat({
               <Flex direction="row" gap="size-100">
                 <CopyToClipboardButton text={responseFormatDefinition} />
                 <Button
-                  aria-label="Delete Output Schema"
+                  aria-label="Delete Response Format"
                   icon={<Icon svg={<Icons.TrashOutline />} />}
                   size="S"
                   onPress={() => {

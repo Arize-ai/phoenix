@@ -72,7 +72,7 @@ export function PlaygroundChatTemplateFooter({
       {supportsResponseFormat ? (
         <Button
           size="S"
-          aria-label="output schema"
+          aria-label="response format"
           icon={<Icon svg={<Icons.PlusOutline />} />}
           isDisabled={hasResponseFormat}
           onPress={() => {
@@ -86,7 +86,7 @@ export function PlaygroundChatTemplateFooter({
             });
           }}
         >
-          Output Schema
+          Response Format
         </Button>
       ) : null}
       {supportsToolChoice ? (
