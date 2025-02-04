@@ -123,7 +123,10 @@ JSONSchemaDraft7ObjectSchemaContent: TypeAlias = Annotated[
 
 class JSONSchemaDraft7ObjectSchema(BaseModel):
     type: Literal["json-schema-draft-7-object-schema"]
-    content: JSONSchemaDraft7ObjectSchemaContent
+    json_: JSONSchemaDraft7ObjectSchemaContent = Field(
+        ...,
+        alias="json",  # avoid conflict with pydantic json method
+    )
 
 
 JSONSchemaObjectSchema: TypeAlias = Annotated[

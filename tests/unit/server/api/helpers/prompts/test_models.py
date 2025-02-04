@@ -36,7 +36,7 @@ from phoenix.server.types import DbSessionFactory
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -68,7 +68,7 @@ from phoenix.server.types import DbSessionFactory
                 "description": "Gets the current weather for a given city",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -101,7 +101,7 @@ from phoenix.server.types import DbSessionFactory
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -136,7 +136,7 @@ from phoenix.server.types import DbSessionFactory
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -241,7 +241,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -276,7 +276,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "description": "Gets current weather for a given city",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -326,7 +326,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -366,7 +366,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "city": {
@@ -478,7 +478,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "user_intent": {
@@ -526,7 +526,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "user_intent": {
@@ -580,7 +580,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "user_intent": {
@@ -634,7 +634,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 "description": "Classifies the user's intent into one of several categories",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
-                    "content": {
+                    "json": {
                         "type": "object",
                         "properties": {
                             "user_intent": {

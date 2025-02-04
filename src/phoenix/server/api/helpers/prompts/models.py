@@ -225,7 +225,7 @@ def _openai_to_prompt_output_schema(
         description=json_schema.description,
         schema=JSONSchemaDraft7ObjectSchema(
             type="json-schema-draft-7-object-schema",
-            content=json_schema.schema_,
+            json=json_schema.schema_,
         )
         if json_schema is not UNDEFINED
         else UNDEFINED,
@@ -247,7 +247,7 @@ def _prompt_to_openai_output_schema(
         json_schema=PromptOpenAIJSONSchema(
             name=name,
             description=description,
-            schema=schema.content,
+            schema=schema.json_,
             strict=strict,
         )
         if schema is not UNDEFINED
@@ -354,7 +354,7 @@ def _openai_to_prompt_tool(
         description=description,
         schema=JSONSchemaDraft7ObjectSchema(
             type="json-schema-draft-7-object-schema",
-            content=schema_content,
+            json=schema_content,
         )
         if (schema_content := function_definition.parameters) is not UNDEFINED
         else UNDEFINED,
@@ -370,7 +370,7 @@ def _prompt_to_openai_tool(
         function=OpenAIFunctionDefinition(
             name=tool.name,
             description=tool.description,
-            parameters=schema.content if (schema := tool.schema_) is not UNDEFINED else UNDEFINED,
+            parameters=schema.json_ if (schema := tool.schema_) is not UNDEFINED else UNDEFINED,
             strict=tool.extra_parameters.get("strict", UNDEFINED),
         ),
     )
@@ -393,7 +393,7 @@ def _anthropic_to_prompt_tool(
         description=tool.description,
         schema=JSONSchemaDraft7ObjectSchema(
             type="json-schema-draft-7-object-schema",
-            content=tool.input_schema,
+            json=tool.input_schema,
         ),
         extra_parameters=extra_parameters,
     )
@@ -411,7 +411,7 @@ def _prompt_to_anthropic_tool(
     else:
         anthropic_cache_control = AnthropicCacheControlParam.model_validate(cache_control)
     return AnthropicToolDefinition(
-        input_schema=tool.schema_.content,
+        input_schema=tool.schema_.json_,
         name=tool.name,
         description=tool.description,
         cache_control=anthropic_cache_control,
