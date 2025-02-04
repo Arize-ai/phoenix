@@ -369,10 +369,12 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
       getUrlInfoFromAttributes(parsedAttributes);
     return {
       modelConfig: {
+        ...Object.fromEntries(
+          Object.entries({ baseUrl, endpoint, apiVersion }).filter(
+            ([_, value]) => value !== null
+          )
+        ),
         modelName: data.llm.model_name,
-        baseUrl: baseUrl,
-        endpoint: endpoint,
-        apiVersion: apiVersion,
         provider,
         invocationParameters: [],
         supportedInvocationParameters: [],
@@ -401,8 +403,8 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   return {
     baseUrl: data.url.path
       ? data.url.full.split(data.url.path)[0]
-      : data.url.full,
-    endpoint: getEndpoint(data.url.full),
+      : removeParams(data.url.full),
+    endpoint: getOrigin(data.url.full),
     apiVersion: getParamValue(data.url.full, "api-version"),
     parsingErrors: [],
   };
@@ -416,11 +418,17 @@ const getParamValue = (url: string, key: string): string | null => {
     return null;
   }
 };
-
-const getEndpoint = (url: string): string | null => {
+const removeParams = (url: string): string | null => {
   try {
     const parsedUrl = new URL(url);
-    return `${parsedUrl.protocol}//${parsedUrl.host}`;
+    return `${parsedUrl.origin}${parsedUrl.pathname}`;
+  } catch (error) {
+    return null;
+  }
+};
+const getOrigin = (url: string): string | null => {
+  try {
+    return new URL(url).origin;
   } catch (error) {
     return null;
   }
