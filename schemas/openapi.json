@@ -2316,7 +2316,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "const": "output-schema-v1",
+            "const": "response-format-json-schema-v1",
             "title": "Type"
           },
           "name": {
@@ -2496,7 +2496,7 @@
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "output-schema-v1": "#/components/schemas/PromptResponseFormatJSONSchema"
+                    "response-format-json-schema-v1": "#/components/schemas/PromptResponseFormatJSONSchema"
                   }
                 }
               },
