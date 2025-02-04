@@ -478,8 +478,10 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
         from openai import AsyncOpenAI
 
         base_url = model.base_url or os.environ.get("OPENAI_BASE_URL")
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")) and not base_url:
-            raise BadRequest("An API key is required for OpenAI models")
+        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+            if not base_url:
+                raise BadRequest("An API key is required for OpenAI models")
+            api_key = "sk-fake-api-key"
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         super().__init__(client=client, model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
