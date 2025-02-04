@@ -107,6 +107,42 @@ describe("toAnthropic type compatibility", () => {
     assertType<MessageCreateParams>(result);
   });
 
+  it("should handle typed variables", () => {
+    const mockPrompt = {
+      ...BASE_MOCK_PROMPT_VERSION,
+    };
+
+    // variables are still inferred, as normal
+    // no type error occurs as long as variable is stringable
+    toAnthropic({
+      prompt: mockPrompt,
+      variables: {
+        question: true,
+        answer: 42,
+      },
+    });
+
+    // using toOpenAI should take a single generic argument
+    toAnthropic<{ question: number }>({
+      prompt: mockPrompt,
+      variables: {
+        question: 1,
+      },
+    });
+
+    // using toSDK should take two generic arguments
+    toSDK<"anthropic", { question: number }>({
+      sdk: "anthropic",
+      prompt: mockPrompt,
+      variables: {
+        question: 1,
+      },
+    });
+
+    // This test just checks that the types are compatible
+    // it will fail in pnpm type:check if the types break in the future
+  });
+
   it("should handle complex message types", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,

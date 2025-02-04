@@ -2,7 +2,7 @@ import type {
   MessageCreateParams,
   MessageParam,
 } from "@anthropic-ai/sdk/resources/messages/messages";
-import type { toSDKParamsBase } from "./types";
+import type { Variables, toSDKParamsBase } from "./types";
 import { promptMessageToAnthropic } from "../../schemas/llm/messageSchemas";
 import { promptMessageFormatter } from "../../utils/promptMessageFormatter";
 import {
@@ -18,15 +18,15 @@ import invariant from "tiny-invariant";
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type { MessageCreateParams };
 
-export type ToAnthropicParams = toSDKParamsBase;
+export type ToAnthropicParams<V extends Variables> = toSDKParamsBase<V>;
 
 /**
  * Convert a Phoenix prompt to Anthropic client sdk parameters
  */
-export const toAnthropic = ({
+export const toAnthropic = <V extends Variables = Variables>({
   prompt,
   variables,
-}: ToAnthropicParams): MessageCreateParams | null => {
+}: ToAnthropicParams<V>): MessageCreateParams | null => {
   try {
     const { tool_choice: initialToolChoice, ...invocationParameters } =
       prompt.invocation_parameters as unknown as Record<string, unknown> & {

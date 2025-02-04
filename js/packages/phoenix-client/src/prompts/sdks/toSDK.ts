@@ -19,8 +19,8 @@ type SupportedSDK = (typeof SUPPORTED_SDKS)[number];
  */
 export type SDKParams<T extends SupportedSDK> = Parameters<
   (typeof PROVIDER_TO_SDK)[T]
->[0] extends toSDKParamsBase
-  ? Parameters<(typeof PROVIDER_TO_SDK)[T]>[0]
+>[number] extends toSDKParamsBase
+  ? Parameters<(typeof PROVIDER_TO_SDK)[T]>[number]
   : never;
 
 /**
@@ -51,7 +51,7 @@ const getTargetSDK = <T extends SupportedSDK>(sdk: T) => {
 /**
  * Parameters specific to the toSDK function
  */
-type ToSDKParams<T extends SupportedSDK> = {
+type ToSDKParams<T extends SupportedSDK, V extends Variables = Variables> = {
   /**
    * String representing the SDK to convert to
    */
@@ -61,7 +61,7 @@ type ToSDKParams<T extends SupportedSDK> = {
    * Keys are the variable names, values are the variable values
    * The variable format is determined via prompt.template_format
    */
-  variables?: Variables;
+  variables?: V;
 };
 
 /**
@@ -74,11 +74,11 @@ type ToSDKParams<T extends SupportedSDK> = {
  * const response = await openai.chat.completions.create(openaiParams);
  * ```
  */
-export const toSDK = <T extends SupportedSDK>({
+export const toSDK = <T extends SupportedSDK, V extends Variables = Variables>({
   sdk: _sdk,
   ...rest
-}: ToSDKParams<T> & SDKParams<T>) => {
+}: ToSDKParams<T, V> & SDKParams<T>) => {
   const sdk = getTargetSDK(_sdk);
   invariant(sdk, `No SDK found for provider ${_sdk}`);
-  return sdk(rest) as ReturnType<(typeof PROVIDER_TO_SDK)[T]>;
+  return sdk<V>(rest) as ReturnType<(typeof PROVIDER_TO_SDK)[T]>;
 };

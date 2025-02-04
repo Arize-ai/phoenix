@@ -10,7 +10,7 @@ export type Variables = Record<string, string | { toString: () => string }>;
 /**
  * Base parameters for an SDK conversion function
  */
-export type toSDKParamsBase = {
+export type toSDKParamsBase<V extends Variables = Variables> = {
   prompt: PromptVersion;
-  variables?: Variables;
+  variables?: V;
 };

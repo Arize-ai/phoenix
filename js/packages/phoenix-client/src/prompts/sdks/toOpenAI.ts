@@ -3,7 +3,7 @@ import type {
   ChatCompletionMessageParam,
   ResponseFormatJSONSchema,
 } from "openai/resources";
-import type { toSDKParamsBase } from "./types";
+import type { Variables, toSDKParamsBase } from "./types";
 import {
   phoenixToolToOpenAI,
   promptMessageToOpenAI,
@@ -19,15 +19,15 @@ export type {
   ResponseFormatJSONSchema,
 };
 
-export type ToOpenAIParams = toSDKParamsBase;
+export type ToOpenAIParams<V extends Variables> = toSDKParamsBase<V>;
 
 /**
  * Convert a Phoenix prompt to OpenAI client sdk parameters
  */
-export const toOpenAI = ({
+export const toOpenAI = <V extends Variables = Variables>({
   prompt,
   variables,
-}: ToOpenAIParams): ChatCompletionCreateParams | null => {
+}: ToOpenAIParams<V>): ChatCompletionCreateParams | null => {
   try {
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
