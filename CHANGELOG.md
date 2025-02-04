@@ -1,5 +1,19 @@
 # Changelog
 
+## [7.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.4...arize-phoenix-v7.10.0) (2025-02-04)
+
+
+### Features
+
+* Experiment and dataset improvements ([#6163](https://github.com/Arize-ai/phoenix/issues/6163)) ([846f080](https://github.com/Arize-ai/phoenix/commit/846f08068db3a6b1bb9c40d8b4aadd0bc00e12f1))
+* **ui:** in playground model config add text field for base url ([#6244](https://github.com/Arize-ai/phoenix/issues/6244)) ([794f466](https://github.com/Arize-ai/phoenix/commit/794f466335e478d85708b2b352ca6330eef72caa))
+
+
+### Bug Fixes
+
+* **auth:** refresh tokens on websockets ([#6240](https://github.com/Arize-ai/phoenix/issues/6240)) ([ad19645](https://github.com/Arize-ai/phoenix/commit/ad19645b7c01e4b4419ab5b18ca071f63b64a5ec))
+* sanitize db urls in launch_app ([#6243](https://github.com/Arize-ai/phoenix/issues/6243)) ([bb93b0a](https://github.com/Arize-ai/phoenix/commit/bb93b0a2b55b9bbae66fba2453bf1dce3db3935f))
+
 ## [7.9.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.9.3...arize-phoenix-v7.9.4) (2025-01-31)
 
 
