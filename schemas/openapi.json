@@ -2312,11 +2312,11 @@
         ],
         "title": "PromptMessageRole"
       },
-      "PromptOutputSchema": {
+      "PromptResponseFormatJSONSchema": {
         "properties": {
           "type": {
             "type": "string",
-            "const": "output-schema-v1",
+            "const": "response-format-json-schema-v1",
             "title": "Type"
           },
           "name": {
@@ -2354,7 +2354,7 @@
           "schema",
           "extra_parameters"
         ],
-        "title": "PromptOutputSchema"
+        "title": "PromptResponseFormatJSONSchema"
       },
       "PromptStringTemplateV1": {
         "properties": {
@@ -2485,15 +2485,26 @@
               }
             ]
           },
-          "output_schema": {
+          "response_format": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PromptOutputSchema"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "response-format-json-schema-v1": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                }
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Response Format"
           }
         },
         "type": "object",

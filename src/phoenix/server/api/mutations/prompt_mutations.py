@@ -15,7 +15,7 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
-    normalize_output_schema,
+    normalize_response_format,
     normalize_tools,
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
@@ -91,12 +91,12 @@ class PromptMutationMixin:
                 else None
             )
             template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
-            output_schema = (
-                normalize_output_schema(
-                    input_prompt_version.output_schema.definition,
+            response_format = (
+                normalize_response_format(
+                    input_prompt_version.response_format.definition,
                     input_prompt_version.model_provider,
                 )
-                if input_prompt_version.output_schema
+                if input_prompt_version.response_format
                 else None
             )
         except ValidationError as error:
@@ -111,7 +111,7 @@ class PromptMutationMixin:
                 template=template,
                 invocation_parameters=input_prompt_version.invocation_parameters,
                 tools=tools,
-                output_schema=output_schema,
+                response_format=response_format,
                 model_provider=input_prompt_version.model_provider,
                 model_name=input_prompt_version.model_name,
             )
@@ -149,12 +149,12 @@ class PromptMutationMixin:
                 else None
             )
             template = to_pydantic_prompt_chat_template_v1(input.prompt_version.template)
-            output_schema = (
-                normalize_output_schema(
-                    input_prompt_version.output_schema.definition,
+            response_format = (
+                normalize_response_format(
+                    input_prompt_version.response_format.definition,
                     input_prompt_version.model_provider,
                 )
-                if input_prompt_version.output_schema
+                if input_prompt_version.response_format
                 else None
             )
         except ValidationError as error:
@@ -177,7 +177,7 @@ class PromptMutationMixin:
                 template=template,
                 invocation_parameters=input.prompt_version.invocation_parameters,
                 tools=tools,
-                output_schema=output_schema,
+                response_format=response_format,
                 model_provider=input.prompt_version.model_provider,
                 model_name=input.prompt_version.model_name,
             )
@@ -248,7 +248,7 @@ class PromptMutationMixin:
                     template=version.template,
                     invocation_parameters=version.invocation_parameters,
                     tools=version.tools,
-                    output_schema=version.output_schema,
+                    response_format=version.response_format,
                     model_provider=version.model_provider,
                     model_name=version.model_name,
                 )

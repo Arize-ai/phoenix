@@ -176,7 +176,7 @@ class PromptOpenAIJSONSchema(PromptModel):
     strict: Optional[bool] = UNDEFINED
 
 
-class PromptOpenAIOutputSchema(PromptModel):
+class PromptOpenAIResponseFormatJSONSchema(PromptModel):
     """
     Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L40
     """
@@ -185,8 +185,8 @@ class PromptOpenAIOutputSchema(PromptModel):
     type: Literal["json_schema"]
 
 
-class PromptOutputSchema(PromptModel):
-    type: Literal["output-schema-v1"]
+class PromptResponseFormatJSONSchema(PromptModel):
+    type: Literal["response-format-json-schema-v1"]
     name: str
     description: str = UNDEFINED
     schema_: JSONSchemaObjectSchema = Field(
@@ -196,14 +196,19 @@ class PromptOutputSchema(PromptModel):
     extra_parameters: dict[str, Any]
 
 
-class PromptOutputSchemaWrapper(PromptModel):
+PromptResponseFormat: TypeAlias = Annotated[
+    Union[PromptResponseFormatJSONSchema], Field(..., discriminator="type")
+]
+
+
+class PromptResponseFormatWrapper(PromptModel):
     """
     Discriminated union types don't have pydantic methods such as
     `model_validate`, so a wrapper around the union type is needed.
     """
 
     schema_: Annotated[
-        Union[PromptOutputSchema],
+        Union[PromptResponseFormat],
         Field(
             ...,
             discriminator="type",
@@ -212,15 +217,15 @@ class PromptOutputSchemaWrapper(PromptModel):
     ]
 
 
-def _openai_to_prompt_output_schema(
-    schema: PromptOpenAIOutputSchema,
-) -> PromptOutputSchema:
+def _openai_to_prompt_response_format(
+    schema: PromptOpenAIResponseFormatJSONSchema,
+) -> PromptResponseFormat:
     json_schema = schema.json_schema
     extra_parameters = {}
     if (strict := json_schema.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
-    return PromptOutputSchema(
-        type="output-schema-v1",
+    return PromptResponseFormatJSONSchema(
+        type="response-format-json-schema-v1",
         name=json_schema.name,
         description=json_schema.description,
         schema=JSONSchemaDraft7ObjectSchema(
@@ -231,16 +236,16 @@ def _openai_to_prompt_output_schema(
     )
 
 
-def _prompt_to_openai_output_schema(
-    output_schema: PromptOutputSchema,
-) -> PromptOpenAIOutputSchema:
-    assert output_schema.type == "output-schema-v1"
-    name = output_schema.name
-    description = output_schema.description
-    schema = output_schema.schema_
-    extra_parameters = output_schema.extra_parameters
+def _prompt_to_openai_response_format(
+    response_format: PromptResponseFormat,
+) -> PromptOpenAIResponseFormatJSONSchema:
+    assert isinstance(response_format, PromptResponseFormatJSONSchema)
+    name = response_format.name
+    description = response_format.description
+    schema = response_format.schema_
+    extra_parameters = response_format.extra_parameters
     strict = extra_parameters.get("strict", UNDEFINED)
-    return PromptOpenAIOutputSchema(
+    return PromptOpenAIResponseFormatJSONSchema(
         type="json_schema",
         json_schema=PromptOpenAIJSONSchema(
             name=name,
@@ -251,21 +256,23 @@ def _prompt_to_openai_output_schema(
     )
 
 
-def normalize_output_schema(
-    output_schema: dict[str, Any], model_provider: str
-) -> PromptOutputSchema:
+def normalize_response_format(
+    response_format: dict[str, Any], model_provider: str
+) -> PromptResponseFormat:
     if model_provider.lower() == "openai":
-        openai_output_schema = PromptOpenAIOutputSchema.model_validate(output_schema)
-        return _openai_to_prompt_output_schema(openai_output_schema)
+        openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(
+            response_format
+        )
+        return _openai_to_prompt_response_format(openai_response_format)
     raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
-def denormalize_output_schema(
-    output_schema: PromptOutputSchema, model_provider: str
+def denormalize_response_format(
+    response_format: PromptResponseFormat, model_provider: str
 ) -> dict[str, Any]:
     if model_provider.lower() == "openai":
-        openai_output_schema = _prompt_to_openai_output_schema(output_schema)
-        return openai_output_schema.model_dump()
+        openai_response_format = _prompt_to_openai_response_format(response_format)
+        return openai_response_format.model_dump()
     raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
