@@ -27,7 +27,7 @@ const jsonSchemaPropertiesSchema = z
   .passthrough()
   .describe("A map of parameter names to their definitions");
 
-const jsonSchemaZodSchema = z
+export const jsonSchemaZodSchema = z
   .object({
     type: z.literal("object"),
     properties: z.record(
@@ -50,6 +50,20 @@ const jsonSchemaZodSchema = z
       ),
   })
   .passthrough();
+
+/**
+ * The Phoenix tool definition schema
+ */
+export const phoenixToolDefinitionSchema = z.object({
+  type: z.literal("function-tool-v1"),
+  name: z.string(),
+  description: z.string().optional(),
+  schema: z.object({
+    type: z.literal("json-schema-draft-7-object-schema"),
+    json: jsonSchemaZodSchema,
+  }),
+  extra_parameters: z.record(z.unknown()).optional(),
+});
 
 /**
  * The schema for an OpenAI tool definition
@@ -133,6 +147,16 @@ export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
  * --------------------------------
  */
 
+export const phoenixToolToOpenAI = phoenixToolDefinitionSchema.transform(
+  (phoenix): OpenAIToolDefinition => ({
+    type: "function",
+    function: {
+      name: phoenix.name,
+      description: phoenix.description,
+      parameters: phoenix.schema.json,
+    },
+  })
+);
 /**
  * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
  */

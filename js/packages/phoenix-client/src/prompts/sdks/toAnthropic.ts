@@ -11,7 +11,7 @@ import {
 } from "../../schemas/llm/toolChoiceSchemas";
 import {
   fromOpenAIToolDefinition,
-  toOpenAIToolDefinition,
+  phoenixToolToOpenAI,
 } from "../../schemas/llm/toolSchemas";
 import invariant from "tiny-invariant";
 
@@ -57,8 +57,8 @@ export const toAnthropic = ({
       promptMessageToAnthropic.parse(message)
     ) as MessageParam[];
 
-    const tools = prompt.tools?.tool_definitions.map((tool) => {
-      const openaiDefinition = toOpenAIToolDefinition(tool.definition);
+    const tools = prompt.tools?.tools.map((tool) => {
+      const openaiDefinition = phoenixToolToOpenAI.parse(tool);
       invariant(openaiDefinition, "Tool definition is not valid");
       return fromOpenAIToolDefinition({
         toolDefinition: openaiDefinition,
@@ -66,12 +66,13 @@ export const toAnthropic = ({
       });
     });
 
-    const tool_choice = initialToolChoice
-      ? (safelyConvertToolChoiceToProvider({
-          toolChoice: initialToolChoice,
-          targetProvider: "ANTHROPIC",
-        }) ?? undefined)
-      : undefined;
+    const tool_choice =
+      (tools?.length ?? 0) > 0 && initialToolChoice
+        ? (safelyConvertToolChoiceToProvider({
+            toolChoice: initialToolChoice,
+            targetProvider: "ANTHROPIC",
+          }) ?? undefined)
+        : undefined;
 
     // combine base and computed params
     const completionParams = {

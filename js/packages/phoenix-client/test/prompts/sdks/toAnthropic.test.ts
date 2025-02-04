@@ -23,6 +23,7 @@ const BASE_MOCK_PROMPT_VERSION = {
   },
   invocation_parameters: {
     temperature: 0.7,
+    tool_choice: "auto",
   },
 } satisfies Partial<PromptVersion>;
 
@@ -60,27 +61,34 @@ describe("toAnthropic type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        version: "tools-v1",
-        tool_definitions: [
+        type: "tools-v1",
+        tools: [
           {
-            definition: {
-              type: "function",
-              function: {
-                name: "test",
-                description: "test function",
-                parameters: {
-                  type: "object",
-                  properties: {},
-                },
+            type: "function-tool-v1",
+            name: "test",
+            description: "test function",
+            schema: {
+              type: "json-schema-draft-7-object-schema",
+              json: {
+                type: "object",
+                properties: {},
               },
             },
           },
         ],
       },
       output_schema: {
-        definition: {
-          type: "json_object",
+        type: "output-schema-v1",
+        name: "test",
+        description: "test function",
+        schema: {
+          type: "json-schema-draft-7-object-schema",
+          json: {
+            type: "object",
+            properties: {},
+          },
         },
+        extra_parameters: {},
       },
       invocation_parameters: {
         temperature: 0.7,
@@ -103,25 +111,24 @@ describe("toAnthropic type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        version: "tools-v1",
-        tool_definitions: [
+        type: "tools-v1",
+        tools: [
           {
-            definition: {
-              type: "function",
-              function: {
-                name: "edit_image",
-                description: "edit an image",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    image_url: {
-                      type: "string",
-                      description: "the url of the image to edit",
-                    },
-                    edit_type: {
-                      type: "string",
-                      description: "the type of edit to perform",
-                    },
+            type: "function-tool-v1",
+            name: "edit_image",
+            description: "edit an image",
+            schema: {
+              type: "json-schema-draft-7-object-schema",
+              json: {
+                type: "object",
+                properties: {
+                  image_url: {
+                    type: "string",
+                    description: "the url of the image to edit",
+                  },
+                  edit_type: {
+                    type: "string",
+                    description: "the type of edit to perform",
                   },
                 },
               },
@@ -241,7 +248,9 @@ describe("toAnthropic type compatibility", () => {
       ],
       model: "gpt-4",
       temperature: 0.7,
-      tool_choice: undefined,
+      tool_choice: {
+        type: "auto",
+      },
       tools: [
         {
           description: "edit an image",

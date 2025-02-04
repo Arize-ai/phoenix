@@ -44,6 +44,17 @@ export type PromptChatMessage = Extract<
 >["messages"][number];
 
 /**
+ * The Phoenix prompt tool type from the API.
+ */
+export type PromptTool =
+  components["schemas"]["PromptToolsV1"]["tools"][number];
+
+/**
+ * The Phoenix prompt output schema type from the API.
+ */
+export type PromptOutputSchema = components["schemas"]["PromptOutputSchema"];
+
+/**
  * The prompt type from the API.
  */
 export type Prompt = components["schemas"]["Prompt"];

@@ -1,15 +1,16 @@
 import type {
   ChatCompletionCreateParams,
   ChatCompletionMessageParam,
-  ChatCompletionToolChoiceOption,
   ResponseFormatJSONSchema,
 } from "openai/resources";
 import type { toSDKParamsBase } from "./types";
 import {
-  openAIToolDefinitionSchema,
+  phoenixToolToOpenAI,
   promptMessageToOpenAI,
+  safelyConvertToolChoiceToProvider,
 } from "../../schemas/llm";
 import { promptMessageFormatter } from "../../utils/promptMessageFormatter";
+import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/responseFormatSchema";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type {
@@ -53,26 +54,28 @@ export const toOpenAI = ({
       promptMessageToOpenAI.parse(message)
     );
 
-    const tools = prompt.tools?.tool_definitions.map((tool) =>
-      openAIToolDefinitionSchema.parse(tool.definition)
+    const tools = prompt.tools?.tools.map((tool) =>
+      phoenixToolToOpenAI.parse(tool)
     );
 
-    const response_format = prompt.output_schema?.definition
-      ? // we validate this on the phoenix-side
-        (prompt.output_schema
-          ?.definition as unknown as ResponseFormatJSONSchema)
+    const response_format = prompt.output_schema
+      ? phoenixResponseFormatToOpenAI.parse(prompt.output_schema)
       : undefined;
+
+    const tool_choice =
+      (tools?.length ?? 0) > 0 && "tool_choice" in baseCompletionParams
+        ? (safelyConvertToolChoiceToProvider({
+            toolChoice: baseCompletionParams.tool_choice,
+            targetProvider: "OPENAI",
+          }) ?? undefined)
+        : undefined;
 
     // combine base and computed params
     const completionParams = {
       ...baseCompletionParams,
       messages,
       tools: (tools?.length ?? 0) > 0 ? tools : undefined,
-      tool_choice:
-        (tools?.length ?? 0) > 0 && "tool_choice" in baseCompletionParams
-          ? // we validate this on the phoenix-side
-            (baseCompletionParams.tool_choice as unknown as ChatCompletionToolChoiceOption)
-          : undefined,
+      tool_choice,
       response_format,
     } satisfies Partial<ChatCompletionCreateParams>;
 

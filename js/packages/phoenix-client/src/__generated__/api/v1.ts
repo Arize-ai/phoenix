@@ -495,9 +495,8 @@ export interface components {
         /** ImageContentPart */
         ImageContentPart: {
             /**
-             * Type
-             * @default image
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "image";
             image: components["schemas"]["ImageContentValue"];
@@ -514,6 +513,16 @@ export interface components {
              * @description The ID of the inserted span annotation
              */
             id: string;
+        };
+        /** JSONSchemaDraft7ObjectSchema */
+        JSONSchemaDraft7ObjectSchema: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "json-schema-draft-7-object-schema";
+            /** Json */
+            json: Record<string, unknown>;
         };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
@@ -568,6 +577,22 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
         };
+        /** PromptFunctionToolV1 */
+        PromptFunctionToolV1: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "function-tool-v1";
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Schema */
+            schema?: components["schemas"]["JSONSchemaDraft7ObjectSchema"];
+            /** Extra Parameters */
+            extra_parameters?: Record<string, unknown>;
+        };
         /** PromptMessage */
         PromptMessage: {
             role: components["schemas"]["PromptMessageRole"];
@@ -581,8 +606,19 @@ export interface components {
         PromptMessageRole: "USER" | "SYSTEM" | "AI" | "TOOL";
         /** PromptOutputSchema */
         PromptOutputSchema: {
-            /** Definition */
-            definition: Record<string, unknown>;
+            /**
+             * Type
+             * @constant
+             */
+            type: "output-schema-v1";
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Schema */
+            schema: components["schemas"]["JSONSchemaDraft7ObjectSchema"];
+            /** Extra Parameters */
+            extra_parameters: Record<string, unknown>;
         };
         /** PromptStringTemplateV1 */
         PromptStringTemplateV1: {
@@ -604,21 +640,15 @@ export interface components {
          * @enum {string}
          */
         PromptTemplateType: "STR" | "CHAT";
-        /** PromptToolDefinition */
-        PromptToolDefinition: {
-            /** Definition */
-            definition: Record<string, unknown>;
-        };
         /** PromptToolsV1 */
         PromptToolsV1: {
             /**
-             * Version
-             * @default tools-v1
+             * Type
              * @constant
              */
-            version: "tools-v1";
-            /** Tool Definitions */
-            tool_definitions: components["schemas"]["PromptToolDefinition"][];
+            type: "tools-v1";
+            /** Tools */
+            tools: components["schemas"]["PromptFunctionToolV1"][];
         };
         /** PromptVersion */
         PromptVersion: {
@@ -688,9 +718,8 @@ export interface components {
         /** TextContentPart */
         TextContentPart: {
             /**
-             * Type
-             * @default text
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "text";
             text: components["schemas"]["TextContentValue"];
@@ -703,9 +732,8 @@ export interface components {
         /** ToolCallContentPart */
         ToolCallContentPart: {
             /**
-             * Type
-             * @default tool_call
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "tool_call";
             tool_call: components["schemas"]["ToolCallContentValue"];
@@ -720,7 +748,6 @@ export interface components {
         ToolCallFunction: {
             /**
              * Type
-             * @default function
              * @constant
              */
             type: "function";
@@ -732,9 +759,8 @@ export interface components {
         /** ToolResultContentPart */
         ToolResultContentPart: {
             /**
-             * Type
-             * @default tool_result
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "tool_result";
             tool_result: components["schemas"]["ToolResultContentValue"];

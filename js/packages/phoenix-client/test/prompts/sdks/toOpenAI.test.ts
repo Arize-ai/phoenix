@@ -22,6 +22,7 @@ const BASE_MOCK_PROMPT_VERSION = {
     ],
   },
   invocation_parameters: {
+    tool_choice: "auto",
     temperature: 0.7,
   },
 } satisfies Partial<PromptVersion>;
@@ -64,27 +65,34 @@ describe("toOpenAI type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        version: "tools-v1",
-        tool_definitions: [
+        type: "tools-v1",
+        tools: [
           {
-            definition: {
-              type: "function",
-              function: {
-                name: "test",
-                description: "test function",
-                parameters: {
-                  type: "object",
-                  properties: {},
-                },
+            type: "function-tool-v1",
+            name: "test",
+            description: "test function",
+            schema: {
+              type: "json-schema-draft-7-object-schema",
+              json: {
+                type: "object",
+                properties: {},
               },
             },
           },
         ],
       },
       output_schema: {
-        definition: {
-          type: "json_object",
+        type: "output-schema-v1",
+        name: "test",
+        description: "test function",
+        schema: {
+          type: "json-schema-draft-7-object-schema",
+          json: {
+            type: "object",
+            properties: {},
+          },
         },
+        extra_parameters: {},
       },
       invocation_parameters: {
         temperature: 0.7,
@@ -107,31 +115,43 @@ describe("toOpenAI type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        version: "tools-v1",
-        tool_definitions: [
+        type: "tools-v1",
+        tools: [
           {
-            definition: {
-              type: "function",
-              function: {
-                name: "edit_image",
-                description: "edit an image",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    image_url: {
-                      type: "string",
-                      description: "the url of the image to edit",
-                    },
-                    edit_type: {
-                      type: "string",
-                      description: "the type of edit to perform",
-                    },
+            type: "function-tool-v1",
+            name: "edit_image",
+            description: "edit an image",
+            schema: {
+              type: "json-schema-draft-7-object-schema",
+              json: {
+                type: "object",
+                properties: {
+                  image_url: {
+                    type: "string",
+                    description: "the url of the image to edit",
+                  },
+                  edit_type: {
+                    type: "string",
+                    description: "the type of edit to perform",
                   },
                 },
               },
             },
           },
         ],
+      },
+      output_schema: {
+        type: "output-schema-v1",
+        name: "test",
+        description: "test function",
+        schema: {
+          type: "json-schema-draft-7-object-schema",
+          json: {
+            type: "object",
+            properties: {},
+          },
+        },
+        extra_parameters: {},
       },
       template: {
         version: "chat-template-v1",
@@ -234,9 +254,19 @@ describe("toOpenAI type compatibility", () => {
         },
       ],
       model: "gpt-4",
-      response_format: undefined,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "test",
+          description: "test function",
+          schema: {
+            type: "object",
+            properties: {},
+          },
+        },
+      },
       temperature: 0.7,
-      tool_choice: undefined,
+      tool_choice: "auto",
       tools: [
         {
           type: "function",
