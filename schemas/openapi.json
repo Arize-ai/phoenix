@@ -2030,15 +2030,15 @@
             "const": "json-schema-draft-7-object-schema",
             "title": "Type"
           },
-          "content": {
+          "json": {
             "type": "object",
-            "title": "Content"
+            "title": "Json"
           }
         },
         "type": "object",
         "required": [
           "type",
-          "content"
+          "json"
         ],
         "title": "JSONSchemaDraft7ObjectSchema"
       },
