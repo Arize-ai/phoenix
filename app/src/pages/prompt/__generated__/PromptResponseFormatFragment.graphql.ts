@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af2571352cefa40fd18eef7b964d851d>>
+ * @generated SignedSource<<6ab7102d059d8f6fc33f8ec4b1efe187>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,29 +10,29 @@
 
 import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type PromptOutputSchemaFragment$data = {
-  readonly outputSchema: {
+export type PromptResponseFormatFragment$data = {
+  readonly responseFormat: {
     readonly definition: any;
   } | null;
-  readonly " $fragmentType": "PromptOutputSchemaFragment";
+  readonly " $fragmentType": "PromptResponseFormatFragment";
 };
-export type PromptOutputSchemaFragment$key = {
-  readonly " $data"?: PromptOutputSchemaFragment$data;
-  readonly " $fragmentSpreads": FragmentRefs<"PromptOutputSchemaFragment">;
+export type PromptResponseFormatFragment$key = {
+  readonly " $data"?: PromptResponseFormatFragment$data;
+  readonly " $fragmentSpreads": FragmentRefs<"PromptResponseFormatFragment">;
 };
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "PromptOutputSchemaFragment",
+  "name": "PromptResponseFormatFragment",
   "selections": [
     {
       "alias": null,
       "args": null,
-      "concreteType": "OutputSchema",
+      "concreteType": "ResponseFormat",
       "kind": "LinkedField",
-      "name": "outputSchema",
+      "name": "responseFormat",
       "plural": false,
       "selections": [
         {
@@ -50,6 +50,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "80f998ac6c2d70b49bfce3478c0fda19";
+(node as any).hash = "154d745ec5e978e0dfc811ebfb9faa8c";
 
 export default node;
