@@ -186,7 +186,7 @@ class PromptOpenAIResponseFormatJSONSchema(PromptModel):
 
 
 class PromptResponseFormatJSONSchema(PromptModel):
-    type: Literal["output-schema-v1"]
+    type: Literal["response-format-json-schema-v1"]
     name: str
     description: str = UNDEFINED
     schema_: JSONSchemaObjectSchema = Field(
@@ -225,7 +225,7 @@ def _openai_to_prompt_response_format(
     if (strict := json_schema.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
     return PromptResponseFormatJSONSchema(
-        type="output-schema-v1",
+        type="response-format-json-schema-v1",
         name=json_schema.name,
         description=json_schema.description,
         schema=JSONSchemaDraft7ObjectSchema(
@@ -239,7 +239,7 @@ def _openai_to_prompt_response_format(
 def _prompt_to_openai_response_format(
     response_format: PromptResponseFormatJSONSchema,
 ) -> PromptOpenAIResponseFormatJSONSchema:
-    assert response_format.type == "output-schema-v1"
+    assert response_format.type == "response-format-json-schema-v1"
     name = response_format.name
     description = response_format.description
     schema = response_format.schema_

@@ -614,7 +614,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -662,7 +662,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -716,7 +716,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -769,7 +769,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "output-schema-v1",
+                "type": "response-format-json-schema-v1",
                 "name": "classify_user_intent",
                 "description": "Classifies the user's intent into one of several categories",
                 "schema": {
