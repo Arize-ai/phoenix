@@ -59,6 +59,10 @@ class BaseModel(ABC):
         """
         ...
 
+    @property
+    def _timeout(self) -> Optional[int]:
+        return getattr(self, "timeout", None)
+
     def reload_client(self) -> None:
         pass
 

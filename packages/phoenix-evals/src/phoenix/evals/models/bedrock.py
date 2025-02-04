@@ -49,6 +49,7 @@ class BedrockModel(BaseModel):
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 5.
+        timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
 
     Example:
         .. code-block:: python
@@ -71,6 +72,7 @@ class BedrockModel(BaseModel):
     max_content_size: Optional[int] = None
     extra_parameters: Dict[str, Any] = field(default_factory=dict)
     initial_rate_limit: int = 5
+    timeout: int = 120
 
     def __post_init__(self) -> None:
         self._init_client()

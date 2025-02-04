@@ -320,6 +320,7 @@ def llm_classify(
         max_retries=max_retries,
         exit_on_error=exit_on_error,
         fallback_return_value=fallback_return_value,
+        timeout=model._timeout,
     )
 
     list_of_inputs: Union[Tuple[Any], List[Any]]
@@ -412,6 +413,16 @@ def run_evals(
         else:
             concurrency = min(evaluator.default_concurrency for evaluator in evaluators)
 
+    # use the maximum timeout of all the evaluators
+    timeout = max(
+        (
+            evaluator._model._timeout
+            for evaluator in evaluators
+            if evaluator._model._timeout is not None
+        ),
+        default=None,
+    )
+
     # clients need to be reloaded to ensure that async evals work properly
     for evaluator in evaluators:
         evaluator.reload_client()
@@ -443,6 +454,7 @@ def run_evals(
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
         fallback_return_value=(None, None, None),
+        timeout=timeout,
     )
 
     total_records = len(dataframe)
