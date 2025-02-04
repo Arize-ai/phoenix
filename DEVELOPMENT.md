@@ -41,24 +41,36 @@ Create a new virtual environment with a Phoenix-compatible Python version. For e
 conda create --name phoenix python=3.8
 ```
 
-Install web build dependencies
-[nodejs via nvm](https://github.com/nvm-sh/nvm) - LTS should work in most cases
-[pnpm](https://pnpm.io/) - `npm install -g pnpm`
-Make sure you have pnpm (node package manager) available on your terminal as well
+Second, install the web build dependencies.
 
-Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev,test]` extra) by running
+We recommend installing [nodejs via nvm](https://github.com/nvm-sh/nvm) and then
+installing `pnpm` globally to manage the web frontend dependencies.
 
 ```bash
-pip install -e ".[dev,test]"
+# install nvm
+# https://github.com/nvm-sh/nvm
+# install node via nvm, our .nvmrc file will automatically instruct nvm to install 
+# the version specified in the file
+nvm install
+# set it as default (optional)
+nvm alias default v22
+# install pnpm globally for v22
+npm i -g pnpm@9.15.5
 ```
 
-from the repository root.
-
-You will also need to build the web app. Change directory to `app` and run:
+Then we will build the web app. Change directory to `app` and run:
 
 ```bash
 pnpm install
 pnpm run build
+```
+
+Finally, change directory back to repository root and install `phoenix` in
+development mode (using the `-e` flag), and with development dependencies
+(using the `[dev,test]` extra) by running
+
+```bash
+pip install -e ".[dev,test]"
 ```
 
 If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain from source. To install LlamaIndex from source,
