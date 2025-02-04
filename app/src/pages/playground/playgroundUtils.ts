@@ -388,44 +388,32 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
   apiVersion: string | null;
 } {
   const { success, data } = urlSchema.safeParse(parsedAttributes);
-  if (!success) {
-    return {
-      baseUrl: null,
-      apiVersion: null,
-      endpoint: null,
-    };
+  if (success) {
+    try {
+      const url = new URL(data.url.full);
+      let baseUrl = url;
+      if (data.url.path) {
+        try {
+          baseUrl = new URL(data.url.full.split(data.url.path)[0]);
+        } catch (_) {
+          // If the split URL is invalid, we will just use the full URL
+        }
+      }
+      return {
+        baseUrl: `${baseUrl.origin}${baseUrl.pathname}`,
+        endpoint: url.origin,
+        apiVersion: url.searchParams.get("api-version") || null,
+      };
+    } catch (_) {
+      // If the URL is invalid, we will just return null for all values
+    }
   }
   return {
-    baseUrl: removeParams(
-      data.url.path ? data.url.full.split(data.url.path)[0] : data.url.full
-    ),
-    endpoint: getOrigin(data.url.full),
-    apiVersion: getParamValue(data.url.full, "api-version"),
+    baseUrl: null,
+    apiVersion: null,
+    endpoint: null,
   };
 }
-
-const getParamValue = (url: string, key: string): string | null => {
-  try {
-    return new URL(url).searchParams.get(key);
-  } catch (error) {
-    return null;
-  }
-};
-const removeParams = (url: string): string | null => {
-  try {
-    const { origin, pathname } = new URL(url);
-    return `${origin}${pathname}`;
-  } catch (error) {
-    return null;
-  }
-};
-const getOrigin = (url: string): string | null => {
-  try {
-    return new URL(url).origin;
-  } catch (error) {
-    return null;
-  }
-};
 
 /**
  * Attempts to get llm.invocation_parameters from the span attributes.
