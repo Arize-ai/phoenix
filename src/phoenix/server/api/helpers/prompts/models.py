@@ -196,14 +196,19 @@ class PromptOutputSchema(PromptModel):
     extra_parameters: dict[str, Any]
 
 
-class PromptOutputSchemaWrapper(PromptModel):
+PromptResponseFormat: TypeAlias = Annotated[
+    Union[PromptOutputSchema], Field(..., discriminator="type")
+]
+
+
+class PromptResponseFormatWrapper(PromptModel):
     """
     Discriminated union types don't have pydantic methods such as
     `model_validate`, so a wrapper around the union type is needed.
     """
 
     schema_: Annotated[
-        Union[PromptOutputSchema],
+        Union[PromptResponseFormat],
         Field(
             ...,
             discriminator="type",
