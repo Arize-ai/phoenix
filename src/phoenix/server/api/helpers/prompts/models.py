@@ -176,7 +176,7 @@ class PromptOpenAIJSONSchema(PromptModel):
     strict: Optional[bool] = UNDEFINED
 
 
-class PromptOpenAIOutputSchema(PromptModel):
+class PromptOpenAIResponseFormatJSONSchema(PromptModel):
     """
     Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L40
     """
@@ -185,7 +185,7 @@ class PromptOpenAIOutputSchema(PromptModel):
     type: Literal["json_schema"]
 
 
-class PromptOutputSchema(PromptModel):
+class PromptResponseFormatJSONSchema(PromptModel):
     type: Literal["output-schema-v1"]
     name: str
     description: str = UNDEFINED
@@ -197,7 +197,7 @@ class PromptOutputSchema(PromptModel):
 
 
 PromptResponseFormat: TypeAlias = Annotated[
-    Union[PromptOutputSchema], Field(..., discriminator="type")
+    Union[PromptResponseFormatJSONSchema], Field(..., discriminator="type")
 ]
 
 
@@ -218,13 +218,13 @@ class PromptResponseFormatWrapper(PromptModel):
 
 
 def _openai_to_prompt_response_format(
-    schema: PromptOpenAIOutputSchema,
-) -> PromptOutputSchema:
+    schema: PromptOpenAIResponseFormatJSONSchema,
+) -> PromptResponseFormatJSONSchema:
     json_schema = schema.json_schema
     extra_parameters = {}
     if (strict := json_schema.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
-    return PromptOutputSchema(
+    return PromptResponseFormatJSONSchema(
         type="output-schema-v1",
         name=json_schema.name,
         description=json_schema.description,
@@ -237,15 +237,15 @@ def _openai_to_prompt_response_format(
 
 
 def _prompt_to_openai_response_format(
-    response_format: PromptOutputSchema,
-) -> PromptOpenAIOutputSchema:
+    response_format: PromptResponseFormatJSONSchema,
+) -> PromptOpenAIResponseFormatJSONSchema:
     assert response_format.type == "output-schema-v1"
     name = response_format.name
     description = response_format.description
     schema = response_format.schema_
     extra_parameters = response_format.extra_parameters
     strict = extra_parameters.get("strict", UNDEFINED)
-    return PromptOpenAIOutputSchema(
+    return PromptOpenAIResponseFormatJSONSchema(
         type="json_schema",
         json_schema=PromptOpenAIJSONSchema(
             name=name,
@@ -258,15 +258,17 @@ def _prompt_to_openai_response_format(
 
 def normalize_response_format(
     response_format: dict[str, Any], model_provider: str
-) -> PromptOutputSchema:
+) -> PromptResponseFormatJSONSchema:
     if model_provider.lower() == "openai":
-        openai_response_format = PromptOpenAIOutputSchema.model_validate(response_format)
+        openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(
+            response_format
+        )
         return _openai_to_prompt_response_format(openai_response_format)
     raise ValueError(f"Unsupported model provider: {model_provider}")
 
 
 def denormalize_response_format(
-    response_format: PromptOutputSchema, model_provider: str
+    response_format: PromptResponseFormatJSONSchema, model_provider: str
 ) -> dict[str, Any]:
     if model_provider.lower() == "openai":
         openai_response_format = _prompt_to_openai_response_format(response_format)
