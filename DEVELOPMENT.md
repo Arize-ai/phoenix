@@ -53,7 +53,7 @@ installing `pnpm` globally to manage the web frontend dependencies.
 # the version specified in the file
 nvm install
 # set it as default (optional)
-nvm alias default v22
+nvm alias default <version-that-was-installed>
 # install pnpm globally for v22
 npm i -g pnpm@9.15.5
 ```
