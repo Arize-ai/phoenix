@@ -87,9 +87,13 @@ export type Tool = {
 
 export type PlaygroundInstancePrompt = {
   /**
-   * The id of the prompt
+   * The relay global id of the prompt
    */
   id: string;
+  /**
+   * The name (Identifier) of the prompt
+   */
+  name: string;
   /**
    * The version of the prompt. Assumes latest version if not provided.
    */
