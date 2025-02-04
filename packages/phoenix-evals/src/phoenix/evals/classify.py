@@ -414,13 +414,14 @@ def run_evals(
             concurrency = min(evaluator.default_concurrency for evaluator in evaluators)
 
     # use the maximum timeout of all the evaluators
-    timeout = None
-    for evaluator in evaluators:
-        if evaluator_timeout := evaluator._model._timeout:
-            if timeout is None:
-                timeout = evaluator_timeout
-            else:
-                timeout = max(timeout, evaluator_timeout)
+    timeout = max(
+        (
+            evaluator._model._timeout
+            for evaluator in evaluators
+            if evaluator._model._timeout is not None
+        ),
+        default=None,
+    )
 
     # clients need to be reloaded to ensure that async evals work properly
     for evaluator in evaluators:
