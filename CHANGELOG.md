@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.10.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.2...arize-phoenix-v7.10.3) (2025-02-04)
+
+
+### Bug Fixes
+
+* **playground:** if base url is provided but not api key, use fake api key for openai client ([#6259](https://github.com/Arize-ai/phoenix/issues/6259)) ([afb818a](https://github.com/Arize-ai/phoenix/commit/afb818aab3611a943d1548efa16af2895a1e2631))
+
 ## [7.10.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.1...arize-phoenix-v7.10.2) (2025-02-04)
 
 
