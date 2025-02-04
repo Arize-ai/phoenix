@@ -219,16 +219,18 @@ function PlaygroundContent() {
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
   const isRunning = instances.some((instance) => instance.activeRunId != null);
-  const anyDirtyInstances = instances.some((instance) => instance.dirty);
+  const anyDirtyPromptInstances = instances
+    .filter((i) => i.prompt)
+    .some((instance) => instance.dirty);
 
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
       const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
-      return (isRunning || anyDirtyInstances) && goingToNewPage;
+      return (isRunning || anyDirtyPromptInstances) && goingToNewPage;
     },
-    [isRunning, anyDirtyInstances]
+    [isRunning, anyDirtyPromptInstances]
   );
   const blocker = useBlocker(shouldBlockUnload);
 

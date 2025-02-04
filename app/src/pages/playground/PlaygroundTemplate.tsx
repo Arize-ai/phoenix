@@ -28,6 +28,7 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const instanceId = props.playgroundInstanceId;
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const addMessage = usePlaygroundContext((state) => state.addMessage);
+  const setDirty = usePlaygroundContext((state) => state.setDirty);
   const instances = usePlaygroundContext((state) => state.instances);
   const instance = instances.find((instance) => instance.id === instanceId);
   const index = instances.findIndex((instance) => instance.id === instanceId);
@@ -62,9 +63,12 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
           playgroundInstanceId: instanceId,
           messages: response.instance.template.messages,
         });
+        // force reset the dirty state of the instance, unfortunately the addMessage
+        // will set it to true again
+        setDirty(instanceId, false);
       }
     },
-    [instanceId, updateInstance, addMessage]
+    [instanceId, updateInstance, addMessage, setDirty]
   );
 
   if (!instance) {
