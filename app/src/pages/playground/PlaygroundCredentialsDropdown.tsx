@@ -92,7 +92,7 @@ export function PlaygroundCredentialsDropdown() {
                   justifyContent="end"
                 >
                   <ExternalLink href="/settings">
-                    View all AI povider configurations
+                    View all AI provider configurations
                   </ExternalLink>
                 </Flex>
               </View>
