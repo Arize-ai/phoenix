@@ -9,7 +9,7 @@ import {
   TextField,
 } from "@arizeai/components";
 
-import { Flex, Heading, Text, View } from "@phoenix/components";
+import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
@@ -60,10 +60,12 @@ export function PlaygroundCredentialsDropdown() {
               <Heading level={2} weight="heavy">
                 API Keys
               </Heading>
-              <Text color="text-700">
-                API keys are stored in your browser and used to communicate with
-                their respective API&apos;s.
-              </Text>
+              <View paddingY="size-50">
+                <Text color="text-700" size="XS">
+                  API keys are stored in your browser and used to communicate
+                  with their respective API&apos;s.
+                </Text>
+              </View>
               <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
                   const credentialName = ProviderToCredentialNameMap[provider];
@@ -82,6 +84,18 @@ export function PlaygroundCredentialsDropdown() {
                   );
                 })}
               </Flex>
+              <View paddingTop="size-100">
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  width="100%"
+                  justifyContent="end"
+                >
+                  <ExternalLink href="/settings">
+                    View all AI povider configurations
+                  </ExternalLink>
+                </Flex>
+              </View>
             </Form>
           </View>
         </DropdownMenu>
