@@ -22,7 +22,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     to_gql_template_from_orm,
 )
 
-from .OutputSchema import OutputSchema
+from .ResponseFormat import ResponseFormat
 from .ToolDefinition import ToolDefinition
 from .User import User, to_gql_user
 
@@ -37,7 +37,7 @@ class PromptVersion(Node):
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
     tools: list[ToolDefinition]
-    response_format: Optional[OutputSchema] = None
+    response_format: Optional[ResponseFormat] = None
     model_name: str
     model_provider: str
     metadata: JSON
@@ -113,7 +113,7 @@ def to_gql_prompt_version(
     else:
         tools = []
     response_format = (
-        OutputSchema(
+        ResponseFormat(
             definition=denormalize_response_format(
                 prompt_version.response_format,
                 prompt_version.model_provider,

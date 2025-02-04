@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bdb4f0245ff9d3351cf40abc8d442a14>>
+ * @generated SignedSource<<567baed62f0336818cdfc67baf463837>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,7 +30,7 @@ const node: ReaderFragment = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "OutputSchema",
+      "concreteType": "ResponseFormat",
       "kind": "LinkedField",
       "name": "responseFormat",
       "plural": false,

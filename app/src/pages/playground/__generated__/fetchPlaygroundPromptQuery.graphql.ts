@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0680d1e295a634fa3f28195d43eab1bb>>
+ * @generated SignedSource<<6623e4180478f9fbce22dfb0204fe9e2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -223,7 +223,7 @@ v9 = {
             {
               "alias": null,
               "args": null,
-              "concreteType": "OutputSchema",
+              "concreteType": "ResponseFormat",
               "kind": "LinkedField",
               "name": "responseFormat",
               "plural": false,

@@ -2488,12 +2488,23 @@
           "response_format": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/PromptOutputSchema"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PromptOutputSchema"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "output-schema-v1": "#/components/schemas/PromptOutputSchema"
+                  }
+                }
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Response Format"
           }
         },
         "type": "object",

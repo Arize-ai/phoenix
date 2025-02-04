@@ -13,7 +13,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
-    PromptOutputSchema,
+    PromptResponseFormat,
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
@@ -45,7 +45,7 @@ class PromptVersion(V1RoutesBaseModel):
     template_format: PromptTemplateFormat = Field(default=PromptTemplateFormat.MUSTACHE)
     invocation_parameters: dict[str, Any] = Field(default_factory=dict)
     tools: Optional[PromptToolsV1] = None
-    response_format: Optional[PromptOutputSchema] = None
+    response_format: Optional[PromptResponseFormat] = None
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):

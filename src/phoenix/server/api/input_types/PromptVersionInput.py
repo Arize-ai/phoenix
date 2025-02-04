@@ -30,8 +30,7 @@ class ToolDefinitionInput:
 
 
 @strawberry.input
-class OutputSchemaInput:
-    version: strawberry.Private[str] = "openai-output-schema-v1"
+class ResponseFormatInput:
     definition: JSON
 
 
@@ -90,7 +89,7 @@ class ChatPromptVersionInput:
     template: PromptChatTemplateInput
     invocation_parameters: JSON = strawberry.field(default_factory=dict)
     tools: list[ToolDefinitionInput] = strawberry.field(default_factory=list)
-    response_format: Optional[OutputSchemaInput] = None
+    response_format: Optional[ResponseFormatInput] = None
     model_provider: str
     model_name: str
 
