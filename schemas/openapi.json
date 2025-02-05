@@ -2464,12 +2464,10 @@
             }
           },
           "template_type": {
-            "$ref": "#/components/schemas/PromptTemplateType",
-            "default": "CHAT"
+            "$ref": "#/components/schemas/PromptTemplateType"
           },
           "template_format": {
-            "$ref": "#/components/schemas/PromptTemplateFormat",
-            "default": "MUSTACHE"
+            "$ref": "#/components/schemas/PromptTemplateFormat"
           },
           "invocation_parameters": {
             "type": "object",
@@ -2513,7 +2511,10 @@
           "description",
           "model_provider",
           "model_name",
-          "template"
+          "template",
+          "template_type",
+          "template_format",
+          "invocation_parameters"
         ],
         "title": "PromptVersion"
       },

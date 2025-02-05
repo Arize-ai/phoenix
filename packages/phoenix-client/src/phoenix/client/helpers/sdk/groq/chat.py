@@ -22,6 +22,7 @@ from typing_extensions import Required, TypeAlias, assert_never
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     ImageContentValue,
+    JSONSchemaDraft7ObjectSchema,
     PromptFunctionToolV1,
     PromptMessage,
     PromptToolsV1,
@@ -179,7 +180,7 @@ def _to_tools(
         if "description" in tool:
             function["description"] = tool["description"]
         if "schema" in tool and tool["schema"]:
-            function["parameters"] = dict(tool["schema"])
+            function["parameters"] = dict(tool["schema"]["json"])
         yield {"type": "function", "function": function}
 
 
@@ -196,7 +197,10 @@ def _from_tools(
         if "description" in definition:
             function["description"] = definition["description"]
         if "parameters" in definition:
-            function["schema"] = definition["parameters"]
+            function["schema"] = JSONSchemaDraft7ObjectSchema(
+                type="json-schema-draft-7-object-schema",
+                json=definition["parameters"],
+            )
         functions.append(function)
     return PromptToolsV1(type="tools-v1", tools=functions)
 

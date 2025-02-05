@@ -7,40 +7,32 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
         if node.module == "dataclasses":
             # Replace `from dataclasses import dataclass` with
             # `from typing import TypedDict`
-            return ast.copy_location(
-                ast.ImportFrom(
-                    module="typing",
-                    names=[ast.alias(name="TypedDict", asname=None)],
-                    level=0,
-                ),
-                node,
+            return ast.ImportFrom(
+                module="typing",
+                names=[ast.alias(name="TypedDict", asname=None)],
+                level=0,
             )
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
         # Redefine all classes as TypedDict
-        return ast.copy_location(
-            ast.ClassDef(
-                name=node.name,
-                bases=[ast.Name(id="TypedDict", ctx=ast.Load())],
-                keywords=node.keywords,
-                body=[self.visit(child) for child in node.body],
-                decorator_list=[],
-            ),
-            node,
+        return ast.ClassDef(
+            name=node.name,
+            bases=[ast.Name(id="TypedDict", ctx=ast.Load())],
+            keywords=node.keywords,
+            body=[self.visit(child) for child in node.body],
+            decorator_list=[],
         )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
-        if isinstance(node.target, ast.Name) and node.target.id == "schema_":
+        if isinstance(node.target, ast.Name) and node.target.id in ("schema_", "json_"):
             # Convert `schema_: xyz` to `schema: xyz`
-            node = ast.copy_location(
-                ast.AnnAssign(
-                    target=ast.Name(id="schema", ctx=ast.Store()),
-                    annotation=node.annotation,
-                    value=node.value,
-                    simple=node.simple,
-                ),
-                node,
+            target = ast.Name(id=node.target.id.rstrip("_"), ctx=ast.Store())
+            node = ast.AnnAssign(
+                target=target,
+                annotation=node.annotation,
+                value=node.value,
+                simple=node.simple,
             )
         if isinstance(node.value, ast.Constant):
             if (
@@ -50,17 +42,14 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
                 and node.annotation.id == "str"
             ):
                 # Convert `type: str = "xyz"` to `type: Literal["xyz"]`
-                return ast.copy_location(
-                    ast.AnnAssign(
-                        target=node.target,
-                        annotation=ast.Subscript(
-                            value=ast.Name(id="Literal", ctx=ast.Load()),
-                            slice=node.value,
-                            ctx=ast.Load(),
-                        ),
-                        simple=node.simple,
+                return ast.AnnAssign(
+                    target=node.target,
+                    annotation=ast.Subscript(
+                        value=ast.Name(id="Literal", ctx=ast.Load()),
+                        slice=node.value,
+                        ctx=ast.Load(),
                     ),
-                    node,
+                    simple=node.simple,
                 )
             if (
                 isinstance(node.annotation, ast.Subscript)
@@ -68,28 +57,22 @@ class ConvertDataClassToTypedDict(ast.NodeTransformer):
                 and node.annotation.value.id == "Optional"
             ):
                 # Convert `abc: Optional[xyz]` to `abc: xyz`
-                node = ast.copy_location(
-                    ast.AnnAssign(
-                        target=node.target,
-                        annotation=node.annotation.slice,
-                        value=node.value,
-                        simple=node.simple,
-                    ),
-                    node,
+                node = ast.AnnAssign(
+                    target=node.target,
+                    annotation=node.annotation.slice,
+                    value=node.value,
+                    simple=node.simple,
                 )
             # Remove default value, e.g.
             # convert `abc: xyz = 123` to `abc: NotRequired[xyz]`
-            return ast.copy_location(
-                ast.AnnAssign(
-                    target=node.target,
-                    annotation=ast.Subscript(
-                        value=ast.Name(id="NotRequired", ctx=ast.Load()),
-                        slice=node.annotation,
-                        ctx=ast.Load(),
-                    ),
-                    simple=node.simple,
+            return ast.AnnAssign(
+                target=node.target,
+                annotation=ast.Subscript(
+                    value=ast.Name(id="NotRequired", ctx=ast.Load()),
+                    slice=node.annotation,
+                    ctx=ast.Load(),
                 ),
-                node,
+                simple=node.simple,
             )
         return node
 

@@ -265,8 +265,6 @@ def px_client(
     sync_client, _ = httpx_clients
     client = Client(warn_if_server_not_running=False)
     client._client = sync_client  # type: ignore[assignment]
-    client._base_url = str(sync_client.base_url)
-    sync_client._base_url = httpx.URL("")
     return client
 
 

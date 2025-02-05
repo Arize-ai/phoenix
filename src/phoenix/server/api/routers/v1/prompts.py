@@ -2,7 +2,7 @@ import logging
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import Field, ValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.sql import Select
 from starlette.requests import Request
@@ -41,9 +41,9 @@ class PromptVersion(V1RoutesBaseModel):
     model_provider: str
     model_name: str
     template: PromptTemplate
-    template_type: PromptTemplateType = Field(default=PromptTemplateType.CHAT)
-    template_format: PromptTemplateFormat = Field(default=PromptTemplateFormat.MUSTACHE)
-    invocation_parameters: dict[str, Any] = Field(default_factory=dict)
+    template_type: PromptTemplateType
+    template_format: PromptTemplateFormat
+    invocation_parameters: dict[str, Any]
     tools: Optional[PromptToolsV1] = None
     response_format: Optional[PromptResponseFormat] = None
 
@@ -118,6 +118,9 @@ async def get_prompts(
     operation_id="listPromptVersions",
     summary="List all prompt versions for a given prompt",
     responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
 )
 async def list_prompt_versions(
     request: Request,
@@ -172,6 +175,9 @@ async def list_prompt_versions(
             HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
 )
 async def get_prompt_version_by_prompt_version_id(
     request: Request,
@@ -202,6 +208,9 @@ async def get_prompt_version_by_prompt_version_id(
             HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    response_model_by_alias=True,
+    response_model_exclude_unset=True,
+    response_model_exclude_defaults=True,
 )
 async def get_prompt_version_by_tag_name(
     request: Request,
@@ -237,6 +246,9 @@ async def get_prompt_version_by_tag_name(
             HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
 )
 async def get_prompt_version_by_latest(
     request: Request,
