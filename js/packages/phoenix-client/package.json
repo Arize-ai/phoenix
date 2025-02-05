@@ -14,9 +14,9 @@
       "import": "./dist/esm/prompts/index.js",
       "require": "./dist/src/prompts/index.js"
     },
-    "./experimental": {
-      "import": "./dist/esm/experimental/index.js",
-      "require": "./dist/src/experimental/index.js"
+    "./experiments": {
+      "import": "./dist/esm/experiments/index.js",
+      "require": "./dist/src/experiments/index.js"
     },
     "./utils/*": {
       "import": "./dist/esm/utils/*.js",

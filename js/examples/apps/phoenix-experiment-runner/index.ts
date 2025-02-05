@@ -4,7 +4,7 @@ import {
   asEvaluator,
   runExperiment,
   type RunExperimentParams,
-} from "@arizeai/phoenix-client/experimental";
+} from "@arizeai/phoenix-client/experiments";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
 import { Factuality, Humor } from "autoevals";
 import dotenv from "dotenv";

@@ -1,5 +1,5 @@
-import { Dataset, Example } from "../../types/datasets";
-import { createClient, type PhoenixClient } from "../../client";
+import { Dataset, Example } from "../types/datasets";
+import { createClient, type PhoenixClient } from "../client";
 import type {
   Evaluator,
   Experiment,
@@ -8,13 +8,13 @@ import type {
   ExperimentRun,
   ExperimentTask,
   RanExperiment,
-} from "../../types/experiments";
-import { promisifyResult } from "../../utils/promisifyResult";
+} from "../types/experiments";
+import { promisifyResult } from "../utils/promisifyResult";
 import invariant from "tiny-invariant";
-import { pluralize } from "../../utils/pluralize";
-import { ClientFn } from "../../types/core";
-import { getDatasetLike } from "../../utils/getDatasetLike";
-import { type Logger } from "../../types/logger";
+import { pluralize } from "../utils/pluralize";
+import { ClientFn } from "../types/core";
+import { getDatasetLike } from "../utils/getDatasetLike";
+import { type Logger } from "../types/logger";
 
 export type RunExperimentParams = ClientFn & {
   /**
@@ -36,6 +36,9 @@ export type RunExperimentParams = ClientFn & {
 
 /**
  * Run an experiment.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export async function runExperiment({
   experimentName: _experimentName,
@@ -177,6 +180,12 @@ function runTask({
   return Promise.all(dataset.examples.map(run));
 }
 
+/**
+ * Evaluate an experiment.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
+ */
 export async function evaluateExperiment({
   experiment,
   evaluators,
@@ -258,6 +267,9 @@ export async function evaluateExperiment({
 
 /**
  * Run an evaluator against a run.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 async function runEvaluator({
   evaluator,
@@ -304,6 +316,9 @@ async function runEvaluator({
 
 /**
  * Wrap an evaluator function in an object with a name property.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  *
  * @param name - The name of the evaluator.
  * @param evaluate - The evaluator function.
