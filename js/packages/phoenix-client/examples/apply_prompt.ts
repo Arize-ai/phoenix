@@ -51,6 +51,10 @@ const main = async () => {
     prompt: promptArgument,
   });
 
+  if (!prompt) {
+    throw new Error("Prompt not found");
+  }
+
   const openAIParams = toSDK({
     prompt,
     sdk: "openai",

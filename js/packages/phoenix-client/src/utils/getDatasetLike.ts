@@ -25,7 +25,7 @@ export type GetDatasetLikeParams = {
 export async function getDatasetLike({
   dataset,
   client,
-}: GetDatasetLikeParams): Promise<Dataset> {
+}: GetDatasetLikeParams): Promise<Dataset | null> {
   if (typeof dataset === "string") {
     const datasetResponse = await client
       .GET(`/v1/datasets/{id}`, { params: { path: { id: dataset } } })

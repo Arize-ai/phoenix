@@ -7,6 +7,9 @@ import { getPromptVersionLike } from "../utils/getPromptVersionLike";
  * Parameters for the getPrompt function
  */
 export interface GetPromptParams extends ClientFn {
+  /**
+   * The prompt to get. Can be in the form of a prompt id, a prompt version id, a prompt name, or a prompt name + tag.
+   */
   prompt: PromptLike;
 }
 
@@ -16,7 +19,7 @@ export interface GetPromptParams extends ClientFn {
 export async function getPrompt({
   client: _client,
   prompt: _prompt,
-}: GetPromptParams): Promise<PromptVersion> {
+}: GetPromptParams): Promise<PromptVersion | null> {
   const client = _client ?? createClient();
   const promptVersion = await getPromptVersionLike({ client, prompt: _prompt });
   return promptVersion;

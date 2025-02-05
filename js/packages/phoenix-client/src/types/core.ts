@@ -7,5 +7,9 @@ export interface Node {
 }
 
 export interface ClientFn {
+  /**
+   * An instance of the Phoenix client.
+   * If not provided, the client will be created using the default configuration.
+   */
   client?: PhoenixClient;
 }

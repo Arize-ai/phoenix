@@ -17,6 +17,11 @@ export interface GetPromptByTag {
   name: string;
 }
 
+/**
+ * A prompt like object.
+ *
+ * Can be a prompt id, a prompt name, a prompt version id, or a prompt name + tag.
+ */
 export type PromptLike =
   | GetPromptById
   | GetPromptByName
