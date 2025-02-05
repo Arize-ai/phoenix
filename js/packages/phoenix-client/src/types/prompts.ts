@@ -52,7 +52,8 @@ export type PromptTool =
 /**
  * The Phoenix prompt output schema type from the API.
  */
-export type PromptOutputSchema = components["schemas"]["PromptOutputSchema"];
+export type PromptResponseFormat =
+  components["schemas"]["PromptResponseFormatJSONSchema"];
 
 /**
  * The prompt type from the API.

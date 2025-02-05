@@ -604,13 +604,13 @@ export interface components {
          * @enum {string}
          */
         PromptMessageRole: "USER" | "SYSTEM" | "AI" | "TOOL";
-        /** PromptOutputSchema */
-        PromptOutputSchema: {
+        /** PromptResponseFormatJSONSchema */
+        PromptResponseFormatJSONSchema: {
             /**
-             * Type
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            type: "output-schema-v1";
+            type: "response-format-json-schema-v1";
             /** Name */
             name: string;
             /** Description */
@@ -669,7 +669,8 @@ export interface components {
             /** Invocation Parameters */
             invocation_parameters?: Record<string, unknown>;
             tools?: components["schemas"]["PromptToolsV1"] | null;
-            output_schema?: components["schemas"]["PromptOutputSchema"] | null;
+            /** Response Format */
+            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
         };
         /** SpanAnnotation */
         SpanAnnotation: {

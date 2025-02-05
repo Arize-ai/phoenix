@@ -81,8 +81,8 @@ describe("toOpenAI type compatibility", () => {
           },
         ],
       },
-      output_schema: {
-        type: "output-schema-v1",
+      response_format: {
+        type: "response-format-json-schema-v1",
         name: "test",
         description: "test function",
         schema: {
@@ -176,8 +176,8 @@ describe("toOpenAI type compatibility", () => {
           },
         ],
       },
-      output_schema: {
-        type: "output-schema-v1",
+      response_format: {
+        type: "response-format-json-schema-v1",
         name: "test",
         description: "test function",
         schema: {

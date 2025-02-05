@@ -58,8 +58,8 @@ export const toOpenAI = <V extends Variables = Variables>({
       phoenixToolToOpenAI.parse(tool)
     );
 
-    const response_format = prompt.output_schema
-      ? phoenixResponseFormatToOpenAI.parse(prompt.output_schema)
+    const response_format = prompt.response_format
+      ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)
       : undefined;
 
     const tool_choice =
