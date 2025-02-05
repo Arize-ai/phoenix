@@ -183,7 +183,7 @@ def _to_tools(
     obj: PromptToolsV1,
 ) -> Iterator[ToolParam]:
     for tool in obj["tools"]:
-        input_schema: dict[str, Any] = dict(tool["schema"]) if "schema" in tool else {}
+        input_schema: dict[str, Any] = dict(tool["schema"]["json"]) if "schema" in tool else {}
         param: ToolParam = {
             "name": tool["name"],
             "input_schema": input_schema,
@@ -198,14 +198,17 @@ def _from_tools(
 ) -> PromptToolsV1:
     functions: list[PromptFunctionToolV1] = []
     for tool in tools:
-        function = PromptFunctionToolV1(
-            type="function-tool-v1",
-            name=tool["name"],
-        )
+        function: PromptFunctionToolV1 = {
+            "type": "function-tool-v1",
+            "name": tool["name"],
+        }
         if "description" in tool:
             function["description"] = tool["description"]
         if "input_schema" in tool:
-            function["schema"] = tool["input_schema"]
+            function["schema"] = {
+                "type": "json-schema-draft-7-object-schema",
+                "json": tool["input_schema"],
+            }
         functions.append(function)
     return PromptToolsV1(
         type="tools-v1",

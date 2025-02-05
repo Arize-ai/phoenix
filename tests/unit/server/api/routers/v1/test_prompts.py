@@ -1,20 +1,34 @@
+from __future__ import annotations
+
 import string
+from enum import Enum
 from secrets import token_hex
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from urllib.parse import quote_plus
 
 import httpx
 import pytest
+from deepdiff.diff import DeepDiff
+from faker import Faker
+from openai.lib._pydantic import to_strict_json_schema
+from pydantic import BaseModel, create_model
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.helpers.jsonschema import (
+    JSONSchemaDraft7ObjectSchema,
+    JSONSchemaDraft7ObjectSchemaContent,
+)
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentPart,
     ImageContentValue,
     PromptChatTemplateV1,
+    PromptFunctionToolV1,
     PromptMessage,
     PromptMessageRole,
+    PromptResponseFormatJSONSchema,
+    PromptToolsV1,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -28,6 +42,8 @@ from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.types import DbSessionFactory
 
+fake = Faker()
+
 
 class TestPrompts:
     async def test_get_latest_prompt_version(
@@ -39,7 +55,7 @@ class TestPrompts:
         prompt_version = prompt_versions[-1]
         prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
         for prompts_identifier in prompt_id, prompt.name.root:
-            url = f"/v1/prompts/{quote_plus(prompts_identifier)}/latest"
+            url = f"v1/prompts/{quote_plus(prompts_identifier)}/latest"
             assert (response := await httpx_client.get(url)).is_success
             assert isinstance((data := response.json()["data"]), dict)
             self._compare_prompt_version(data, prompt_version)
@@ -52,7 +68,7 @@ class TestPrompts:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
         prompt_version = prompt_versions[1]
         prompt_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_version.id)))
-        url = f"/v1/prompt_versions/{quote_plus(prompt_version_id)}"
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}"
         assert (response := await httpx_client.get(url)).is_success
         assert isinstance((data := response.json()["data"]), dict)
         self._compare_prompt_version(data, prompt_version)
@@ -67,7 +83,7 @@ class TestPrompts:
         tag_name: Identifier = await self._tag_prompt_version(db, prompt_version)
         prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
         for prompts_identifier in prompt_id, prompt.name.root:
-            url = f"/v1/prompts/{quote_plus(prompts_identifier)}/tags/{quote_plus(tag_name.root)}"
+            url = f"v1/prompts/{quote_plus(prompts_identifier)}/tags/{quote_plus(tag_name.root)}"
             assert (response := await httpx_client.get(url)).is_success
             assert isinstance((data := response.json()["data"]), dict)
             self._compare_prompt_version(data, prompt_version)
@@ -86,9 +102,9 @@ class TestPrompts:
         name: str,
         httpx_client: httpx.AsyncClient,
     ) -> None:
-        url = f"/v1/prompts/{quote_plus(name)}/tags/production"
+        url = f"v1/prompts/{quote_plus(name)}/tags/production"
         assert (await httpx_client.get(url)).status_code == 422
-        url = f"/v1/prompts/abc/tags/{quote_plus(name)}"
+        url = f"v1/prompts/abc/tags/{quote_plus(name)}"
         assert (await httpx_client.get(url)).status_code == 422
 
     @staticmethod
@@ -102,14 +118,25 @@ class TestPrompts:
         )
         assert id_ == prompt_version.id
         assert data.pop("description") == (prompt_version.description or "")
-        assert data.pop("invocation_parameters") == prompt_version.invocation_parameters
+        assert not DeepDiff(
+            data.pop("invocation_parameters"),
+            prompt_version.invocation_parameters,
+        )
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider
-        assert data.pop("response_format") == prompt_version.response_format
+        if prompt_version.response_format:
+            assert not DeepDiff(
+                data.pop("response_format"),
+                prompt_version.response_format.model_dump(),
+            )
         assert data.pop("template") == prompt_version.template.model_dump()
         assert data.pop("template_format") == prompt_version.template_format
         assert data.pop("template_type") == prompt_version.template_type
-        assert data.pop("tools") == prompt_version.tools
+        if prompt_version.tools:
+            assert not DeepDiff(
+                data.pop("tools"),
+                prompt_version.tools.model_dump(),
+            )
         assert not data
 
     @staticmethod
@@ -184,10 +211,67 @@ class TestPrompts:
                         template_type="CHAT",
                         template_format="MUSTACHE",
                         template=template,
-                        invocation_parameters={},
+                        invocation_parameters=fake.pydict(value_types=[str, int, float, bool]),
                         model_provider=token_hex(16),
                         model_name=token_hex(16),
+                        tools=PromptToolsV1(
+                            type="tools-v1",
+                            tools=[
+                                PromptFunctionToolV1(
+                                    type="function-tool-v1",
+                                    name=token_hex(8),
+                                    schema=JSONSchemaDraft7ObjectSchema(
+                                        type="json-schema-draft-7-object-schema",
+                                        json=cast(
+                                            JSONSchemaDraft7ObjectSchemaContent,
+                                            to_strict_json_schema(_GetWeather),
+                                        ),
+                                    ),
+                                )
+                            ],
+                        ),
+                        response_format=PromptResponseFormatJSONSchema(
+                            type="response-format-json-schema-v1",
+                            name=token_hex(8),
+                            extra_parameters=fake.pydict(value_types=[str, int, float, bool]),
+                            schema=JSONSchemaDraft7ObjectSchema(
+                                type="json-schema-draft-7-object-schema",
+                                json=cast(
+                                    JSONSchemaDraft7ObjectSchemaContent,
+                                    to_strict_json_schema(create_model("Response", ui=(_UI, ...))),
+                                ),
+                            ),
+                        ),
                     )
                 )
             session.add_all(prompt_versions)
         return prompt, prompt_versions
+
+
+class _GetWeather(BaseModel):
+    city: str
+    country: str
+
+
+class _UIType(str, Enum):
+    div = "div"
+    button = "button"
+    header = "header"
+    section = "section"
+    field = "field"
+    form = "form"
+
+
+class _Attribute(BaseModel):
+    name: str
+    value: str
+
+
+class _UI(BaseModel):
+    type: _UIType
+    label: str
+    children: list[_UI]
+    attributes: list[_Attribute]
+
+
+_UI.model_rebuild()
