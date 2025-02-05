@@ -22,7 +22,9 @@ export type {
 export type ToOpenAIParams<V extends Variables> = toSDKParamsBase<V>;
 
 /**
- * Convert a Phoenix prompt to OpenAI client sdk parameters
+ * Convert a Phoenix prompt to OpenAI client sdk's chat completion parameters
+ *
+ * @returns The converted chat completion parameters
  */
 export const toOpenAI = <V extends Variables = Variables>({
   prompt,

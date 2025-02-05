@@ -21,7 +21,7 @@ export type { MessageCreateParams };
 export type ToAnthropicParams<V extends Variables> = toSDKParamsBase<V>;
 
 /**
- * Convert a Phoenix prompt to Anthropic client sdk parameters
+ * Convert a Phoenix prompt to Anthropic client sdk's message create parameters
  */
 export const toAnthropic = <V extends Variables = Variables>({
   prompt,
