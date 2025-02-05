@@ -99,6 +99,10 @@ class OpenAIModel(BaseModel):
             not explicitly specified. Defaults to an empty dictionary.
         request_timeout (Optional[Union[float, Tuple[float, float]]], optional): Timeout for
             requests to OpenAI completion API. Default is 600 seconds. Defaults to None.
+        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
+            per second for making LLM calls. This limit adjusts dynamically based on rate
+            limit errors. Defaults to 10.
+        timeout (int, optional): Pheonix timeout for API requests in seconds. Defaults to 120.
         api_version (str, optional): The version of the Azure API to use. Defaults to None.
             https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
         azure_endpoint (str, optional): The endpoint to use for azure openai. Available in the
@@ -110,10 +114,6 @@ class OpenAIModel(BaseModel):
             token to use for azure openai. Defaults to None.
         default_headers (Mapping[str, str], optional): Default headers required by AzureOpenAI.
             Defaults to None.
-        initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
-            per second for making LLM calls. This limit adjusts dynamically based on rate
-            limit errors. Defaults to 10.
-        timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
 
     Examples:
         After setting the OPENAI_API_KEY environment variable:
