@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.11.0...arize-phoenix-v7.12.0) (2025-02-05)
+
+
+### Features
+
+* **playground:** record url info in playground spans ([#6252](https://github.com/Arize-ai/phoenix/issues/6252)) ([602143b](https://github.com/Arize-ai/phoenix/commit/602143be06de5e473d759866dfe45eac4a1be635))
+
 ## [7.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.3...arize-phoenix-v7.11.0) (2025-02-05)
 
 
