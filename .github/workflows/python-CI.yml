@@ -424,6 +424,7 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            packages/phoenix-client/
             tests/integration/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
@@ -485,6 +486,7 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            packages/phoenix-client/
             tests/integration/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
