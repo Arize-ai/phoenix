@@ -9,7 +9,7 @@ import {
   promptMessageToOpenAI,
   safelyConvertToolChoiceToProvider,
 } from "../../schemas/llm";
-import { promptMessageFormatter } from "../../utils/promptMessageFormatter";
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/responseFormatSchema";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
@@ -43,7 +43,7 @@ export const toOpenAI = <V extends Variables = Variables>({
     let formattedMessages = prompt.template.messages;
 
     if (variables) {
-      formattedMessages = promptMessageFormatter(
+      formattedMessages = formatPromptMessages(
         prompt.template_format,
         formattedMessages,
         variables

@@ -4,7 +4,7 @@ import type {
 } from "@anthropic-ai/sdk/resources/messages/messages";
 import type { Variables, toSDKParamsBase } from "./types";
 import { promptMessageToAnthropic } from "../../schemas/llm/messageSchemas";
-import { promptMessageFormatter } from "../../utils/promptMessageFormatter";
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
   AnthropicToolChoice,
   safelyConvertToolChoiceToProvider,
@@ -46,7 +46,7 @@ export const toAnthropic = <V extends Variables = Variables>({
     let formattedMessages = prompt.template.messages;
 
     if (variables) {
-      formattedMessages = promptMessageFormatter(
+      formattedMessages = formatPromptMessages(
         prompt.template_format,
         formattedMessages,
         variables

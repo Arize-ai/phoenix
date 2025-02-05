@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { promptMessageFormatter } from "../../src/utils/promptMessageFormatter";
+import { formatPromptMessages } from "../../src/utils/formatPromptMessages";
 import { PromptChatMessage } from "../../src/types/prompts";
 import { TextPart } from "../../src/schemas/llm/promptSchemas";
 
-describe("promptMessageFormatter", () => {
+describe("formatPromptMessages", () => {
   it("should only format TextPart content", () => {
     const messages: PromptChatMessage[] = [
       {
@@ -15,7 +15,7 @@ describe("promptMessageFormatter", () => {
       },
     ];
 
-    const formatted = promptMessageFormatter("MUSTACHE", messages, {
+    const formatted = formatPromptMessages("MUSTACHE", messages, {
       name: "World",
     });
     expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -37,7 +37,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("MUSTACHE", messages, {
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -59,7 +59,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("MUSTACHE", messages, {
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
         greeting: "Hello",
         name: "World",
       });
@@ -77,7 +77,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("MUSTACHE", messages, {
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -99,7 +99,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("MUSTACHE", messages, {
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -118,7 +118,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("FSTRING", messages, {
+      const formatted = formatPromptMessages("FSTRING", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -137,7 +137,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("FSTRING", messages, {
+      const formatted = formatPromptMessages("FSTRING", messages, {
         greeting: "Hello",
         name: "World",
       });
@@ -155,7 +155,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("FSTRING", messages, {
+      const formatted = formatPromptMessages("FSTRING", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -177,7 +177,7 @@ describe("promptMessageFormatter", () => {
         },
       ];
 
-      const formatted = promptMessageFormatter("FSTRING", messages, {
+      const formatted = formatPromptMessages("FSTRING", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -199,7 +199,7 @@ describe("promptMessageFormatter", () => {
       },
     ];
 
-    const formatted = promptMessageFormatter("NONE", messages, {
+    const formatted = formatPromptMessages("NONE", messages, {
       name: "World",
     });
     expect(formatted?.[0]?.content?.[0]).toEqual({
