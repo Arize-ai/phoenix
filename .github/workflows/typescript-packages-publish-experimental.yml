@@ -34,7 +34,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - run: corepack enable
+      # workaround for broken corepack https://github.com/nodejs/corepack/issues/612
+      - run: |
+          npm i -g corepack@latest
+          corepack enable
         working-directory: ./js
       - uses: actions/setup-node@v4
         with:
@@ -44,10 +47,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./js
-        run: |
-          # workaround for broken corepack https://github.com/nodejs/corepack/issues/612
-          npm i -g corepack 
-          pnpm install
+        run: pnpm install
 
       - name: Build
         working-directory: ./js
