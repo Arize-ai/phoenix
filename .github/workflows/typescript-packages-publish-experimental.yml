@@ -38,13 +38,16 @@ jobs:
         working-directory: ./js
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
           cache-dependency-path: ./js
 
       - name: Install dependencies
         working-directory: ./js
-        run: pnpm install
+        run: |
+          # workaround for broken corepack https://github.com/nodejs/corepack/issues/612
+          npm i -g corepack 
+          pnpm install
 
       - name: Build
         working-directory: ./js
