@@ -23,7 +23,7 @@ jobs:
       - name: Install PNPM
         uses: pnpm/action-setup@v3
         with:
-          version: 9.8.0
+          version: 10.2.0
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:

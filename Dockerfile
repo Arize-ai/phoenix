@@ -27,7 +27,9 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 FROM node:20-slim AS frontend-builder
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g pnpm@9.15.5
+RUN npm i -g corepack
+RUN corepack enable
+RUN corepack use pnpm
 WORKDIR /phoenix/app/
 COPY ./app /phoenix/app
 RUN pnpm install

@@ -137,10 +137,13 @@
     "build-storybook": "storybook build",
     "chromatic": "source .env && npx chromatic"
   },
-  "packageManager": "pnpm@9.15.5",
+  "packageManager": "pnpm@10.2.0",
   "pnpm": {
     "overrides": {
       "braces@<3.0.3": ">=3.0.3"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
