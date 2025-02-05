@@ -137,6 +137,9 @@
     "build-storybook": "storybook build",
     "chromatic": "source .env && npx chromatic"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "packageManager": "pnpm@10.2.0",
   "pnpm": {
     "overrides": {
