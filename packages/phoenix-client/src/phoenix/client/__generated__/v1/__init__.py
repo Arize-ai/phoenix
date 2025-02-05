@@ -77,6 +77,11 @@ class InsertedSpanAnnotation(TypedDict):
     id: str
 
 
+class JSONSchemaDraft7ObjectSchema(TypedDict):
+    json: Mapping[str, Any]
+    type: Literal["json-schema-draft-7-object-schema"]
+
+
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
@@ -112,12 +117,16 @@ class PromptFunctionToolV1(TypedDict):
     name: str
     type: Literal["function-tool-v1"]
     description: NotRequired[str]
-    schema: NotRequired[Mapping[str, Any]]
+    schema: NotRequired[JSONSchemaDraft7ObjectSchema]
     extra_parameters: NotRequired[Mapping[str, Any]]
 
 
-class PromptOutputSchema(TypedDict):
-    definition: Mapping[str, Any]
+class PromptResponseFormatJSONSchema(TypedDict):
+    name: str
+    schema: JSONSchemaDraft7ObjectSchema
+    extra_parameters: Mapping[str, Any]
+    type: Literal["response-format-json-schema-v1"]
+    description: NotRequired[str]
 
 
 class PromptStringTemplateV1(TypedDict):
@@ -236,11 +245,11 @@ class PromptVersion(TypedDict):
     model_provider: str
     model_name: str
     template: Union[PromptChatTemplateV1, PromptStringTemplateV1]
-    template_type: NotRequired[Literal["STR", "CHAT"]]
-    template_format: NotRequired[Literal["MUSTACHE", "FSTRING", "NONE"]]
-    invocation_parameters: NotRequired[Mapping[str, Any]]
+    template_type: Literal["STR", "CHAT"]
+    template_format: Literal["MUSTACHE", "FSTRING", "NONE"]
+    invocation_parameters: Mapping[str, Any]
     tools: NotRequired[PromptToolsV1]
-    output_schema: NotRequired[PromptOutputSchema]
+    response_format: NotRequired[PromptResponseFormatJSONSchema]
 
 
 class GetPromptResponseBody(TypedDict):
