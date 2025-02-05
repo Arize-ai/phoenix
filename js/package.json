@@ -32,13 +32,13 @@
     "rimraf": "^5.0.10",
     "tsc-alias": "^1.8.10",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=10",
     "pnpm": ">=3"
   },
-  "packageManager": "pnpm@9.8.0",
+  "packageManager": "pnpm@10.2.0",
   "eslintIgnore": [
     "examples/**/*"
   ]

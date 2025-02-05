@@ -19,8 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [ 3.9, 3.12, 3.13 ]
-        os: [ ubuntu-latest, macos-latest, macos-13 ]
+        py: [3.9, 3.12, 3.13]
+        os: [ubuntu-latest, macos-latest, macos-13]
         exclude:
           - py: 3.13
             os: macos-13
@@ -29,7 +29,7 @@ jobs:
       - name: Install PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: 9.12.0
+          version: 10.2.0
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
