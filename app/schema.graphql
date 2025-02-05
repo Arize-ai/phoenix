@@ -970,6 +970,12 @@ type GenerativeProvider {
   key: GenerativeProviderKey!
   dependencies: [String!]!
   dependenciesInstalled: Boolean!
+
+  """The API key for the provider"""
+  apiKeyEnvVar: String!
+
+  """Whether the credentials are set on the server for the provider"""
+  apiKeySet: Boolean!
 }
 
 enum GenerativeProviderKey {

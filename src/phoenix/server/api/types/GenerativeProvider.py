@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 from typing import Any, ClassVar, Optional, Union
 
@@ -34,6 +35,13 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GEMINI,
     }
 
+    model_provider_to_api_key_env_var_map: ClassVar[dict[GenerativeProviderKey, str]] = {
+        GenerativeProviderKey.AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
+        GenerativeProviderKey.ANTHROPIC: "ANTHROPIC_API_KEY",
+        GenerativeProviderKey.OPENAI: "OPENAI_API_KEY",
+        GenerativeProviderKey.GEMINI: "GEMINI_API_KEY",
+    }
+
     @strawberry.field
     async def dependencies(self) -> list[str]:
         from phoenix.server.api.helpers.playground_registry import (
@@ -57,6 +65,14 @@ class GenerativeProvider:
         if default_client:
             return default_client.dependencies_are_installed()
         return False
+
+    @strawberry.field(description="The API key for the provider")  # type: ignore
+    async def api_key_env_var(self) -> str:
+        return self.model_provider_to_api_key_env_var_map[self.key]
+
+    @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
+    async def api_key_set(self) -> bool:
+        return os.environ.get(self.model_provider_to_api_key_env_var_map[self.key]) is not None
 
     @classmethod
     def _infer_model_provider_from_model_name(

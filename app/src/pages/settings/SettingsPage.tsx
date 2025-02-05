@@ -1,4 +1,5 @@
 import React from "react";
+import { useLoaderData } from "react-router";
 import { css } from "@emotion/react";
 
 import { Card, TextField } from "@arizeai/components";
@@ -7,7 +8,9 @@ import { CopyToClipboardButton, Flex, View } from "@phoenix/components";
 import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 
+import { settingsPageLoaderQuery$data } from "./__generated__/settingsPageLoaderQuery.graphql";
 import { APIKeysCard } from "./APIKeysCard";
+import { GenerativeProvidersCard } from "./GenerativeProvidersCard";
 import { UsersCard } from "./UsersCard";
 
 const settingsPageCSS = css`
@@ -32,6 +35,8 @@ const formCSS = css`
 `;
 
 export function SettingsPage() {
+  const data = useLoaderData() as settingsPageLoaderQuery$data;
+
   return (
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
@@ -78,6 +83,7 @@ export function SettingsPage() {
               <UsersCard />
             </>
           </IsAdmin>
+          <GenerativeProvidersCard query={data} />
         </Flex>
       </div>
     </main>

@@ -44,6 +44,7 @@ import {
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
   SettingsPage,
+  settingsPageLoader,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -211,6 +212,7 @@ const router = createBrowserRouter(
           <Route
             path="/settings"
             element={<SettingsPage />}
+            loader={settingsPageLoader}
             handle={{
               crumb: () => "Settings",
             }}
