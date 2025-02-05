@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.3...arize-phoenix-v7.11.0) (2025-02-05)
+
+
+### Features
+
+* **playground:** central ai provider config ([#6248](https://github.com/Arize-ai/phoenix/issues/6248)) ([0e076be](https://github.com/Arize-ai/phoenix/commit/0e076be257a40a5064e9c0219404259c639e1b20))
+
 ## [7.10.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.10.2...arize-phoenix-v7.10.3) (2025-02-04)
 
 
