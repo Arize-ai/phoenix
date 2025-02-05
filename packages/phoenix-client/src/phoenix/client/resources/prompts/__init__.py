@@ -20,7 +20,7 @@ class Prompts:
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
         response.raise_for_status()
-        return cast(GetPromptResponseBody, response.content)["data"]
+        return cast(GetPromptResponseBody, response.json())["data"]
 
 
 class AsyncPrompts:
@@ -37,7 +37,7 @@ class AsyncPrompts:
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
         response.raise_for_status()
-        return cast(GetPromptResponseBody, response.content)["data"]
+        return cast(GetPromptResponseBody, response.json())["data"]
 
 
 def _url(

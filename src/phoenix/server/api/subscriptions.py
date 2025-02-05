@@ -472,7 +472,7 @@ def _is_result_payloads_stream(
     Checks if the given generator was instantiated from
     `_chat_completion_result_payloads`
     """
-    return stream.ag_code == _chat_completion_result_payloads.__code__
+    return stream.ag_code == _chat_completion_result_payloads.__code__  # type: ignore
 
 
 def _create_task_with_timeout(
