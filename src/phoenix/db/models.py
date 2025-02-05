@@ -1274,3 +1274,83 @@ class PromptVersionTag(Base):
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
+
+
+class AnnotationConfig(Base):
+    __tablename__ = "annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    annotation_type: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "annotation_type IN ('CATEGORIAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
+            name="annotation_type",
+        ),
+        nullable=False,
+    )
+    score_direction: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint("score_direction IN ('MINIMIZE', 'MAXIMIZE')", name="score_direction"),
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    continuous_config = relationship(
+        "ContinuousAnnotationConfig", back_populates="annotation_config", uselist=False
+    )
+    categorical_config = relationship(
+        "CategoricalAnnotationConfig", back_populates="annotation_config", uselist=False
+    )
+
+
+class ContinuousAnnotationConfig(Base):
+    __tablename__ = "continuous_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    lower_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    upper_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    annotation_config = relationship("AnnotationConfig", back_populates="continuous_config")
+
+
+class CategoricalAnnotationConfig(Base):
+    __tablename__ = "categorical_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    is_ordinal: Mapped[bool]
+    multilabel_allowed: Mapped[bool]
+
+    annotation_config = relationship("AnnotationConfig", back_populates="categorical_config")
+    allowed_values = relationship(
+        "CategoricalAnnotationValue",
+        back_populates="categorical_config",
+        cascade="all, delete-orphan",
+    )
+
+
+class CategoricalAnnotationValue(Base):
+    __tablename__ = "categorical_annotation_values"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    categorical_annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("categorical_annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    numeric_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    categorical_config = relationship(
+        "CategoricalAnnotationConfig", back_populates="allowed_values"
+    )
