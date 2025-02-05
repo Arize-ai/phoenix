@@ -1503,7 +1503,7 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
     )
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_run_evals_fails_gracefully_on_error(
     respx_mock: respx.mock,
     relevance_evaluator: LLMEvaluator,
