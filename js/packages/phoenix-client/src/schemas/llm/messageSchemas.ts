@@ -1,6 +1,5 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
-import { filter, map } from "remeda";
 
 import { PhoenixModelProvider } from "../../constants";
 import { assertUnreachable } from "../../utils/assertUnreachable";
@@ -28,9 +27,7 @@ import {
   openAIToolCallToAnthropic,
 } from "./toolCallSchemas";
 import {
-  AnthropicImageBlock,
   AnthropicMessagePart,
-  AnthropicTextBlock,
   AnthropicToolUseBlock,
   OpenAIChatPart,
   OpenAIChatPartImage,
@@ -205,12 +202,10 @@ export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
       typeof anthropic.content === "string"
         ? [{ type: "text", text: anthropic.content }]
         : anthropic.content;
-    const toolCallParts = filter(
-      initialContentArray,
+    const toolCallParts = initialContentArray.filter(
       (part): part is AnthropicToolUseBlock => part.type === "tool_use"
     );
-    const nonToolCallParts = filter(
-      initialContentArray,
+    const nonToolCallParts = initialContentArray.filter(
       (part) => part.type !== "tool_use"
     );
 
@@ -221,11 +216,12 @@ export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
 
     switch (role) {
       case "assistant": {
-        const content = filter(
-          map(nonToolCallParts, (part) => toOpenAIChatPart(part)),
-          (part): part is OpenAIChatPartText =>
-            part !== null && part.type === "text"
-        );
+        const content = nonToolCallParts
+          .map((part) => toOpenAIChatPart(part))
+          .filter(
+            (part): part is OpenAIChatPartText =>
+              part !== null && part.type === "text"
+          );
         return {
           role: "assistant",
           tool_calls:
@@ -236,10 +232,9 @@ export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
         };
       }
       case "user": {
-        const content = filter(
-          map(nonToolCallParts, (part) => toOpenAIChatPart(part)),
-          (part): part is OpenAIChatPart => part !== null
-        );
+        const content = nonToolCallParts
+          .map((part) => toOpenAIChatPart(part))
+          .filter((part): part is OpenAIChatPart => part !== null);
         return {
           role: "user",
           content,
@@ -271,20 +266,12 @@ export const openAIMessageToAnthropic = openAIMessageSchema.transform(
     if (typeof openai.content === "string" && openai.role !== "tool") {
       content.push({ type: "text", text: openai.content });
     } else if (Array.isArray(openai.content)) {
-      map(
-        filter(
-          openai.content,
-          (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
-            part.type === "text" || part.type === "image_url"
-        ),
-        (part) =>
-          openAIChatPartToAnthropicMessagePart.parse(part) as
-            | AnthropicTextBlock
-            | AnthropicImageBlock
-            | null
-      ).forEach((tp) => {
-        if (tp) {
-          content.push(tp);
+      openai.content.forEach((part) => {
+        if (part.type === "text" || part.type === "image_url") {
+          const parsedPart = openAIChatPartToAnthropicMessagePart.parse(part);
+          if (parsedPart) {
+            content.push(parsedPart);
+          }
         }
       });
     }
@@ -346,44 +333,38 @@ export const promptMessageToOpenAI = promptMessageSchema.transform((prompt) => {
     case "SYSTEM":
       return {
         role: "system",
-        content: filter(
-          map(prompt.content, (part) =>
-            promptMessagePartToOpenAIChatPart.parse(part)
+        content: prompt.content
+          .map((part) => promptMessagePartToOpenAIChatPart.parse(part))
+          .filter(
+            (part): part is OpenAIChatPartText =>
+              part !== null && part.type === "text"
           ),
-          (part): part is OpenAIChatPartText =>
-            part !== null && part.type === "text"
-        ),
       } satisfies OpenAIMessage;
     case "USER":
       return {
         role: "user",
-        content: filter(
-          map(prompt.content, (part) =>
-            promptMessagePartToOpenAIChatPart.parse(part)
+        content: prompt.content
+          .map((part) => promptMessagePartToOpenAIChatPart.parse(part))
+          .filter(
+            (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
+              part !== null &&
+              (part.type === "text" || part.type === "image_url")
           ),
-          (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
-            part !== null && (part.type === "text" || part.type === "image_url")
-        ),
       } satisfies OpenAIMessage;
     case "AI":
       return {
         role: "assistant",
-        content: filter(
-          map(prompt.content, (part) =>
-            promptMessagePartToOpenAIChatPart.parse(part)
+        content: prompt.content
+          .map((part) => promptMessagePartToOpenAIChatPart.parse(part))
+          .filter(
+            (part): part is OpenAIChatPartText =>
+              part !== null && part.type === "text"
           ),
-          (part): part is OpenAIChatPartText =>
-            part !== null && part.type === "text"
-        ),
         tool_calls: prompt.content.some((part) => part.type === "tool_call")
-          ? map(
-              filter(
-                prompt.content,
-                (part): part is ToolCallPart =>
-                  part !== null && part.type === "tool_call"
-              ),
-              (part) => fromPromptToolCallPart(part, "OPENAI")
-            ).filter((part): part is OpenAIToolCall => part !== null)
+          ? prompt.content
+              .filter((part): part is ToolCallPart => part.type === "tool_call")
+              .map((part) => fromPromptToolCallPart(part, "OPENAI"))
+              .filter((part): part is OpenAIToolCall => part !== null)
           : undefined,
       } satisfies OpenAIMessage;
     default:
@@ -420,15 +401,12 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
         content.push(textPart);
       }
     } else if (Array.isArray(openai.content)) {
-      map(
-        filter(
-          openai.content,
-          (part): part is OpenAIChatPartText => part.type === "text"
-        ),
-        (part) => makeTextPart(part.text)
-      ).forEach((text) => {
-        if (text) {
-          content.push(text);
+      openai.content.forEach((part) => {
+        if (part.type === "text") {
+          const textPart = makeTextPart(part.text);
+          if (textPart) {
+            content.push(textPart);
+          }
         }
       });
     }
