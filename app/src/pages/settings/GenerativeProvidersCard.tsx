@@ -21,42 +21,14 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import {
-  GenerativeProviderIcon,
-  GenerativeProviderIconProps,
-} from "@phoenix/components/generative";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
-
-type ProviderKey =
-  GenerativeProvidersCard_data$data["modelProviders"][number]["key"];
-
-function ProviderIcon({ providerKey }: { providerKey: ProviderKey }) {
-  let provider: GenerativeProviderIconProps["provider"];
-  switch (providerKey) {
-    case "OPENAI":
-      provider = "OPENAI";
-      break;
-    case "ANTHROPIC":
-      provider = "ANTHROPIC";
-      break;
-    case "GEMINI":
-      provider = "GEMINI";
-      break;
-    case "AZURE_OPENAI":
-      provider = "AZURE_OPENAI";
-      break;
-    default:
-      assertUnreachable(providerKey);
-  }
-  return <GenerativeProviderIcon provider={provider} height={18} />;
-}
 
 export function GenerativeProvidersCard({
   query,
@@ -94,7 +66,7 @@ export function GenerativeProvidersCard({
         cell: ({ row }) => {
           return (
             <Flex direction="row" alignItems="center" gap="size-100">
-              <ProviderIcon providerKey={row.original.key} />
+              <GenerativeProviderIcon provider={row.original.key} height={18} />
               {row.original.name}
             </Flex>
           );
@@ -114,11 +86,11 @@ export function GenerativeProvidersCard({
           if (!row.original.dependenciesInstalled) {
             return <Text color="warning">missing dependencies</Text>;
           }
-          if (row.original.apiKeySet) {
-            return <Text color="success">configured on the server</Text>;
-          }
           if (credentials[row.original.key]) {
             return <Text color="success">local</Text>;
+          }
+          if (row.original.apiKeySet) {
+            return <Text color="success">configured on the server</Text>;
           }
           return <Text color="text-700">not configured</Text>;
         },
