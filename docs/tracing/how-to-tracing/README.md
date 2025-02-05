@@ -82,10 +82,10 @@ How to log evaluation results to annotate traces with evals
 * [How to log document evaluations](llm-evaluations.md#document-evaluations)
 * [How to specify a project for logging evaluations](llm-evaluations.md#specifying-a-project-for-the-evaluations)
 
-## [Save and Load Traces](save-and-load-traces.md)
+## [Save and Load Traces](broken-reference)
 
-* [Saving Traces](save-and-load-traces.md#saving-traces)
-* [Loading Traces](save-and-load-traces.md#loading-traces)
+* [Saving Traces](broken-reference)
+* [Loading Traces](broken-reference)
 
 ## [Trace a Deployed Application](trace-a-deployed-app.md)
 

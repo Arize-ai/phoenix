@@ -1,14 +1,21 @@
 ---
-description: >-
-  Span queries help you extract data from your traces into DataFrames for
-  evaluation
+description: Various options for to help you get data out of Phoenix
 ---
 
-# Querying Spans
+# Exporting Data & Querying Spans
+
+## Options for Exporting Data from Phoenix
+
+| Method                                                                                               | Description                                        | Helpful for                                                                               |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [Download all spans as a dataframe](extract-data-from-spans.md#downloading-all-spans-as-a-dataframe) | Exports all spans in a project as a dataframe      | **Evaluation** - Filtering your spans locally using pandas instead of Phoenix DSL.        |
+| [Span Queries](extract-data-from-spans.md#running-span-queries)                                      | Exports specific spans or traces based on filters  | **Evaluation** - Querying spans from Phoenix                                              |
+| [Pre-defined Queries](extract-data-from-spans.md#pre-defined-queries)                                | Exports specific groups of spans from a RAG system | **RAG Evaluation** - Easily exporting retrieved documents or Q\&A data from a RAG system. |
+| [Saving All Traces](extract-data-from-spans.md#save-all-traces)                                      | Saves all traces as a local file                   | **Storing Data** - Backing up an entire Phoenix instance.                                 |
 
 ## Connect to Phoenix
 
-Before accessing px.Client(), be sure you've set the following environment variables:
+Before using any of the methods above, make sure you've connected to `px.Client()` . You'll need to set the following environment variables:
 
 ```python
 import os
@@ -19,21 +26,26 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
 
-## How to Run a Query
+## Downloading all Spans as a Dataframe
 
-You can query for data from the traces collected in Phoenix using the [Client](../../api/client.md).\
-\
-To simply get DataFrames of spans, you can simply ask for a DataFrame. Each row of the DataFrame with be a span that matches the filter criteria and time range passed in. If you leave the parameters blank, you will get all the spans.
+If you prefer to handle your filtering locally, you can also download all spans as a dataframe using the `get_spans_dataframe()` function:
 
 ```python
 import phoenix as px
+
+# Download all spans from your default project
+px.Client().get_spans_dataframe()
+
+# Download all spans from a specific project
+px.Client().get_spans_dataframe(project_name='your project name')
 
 # You can query for spans with the same filter conditions as in the UI
 px.Client().get_spans_dataframe("span_kind == 'CHAIN'")
 ```
 
-\
-You can also query for data using our query DSL (domain specific language). Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
+## Running Span Queries
+
+You can query for data using our query DSL (domain specific language). Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
 
 ```python
 import phoenix as px
@@ -58,7 +70,7 @@ px.Client().query_spans(query)
 By default, the result DataFrame is indexed by `span_id`, and if `.explode()` is used, the index from the exploded list is added to create a multi-index on the result DataFrame. For the special `retrieval.documents` span attribute, the added index is renamed as `document_position`.
 {% endhint %}
 
-## How to Specify a Time Range
+### How to Specify a Time Range
 
 By default, all queries will collect all spans that are in your Phoenix instance. If you'd like to focus on most recent spans, you can pull spans based on time frames using `start_time` and `end_time`.
 
@@ -79,7 +91,7 @@ end = datetime.now() - timedelta(days=1)
 phoenix_df = px_client.query_spans(start_time=start, end_time=end)
 ```
 
-## How to Specify a Project
+### How to Specify a Project
 
 By default all queries are executed against the default project or the project set via the `PHOENIX_PROJECT_NAME` environment variable. If you choose to pull from a different project, all methods on the [Client](../../api/client.md) have an optional parameter named `project_name`
 
@@ -95,7 +107,7 @@ query = SpanQuery().where("span_kind == 'CHAIN'").select(input="input.value")
 px.Client().query_spans(query, project_name="<my-project>")
 ```
 
-## Querying for Retrieved Documents
+### Querying for Retrieved Documents
 
 Let's say we want to extract the retrieved documents into a DataFrame that looks something like the table below, where `input` denotes the query for the retriever, `reference` denotes the content of each document, and `document_position` denotes the (zero-based) index in each span's list of retrieved documents.
 
@@ -133,7 +145,7 @@ query = SpanQuery().where(
 px.Client().query_spans(query)
 ```
 
-## How to Explode Attributes
+### How to Explode Attributes
 
 In addition to the document content, if we also want to explode the document score, we can simply add the `document.score` attribute to the `.explode()` method alongside `document.content` as follows. Keyword arguments are necessary to name the output columns, and in this example we name the output columns as `reference` and `score`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
 
@@ -145,7 +157,7 @@ query = SpanQuery().explode(
 )
 ```
 
-## How to Apply Filters
+### How to Apply Filters
 
 The `.where()` method accepts a string of valid Python boolean expression. The expression can be arbitrarily complex, but restrictions apply, e.g. making function calls are generally disallowed. Below is a conjunction filtering also on whether the input value contains the string `'programming'`.
 
@@ -196,7 +208,7 @@ query = SpanQuery().where(
 # correctness is whatever you named your evaluation metric
 ```
 
-## How to Extract Attributes
+### How to Extract Attributes
 
 Span attributes can be selected by simply listing them inside `.select()` method.
 
@@ -229,9 +241,9 @@ query = SpanQuery().select(**{
 })
 ```
 
-## Advanced Usage
+### Advanced Usage
 
-### Concatenating
+#### Concatenating
 
 The document contents can also be concatenated together. The query below concatenates the list of `document.content` with `\n` (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
 
@@ -255,7 +267,7 @@ query = SpanQuery().concat(
 )
 ```
 
-### Using Parent ID as Index
+#### Using Parent ID as Index
 
 This is useful for joining a span to its parent span. To do that we would first index the child span by selecting its parent ID and renaming it as `span_id`. This works because `span_id` is a special column name: whichever column having that name will become the index of the output DataFrame.
 
@@ -266,7 +278,7 @@ query = SpanQuery().select(
 )
 ```
 
-### Joining a Span to Its Parent
+#### Joining a Span to Its Parent
 
 To do this, we would provide two queries to Phoenix which will return two simultaneous dataframes that can be joined together by pandas. The `query_for_child_spans` uses `parent_id` as index as shown in [Using Parent ID as Index](extract-data-from-spans.md#using-parent-id-as-index), and `px.Client().query_spans()` returns a list of dataframes when multiple queries are given.
 
@@ -283,9 +295,9 @@ pd.concatenate(
 )
 ```
 
-## How to use Data for Evaluation
+### How to use Data for Evaluation
 
-### Extract the Input and Output from LLM Spans
+#### Extract the Input and Output from LLM Spans
 
 To learn more about extracting span attributes, see [Extracting Span Attributes](extract-data-from-spans.md#extracting-span-attributes).
 
@@ -377,3 +389,33 @@ qa_with_reference
 The output DataFrame would look something like the one below. The `input` contains contains the question, the `output` column contains the answer, and the `reference` column contains a concatenation of all the retrieved documents. This helper function assumes that the questions and answers are the `input.value` and `output.value` attributes of the root spans, and the list of retrieved documents are contained in a direct child span of the root span. (The helper function applies the techniques described in the [Advanced Usage](extract-data-from-spans.md#advanced-usage) section.)
 
 <table><thead><tr><th width="179">context.span_id</th><th>input</th><th>output</th><th>reference</th></tr></thead><tbody><tr><td>CDBC4CE34</td><td>What was the author's trick for ...</td><td>The author's trick for ...</td><td>Even then it took me several years to understand ...</td></tr><tr><td>...</td><td>...</td><td>...</td><td>...</td></tr></tbody></table>
+
+## Save All Traces
+
+Sometimes you may want to back up your Phoenix traces to a single file, rather than exporting specific spans to run evaluation.
+
+Use the following command to save all traces from a Phoenix instance to a designated location.
+
+```python
+my_traces = px.Client().get_trace_dataset().save()
+```
+
+You can specify the directory to save your traces by passing a`directory` argument to the `save` method.
+
+```python
+import os
+
+# Specify and Create the Directory for Trace Dataset
+directory = '/my_saved_traces'
+os.makedirs(directory, exist_ok=True)
+
+# Save the Trace Dataset
+trace_id = px.Client().get_trace_dataset().save(directory=directory)
+```
+
+This output the trace ID and prints the path of the saved file:
+
+`💾 Trace dataset saved to under ID: f7733fda-6ad6-4427-a803-55ad2182b662`
+
+`📂 Trace dataset path: /my_saved_traces/trace_dataset-f7733fda-6ad6-4427-a803-55ad2182b662.parquet`
+
