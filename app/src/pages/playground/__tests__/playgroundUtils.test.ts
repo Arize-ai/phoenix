@@ -890,6 +890,99 @@ describe("getModelConfigFromAttributes", () => {
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
   });
+
+  it("should return a baseUrl if the attributes contain url.full", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+      url: {
+        full: "https://api.openai.com/v1/chat/completions",
+      },
+    };
+    const { modelConfig, parsingErrors } =
+      getBaseModelConfigFromAttributes(parsedAttributes);
+    expect({
+      modelConfig: {
+        ...modelConfig,
+      },
+      parsingErrors,
+    }).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+        baseUrl: "https://api.openai.com/v1/chat/completions",
+        endpoint: "https://api.openai.com",
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return baseUrl as url.full minus url.path if the attributes contain url.full and url.path", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+      url: {
+        full: "https://api.openai.com/v1/chat/completions?api-version=2020-05-03",
+        path: "chat/completions",
+      },
+    };
+    const { modelConfig, parsingErrors } =
+      getBaseModelConfigFromAttributes(parsedAttributes);
+    expect({
+      modelConfig: {
+        ...modelConfig,
+      },
+      parsingErrors,
+    }).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+        baseUrl: "https://api.openai.com/v1/",
+        endpoint: "https://api.openai.com",
+        apiVersion: "2020-05-03",
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return apiVersion if url.full contains api-version in params", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+      url: {
+        full: "https://api.openai.com/v1/chat/completions?api-version=2020-05-03",
+      },
+    };
+    const { modelConfig, parsingErrors } =
+      getBaseModelConfigFromAttributes(parsedAttributes);
+    expect({
+      modelConfig: {
+        ...modelConfig,
+      },
+      parsingErrors,
+    }).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+        baseUrl: "https://api.openai.com/v1/chat/completions",
+        endpoint: "https://api.openai.com",
+        apiVersion: "2020-05-03",
+      },
+      parsingErrors: [],
+    });
+  });
 });
 
 describe("extractVariablesFromInstances", () => {

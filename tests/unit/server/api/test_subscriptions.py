@@ -8,6 +8,7 @@ from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
+from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
@@ -230,6 +231,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
@@ -351,6 +354,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
@@ -505,6 +510,8 @@ class TestChatCompletionSubscription:
         assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span(
@@ -670,6 +677,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_anthropic_text_response_emits_expected_payloads_and_records_expected_span(
@@ -802,6 +811,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "anthropic"
         assert attributes.pop(LLM_SYSTEM) == "anthropic"
+        assert attributes.pop(URL_FULL) == "https://api.anthropic.com/v1/messages"
+        assert attributes.pop(URL_PATH) == "v1/messages"
         assert not attributes
 
 
@@ -1100,6 +1111,8 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert attributes.pop(PROMPT_TEMPLATE_VARIABLES) == json.dumps({"city": "Paris"})
         assert not attributes
 
@@ -1185,6 +1198,8 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert attributes.pop(PROMPT_TEMPLATE_VARIABLES) == json.dumps({"city": "Tokyo"})
         assert not attributes
 

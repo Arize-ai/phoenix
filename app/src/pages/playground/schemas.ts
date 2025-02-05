@@ -196,6 +196,13 @@ export const modelConfigWithResponseFormatSchema = z.object({
   }),
 });
 
+export const urlSchema = z.object({
+  url: z.object({
+    full: z.string(),
+    path: z.string().optional(),
+  }),
+});
+
 /**
  *  The zod schema for llm.tools.{i}.tool.json_schema attribute
  *  This will be a json string parsed into an object

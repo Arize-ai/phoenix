@@ -77,6 +77,7 @@ import {
   modelConfigWithResponseFormatSchema,
   outputSchema,
   promptTemplateSchema,
+  urlSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -364,8 +365,12 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
+    const urlInfo = getUrlInfoFromAttributes(parsedAttributes);
     return {
       modelConfig: {
+        ...Object.fromEntries(
+          Object.entries(urlInfo).filter(([_, value]) => value !== null)
+        ),
         modelName: data.llm.model_name,
         provider,
         invocationParameters: [],
@@ -375,6 +380,39 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
+}
+
+export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
+  baseUrl: string | null;
+  endpoint: string | null;
+  apiVersion: string | null;
+} {
+  const { success, data } = urlSchema.safeParse(parsedAttributes);
+  if (success) {
+    try {
+      const url = new URL(data.url.full);
+      let baseUrl = url;
+      if (data.url.path) {
+        try {
+          baseUrl = new URL(data.url.full.split(data.url.path)[0]);
+        } catch (_) {
+          // If the split URL is invalid, we will just use the full URL
+        }
+      }
+      return {
+        baseUrl: `${baseUrl.origin}${baseUrl.pathname}`,
+        endpoint: url.origin,
+        apiVersion: url.searchParams.get("api-version") || null,
+      };
+    } catch (_) {
+      // If the URL is invalid, we will just return null for all values
+    }
+  }
+  return {
+    baseUrl: null,
+    apiVersion: null,
+    endpoint: null,
+  };
 }
 
 /**
