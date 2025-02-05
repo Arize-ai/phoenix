@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
-import { createClient, getPrompt, toSDK } from "../src";
+import { createClient } from "../src";
+import { getPrompt, toSDK } from "../src/prompts";
 import OpenAI from "openai";
 import { PromptLike } from "../src/types/prompts";
 

@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
-import { createClient, getPrompt, toSDK } from "../src";
+import { createClient } from "../src";
+import { getPrompt, toSDK } from "../src/prompts";
 import { Anthropic } from "@anthropic-ai/sdk";
 import { PromptLike } from "../src/types/prompts";
 
