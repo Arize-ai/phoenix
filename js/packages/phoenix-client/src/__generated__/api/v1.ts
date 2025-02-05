@@ -662,12 +662,10 @@ export interface components {
             model_name: string;
             /** Template */
             template: components["schemas"]["PromptChatTemplateV1"] | components["schemas"]["PromptStringTemplateV1"];
-            /** @default CHAT */
             template_type: components["schemas"]["PromptTemplateType"];
-            /** @default MUSTACHE */
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters?: Record<string, unknown>;
+            invocation_parameters: Record<string, unknown>;
             tools?: components["schemas"]["PromptToolsV1"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;

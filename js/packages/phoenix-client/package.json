@@ -47,6 +47,8 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "@types/node": "^20.14.11",
+    "ai": "^4.1.0",
+    "openai": "^4.77.0",
     "openapi-typescript": "^7.4.1",
     "tsx": "^4.19.1",
     "vitest": "^2.1.8"
@@ -61,7 +63,8 @@
   "engines": {
     "node": ">=18"
   },
-  "peerDependencies": {
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^4.1.0",
     "openai": "^4.77.0"
   }
