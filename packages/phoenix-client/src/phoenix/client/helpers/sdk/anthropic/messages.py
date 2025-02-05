@@ -199,10 +199,10 @@ def _from_tools(
 ) -> PromptToolsV1:
     functions: list[PromptFunctionToolV1] = []
     for tool in tools:
-        function: PromptFunctionToolV1 = {
-            "type": "function-tool-v1",
-            "name": tool["name"],
-        }
+        function = PromptFunctionToolV1(
+            type="function-tool-v1",
+            name=tool["name"],
+        )
         if "description" in tool:
             function["description"] = tool["description"]
         if "input_schema" in tool:

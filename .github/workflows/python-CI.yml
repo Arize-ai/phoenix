@@ -343,7 +343,11 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
-            tests/
+            tests/unit/
+            tests/conftest.py
+            tests/mypy.ini
+            tests/__generated__/
+            tests/__init__.py
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -383,6 +387,8 @@ jobs:
             src/phoenix/
             tests/unit/
             tests/conftest.py
+            tests/__generated__/
+            tests/__init__.py
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -426,6 +432,8 @@ jobs:
             src/phoenix/
             packages/phoenix-client/
             tests/integration/
+            tests/__generated__/
+            tests/__init__.py
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -488,6 +496,8 @@ jobs:
             src/phoenix/
             packages/phoenix-client/
             tests/integration/
+            tests/__generated__/
+            tests/__init__.py
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@v5
         with:
@@ -514,7 +524,7 @@ jobs:
       fail-fast: false
       matrix:
         py: [ 3.9 ]
-        pkg: [ openai, anthropic ]
+        pkg: [ openai, anthropic, mistralai, groq ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
