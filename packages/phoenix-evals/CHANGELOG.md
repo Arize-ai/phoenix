@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.19.0...arize-phoenix-evals-v0.20.0) (2025-02-05)
+
+
+### Features
+
+* Enable overriding executor timeouts per model ([#6206](https://github.com/Arize-ai/phoenix/issues/6206)) ([23fb2b0](https://github.com/Arize-ai/phoenix/commit/23fb2b03e2aa8cf3f0940b857cd2ca3f7dfd71b7))
+* Support OpenAI reasoning models that don't use the "system" role ([#6239](https://github.com/Arize-ai/phoenix/issues/6239)) ([84f9d8e](https://github.com/Arize-ai/phoenix/commit/84f9d8e96846a496aafa1c360932268cba935d3c))
+
+
+### Bug Fixes
+
+* local variable 'prompt_message' referenced before assignment ([#6102](https://github.com/Arize-ai/phoenix/issues/6102)) ([10b1535](https://github.com/Arize-ai/phoenix/commit/10b1535dc7c9c5016d2b7c30574fa7e771601992))
+
 ## [0.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.1...arize-phoenix-evals-v0.19.0) (2025-01-16)
 
 
