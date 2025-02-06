@@ -25,6 +25,10 @@ from phoenix.client.__generated__.v1 import (
     JSONSchemaDraft7ObjectSchema,
     PromptFunctionToolV1,
     PromptMessage,
+    PromptToolChoiceNone,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
     PromptToolsV1,
     PromptVersion,
     TextContentPart,
@@ -52,6 +56,7 @@ if TYPE_CHECKING:
         ChatCompletionFunctionMessageParam,
         ChatCompletionMessageParam,
         ChatCompletionMessageToolCallParam,
+        ChatCompletionNamedToolChoiceParam,
         ChatCompletionReasoningEffort,
         ChatCompletionRole,
         ChatCompletionSystemMessageParam,
@@ -61,29 +66,34 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
+    from openai.types.chat.chat_completion_named_tool_choice_param import Function
     from openai.types.chat.completion_create_params import (
         ResponseFormat,
     )
     from openai.types.shared_params import FunctionDefinition
 
-    class _ModelKwargs(TypedDict, total=False):
-        model: Required[str]
-        frequency_penalty: float
-        max_tokens: int
-        parallel_tool_calls: bool
-        presence_penalty: float
-        reasoning_effort: ChatCompletionReasoningEffort
-        response_format: ResponseFormat
-        seed: int
-        stop: list[str]
-        temperature: float
-        tool_choice: ChatCompletionToolChoiceOptionParam
-        tools: list[ChatCompletionToolParam]
-        top_p: float
-
     def _(obj: PromptVersion) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
         OpenAI().chat.completions.create(messages=messages, **kwargs)
+
+
+class _ToolKwargs(TypedDict, total=False):
+    parallel_tool_calls: bool
+    tool_choice: ChatCompletionToolChoiceOptionParam
+    tools: list[ChatCompletionToolParam]
+
+
+class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
+    model: Required[str]
+    frequency_penalty: float
+    max_tokens: int
+    presence_penalty: float
+    reasoning_effort: ChatCompletionReasoningEffort
+    response_format: ResponseFormat
+    seed: int
+    stop: list[str]
+    temperature: float
+    top_p: float
 
 
 _ContentPart: TypeAlias = Union[
@@ -178,6 +188,89 @@ def _to_chat_completion_messages(
         yield {"role": "user", "content": content}
     elif TYPE_CHECKING:
         assert_never(template)
+
+
+def _to_tool_kwargs(
+    obj: Optional[PromptToolsV1],
+) -> _ToolKwargs:
+    ans: _ToolKwargs = {}
+    if not obj or not (tools := list(_to_tools(obj))):
+        return ans
+    ans["tools"] = tools
+    if "tool_choice" in obj:
+        tool_choice: ChatCompletionToolChoiceOptionParam = _to_tool_choice(obj["tool_choice"])
+        ans["tool_choice"] = tool_choice
+    if "disable_parallel_tool_calls" in obj:
+        v: bool = obj["disable_parallel_tool_calls"]
+        ans["parallel_tool_calls"] = not v
+    return ans
+
+
+def _from_tool_kwargs(
+    obj: _ToolKwargs,
+) -> Optional[PromptToolsV1]:
+    if not obj or "tools" not in obj:
+        return None
+    ans: PromptToolsV1 = _from_tools(obj["tools"])
+    if not ans["tools"]:
+        return None
+    if "tool_choice" in obj:
+        tc: ChatCompletionToolChoiceOptionParam = obj["tool_choice"]
+        ans["tool_choice"] = _from_tool_choice(tc)
+    if "parallel_tool_calls" in obj:
+        v: bool = obj["parallel_tool_calls"]
+        ans["disable_parallel_tool_calls"] = not v
+    return ans
+
+
+def _to_tool_choice(
+    obj: Union[
+        PromptToolChoiceNone,
+        PromptToolChoiceZeroOrMore,
+        PromptToolChoiceOneOrMore,
+        PromptToolChoiceSpecificFunctionTool,
+    ],
+) -> ChatCompletionToolChoiceOptionParam:
+    if obj["type"] == "none":
+        return "none"
+    if obj["type"] == "zero-or-more":
+        return "auto"
+    if obj["type"] == "one-or-more":
+        return "required"
+    if obj["type"] == "specific-function-tool":
+        choice_tool: ChatCompletionNamedToolChoiceParam = {
+            "type": "function",
+            "function": {"name": obj["function_name"]},
+        }
+        return choice_tool
+    assert_never(obj["type"])
+
+
+def _from_tool_choice(
+    obj: ChatCompletionToolChoiceOptionParam,
+) -> Union[
+    PromptToolChoiceNone,
+    PromptToolChoiceZeroOrMore,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+]:
+    if obj == "none":
+        choice_none: PromptToolChoiceNone = {"type": "none"}
+        return choice_none
+    if obj == "auto":
+        choice_zero_or_more: PromptToolChoiceZeroOrMore = {"type": "zero-or-more"}
+        return choice_zero_or_more
+    if obj == "required":
+        choice_one_or_more: PromptToolChoiceOneOrMore = {"type": "one-or-more"}
+        return choice_one_or_more
+    if obj["type"] == "function":
+        function: Function = obj["function"]
+        choice_function_tool: PromptToolChoiceSpecificFunctionTool = {
+            "type": "specific-function-tool",
+            "function_name": function["name"],
+        }
+        return choice_function_tool
+    assert_never(obj["type"])
 
 
 def _to_tools(

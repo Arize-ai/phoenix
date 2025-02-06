@@ -10,6 +10,7 @@ from openai.types.chat import (
     ChatCompletionContentPartParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionMessageToolCallParam,
+    ChatCompletionNamedToolChoiceParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
     ChatCompletionToolParam,
@@ -23,6 +24,7 @@ from openai.types.shared_params import FunctionDefinition
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     PromptMessage,
+    PromptToolsV1,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -32,12 +34,15 @@ from phoenix.client.helpers.sdk.openai.chat import (
     _from_message,
     _from_text,
     _from_tool_call,
+    _from_tool_kwargs,
     _from_tools,
     _to_image,
     _to_messages,
     _to_text,
     _to_tool_call,
+    _to_tool_kwargs,
     _to_tools,
+    _ToolKwargs,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
@@ -125,11 +130,11 @@ def _tool_call() -> ChatCompletionMessageToolCallParam:
     )
 
 
-def _tool() -> ChatCompletionToolParam:
+def _tool(name: Optional[str] = None) -> ChatCompletionToolParam:
     return ChatCompletionToolParam(
         type="function",
         function=FunctionDefinition(
-            name=_str(),
+            name=name or _str(),
             description=_str(),
             parameters={
                 "type": "object",
@@ -234,6 +239,64 @@ class TestChatCompletionContentPartImageParam:
         obj: ChatCompletionContentPartImageParam = _image()
         x: ImageContentPart = _from_image(obj)
         new_obj: ChatCompletionContentPartImageParam = _to_image(x, {}, NO_OP_FORMATTER)
+        assert not DeepDiff(obj, new_obj)
+
+
+class TestToolKwargs:
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            {},
+            {
+                "tools": [_tool(), _tool()],
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": "none",
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": "none",
+                "parallel_tool_calls": False,
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": "auto",
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": "auto",
+                "parallel_tool_calls": False,
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": "required",
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": "required",
+                "parallel_tool_calls": False,
+            },
+            {
+                "tools": [_tool(), _tool("xyz")],
+                "tool_choice": ChatCompletionNamedToolChoiceParam(
+                    type="function",
+                    function={"name": "xyz"},
+                ),
+            },
+            {
+                "tools": [_tool(), _tool("xyz")],
+                "tool_choice": ChatCompletionNamedToolChoiceParam(
+                    type="function",
+                    function={"name": "xyz"},
+                ),
+                "parallel_tool_calls": False,
+            },
+        ],
+    )
+    def test_round_trip(self, obj: _ToolKwargs) -> None:
+        x: Optional[PromptToolsV1] = _from_tool_kwargs(obj)
+        new_obj: _ToolKwargs = _to_tool_kwargs(x)
         assert not DeepDiff(obj, new_obj)
 
 

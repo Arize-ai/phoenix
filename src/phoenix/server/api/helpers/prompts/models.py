@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
@@ -160,6 +162,36 @@ PromptTool: TypeAlias = Annotated[Union[PromptFunctionToolV1], Field(..., discri
 class PromptToolsV1(PromptModel):
     type: Literal["tools-v1"]
     tools: Annotated[list[PromptTool], Field(..., min_length=1)]
+    tool_choice: PromptToolChoice = UNDEFINED
+    disable_parallel_tool_calls: bool = UNDEFINED
+
+
+class PromptToolChoiceNone(PromptModel):
+    type: Literal["none"]
+
+
+class PromptToolChoiceZeroOrMore(PromptModel):
+    type: Literal["zero-or-more"]
+
+
+class PromptToolChoiceOneOrMore(PromptModel):
+    type: Literal["one-or-more"]
+
+
+class PromptToolChoiceSpecificFunctionTool(PromptModel):
+    type: Literal["specific-function-tool"]
+    function_name: str
+
+
+PromptToolChoice: TypeAlias = Annotated[
+    Union[
+        PromptToolChoiceNone,
+        PromptToolChoiceZeroOrMore,
+        PromptToolChoiceOneOrMore,
+        PromptToolChoiceSpecificFunctionTool,
+    ],
+    Field(..., discriminator="type"),
+]
 
 
 class PromptOpenAIJSONSchema(PromptModel):

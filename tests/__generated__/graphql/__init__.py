@@ -598,6 +598,8 @@ class GenerativeModel(BaseModel):
 
 class GenerativeProvider(BaseModel):
     model_config = ConfigDict(frozen=True)
+    apiKeyEnvVar: str = Field(...)
+    apiKeySet: bool = Field(...)
     dependencies: list[str]
     dependenciesInstalled: bool
     key: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
@@ -1609,6 +1611,7 @@ class EvalResultKey(BaseModel):
 class GenerativeModelInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     apiVersion: Optional[str] = None
+    baseUrl: Optional[str] = None
     endpoint: Optional[str] = None
     name: str
     providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
