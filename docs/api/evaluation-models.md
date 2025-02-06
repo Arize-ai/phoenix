@@ -52,6 +52,12 @@ class OpenAIModel:
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
 ```
 
+{% hint style="info" %}
+All models newer than GPT 3.5 Turbo are tested regularly. If you're using an older model than that, you may run into deprecated API parameters.
+{% endhint %}
+
+
+
 To authenticate with OpenAI you will need, at a minimum, an API key. The model class will look for it in your environment, or you can pass it via argument as shown above. In addition, you can choose the specific name of the model you want to use and its configuration parameters. The default values specified above are common default values from OpenAI. Quickly instantiate your model as follows:
 
 ```python
@@ -73,9 +79,8 @@ model = OpenAIModel(
 ```
 
 {% hint style="info" %}
-Note that the `model` param is actually the `engine` of your deployment.  You may get a `DeploymentNotFound` error if this parameter is not correct. You can find your engine param in the Azure OpenAI playground.\
-\
-
+Note that the `model` param is actually the `engine` of your deployment. You may get a `DeploymentNotFound` error if this parameter is not correct. You can find your engine param in the Azure OpenAI playground.\
+\\
 {% endhint %}
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/azure_openai_engine.png" alt=""><figcaption><p>How to find the model param in Azure</p></figcaption></figure>
@@ -146,7 +151,7 @@ class GeminiModel:
     top_k: int = 32
 ```
 
-Similar to VertexAIModel above for authentication&#x20;
+Similar to VertexAIModel above for authentication
 
 ### AnthropicModel
 
