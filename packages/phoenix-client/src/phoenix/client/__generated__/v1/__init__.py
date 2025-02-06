@@ -134,9 +134,35 @@ class PromptStringTemplateV1(TypedDict):
     version: Literal["string-template-v1"]
 
 
+class PromptToolChoiceNone(TypedDict):
+    type: Literal["none"]
+
+
+class PromptToolChoiceOneOrMore(TypedDict):
+    type: Literal["one-or-more"]
+
+
+class PromptToolChoiceSpecificFunctionTool(TypedDict):
+    function_name: str
+    type: Literal["specific-function-tool"]
+
+
+class PromptToolChoiceZeroOrMore(TypedDict):
+    type: Literal["zero-or-more"]
+
+
 class PromptToolsV1(TypedDict):
     tools: Sequence[PromptFunctionToolV1]
     type: Literal["tools-v1"]
+    tool_choice: NotRequired[
+        Union[
+            PromptToolChoiceNone,
+            PromptToolChoiceZeroOrMore,
+            PromptToolChoiceOneOrMore,
+            PromptToolChoiceSpecificFunctionTool,
+        ]
+    ]
+    disable_parallel_tool_calls: NotRequired[bool]
 
 
 class SpanAnnotationResult(TypedDict):
