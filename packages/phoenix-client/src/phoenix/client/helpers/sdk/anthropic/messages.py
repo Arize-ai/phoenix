@@ -26,6 +26,9 @@ from phoenix.client.__generated__.v1 import (
     JSONSchemaDraft7ObjectSchema,
     PromptFunctionToolV1,
     PromptMessage,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
     PromptToolsV1,
     PromptVersion,
     TextContentPart,
@@ -51,7 +54,10 @@ if TYPE_CHECKING:
         ModelParam,
         TextBlock,
         TextBlockParam,
+        ToolChoiceAnyParam,
+        ToolChoiceAutoParam,
         ToolChoiceParam,
+        ToolChoiceToolParam,
         ToolParam,
         ToolResultBlockParam,
         ToolUseBlock,
@@ -73,20 +79,24 @@ if TYPE_CHECKING:
         ToolResultContentPart,
     ]
 
-    class _ModelKwargs(TypedDict, total=False):
-        max_tokens: Required[int]
-        model: Required[ModelParam]
-        stop_sequences: list[str]
-        system: Union[str, list[TextBlockParam]]
-        temperature: float
-        tool_choice: ToolChoiceParam
-        tools: list[ToolParam]
-        top_k: int
-        top_p: float
-
     def _(obj: PromptVersion) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
         Anthropic().messages.create(messages=messages, **kwargs)
+
+
+class _ToolKwargs(TypedDict, total=False):
+    tools: list[ToolParam]
+    tool_choice: ToolChoiceParam
+
+
+class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
+    max_tokens: Required[int]
+    model: Required[ModelParam]
+    stop_sequences: list[str]
+    system: Union[str, list[TextBlockParam]]
+    temperature: float
+    top_k: int
+    top_p: float
 
 
 logger = logging.getLogger(__name__)
@@ -168,16 +178,111 @@ def _to_model_kwargs(
             ans["top_p"] = float(v)
         except (ValueError, TypeError):
             pass
-    if "tools" in obj and obj["tools"] and (tools := list(_to_tools(obj["tools"]))):
-        ans["tools"] = tools
-        if (tool_choice := parameters.get("tool_choice")) is not None:
-            if tool_choice == "any":
-                ans["tool_choice"] = {"type": "any"}
-            elif isinstance(tool_choice, str) and tool_choice != "auto":
-                ans["tool_choice"] = {"type": "tool", "name": tool_choice}
-        else:
-            ans["tool_choice"] = {"type": "auto"}
+    if "tools" in obj:
+        tool_kwargs = _to_tool_kwargs(obj["tools"])
+        if "tools" in tool_kwargs:
+            ans["tools"] = tool_kwargs["tools"]
+            if "tool_choice" in tool_kwargs:
+                ans["tool_choice"] = tool_kwargs["tool_choice"]
     return ans
+
+
+def _to_tool_kwargs(
+    obj: Optional[PromptToolsV1],
+) -> _ToolKwargs:
+    ans: _ToolKwargs = {}
+    if not obj or not (tools := list(_to_tools(obj))):
+        return ans
+    ans["tools"] = tools
+    if "tool_choice" in obj:
+        if obj["tool_choice"]["type"] == "none":
+            return {}
+        disable_parallel_tool_use: Optional[bool] = (
+            obj["disable_parallel_tool_calls"] if "disable_parallel_tool_calls" in obj else None
+        )
+        tool_choice: ToolChoiceParam = _to_tool_choice(
+            obj["tool_choice"],
+            disable_parallel_tool_use,
+        )
+        ans["tool_choice"] = tool_choice
+    return ans
+
+
+def _from_tool_kwargs(
+    obj: _ToolKwargs,
+) -> Optional[PromptToolsV1]:
+    if not obj or "tools" not in obj:
+        return None
+    ans: PromptToolsV1 = _from_tools(obj["tools"])
+    if not ans["tools"]:
+        return None
+    if "tool_choice" in obj:
+        tc: ToolChoiceParam = obj["tool_choice"]
+        tool_choice, disable_parallel_tool_use = _from_tool_choice(tc)
+        ans["tool_choice"] = tool_choice
+        if disable_parallel_tool_use is not None:
+            ans["disable_parallel_tool_calls"] = disable_parallel_tool_use
+    return ans
+
+
+def _to_tool_choice(
+    obj: Union[
+        PromptToolChoiceZeroOrMore,
+        PromptToolChoiceOneOrMore,
+        PromptToolChoiceSpecificFunctionTool,
+    ],
+    disable_parallel_tool_use: Optional[bool] = None,
+) -> ToolChoiceParam:
+    if obj["type"] == "zero-or-more":
+        choice_auto: ToolChoiceAutoParam = {"type": "auto"}
+        if disable_parallel_tool_use is not None:
+            choice_auto["disable_parallel_tool_use"] = disable_parallel_tool_use
+        return choice_auto
+    if obj["type"] == "one-or-more":
+        choice_any: ToolChoiceAnyParam = {"type": "any"}
+        if disable_parallel_tool_use is not None:
+            choice_any["disable_parallel_tool_use"] = disable_parallel_tool_use
+        return choice_any
+    if obj["type"] == "specific-function-tool":
+        choice_tool: ToolChoiceToolParam = {"type": "tool", "name": obj["function_name"]}
+        if disable_parallel_tool_use is not None:
+            choice_tool["disable_parallel_tool_use"] = disable_parallel_tool_use
+        return choice_tool
+    assert_never(obj["type"])
+
+
+def _from_tool_choice(
+    obj: ToolChoiceParam,
+) -> tuple[
+    Union[
+        PromptToolChoiceZeroOrMore,
+        PromptToolChoiceOneOrMore,
+        PromptToolChoiceSpecificFunctionTool,
+    ],
+    Optional[bool],
+]:
+    if obj["type"] == "auto":
+        disable_parallel_tool_use = (
+            obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
+        )
+        choice_zero_or_more: PromptToolChoiceZeroOrMore = {"type": "zero-or-more"}
+        return choice_zero_or_more, disable_parallel_tool_use
+    if obj["type"] == "any":
+        disable_parallel_tool_use = (
+            obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
+        )
+        choice_one_or_more: PromptToolChoiceOneOrMore = {"type": "one-or-more"}
+        return choice_one_or_more, disable_parallel_tool_use
+    if obj["type"] == "tool":
+        disable_parallel_tool_use = (
+            obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
+        )
+        choice_function_tool: PromptToolChoiceSpecificFunctionTool = {
+            "type": "specific-function-tool",
+            "function_name": obj["name"],
+        }
+        return choice_function_tool, disable_parallel_tool_use
+    assert_never(obj["type"])
 
 
 def _to_tools(
