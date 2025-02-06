@@ -925,6 +925,32 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
             "anthropic",
             id="anthropic-parameters",
         ),
+        pytest.param(
+            {
+                "temperature": 0.73,
+                "max_output_tokens": 256,
+                "stop_sequences": ["<|endoftext|>"],
+                "presence_penalty": 0.25,
+                "frequency_penalty": 0.12,
+                "top_p": 0.92,
+                "top_k": 40,
+            },
+            {
+                "type": "invocation-parameters",
+                "parameters": {
+                    "temperature": 0.73,
+                    "max_completion_tokens": 256,
+                    "stop_sequences": ["<|endoftext|>"],
+                    "top_p": 0.92,
+                    "top_k": 40,
+                    "presence_penalty": 0.25,
+                    "frequency_penalty": 0.12,
+                    "extra_parameters": {},
+                },
+            },
+            "gemini",
+            id="gemini-parameters",
+        ),
     ],
 )
 async def test_invocation_parameters_are_round_tripped_without_data_loss(

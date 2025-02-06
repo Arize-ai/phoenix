@@ -368,6 +368,17 @@ class PromptAnthropicInvocationParameters(PromptModel):
     tool_choice: dict[str, Any] = UNDEFINED
 
 
+class PromptGeminiInvocationParameters(PromptModel):
+    temperature: float = UNDEFINED
+    max_output_tokens: int = UNDEFINED
+    tool_choice: str = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    top_k: int = UNDEFINED
+
+
 class PromptInvocationParams(PromptModel):
     temperature: float = UNDEFINED
     max_completion_tokens: int = UNDEFINED
@@ -377,6 +388,7 @@ class PromptInvocationParams(PromptModel):
     random_seed: int = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
     extra_parameters: dict[str, Any]
+    top_k: int = UNDEFINED
 
 
 class PromptInvocationParameters(PromptModel):
@@ -406,7 +418,7 @@ def normalize_invocation_parameters(
                 extra_parameters=extra_parameters,
             ),
         )
-    elif model_provider.lower() == "anthropic":
+    if model_provider.lower() == "anthropic":
         anthropic_invocation_parameters = PromptAnthropicInvocationParameters.model_validate(
             parameters
         )
@@ -419,6 +431,23 @@ def normalize_invocation_parameters(
                 max_completion_tokens=anthropic_invocation_parameters.max_tokens,
                 top_p=anthropic_invocation_parameters.top_p,
                 stop_sequences=anthropic_invocation_parameters.stop_sequences,
+                extra_parameters=extra_parameters,
+            ),
+        )
+    if model_provider.lower() == "gemini":
+        gemini_invocation_parameters = PromptGeminiInvocationParameters.model_validate(parameters)
+        if (tool_choice := gemini_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = tool_choice
+        return PromptInvocationParameters(
+            type="invocation-parameters",
+            parameters=PromptInvocationParams(
+                temperature=gemini_invocation_parameters.temperature,
+                max_completion_tokens=gemini_invocation_parameters.max_output_tokens,
+                stop_sequences=gemini_invocation_parameters.stop_sequences,
+                presence_penalty=gemini_invocation_parameters.presence_penalty,
+                frequency_penalty=gemini_invocation_parameters.frequency_penalty,
+                top_p=gemini_invocation_parameters.top_p,
+                top_k=gemini_invocation_parameters.top_k,
                 extra_parameters=extra_parameters,
             ),
         )
@@ -441,7 +470,7 @@ def denormalize_invocation_parameters(
             reasoning_effort=params.extra_parameters.get("reasoning_effort", UNDEFINED),
         )
         return openai_invocation_parameters.model_dump()
-    elif model_provider.lower() == "anthropic":
+    if model_provider.lower() == "anthropic":
         anthropic_invocation_parameters = PromptAnthropicInvocationParameters(
             max_tokens=params.max_completion_tokens,
             temperature=params.temperature,
@@ -450,6 +479,18 @@ def denormalize_invocation_parameters(
             tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
         )
         return anthropic_invocation_parameters.model_dump()
+    if model_provider.lower() == "gemini":
+        gemini_invocation_parameters = PromptGeminiInvocationParameters(
+            temperature=params.temperature,
+            max_output_tokens=params.max_completion_tokens,
+            stop_sequences=params.stop_sequences,
+            presence_penalty=params.presence_penalty,
+            frequency_penalty=params.frequency_penalty,
+            top_p=params.top_p,
+            top_k=params.top_k,
+            tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
+        )
+        return gemini_invocation_parameters.model_dump()
     return {}
 
 
