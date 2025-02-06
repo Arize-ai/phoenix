@@ -349,6 +349,110 @@ class AnthropicToolDefinition(PromptModel):
     description: str = UNDEFINED
 
 
+class PromptOpenAIInvocationParameters(PromptModel):
+    temperature: float = UNDEFINED
+    max_tokens: int = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    seed: int = UNDEFINED
+    reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
+    tool_choice: str = UNDEFINED
+
+
+class PromptAnthropicInvocationParameters(PromptModel):
+    temperature: float = UNDEFINED
+    max_tokens: int = UNDEFINED
+    top_p: float = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    tool_choice: dict[str, Any] = UNDEFINED
+
+
+class PromptInvocationParams(PromptModel):
+    temperature: float = UNDEFINED
+    max_completion_tokens: int = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    random_seed: int = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    extra_parameters: dict[str, Any]
+
+
+class PromptInvocationParameters(PromptModel):
+    type: Literal["invocation-parameters"]
+    parameters: PromptInvocationParams
+
+
+def normalize_invocation_parameters(
+    parameters: dict[str, Any], model_provider: str
+) -> PromptInvocationParameters:
+    extra_parameters: dict[str, Any] = {}
+    if model_provider.lower() == "openai":
+        openai_invocation_parameters = PromptOpenAIInvocationParameters.model_validate(parameters)
+        if (tool_choice := openai_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = tool_choice
+        if (reasoning_effort := openai_invocation_parameters.reasoning_effort) is not UNDEFINED:
+            extra_parameters["reasoning_effort"] = reasoning_effort
+        return PromptInvocationParameters(
+            type="invocation-parameters",
+            parameters=PromptInvocationParams(
+                temperature=openai_invocation_parameters.temperature,
+                max_completion_tokens=openai_invocation_parameters.max_tokens,
+                frequency_penalty=openai_invocation_parameters.frequency_penalty,
+                presence_penalty=openai_invocation_parameters.presence_penalty,
+                top_p=openai_invocation_parameters.top_p,
+                random_seed=openai_invocation_parameters.seed,
+                extra_parameters=extra_parameters,
+            ),
+        )
+    elif model_provider.lower() == "anthropic":
+        anthropic_invocation_parameters = PromptAnthropicInvocationParameters.model_validate(
+            parameters
+        )
+        if (anthropic_tool_choice := anthropic_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = anthropic_tool_choice
+        return PromptInvocationParameters(
+            type="invocation-parameters",
+            parameters=PromptInvocationParams(
+                temperature=anthropic_invocation_parameters.temperature,
+                max_completion_tokens=anthropic_invocation_parameters.max_tokens,
+                top_p=anthropic_invocation_parameters.top_p,
+                stop_sequences=anthropic_invocation_parameters.stop_sequences,
+                extra_parameters=extra_parameters,
+            ),
+        )
+    raise ValueError(f"Unsupported model provider: {model_provider}")
+
+
+def denormalize_invocation_parameters(
+    parameters: PromptInvocationParameters, model_provider: str
+) -> dict[str, Any]:
+    params = parameters.parameters
+    if model_provider.lower() == "openai":
+        openai_invocation_parameters = PromptOpenAIInvocationParameters(
+            temperature=params.temperature,
+            max_tokens=params.max_completion_tokens,
+            frequency_penalty=params.frequency_penalty,
+            presence_penalty=params.presence_penalty,
+            top_p=params.top_p,
+            seed=params.random_seed,
+            tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
+            reasoning_effort=params.extra_parameters.get("reasoning_effort", UNDEFINED),
+        )
+        return openai_invocation_parameters.model_dump()
+    elif model_provider.lower() == "anthropic":
+        anthropic_invocation_parameters = PromptAnthropicInvocationParameters(
+            max_tokens=params.max_completion_tokens,
+            temperature=params.temperature,
+            stop_sequences=params.stop_sequences,
+            top_p=params.top_p,
+            tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
+        )
+        return anthropic_invocation_parameters.model_dump()
+    return {}
+
+
 def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV1:
     tools: list[PromptFunctionToolV1]
     if model_provider.lower() == "openai":

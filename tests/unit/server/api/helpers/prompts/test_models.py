@@ -10,6 +10,8 @@ from phoenix.server.api.helpers.prompts.models import (
     ImageContentPart,
     ImageContentValue,
     PromptChatTemplateV1,
+    PromptInvocationParameters,
+    PromptInvocationParams,
     PromptMessage,
     PromptMessageRole,
     TextContentPart,
@@ -19,17 +21,27 @@ from phoenix.server.api.helpers.prompts.models import (
     ToolCallFunction,
     ToolResultContentPart,
     ToolResultContentValue,
+    denormalize_invocation_parameters,
     denormalize_response_format,
     denormalize_tools,
+    normalize_invocation_parameters,
     normalize_response_format,
     normalize_tools,
 )
 from phoenix.server.types import DbSessionFactory
 
 
+@pytest.fixture
+def empty_invocation_parameters() -> PromptInvocationParameters:
+    return PromptInvocationParameters(
+        type="invocation-parameters", parameters=PromptInvocationParams(extra_parameters={})
+    )
+
+
 async def test_chat_template_materializes_to_expected_format(
     db: DbSessionFactory,
     dialect: str,
+    empty_invocation_parameters: PromptInvocationParameters,
 ) -> None:
     # create a template
     template = PromptChatTemplateV1(
@@ -83,7 +95,7 @@ async def test_chat_template_materializes_to_expected_format(
             template_type="CHAT",
             template_format="MUSTACHE",
             template=template,
-            invocation_parameters={},
+            invocation_parameters=empty_invocation_parameters,
             tools=None,
             response_format=None,
             model_provider="anthropic",
@@ -298,6 +310,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     expected_normalized_tool_dict: dict[str, Any],
     db: DbSessionFactory,
     dialect: str,
+    empty_invocation_parameters: PromptInvocationParameters,
 ) -> None:
     # normalize tools
     normalized_tools = normalize_tools([anthropic_tool_dict], "anthropic")
@@ -319,7 +332,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 version="chat-template-v1",
                 messages=[],
             ),
-            invocation_parameters={},
+            invocation_parameters=empty_invocation_parameters,
             tools=normalized_tools,
             response_format=None,
             model_provider="anthropic",
@@ -530,6 +543,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     expected_normalized_tool_dict: dict[str, Any],
     db: DbSessionFactory,
     dialect: str,
+    empty_invocation_parameters: PromptInvocationParameters,
 ) -> None:
     # normalize tools
     normalized_tools = normalize_tools([openai_tool_dict], "openai")
@@ -551,7 +565,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 version="chat-template-v1",
                 messages=[],
             ),
-            invocation_parameters={},
+            invocation_parameters=empty_invocation_parameters,
             tools=normalized_tools,
             response_format=None,
             model_provider="openai",
@@ -824,7 +838,9 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
                 version="chat-template-v1",
                 messages=[],
             ),
-            invocation_parameters={},
+            invocation_parameters=PromptInvocationParameters(
+                type="invocation-parameters", parameters=PromptInvocationParams(extra_parameters={})
+            ),
             tools=None,
             response_format=normalized_response_format,
             model_provider="openai",
@@ -857,3 +873,119 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
         rehydrated_response_format, "openai"
     )
     assert denormalized_response_format_dict == openai_response_format_dict
+
+
+@pytest.mark.parametrize(
+    "input_invocation_parameters_dict,expected_normalized_invocation_parameters_dict,model_provider",
+    [
+        pytest.param(
+            {
+                "temperature": 0.73,
+                "max_tokens": 256,
+                "frequency_penalty": 0.12,
+                "presence_penalty": 0.25,
+                "top_p": 0.92,
+                "seed": 42,
+                "reasoning_effort": "high",
+            },
+            {
+                "type": "invocation-parameters",
+                "parameters": {
+                    "temperature": 0.73,
+                    "max_completion_tokens": 256,
+                    "frequency_penalty": 0.12,
+                    "presence_penalty": 0.25,
+                    "top_p": 0.92,
+                    "random_seed": 42,
+                    "extra_parameters": {
+                        "reasoning_effort": "high",
+                    },
+                },
+            },
+            "openai",
+            id="openai-parameters",
+        ),
+        pytest.param(
+            {
+                "max_tokens": 256,
+                "temperature": 0.73,
+                "stop_sequences": ["<|endoftext|>"],
+                "top_p": 0.92,
+            },
+            {
+                "type": "invocation-parameters",
+                "parameters": {
+                    "max_completion_tokens": 256,
+                    "temperature": 0.73,
+                    "stop_sequences": ["<|endoftext|>"],
+                    "top_p": 0.92,
+                    "extra_parameters": {},
+                },
+            },
+            "anthropic",
+            id="anthropic-parameters",
+        ),
+    ],
+)
+async def test_invocation_parameters_are_round_tripped_without_data_loss(
+    input_invocation_parameters_dict: dict[str, Any],
+    expected_normalized_invocation_parameters_dict: dict[str, Any],
+    model_provider: str,
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    # normalize invocation parameters
+    normalized_invocation_parameters = normalize_invocation_parameters(
+        input_invocation_parameters_dict, model_provider
+    )
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplateV1(
+                version="chat-template-v1",
+                messages=[],
+            ),
+            invocation_parameters=normalized_invocation_parameters,
+            tools=None,
+            response_format=None,
+            model_provider="openai",
+            model_name="gpt-4o",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_invocation_parameters = await session.scalar(
+            select(text("invocation_parameters"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_invocation_parameters_dict = json.loads(materialized_invocation_parameters)
+    else:
+        materialized_invocation_parameters_dict = materialized_invocation_parameters
+    assert materialized_invocation_parameters_dict == expected_normalized_invocation_parameters_dict
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # denormalize invocation parameters and check it matches the input invocation parameters
+    rehydrated_invocation_parameters = rehydrated_prompt_version.invocation_parameters
+    assert rehydrated_invocation_parameters is not None
+    denormalized_invocation_parameters_dict = denormalize_invocation_parameters(
+        rehydrated_invocation_parameters, model_provider
+    )
+    assert denormalized_invocation_parameters_dict == input_invocation_parameters_dict

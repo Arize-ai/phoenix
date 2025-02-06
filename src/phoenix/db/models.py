@@ -43,6 +43,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplateV1,
+    PromptInvocationParameters,
     PromptResponseFormat,
     PromptResponseFormatWrapper,
     PromptStringTemplateV1,
@@ -165,7 +166,7 @@ class _Tools(TypeDecorator[PromptToolsV1]):
         return PromptToolsV1.model_validate(value) if value is not None else None
 
 
-class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
+class _ResponseFormat(TypeDecorator[PromptResponseFormat]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
@@ -182,6 +183,24 @@ class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
             return None
         wrapped_schema = PromptResponseFormatWrapper.model_validate({"schema": value})
         return wrapped_schema.schema_
+
+
+class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptInvocationParameters], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert isinstance(value, PromptInvocationParameters)
+        return value.model_dump()
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptInvocationParameters]:
+        assert isinstance(value, dict)
+        return PromptInvocationParameters.model_validate(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -998,10 +1017,12 @@ class PromptVersion(Base):
         nullable=False,
     )
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
-    invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    invocation_parameters: Mapped[PromptInvocationParameters] = mapped_column(
+        _InvocationParameters, nullable=False
+    )
     tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
     response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
-        _PromptResponseFormat, default=Null(), nullable=True
+        _ResponseFormat, default=Null(), nullable=True
     )
     model_provider: Mapped[str]
     model_name: Mapped[str]
