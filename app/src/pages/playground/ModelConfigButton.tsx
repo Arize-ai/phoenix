@@ -71,7 +71,7 @@ function OpenAiModelConfigFormField({
   instance,
   container,
 }: {
-  instance: PlaygroundInstance;
+  instance: PlaygroundNormalizedInstance;
   container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
