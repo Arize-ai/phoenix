@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.1...arize-phoenix-evals-v0.20.2) (2025-02-06)
+
+
+### Bug Fixes
+
+* Use max completion tokens and tool calling check ([#6287](https://github.com/Arize-ai/phoenix/issues/6287)) ([e5e5294](https://github.com/Arize-ai/phoenix/commit/e5e5294b2b2b2f725ee673520a71cdca0457936d))
+
 ## [0.20.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.0...arize-phoenix-evals-v0.20.1) (2025-02-06)
 
 
