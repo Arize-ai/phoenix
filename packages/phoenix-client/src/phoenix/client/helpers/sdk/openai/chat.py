@@ -289,12 +289,19 @@ def _to_tools(
     obj: PromptToolsV1,
 ) -> Iterable[ChatCompletionToolParam]:
     for tool in obj["tools"]:
-        function: FunctionDefinition = {"name": tool["name"]}
+        definition: FunctionDefinition = {"name": tool["name"]}
         if "description" in tool:
-            function["description"] = tool["description"]
+            definition["description"] = tool["description"]
         if "schema" in tool:
-            function["parameters"] = dict(tool["schema"]["json"])
-        yield {"type": "function", "function": function}
+            definition["parameters"] = dict(tool["schema"]["json"])
+        if "extra_parameters" in tool:
+            extra_parameters = tool["extra_parameters"]
+            if "strict" in extra_parameters and (
+                isinstance(v := extra_parameters["strict"], bool) or v is None
+            ):
+                definition["strict"] = v
+        ans: ChatCompletionToolParam = {"type": "function", "function": definition}
+        yield ans
 
 
 def _from_tools(
@@ -314,6 +321,8 @@ def _from_tools(
                 type="json-schema-draft-7-object-schema",
                 json=definition["parameters"],
             )
+        if "strict" in definition:
+            function["extra_parameters"] = {"strict": definition["strict"]}
         functions.append(function)
     return PromptToolsV1(type="tools-v1", tools=functions)
 

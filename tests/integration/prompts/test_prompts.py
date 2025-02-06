@@ -71,9 +71,6 @@ class TestTools:
             )
             for t in types_
         }
-        # TODO
-        for v in expected.values():
-            v["function"].pop("strict", None)
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
         prompt = _create_chat_prompt(u, tools=tools)
         _, kwargs = to_chat_messages_and_kwargs(prompt)
