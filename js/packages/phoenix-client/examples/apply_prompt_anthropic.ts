@@ -2,7 +2,7 @@
 import { createClient } from "../src";
 import { getPrompt, toSDK } from "../src/prompts";
 import { Anthropic } from "@anthropic-ai/sdk";
-import { PromptLike } from "../src/types/prompts";
+import { PromptSelector } from "../src/types/prompts";
 
 const PROMPT_NAME = process.env.PROMPT_NAME!;
 const PROMPT_TAG = process.env.PROMPT_TAG!;
@@ -33,7 +33,7 @@ const anthropic = new Anthropic({
 });
 
 const main = async () => {
-  const promptArgument: PromptLike | null = PROMPT_VERSION_ID
+  const promptArgument: PromptSelector | null = PROMPT_VERSION_ID
     ? { versionId: PROMPT_VERSION_ID }
     : PROMPT_TAG && PROMPT_NAME
       ? { name: PROMPT_NAME, tag: PROMPT_TAG }
