@@ -1,12 +1,15 @@
 # pyright: reportPrivateUsage=false
 import json
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Optional
 
 import pytest
 from anthropic.types import (
     ImageBlockParam,
     MessageParam,
     TextBlockParam,
+    ToolChoiceAnyParam,
+    ToolChoiceAutoParam,
+    ToolChoiceToolParam,
     ToolParam,
     ToolResultBlockParam,
     ToolUseBlockParam,
@@ -18,6 +21,7 @@ from faker import Faker
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     PromptMessage,
+    PromptToolsV1,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -28,14 +32,17 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
     _from_message,
     _from_text,
     _from_tool_call,
+    _from_tool_kwargs,
     _from_tool_result,
     _from_tools,
     _to_image,
     _to_messages,
     _to_text,
     _to_tool_call,
+    _to_tool_kwargs,
     _to_tool_result,
     _to_tools,
+    _ToolKwargs,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
@@ -85,9 +92,9 @@ def _tool_result() -> ToolResultBlockParam:
     )
 
 
-def _tool() -> ToolParam:
+def _tool(name: Optional[str] = None) -> ToolParam:
     return ToolParam(
-        name=_str(),
+        name=name or _str(),
         description=_str(),
         input_schema={
             "type": "object",
@@ -168,6 +175,59 @@ class TestImageBlockParam:
         obj: ImageBlockParam = _image()
         x: ImageContentPart = _from_image(obj)
         new_obj: ImageBlockParam = _to_image(x, {}, NO_OP_FORMATTER)
+        assert not DeepDiff(obj, new_obj)
+
+
+class TestToolKwargs:
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            {},
+            {
+                "tools": [_tool(), _tool()],
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": ToolChoiceAutoParam(type="auto"),
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": ToolChoiceAutoParam(
+                    type="auto",
+                    disable_parallel_tool_use=True,
+                ),
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": ToolChoiceAnyParam(type="any"),
+            },
+            {
+                "tools": [_tool(), _tool()],
+                "tool_choice": ToolChoiceAnyParam(
+                    type="any",
+                    disable_parallel_tool_use=True,
+                ),
+            },
+            {
+                "tools": [_tool(), _tool("xyz")],
+                "tool_choice": ToolChoiceToolParam(
+                    type="tool",
+                    name="xyz",
+                ),
+            },
+            {
+                "tools": [_tool(), _tool("xyz")],
+                "tool_choice": ToolChoiceToolParam(
+                    type="tool",
+                    name="xyz",
+                    disable_parallel_tool_use=True,
+                ),
+            },
+        ],
+    )
+    def test_round_trip(self, obj: _ToolKwargs) -> None:
+        x: Optional[PromptToolsV1] = _from_tool_kwargs(obj)
+        new_obj: _ToolKwargs = _to_tool_kwargs(x)
         assert not DeepDiff(obj, new_obj)
 
 
