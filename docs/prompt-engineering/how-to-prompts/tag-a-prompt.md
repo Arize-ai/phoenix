@@ -4,8 +4,6 @@ description: How to deploy prompts to different environments safely
 
 # Tag a prompt
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt=""><figcaption></figcaption></figure>
-
 
 
 Prompts in Phoenix are versioned in a linear history, creating a comprehensive audit trail of all modifications. Each change is tracked, allowing you to:
@@ -14,7 +12,17 @@ Prompts in Phoenix are versioned in a linear history, creating a comprehensive a
 * Understand who made specific changes
 * Revert to previous versions if needed
 
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt=""><figcaption></figcaption></figure>
+
 ## Creating a Tag
 
 When you are ready to deploy a prompt to a certain environment (let's say staging), the best thing to do is to tag a specific version of your prompt as **ready**. By default Phoenix offers 3 tags, **production**, **staging**, and **development** but you can create your own tags as well.
+
+
+
+## Pulling a prompt by tag
+
+Once a prompt version is tagged, you can pull this version of the prompt into any environment that you would like (an application, an experiment). Similar to git tags, prompt version tags let you create a "release" of a prompt (e.x. pushing a prompt to staging).
+
+
 
