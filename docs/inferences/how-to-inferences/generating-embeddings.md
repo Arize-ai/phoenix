@@ -1,6 +1,6 @@
 # Generate Embeddings
 
-Phoenix supports any type of dense [embedding](https://github.com/Arize-ai/phoenix/blob/main/docs/inferences/how-to-inferences/broken-reference/README.md) generated for almost any type of data.
+Phoenix supports any type of dense [embedding](https://github.com/Arize-ai/phoenix/blob/d52ecee031c738d48fcab70adadb8613e0d61949/docs/inferences/use-cases-inferences/embeddings-analysis.md) generated for almost any type of data.
 
 But what if I don't have embeddings handy? Well, that is not a problem. The model data can be analyzed by the embeddings Auto-Generated for Phoenix.
 
