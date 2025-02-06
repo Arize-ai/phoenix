@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { anthropicToolCallSchema } from "./toolCallSchemas";
 import { assertUnreachable } from "../../utils/assertUnreachable";
-import { PhoenixModelProvider } from "../../constants";
+import { PromptModelProvider } from "../../types/prompts";
 import { promptPartSchema } from "./promptSchemas";
 
-/**
+/*
  *
  * OpenAI Message Part Schemas
  *
@@ -33,7 +33,7 @@ export const openaiChatPartSchema = z.discriminatedUnion("type", [
 
 export type OpenAIChatPart = z.infer<typeof openaiChatPartSchema>;
 
-/**
+/*
  *
  * Anthropic Message Part Schemas
  *
@@ -182,15 +182,15 @@ export const openAIChatPartToAnthropicMessagePart =
     }
   });
 
-export type MessagePartProvider = PhoenixModelProvider | "UNKNOWN";
+export type MessagePartProvider = PromptModelProvider | "UNKNOWN";
 
 export type MessagePartWithProvider =
   | {
-      provider: Extract<PhoenixModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
       validatedMessage: OpenAIChatPart;
     }
   | {
-      provider: Extract<PhoenixModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptModelProvider, "ANTHROPIC">;
       validatedMessage: AnthropicMessagePart;
     }
   | { provider: "UNKNOWN"; validatedMessage: null };

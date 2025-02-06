@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { PhoenixModelProvider } from "../../constants";
+import type { PromptModelProvider } from "../../types/prompts";
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import { isObject } from "../../utils/isObject";
 
@@ -194,7 +194,7 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolChoice = <T extends PhoenixModelProvider>({
+export const fromOpenAIToolChoice = <T extends PromptModelProvider>({
   toolChoice,
   targetProvider,
 }: {
@@ -218,7 +218,7 @@ export const fromOpenAIToolChoice = <T extends PhoenixModelProvider>({
 };
 
 export const safelyConvertToolChoiceToProvider = <
-  T extends PhoenixModelProvider,
+  T extends PromptModelProvider,
 >({
   toolChoice,
   targetProvider,

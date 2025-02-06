@@ -2,7 +2,7 @@ import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import { isObject } from "../../utils/isObject";
-import { PhoenixModelProvider } from "../../constants";
+import { PromptModelProvider } from "../../types/prompts";
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 
 const jsonSchemaPropertiesSchema = z
@@ -141,10 +141,10 @@ export const anthropicToolDefinitionJSONSchema = zodToJsonSchema(
   }
 );
 
-/**
- * --------------------------------
+/*
+ *
  * Conversion Schemas
- * --------------------------------
+ *
  */
 
 export const phoenixToolToOpenAI = phoenixToolDefinitionSchema.transform(
@@ -157,6 +157,7 @@ export const phoenixToolToOpenAI = phoenixToolDefinitionSchema.transform(
     },
   })
 );
+
 /**
  * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
  */
@@ -182,10 +183,10 @@ export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
   })
 );
 
-/**
- * --------------------------------
+/*
+ *
  * Conversion Helpers
- * --------------------------------
+ *
  */
 
 /**
@@ -205,11 +206,11 @@ export type LlmProviderToolDefinition = z.infer<
 
 type ToolDefinitionWithProvider =
   | {
-      provider: Extract<PhoenixModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
       validatedToolDefinition: OpenAIToolDefinition;
     }
   | {
-      provider: Extract<PhoenixModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptModelProvider, "ANTHROPIC">;
       validatedToolDefinition: AnthropicToolDefinition;
     }
   | {
@@ -275,7 +276,7 @@ export const toOpenAIToolDefinition = (
 /**
  * Convert from OpenAI tool call format to any other format
  */
-export const fromOpenAIToolDefinition = <T extends PhoenixModelProvider>({
+export const fromOpenAIToolDefinition = <T extends PromptModelProvider>({
   toolDefinition,
   targetProvider,
 }: {
