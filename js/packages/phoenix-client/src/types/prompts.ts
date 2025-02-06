@@ -55,6 +55,12 @@ export type PromptTool =
   components["schemas"]["PromptToolsV1"]["tools"][number];
 
 /**
+ * The Phoenix prompt tool choice type from the API.
+ */
+export type PromptToolChoice = NonNullable<
+  components["schemas"]["PromptToolsV1"]["tool_choice"]
+>;
+/**
  * The Phoenix prompt output schema type from the API.
  */
 export type PromptResponseFormat =

@@ -4,28 +4,11 @@ import { PromptVersion } from "../../../src/types/prompts";
 import invariant from "tiny-invariant";
 import type { MessageCreateParams } from "@anthropic-ai/sdk/resources";
 import { toAnthropic } from "../../../src/prompts/sdks/toAnthropic";
-
-const BASE_MOCK_PROMPT_VERSION = {
-  id: "test",
-  description: "Test prompt",
-  model_provider: "openai",
-  model_name: "gpt-4",
-  template_type: "CHAT",
-  template_format: "MUSTACHE",
-  template: {
-    version: "chat-template-v1",
-    messages: [
-      {
-        role: "USER",
-        content: [{ type: "text", text: { text: "Hello" } }],
-      },
-    ],
-  },
-  invocation_parameters: {
-    temperature: 0.7,
-    tool_choice: "auto",
-  },
-} satisfies Partial<PromptVersion>;
+import {
+  BASE_MOCK_PROMPT_VERSION,
+  BASE_MOCK_PROMPT_VERSION_TOOLS,
+  BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
+} from "./data";
 
 describe("toAnthropic type compatibility", () => {
   it("toAnthropic output should be assignable to Anthropic message params", () => {
@@ -35,7 +18,7 @@ describe("toAnthropic type compatibility", () => {
 
     const result = toAnthropic({ prompt: mockPrompt });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<MessageCreateParams>(result);
@@ -44,14 +27,14 @@ describe("toAnthropic type compatibility", () => {
   it("toSDK with anthropic should be assignable to Anthropic message params", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
-    };
+    } satisfies PromptVersion;
 
     const result = toSDK({
       sdk: "anthropic",
       prompt: mockPrompt,
     });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<MessageCreateParams>(result);
@@ -60,40 +43,8 @@ describe("toAnthropic type compatibility", () => {
   it("should handle tools and response format type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
-      tools: {
-        type: "tools-v1",
-        tools: [
-          {
-            type: "function-tool-v1",
-            name: "test",
-            description: "test function",
-            schema: {
-              type: "json-schema-draft-7-object-schema",
-              json: {
-                type: "object",
-                properties: {},
-              },
-            },
-          },
-        ],
-      },
-      response_format: {
-        type: "response-format-json-schema-v1",
-        name: "test",
-        description: "test function",
-        schema: {
-          type: "json-schema-draft-7-object-schema",
-          json: {
-            type: "object",
-            properties: {},
-          },
-        },
-        extra_parameters: {},
-      },
-      invocation_parameters: {
-        temperature: 0.7,
-        tool_choice: "auto",
-      },
+      ...BASE_MOCK_PROMPT_VERSION_TOOLS,
+      ...BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
     } satisfies PromptVersion;
 
     const result = toSDK({
@@ -101,7 +52,7 @@ describe("toAnthropic type compatibility", () => {
       prompt: mockPrompt,
     });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<MessageCreateParams>(result);
@@ -148,6 +99,7 @@ describe("toAnthropic type compatibility", () => {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
         type: "tools-v1",
+        tool_choice: { type: "zero-or-more" },
         tools: [
           {
             type: "function-tool-v1",
@@ -232,7 +184,7 @@ describe("toAnthropic type compatibility", () => {
       prompt: mockPrompt,
     });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<MessageCreateParams>(result);

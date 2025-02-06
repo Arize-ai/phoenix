@@ -6,7 +6,7 @@ import type { Variables, toSDKParamsBase } from "./types";
 import { promptMessageToAnthropic } from "../../schemas/llm/messageSchemas";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
-  AnthropicToolChoice,
+  phoenixToolChoiceToOpenaiToolChoice,
   safelyConvertToolChoiceToProvider,
 } from "../../schemas/llm/toolChoiceSchemas";
 import {
@@ -28,9 +28,8 @@ export const toAnthropic = <V extends Variables = Variables>({
   variables,
 }: ToAnthropicParams<V>): MessageCreateParams | null => {
   try {
-    const { tool_choice: initialToolChoice, ...invocationParameters } =
+    const invocationParameters =
       prompt.invocation_parameters as unknown as Record<string, unknown> & {
-        tool_choice?: AnthropicToolChoice;
         max_tokens: number;
       };
     // parts of the prompt that can be directly converted to Anthropic params
@@ -57,7 +56,7 @@ export const toAnthropic = <V extends Variables = Variables>({
       promptMessageToAnthropic.parse(message)
     ) as MessageParam[];
 
-    const tools = prompt.tools?.tools.map((tool) => {
+    let tools = prompt.tools?.tools.map((tool) => {
       const openaiDefinition = phoenixToolToOpenAI.parse(tool);
       invariant(openaiDefinition, "Tool definition is not valid");
       return fromOpenAIToolDefinition({
@@ -65,11 +64,13 @@ export const toAnthropic = <V extends Variables = Variables>({
         targetProvider: "ANTHROPIC",
       });
     });
-
+    tools = (tools?.length ?? 0) > 0 ? tools : undefined;
     const tool_choice =
-      (tools?.length ?? 0) > 0 && initialToolChoice
+      (tools?.length ?? 0) > 0 && prompt.tools?.tool_choice
         ? (safelyConvertToolChoiceToProvider({
-            toolChoice: initialToolChoice,
+            toolChoice: phoenixToolChoiceToOpenaiToolChoice.parse(
+              prompt.tools.tool_choice
+            ),
             targetProvider: "ANTHROPIC",
           }) ?? undefined)
         : undefined;
@@ -78,7 +79,7 @@ export const toAnthropic = <V extends Variables = Variables>({
     const completionParams = {
       ...baseCompletionParams,
       messages,
-      tools: (tools?.length ?? 0) > 0 ? tools : undefined,
+      tools,
       tool_choice,
     } satisfies Partial<MessageCreateParams>;
 

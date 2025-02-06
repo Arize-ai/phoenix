@@ -640,6 +640,40 @@ export interface components {
          * @enum {string}
          */
         PromptTemplateType: "STR" | "CHAT";
+        /** PromptToolChoiceNone */
+        PromptToolChoiceNone: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "none";
+        };
+        /** PromptToolChoiceOneOrMore */
+        PromptToolChoiceOneOrMore: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "one-or-more";
+        };
+        /** PromptToolChoiceSpecificFunctionTool */
+        PromptToolChoiceSpecificFunctionTool: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "specific-function-tool";
+            /** Function Name */
+            function_name: string;
+        };
+        /** PromptToolChoiceZeroOrMore */
+        PromptToolChoiceZeroOrMore: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zero-or-more";
+        };
         /** PromptToolsV1 */
         PromptToolsV1: {
             /**
@@ -649,6 +683,10 @@ export interface components {
             type: "tools-v1";
             /** Tools */
             tools: components["schemas"]["PromptFunctionToolV1"][];
+            /** Tool Choice */
+            tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
+            /** Disable Parallel Tool Calls */
+            disable_parallel_tool_calls?: boolean;
         };
         /** PromptVersion */
         PromptVersion: {

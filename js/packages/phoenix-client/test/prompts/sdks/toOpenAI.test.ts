@@ -4,28 +4,11 @@ import { toSDK } from "../../../src/prompts/sdks/toSDK";
 import type OpenAI from "openai";
 import { PromptVersion } from "../../../src/types/prompts";
 import invariant from "tiny-invariant";
-
-const BASE_MOCK_PROMPT_VERSION = {
-  id: "test",
-  description: "Test prompt",
-  model_provider: "openai",
-  model_name: "gpt-4",
-  template_type: "CHAT",
-  template_format: "MUSTACHE",
-  template: {
-    version: "chat-template-v1",
-    messages: [
-      {
-        role: "USER",
-        content: [{ type: "text", text: { text: "Hello" } }],
-      },
-    ],
-  },
-  invocation_parameters: {
-    tool_choice: "auto",
-    temperature: 0.7,
-  },
-} satisfies Partial<PromptVersion>;
+import {
+  BASE_MOCK_PROMPT_VERSION,
+  BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
+  BASE_MOCK_PROMPT_VERSION_TOOLS,
+} from "./data";
 
 type ChatCompletionCreateParams = Parameters<
   typeof OpenAI.prototype.chat.completions.create
@@ -39,7 +22,7 @@ describe("toOpenAI type compatibility", () => {
 
     const result = toOpenAI({ prompt: mockPrompt });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<ChatCompletionCreateParams>(result);
@@ -55,7 +38,7 @@ describe("toOpenAI type compatibility", () => {
       prompt: mockPrompt,
     });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<ChatCompletionCreateParams>(result);
@@ -64,40 +47,8 @@ describe("toOpenAI type compatibility", () => {
   it("should handle tools and response format type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
-      tools: {
-        type: "tools-v1",
-        tools: [
-          {
-            type: "function-tool-v1",
-            name: "test",
-            description: "test function",
-            schema: {
-              type: "json-schema-draft-7-object-schema",
-              json: {
-                type: "object",
-                properties: {},
-              },
-            },
-          },
-        ],
-      },
-      response_format: {
-        type: "response-format-json-schema-v1",
-        name: "test",
-        description: "test function",
-        schema: {
-          type: "json-schema-draft-7-object-schema",
-          json: {
-            type: "object",
-            properties: {},
-          },
-        },
-        extra_parameters: {},
-      },
-      invocation_parameters: {
-        temperature: 0.7,
-        tool_choice: "auto",
-      },
+      ...BASE_MOCK_PROMPT_VERSION_TOOLS,
+      ...BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT,
     } satisfies PromptVersion;
 
     const result = toSDK({
@@ -105,7 +56,7 @@ describe("toOpenAI type compatibility", () => {
       prompt: mockPrompt,
     });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<ChatCompletionCreateParams>(result);
@@ -152,6 +103,7 @@ describe("toOpenAI type compatibility", () => {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
         type: "tools-v1",
+        tool_choice: { type: "zero-or-more" },
         tools: [
           {
             type: "function-tool-v1",
@@ -242,7 +194,7 @@ describe("toOpenAI type compatibility", () => {
       prompt: mockPrompt,
     });
 
-    expect(result).toBeDefined();
+    expect(result).not.toBeNull();
     invariant(result, "Expected non-null result");
 
     assertType<ChatCompletionCreateParams>(result);

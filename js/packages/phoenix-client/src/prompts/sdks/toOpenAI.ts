@@ -5,6 +5,7 @@ import type {
 } from "openai/resources";
 import type { Variables, toSDKParamsBase } from "./types";
 import {
+  phoenixToolChoiceToOpenaiToolChoice,
   phoenixToolToOpenAI,
   promptMessageToOpenAI,
   safelyConvertToolChoiceToProvider,
@@ -56,18 +57,21 @@ export const toOpenAI = <V extends Variables = Variables>({
       promptMessageToOpenAI.parse(message)
     );
 
-    const tools = prompt.tools?.tools.map((tool) =>
-      phoenixToolToOpenAI.parse(tool)
-    );
+    let tools = prompt.tools?.tools
+      .map((tool) => phoenixToolToOpenAI.parse(tool))
+      .filter((tool) => tool !== null);
+    tools = (tools?.length ?? 0) > 0 ? tools : undefined;
 
     const response_format = prompt.response_format
       ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)
       : undefined;
 
     const tool_choice =
-      (tools?.length ?? 0) > 0 && "tool_choice" in baseCompletionParams
+      (tools?.length ?? 0) > 0 && prompt.tools?.tool_choice
         ? (safelyConvertToolChoiceToProvider({
-            toolChoice: baseCompletionParams.tool_choice,
+            toolChoice: phoenixToolChoiceToOpenaiToolChoice.parse(
+              prompt.tools?.tool_choice
+            ),
             targetProvider: "OPENAI",
           }) ?? undefined)
         : undefined;
@@ -76,7 +80,7 @@ export const toOpenAI = <V extends Variables = Variables>({
     const completionParams = {
       ...baseCompletionParams,
       messages,
-      tools: (tools?.length ?? 0) > 0 ? tools : undefined,
+      tools,
       tool_choice,
       response_format,
     } satisfies Partial<ChatCompletionCreateParams>;

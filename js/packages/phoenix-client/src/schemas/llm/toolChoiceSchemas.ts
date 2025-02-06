@@ -1,6 +1,28 @@
 import { z } from "zod";
 import type { PhoenixModelProvider } from "../../constants";
 import { assertUnreachable } from "../../utils/assertUnreachable";
+import { isObject } from "../../utils/isObject";
+
+/**
+ * Phoenix's tool choice schema
+ */
+export const phoenixToolChoiceSchema = z.union([
+  z.object({
+    type: z.literal("none"),
+  }),
+  z.object({
+    type: z.literal("zero-or-more"),
+  }),
+  z.object({
+    type: z.literal("one-or-more"),
+  }),
+  z.object({
+    type: z.literal("specific-function-tool"),
+    function_name: z.string(),
+  }),
+]);
+
+export type PhoenixToolChoice = z.infer<typeof phoenixToolChoiceSchema>;
 
 /**
  * OpenAI's tool choice schema
@@ -42,10 +64,31 @@ export const anthropicToolChoiceSchema = z.discriminatedUnion("type", [
 
 export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 
+/*
+ *
+ * Conversion Helpers
+ *
+ */
+
+export const phoenixToolChoiceToOpenaiToolChoice =
+  phoenixToolChoiceSchema.transform((phoenix): OpenaiToolChoice => {
+    switch (phoenix.type) {
+      case "none":
+        return "none";
+      case "zero-or-more":
+        return "auto";
+      case "one-or-more":
+        return "required";
+      case "specific-function-tool":
+        return { type: "function", function: { name: phoenix.function_name } };
+    }
+  });
+
 export const anthropicToolChoiceToOpenaiToolChoice =
   anthropicToolChoiceSchema.transform((anthropic): OpenaiToolChoice => {
     switch (anthropic.type) {
       case "any":
+        return "required";
       case "auto":
         return "auto";
       case "tool":
@@ -63,13 +106,19 @@ export const anthropicToolChoiceToOpenaiToolChoice =
 
 export const openAIToolChoiceToAnthropicToolChoice =
   openAIToolChoiceSchema.transform((openAI): AnthropicToolChoice => {
-    if (typeof openAI === "string") {
-      return { type: "auto" };
+    if (isObject(openAI)) {
+      return { type: "tool", name: openAI.function.name };
     }
-    return {
-      type: "tool",
-      name: openAI.function.name ?? "",
-    };
+    switch (openAI) {
+      case "auto":
+        return { type: "auto" };
+      case "none":
+        return { type: "auto" };
+      case "required":
+        return { type: "any" };
+      default:
+        assertUnreachable(openAI);
+    }
   });
 
 export const llmProviderToolChoiceSchema = z.union([
