@@ -11,6 +11,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
+import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -46,6 +47,9 @@ export function PromptsTable(props: PromptsTableProps) {
                 name
                 description
                 createdAt
+                version {
+                  createdAt
+                }
               }
             }
           }
@@ -55,7 +59,13 @@ export function PromptsTable(props: PromptsTableProps) {
     );
 
   const tableData = useMemo(
-    () => data.prompts.edges.map((edge) => edge.prompt),
+    () =>
+      data.prompts.edges.map((edge) => {
+        return {
+          lastUpdatedAt: edge.prompt.version.createdAt,
+          ...edge.prompt,
+        };
+      }),
     [data]
   );
   const fetchMoreOnBottomReached = React.useCallback(
@@ -86,8 +96,18 @@ export function PromptsTable(props: PromptsTableProps) {
         },
       },
       {
+        header: "description",
+        accessorKey: "description",
+        cell: TextCell,
+      },
+      {
         header: "created at",
         accessorKey: "createdAt",
+        cell: TimestampCell,
+      },
+      {
+        header: "last updated",
+        accessorKey: "lastUpdatedAt",
         cell: TimestampCell,
       },
       {
