@@ -1,27 +1,27 @@
 import invariant from "tiny-invariant";
-import { PromptLike } from "../types/prompts";
+import { PromptSelector } from "../types/prompts";
 import { ClientFn } from "../types/core";
 import { createClient } from "../client";
 
 /**
- * Parameters for the getPromptVersionLike function
+ * Parameters for the getPromptBySelector function
  */
-export type GetPromptVersionLikeParams = ClientFn & {
-  prompt: PromptLike;
+export type GetPromptBySelectorParams = ClientFn & {
+  prompt: PromptSelector;
 };
 
 /**
- * Get a prompt version from the Phoenix API.
+ * Get a prompt from the Phoenix API.
  *
  * if the input is a prompt id, fetch the latest prompt version from the client.
  * if the input is a prompt version id, fetch that prompt version.
  * if the input is a prompt tag and name, fetch the prompt version that has that tag and name.
  * if the input is a prompt name, fetch the latest prompt version from the client.
  */
-export async function getPromptVersionLike({
+export async function getPromptBySelector({
   client: _client,
   prompt,
-}: GetPromptVersionLikeParams) {
+}: GetPromptBySelectorParams) {
   try {
     const client = _client ?? createClient();
     if ("promptId" in prompt) {

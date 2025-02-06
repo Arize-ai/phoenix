@@ -6,7 +6,7 @@ import { assertUnreachable } from "../../utils/assertUnreachable";
 import { safelyParseJSON } from "../../utils/safelyParseJSON";
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
-import { PhoenixModelProvider } from "../../constants";
+import { PromptModelProvider } from "../../types/prompts";
 import { safelyStringifyJSON } from "../../utils/safelyStringifyJSON";
 
 /**
@@ -159,11 +159,11 @@ export type LlmProviderToolCalls = z.infer<typeof llmProviderToolCallsSchema>;
 
 type ToolCallWithProvider =
   | {
-      provider: Extract<PhoenixModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
       validatedToolCall: OpenAIToolCall;
     }
   | {
-      provider: Extract<PhoenixModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptModelProvider, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
   | { provider: "UNKNOWN"; validatedToolCall: null };
@@ -224,7 +224,7 @@ export const toOpenAIToolCall = (
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolCall = <T extends PhoenixModelProvider>({
+export const fromOpenAIToolCall = <T extends PromptModelProvider>({
   toolCall,
   targetProvider,
 }: {
@@ -248,7 +248,7 @@ export const fromOpenAIToolCall = <T extends PhoenixModelProvider>({
 
 export const fromPromptToolCallPart = (
   part: ToolCallPart,
-  targetProvider: PhoenixModelProvider
+  targetProvider: PromptModelProvider
 ) => {
   const toolCall = toOpenAIToolCall({
     type: "function",
