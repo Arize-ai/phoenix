@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c812cabdf9fd26d471def34329d92ce>>
+ * @generated SignedSource<<9632469de534587fa54a551b4a690786>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,7 +52,14 @@ v2 = [
     "name": "first",
     "value": 100
   }
-];
+],
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -158,11 +165,17 @@ return {
                             "name": "description",
                             "storageKey": null
                           },
+                          (v3/*: any*/),
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
-                            "name": "createdAt",
+                            "concreteType": "PromptVersion",
+                            "kind": "LinkedField",
+                            "name": "version",
+                            "plural": false,
+                            "selections": [
+                              (v3/*: any*/)
+                            ],
                             "storageKey": null
                           }
                         ],
@@ -242,12 +255,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e383c085b01c045a347660b6a0ca93b1",
+    "cacheID": "3afd45452374727a72b967ee1cce1632",
     "id": null,
     "metadata": {},
     "name": "DeletePromptDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptDialogMutation(\n  $promptId: GlobalID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeletePromptDialogMutation(\n  $promptId: GlobalID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

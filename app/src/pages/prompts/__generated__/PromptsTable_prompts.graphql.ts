@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f7686fdeef366152805439b413538dfe>>
+ * @generated SignedSource<<f16e7b03e63d598b9c7de5538d1d542f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,9 @@ export type PromptsTable_prompts$data = {
         readonly description: string | null;
         readonly id: string;
         readonly name: string;
+        readonly version: {
+          readonly createdAt: string;
+        };
       };
     }>;
   };
@@ -33,7 +36,14 @@ import PromptsTablePromptsQuery_graphql from './PromptsTablePromptsQuery.graphql
 const node: ReaderFragment = (function(){
 var v0 = [
   "prompts"
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -117,11 +127,17 @@ return {
                   "name": "description",
                   "storageKey": null
                 },
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "createdAt",
+                  "concreteType": "PromptVersion",
+                  "kind": "LinkedField",
+                  "name": "version",
+                  "plural": false,
+                  "selections": [
+                    (v1/*: any*/)
+                  ],
                   "storageKey": null
                 }
               ],
@@ -189,6 +205,6 @@ return {
 };
 })();
 
-(node as any).hash = "f45963308cb8415358b3f423364b8ca4";
+(node as any).hash = "829c7cff273e0ebcfba1c0606c052d8b";
 
 export default node;

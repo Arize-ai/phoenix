@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0bc363bd185b982712b149425af2cdec>>
+ * @generated SignedSource<<643ffd320e9117f8b17083d4d8b0a64f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,14 @@ var v0 = [
     "name": "first",
     "value": 100
   }
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -94,11 +101,17 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
+                  (v1/*: any*/),
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "createdAt",
+                    "concreteType": "PromptVersion",
+                    "kind": "LinkedField",
+                    "name": "version",
+                    "plural": false,
+                    "selections": [
+                      (v1/*: any*/)
+                    ],
                     "storageKey": null
                   }
                 ],
@@ -172,12 +185,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79b5e0cbcecf76b853a68ecf3ada88d7",
+    "cacheID": "191e9b9974109498195fdef708db636b",
     "id": null,
     "metadata": {},
     "name": "promptsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
