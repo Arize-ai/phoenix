@@ -25,6 +25,8 @@ from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue,
     PromptChatTemplateV1,
     PromptFunctionToolV1,
+    PromptInvocationParameters,
+    PromptInvocationParams,
     PromptMessage,
     PromptMessageRole,
     PromptResponseFormatJSONSchema,
@@ -120,7 +122,7 @@ class TestPrompts:
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),
-            prompt_version.invocation_parameters,
+            prompt_version.invocation_parameters.model_dump(),
         )
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider
@@ -211,7 +213,13 @@ class TestPrompts:
                         template_type="CHAT",
                         template_format="MUSTACHE",
                         template=template,
-                        invocation_parameters=fake.pydict(value_types=[str, int, float, bool]),
+                        invocation_parameters=PromptInvocationParameters(
+                            type="invocation-parameters",
+                            parameters=PromptInvocationParams(
+                                temperature=0.4,
+                                extra_parameters={},
+                            ),
+                        ),
                         model_provider=token_hex(16),
                         model_name=token_hex(16),
                         tools=PromptToolsV1(
