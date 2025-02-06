@@ -58,13 +58,6 @@ def _model_supports_temperature(model: str) -> bool:
     return True
 
 
-def _model_supports_max_tokens(model: str) -> bool:
-    """OpenAI reasoning models do not support max_tokens."""
-    if model.startswith("o1") or model.startswith("o3"):
-        return False
-    return True
-
-
 @dataclass
 class OpenAIModel(BaseModel):
     """
@@ -468,13 +461,8 @@ class OpenAIModel(BaseModel):
             "top_p": self.top_p,
             "n": self.n,
             "timeout": self.request_timeout,
+            "max_completion_tokens": self.max_tokens,
         }
-        if _model_supports_max_tokens(self.model):
-            params.update(
-                {
-                    "max_tokens": self.max_tokens,
-                }
-            )
         if _model_supports_temperature(self.model):
             params.update(
                 {
@@ -494,6 +482,8 @@ class OpenAIModel(BaseModel):
         ):
             return False
         if self._model_uses_legacy_completion_api:
+            return False
+        if self.model.startswith("o1"):
             return False
         return True
 
