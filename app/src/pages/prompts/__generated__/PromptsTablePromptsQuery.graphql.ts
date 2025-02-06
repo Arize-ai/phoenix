@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<95593bacee7ec1d8b8f21eec0cc4e9fd>>
+ * @generated SignedSource<<e6c27cb4e1198a647c99093e4350edf7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,7 +46,14 @@ v1 = [
     "name": "first",
     "variableName": "first"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "createdAt",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -114,11 +121,17 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "createdAt",
+                    "concreteType": "PromptVersion",
+                    "kind": "LinkedField",
+                    "name": "version",
+                    "plural": false,
+                    "selections": [
+                      (v2/*: any*/)
+                    ],
                     "storageKey": null
                   }
                 ],
@@ -192,16 +205,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01e009dd5236e0e4b097192c3b16b278",
+    "cacheID": "78e88c2a2ce510e78c6c6d8e1b8523b2",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_2HEEH6\n}\n\nfragment PromptsTable_prompts_2HEEH6 on Query {\n  prompts(first: $first, after: $after) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_2HEEH6\n}\n\nfragment PromptsTable_prompts_2HEEH6 on Query {\n  prompts(first: $first, after: $after) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f45963308cb8415358b3f423364b8ca4";
+(node as any).hash = "829c7cff273e0ebcfba1c0606c052d8b";
 
 export default node;
