@@ -2259,6 +2259,74 @@
         ],
         "title": "PromptFunctionToolV1"
       },
+      "PromptInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "invocation-parameters",
+            "title": "Type"
+          },
+          "parameters": {
+            "$ref": "#/components/schemas/PromptInvocationParams"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "parameters"
+        ],
+        "title": "PromptInvocationParameters"
+      },
+      "PromptInvocationParams": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "random_seed": {
+            "type": "integer",
+            "title": "Random Seed"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
+          },
+          "extra_parameters": {
+            "type": "object",
+            "title": "Extra Parameters"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "extra_parameters"
+        ],
+        "title": "PromptInvocationParams"
+      },
       "PromptMessage": {
         "properties": {
           "role": {
@@ -2565,8 +2633,7 @@
             "$ref": "#/components/schemas/PromptTemplateFormat"
           },
           "invocation_parameters": {
-            "type": "object",
-            "title": "Invocation Parameters"
+            "$ref": "#/components/schemas/PromptInvocationParameters"
           },
           "tools": {
             "anyOf": [

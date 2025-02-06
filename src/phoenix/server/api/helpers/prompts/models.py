@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.server.api.helpers.jsonschema import (
@@ -347,6 +347,214 @@ class AnthropicToolDefinition(PromptModel):
     name: str
     cache_control: Optional[AnthropicCacheControlParam] = UNDEFINED
     description: str = UNDEFINED
+
+
+class OpenAIToolChoiceParamFunction(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/7193688e364bd726594fe369032e813ced1bdfe2/src/openai/types/chat/chat_completion_named_tool_choice_param.py#L10
+    """
+
+    name: str
+
+
+class PromptOpenAINamedToolChoiceParam(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/7193688e364bd726594fe369032e813ced1bdfe2/src/openai/types/chat/chat_completion_named_tool_choice_param.py#L15
+    """
+
+    type: Literal["function"]
+    function: OpenAIToolChoiceParamFunction
+
+
+PromptOpenAIToolChoiceType: TypeAlias = Union[
+    Literal["none", "auto", "required"], PromptOpenAINamedToolChoiceParam
+]
+
+
+class PromptOpenAIToolChoice(RootModel[PromptOpenAIToolChoiceType]):
+    """
+    Based on https://github.com/openai/openai-python/blob/7193688e364bd726594fe369032e813ced1bdfe2/src/openai/types/chat/chat_completion_tool_choice_option_param.py#L12
+    """
+
+    root: PromptOpenAIToolChoiceType
+
+
+class PromptOpenAIInvocationParameters(PromptModel):
+    temperature: float = UNDEFINED
+    max_tokens: int = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    seed: int = UNDEFINED
+    reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
+    tool_choice: PromptOpenAIToolChoice = UNDEFINED
+
+
+# Anthropic tool choice
+class PromptAnthropicToolChoiceAutoParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_auto_param.py#L10
+    """
+
+    type: Literal["auto"]
+
+
+class PromptAnthropicToolChoiceAnyParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_any_param.py#L10
+    """
+
+    type: Literal["any"]
+
+
+class PromptAnthropicToolChoiceToolParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_any_param.py#L10
+    """
+
+    name: str
+    type: Literal["tool"]
+
+
+PromptAnthropicToolChoice: TypeAlias = Union[
+    PromptAnthropicToolChoiceAutoParam,
+    PromptAnthropicToolChoiceAnyParam,
+    PromptAnthropicToolChoiceToolParam,
+]  # Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_param.py#L14
+
+
+class PromptAnthropicInvocationParameters(PromptModel):
+    temperature: float = UNDEFINED
+    max_tokens: int = UNDEFINED
+    top_p: float = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    tool_choice: PromptAnthropicToolChoice = UNDEFINED
+
+
+class PromptGeminiInvocationParameters(PromptModel):
+    temperature: float = UNDEFINED
+    max_output_tokens: int = UNDEFINED
+    tool_choice: str = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    top_k: int = UNDEFINED
+
+
+class PromptInvocationParams(PromptModel):
+    temperature: float = UNDEFINED
+    max_completion_tokens: int = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    random_seed: int = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    extra_parameters: dict[str, Any]
+    top_k: int = UNDEFINED
+
+
+class PromptInvocationParameters(PromptModel):
+    type: Literal["invocation-parameters"]
+    parameters: PromptInvocationParams
+
+
+def normalize_invocation_parameters(
+    parameters: dict[str, Any], model_provider: str
+) -> PromptInvocationParameters:
+    extra_parameters: dict[str, Any] = {}
+    if model_provider.lower() == "openai":
+        openai_invocation_parameters = PromptOpenAIInvocationParameters.model_validate(parameters)
+        if (openai_tool_choice := openai_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = openai_tool_choice
+        if (reasoning_effort := openai_invocation_parameters.reasoning_effort) is not UNDEFINED:
+            extra_parameters["reasoning_effort"] = reasoning_effort
+        return PromptInvocationParameters(
+            type="invocation-parameters",
+            parameters=PromptInvocationParams(
+                temperature=openai_invocation_parameters.temperature,
+                max_completion_tokens=openai_invocation_parameters.max_tokens,
+                frequency_penalty=openai_invocation_parameters.frequency_penalty,
+                presence_penalty=openai_invocation_parameters.presence_penalty,
+                top_p=openai_invocation_parameters.top_p,
+                random_seed=openai_invocation_parameters.seed,
+                extra_parameters=extra_parameters,
+            ),
+        )
+    if model_provider.lower() == "anthropic":
+        anthropic_invocation_parameters = PromptAnthropicInvocationParameters.model_validate(
+            parameters
+        )
+        if (anthropic_tool_choice := anthropic_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = anthropic_tool_choice
+        return PromptInvocationParameters(
+            type="invocation-parameters",
+            parameters=PromptInvocationParams(
+                temperature=anthropic_invocation_parameters.temperature,
+                max_completion_tokens=anthropic_invocation_parameters.max_tokens,
+                top_p=anthropic_invocation_parameters.top_p,
+                stop_sequences=anthropic_invocation_parameters.stop_sequences,
+                extra_parameters=extra_parameters,
+            ),
+        )
+    if model_provider.lower() == "gemini":
+        gemini_invocation_parameters = PromptGeminiInvocationParameters.model_validate(parameters)
+        if (gemini_tool_choice := gemini_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = gemini_tool_choice
+        return PromptInvocationParameters(
+            type="invocation-parameters",
+            parameters=PromptInvocationParams(
+                temperature=gemini_invocation_parameters.temperature,
+                max_completion_tokens=gemini_invocation_parameters.max_output_tokens,
+                stop_sequences=gemini_invocation_parameters.stop_sequences,
+                presence_penalty=gemini_invocation_parameters.presence_penalty,
+                frequency_penalty=gemini_invocation_parameters.frequency_penalty,
+                top_p=gemini_invocation_parameters.top_p,
+                top_k=gemini_invocation_parameters.top_k,
+                extra_parameters=extra_parameters,
+            ),
+        )
+    raise ValueError(f"Unsupported model provider: {model_provider}")
+
+
+def denormalize_invocation_parameters(
+    parameters: PromptInvocationParameters, model_provider: str
+) -> dict[str, Any]:
+    params = parameters.parameters
+    if model_provider.lower() == "openai":
+        openai_invocation_parameters = PromptOpenAIInvocationParameters(
+            temperature=params.temperature,
+            max_tokens=params.max_completion_tokens,
+            frequency_penalty=params.frequency_penalty,
+            presence_penalty=params.presence_penalty,
+            top_p=params.top_p,
+            seed=params.random_seed,
+            tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
+            reasoning_effort=params.extra_parameters.get("reasoning_effort", UNDEFINED),
+        )
+        return openai_invocation_parameters.model_dump()
+    if model_provider.lower() == "anthropic":
+        anthropic_invocation_parameters = PromptAnthropicInvocationParameters(
+            max_tokens=params.max_completion_tokens,
+            temperature=params.temperature,
+            stop_sequences=params.stop_sequences,
+            top_p=params.top_p,
+            tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
+        )
+        return anthropic_invocation_parameters.model_dump()
+    if model_provider.lower() == "gemini":
+        gemini_invocation_parameters = PromptGeminiInvocationParameters(
+            temperature=params.temperature,
+            max_output_tokens=params.max_completion_tokens,
+            stop_sequences=params.stop_sequences,
+            presence_penalty=params.presence_penalty,
+            frequency_penalty=params.frequency_penalty,
+            top_p=params.top_p,
+            top_k=params.top_k,
+            tool_choice=params.extra_parameters.get("tool_choice", UNDEFINED),
+        )
+        return gemini_invocation_parameters.model_dump()
+    return {}
 
 
 def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV1:

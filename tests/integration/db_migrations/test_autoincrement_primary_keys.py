@@ -3,7 +3,11 @@ from secrets import token_hex
 from alembic.config import Config
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.helpers.prompts.models import PromptChatTemplateV1
+from phoenix.server.api.helpers.prompts.models import (
+    PromptChatTemplateV1,
+    PromptInvocationParameters,
+    PromptInvocationParams,
+)
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import sessionmaker
 
@@ -20,6 +24,10 @@ def test_prompt_versions(
         name = Identifier.model_validate(token_hex(16))
         prompt = models.Prompt(name=name)
         session.add(prompt)
+    empty_invocation_parameters = PromptInvocationParameters(
+        type="invocation-parameters",
+        parameters=PromptInvocationParams(extra_parameters={}),
+    )
     values = dict(
         prompt_id=prompt.id,
         template=PromptChatTemplateV1(version="chat-template-v1", messages=[]),
@@ -27,6 +35,7 @@ def test_prompt_versions(
         template_format="MUSTACHE",
         model_provider=token_hex(16),
         model_name=token_hex(16),
+        invocation_parameters=empty_invocation_parameters,
     )
     with db.begin() as session:
         prompt_version = models.PromptVersion(**values)

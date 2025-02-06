@@ -15,6 +15,7 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
+    normalize_invocation_parameters,
     normalize_response_format,
     normalize_tools,
 )
@@ -99,6 +100,10 @@ class PromptMutationMixin:
                 if input_prompt_version.response_format
                 else None
             )
+            invocation_parameters = normalize_invocation_parameters(
+                input_prompt_version.invocation_parameters,
+                input_prompt_version.model_provider,
+            )
         except ValidationError as error:
             raise BadRequest(str(error))
 
@@ -109,7 +114,7 @@ class PromptMutationMixin:
                 template_type="CHAT",
                 template_format=input_prompt_version.template_format,
                 template=template,
-                invocation_parameters=input_prompt_version.invocation_parameters,
+                invocation_parameters=invocation_parameters,
                 tools=tools,
                 response_format=response_format,
                 model_provider=input_prompt_version.model_provider,
@@ -157,6 +162,10 @@ class PromptMutationMixin:
                 if input_prompt_version.response_format
                 else None
             )
+            invocation_parameters = normalize_invocation_parameters(
+                input_prompt_version.invocation_parameters,
+                input_prompt_version.model_provider,
+            )
         except ValidationError as error:
             raise BadRequest(str(error))
 
@@ -175,7 +184,7 @@ class PromptMutationMixin:
                 template_type="CHAT",
                 template_format=input.prompt_version.template_format,
                 template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
+                invocation_parameters=invocation_parameters,
                 tools=tools,
                 response_format=response_format,
                 model_provider=input.prompt_version.model_provider,
