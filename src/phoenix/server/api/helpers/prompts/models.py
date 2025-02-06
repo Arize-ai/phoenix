@@ -390,12 +390,45 @@ class PromptOpenAIInvocationParameters(PromptModel):
     tool_choice: PromptOpenAIToolChoice = UNDEFINED
 
 
+# Anthropic tool choice
+class PromptAnthropicToolChoiceAutoParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_auto_param.py#L10
+    """
+
+    type: Literal["auto"]
+
+
+class PromptAnthropicToolChoiceAnyParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_any_param.py#L10
+    """
+
+    type: Literal["any"]
+
+
+class PromptAnthropicToolChoiceToolParam(PromptModel):
+    """
+    Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_any_param.py#L10
+    """
+
+    name: str
+    type: Literal["tool"]
+
+
+PromptAnthropicToolChoice: TypeAlias = Union[
+    PromptAnthropicToolChoiceAutoParam,
+    PromptAnthropicToolChoiceAnyParam,
+    PromptAnthropicToolChoiceToolParam,
+]  # Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_param.py#L14
+
+
 class PromptAnthropicInvocationParameters(PromptModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
     top_p: float = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
-    tool_choice: dict[str, Any] = UNDEFINED
+    tool_choice: PromptAnthropicToolChoice = UNDEFINED
 
 
 class PromptGeminiInvocationParameters(PromptModel):
