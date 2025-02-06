@@ -68,9 +68,7 @@ if TYPE_CHECKING:
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
     from openai.types.chat.chat_completion_named_tool_choice_param import Function
-    from openai.types.chat.completion_create_params import (
-        ResponseFormat,
-    )
+    from openai.types.chat.completion_create_params import ResponseFormat
     from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
     from openai.types.shared_params.response_format_json_schema import JSONSchema
 
