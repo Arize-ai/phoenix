@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 import json
-from typing import Any, Iterable, Mapping, Optional, Union
+from enum import Enum
+from typing import Any, Iterable, Mapping, Optional, Union, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
+from openai.lib._parsing import type_to_response_format_param
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartImageParam,
@@ -19,11 +23,14 @@ from openai.types.chat import (
 from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
 from openai.types.chat.chat_completion_content_part_image_param import ImageURL
 from openai.types.chat.chat_completion_message_tool_call_param import Function
+from openai.types.chat.completion_create_params import ResponseFormat
 from openai.types.shared_params import FunctionDefinition
+from pydantic import BaseModel, create_model
 
 from phoenix.client.__generated__.v1 import (
     ImageContentPart,
     PromptMessage,
+    PromptResponseFormatJSONSchema,
     PromptToolsV1,
     TextContentPart,
     TextContentValue,
@@ -32,12 +39,14 @@ from phoenix.client.__generated__.v1 import (
 from phoenix.client.helpers.sdk.openai.chat import (
     _from_image,
     _from_message,
+    _from_response_format,
     _from_text,
     _from_tool_call,
     _from_tool_kwargs,
     _from_tools,
     _to_image,
     _to_messages,
+    _to_response_format_json_schema,
     _to_text,
     _to_tool_call,
     _to_tool_kwargs,
@@ -239,6 +248,44 @@ class TestChatCompletionContentPartImageParam:
         obj: ChatCompletionContentPartImageParam = _image()
         x: ImageContentPart = _from_image(obj)
         new_obj: ChatCompletionContentPartImageParam = _to_image(x, {}, NO_OP_FORMATTER)
+        assert not DeepDiff(obj, new_obj)
+
+
+class _UIType(str, Enum):
+    div = "div"
+    button = "button"
+    header = "header"
+    section = "section"
+    field = "field"
+    form = "form"
+
+
+class _Attribute(BaseModel):
+    name: str
+    value: str
+
+
+class _UI(BaseModel):
+    type: _UIType
+    label: str
+    children: list[_UI]
+    attributes: list[_Attribute]
+
+
+_UI.model_rebuild()
+
+
+class TestResponseFormat:
+    @pytest.mark.parametrize(
+        "type_",
+        [
+            create_model("Response", ui=(_UI, ...)),
+        ],
+    )
+    def test_round_trip(self, type_: type[BaseModel]) -> None:
+        obj = cast(ResponseFormat, type_to_response_format_param(type_))
+        x: PromptResponseFormatJSONSchema = _from_response_format(obj)
+        new_obj = _to_response_format_json_schema(x)
         assert not DeepDiff(obj, new_obj)
 
 

@@ -25,6 +25,7 @@ from phoenix.client.__generated__.v1 import (
     JSONSchemaDraft7ObjectSchema,
     PromptFunctionToolV1,
     PromptMessage,
+    PromptResponseFormatJSONSchema,
     PromptToolChoiceNone,
     PromptToolChoiceOneOrMore,
     PromptToolChoiceSpecificFunctionTool,
@@ -67,10 +68,9 @@ if TYPE_CHECKING:
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
     from openai.types.chat.chat_completion_named_tool_choice_param import Function
-    from openai.types.chat.completion_create_params import (
-        ResponseFormat,
-    )
-    from openai.types.shared_params import FunctionDefinition
+    from openai.types.chat.completion_create_params import ResponseFormat
+    from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
+    from openai.types.shared_params.response_format_json_schema import JSONSchema
 
     def _(obj: PromptVersion) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
@@ -166,8 +166,18 @@ def _to_model_kwargs(
     if (v := parameters.get("reasoning_effort")) is not None:
         if v in ("low", "medium", "high"):
             ans["reasoning_effort"] = v
-    if "tools" in obj and obj["tools"] and (tools := list(_to_tools(obj["tools"]))):
-        ans["tools"] = tools
+    if "tools" in obj:
+        tool_kwargs = _to_tool_kwargs(obj["tools"])
+        if "tools" in tool_kwargs:
+            ans["tools"] = tool_kwargs["tools"]
+            if "tool_choice" in tool_kwargs:
+                ans["tool_choice"] = tool_kwargs["tool_choice"]
+    if "response_format" in obj:
+        response_format = obj["response_format"]
+        if response_format["type"] == "response-format-json-schema-v1":
+            ans["response_format"] = _to_response_format_json_schema(response_format)
+        elif TYPE_CHECKING:
+            assert_never(response_format)
     return ans
 
 
@@ -277,12 +287,19 @@ def _to_tools(
     obj: PromptToolsV1,
 ) -> Iterable[ChatCompletionToolParam]:
     for tool in obj["tools"]:
-        function: FunctionDefinition = {"name": tool["name"]}
+        definition: FunctionDefinition = {"name": tool["name"]}
         if "description" in tool:
-            function["description"] = tool["description"]
+            definition["description"] = tool["description"]
         if "schema" in tool:
-            function["parameters"] = dict(tool["schema"]["json"])
-        yield {"type": "function", "function": function}
+            definition["parameters"] = dict(tool["schema"]["json"])
+        if "extra_parameters" in tool:
+            extra_parameters = tool["extra_parameters"]
+            if "strict" in extra_parameters and (
+                isinstance(v := extra_parameters["strict"], bool) or v is None
+            ):
+                definition["strict"] = v
+        ans: ChatCompletionToolParam = {"type": "function", "function": definition}
+        yield ans
 
 
 def _from_tools(
@@ -302,8 +319,64 @@ def _from_tools(
                 type="json-schema-draft-7-object-schema",
                 json=definition["parameters"],
             )
+        if "strict" in definition:
+            function["extra_parameters"] = {"strict": definition["strict"]}
         functions.append(function)
     return PromptToolsV1(type="tools-v1", tools=functions)
+
+
+def _to_response_format_json_schema(
+    obj: PromptResponseFormatJSONSchema,
+) -> ResponseFormat:
+    json_schema: JSONSchema = {
+        "name": obj["name"],
+    }
+    schema = obj["schema"]
+    if schema["type"] == "json-schema-draft-7-object-schema":
+        json_schema["schema"] = dict(schema["json"])
+    elif TYPE_CHECKING:
+        assert_never(schema["type"])
+    if "description" in obj:
+        json_schema["description"] = obj["description"]
+    if "extra_parameters" in obj:
+        extra_parameters = obj["extra_parameters"]
+        if "strict" in extra_parameters and (
+            isinstance(v := extra_parameters["strict"], bool) or v is None
+        ):
+            json_schema["strict"] = v
+    ans: ResponseFormatJSONSchema = {
+        "type": "json_schema",
+        "json_schema": json_schema,
+    }
+    return ans
+
+
+def _from_response_format(
+    obj: ResponseFormat,
+) -> PromptResponseFormatJSONSchema:
+    if obj["type"] == "json_schema":
+        json_schema: JSONSchema = obj["json_schema"]
+        extra_parameters: dict[str, Any] = {}
+        if "strict" in json_schema:
+            extra_parameters["strict"] = json_schema["strict"]
+        ans = PromptResponseFormatJSONSchema(
+            type="response-format-json-schema-v1",
+            extra_parameters=extra_parameters,
+            name=json_schema["name"],
+            schema=JSONSchemaDraft7ObjectSchema(
+                type="json-schema-draft-7-object-schema",
+                json=json_schema["schema"] if "schema" in json_schema else {},
+            ),
+        )
+        if "description" in json_schema:
+            ans["description"] = json_schema["description"]
+        return ans
+    elif obj["type"] == "text":
+        raise NotImplementedError
+    elif obj["type"] == "json_object":
+        raise NotImplementedError
+    else:
+        assert_never(obj)
 
 
 def _to_messages(
