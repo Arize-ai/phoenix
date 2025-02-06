@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.server.api.helpers.jsonschema import (
@@ -349,6 +349,36 @@ class AnthropicToolDefinition(PromptModel):
     description: str = UNDEFINED
 
 
+class OpenAIToolChoiceParamFunction(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/7193688e364bd726594fe369032e813ced1bdfe2/src/openai/types/chat/chat_completion_named_tool_choice_param.py#L10
+    """
+
+    name: str
+
+
+class PromptOpenAINamedToolChoiceParam(PromptModel):
+    """
+    Based on https://github.com/openai/openai-python/blob/7193688e364bd726594fe369032e813ced1bdfe2/src/openai/types/chat/chat_completion_named_tool_choice_param.py#L15
+    """
+
+    type: Literal["function"]
+    function: OpenAIToolChoiceParamFunction
+
+
+PromptOpenAIToolChoiceType: TypeAlias = Union[
+    Literal["none", "auto", "required"], PromptOpenAINamedToolChoiceParam
+]
+
+
+class PromptOpenAIToolChoice(RootModel[PromptOpenAIToolChoiceType]):
+    """
+    Based on https://github.com/openai/openai-python/blob/7193688e364bd726594fe369032e813ced1bdfe2/src/openai/types/chat/chat_completion_tool_choice_option_param.py#L12
+    """
+
+    root: PromptOpenAIToolChoiceType
+
+
 class PromptOpenAIInvocationParameters(PromptModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
@@ -357,7 +387,7 @@ class PromptOpenAIInvocationParameters(PromptModel):
     top_p: float = UNDEFINED
     seed: int = UNDEFINED
     reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
-    tool_choice: str = UNDEFINED
+    tool_choice: PromptOpenAIToolChoice = UNDEFINED
 
 
 class PromptAnthropicInvocationParameters(PromptModel):
@@ -402,8 +432,8 @@ def normalize_invocation_parameters(
     extra_parameters: dict[str, Any] = {}
     if model_provider.lower() == "openai":
         openai_invocation_parameters = PromptOpenAIInvocationParameters.model_validate(parameters)
-        if (tool_choice := openai_invocation_parameters.tool_choice) is not UNDEFINED:
-            extra_parameters["tool_choice"] = tool_choice
+        if (openai_tool_choice := openai_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = openai_tool_choice
         if (reasoning_effort := openai_invocation_parameters.reasoning_effort) is not UNDEFINED:
             extra_parameters["reasoning_effort"] = reasoning_effort
         return PromptInvocationParameters(
@@ -436,8 +466,8 @@ def normalize_invocation_parameters(
         )
     if model_provider.lower() == "gemini":
         gemini_invocation_parameters = PromptGeminiInvocationParameters.model_validate(parameters)
-        if (tool_choice := gemini_invocation_parameters.tool_choice) is not UNDEFINED:
-            extra_parameters["tool_choice"] = tool_choice
+        if (gemini_tool_choice := gemini_invocation_parameters.tool_choice) is not UNDEFINED:
+            extra_parameters["tool_choice"] = gemini_tool_choice
         return PromptInvocationParameters(
             type="invocation-parameters",
             parameters=PromptInvocationParams(
