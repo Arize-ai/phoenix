@@ -1,7 +1,7 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
-import { PhoenixModelProvider } from "../../constants";
+import { PromptModelProvider } from "../../types/prompts";
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import {
   asToolResultPart,
@@ -442,19 +442,19 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
   }
 );
 
-type MessageProvider = PhoenixModelProvider | "UNKNOWN";
+type MessageProvider = PromptModelProvider | "UNKNOWN";
 
 type MessageWithProvider =
   | {
-      provider: Extract<PhoenixModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
       validatedMessage: OpenAIMessage;
     }
   | {
-      provider: Extract<PhoenixModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptModelProvider, "ANTHROPIC">;
       validatedMessage: AnthropicMessage;
     }
   | {
-      provider: Extract<PhoenixModelProvider, "GEMINI">;
+      provider: Extract<PromptModelProvider, "GEMINI">;
       validatedMessage: JSONLiteral;
     }
   | { provider: "UNKNOWN"; validatedMessage: null };
@@ -512,7 +512,7 @@ export const toOpenAIMessage = (
 /**
  * Convert from OpenAI message format to any other format
  */
-export const fromOpenAIMessage = <T extends PhoenixModelProvider>({
+export const fromOpenAIMessage = <T extends PromptModelProvider>({
   message,
   targetProvider,
 }: {

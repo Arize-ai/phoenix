@@ -22,11 +22,10 @@ The following environment variables are used:
 - `PHOENIX_CLIENT_HEADERS` - Custom headers to add to all requests. A JSON stringified object.
 
 ```bash
-PHOENIX_HOST='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' PHOENIX_CLIENT_HEADERS='{"X-Custom-Header": "123"}' pnpx tsx examples/list_datasets.ts
+PHOENIX_HOST='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples/list_datasets.ts
 # emits the following request:
 # GET http://localhost:12345/v1/datasets
 # headers: {
-#   "X-Custom-Header": "123",
 #   "Authorization": "bearer xxxxxx",
 # }
 ```

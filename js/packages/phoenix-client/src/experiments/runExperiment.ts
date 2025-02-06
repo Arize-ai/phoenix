@@ -22,16 +22,34 @@ export type RunExperimentParams = ClientFn & {
    * Defaults to the dataset name + a timestamp
    */
   experimentName?: string;
+  /**
+   * The dataset to run the experiment on
+   */
   dataset: Dataset | string | Example[];
+  /**
+   * The task to run
+   */
   task: ExperimentTask;
+  /**
+   * The evaluators to use
+   */
   evaluators?: Evaluator[];
+  /**
+   * The number of repetitions to run
+   */
   repetitions?: number;
   /**
    * The project under which the experiment task traces are recorded
    */
   projectName?: string;
+  /**
+   * The logger to use
+   */
   logger?: Logger;
-  readonly?: boolean;
+  /**
+   * Whether to record the experiment results
+   */
+  record?: boolean;
 };
 
 /**
@@ -49,7 +67,7 @@ export async function runExperiment({
   repetitions = 1,
   projectName = "default",
   logger = console,
-  readonly = false,
+  record = true,
 }: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDatasetLike({ dataset: _dataset, client });
@@ -70,7 +88,7 @@ export async function runExperiment({
     projectName,
   };
 
-  if (readonly) {
+  if (!record) {
     logger.info(
       `🔧 Running experiment in readonly mode. Results will not be recorded.`
     );

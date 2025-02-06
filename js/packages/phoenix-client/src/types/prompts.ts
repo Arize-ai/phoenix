@@ -1,18 +1,44 @@
 import { components } from "../__generated__/api/v1";
 
-export interface GetPromptById {
+/**
+ * Supported prompt model providers
+ */
+export type PromptModelProvider =
+  | "OPENAI"
+  | "AZURE_OPENAI"
+  | "ANTHROPIC"
+  | "GEMINI";
+
+/**
+ * The role of a prompt chat message
+ */
+export type PromptChatMessageRole = "user" | "system" | "ai" | "tool";
+
+/**
+ * Selector for a prompt by id.
+ */
+export interface GetPromptByIdSelector {
   promptId: string;
 }
 
-export interface GetPromptByName {
+/**
+ * Selector for a prompt by name.
+ */
+export interface GetPromptByNameSelector {
   name: string;
 }
 
-export interface GetPromptByVersion {
+/**
+ * Selector for a prompt by version id.
+ */
+export interface GetPromptByVersionSelector {
   versionId: string;
 }
 
-export interface GetPromptByTag {
+/**
+ * Selector for a named prompt by tag.
+ */
+export interface GetPromptByTagSelector {
   tag: string;
   name: string;
 }
@@ -22,11 +48,11 @@ export interface GetPromptByTag {
  *
  * Can be a prompt id, a prompt name, a prompt version id, or a prompt name + tag.
  */
-export type PromptLike =
-  | GetPromptById
-  | GetPromptByName
-  | GetPromptByVersion
-  | GetPromptByTag;
+export type PromptSelector =
+  | GetPromptByIdSelector
+  | GetPromptByNameSelector
+  | GetPromptByVersionSelector
+  | GetPromptByTagSelector;
 
 /**
  * The prompt version type from the API.
