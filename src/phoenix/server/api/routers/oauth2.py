@@ -11,9 +11,10 @@ from authlib.jose import jwt
 from authlib.jose.errors import JoseError
 from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select, update
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlean.dbapi2 import IntegrityError  # type: ignore[import-untyped]
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.datastructures import URL, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
@@ -323,7 +324,7 @@ async def _update_user_email(session: AsyncSession, /, *, user_id: int, email: s
             .values(email=email)
             .options(joinedload(models.User.role))
         )
-    except IntegrityError:
+    except (PostgreSQLIntegrityError, SQLiteIntegrityError):
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
     user = await session.scalar(
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))

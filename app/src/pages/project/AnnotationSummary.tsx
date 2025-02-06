@@ -11,7 +11,7 @@ import {
   ChartTooltipItem,
   useChartColors,
 } from "@phoenix/components/chart";
-import { useLastNTimeRange } from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
@@ -24,7 +24,7 @@ type AnnotationSummaryProps = {
 };
 export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useLastNTimeRange();
+  const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
       query AnnotationSummaryQuery(
@@ -42,8 +42,8 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
       annotationName,
       id: projectId as string,
       timeRange: {
-        start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        start: timeRange?.start?.toISOString(),
+        end: timeRange?.end?.toISOString(),
       },
     }
   );

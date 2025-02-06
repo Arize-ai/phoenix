@@ -19,13 +19,14 @@ import {
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   ChatMessage,
-  createPlaygroundInstance,
+  createNormalizedPlaygroundInstance,
   CredentialsState,
   generateMessageId,
   generateToolId,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
+  PlaygroundNormalizedInstance,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store";
@@ -96,7 +97,8 @@ export function isChatMessageRole(role: unknown): role is ChatMessageRole {
  *
  * NB: Only exported for testing
  */
-export function getChatRole(role: string): ChatMessageRole {
+export function getChatRole(_role: string): ChatMessageRole {
+  const role = _role.toLowerCase();
   if (isChatMessageRole(role)) {
     return role;
   }
@@ -553,7 +555,14 @@ export function transformSpanAttributesToPlaygroundInstance(
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
 } {
-  const basePlaygroundInstance = createPlaygroundInstance();
+  const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+  const basePlaygroundInstance: PlaygroundInstance = {
+    ...instance,
+    template: {
+      __type: "chat",
+      messages: Object.values(instanceMessages),
+    },
+  };
   const { json: parsedAttributes, parseError } = safelyParseJSON(
     span.attributes
   );
@@ -944,7 +953,7 @@ const getBaseChatCompletionInput = ({
   credentials: CredentialsState;
 }) => {
   // We pull directly from the store in this function so that it always has up to date values at the time of calling
-  const { instances } = playgroundStore.getState();
+  const { instances, allInstanceMessages } = playgroundStore.getState();
   const instance = instances.find((instance) => {
     return instance.id === instanceId;
   });
@@ -955,6 +964,12 @@ const getBaseChatCompletionInput = ({
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
+
+  const instanceMessages = instance.template.messageIds
+    .map((messageId) => {
+      return allInstanceMessages[messageId];
+    })
+    .filter((message) => message != null);
 
   const supportedInvocationParameters =
     instance.model.supportedInvocationParameters;
@@ -1006,7 +1021,7 @@ const getBaseChatCompletionInput = ({
       : {};
 
   return {
-    messages: instance.template.messages.map(toGqlChatCompletionMessage),
+    messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
@@ -1018,7 +1033,35 @@ const getBaseChatCompletionInput = ({
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
     apiKey: credentials[instance.model.provider] || null,
-  } as const;
+    promptName: instance.prompt?.name,
+  } satisfies Partial<ChatCompletionInput>;
+};
+
+/**
+ * Denormalize a playground instance with the actual messages
+ *
+ * A playground instance differs from a playground normalized instance in that it contains the actual messages
+ * and not just the messageIds. This function will replace the messageIds with the actual messages.
+ */
+export const denormalizePlaygroundInstance = (
+  instance: PlaygroundNormalizedInstance,
+  allInstanceMessages: Record<number, ChatMessage>
+): PlaygroundInstance => {
+  if (instance.template.__type === "chat") {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { messageIds: _, ...rest } = instance.template;
+    return {
+      ...instance,
+      template: {
+        ...rest,
+        messages: instance.template.messageIds.map(
+          (messageId) => allInstanceMessages[messageId]
+        ),
+      },
+    } satisfies PlaygroundInstance;
+  }
+  // it cannot be a normalized instance if it is not a chat template
+  return instance as PlaygroundInstance;
 };
 
 /**
@@ -1039,10 +1082,20 @@ export const getChatCompletionInput = ({
     credentials,
   });
 
-  const { instances, templateLanguage, input } = playgroundStore.getState();
+  const {
+    instances,
+    templateLanguage,
+    input,
+    allInstanceMessages: instanceMessages,
+  } = playgroundStore.getState();
+
+  // convert playgroundStateInstances to playgroundInstances
+  const playgroundInstances = instances.map((instance) => {
+    return denormalizePlaygroundInstance(instance, instanceMessages);
+  });
 
   const { variablesMap } = getVariablesMapFromInstances({
-    instances,
+    instances: playgroundInstances,
     input,
     templateLanguage,
   });
@@ -1091,15 +1144,37 @@ export const getChatCompletionOverDatasetInput = ({
  * @param content - the content to normalize
  * @returns a normalized json string
  */
-export function normalizeMessageAttributeValue(
-  content?: string | null | Record<string, unknown>
-): string {
+export function normalizeMessageContent(content?: unknown): string {
   if (content == null || content === "") {
     return "{}";
   }
-  return typeof content === "string"
-    ? content
-    : JSON.stringify(content, null, 2);
+
+  if (typeof content === "string") {
+    const isDoubleStringified =
+      content.startsWith('"{') ||
+      content.startsWith('"[') ||
+      content.startsWith('"\\"');
+    try {
+      // If it's a double-stringified value, parse it twice
+      if (isDoubleStringified) {
+        // First parse removes the outer quotes and unescapes the inner content
+        const firstParse = JSON.parse(content);
+        // Second parse converts the string representation to actual JSON
+        const secondParse =
+          typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+        // Stringify the result to ensure consistent formatting
+        return JSON.stringify(secondParse, null, 2);
+      }
+      // For regular strings, return as-is
+      return content;
+    } catch (e) {
+      // If parsing fails, return the original content
+      return content;
+    }
+  }
+
+  // For non-string content, stringify it with pretty printing
+  return JSON.stringify(content, null, 2);
 }
 
 export function areRequiredInvocationParametersConfigured(

@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_model_name,
     llm_span_kind,
     llm_tools,
+    prompt_metadata,
 )
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
@@ -178,7 +179,8 @@ class ChatCompletionMutationMixin:
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _default_playground_experiment_name(),
+                name=input.experiment_name
+                or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description
                 or _default_playground_experiment_description(dataset_name=dataset.name),
                 repetitions=1,
@@ -207,6 +209,7 @@ class ChatCompletionMutationMixin:
                                 language=input.template_language,
                                 variables=revision.input,
                             ),
+                            prompt_name=input.prompt_name,
                         ),
                     )
                     for revision in batch
@@ -300,6 +303,7 @@ class ChatCompletionMutationMixin:
         input: ChatCompletionInput,
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
+        attributes.update(dict(prompt_metadata(input.prompt_name)))
 
         messages = [
             (

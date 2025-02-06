@@ -15,6 +15,7 @@ export const fieldBaseCSS = css`
     transition: all 0.2s ease-in-out;
     margin: 0;
     flex: 1 1 auto;
+    font-size: var(--ac-global-font-size-s);
     min-width: var(--ac-global-input-field-min-width);
     background-color: var(--ac-global-input-field-background-color);
     color: var(--ac-global-text-color-900);
@@ -24,20 +25,23 @@ export const fieldBaseCSS = css`
     vertical-align: middle;
 
     &[data-focused] {
+      // TODO: figure out focus ring behavior. For now the color is enough
       outline: none;
+    }
+    &[data-focused]:not([data-invalid]) {
       border: 1px solid var(--ac-global-input-field-border-color-active);
     }
-    &[data-hovered]:not([data-disabled]) {
+    &[data-hovered]:not([data-disabled]):not([data-invalid]) {
       border: 1px solid var(--ac-global-input-field-border-color-active);
     }
     &[data-disabled] {
       opacity: var(--ac-global-opacity-disabled);
     }
-    &[data-invalid]:not([data-focused]) {
+    &[data-invalid] {
       border-color: var(--ac-global-color-danger);
     }
     &::placeholder {
-      color: var(--ac-global-text-color-300);
+      color: var(--ac-text-color-placeholder);
       font-style: italic;
     }
   }
@@ -57,4 +61,14 @@ export const fieldBaseCSS = css`
   .react-aria-FieldError {
     color: var(--ac-global-color-danger);
   }
+`;
+
+export const fieldPopoverCSS = css`
+  width: var(--trigger-width);
+  background-color: var(--ac-global-menu-background-color);
+  border-radius: var(--ac-global-rounding-small);
+  color: var(--ac-global-text-color-900);
+  box-shadow: 0px 4px 10px var(--px-overlay-shadow-color);
+  border: 1px solid var(--ac-global-menu-border-color);
+  max-height: inherit;
 `;

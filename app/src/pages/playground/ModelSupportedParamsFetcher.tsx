@@ -16,16 +16,13 @@ export const ModelSupportedParamsFetcher = ({
 }: {
   instanceId: number;
 }) => {
-  const modelProvider = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)?.model
-        .provider
-  );
-  const modelName = usePlaygroundContext(
-    (state) =>
-      state.instances.find((instance) => instance.id === instanceId)?.model
-        .modelName
-  );
+  const instances = usePlaygroundContext((state) => state.instances);
+  const instance = instances.find((instance) => instance.id === instanceId);
+  if (!instance) {
+    throw new Error("Instance not found");
+  }
+  const modelProvider = instance.model.provider;
+  const modelName = instance.model.modelName;
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
@@ -88,6 +85,7 @@ export const ModelSupportedParamsFetcher = ({
         },
       }
     );
+  const promptId = instance.prompt?.id;
   useEffect(() => {
     updateModelSupportedInvocationParameters({
       instanceId,
@@ -100,6 +98,7 @@ export const ModelSupportedParamsFetcher = ({
     instanceId,
     updateModelSupportedInvocationParameters,
     modelConfigByProvider,
+    promptId,
   ]);
   return null;
 };

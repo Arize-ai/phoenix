@@ -24,6 +24,7 @@ export function NewProjectButton() {
     <div>
       <Button
         icon={<Icon svg={<Icons.GridOutline />} />}
+        size="S"
         onPress={() => {
           setDialog(<NewProjectDialog />);
         }}
