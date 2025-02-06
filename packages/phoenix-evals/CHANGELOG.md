@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.0...arize-phoenix-evals-v0.20.1) (2025-02-06)
+
+
+### Bug Fixes
+
+* Update parameter filtering logic ([#6285](https://github.com/Arize-ai/phoenix/issues/6285)) ([0f552e6](https://github.com/Arize-ai/phoenix/commit/0f552e6aec08f918408d82a248788e21bac8803d))
+
 ## [0.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.19.0...arize-phoenix-evals-v0.20.0) (2025-02-05)
 
 
