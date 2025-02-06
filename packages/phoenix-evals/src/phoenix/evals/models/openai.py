@@ -53,12 +53,16 @@ class AzureOptions:
 
 def _model_supports_temperature(model: str) -> bool:
     """OpenAI reasoning models do not support temperature."""
-    return "o1" not in model and "o3" not in model
+    if model.startswith("o1") or model.startswith("o3"):
+        return False
+    return True
 
 
 def _model_supports_max_tokens(model: str) -> bool:
     """OpenAI reasoning models do not support max_tokens."""
-    return "o1" not in model and "o3" not in model
+    if model.startswith("o1") or model.startswith("o3"):
+        return False
+    return True
 
 
 @dataclass
