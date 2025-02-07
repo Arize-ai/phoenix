@@ -48,10 +48,11 @@ class TestUserMessage:
     ) -> None:
         u = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-        prompt = _create_chat_prompt(u, template_format="FSTRING")
         x = token_hex(4)
+        expected = [{"role": "user", "content": f"hello {x}"}]
+        prompt = _create_chat_prompt(u, template_format="FSTRING")
         messages, _ = to_chat_messages_and_kwargs(prompt, variables={"x": x})
-        assert not DeepDiff(messages, [{"role": "user", "content": f"hello {x}"}])
+        assert not DeepDiff(expected, messages)
 
 
 class _GetWeather(BaseModel):
@@ -79,24 +80,22 @@ class TestTools:
     ) -> None:
         u = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-        tools = [ToolDefinitionInput(definition=dict(pydantic_function_tool(t))) for t in types_]
+        expected: Mapping[str, ChatCompletionToolParam] = {
+            t.__name__: cast(
+                ChatCompletionToolParam, json.loads(json.dumps(pydantic_function_tool(t)))
+            )
+            for t in types_
+        }
+        tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
         prompt = _create_chat_prompt(u, tools=tools)
-        assert "tools" in prompt
-        actual = {
-            t["name"]: t["schema"]["json"]
-            for t in prompt["tools"]["tools"]
-            if "schema" in t and "json" in t["schema"]
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "tools" in kwargs
+        actual: dict[str, ChatCompletionToolParam] = {
+            t["function"]["name"]: t
+            for t in cast(Iterable[ChatCompletionToolParam], kwargs["tools"])
+            if t["type"] == "function" and "parameters" in t["function"]
         }
-        assert len(actual) == len(tools)
-        expected = {
-            t.definition["function"]["name"]: t.definition["function"]["parameters"]
-            for t in tools
-            if "function" in t.definition
-            and "name" in t.definition["function"]
-            and "parameters" in t.definition["function"]
-        }
-        assert len(expected) == len(tools)
-        assert not DeepDiff(actual, expected)
+        assert not DeepDiff(expected, actual)
 
 
 class TestToolChoice:
@@ -202,15 +201,13 @@ class TestResponseFormat:
     ) -> None:
         u = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-        response_format = ResponseFormatInput(
-            definition=dict(cast(ResponseFormatJSONSchema, type_to_response_format_param(type_)))
-        )
+        expected = cast(ResponseFormatJSONSchema, type_to_response_format_param(type_))
+        response_format = ResponseFormatInput(definition=dict(expected))
         prompt = _create_chat_prompt(u, response_format=response_format)
-        assert "response_format" in prompt
-        assert not DeepDiff(
-            prompt["response_format"]["schema"]["json"],
-            response_format.definition["json_schema"]["schema"],
-        )
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "response_format" in kwargs
+        actual = kwargs["response_format"]
+        assert not DeepDiff(expected, actual)
 
 
 def _create_chat_prompt(
