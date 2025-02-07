@@ -6,7 +6,7 @@ description: Frequently Asked Questions
 
 ## How to log traces
 
-To log traces, you must instrument your application either [manually](../how-to-tracing/manual-instrumentation/custom-spans.md) or [automatically](../how-to-tracing/instrumentation/). To log to a remote instance of Phoenix, you must also configure the host and port where your traces will be sent.
+To log traces, you must instrument your application either [manually](../how-to-tracing/custom-spans.md) or [automatically](broken-reference). To log to a remote instance of Phoenix, you must also configure the host and port where your traces will be sent.
 
 {% tabs %}
 {% tab title="Local Phoenix" %}
@@ -102,7 +102,7 @@ response = openai.OpenAI().chat.completions.create(
 
 ## Using a custom LangChain component
 
-If you have customized a LangChain component (say a retriever), you might not get tracing for that component without some additional steps. Internally, instrumentation relies on components to inherit from LangChain base classes for the traces to show up. Below is an example of how to inherit from LanChain base classes to make a [custom retriever](https://python.langchain.com/v0.1/docs/modules/data\_connection/retrievers/custom\_retriever/) and to make traces show up.
+If you have customized a LangChain component (say a retriever), you might not get tracing for that component without some additional steps. Internally, instrumentation relies on components to inherit from LangChain base classes for the traces to show up. Below is an example of how to inherit from LanChain base classes to make a [custom retriever](https://python.langchain.com/v0.1/docs/modules/data_connection/retrievers/custom_retriever/) and to make traces show up.
 
 ```python
 from typing import List

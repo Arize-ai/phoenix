@@ -1,6 +1,6 @@
-# Integrations: Tracing
+# Tracing Integrations (Auto)
 
-Phoenix natively works with a variety of frameworks and SDKs across Python and JavaScript via OpenTelemetry[ auto-instrumentation](../how-to-tracing/instrumentation/).
+Phoenix natively works with a variety of frameworks and SDKs across Python and JavaScript via OpenTelemetry auto-instrumentation. These auto-instrumentors capture and trace any requests made to their respective packages.
 
 ## Python
 

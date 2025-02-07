@@ -4,16 +4,15 @@ description: >-
   framework, it supports other languages like TypeScript / JavaScript
 ---
 
-# Instrument: TS
+# Setup Tracing & Instrument: TS
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt=""><figcaption><p>You can trace your NodeJS application over OpenTelemetry</p></figcaption></figure>
 
-Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](../llm-evaluations.md), Ragas).
-
+Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](../how-to-interact-with-traces/llm-evaluations.md), Ragas).
 
 ## Getting Started
 
-[Instrumentation](../instrumentation/) is the act of adding observability code to an app yourself.
+Instrumentation is the act of adding observability code to an app yourself.
 
 If you’re instrumenting an app, you need to use the OpenTelemetry SDK for your language. You’ll then use the SDK to initialize OpenTelemetry and the API to instrument your code. This will emit telemetry from your app, and any library you installed that also comes with instrumentation.
 
@@ -69,8 +68,6 @@ The example also sets up the mandatory SDK default attribute `service.name`, whi
 Alternative methods exist for setting up resource attributes. For more information, see [Resources](https://opentelemetry.io/docs/languages/js/resources/).
 
 To verify your code, run the app by requiring the library:
-
-
 
 ```sh
 npx ts-node --require ./instrumentation.ts app.ts
@@ -211,8 +208,8 @@ Now that you have [tracers](https://opentelemetry.io/docs/concepts/signals/trace
 
 The API of OpenTelemetry JavaScript exposes two methods that allow you to create spans:
 
-* [`tracer.startSpan`](https://open-telemetry.github.io/opentelemetry-js/interfaces/\_opentelemetry\_api.Tracer.html#startSpan): Starts a new span without setting it on context.
-* [`tracer.startActiveSpan`](https://open-telemetry.github.io/opentelemetry-js/interfaces/\_opentelemetry\_api.Tracer.html#startActiveSpan): Starts a new span and calls the given callback function passing it the created span as first argument. The new span gets set in context and this context is activated for the duration of the function call.
+* [`tracer.startSpan`](https://open-telemetry.github.io/opentelemetry-js/interfaces/_opentelemetry_api.Tracer.html#startSpan): Starts a new span without setting it on context.
+* [`tracer.startActiveSpan`](https://open-telemetry.github.io/opentelemetry-js/interfaces/_opentelemetry_api.Tracer.html#startActiveSpan): Starts a new span and calls the given callback function passing it the created span as first argument. The new span gets set in context and this context is activated for the duration of the function call.
 
 In most cases you want to use the latter (`tracer.startActiveSpan`), as it takes care of setting the span and its context active.
 
@@ -280,8 +277,6 @@ After a while, you should see the spans printed in the console by the `ConsoleSp
   "links": []
 }
 ```
-
-
 
 #### Get the current span <a href="#get-the-current-span" id="get-the-current-span"></a>
 
@@ -451,8 +446,6 @@ In some cases, you may not be able to use either the Node.js SDK nor the Web SDK
 
 Initializing tracing is similar to how you’d do it with Node.js or the Web SDK.
 
-
-
 ```ts
 import opentelemetry from '@opentelemetry/api';
 import {
@@ -509,7 +502,4 @@ const doWork = (parent, i) => {
 };
 ```
 
-All other APIs behave the same when you use `sdk-trace-base` compared with the Node.js  SDKs.
-
-#### &#x20;<a href="#initialize-metrics" id="initialize-metrics"></a>
-
+All other APIs behave the same when you use `sdk-trace-base` compared with the Node.js SDKs.

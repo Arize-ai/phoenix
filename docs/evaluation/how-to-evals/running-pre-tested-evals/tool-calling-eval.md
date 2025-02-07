@@ -79,4 +79,4 @@ Parameters:
 
 * `df` - a dataframe of cases to evaluate. The dataframe must have these columns to match the default template:
   * `question` - the query made to the model. If you've [exported spans from Phoenix](https://app.gitbook.com/o/ZmsT56faZH0gUFkMMqBk/s/gtQcEYlwzTfZSAnHREvw/) to evaluate, this will the `llm.input_messages` column in your exported data.
-  * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](../../../tracing/how-to-tracing/extract-data-from-spans.md) to evaluate, this will be the `llm.function_call` column in your exported data.
+  * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](../../../tracing/how-to-interact-with-traces/extract-data-from-spans.md) to evaluate, this will be the `llm.function_call` column in your exported data.

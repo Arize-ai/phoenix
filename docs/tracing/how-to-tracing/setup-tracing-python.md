@@ -7,7 +7,7 @@ description: How to configure OpenTelemetry and connect to the Phoenix server
 Phoenix uses OTLP (OpenTelemetry Language Protocol) to receive traces from your phoenix instance. To make this process as simple as possible, we've created a python package called `arize-phoenix-otel` for python.
 
 {% hint style="info" %}
-Note that you do not need to use arize-phoenix-otel to setup OpenTelemetry. If you wold like to use pure OpenTelemetry, see [using-otel-python-directly.md](using-otel-python-directly.md "mention")
+Note that you do not need to use arize-phoenix-otel to setup OpenTelemetry. If you wold like to use pure OpenTelemetry, see [custom-spans.md](custom-spans.md "mention")
 {% endhint %}
 
 Install the **arize-phoenix-otel** python package. This may be already installed.
@@ -16,7 +16,7 @@ Install the **arize-phoenix-otel** python package. This may be already installed
 pip install arize-phoenix-otel
 ```
 
-If you have specified endpoints, headers, and project names as [environment variables](../../../../deployment/configuration.md#environment-variables), setting up OTEL can be as simple as:
+If you have specified endpoints, headers, and project names as [environment variables](../../deployment/configuration.md#environment-variables), setting up OTEL can be as simple as:
 
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.otel import register
 </strong>
@@ -27,11 +27,20 @@ If you have specified endpoints, headers, and project names as [environment vari
 # E.x. OpenAIInstrumentor.instrument(tracer_provider=tracer_provider)
 </code></pre>
 
-And setup is done! You are ready to setup [integrations](../../../integrations-tracing/) and instrumentation. Read further for more advanced configuration options.
+{% hint style="success" %}
+And setup is done! Next you'll need to either:
+
+* Setup [integrations](../integrations-tracing/) to capture traces automatically, and/or
+* Add [instrumentation](instrument-python.md) to manually define the traces you want captured
+
+
+
+Read further in this guide for more advanced Phoenix configuration options.
+{% endhint %}
 
 ## Setup Endpoints, Projects, etc.
 
-Register by default picks up your configuration from [environment variables](../../../../deployment/configuration.md#environment-variables) but you can configure it using arguments as well:
+Register by default picks up your configuration from [environment variables](../../deployment/configuration.md#environment-variables) but you can configure it using arguments as well:
 
 ```python
 from phoenix.otel import register

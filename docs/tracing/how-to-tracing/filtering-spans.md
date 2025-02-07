@@ -1,4 +1,4 @@
-# Filtering Spans
+# Filter Spans
 
 Because Phoenix is built on OpenTelemetry, you can run into situations where other OpenTelemetry traces unrelated to your LLM calls are logged into Phoenix. You can also run into cases where Phoenix traces are sent to other OTEL endpoints.
 
@@ -145,7 +145,7 @@ google.cloud.bigquery.opentelemetry_tracing.HAS_OPENTELEMETRY = False
 
 ### Disabling Phoenix Instrumentation
 
-Phoenix does not automatically instrument any libraries unless you've called one of our [auto-instrumentors](../instrumentation/). To disable tracing of one of those auto-instrumentors, see [#disabling-instrumentation](filtering-spans.md#disabling-instrumentation "mention")
+Phoenix does not automatically instrument any libraries unless you've called one of our [auto-instrumentors](../integrations-tracing/). To disable tracing of one of those auto-instrumentors, see [#disabling-instrumentation](filtering-spans.md#disabling-instrumentation "mention")
 
 ## Defining your own Filter Processor
 
