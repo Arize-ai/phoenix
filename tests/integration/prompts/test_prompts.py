@@ -98,6 +98,34 @@ class TestTools:
         }
         assert not DeepDiff(expected, actual)
 
+    @pytest.mark.parametrize(
+        "types_",
+        [
+            [_GetWeather],
+        ],
+    )
+    def test_anthropic(
+        self,
+        types_: Sequence[type[BaseModel]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        u = _get_user().log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        expected: dict[str, ToolParam] = {
+            t.__name__: ToolParam(
+                name=t.__name__,
+                input_schema=t.model_json_schema(),
+            )
+            for t in types_
+        }
+        tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
+        prompt = _create_chat_prompt(u, tools=tools, model_provider="ANTHROPIC")
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "tools" in kwargs
+        actual = {t["name"]: t for t in cast(Iterable[ToolParam], kwargs["tools"])}
+        assert not DeepDiff(expected, actual)
+
 
 class TestToolChoice:
     @pytest.mark.parametrize(
