@@ -11,7 +11,7 @@ import {
 } from "@phoenix/components";
 import {
   isSupportedToolChoiceProvider,
-  ToolChoicePicker,
+  ToolChoiceSelector,
 } from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
@@ -61,7 +61,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
         <View padding="size-200">
           <Flex direction="column">
             <Form>
-              <ToolChoicePicker
+              <ToolChoiceSelector
                 provider={provider}
                 choice={instance.toolChoice}
                 onChange={(choice) => {

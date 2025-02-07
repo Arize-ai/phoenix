@@ -13,24 +13,51 @@ import {
 } from "@phoenix/schemas/toolChoiceSchemas";
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
+/**
+ * The "default" tool choices for each provider
+ * Default just means choices we an always render without knowing any tool names
+ * Note: Some providers wrap all tool choices in an object, some only wrap specific tool selections in an object
+ *   so you need to unwrap the choice before checking if it is a default choice
+ *
+ */
 export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
-  OPENAI: ["auto", "required", "none"] as const,
-  AZURE_OPENAI: ["auto", "required", "none"] as const,
+  OPENAI: ["required", "auto", "none"] as const,
+  AZURE_OPENAI: ["required", "auto", "none"] as const,
   ANTHROPIC: ["auto", "any"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
 
-export const getToolChoiceType = (provider: ModelProvider, choice: unknown) => {
+/**
+ * Extracts the type of tool choice from a choice
+ *
+ * Some providers wrap all tool choices in an object, some only wrap specific tool selections in an object
+ *
+ * @param provider The provider of the choice
+ * @param choice The choice to extract the type from
+ * @returns The type of the choice
+ */
+export const findToolChoiceType = (
+  provider: ModelProvider,
+  choice: unknown
+) => {
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      if (isObject(choice) && "type" in choice) {
+      if (
+        isObject(choice) &&
+        "type" in choice &&
+        typeof choice.type === "string"
+      ) {
         return choice.type;
       }
       return choice;
     case "ANTHROPIC":
-      if (isObject(choice) && "type" in choice) {
+      if (
+        isObject(choice) &&
+        "type" in choice &&
+        typeof choice.type === "string"
+      ) {
         return choice.type;
       }
       return choice;
@@ -42,12 +69,28 @@ export const getToolChoiceType = (provider: ModelProvider, choice: unknown) => {
   }
 };
 
+/**
+ * Checks if a provider has a default tool choice
+ * If so, it is supported by the {@link ToolChoiceSelector} component
+ * @param provider The provider to check
+ * @returns True if the provider has a default tool choice, false otherwise
+ */
 export const isSupportedToolChoiceProvider = (
   provider: ModelProvider
 ): provider is keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER => {
   return provider in DEFAULT_TOOL_CHOICES_BY_PROVIDER;
 };
 
+/**
+ * Checks if a choice is a default (simple) tool choice for a provider.
+ *
+ * A default tool choice is one like "auto" or {type: "auto"}, that we can render without knowing any tool names
+ * Note: Wrapped tool choices must be unwrapped before being checked
+ *
+ * @param provider The provider to check the choice for
+ * @param choice The choice to check
+ * @returns True if the choice is a default tool choice for the provider, false otherwise
+ */
 const isDefaultToolChoice = <
   T extends keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER,
 >(
@@ -83,7 +126,44 @@ const removeToolNamePrefix = (toolName: string) =>
     ? toolName.slice(TOOL_NAME_PREFIX.length)
     : toolName;
 
-type ToolChoicePickerProps<
+/**
+ * Renders a label for a tool choice
+ *
+ * Fuzzily matches the choice type to a friendly label
+ *
+ * @returns A label for the tool choice
+ */
+export const ChoiceLabel = ({
+  choiceType,
+}: {
+  choiceType: string;
+}): JSX.Element => {
+  switch (choiceType) {
+    case "any":
+    case "required":
+      return (
+        <Flex gap={"size-100"} width={"100%"} justifyContent={"space-between"}>
+          Use at least one tool <Label color="grey-900">{choiceType}</Label>
+        </Flex>
+      );
+    case "none":
+      return (
+        <Flex gap={"size-100"} width={"100%"} justifyContent={"space-between"}>
+          Don&apos;t use any tools <Label color="grey-900">{choiceType}</Label>
+        </Flex>
+      );
+    case "auto":
+    default:
+      return (
+        <Flex gap={"size-100"} width={"100%"} justifyContent={"space-between"}>
+          Tools auto-selected by LLM{" "}
+          <Label color="grey-900">{choiceType}</Label>
+        </Flex>
+      );
+  }
+};
+
+type ToolChoiceSelectorProps<
   T extends keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER,
 > = {
   provider: T;
@@ -101,10 +181,10 @@ type ToolChoicePickerProps<
   toolNames: string[];
 };
 
-export function ToolChoicePicker<
+export function ToolChoiceSelector<
   T extends keyof typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER,
->({ choice, onChange, toolNames, provider }: ToolChoicePickerProps<T>) {
-  const currentChoiceType = getToolChoiceType(provider, choice);
+>({ choice, onChange, toolNames, provider }: ToolChoiceSelectorProps<T>) {
+  const currentChoiceType = findToolChoiceType(provider, choice);
   const inDefaultToolChoices = isDefaultToolChoice(provider, currentChoiceType);
   const currentKey = inDefaultToolChoices
     ? currentChoiceType
@@ -154,25 +234,10 @@ export function ToolChoicePicker<
       }}
     >
       {[
-        // <Item key="auto" textValue="auto">
-        //   <Flex gap={"size-100"}>
-        //     Tools auto-selected by LLM <Label color="grey-900">auto</Label>
-        //   </Flex>
-        // </Item>,
-        // <Item key="required" textValue="required">
-        //   <Flex gap={"size-100"}>
-        //     Use at least one tool <Label color="grey-900">required</Label>
-        //   </Flex>
-        // </Item>,
-        // <Item key="none" textValue="none">
-        //   <Flex gap={"size-100"}>
-        //     Don&apos;t use any tools <Label color="grey-900">none</Label>
-        //   </Flex>
-        // </Item>,
         ...(DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider]
           ? DEFAULT_TOOL_CHOICES_BY_PROVIDER[provider].map((choice) => (
               <Item key={choice} textValue={choice}>
-                {choice}
+                <ChoiceLabel choiceType={choice} />
               </Item>
             ))
           : []),
