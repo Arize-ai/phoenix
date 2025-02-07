@@ -1,4 +1,5 @@
-import { PromptVersion } from "../../types/prompts";
+import type { PromptVersion } from "../../types/prompts";
+import type { SUPPORTED_SDKS } from "./constants";
 
 /**
  * Variables to pass to the prompt
@@ -20,3 +21,8 @@ export type toSDKParamsBase<V extends Variables = Variables> = {
    */
   variables?: V;
 };
+
+/**
+ * Supported SDK conversion targets for prompt conversion
+ */
+export type SupportedSDK = (typeof SUPPORTED_SDKS)[number];
