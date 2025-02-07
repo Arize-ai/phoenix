@@ -38,15 +38,66 @@ import {
   openaiChatPartTextSchema,
   promptMessagePartToOpenAIChatPart,
   toOpenAIChatPart,
+  vercelAIChatPartImageSchema,
+  vercelAIChatPartTextSchema,
+  vercelAIChatPartToolCallSchema,
+  vercelAIChatPartToolResultSchema,
 } from "./messagePartSchemas";
 import { safelyStringifyJSON } from "../../utils/safelyStringifyJSON";
 import invariant from "tiny-invariant";
 
-/**
+/*
+ *
+ * Vercel AI SDK Message Schemas
+ *
+ */
+
+export const vercelAIMessageRoleSchema = z.enum([
+  "system",
+  "user",
+  "assistant",
+  "tool",
+]);
+
+export type VercelAIMessageRole = z.infer<typeof vercelAIMessageRoleSchema>;
+
+export const vercelAIMessageSchema = z.discriminatedUnion("role", [
+  z.object({
+    role: z.literal("system"),
+    content: z.string(),
+  }),
+  z.object({
+    role: z.literal("user"),
+    content: z.union([
+      z
+        .union([vercelAIChatPartTextSchema, vercelAIChatPartImageSchema])
+        .array(),
+      z.string(),
+    ]),
+  }),
+  z.object({
+    role: z.literal("assistant"),
+    content: z.union([
+      z
+        .union([vercelAIChatPartTextSchema, vercelAIChatPartToolCallSchema])
+        .array(),
+      z.string(),
+    ]),
+  }),
+  z.object({
+    role: z.literal("tool"),
+    content: vercelAIChatPartToolResultSchema.array(),
+  }),
+]);
+
+export type VercelAIMessage = z.infer<typeof vercelAIMessageSchema>;
+
+/*
  *
  * OpenAI Message Schemas
  *
  */
+
 export const openAIMessageRoleSchema = z.enum([
   "system",
   "user",
@@ -439,6 +490,124 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
       role: roleMap[openai.role] as PromptMessageRole,
       content,
     };
+  }
+);
+
+/**
+ * Spoke → Hub: Convert a Prompt message to AI format
+ */
+export const openAIMessageToAI = openAIMessageSchema.transform(
+  (openai): VercelAIMessage => {
+    const role = openai.role;
+    switch (role) {
+      case "developer":
+      case "system":
+        // take the first text part, or use string content if it exists
+        return {
+          role: "system",
+          content:
+            typeof openai.content === "string"
+              ? openai.content
+              : (openai.content.find((part) => part.type === "text")?.text ??
+                ""),
+        };
+      case "user":
+        // take text and image parts, ignore other parts
+        return {
+          role: "user",
+          content:
+            typeof openai.content === "string"
+              ? openai.content
+              : openai.content
+                  .filter(
+                    (part) => part.type === "text" || part.type === "image_url"
+                  )
+                  .map((part) => {
+                    if (part.type === "text") {
+                      return {
+                        type: "text",
+                        text: part.text,
+                      };
+                    }
+                    if (part.type === "image_url") {
+                      return {
+                        type: "image",
+                        image: part.image_url.url,
+                      };
+                    }
+
+                    return assertUnreachable(part);
+                  }),
+        };
+      case "assistant": {
+        type AssistantMessage = Extract<VercelAIMessage, { role: "assistant" }>;
+        // take text any parts, convert tool calls to tool call parts, ignore other parts
+        const newContent: AssistantMessage["content"] = [];
+        // take all text parts from openai message
+        if (typeof openai.content === "string") {
+          newContent.push({ type: "text", text: openai.content });
+        } else {
+          openai.content.forEach((part) => {
+            if (part.type === "text") {
+              newContent.push({ type: "text", text: part.text });
+            }
+          });
+        }
+        // add any tool calls
+        if (openai.tool_calls) {
+          openai.tool_calls.forEach((tc) => {
+            newContent.push({
+              type: "tool-call",
+              toolCallId: tc.id,
+              toolName: tc.function.name,
+              args: tc.function.arguments,
+            });
+          });
+        }
+        return {
+          role: "assistant",
+          content: newContent,
+        };
+      }
+      case "tool": {
+        type ToolMessage = Extract<VercelAIMessage, { role: "tool" }>;
+        const newContent: ToolMessage["content"] = [];
+        if (typeof openai.content === "string") {
+          newContent.push({
+            type: "tool-result",
+            toolCallId: openai.tool_call_id,
+            toolName: "", // We don't have this??
+            result: openai.content,
+          });
+        } else {
+          openai.content.forEach((part) => {
+            if (part.type === "text") {
+              newContent.push({
+                type: "tool-result",
+                toolCallId: openai.tool_call_id,
+                toolName: "", // We don't have this??
+                result: part.text,
+              });
+              return;
+            }
+            assertUnreachable(part.type);
+          });
+        }
+        return {
+          role: "tool",
+          content: newContent,
+        } satisfies ToolMessage;
+      }
+      case "function":
+        // eslint-disable-next-line no-console
+        console.warn("Function role not supported in Vercel AI SDK");
+        return {
+          role: "tool",
+          content: [],
+        };
+      default:
+        assertUnreachable(role);
+    }
   }
 );
 

@@ -179,7 +179,8 @@ class ChatCompletionMutationMixin:
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _default_playground_experiment_name(),
+                name=input.experiment_name
+                or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description
                 or _default_playground_experiment_description(dataset_name=dataset.name),
                 repetitions=1,

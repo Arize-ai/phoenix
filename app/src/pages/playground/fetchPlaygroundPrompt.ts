@@ -26,6 +26,7 @@ import {
   ToolResultPart,
 } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
+import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   DEFAULT_INSTANCE_PARAMS,
   generateMessageId,
@@ -155,6 +156,11 @@ export const promptVersionToInstance = ({
     openInferenceModelProviderToPhoenixModelProvider(
       promptVersion.modelProvider
     ) || DEFAULT_MODEL_PROVIDER;
+  const toolChoice =
+    safelyConvertToolChoiceToProvider({
+      toolChoice: promptVersion.invocationParameters?.tool_choice,
+      targetProvider: provider,
+    }) ?? undefined;
 
   return {
     ...newInstance,
@@ -237,7 +243,7 @@ export const promptVersionToInstance = ({
       id: generateToolId(),
       definition: t.definition,
     })),
-    toolChoice: promptVersion.invocationParameters?.tool_choice || undefined,
+    toolChoice,
   } satisfies Partial<PlaygroundInstance>;
 };
 
@@ -347,6 +353,11 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     // we do a proper typecheck above to ensure that this cast is safe
   }) as ChatPromptVersionInput["template"]["messages"];
 
+  const convertedToolChoice = safelyConvertToolChoiceToProvider({
+    toolChoice: instance.toolChoice,
+    targetProvider: instance.model.provider,
+  });
+
   const newPromptVersion = {
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     modelProvider: instance.model.provider,
@@ -377,11 +388,11 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
             )
         )
         .concat(
-          instance.toolChoice
+          convertedToolChoice
             ? [
                 {
                   invocationName: TOOL_CHOICE_PARAM_NAME,
-                  valueJson: instance.toolChoice,
+                  valueJson: convertedToolChoice,
                   canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
                 },
               ]
