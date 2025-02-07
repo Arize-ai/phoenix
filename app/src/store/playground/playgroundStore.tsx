@@ -14,6 +14,7 @@ import {
   mergeInvocationParametersWithDefaults,
 } from "@phoenix/pages/playground/playgroundUtils";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
+import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 
 import {
   convertInstanceToolsToProvider,
@@ -395,6 +396,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
               endpoint: null,
               provider,
             },
+        toolChoice:
+          safelyConvertToolChoiceToProvider({
+            toolChoice: instance.toolChoice,
+            targetProvider: provider,
+          }) ?? undefined,
         tools: convertInstanceToolsToProvider({
           instanceTools: instance.tools,
           provider,
