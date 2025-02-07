@@ -9,7 +9,10 @@ import {
   Flex,
   View,
 } from "@phoenix/components";
-import { ToolChoicePicker } from "@phoenix/components/generative";
+import {
+  isSupportedToolChoiceProvider,
+  ToolChoicePicker,
+} from "@phoenix/components/generative";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundTool } from "./PlaygroundTool";
@@ -42,6 +45,12 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
     [tools]
   );
 
+  const provider = instance.model.provider;
+
+  if (!isSupportedToolChoiceProvider(provider)) {
+    return null;
+  }
+
   return (
     <Disclosure id="tools">
       <DisclosureTrigger arrowPosition="start">
@@ -53,6 +62,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
           <Flex direction="column">
             <Form>
               <ToolChoicePicker
+                provider={provider}
                 choice={instance.toolChoice}
                 onChange={(choice) => {
                   updateInstance({

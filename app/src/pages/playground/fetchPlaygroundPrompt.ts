@@ -26,6 +26,7 @@ import {
   ToolResultPart,
 } from "@phoenix/schemas/promptSchemas";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
+import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   DEFAULT_INSTANCE_PARAMS,
   generateMessageId,
@@ -155,6 +156,11 @@ export const promptVersionToInstance = ({
     openInferenceModelProviderToPhoenixModelProvider(
       promptVersion.modelProvider
     ) || DEFAULT_MODEL_PROVIDER;
+  const toolChoice =
+    safelyConvertToolChoiceToProvider({
+      toolChoice: promptVersion.invocationParameters?.tool_choice,
+      targetProvider: provider,
+    }) ?? undefined;
 
   return {
     ...newInstance,
@@ -237,7 +243,7 @@ export const promptVersionToInstance = ({
       id: generateToolId(),
       definition: t.definition,
     })),
-    toolChoice: promptVersion.invocationParameters?.tool_choice || undefined,
+    toolChoice,
   } satisfies Partial<PlaygroundInstance>;
 };
 
