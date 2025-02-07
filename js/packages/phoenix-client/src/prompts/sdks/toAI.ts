@@ -1,18 +1,98 @@
-import { toSDKParamsBase } from "./types";
-import { type streamText } from "ai";
+import {
+  openAIMessageToAI,
+  promptMessageToOpenAI,
+} from "../../schemas/llm/messageSchemas";
+import {
+  openAIToolChoiceToVercelToolChoice,
+  phoenixToolChoiceToOpenaiToolChoice,
+} from "../../schemas/llm/toolChoiceSchemas";
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
+import { Variables, toSDKParamsBase } from "./types";
+import {
+  type streamText,
+  type generateText,
+  type ToolSet,
+  type Tool,
+  jsonSchema,
+} from "ai";
 
 export type PartialStreamTextParams = Omit<
-  Parameters<typeof streamText>[0],
+  Parameters<typeof streamText>[0] | Parameters<typeof generateText>[0],
   "model"
 >;
 
-export type ToAIParams = toSDKParamsBase;
+export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
 
 /**
- * @todo
+ * Converts a Phoenix prompt to Vercel AI sdk params.
+ *
+ * - note: To use response format, you must pass `prompt.response_format.json` to generateObject or streamObject
+ *   directly, through the `schema` argument.
  */
-export const toAI = ({
-  prompt: _prompt,
-}: ToAIParams): PartialStreamTextParams | null => {
-  return null;
+export const toAI = <V extends Variables>({
+  prompt,
+  variables,
+}: ToAIParams<V>): PartialStreamTextParams | null => {
+  try {
+    // parts of the prompt that can be directly converted to OpenAI params
+    const baseCompletionParams = {
+      // Invocation parameters are validated on the phoenix-side
+      ...prompt.invocation_parameters,
+    } satisfies Partial<PartialStreamTextParams>;
+
+    if (!("messages" in prompt.template)) {
+      return null;
+    }
+
+    let formattedMessages = prompt.template.messages;
+
+    if (variables) {
+      formattedMessages = formatPromptMessages(
+        prompt.template_format,
+        formattedMessages,
+        variables
+      );
+    }
+
+    const messages = formattedMessages.map((message) =>
+      openAIMessageToAI.parse(promptMessageToOpenAI.parse(message))
+    );
+
+    let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
+      if (!tool.schema?.json) {
+        return acc;
+      }
+      acc[tool.name] = {
+        type: "function",
+        parameters: jsonSchema(tool.schema.json),
+        description: tool.description,
+      } satisfies Tool;
+      return acc;
+    }, {} as ToolSet);
+    const hasTools = Object.keys(tools ?? {}).length > 0;
+    tools = hasTools ? tools : undefined;
+
+    const toolChoice =
+      hasTools && prompt.tools?.tool_choice
+        ? openAIToolChoiceToVercelToolChoice.parse(
+            phoenixToolChoiceToOpenaiToolChoice.parse(prompt.tools?.tool_choice)
+          )
+        : undefined;
+
+    // combine base and computed params
+    const completionParams = {
+      ...baseCompletionParams,
+      messages,
+      tools,
+      toolChoice,
+    } satisfies Partial<PartialStreamTextParams>;
+
+    return completionParams;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(`Failed to convert prompt to AI params`);
+    // eslint-disable-next-line no-console
+    console.error(error);
+    return null;
+  }
 };

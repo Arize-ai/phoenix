@@ -2,11 +2,8 @@ import invariant from "tiny-invariant";
 import { toAI } from "./toAI";
 import { toAnthropic } from "./toAnthropic";
 import { toOpenAI } from "./toOpenAI";
-import { Variables, toSDKParamsBase } from "./types";
+import { SupportedSDK, Variables, toSDKParamsBase } from "./types";
 import { assertUnreachable } from "../../utils/assertUnreachable";
-
-const SUPPORTED_SDKS = ["openai", "anthropic", "ai"] as const;
-type SupportedSDK = (typeof SUPPORTED_SDKS)[number];
 
 /**
  * Parameters for an SDK conversion function
