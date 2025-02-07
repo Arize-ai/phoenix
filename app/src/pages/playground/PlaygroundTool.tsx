@@ -20,6 +20,7 @@ import {
   llmProviderToolDefinitionSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
+import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -159,11 +160,10 @@ export function PlaygroundTool({
             size="S"
             onPress={() => {
               const newTools = instanceTools.filter((t) => t.id !== tool.id);
-              const toolName = getToolName(tool);
               const deletingToolChoice =
                 typeof instance.toolChoice === "object" &&
                 toolName != null &&
-                instance.toolChoice.function.name === getToolName(tool);
+                findToolChoiceName(instance.toolChoice) === toolName;
 
               let toolChoice = instance.toolChoice;
               if (newTools.length === 0) {
