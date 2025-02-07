@@ -8,7 +8,13 @@ import {
 } from "../../schemas/llm/toolChoiceSchemas";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
-import type { streamText, generateText, ToolSet, Tool } from "ai";
+import {
+  type streamText,
+  type generateText,
+  type ToolSet,
+  type Tool,
+  jsonSchema,
+} from "ai";
 
 export type PartialStreamTextParams = Omit<
   Parameters<typeof streamText>[0] | Parameters<typeof generateText>[0],
@@ -18,7 +24,10 @@ export type PartialStreamTextParams = Omit<
 export type ToAIParams<V extends Variables> = toSDKParamsBase<V>;
 
 /**
- * @todo
+ * Converts a Phoenix prompt to Vercel AI sdk params.
+ *
+ * - note: To use response format, you must pass `prompt.response_format.json` to generateObject or streamObject
+ *   directly, through the `schema` argument.
  */
 export const toAI = <V extends Variables>({
   prompt,
@@ -50,18 +59,18 @@ export const toAI = <V extends Variables>({
     );
 
     let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
+      if (!tool.schema?.json) {
+        return acc;
+      }
       acc[tool.name] = {
-        parameters: tool.schema?.json,
+        type: "function",
+        parameters: jsonSchema(tool.schema.json),
         description: tool.description,
       } satisfies Tool;
       return acc;
     }, {} as ToolSet);
     const hasTools = Object.keys(tools ?? {}).length > 0;
     tools = hasTools ? tools : undefined;
-
-    // const response_format = prompt.response_format
-    //   ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)
-    //   : undefined;
 
     const toolChoice =
       hasTools && prompt.tools?.tool_choice
@@ -76,13 +85,12 @@ export const toAI = <V extends Variables>({
       messages,
       tools,
       toolChoice,
-      // response_format,
     } satisfies Partial<PartialStreamTextParams>;
 
     return completionParams;
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.warn(`Failed to convert prompt to Anthropic params`);
+    console.warn(`Failed to convert prompt to AI params`);
     // eslint-disable-next-line no-console
     console.error(error);
     return null;

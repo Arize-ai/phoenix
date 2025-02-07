@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { createClient } from "../src";
 import { getPrompt, toSDK } from "../src/prompts";
-import { generateText } from "ai";
+import { generateObject, generateText, jsonSchema } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { PromptSelector } from "../src/types/prompts";
 
@@ -65,25 +65,29 @@ const main = async () => {
     throw new Error("Prompt could not be converted to OpenAI params");
   }
 
-  const { text } = await generateText({
+  // Apply prompt to a standard text generation call
+  // Note: this does not use response format, you must use generateObject or streamObject for that,
+  //       see below for an example
+  const { text, toolCalls } = await generateText({
     model: openai("gpt-4o"),
     ...aiParams,
-    messages: [
-      {
-        role: "tool",
-        content: [
-          {
-            type: "tool-result",
-            result: "test",
-            toolCallId: "1",
-            toolName: "1",
-          },
-        ],
-      },
-    ],
   });
 
+  console.log("Text generation result:");
   console.log(text);
+  console.log("Tool calls:");
+  console.log(toolCalls);
+
+  if (prompt.response_format) {
+    // Apply prompt with response format to a generateObject call
+    const { object } = await generateObject({
+      model: openai("gpt-4o"),
+      schema: jsonSchema(prompt.response_format.schema.json),
+      ...aiParams,
+    });
+    console.log("Object generation result:");
+    console.log(object);
+  }
 };
 
 main();
