@@ -4,6 +4,21 @@ import { assertUnreachable } from "../../utils/assertUnreachable";
 import { isObject } from "../../utils/isObject";
 
 /**
+ * Vercel AI SDK Tool Choice Schema
+ */
+export const vercelAIToolChoiceSchema = z.union([
+  z.literal("auto"),
+  z.literal("none"),
+  z.literal("required"),
+  z.object({
+    type: z.literal("tool"),
+    toolName: z.string(),
+  }),
+]);
+
+export type VercelAIToolChoice = z.infer<typeof vercelAIToolChoiceSchema>;
+
+/**
  * Phoenix's tool choice schema
  */
 export const phoenixToolChoiceSchema = z.union([
@@ -116,6 +131,23 @@ export const openAIToolChoiceToAnthropicToolChoice =
         return { type: "auto" };
       case "required":
         return { type: "any" };
+      default:
+        assertUnreachable(openAI);
+    }
+  });
+
+export const openAIToolChoiceToVercelToolChoice =
+  openAIToolChoiceSchema.transform((openAI): VercelAIToolChoice => {
+    if (isObject(openAI)) {
+      return { type: "tool", toolName: openAI.function.name };
+    }
+    switch (openAI) {
+      case "auto":
+        return "auto";
+      case "none":
+        return "none";
+      case "required":
+        return "required";
       default:
         assertUnreachable(openAI);
     }
