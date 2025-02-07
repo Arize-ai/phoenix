@@ -106,6 +106,7 @@
   * [Create a prompt](prompt-engineering/how-to-prompts/create-a-prompt.md)
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
+  * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 
 ## 🗄️ Datasets & Experiments

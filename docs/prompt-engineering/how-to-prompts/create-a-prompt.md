@@ -28,15 +28,27 @@ Prompts can be loaded back into the playground at any time by clicking on "open 
 
 
 
+To view the details of a prompt, click on the prompt name. You will be taken to the prompt details view. The prompt details view shows all the [parts of the prompt](../concepts-prompts.md#prompt) that has been saved (e.x. the model used, the invocation parameters, etc.)
 
-
-## Adding labels and metadata
-
-:construction: Prompt labels and metadata is still [under construction.](https://github.com/Arize-ai/phoenix/issues/6290)
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_details.png" alt=""><figcaption><p>The details of a prompt shows everything that is saved about a prompt</p></figcaption></figure>
 
 
 
-## Cloning a prompt
+## Making edits to a prompt
+
+Once you've crated a prompt, you probably need to make teaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](../concepts-prompts.md#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
+
+### Editing a prompt in the playground
+
+To make edits to a prompt, click on the edit in playground on the top right of the prompt details view.
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_edit.gif" alt=""><figcaption><p>Iterate on prompts in the playground and save when you are happy with the prompt</p></figcaption></figure>
+
+When you are happy with your prompt, click save. You will be asked to provide a description of the changes you made to the prompt. This description will show up in the history of the prompt for others to understand what you did.
+
+
+
+### Cloning a prompt
 
 In some cases, you may need to modify a prompt without altering its original version. To achieve this, you can **clone** a prompt, similar to forking a repository in Git.
 
@@ -46,7 +58,9 @@ This approach ensures that your edits are flexible and reversible, preventing un
 
 
 
+## Adding labels and metadata
 
+:construction: Prompt labels and metadata is still [under construction.](https://github.com/Arize-ai/phoenix/issues/6290)
 
 
 
