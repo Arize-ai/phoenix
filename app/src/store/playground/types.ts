@@ -5,6 +5,10 @@ import {
   LlmProviderToolCall,
   LlmProviderToolDefinition,
 } from "@phoenix/schemas";
+import {
+  AnthropicToolChoice,
+  OpenaiToolChoice,
+} from "@phoenix/schemas/toolChoiceSchemas";
 
 import { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
@@ -117,7 +121,7 @@ export interface PlaygroundInstance {
    * How the LLM should choose the tool to use
    * @default "auto"
    */
-  toolChoice?: ToolChoice;
+  toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
   output?: ChatMessage[] | string;
   spanId: string | null;
