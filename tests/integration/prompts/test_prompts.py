@@ -21,6 +21,7 @@ from openai.lib._parsing import type_to_response_format_param
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
     ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolParam,
 )
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.__generated__.v1 import PromptVersion
