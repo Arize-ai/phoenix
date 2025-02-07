@@ -11,6 +11,7 @@ import {
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Link, LinkButton } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -123,14 +124,16 @@ export function PromptsTable(props: PromptsTableProps) {
               justifyContent="end"
               width="100%"
             >
-              <LinkButton
-                icon={<Icon svg={<Icons.PlayCircleOutline />} />}
-                size="S"
-                aria-label="Open in playground"
-                to={`${row.original.id}/playground`}
-              >
-                Playground
-              </LinkButton>
+              <StopPropagation>
+                <LinkButton
+                  icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  size="S"
+                  aria-label="Open in playground"
+                  to={`${row.original.id}/playground`}
+                >
+                  Playground
+                </LinkButton>
+              </StopPropagation>
               <PromptActionMenu
                 promptId={row.original.id}
                 onDeleted={() => {
