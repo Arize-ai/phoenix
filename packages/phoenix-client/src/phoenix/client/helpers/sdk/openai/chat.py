@@ -166,8 +166,12 @@ def _to_model_kwargs(
     if (v := parameters.get("reasoning_effort")) is not None:
         if v in ("low", "medium", "high"):
             ans["reasoning_effort"] = v
-    if "tools" in obj and obj["tools"] and (tools := list(_to_tools(obj["tools"]))):
-        ans["tools"] = tools
+    if "tools" in obj:
+        tool_kwargs = _to_tool_kwargs(obj["tools"])
+        if "tools" in tool_kwargs:
+            ans["tools"] = tool_kwargs["tools"]
+            if "tool_choice" in tool_kwargs:
+                ans["tool_choice"] = tool_kwargs["tool_choice"]
     return ans
 
 

@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+import json
 from enum import Enum
 from secrets import token_hex
 from types import MappingProxyType
-from typing import Any, Literal, Mapping, Sequence, cast
+from typing import Any, Iterable, Literal, Mapping, Sequence, cast
 
 import phoenix as px
 import pytest
+from anthropic.types import (
+    ToolChoiceAnyParam,
+    ToolChoiceAutoParam,
+    ToolChoiceParam,
+    ToolChoiceToolParam,
+    ToolParam,
+)
 from deepdiff.diff import DeepDiff
 from openai import pydantic_function_tool
 from openai.lib._parsing import type_to_response_format_param
+from openai.types.chat import (
+    ChatCompletionNamedToolChoiceParam,
+    ChatCompletionToolChoiceOptionParam,
+)
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.__generated__.v1 import PromptVersion
 from phoenix.client.utils import to_chat_messages_and_kwargs
@@ -36,7 +48,7 @@ class TestUserMessage:
     ) -> None:
         u = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-        prompt = _create_chat_prompt(u)
+        prompt = _create_chat_prompt(u, template_format="FSTRING")
         x = token_hex(4)
         messages, _ = to_chat_messages_and_kwargs(prompt, variables={"x": x})
         assert not DeepDiff(messages, [{"role": "user", "content": f"hello {x}"}])
@@ -45,6 +57,11 @@ class TestUserMessage:
 class _GetWeather(BaseModel):
     city: str
     country: str
+
+
+class _GetPopulation(BaseModel):
+    country: str
+    year: int
 
 
 class TestTools:
@@ -80,6 +97,70 @@ class TestTools:
         }
         assert len(expected) == len(tools)
         assert not DeepDiff(actual, expected)
+
+
+class TestToolChoice:
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            "none",
+            "auto",
+            "required",
+            ChatCompletionNamedToolChoiceParam(type="function", function={"name": "_GetWeather"}),
+        ],
+    )
+    def test_openai(
+        self,
+        expected: ChatCompletionToolChoiceOptionParam,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        tools = [
+            ToolDefinitionInput(definition=json.loads(json.dumps(pydantic_function_tool(t))))
+            for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+        ]
+        invocation_parameters = {"tool_choice": expected}
+        prompt = _create_chat_prompt(u, tools=tools, invocation_parameters=invocation_parameters)
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "tool_choice" in kwargs
+        actual = kwargs["tool_choice"]
+        assert not DeepDiff(expected, actual)
+
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            ToolChoiceAutoParam(type="auto"),
+            ToolChoiceAnyParam(type="any"),
+            ToolChoiceToolParam(type="tool", name="_GetWeather"),
+        ],
+    )
+    def test_anthropic(
+        self,
+        expected: ToolChoiceParam,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        tools = [
+            ToolDefinitionInput(
+                definition=dict(ToolParam(name=t.__name__, input_schema=t.model_json_schema()))
+            )
+            for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+        ]
+        invocation_parameters = {"tool_choice": expected}
+        prompt = _create_chat_prompt(
+            u,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+            model_provider="ANTHROPIC",
+        )
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "tool_choice" in kwargs
+        actual = kwargs["tool_choice"]
+        assert not DeepDiff(expected, actual)
 
 
 class _UIType(str, Enum):
@@ -142,7 +223,7 @@ def _create_chat_prompt(
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
     invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
-    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "FSTRING",
+    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "NONE",
 ) -> PromptVersion:
     messages = list(messages) or [
         PromptMessageInput(

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Mapping, Optional, Union, cast
 
 import strawberry
 from fastapi import Request
@@ -84,9 +84,13 @@ class PromptMutationMixin:
 
         input_prompt_version = input.prompt_version
         tool_definitions = [tool.definition for tool in input_prompt_version.tools]
+        tool_choice = cast(
+            Optional[Union[str, dict[str, Any]]],
+            cast(Mapping[str, Any], input.prompt_version.invocation_parameters).get("tool_choice"),
+        )
         try:
             tools = (
-                normalize_tools(tool_definitions, input_prompt_version.model_provider)
+                normalize_tools(tool_definitions, input_prompt_version.model_provider, tool_choice)
                 if tool_definitions
                 else None
             )
@@ -142,9 +146,13 @@ class PromptMutationMixin:
 
         input_prompt_version = input.prompt_version
         tool_definitions = [tool.definition for tool in input.prompt_version.tools]
+        tool_choice = cast(
+            Optional[Union[str, dict[str, Any]]],
+            cast(Mapping[str, Any], input.prompt_version.invocation_parameters).get("tool_choice"),
+        )
         try:
             tools = (
-                normalize_tools(tool_definitions, input_prompt_version.model_provider)
+                normalize_tools(tool_definitions, input_prompt_version.model_provider, tool_choice)
                 if tool_definitions
                 else None
             )

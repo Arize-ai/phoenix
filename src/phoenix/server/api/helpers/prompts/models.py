@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated, TypeAlias, assert_never
@@ -10,6 +10,8 @@ from phoenix.server.api.helpers.jsonschema import (
     JSONSchemaDraft7ObjectSchema,
     JSONSchemaObjectSchema,
 )
+from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
+from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
@@ -349,7 +351,11 @@ class AnthropicToolDefinition(PromptModel):
     description: str = UNDEFINED
 
 
-def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV1:
+def normalize_tools(
+    schemas: list[dict[str, Any]],
+    model_provider: str,
+    tool_choice: Optional[Union[str, Mapping[str, Any]]] = None,
+) -> PromptToolsV1:
     tools: list[PromptFunctionToolV1]
     if model_provider.lower() == "openai":
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
@@ -359,7 +365,18 @@ def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> Promp
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
-    return PromptToolsV1(type="tools-v1", tools=tools)
+    ans = PromptToolsV1(type="tools-v1", tools=tools)
+    if tool_choice is not None:
+        if model_provider.lower() == "openai":
+            ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
+        if model_provider.lower() == "anthropic":
+            choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
+                tool_choice  # type: ignore[arg-type]
+            )
+            ans.tool_choice = choice
+            if disable_parallel_tool_calls is not None:
+                ans.disable_parallel_tool_calls = disable_parallel_tool_calls
+    return ans
 
 
 def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[str, Any]]:
