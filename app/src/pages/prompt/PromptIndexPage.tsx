@@ -99,7 +99,9 @@ function PromptIndexPageAside({
       borderStartWidth="thin"
     >
       <View paddingStart="size-200" paddingEnd="size-200">
-        <Heading level={3}>Description</Heading>
+        <Flex direction="row" justifyContent="space-between">
+          <Heading level={3}>Description</Heading>
+        </Flex>
         {/* TODO: Add a markdown view here */}
         <Text color={hasDescription ? "text-900" : "text-700"}>
           {data.description || "No Description"}
