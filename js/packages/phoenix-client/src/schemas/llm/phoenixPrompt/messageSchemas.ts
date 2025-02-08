@@ -1,5 +1,4 @@
-import { z } from "zod";
-import zodToJsonSchema from "zod-to-json-schema";
+import z from "zod";
 
 import {
   textPartSchema,
@@ -37,7 +36,3 @@ export const promptMessageSchema = z
 export type PromptMessage = z.infer<typeof promptMessageSchema>;
 
 export const promptMessagesSchema = z.array(promptMessageSchema);
-
-export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
-  removeAdditionalStrategy: "passthrough",
-});

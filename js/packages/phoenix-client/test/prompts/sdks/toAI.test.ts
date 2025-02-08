@@ -17,7 +17,7 @@ import {
 import { BASE_MOCK_PROMPT_VERSION } from "./data";
 import { generateObject, generateText, streamObject, streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { z } from "zod";
+import z from "zod";
 
 describe("toAI type compatibility", () => {
   beforeEach(() => {

@@ -20,7 +20,7 @@ import { OpenAIToolCall } from "../openai/toolCallSchemas";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
 import { anthropicToolChoiceSchema } from "./toolChoiceSchemas";
 import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { OpenAIToolDefinition } from "../openai";
+import { OpenAIToolDefinition } from "../openai/toolSchemas";
 import { anthropicToolDefinitionSchema } from "./toolSchemas";
 
 /*

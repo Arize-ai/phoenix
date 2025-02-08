@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 
 /**
  * Anthropic's tool choice schema

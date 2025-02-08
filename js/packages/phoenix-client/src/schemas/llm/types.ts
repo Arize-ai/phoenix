@@ -1,7 +1,7 @@
 import type { OpenAIChatPart } from "./openai/messagePartSchemas";
 import type { AnthropicMessagePart } from "./anthropic/messagePartSchemas";
-import type { PhoenixPromptPart } from "./phoenixPrompt";
-import type { VercelAIChatPart } from "./ai";
+import type { VercelAIChatPart } from "./ai/messagePartSchemas";
+import type { PhoenixPromptPart } from "./phoenixPrompt/messagePartSchemas";
 import { PromptModelProvider } from "../../types/prompts";
 import { OpenAIMessage } from "./openai/messageSchemas";
 import { AnthropicMessage } from "./anthropic/messageSchemas";

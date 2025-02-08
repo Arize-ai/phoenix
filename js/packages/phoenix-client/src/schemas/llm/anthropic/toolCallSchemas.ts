@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like

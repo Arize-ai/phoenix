@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 import { JSONLiteral, jsonLiteralSchema } from "../jsonLiteralSchema";
 import { anthropicMessageSchema } from "./anthropic/messageSchemas";
 import { openAIMessageSchema } from "./openai/messageSchemas";

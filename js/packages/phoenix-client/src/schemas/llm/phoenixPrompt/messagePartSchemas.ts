@@ -1,11 +1,5 @@
-import { z } from "zod";
+import z from "zod";
 import { jsonLiteralSchema } from "../../jsonLiteralSchema";
-import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
-import {
-  findToolCallArguments,
-  findToolCallId,
-  findToolCallName,
-} from "../utils";
 
 export const textPartSchema = z.object({
   type: z.literal("text"),
@@ -22,6 +16,8 @@ export const imagePartSchema = z.object({
     url: z.string(),
   }),
 });
+
+export type ImagePart = z.infer<typeof imagePartSchema>;
 
 export const toolCallPartSchema = z.object({
   type: z.literal("tool_call"),
@@ -80,31 +76,6 @@ export const makeImagePart = (url?: string | null) => {
 
 export const asToolCallPart = (maybePart: unknown): ToolCallPart | null => {
   const parsed = toolCallPartSchema.safeParse(maybePart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeToolCallPart = (maybeToolCall: unknown) => {
-  // detect if maybeToolCall is an object with an id, or a string that can be parsed into an object with an id
-  const toolCallId = findToolCallId(maybeToolCall);
-  const toolCallName = findToolCallName(maybeToolCall);
-  const toolCallArguments = findToolCallArguments(maybeToolCall);
-  if (!toolCallId) {
-    return null;
-  }
-  const safelyStringifiedArguments =
-    safelyStringifyJSON(toolCallArguments).json || "";
-  // then, parse it into the optimistic tool call part shape
-  const optimisticToolCallPart: ToolCallPart = {
-    type: "tool_call",
-    tool_call: {
-      tool_call_id: toolCallId,
-      tool_call: {
-        name: toolCallName || toolCallId,
-        arguments: safelyStringifiedArguments,
-      },
-    },
-  };
-  const parsed = toolCallPartSchema.safeParse(optimisticToolCallPart);
   return parsed.success ? parsed.data : null;
 };
 

@@ -70,10 +70,15 @@ const main = async () => {
 
   const response = await openai.chat.completions.create({
     ...openAIParams,
+    model: "gpt-4o",
     stream: false,
   });
 
-  console.log(response.choices[0]?.message.content);
+  console.dir(
+    response.choices[0]?.message.content ??
+      response.choices[0]?.message.tool_calls,
+    { depth: null }
+  );
 };
 
 main();

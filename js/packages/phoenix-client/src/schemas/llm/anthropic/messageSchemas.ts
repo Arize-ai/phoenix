@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
 import { anthropicMessagePartSchema } from "./messagePartSchemas";

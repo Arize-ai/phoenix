@@ -10,7 +10,7 @@ import {
   phoenixToolChoiceToOpenaiToolChoice,
   phoenixToolToOpenAI,
   promptMessageToOpenAI,
-} from "../../schemas/llm/phoenixPrompt";
+} from "../../schemas/llm/phoenixPrompt/converters";
 import { openAIMessageToAnthropic } from "../../schemas/llm/openai/converters";
 import {
   fromOpenAIToolDefinition,

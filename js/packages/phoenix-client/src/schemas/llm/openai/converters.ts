@@ -16,8 +16,8 @@ import {
 } from "../phoenixPrompt/messageSchemas";
 import {
   makeTextPart,
-  makeToolCallPart,
   makeToolResultPart,
+  ToolCallPart,
 } from "../phoenixPrompt/messagePartSchemas";
 import { VercelAIMessage } from "../ai/messageSchemas";
 import { openAIToolCallSchema } from "./toolCallSchemas";
@@ -171,11 +171,16 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
     // Convert tool calls if they exist
     if (openai.role === "assistant" && openai.tool_calls) {
       openai.tool_calls.forEach((tc) => {
-        const toolCallPart = makeToolCallPart({
-          id: tc.id,
-          name: tc.function.name,
-          arguments: tc.function.arguments,
-        });
+        const toolCallPart = {
+          type: "tool_call",
+          tool_call: {
+            tool_call_id: tc.id,
+            tool_call: {
+              name: tc.function.name,
+              arguments: tc.function.arguments,
+            },
+          },
+        } satisfies ToolCallPart;
         if (toolCallPart) {
           content.push(toolCallPart);
         }

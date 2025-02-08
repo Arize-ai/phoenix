@@ -1,10 +1,8 @@
 import { assertUnreachable } from "../../../utils/assertUnreachable";
-import {
-  OpenAIMessage,
-  OpenAIToolCall,
-  OpenAIToolDefinition,
-  OpenaiToolChoice,
-} from "../openai";
+import { OpenAIToolDefinition } from "../openai/toolSchemas";
+import { OpenAIMessage } from "../openai/messageSchemas";
+import { OpenAIToolCall } from "../openai/toolCallSchemas";
+import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
 import { promptMessageSchema } from "./messageSchemas";
 import {
   ToolCallPart,

@@ -1,20 +1,16 @@
-import { safelyParseJSON } from "../../utils/safelyParseJSON";
-import { JSONLiteral } from "../jsonLiteralSchema";
-import { anthropicToolCallSchema } from "./anthropic";
 import { anthropicMessagePartSchema } from "./anthropic/messagePartSchemas";
 import { anthropicMessageSchema } from "./anthropic/messageSchemas";
-import { toOpenAIToolCall } from "./converters";
-import { openAIToolCallSchema } from "./openai";
+import { openAIToolCallSchema } from "./openai/toolCallSchemas";
 import { openaiChatPartSchema } from "./openai/messagePartSchemas";
 import { openAIMessageSchema } from "./openai/messageSchemas";
 import { openAIToolChoiceSchema } from "./openai/toolChoiceSchemas";
 import { anthropicToolChoiceSchema } from "./anthropic/toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./openai/toolSchemas";
 import { anthropicToolDefinitionSchema } from "./anthropic/toolSchemas";
+import { anthropicToolCallSchema } from "./anthropic/toolCallSchemas";
 import {
   ToolDefinitionWithProvider,
   llmProviderToolDefinitionSchema,
-  toolCallHeuristicSchema,
 } from "./schemas";
 import {
   LLMMessagePart,
@@ -92,83 +88,6 @@ export const detectToolCallProvider = (
   }
   return { provider: "UNKNOWN", validatedToolCall: null };
 };
-
-export function findToolCallId(maybeToolCall: unknown): string | null {
-  let subject = maybeToolCall;
-  if (typeof maybeToolCall === "string") {
-    const parsed = safelyParseJSON(maybeToolCall);
-    subject = parsed.json;
-  }
-  const toolCall = toOpenAIToolCall(subject);
-
-  if (toolCall) {
-    return toolCall.id;
-  }
-
-  // we don't have first class support for the incoming tool call
-  // try some heuristics to find the id
-  const heuristic = toolCallHeuristicSchema.safeParse(subject);
-  if (heuristic.success) {
-    return heuristic.data.id ?? heuristic.data.name ?? null;
-  }
-
-  return null;
-}
-
-export function findToolCallName(maybeToolCall: unknown): string | null {
-  let subject = maybeToolCall;
-  if (typeof maybeToolCall === "string") {
-    const parsed = safelyParseJSON(maybeToolCall);
-    subject = parsed.json;
-  }
-
-  const toolCall = toOpenAIToolCall(subject);
-
-  if (toolCall) {
-    return toolCall.function.name;
-  }
-
-  // we don't have first class support for the incoming tool call
-  // try some heuristics to find the name
-  const heuristic = toolCallHeuristicSchema.safeParse(subject);
-  if (heuristic.success) {
-    return (
-      heuristic.data.function?.name ??
-      heuristic.data.name ??
-      // fallback to id if we don't have a name
-      heuristic.data.id ??
-      null
-    );
-  }
-
-  return null;
-}
-
-export function findToolCallArguments(
-  maybeToolCall: unknown
-): JSONLiteral | null {
-  let subject = maybeToolCall;
-  if (typeof maybeToolCall === "string") {
-    const parsed = safelyParseJSON(maybeToolCall);
-    subject = parsed.json;
-  }
-  const toolCall = toOpenAIToolCall(subject);
-  if (toolCall) {
-    return toolCall.function.arguments as JSONLiteral;
-  }
-
-  // we don't have first class support for the incoming tool call
-  // try some heuristics to find the arguments
-  const heuristic = toolCallHeuristicSchema.safeParse(subject);
-  if (heuristic.success) {
-    return (
-      ((heuristic.data.arguments ??
-        heuristic.data.function?.arguments) as JSONLiteral) ?? null
-    );
-  }
-
-  return null;
-}
 
 /**
  * Detects the provider of a tool choice
