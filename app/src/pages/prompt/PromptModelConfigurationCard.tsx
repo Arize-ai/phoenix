@@ -38,6 +38,7 @@ export function PromptModelConfigurationCard({
       title="Model Configuration"
       variant="compact"
       bodyStyle={{ padding: 0 }}
+      collapsible
     >
       <DisclosureGroup
         defaultExpandedKeys={[

@@ -207,7 +207,7 @@ export function PromptChatMessagesCard({
   promptVersion: PromptChatMessagesCard__main$key;
 }) {
   return (
-    <Card title={title} variant="compact">
+    <Card title={title} variant="compact" collapsible>
       <PromptChatMessages promptVersion={promptVersion} />
     </Card>
   );
