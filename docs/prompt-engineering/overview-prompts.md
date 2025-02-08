@@ -18,7 +18,15 @@ Prompt Templates refer a way of formatting information to get the prompt to hold
 
 ## Prompt Management
 
-Phoenix automatically tracks the prompts
+Prompt management you to create, store, and modify prompts for interacting with LLMs. By managing prompts systematically, you can improve reuse, consistency, and experiment with variations across different models and inputs.
+
+Key benefits of prompt management include:
+
+* **Reusability**: Store and load prompts across different use cases.
+* **Versioning**: Track changes over time and revert to previous versions when needed.
+* **Collaboration**: Share prompts with others to maintain consistency and facilitate iteration.
+
+To learn how to get started with prompt management, see [create-a-prompt.md](how-to-prompts/create-a-prompt.md "mention")
 
 ## Prompt Playground
 
@@ -37,8 +45,6 @@ In the playground you can:
 * Observe the outputs
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3_prompt.gif" alt=""><figcaption></figcaption></figure>
-
-
 
 ## Span Replay
 
