@@ -181,7 +181,13 @@ export function ChatTemplateMessageCard(props: ChatTemplateMessageProps) {
   const { role, children } = props;
   const styles = useChatMessageStyles(role);
   return (
-    <Card title={role} variant="compact" {...styles} bodyStyle={{ padding: 0 }}>
+    <Card
+      title={role}
+      variant="compact"
+      {...styles}
+      bodyStyle={{ padding: 0 }}
+      collapsible
+    >
       <DisclosureGroup defaultExpandedKeys={PART_TYPE_TITLES}>
         {children}
       </DisclosureGroup>
