@@ -3,8 +3,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal, Mapping, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import Annotated, TypeAlias, assert_never
+from pydantic import BaseModel, ConfigDict, Field, RootModel
+from typing_extensions import Annotated, TypeAlias, TypeGuard, assert_never
 
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.jsonschema import (
@@ -127,13 +127,12 @@ PromptTemplate: TypeAlias = Annotated[
 ]
 
 
-class PromptTemplateWrapper(PromptModel):
-    """
-    Discriminated union types don't have pydantic methods such as
-    `model_validate`, so a wrapper around the union type is needed.
-    """
+def is_prompt_template(value: Any) -> TypeGuard[PromptTemplate]:
+    return isinstance(value, (PromptChatTemplate, PromptStringTemplate))
 
-    template: PromptTemplate
+
+class PromptTemplateRootModel(RootModel[PromptTemplate]):
+    root: PromptTemplate
 
 
 class PromptFunctionTool(PromptModel):
@@ -224,20 +223,8 @@ PromptResponseFormat: TypeAlias = Annotated[
 ]
 
 
-class PromptResponseFormatWrapper(PromptModel):
-    """
-    Discriminated union types don't have pydantic methods such as
-    `model_validate`, so a wrapper around the union type is needed.
-    """
-
-    schema_: Annotated[
-        Union[PromptResponseFormat],
-        Field(
-            ...,
-            discriminator="type",
-            alias="schema",  # avoid conflict with the pydantic schema class method
-        ),
-    ]
+class PromptResponseFormatRootModel(RootModel[PromptResponseFormat]):
+    root: PromptResponseFormat
 
 
 def _openai_to_prompt_response_format(
@@ -338,6 +325,131 @@ class AnthropicToolDefinition(PromptModel):
     name: str
     cache_control: Optional[AnthropicCacheControlParam] = UNDEFINED
     description: str = UNDEFINED
+
+
+class PromptOpenAIInvocationParametersContent(PromptModel):
+    temperature: float = UNDEFINED
+    max_tokens: int = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    seed: int = UNDEFINED
+    reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
+
+
+class PromptOpenAIInvocationParameters(PromptModel):
+    type: Literal["openai"]
+    openai: PromptOpenAIInvocationParametersContent
+
+
+class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParametersContent):
+    pass
+
+
+class PromptAzureOpenAIInvocationParameters(PromptModel):
+    type: Literal["azure_openai"]
+    azure_openai: PromptAzureOpenAIInvocationParametersContent
+
+
+class PromptAnthropicInvocationParametersContent(PromptModel):
+    temperature: float = UNDEFINED
+    max_tokens: int = UNDEFINED
+    top_p: float = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+
+
+class PromptAnthropicInvocationParameters(PromptModel):
+    type: Literal["anthropic"]
+    anthropic: PromptAnthropicInvocationParametersContent
+
+
+class PromptGeminiInvocationParametersContent(PromptModel):
+    temperature: float = UNDEFINED
+    max_output_tokens: int = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
+    presence_penalty: float = UNDEFINED
+    frequency_penalty: float = UNDEFINED
+    top_p: float = UNDEFINED
+    top_k: int = UNDEFINED
+
+
+class PromptGeminiInvocationParameters(PromptModel):
+    type: Literal["gemini"]
+    gemini: PromptGeminiInvocationParametersContent
+
+
+PromptInvocationParameters: TypeAlias = Annotated[
+    Union[
+        PromptOpenAIInvocationParameters,
+        PromptAzureOpenAIInvocationParameters,
+        PromptAnthropicInvocationParameters,
+        PromptGeminiInvocationParameters,
+    ],
+    Field(..., discriminator="type"),
+]
+
+
+def get_raw_invocation_parameters(
+    invocation_parameters: PromptInvocationParameters,
+) -> dict[str, Any]:
+    if isinstance(invocation_parameters, PromptOpenAIInvocationParameters):
+        return invocation_parameters.openai.model_dump()
+    if isinstance(invocation_parameters, PromptAzureOpenAIInvocationParameters):
+        return invocation_parameters.azure_openai.model_dump()
+    if isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return invocation_parameters.anthropic.model_dump()
+    if isinstance(invocation_parameters, PromptGeminiInvocationParameters):
+        return invocation_parameters.gemini.model_dump()
+    assert_never(invocation_parameters)
+
+
+def is_prompt_invocation_parameters(
+    invocation_parameters: Any,
+) -> TypeGuard[PromptInvocationParameters]:
+    return isinstance(
+        invocation_parameters,
+        (
+            PromptOpenAIInvocationParameters,
+            PromptAzureOpenAIInvocationParameters,
+            PromptAnthropicInvocationParameters,
+            PromptGeminiInvocationParameters,
+        ),
+    )
+
+
+class PromptInvocationParametersRootModel(RootModel[PromptInvocationParameters]):
+    root: PromptInvocationParameters
+
+
+def validate_invocation_parameters(
+    invocation_parameters: dict[str, Any],
+    model_provider: ModelProvider,
+) -> PromptInvocationParameters:
+    if model_provider is ModelProvider.OPENAI:
+        return PromptOpenAIInvocationParameters(
+            type="openai",
+            openai=PromptOpenAIInvocationParametersContent.model_validate(invocation_parameters),
+        )
+    elif model_provider is ModelProvider.AZURE_OPENAI:
+        return PromptAzureOpenAIInvocationParameters(
+            type="azure_openai",
+            azure_openai=PromptAzureOpenAIInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.ANTHROPIC:
+        return PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=PromptAnthropicInvocationParametersContent.model_validate(
+                invocation_parameters
+            ),
+        )
+    elif model_provider is ModelProvider.GEMINI:
+        return PromptGeminiInvocationParameters(
+            type="gemini",
+            gemini=PromptGeminiInvocationParametersContent.model_validate(invocation_parameters),
+        )
+    assert_never(model_provider)
 
 
 def normalize_tools(

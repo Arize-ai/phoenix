@@ -36,20 +36,21 @@ from sqlalchemy.orm import (
     relationship,
 )
 from sqlalchemy.sql import expression
-from typing_extensions import assert_never
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplate,
+    PromptInvocationParameters,
+    PromptInvocationParametersRootModel,
     PromptResponseFormat,
-    PromptResponseFormatWrapper,
-    PromptStringTemplate,
+    PromptResponseFormatRootModel,
     PromptTemplate,
-    PromptTemplateWrapper,
+    PromptTemplateRootModel,
     PromptTools,
+    is_prompt_invocation_parameters,
+    is_prompt_template,
 )
 
 
@@ -139,6 +140,26 @@ class _ModelProvider(TypeDecorator[ModelProvider]):
         return None if value is None else ModelProvider(value)
 
 
+class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptInvocationParameters], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert is_prompt_invocation_parameters(value)
+        invocation_parameters = value.model_dump()
+        assert isinstance(invocation_parameters, dict)
+        return invocation_parameters
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptInvocationParameters]:
+        assert isinstance(value, dict)
+        return PromptInvocationParametersRootModel.model_validate(value).root
+
+
 class _PromptTemplate(TypeDecorator[PromptTemplate]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -147,21 +168,14 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     def process_bind_param(
         self, value: Optional[PromptTemplate], _: Dialect
     ) -> Optional[dict[str, Any]]:
-        if value is None:
-            raise ValueError("cannot be None")
-        if isinstance(value, PromptChatTemplate) or isinstance(value, PromptStringTemplate):
-            pass
-        else:
-            assert_never(value)
+        assert is_prompt_template(value)
         return value.model_dump() if value is not None else None
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptTemplate]:
-        if value is None:
-            raise ValueError("cannot be None")
-        wrapped_template = PromptTemplateWrapper.model_validate({"template": value})
-        return wrapped_template.template
+        assert isinstance(value, dict)
+        return PromptTemplateRootModel.model_validate(value).root
 
 
 class _Tools(TypeDecorator[PromptTools]):
@@ -193,10 +207,9 @@ class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
     ) -> Optional[PromptResponseFormat]:
-        if value is None:
-            return None
-        wrapped_schema = PromptResponseFormatWrapper.model_validate({"schema": value})
-        return wrapped_schema.schema_
+        return (
+            PromptResponseFormatRootModel.model_validate(value).root if value is not None else None
+        )
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1013,7 +1026,9 @@ class PromptVersion(Base):
         nullable=False,
     )
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
-    invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    invocation_parameters: Mapped[PromptInvocationParameters] = mapped_column(
+        _InvocationParameters, nullable=False
+    )
     tools: Mapped[Optional[PromptTools]] = mapped_column(_Tools, default=Null(), nullable=True)
     response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
         _PromptResponseFormat, default=Null(), nullable=True
