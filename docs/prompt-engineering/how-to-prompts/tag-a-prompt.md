@@ -20,6 +20,14 @@ When you are ready to deploy a prompt to a certain environment (let's say stagin
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/tagging_a_prompt.gif" alt=""><figcaption></figcaption></figure>
 
+## Creating a custom tag
+
+It can be helpful to have custom tags to track different versions of a prompt. For example if you wanted to tag a certain prompt as the one that was used in your v0 release, you can create a custom tag with that name to keep track!
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/cutom_tag.gif" alt=""><figcaption><p>Use custom tags to track releases or maybe just an arbitrary milestone</p></figcaption></figure>
+
+
+
 ## Pulling a prompt by tag
 
 Once a prompt version is tagged, you can pull this version of the prompt into any environment that you would like (an application, an experiment). Similar to git tags, prompt version tags let you create a "release" of a prompt (e.x. pushing a prompt to staging).
