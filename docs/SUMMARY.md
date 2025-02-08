@@ -98,6 +98,7 @@
 * [Overview: Prompts](prompt-engineering/overview-prompts.md)
 * [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
 * [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
+  * [Configure AI Providers](prompt-engineering/how-to-prompts/configure-ai-providers.md)
   * [Create a prompt](prompt-engineering/how-to-prompts/create-a-prompt.md)
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
