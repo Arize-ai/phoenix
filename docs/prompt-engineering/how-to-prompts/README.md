@@ -4,6 +4,10 @@ description: Guides on how to do prompt engineering with Phoenix
 
 # How to: Prompts
 
+## Getting Started
+
+* [configure-ai-providers.md](configure-ai-providers.md "mention") - how to configure API keys for OpenAI, Anthropic, Gemini, and more.
+
 ## Prompt Management
 
 Organize and manage prompts with Phoenix to streamline your development workflow

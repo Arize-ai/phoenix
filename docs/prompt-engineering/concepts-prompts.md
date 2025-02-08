@@ -31,7 +31,7 @@ Similar to the way in which you can track changes to your code via git shas, Pho
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt=""><figcaption></figcaption></figure>
 
-### Prompt Format
+## Prompt Format
 
 Prompts can be formatted to include any attributes from spans or datasets. These attributes can be added as **F-Strings** or using **Mustache** formatting.&#x20;
 
@@ -83,8 +83,16 @@ Here is an example of what a tool would looke like for the weather API using Ope
 }
 ```
 
-
-
 ## Response Format
 
-Some LLM's support returning content in a specific format, this is called response format (sometimes also called output schema). You can specify the exact schema that you want the LLM to return content in and it will return content according to that schema. Check out this [OpenAI guide](https://platform.openai.com/docs/guides/structured-outputs) for more information.
+Some LLMs support structured responses, known as **response format** or **output schema**, allowing you to specify an exact schema for the model’s output.
+
+**Structured Outputs** ensure the model consistently generates responses that adhere to a defined **JSON Schema**, preventing issues like missing keys or invalid values.
+
+#### **Benefits of Structured Outputs:**
+
+* **Reliable type-safety:** Eliminates the need to validate or retry incorrectly formatted responses.
+* **Explicit refusals:** Enables programmatic detection of safety-based refusals.
+* **Simpler prompting:** Reduces reliance on strongly worded prompts for consistent formatting.
+
+For more details, check out this [OpenAI guide.](https://platform.openai.com/docs/guides/structured-outputs)

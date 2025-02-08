@@ -1,5 +1,7 @@
 # Overview: Prompts
 
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3_prompt.gif" alt=""><figcaption></figcaption></figure>
+
 Prompt engineering is a core pillar of AI engineering.  Unlike with traditional software engineering which is mostly dependent on code, AI applications depend heavily on writing and iterating on prompts. Phoenix aims to make this process easy by providing tools to facilitate prompt engineering.
 
 Prompts are important for AI systems because they set the context and guide the model's behavior. Just like telling a performer to "act excited", a prompt provides instructions, examples, and context that direct the model's response.
@@ -34,8 +36,6 @@ In the playground you can:
 * Run multiple prompts and compare
 * Run prompts over datasets
 * Observe the outputs
-
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3_prompt.gif" alt=""><figcaption></figcaption></figure>
 
 ## Span Replay
 
