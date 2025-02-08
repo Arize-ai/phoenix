@@ -1,9 +1,5 @@
 # Overview: Prompts
 
-{% hint style="info" %}
-Prompt Playground is available on Phoenix 6.0 and above
-{% endhint %}
-
 Prompt engineering is a core pillar of AI engineering.  Unlike with traditional software engineering which is mostly dependent on code, AI applications depend heavily on writing and iterating on prompts. Phoenix aims to make this process easy by providing tools to facilitate prompt engineering.
 
 Prompts are important for AI systems because they set the context and guide the model's behavior. Just like telling a performer to "act excited", a prompt provides instructions, examples, and context that direct the model's response.
@@ -19,6 +15,10 @@ Prompts refer to the message(s) that are passed into the language model.
 Prompt Templates refer a way of formatting information to get the prompt to hold the information you want (such as context and examples) Prompt templates can include placeholders (variables) for things such as examples (e.x. few-shot), outside context (RAG), or any other external data that is needed.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_template.png" alt=""><figcaption></figcaption></figure>
+
+## Prompt Management
+
+Phoenix automatically tracks the prompts
 
 ## Prompt Playground
 
@@ -40,8 +40,6 @@ In the playground you can:
 
 
 
-
-
 ## Span Replay
 
 LLM spans that are stored within Phoenix can be loaded into the Prompt Playground and replayed. Replaying spans inside of Playground enables you to debug and improve the performance of your LLM systems by comparing LLM provider outputs, tweaking model parameters, changing prompt text, and more.&#x20;
@@ -52,17 +50,7 @@ Chat completions generated inside of Playground are automatically instrumented, 
 
 Playground integrates with [datasets and experiments](overview-prompts.md#datasets-and-experiments) to help you iterate and incrementally improve your prompts. This lets you test up to four prompts across an entire dataset at once. Experiment runs are automatically recorded and available for subsequent evaluation to help you understand how changes to your prompts, LLM model, or invocation parameters affect performance.
 
-## Dependencies
 
-if you are using Phoenix as a container or through app.phoenix.arize.com, there are no additional steps required.\
-\
-If you're self-hosting Phoenix via Python, you must install optional dependencies on the machine that is running the Phoenix server.
-
-Phoenix needs to be restarted before new providers will be available.
-
-If you try to select a model provider and the corresponding dependencies have not been installed, we will show you which dependencies need to be installed for that provider.
-
-<table><thead><tr><th width="196">Provider</th><th>Required Dependency</th></tr></thead><tbody><tr><td>OpenAI</td><td><ul><li><code>pip install openai</code></li></ul></td></tr><tr><td>Azure OpenAI</td><td><ul><li><code>pip install openai</code></li></ul></td></tr><tr><td>Anthropic</td><td><ul><li><code>pip install anthropic</code></li></ul></td></tr><tr><td>Gemini</td><td><ul><li><code>pip install google-generativeai</code></li></ul></td></tr></tbody></table>
 
 ## Credentials
 
@@ -88,5 +76,5 @@ If the following variables are set in the server environment, they'll be used at
 
 The Prompt Playground supports a wide variety of models across different model providers, we will regularly update the models that Phoenix supports over time.
 
-<table><thead><tr><th width="196">Provider</th><th>Supported Models</th></tr></thead><tbody><tr><td>OpenAI</td><td><ul><li>o1 class reasoning models</li><li>GPT-4 class models</li><li>GPT-3.5 class models</li></ul></td></tr><tr><td>Azure OpenAI</td><td><ul><li>user-specified</li></ul></td></tr><tr><td>Anthropic</td><td><ul><li>Claude 3.5 (Sonnet, Haiku)</li><li>Claude 3.0 (Opus, Sonnet, Haiku)</li></ul></td></tr><tr><td>Gemini</td><td><ul><li>Gemini 1.5 class models</li><li>Gemini 1.0 class models</li></ul></td></tr></tbody></table>
+<table><thead><tr><th width="308">Provider</th><th>Supported Models</th></tr></thead><tbody><tr><td>OpenAI</td><td><ul><li>o1 class reasoning models</li><li>GPT-4 class models</li><li>GPT-3.5 class models</li></ul></td></tr><tr><td>Azure OpenAI</td><td><ul><li>user-specified</li></ul></td></tr><tr><td>Anthropic</td><td><ul><li>Claude 3.5 (Sonnet, Haiku)</li><li>Claude 3.0 (Opus, Sonnet, Haiku)</li></ul></td></tr><tr><td>Gemini</td><td><ul><li>Gemini 1.5 class models</li><li>Gemini 1.0 class models</li></ul></td></tr></tbody></table>
 
