@@ -1,11 +1,11 @@
 import {
   openAIMessageToAI,
-  promptMessageToOpenAI,
-} from "../../schemas/llm/messageSchemas";
-import {
   openAIToolChoiceToVercelToolChoice,
+} from "../../schemas/llm/openai/converters";
+import {
   phoenixToolChoiceToOpenaiToolChoice,
-} from "../../schemas/llm/toolChoiceSchemas";
+  promptMessageToOpenAI,
+} from "../../schemas/llm/phoenixPrompt/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
 import {

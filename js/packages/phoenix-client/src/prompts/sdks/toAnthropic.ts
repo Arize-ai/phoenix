@@ -3,17 +3,19 @@ import type {
   MessageParam,
 } from "@anthropic-ai/sdk/resources/messages/messages";
 import type { Variables, toSDKParamsBase } from "./types";
-import { promptMessageToAnthropic } from "../../schemas/llm/messageSchemas";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
+
+import invariant from "tiny-invariant";
 import {
   phoenixToolChoiceToOpenaiToolChoice,
-  safelyConvertToolChoiceToProvider,
-} from "../../schemas/llm/toolChoiceSchemas";
+  phoenixToolToOpenAI,
+  promptMessageToOpenAI,
+} from "../../schemas/llm/phoenixPrompt";
+import { openAIMessageToAnthropic } from "../../schemas/llm/openai/converters";
 import {
   fromOpenAIToolDefinition,
-  phoenixToolToOpenAI,
-} from "../../schemas/llm/toolSchemas";
-import invariant from "tiny-invariant";
+  safelyConvertToolChoiceToProvider,
+} from "../../schemas/llm/converters";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type { MessageCreateParams };
@@ -53,7 +55,7 @@ export const toAnthropic = <V extends Variables = Variables>({
     }
 
     const messages = formattedMessages.map((message) =>
-      promptMessageToAnthropic.parse(message)
+      openAIMessageToAnthropic.parse(promptMessageToOpenAI.parse(message))
     ) as MessageParam[];
 
     let tools = prompt.tools?.tools.map((tool) => {

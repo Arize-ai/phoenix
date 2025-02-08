@@ -4,14 +4,15 @@ import type {
   ResponseFormatJSONSchema,
 } from "openai/resources";
 import type { Variables, toSDKParamsBase } from "./types";
+
+import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
+  phoenixResponseFormatToOpenAI,
   phoenixToolChoiceToOpenaiToolChoice,
   phoenixToolToOpenAI,
   promptMessageToOpenAI,
-  safelyConvertToolChoiceToProvider,
-} from "../../schemas/llm";
-import { formatPromptMessages } from "../../utils/formatPromptMessages";
-import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/responseFormatSchema";
+} from "../../schemas/llm/phoenixPrompt/converters";
+import { safelyConvertToolChoiceToProvider } from "../../schemas/llm/converters";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type {

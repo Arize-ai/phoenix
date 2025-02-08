@@ -1,9 +1,11 @@
 import { z } from "zod";
-
-import { jsonLiteralSchema } from "./jsonLiteralSchema";
-import { findToolCallArguments, findToolCallName } from "./toolCallSchemas";
-import { findToolCallId } from "./toolCallSchemas";
-import { safelyStringifyJSON } from "../../utils/safelyStringifyJSON";
+import { jsonLiteralSchema } from "../../jsonLiteralSchema";
+import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
+import {
+  findToolCallArguments,
+  findToolCallId,
+  findToolCallName,
+} from "../utils";
 
 export const textPartSchema = z.object({
   type: z.literal("text"),
@@ -51,7 +53,13 @@ export const promptPartSchema = z.union([
   toolResultPartSchema,
 ]);
 
-export type AnyPart = z.infer<typeof promptPartSchema>;
+export type PhoenixPromptPart = z.infer<typeof promptPartSchema>;
+
+/*
+ *
+ * Creation helpers
+ *
+ */
 
 export const asTextPart = (maybePart: unknown): TextPart | null => {
   const parsed = textPartSchema.safeParse(maybePart);
