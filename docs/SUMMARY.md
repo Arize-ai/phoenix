@@ -156,8 +156,6 @@
 
 ## 🔌 INTEGRATIONS
 
-* [Arize](integrations/arize/README.md)
-  * [Export Data from Arize to Phoenix](integrations/arize/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [Ragas](integrations/ragas.md)
 
 ## 📚 Reference
