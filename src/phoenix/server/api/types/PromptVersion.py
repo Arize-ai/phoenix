@@ -109,10 +109,13 @@ def to_gql_prompt_version(
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     if prompt_version.tools is not None:
-        tool_schemas = denormalize_tools(prompt_version.tools, prompt_version.model_provider)
+        tool_schemas, tool_choice = denormalize_tools(
+            prompt_version.tools, prompt_version.model_provider
+        )
         tools = [ToolDefinition(definition=schema) for schema in tool_schemas]
     else:
         tools = []
+        tool_choice = None
     response_format = (
         ResponseFormat(
             definition=denormalize_response_format(
@@ -127,6 +130,8 @@ def to_gql_prompt_version(
         prompt_version.invocation_parameters,
         prompt_version.model_provider,
     )
+    if tool_choice is not None:
+        invocation_parameters["tool_choice"] = tool_choice
     return PromptVersion(
         id_attr=prompt_version.id,
         user_id=prompt_version.user_id,

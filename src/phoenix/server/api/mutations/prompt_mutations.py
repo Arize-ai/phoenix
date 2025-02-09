@@ -87,7 +87,11 @@ class PromptMutationMixin:
         tool_definitions = [tool.definition for tool in input_prompt_version.tools]
         try:
             tools = (
-                normalize_tools(tool_definitions, input_prompt_version.model_provider)
+                normalize_tools(
+                    tool_definitions,
+                    input_prompt_version.model_provider,
+                    input_prompt_version.invocation_parameters.get("tool_choice"),
+                )
                 if tool_definitions
                 else None
             )
@@ -149,7 +153,11 @@ class PromptMutationMixin:
         tool_definitions = [tool.definition for tool in input.prompt_version.tools]
         try:
             tools = (
-                normalize_tools(tool_definitions, input_prompt_version.model_provider)
+                normalize_tools(
+                    tool_definitions,
+                    input_prompt_version.model_provider,
+                    input_prompt_version.invocation_parameters.get("tool_choice"),
+                )
                 if tool_definitions
                 else None
             )

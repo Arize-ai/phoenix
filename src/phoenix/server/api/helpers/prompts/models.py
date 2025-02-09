@@ -416,11 +416,15 @@ class PromptAnthropicToolChoiceToolParam(PromptModel):
     type: Literal["tool"]
 
 
-PromptAnthropicToolChoice: TypeAlias = Union[
+PromptAnthropicToolChoiceType: TypeAlias = Union[
     PromptAnthropicToolChoiceAutoParam,
     PromptAnthropicToolChoiceAnyParam,
     PromptAnthropicToolChoiceToolParam,
 ]  # Based on https://github.com/anthropics/anthropic-sdk-python/blob/0f9ccca8e26cf27b969e38c02899fde4b3489c86/src/anthropic/types/tool_choice_param.py#L14
+
+
+class PromptAnthropicToolChoice(RootModel[PromptAnthropicToolChoiceType]):
+    root: PromptAnthropicToolChoiceType
 
 
 class PromptAnthropicInvocationParameters(PromptModel):
@@ -557,20 +561,54 @@ def denormalize_invocation_parameters(
     return {}
 
 
-def normalize_tools(schemas: list[dict[str, Any]], model_provider: str) -> PromptToolsV1:
-    tools: list[PromptFunctionToolV1]
+def _normalize_tool_choice(tool_choice: Any, model_provider: str) -> PromptToolChoice:
+    assert tool_choice is not UNDEFINED
     if model_provider.lower() == "openai":
-        openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
-        tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
+        return _openai_to_prompt_tool_choice(tool_choice)
+    if model_provider.lower() == "anthropic":
+        return _anthropic_to_prompt_tool_choice(tool_choice)
+    raise ValueError(f"Model provider does not support tool choice: {model_provider}")
+
+
+def _denormalize_tool_choice(tool_choice: PromptToolChoice, model_provider: str) -> Any:
+    if model_provider.lower() == "openai":
+        return _prompt_to_openai_tool_choice(tool_choice)
+    if model_provider.lower() == "anthropic":
+        return _prompt_to_anthropic_tool_choice(tool_choice)
+    raise ValueError(f"Model provider does not support tool choice: {model_provider}")
+
+
+def _normalize_tool(schema: dict[str, Any], model_provider: str) -> PromptTool:
+    if model_provider.lower() == "openai":
+        openai_tool = OpenAIToolDefinition.model_validate(schema)
+        return _openai_to_prompt_tool(openai_tool)
     elif model_provider.lower() == "anthropic":
-        anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
-        tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
+        anthropic_tool = AnthropicToolDefinition.model_validate(schema)
+        return _anthropic_to_prompt_tool(anthropic_tool)
+    raise ValueError(f"Model provider does not support tool schema: {model_provider}")
+
+
+def normalize_tools(
+    schemas: list[dict[str, Any]], model_provider: str, tool_choice: Any = None
+) -> PromptToolsV1:
+    tools: list[PromptTool]
+    if model_provider.lower() == "openai":
+        tools = [_normalize_tool(schema, model_provider) for schema in schemas]
+    elif model_provider.lower() == "anthropic":
+        tools = [_normalize_tool(schema, model_provider) for schema in schemas]
     else:
-        raise ValueError(f"Unsupported model provider: {model_provider}")
-    return PromptToolsV1(type="tools-v1", tools=tools)
+        raise ValueError(f"Model provider does not support tools: {model_provider}")
+    normalized_tool_choice = (
+        _normalize_tool_choice(tool_choice, model_provider)
+        if tool_choice is not None
+        else UNDEFINED
+    )
+    return PromptToolsV1(type="tools-v1", tools=tools, tool_choice=normalized_tool_choice)
 
 
-def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[str, Any]]:
+def denormalize_tools(
+    tools: PromptToolsV1, model_provider: str
+) -> tuple[list[dict[str, Any]], Any]:
     assert tools.type == "tools-v1"
     denormalized_tools: list[PromptModel]
     if model_provider.lower() == "openai":
@@ -578,8 +616,10 @@ def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[st
     elif model_provider.lower() == "anthropic":
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
     else:
-        raise ValueError(f"Unsupported model provider: {model_provider}")
-    return [tool.model_dump() for tool in denormalized_tools]
+        raise ValueError(f"Model provider does not support tools: {model_provider}")
+    return [tool.model_dump() for tool in denormalized_tools], _denormalize_tool_choice(
+        tools.tool_choice, model_provider
+    ) if tools.tool_choice is not UNDEFINED else None
 
 
 def _openai_to_prompt_tool(
@@ -603,6 +643,67 @@ def _openai_to_prompt_tool(
         else UNDEFINED,
         extra_parameters=extra_parameters,
     )
+
+
+def _openai_to_prompt_tool_choice(tool_choice: Optional[Any]) -> PromptToolChoice:
+    openai_tool_choice = PromptOpenAIToolChoice.model_validate(tool_choice).root
+    if openai_tool_choice == "none":
+        return PromptToolChoiceNone(type="none")
+    elif openai_tool_choice == "auto":
+        return PromptToolChoiceZeroOrMore(type="zero-or-more")
+    elif openai_tool_choice == "required":
+        return PromptToolChoiceOneOrMore(type="one-or-more")
+    elif isinstance(openai_tool_choice, PromptOpenAINamedToolChoiceParam):
+        return PromptToolChoiceSpecificFunctionTool(
+            type="specific-function-tool",
+            function_name=openai_tool_choice.function.name,
+        )
+    assert_never(openai_tool_choice)
+
+
+def _prompt_to_openai_tool_choice(tool_choice: PromptToolChoice) -> Any:
+    if isinstance(tool_choice, PromptToolChoiceNone):
+        return "none"
+    if isinstance(tool_choice, PromptToolChoiceZeroOrMore):
+        return "auto"
+    if isinstance(tool_choice, PromptToolChoiceOneOrMore):
+        return "required"
+    if isinstance(tool_choice, PromptToolChoiceSpecificFunctionTool):
+        return PromptOpenAINamedToolChoiceParam(
+            type="function",
+            function=OpenAIToolChoiceParamFunction(name=tool_choice.function_name),
+        ).model_dump()
+    assert_never(tool_choice)
+
+
+def _anthropic_to_prompt_tool_choice(tool_choice: Optional[Any]) -> PromptToolChoice:
+    anthropic_tool_choice = PromptAnthropicToolChoice.model_validate(tool_choice).root
+    if isinstance(anthropic_tool_choice, PromptAnthropicToolChoiceAutoParam):
+        return PromptToolChoiceZeroOrMore(type="auto")
+    if isinstance(anthropic_tool_choice, PromptAnthropicToolChoiceAnyParam):
+        return PromptToolChoiceOneOrMore(type="any")
+    if isinstance(anthropic_tool_choice, PromptAnthropicToolChoiceToolParam):
+        return PromptToolChoiceSpecificFunctionTool(
+            type="specific-function-tool",
+            function_name=anthropic_tool_choice.name,
+        )
+    assert_never(anthropic_tool_choice)
+
+
+def _prompt_to_anthropic_tool_choice(tool_choice: PromptToolChoice) -> Any:
+    anthropic_tool_choice: PromptAnthropicToolChoiceType
+    if isinstance(tool_choice, PromptToolChoiceNone):
+        anthropic_tool_choice = PromptAnthropicToolChoiceAutoParam(type="auto")
+    elif isinstance(tool_choice, PromptToolChoiceZeroOrMore):
+        anthropic_tool_choice = PromptAnthropicToolChoiceAnyParam(type="any")
+    elif isinstance(tool_choice, PromptToolChoiceOneOrMore):
+        anthropic_tool_choice = PromptAnthropicToolChoiceToolParam(
+            type="tool",
+            name=tool_choice.function.name,
+        )
+    else:
+        assert_never(tool_choice)
+    return anthropic_tool_choice.model_dump()
 
 
 def _prompt_to_openai_tool(
