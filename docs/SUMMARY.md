@@ -91,7 +91,6 @@
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
-* [Evaluation Models](evaluation/evaluation-models.md)
 
 ## 📃 Prompt Engineering
 
@@ -143,12 +142,12 @@
   * [Manage the App](inferences/how-to-inferences/manage-the-app.md)
   * [Use Example Inferences](inferences/how-to-inferences/use-example-inferences.md)
 * [Concepts: Inferences](inferences/inferences.md)
+* [API: Inferences](inferences/inference-and-schema.md)
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
 ## ⌨️ API
 
-* [Inferences and Schema](api/inference-and-schema.md)
 * [Session](api/session.md)
 * [Client](api/client.md)
 * [Evals](api/evals.md)

@@ -4,7 +4,7 @@ description: >-
   schemas
 ---
 
-# Inferences and Schema
+# API: Inferences
 
 ## phoenix.Inferences
 
@@ -50,7 +50,7 @@ Alternatively, provide a name for the inferences that will appear in the applica
 ds = px.Inferences(df, schema, name="training")
 ```
 
-`ds` is then passed as the `primary` or `reference` argument to [launch\_app](session.md#phoenix.launch\_app).
+`ds` is then passed as the `primary` or `reference` argument to [launch\_app](../api/session.md#phoenix.launch_app).
 
 ## phoenix.Schema
 
@@ -97,7 +97,7 @@ Assigns the columns of a pandas dataframe to the appropriate model dimensions (p
 
 ### Usage
 
-See the guide on how to [create your own dataset](../inferences/how-to-inferences/define-your-schema/) for examples.
+See the guide on how to [create your own dataset](how-to-inferences/define-your-schema/) for examples.
 
 ## phoenix.EmbeddingColumnNames
 
@@ -120,12 +120,12 @@ A dataclass that associates one or more columns of a dataframe with an [embeddin
 * **link\_to\_data\_column\_name** (Optional\[str]): The name of the dataframe column containing links to images associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes an image, for example, in the context of computer vision.
 
 {% hint style="info" %}
-See [here](../inferences/how-to-inferences/define-your-schema/#local-images) for recommendations on handling local image files.
+See [here](how-to-inferences/define-your-schema/#local-images) for recommendations on handling local image files.
 {% endhint %}
 
 ### Usage
 
-See the guide on how to [create embedding features ](../inferences/how-to-inferences/define-your-schema/#embedding-features)for examples.
+See the guide on how to [create embedding features ](how-to-inferences/define-your-schema/#embedding-features)for examples.
 
 ## phoenix.TraceDataset <a href="#phoenix.tracedataset" id="phoenix.tracedataset"></a>
 
@@ -138,7 +138,7 @@ class TraceDataset(
 
 Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../tracing/llm-traces/) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/trace/trace\_dataset.py)**]**
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/trace/trace_dataset.py)**]**
 
 ### **Parameters**
 
