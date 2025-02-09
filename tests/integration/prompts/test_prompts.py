@@ -8,11 +8,21 @@ from typing import Any, Iterable, Literal, Mapping, Sequence, cast
 
 import phoenix as px
 import pytest
-from anthropic.types import ToolParam
+from anthropic.types import (
+    ToolChoiceAnyParam,
+    ToolChoiceAutoParam,
+    ToolChoiceParam,
+    ToolChoiceToolParam,
+    ToolParam,
+)
 from deepdiff.diff import DeepDiff
 from openai import pydantic_function_tool
 from openai.lib._parsing import type_to_response_format_param
-from openai.types.chat import ChatCompletionToolParam
+from openai.types.chat import (
+    ChatCompletionNamedToolChoiceParam,
+    ChatCompletionToolChoiceOptionParam,
+    ChatCompletionToolParam,
+)
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.__generated__.v1 import PromptVersion
 from phoenix.client.utils import to_chat_messages_and_kwargs
@@ -49,6 +59,11 @@ class TestUserMessage:
 class _GetWeather(BaseModel):
     city: str
     country: str
+
+
+class _GetPopulation(BaseModel):
+    country: str
+    year: int
 
 
 class TestTools:
@@ -109,6 +124,70 @@ class TestTools:
         _, kwargs = to_chat_messages_and_kwargs(prompt)
         assert "tools" in kwargs
         actual = {t["name"]: t for t in cast(Iterable[ToolParam], kwargs["tools"])}
+        assert not DeepDiff(expected, actual)
+
+
+class TestToolChoice:
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            "none",
+            "auto",
+            "required",
+            ChatCompletionNamedToolChoiceParam(type="function", function={"name": "_GetWeather"}),
+        ],
+    )
+    def test_openai(
+        self,
+        expected: ChatCompletionToolChoiceOptionParam,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        tools = [
+            ToolDefinitionInput(definition=json.loads(json.dumps(pydantic_function_tool(t))))
+            for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+        ]
+        invocation_parameters = {"tool_choice": expected}
+        prompt = _create_chat_prompt(u, tools=tools, invocation_parameters=invocation_parameters)
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "tool_choice" in kwargs
+        actual = kwargs["tool_choice"]
+        assert not DeepDiff(expected, actual)
+
+    @pytest.mark.parametrize(
+        "expected",
+        [
+            ToolChoiceAutoParam(type="auto"),
+            ToolChoiceAnyParam(type="any"),
+            ToolChoiceToolParam(type="tool", name="_GetWeather"),
+        ],
+    )
+    def test_anthropic(
+        self,
+        expected: ToolChoiceParam,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        tools = [
+            ToolDefinitionInput(
+                definition=dict(ToolParam(name=t.__name__, input_schema=t.model_json_schema()))
+            )
+            for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+        ]
+        invocation_parameters = {"tool_choice": expected}
+        prompt = _create_chat_prompt(
+            u,
+            tools=tools,
+            invocation_parameters=invocation_parameters,
+            model_provider="ANTHROPIC",
+        )
+        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        assert "tool_choice" in kwargs
+        actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
 
 
