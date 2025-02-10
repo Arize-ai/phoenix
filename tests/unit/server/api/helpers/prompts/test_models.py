@@ -6,10 +6,9 @@ from sqlalchemy import select, text
 
 from phoenix.db.models import Prompt, PromptVersion
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
-    ImageContentPart,
-    ImageContentValue,
-    PromptChatTemplateV1,
+    PromptChatTemplate,
     PromptMessage,
     PromptMessageRole,
     TextContentPart,
@@ -32,8 +31,8 @@ async def test_chat_template_materializes_to_expected_format(
     dialect: str,
 ) -> None:
     # create a template
-    template = PromptChatTemplateV1(
-        version="chat-template-v1",
+    template = PromptChatTemplate(
+        type="chat",
         messages=[
             PromptMessage(
                 role=PromptMessageRole.USER,
@@ -41,10 +40,6 @@ async def test_chat_template_materializes_to_expected_format(
                     TextContentPart(
                         type="text",
                         text=TextContentValue(text="foo"),
-                    ),
-                    ImageContentPart(
-                        type="image",
-                        image=ImageContentValue(url="url"),
                     ),
                     ToolCallContentPart(
                         type="tool_call",
@@ -86,7 +81,7 @@ async def test_chat_template_materializes_to_expected_format(
             invocation_parameters={},
             tools=None,
             response_format=None,
-            model_provider="anthropic",
+            model_provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-5-sonnet",
         )
         session.add(prompt_version)
@@ -103,7 +98,7 @@ async def test_chat_template_materializes_to_expected_format(
     else:
         materialized_template_dict = materialized_template
     assert materialized_template_dict == {
-        "version": "chat-template-v1",
+        "type": "chat",
         "messages": [
             {
                 "role": "USER",
@@ -112,12 +107,6 @@ async def test_chat_template_materializes_to_expected_format(
                         "type": "text",
                         "text": {
                             "text": "foo",
-                        },
-                    },
-                    {
-                        "type": "image",
-                        "image": {
-                            "url": "url",
                         },
                     },
                     {
@@ -172,7 +161,7 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -203,7 +192,7 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "description": "Gets the current weather for a given city",
                 "schema": {
@@ -237,7 +226,7 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -272,7 +261,7 @@ async def test_chat_template_materializes_to_expected_format(
                 "cache_control": None,
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -299,8 +288,9 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    model_provider = ModelProvider.ANTHROPIC
     # normalize tools
-    normalized_tools = normalize_tools([anthropic_tool_dict], "anthropic")
+    normalized_tools = normalize_tools([anthropic_tool_dict], model_provider)
 
     # persist to db
     async with db() as session:
@@ -315,14 +305,14 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             user_id=None,
             template_type="CHAT",
             template_format="MUSTACHE",
-            template=PromptChatTemplateV1(
-                version="chat-template-v1",
+            template=PromptChatTemplate(
+                type="chat",
                 messages=[],
             ),
             invocation_parameters={},
             tools=normalized_tools,
             response_format=None,
-            model_provider="anthropic",
+            model_provider=model_provider,
             model_name="claude-3-5-sonnet",
         )
         session.add(prompt_version)
@@ -339,7 +329,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     else:
         materialized_tool_dict = materialized_tools
     assert materialized_tool_dict == {
-        "type": "tools-v1",
+        "type": "tools",
         "tools": [
             expected_normalized_tool_dict,
         ],
@@ -353,7 +343,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     # denormalize tools and check they match the input tools
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
-    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "anthropic")
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, model_provider)
     assert len(denormalized_tool_dicts) == 1
     assert denormalized_tool_dicts[0] == anthropic_tool_dict
 
@@ -377,7 +367,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -411,7 +401,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "description": "Gets current weather for a given city",
                 "schema": {
@@ -437,7 +427,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "escalate_to_human_customer_support",
                 "extra_parameters": {},
             },
@@ -462,7 +452,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -502,7 +492,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -531,8 +521,9 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    model_provider = ModelProvider.OPENAI
     # normalize tools
-    normalized_tools = normalize_tools([openai_tool_dict], "openai")
+    normalized_tools = normalize_tools([openai_tool_dict], model_provider)
 
     # persist to db
     async with db() as session:
@@ -547,14 +538,14 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             user_id=None,
             template_type="CHAT",
             template_format="MUSTACHE",
-            template=PromptChatTemplateV1(
-                version="chat-template-v1",
+            template=PromptChatTemplate(
+                type="chat",
                 messages=[],
             ),
             invocation_parameters={},
             tools=normalized_tools,
             response_format=None,
-            model_provider="openai",
+            model_provider=model_provider,
             model_name="gpt-4o",
         )
         session.add(prompt_version)
@@ -571,7 +562,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     else:
         materialized_tool_dict = materialized_tools
     assert materialized_tool_dict == {
-        "type": "tools-v1",
+        "type": "tools",
         "tools": [
             expected_normalized_tool_dict,
         ],
@@ -585,7 +576,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     # denormalize tools and check they match the input tools
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
-    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "openai")
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, model_provider)
     assert len(denormalized_tool_dicts) == 1
     assert denormalized_tool_dicts[0] == openai_tool_dict
 
@@ -614,7 +605,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -662,7 +653,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -716,7 +707,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -769,7 +760,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "description": "Classifies the user's intent into one of several categories",
                 "schema": {
@@ -804,8 +795,11 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    model_provider = ModelProvider.OPENAI
     # normalize output schema
-    normalized_response_format = normalize_response_format(openai_response_format_dict, "openai")
+    normalized_response_format = normalize_response_format(
+        openai_response_format_dict, model_provider
+    )
 
     # persist to db
     async with db() as session:
@@ -820,14 +814,14 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
             user_id=None,
             template_type="CHAT",
             template_format="MUSTACHE",
-            template=PromptChatTemplateV1(
-                version="chat-template-v1",
+            template=PromptChatTemplate(
+                type="chat",
                 messages=[],
             ),
             invocation_parameters={},
             tools=None,
             response_format=normalized_response_format,
-            model_provider="openai",
+            model_provider=model_provider,
             model_name="gpt-4o",
         )
         session.add(prompt_version)
@@ -854,6 +848,6 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
     rehydrated_response_format = rehydrated_prompt_version.response_format
     assert rehydrated_response_format is not None
     denormalized_response_format_dict = denormalize_response_format(
-        rehydrated_response_format, "openai"
+        rehydrated_response_format, model_provider
     )
     assert denormalized_response_format_dict == openai_response_format_dict

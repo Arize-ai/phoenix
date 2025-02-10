@@ -168,7 +168,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
                     }
@@ -192,7 +192,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                             "tools": [
                                 {
@@ -239,7 +239,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
                                 {
@@ -277,7 +277,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "anthropic",
+                            "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
                                 {
@@ -324,7 +324,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
                                 "definition": {
@@ -420,7 +420,7 @@ class TestPromptMutations:
                         ]
                     },
                     "invocationParameters": {"temperature": 0.4},
-                    "modelProvider": "openai",
+                    "modelProvider": "OPENAI",
                     "modelName": "o1-mini",
                 },
             }
@@ -448,7 +448,7 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
                                 "definition": {"type": "object"},
@@ -475,7 +475,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
                                 {"definition": ["foo", "bar"]}
@@ -502,7 +502,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
                                 "definition": {
@@ -543,7 +543,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
                                 {
@@ -581,7 +581,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "anthropic",
+                            "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
                                 {
@@ -642,7 +642,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
                     }
@@ -665,7 +665,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                             "tools": [
                                 {
@@ -711,7 +711,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
                                 {
@@ -748,7 +748,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
                                 "definition": {
@@ -788,7 +788,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "anthropic",
+                            "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
                                 {
@@ -845,7 +845,7 @@ class TestPromptMutations:
                             ]
                         },
                         "invocationParameters": {"temperature": 0.4},
-                        "modelProvider": "openai",
+                        "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
                 }
@@ -913,7 +913,7 @@ class TestPromptMutations:
                         ]
                     },
                     "invocationParameters": {"temperature": 0.4},
-                    "modelProvider": "openai",
+                    "modelProvider": "OPENAI",
                     "modelName": "o1-mini",
                 },
             }
@@ -935,7 +935,7 @@ class TestPromptMutations:
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
                     }
@@ -958,7 +958,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
                                 {"definition": ["foo", "bar"]}
@@ -984,7 +984,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
                                 "definition": {
@@ -1024,7 +1024,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
                                 {
@@ -1121,7 +1121,7 @@ class TestPromptMutations:
                             ]
                         },
                         "invocationParameters": {"temperature": 0.4},
-                        "modelProvider": "openai",
+                        "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
                 }
@@ -1161,7 +1161,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
                     }
@@ -1251,7 +1251,7 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "openai",
+                            "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
                     }

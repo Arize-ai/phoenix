@@ -12,12 +12,13 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
-    PromptToolsV1,
+    PromptTools,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
@@ -38,13 +39,13 @@ class Prompt(V1RoutesBaseModel):
 class PromptVersion(V1RoutesBaseModel):
     id: str
     description: str
-    model_provider: str
+    model_provider: ModelProvider
     model_name: str
     template: PromptTemplate
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     invocation_parameters: dict[str, Any]
-    tools: Optional[PromptToolsV1] = None
+    tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
 
 

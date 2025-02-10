@@ -12,6 +12,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
@@ -88,9 +89,10 @@ class PromptMutationMixin:
             Optional[Union[str, dict[str, Any]]],
             cast(Mapping[str, Any], input.prompt_version.invocation_parameters).get("tool_choice"),
         )
+        model_provider = ModelProvider(input_prompt_version.model_provider)
         try:
             tools = (
-                normalize_tools(tool_definitions, input_prompt_version.model_provider, tool_choice)
+                normalize_tools(tool_definitions, model_provider, tool_choice)
                 if tool_definitions
                 else None
             )
@@ -98,7 +100,7 @@ class PromptMutationMixin:
             response_format = (
                 normalize_response_format(
                     input_prompt_version.response_format.definition,
-                    input_prompt_version.model_provider,
+                    model_provider,
                 )
                 if input_prompt_version.response_format
                 else None
@@ -150,9 +152,10 @@ class PromptMutationMixin:
             Optional[Union[str, dict[str, Any]]],
             cast(Mapping[str, Any], input.prompt_version.invocation_parameters).get("tool_choice"),
         )
+        model_provider = ModelProvider(input_prompt_version.model_provider)
         try:
             tools = (
-                normalize_tools(tool_definitions, input_prompt_version.model_provider, tool_choice)
+                normalize_tools(tool_definitions, model_provider, tool_choice)
                 if tool_definitions
                 else None
             )
@@ -160,7 +163,7 @@ class PromptMutationMixin:
             response_format = (
                 normalize_response_format(
                     input_prompt_version.response_format.definition,
-                    input_prompt_version.model_provider,
+                    model_provider,
                 )
                 if input_prompt_version.response_format
                 else None

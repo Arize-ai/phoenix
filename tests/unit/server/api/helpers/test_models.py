@@ -3,6 +3,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     denormalize_tools,
     normalize_tools,
@@ -504,8 +505,8 @@ from phoenix.server.api.helpers.prompts.models import (
 def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_data_loss(
     tool_schema: dict[str, Any],
 ) -> None:
-    normalized_tools = normalize_tools([tool_schema], "openai")
-    denormalized_tools = denormalize_tools(normalized_tools, "openai")
+    normalized_tools = normalize_tools([tool_schema], ModelProvider.OPENAI)
+    denormalized_tools = denormalize_tools(normalized_tools, ModelProvider.OPENAI)
     assert len(denormalized_tools) == 1
     assert denormalized_tools[0] == tool_schema
 
@@ -595,7 +596,7 @@ def test_invalid_openai_tool_schemas_raise_validation_error_when_normalized(
     tool_schema: dict[str, Any],
 ) -> None:
     with pytest.raises(ValidationError):
-        normalize_tools([tool_schema], "openai")
+        normalize_tools([tool_schema], ModelProvider.OPENAI)
 
 
 @pytest.mark.parametrize(
@@ -716,7 +717,7 @@ def test_invalid_openai_tool_schemas_raise_validation_error_when_normalized(
 def test_valid_anthropic_tool_schemas_can_be_normalized_and_denormalized_without_data_loss(
     tool_schema: dict[str, Any],
 ) -> None:
-    normalized_tools = normalize_tools([tool_schema], "anthropic")
-    denormalized_tools = denormalize_tools(normalized_tools, "anthropic")
+    normalized_tools = normalize_tools([tool_schema], ModelProvider.ANTHROPIC)
+    denormalized_tools = denormalize_tools(normalized_tools, ModelProvider.ANTHROPIC)
     assert len(denormalized_tools) == 1
     assert denormalized_tools[0] == tool_schema

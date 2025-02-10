@@ -54,12 +54,6 @@ export function PromptCodeExportCard({
                     text
                   }
                 }
-                ... on ImageContentPart {
-                  __typename
-                  image {
-                    url
-                  }
-                }
                 ... on ToolCallContentPart {
                   __typename
                   toolCall {

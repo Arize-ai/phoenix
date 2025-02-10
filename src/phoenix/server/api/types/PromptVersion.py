@@ -133,7 +133,7 @@ def to_gql_prompt_version(
         tools=tools,
         response_format=response_format,
         model_name=prompt_version.model_name,
-        model_provider=prompt_version.model_provider,
+        model_provider=prompt_version.model_provider.value,
         metadata=prompt_version.metadata_,
         created_at=prompt_version.created_at,
         cached_sequence_number=sequence_number,

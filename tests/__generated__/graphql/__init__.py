@@ -606,16 +606,6 @@ class GenerativeProvider(BaseModel):
     name: str
 
 
-class ImageContentPart(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    image: ImageContentValue
-
-
-class ImageContentValue(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    url: str
-
-
 class Inferences(BaseModel):
     model_config = ConfigDict(frozen=True)
     endTime: str = Field(...)
@@ -873,9 +863,7 @@ class PromptLabelMutationPayload(BaseModel):
 
 class PromptMessage(BaseModel):
     model_config = ConfigDict(frozen=True)
-    content: list[
-        Union["ImageContentPart", "TextContentPart", "ToolCallContentPart", "ToolResultContentPart"]
-    ]
+    content: list[Union["TextContentPart", "ToolCallContentPart", "ToolResultContentPart"]]
     role: Literal["AI", "SYSTEM", "TOOL", "USER"]
 
 
@@ -1418,7 +1406,6 @@ class ClusterInput(BaseModel):
 
 class ContentPartInput(BaseModel):
     model_config = ConfigDict(frozen=True)
-    image: Optional[ImageContentValueInput] = None
     text: Optional[TextContentValueInput] = None
     toolCall: Optional[ToolCallContentValueInput] = None
     toolResult: Optional[ToolResultContentValueInput] = None
@@ -1621,11 +1608,6 @@ class Granularity(BaseModel):
     model_config = ConfigDict(frozen=True)
     evaluationWindowMinutes: int = Field(...)
     samplingIntervalMinutes: int = Field(...)
-
-
-class ImageContentValueInput(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    url: str
 
 
 class InputCoordinate2D(BaseModel):
