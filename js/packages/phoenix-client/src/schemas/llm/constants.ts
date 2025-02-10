@@ -72,6 +72,14 @@ const OPENAI = makeSDKConverters({
   },
 });
 
+/**
+ * SDK Provider Converter Map
+ *
+ * This map contains the converters for each SDK provider.
+ *
+ * If a "from" direction is not supported for a particular provider, you can set the schema to `z.unknown()`,
+ * passing contents directly through, but forcing the caller to handle the unknown type.
+ */
 export const SDKProviderConverterMap = {
   OPENAI,
   AZURE_OPENAI: OPENAI,
@@ -104,23 +112,23 @@ export const SDKProviderConverterMap = {
     },
     messageParts: {
       toOpenAI: phoenixPromptMessagePartToOpenAI,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
     toolChoices: {
       toOpenAI: phoenixPromptToolChoiceToOpenAI,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
     toolCalls: {
       toOpenAI: phoenixPromptToOpenAI,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
     toolDefinitions: {
       toOpenAI: phoenixPromptToolDefinitionToOpenAI,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
     responseFormat: {
       toOpenAI: phoenixPromptResponseFormatToOpenAI,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
   }),
   VERCEL_AI: makeSDKConverters({
@@ -142,7 +150,7 @@ export const SDKProviderConverterMap = {
     },
     toolDefinitions: {
       toOpenAI: openAIToolDefinitionSchema,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
   }),
 } satisfies Record<PromptProviderSDKs, unknown>;
