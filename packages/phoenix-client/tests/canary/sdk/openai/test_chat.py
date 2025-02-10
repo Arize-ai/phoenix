@@ -10,7 +10,6 @@ from faker import Faker
 from openai.lib._parsing import type_to_response_format_param
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
-    ChatCompletionContentPartImageParam,
     ChatCompletionContentPartParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionMessageToolCallParam,
@@ -21,37 +20,20 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-from openai.types.chat.chat_completion_content_part_image_param import ImageURL
 from openai.types.chat.chat_completion_message_tool_call_param import Function
 from openai.types.chat.completion_create_params import ResponseFormat
 from openai.types.shared_params import FunctionDefinition
 from pydantic import BaseModel, create_model
 
-from phoenix.client.__generated__.v1 import (
-    ImageContentPart,
-    PromptMessage,
-    PromptResponseFormatJSONSchema,
-    PromptToolsV1,
-    TextContentPart,
-    TextContentValue,
-    ToolCallContentPart,
-)
+from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.openai.chat import (
-    _from_image,
-    _from_message,
-    _from_response_format,
-    _from_text,
-    _from_tool_call,
-    _from_tool_kwargs,
-    _from_tools,
-    _to_image,
-    _to_messages,
-    _to_response_format_json_schema,
-    _to_text,
-    _to_tool_call,
-    _to_tool_kwargs,
-    _to_tools,
+    _FunctionToolConversion,
+    _MessageConversion,
+    _ResponseFormatJSONSchemaConversion,
+    _TextContentPartConversion,
+    _ToolCallContentPartConversion,
     _ToolKwargs,
+    _ToolKwargsConversion,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
@@ -122,15 +104,6 @@ def _text() -> ChatCompletionContentPartTextParam:
     )
 
 
-def _image() -> ChatCompletionContentPartImageParam:
-    return ChatCompletionContentPartImageParam(
-        type="image_url",
-        image_url=ImageURL(
-            url=fake.image_url(),
-        ),
-    )
-
-
 def _tool_call() -> ChatCompletionMessageToolCallParam:
     return ChatCompletionMessageToolCallParam(
         id=_str(),
@@ -167,8 +140,8 @@ class TestChatCompletionUserMessageParam:
         ],
     )
     def test_round_trip(self, obj: ChatCompletionUserMessageParam) -> None:
-        x: PromptMessage = _from_message(obj)
-        assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
+        x: v1.PromptMessage = _MessageConversion.from_openai(obj)
+        assert not DeepDiff(obj, next(_MessageConversion.to_openai(x, {}, NO_OP_FORMATTER)))
 
 
 class TestChatCompletionSystemMessageParam:
@@ -180,8 +153,8 @@ class TestChatCompletionSystemMessageParam:
         ],
     )
     def test_round_trip(self, obj: ChatCompletionSystemMessageParam) -> None:
-        x: PromptMessage = _from_message(obj)
-        assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
+        x: v1.PromptMessage = _MessageConversion.from_openai(obj)
+        assert not DeepDiff([obj], list(_MessageConversion.to_openai(x, {}, NO_OP_FORMATTER)))
 
 
 class TestChatCompletionAssistantMessageParam:
@@ -194,8 +167,8 @@ class TestChatCompletionAssistantMessageParam:
         ],
     )
     def test_round_trip(self, obj: ChatCompletionAssistantMessageParam) -> None:
-        x: PromptMessage = _from_message(obj)
-        assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
+        x: v1.PromptMessage = _MessageConversion.from_openai(obj)
+        assert not DeepDiff([obj], list(_MessageConversion.to_openai(x, {}, NO_OP_FORMATTER)))
 
 
 class TestChatCompletionToolMessageParam:
@@ -207,47 +180,45 @@ class TestChatCompletionToolMessageParam:
         ],
     )
     def test_round_trip(self, obj: ChatCompletionToolMessageParam) -> None:
-        x: PromptMessage = _from_message(obj)
-        assert not DeepDiff([obj], list(_to_messages(x, {}, NO_OP_FORMATTER)))
+        x: v1.PromptMessage = _MessageConversion.from_openai(obj)
+        assert not DeepDiff([obj], list(_MessageConversion.to_openai(x, {}, NO_OP_FORMATTER)))
 
 
-class TestChatCompletionToolParam:
+class TestFunctionToolConversion:
     @pytest.mark.parametrize(
-        "tools",
-        [[_tool() for _ in range(3)]],
+        "obj",
+        [_tool()],
     )
-    def test_round_trip(self, tools: Iterable[ChatCompletionToolParam]) -> None:
-        new_tools = list(_to_tools(_from_tools(tools)))
-        assert not DeepDiff(list(tools), new_tools)
+    def test_round_trip(self, obj: ChatCompletionToolParam) -> None:
+        new_obj = _FunctionToolConversion.to_openai(_FunctionToolConversion.from_openai(obj))
+        assert not DeepDiff(obj, new_obj)
 
 
-class TestChatCompletionContentPartTextParam:
+class TestTextContentPartConversion:
     def test_round_trip(self) -> None:
         obj: ChatCompletionContentPartTextParam = _text()
-        x: TextContentPart = _from_text(obj)
-        new_obj: ChatCompletionContentPartTextParam = _to_text(x, {}, NO_OP_FORMATTER)
+        x: v1.TextContentPart = _TextContentPartConversion.from_openai(obj)
+        new_obj: ChatCompletionContentPartTextParam = _TextContentPartConversion.to_openai(
+            x, {}, NO_OP_FORMATTER
+        )
         assert not DeepDiff(obj, new_obj)
 
     def test_formatter(self) -> None:
-        x = TextContentPart(type="text", text=TextContentValue(text=_str()))
+        x = v1.TextContentPart(type="text", text=v1.TextContentValue(text=_str()))
         formatter, variables = _MockFormatter(), _dict()
-        ans: ChatCompletionContentPartTextParam = _to_text(x, variables, formatter)
+        ans: ChatCompletionContentPartTextParam = _TextContentPartConversion.to_openai(
+            x, variables, formatter
+        )
         assert ans["text"] == formatter.format(x["text"]["text"], variables=variables)
 
 
-class TestChatCompletionMessageToolCallParam:
+class TestToolCallContentPartConversion:
     def test_round_trip(self) -> None:
         obj: ChatCompletionMessageToolCallParam = _tool_call()
-        x: ToolCallContentPart = _from_tool_call(obj)
-        new_obj: ChatCompletionMessageToolCallParam = _to_tool_call(x, {}, NO_OP_FORMATTER)
-        assert not DeepDiff(obj, new_obj)
-
-
-class TestChatCompletionContentPartImageParam:
-    def test_round_trip(self) -> None:
-        obj: ChatCompletionContentPartImageParam = _image()
-        x: ImageContentPart = _from_image(obj)
-        new_obj: ChatCompletionContentPartImageParam = _to_image(x, {}, NO_OP_FORMATTER)
+        x: v1.ToolCallContentPart = _ToolCallContentPartConversion.from_openai(obj)
+        new_obj: ChatCompletionMessageToolCallParam = _ToolCallContentPartConversion.to_openai(
+            x, {}, NO_OP_FORMATTER
+        )
         assert not DeepDiff(obj, new_obj)
 
 
@@ -275,7 +246,7 @@ class _UI(BaseModel):
 _UI.model_rebuild()
 
 
-class TestResponseFormat:
+class TestResponseFormatJSONSchemaConversion:
     @pytest.mark.parametrize(
         "type_",
         [
@@ -284,12 +255,12 @@ class TestResponseFormat:
     )
     def test_round_trip(self, type_: type[BaseModel]) -> None:
         obj = cast(ResponseFormat, type_to_response_format_param(type_))
-        x: PromptResponseFormatJSONSchema = _from_response_format(obj)
-        new_obj = _to_response_format_json_schema(x)
+        x: v1.PromptResponseFormatJSONSchema = _ResponseFormatJSONSchemaConversion.from_openai(obj)
+        new_obj = _ResponseFormatJSONSchemaConversion.to_openai(x)
         assert not DeepDiff(obj, new_obj)
 
 
-class TestToolKwargs:
+class TestToolKwargsConversion:
     @pytest.mark.parametrize(
         "obj",
         [
@@ -342,8 +313,8 @@ class TestToolKwargs:
         ],
     )
     def test_round_trip(self, obj: _ToolKwargs) -> None:
-        x: Optional[PromptToolsV1] = _from_tool_kwargs(obj)
-        new_obj: _ToolKwargs = _to_tool_kwargs(x)
+        x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_openai(obj)
+        new_obj: _ToolKwargs = _ToolKwargsConversion.to_openai(x)
         assert not DeepDiff(obj, new_obj)
 
 

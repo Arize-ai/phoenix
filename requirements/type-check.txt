@@ -28,8 +28,3 @@ types-requests
 types-setuptools
 types-tabulate
 types-tqdm
-
-# mypy is unwilling to skip symlinked subfolders that it's being
-# asked to exclude, so we have to include these dependencies here.
-groq==0.18.0
-mistralai==1.5.0

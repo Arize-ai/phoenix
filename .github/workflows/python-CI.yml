@@ -524,7 +524,7 @@ jobs:
       fail-fast: false
       matrix:
         py: [ 3.9 ]
-        pkg: [ openai, anthropic, mistralai, groq ]
+        pkg: [ openai, anthropic, google_generativeai ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
