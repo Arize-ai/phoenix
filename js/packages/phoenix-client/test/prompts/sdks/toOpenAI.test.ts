@@ -148,7 +148,6 @@ describe("toOpenAI type compatibility", () => {
             role: "USER",
             content: [
               { type: "text", text: { text: "Can you edit this image?" } },
-              { type: "image", image: { url: "test.jpg" } },
             ],
           },
           {
@@ -206,12 +205,6 @@ describe("toOpenAI type compatibility", () => {
             {
               text: "Can you edit this image?",
               type: "text",
-            },
-            {
-              image_url: {
-                url: "test.jpg",
-              },
-              type: "image_url",
             },
           ],
           role: "user",

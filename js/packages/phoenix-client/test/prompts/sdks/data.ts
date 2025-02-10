@@ -3,7 +3,7 @@ import { PromptVersion } from "../../../src/types/prompts";
 export const BASE_MOCK_PROMPT_VERSION = {
   id: "test",
   description: "Test prompt",
-  model_provider: "openai",
+  model_provider: "OPENAI",
   model_name: "gpt-4",
   template_type: "CHAT",
   template_format: "MUSTACHE",

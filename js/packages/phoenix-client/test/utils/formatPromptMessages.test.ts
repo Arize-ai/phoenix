@@ -10,7 +10,6 @@ describe("formatPromptMessages", () => {
         role: "USER",
         content: [
           { type: "text", text: { text: "Hello {{name}}" } } as TextPart,
-          { type: "image", image: { url: "test.jpg" } },
         ],
       },
     ];
@@ -21,10 +20,6 @@ describe("formatPromptMessages", () => {
     expect(formatted?.[0]?.content?.[0]).toEqual({
       type: "text",
       text: { text: "Hello World" },
-    });
-    expect(formatted?.[0]?.content?.[1]).toEqual({
-      type: "image",
-      image: { url: "test.jpg" },
     });
   });
 

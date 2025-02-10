@@ -149,14 +149,6 @@ describe("toAI type compatibility", () => {
             role: "USER",
             content: [
               { type: "text", text: { text: "Can you edit this image?" } },
-              {
-                type: "image",
-                image: {
-                  // Anthropic only supports base64 images
-                  // if this is any other url, image parts will be dropped
-                  url: "data:image/jpeg;base64,test.jpg",
-                },
-              },
             ],
           },
           {
@@ -214,10 +206,6 @@ describe("toAI type compatibility", () => {
             {
               text: "Can you edit this image?",
               type: "text",
-            },
-            {
-              image: "data:image/jpeg;base64,test.jpg",
-              type: "image",
             },
           ],
           role: "user",

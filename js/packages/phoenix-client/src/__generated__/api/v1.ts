@@ -492,20 +492,6 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** ImageContentPart */
-        ImageContentPart: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "image";
-            image: components["schemas"]["ImageContentValue"];
-        };
-        /** ImageContentValue */
-        ImageContentValue: {
-            /** Url */
-            url: string;
-        };
         /** InsertedSpanAnnotation */
         InsertedSpanAnnotation: {
             /**
@@ -556,6 +542,11 @@ export interface components {
             /** Data */
             data: components["schemas"]["Experiment"][];
         };
+        /**
+         * ModelProvider
+         * @enum {string}
+         */
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GEMINI";
         /** Prompt */
         Prompt: {
             /** Id */
@@ -597,7 +588,7 @@ export interface components {
         PromptMessage: {
             role: components["schemas"]["PromptMessageRole"];
             /** Content */
-            content: (components["schemas"]["TextContentPart"] | components["schemas"]["ImageContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+            content: (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
         };
         /**
          * PromptMessageRole
@@ -694,8 +685,7 @@ export interface components {
             id: string;
             /** Description */
             description: string;
-            /** Model Provider */
-            model_provider: string;
+            model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
             /** Template */
