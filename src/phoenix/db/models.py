@@ -125,6 +125,20 @@ class _Identifier(TypeDecorator[Identifier]):
         return None if value is None else Identifier.model_validate(value)
 
 
+class _ModelProvider(TypeDecorator[ModelProvider]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[ModelProvider], _: Dialect) -> Optional[str]:
+        if isinstance(value, str):
+            return ModelProvider(value).value
+        return None if value is None else value.value
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
+        return None if value is None else ModelProvider(value)
+
+
 class _PromptTemplate(TypeDecorator[PromptTemplate]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -1004,7 +1018,7 @@ class PromptVersion(Base):
     response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
         _PromptResponseFormat, default=Null(), nullable=True
     )
-    model_provider: Mapped[ModelProvider]
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
     model_name: Mapped[str]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
