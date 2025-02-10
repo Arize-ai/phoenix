@@ -2265,6 +2265,7 @@
               }
             },
             "type": "array",
+            "minItems": 1,
             "title": "Content"
           }
         },

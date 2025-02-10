@@ -109,7 +109,7 @@ ContentPart: TypeAlias = Annotated[
 
 class PromptMessage(PromptModel):
     role: PromptMessageRole
-    content: list[ContentPart]
+    content: Annotated[list[ContentPart], Field(..., min_length=1)]
 
 
 class PromptChatTemplate(PromptModel):
