@@ -15,19 +15,6 @@ export const textPartSchema = schemaMatches<
 
 export type TextPart = z.infer<typeof textPartSchema>;
 
-export const imagePartSchema = schemaMatches<
-  Extract<PromptChatMessagePart, { type: "image" }>
->()(
-  z.object({
-    type: z.literal("image"),
-    image: z.object({
-      url: z.string(),
-    }),
-  })
-);
-
-export type ImagePart = z.infer<typeof imagePartSchema>;
-
 export const toolCallPartSchema = schemaMatches<
   Extract<PromptChatMessagePart, { type: "tool_call" }>
 >()(
@@ -71,7 +58,6 @@ export const phoenixPromptContentPartSchema =
   schemaMatches<PromptChatMessagePart>()(
     z.discriminatedUnion("type", [
       textPartSchema,
-      imagePartSchema,
       toolCallPartSchema,
       toolResultPartSchema,
     ])
@@ -95,12 +81,6 @@ export const asTextPart = (maybePart: unknown): TextPart | null => {
 export const makeTextPart = (text?: string | null) => {
   const optimisticTextPart = { text: { text } };
   const parsed = textPartSchema.safeParse(optimisticTextPart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeImagePart = (url?: string | null) => {
-  const optimisticImagePart = { image: { url } };
-  const parsed = imagePartSchema.safeParse(optimisticImagePart);
   return parsed.success ? parsed.data : null;
 };
 

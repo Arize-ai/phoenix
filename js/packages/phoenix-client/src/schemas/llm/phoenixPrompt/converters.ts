@@ -12,10 +12,7 @@ import {
 } from "./messagePartSchemas";
 import { phoenixPromptToolCallSchema } from "./toolCallSchemas";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
-import {
-  OpenAIChatPartImage,
-  OpenAIChatPartText,
-} from "../openai/messagePartSchemas";
+import { OpenAIChatPartText } from "../openai/messagePartSchemas";
 import { phoenixPromptResponseFormatSchema } from "./responseFormatSchema";
 import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
 import { phoenixPromptToolDefinitionSchema } from "./toolSchemas";
@@ -42,11 +39,6 @@ export const phoenixPromptMessagePartToOpenAI =
         return null;
       case "tool_result":
         return null;
-      case "image":
-        return {
-          type: "image_url",
-          image_url: { url: part.image.url },
-        } satisfies OpenAIChatPartImage;
       default:
         return assertUnreachable(type);
     }
@@ -96,9 +88,8 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
           content: prompt.content
             .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
             .filter(
-              (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
-                part !== null &&
-                (part.type === "text" || part.type === "image_url")
+              (part): part is OpenAIChatPartText =>
+                part !== null && part.type === "text"
             ),
         } satisfies OpenAIMessage;
       case "AI":
