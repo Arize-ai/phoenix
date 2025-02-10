@@ -74,18 +74,6 @@ class TextContentPart(PromptModel):
     text: TextContentValue
 
 
-class ImageContentValue(BaseModel):
-    # http url, or base64 encoded image
-    url: str
-    # detail: Optional[Literal["auto", "low", "high"]]
-
-
-class ImageContentPart(PromptModel):
-    type: Literal["image"]
-    # the image data
-    image: ImageContentValue
-
-
 class ToolCallFunction(BaseModel):
     type: Literal["function"]
     name: str
@@ -114,7 +102,7 @@ class ToolResultContentPart(PromptModel):
 
 
 ContentPart: TypeAlias = Annotated[
-    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
+    Union[TextContentPart, ToolCallContentPart, ToolResultContentPart],
     Field(..., discriminator="type"),
 ]
 

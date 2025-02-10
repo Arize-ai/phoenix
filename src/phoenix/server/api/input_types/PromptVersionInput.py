@@ -6,8 +6,6 @@ from strawberry.scalars import JSON
 
 from phoenix.server.api.helpers.prompts.models import (
     ContentPart,
-    ImageContentPart,
-    ImageContentValue,
     PromptChatTemplate,
     PromptMessage,
     PromptTemplateFormat,
@@ -39,11 +37,6 @@ class TextContentValueInput:
     text: str
 
 
-@strawberry.experimental.pydantic.input(ImageContentValue)
-class ImageContentValueInput:
-    url: str
-
-
 @strawberry.experimental.pydantic.input(ToolResultContentValue)
 class ToolResultContentValueInput:
     tool_call_id: strawberry.auto
@@ -65,7 +58,6 @@ class ToolCallContentValueInput:
 @strawberry.input(one_of=True)
 class ContentPartInput:
     text: Optional[TextContentValueInput] = strawberry.UNSET
-    image: Optional[ImageContentValueInput] = strawberry.UNSET
     tool_call: Optional[ToolCallContentValueInput] = strawberry.UNSET
     tool_result: Optional[ToolResultContentValueInput] = strawberry.UNSET
 
@@ -118,9 +110,6 @@ def to_pydantic_content_part(content_part_input: ContentPartInput) -> ContentPar
     if content_part_input.text is not UNSET:
         content_part_cls = TextContentPart
         content_part_type = "text"
-    elif content_part_input.image is not UNSET:
-        content_part_cls = ImageContentPart
-        content_part_type = "image"
     elif content_part_input.tool_call is not UNSET:
         content_part_cls = ToolCallContentPart
         content_part_type = "tool_call"

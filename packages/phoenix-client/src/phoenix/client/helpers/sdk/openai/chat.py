@@ -73,7 +73,6 @@ class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
 
 
 _ContentPart: TypeAlias = Union[
-    v1.ImageContentPart,
     v1.TextContentPart,
     v1.ToolCallContentPart,
     v1.ToolResultContentPart,
@@ -481,8 +480,6 @@ class _AssistantMessageConversion:
                 content.append(_TextContentPartConversion.to_openai(part, variables, formatter))
             elif part["type"] == "tool_result":
                 continue
-            elif part["type"] == "image":
-                continue
             elif TYPE_CHECKING:
                 assert_never(part)
         if content:
@@ -535,8 +532,6 @@ class _ToolMessageConversion:
                         }
                     )
             elif part["type"] == "text":
-                continue
-            elif part["type"] == "image":
                 continue
             elif part["type"] == "tool_call":
                 continue
@@ -664,8 +659,6 @@ class _ContentPartConversion:
             if part["type"] == "text":
                 yield _TextContentPartConversion.to_openai(part, variables, formatter)
             elif text_only:
-                continue
-            elif part["type"] == "image":
                 continue
             elif part["type"] == "tool_call":
                 continue

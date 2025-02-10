@@ -1977,38 +1977,6 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
-      "ImageContentPart": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "image",
-            "title": "Type"
-          },
-          "image": {
-            "$ref": "#/components/schemas/ImageContentValue"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "image"
-        ],
-        "title": "ImageContentPart"
-      },
-      "ImageContentValue": {
-        "properties": {
-          "url": {
-            "type": "string",
-            "title": "Url"
-          }
-        },
-        "type": "object",
-        "required": [
-          "url"
-        ],
-        "title": "ImageContentValue"
-      },
       "InsertedSpanAnnotation": {
         "properties": {
           "id": {
@@ -2281,9 +2249,6 @@
                   "$ref": "#/components/schemas/TextContentPart"
                 },
                 {
-                  "$ref": "#/components/schemas/ImageContentPart"
-                },
-                {
                   "$ref": "#/components/schemas/ToolCallContentPart"
                 },
                 {
@@ -2293,7 +2258,6 @@
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
-                  "image": "#/components/schemas/ImageContentPart",
                   "text": "#/components/schemas/TextContentPart",
                   "tool_call": "#/components/schemas/ToolCallContentPart",
                   "tool_result": "#/components/schemas/ToolResultContentPart"

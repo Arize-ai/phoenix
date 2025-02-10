@@ -8,8 +8,6 @@ from phoenix.db.models import Prompt, PromptVersion
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
-    ImageContentPart,
-    ImageContentValue,
     PromptChatTemplate,
     PromptMessage,
     PromptMessageRole,
@@ -42,10 +40,6 @@ async def test_chat_template_materializes_to_expected_format(
                     TextContentPart(
                         type="text",
                         text=TextContentValue(text="foo"),
-                    ),
-                    ImageContentPart(
-                        type="image",
-                        image=ImageContentValue(url="url"),
                     ),
                     ToolCallContentPart(
                         type="tool_call",
@@ -113,12 +107,6 @@ async def test_chat_template_materializes_to_expected_format(
                         "type": "text",
                         "text": {
                             "text": "foo",
-                        },
-                    },
-                    {
-                        "type": "image",
-                        "image": {
-                            "url": "url",
                         },
                     },
                     {

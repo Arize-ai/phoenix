@@ -69,10 +69,6 @@ class GetExperimentResponseBody(TypedDict):
     data: Experiment
 
 
-class ImageContentValue(TypedDict):
-    url: str
-
-
 class InsertedSpanAnnotation(TypedDict):
     id: str
 
@@ -216,11 +212,6 @@ class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
 
 
-class ImageContentPart(TypedDict):
-    image: ImageContentValue
-    type: Literal["image"]
-
-
 class SpanAnnotation(TypedDict):
     span_id: str
     name: str
@@ -255,9 +246,7 @@ class ToolCallContentPart(TypedDict):
 
 class PromptMessage(TypedDict):
     role: Literal["USER", "SYSTEM", "AI", "TOOL"]
-    content: Sequence[
-        Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart]
-    ]
+    content: Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
 
 
 class PromptChatTemplate(TypedDict):

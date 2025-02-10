@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from os import PathLike
 from types import MappingProxyType
 from typing import (
-    IO,
     TYPE_CHECKING,
     Any,
     Iterable,
@@ -45,7 +43,6 @@ if TYPE_CHECKING:
         ToolUseBlock,
         ToolUseBlockParam,
     )
-    from anthropic.types.image_block_param import Source
 
     _BlockParam: TypeAlias = Union[
         TextBlockParam,
@@ -55,7 +52,6 @@ if TYPE_CHECKING:
         DocumentBlockParam,
     ]
     _ContentPart: TypeAlias = Union[
-        v1.ImageContentPart,
         v1.TextContentPart,
         v1.ToolCallContentPart,
         v1.ToolResultContentPart,
@@ -364,42 +360,6 @@ class _TextContentPartConversion:
         return v1.TextContentPart(type="text", text=text)
 
 
-def _to_image(
-    obj: v1.ImageContentPart,
-    variables: Mapping[str, str],
-    formatter: TemplateFormatter,
-    /,
-) -> ImageBlockParam:
-    return {
-        "type": "image",
-        "source": {
-            "type": "base64",
-            "data": obj["image"]["url"],
-            "media_type": "image/png",
-        },
-    }
-
-
-def _from_image(
-    obj: ImageBlockParam,
-) -> v1.ImageContentPart:
-    source: Source = obj["source"]
-    if isinstance(source["data"], str):
-        url = source["data"]
-    elif isinstance(source["data"], PathLike):
-        url = str(source["data"])
-    elif isinstance(source["data"], IO):
-        raise NotImplementedError
-    else:
-        assert_never(source["data"])
-    return v1.ImageContentPart(
-        type="image",
-        image=v1.ImageContentValue(
-            url=url,
-        ),
-    )
-
-
 class _ToolCallContentPartConversion:
     @staticmethod
     def to_anthropic(
@@ -532,8 +492,6 @@ class _ContentConversion:
                 yield _TextContentPartConversion.to_anthropic(part, variables, formatter)
             elif text_only:
                 continue
-            elif part["type"] == "image":
-                yield _to_image(part, variables, formatter)
             elif part["type"] == "tool_result":
                 yield _ToolResultContentPartConversion.to_anthropic(part, variables, formatter)
             elif part["type"] == "tool_call":
@@ -558,7 +516,7 @@ class _ContentConversion:
                 if block["type"] == "text":
                     content.append(_TextContentPartConversion.from_anthropic(block))
                 elif block["type"] == "image":
-                    content.append(_from_image(block))
+                    raise NotImplementedError
                 elif block["type"] == "tool_use":
                     content.append(_ToolCallContentPartConversion.from_anthropic(block))
                 elif block["type"] == "tool_result":

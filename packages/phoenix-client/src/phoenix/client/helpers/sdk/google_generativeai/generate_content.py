@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
     _ContentPart: TypeAlias = Union[
         v1.TextContentPart,
-        v1.ImageContentPart,
         v1.ToolCallContentPart,
         v1.ToolResultContentPart,
     ]
@@ -375,8 +374,6 @@ class _ContentConversion:
         for part in obj["content"]:
             if part["type"] == "text":
                 parts.append(_TextContentPartConversion.to_google(part, variables, formatter))
-            elif part["type"] == "image":
-                continue
             elif part["type"] == "tool_call":
                 continue
             elif part["type"] == "tool_result":

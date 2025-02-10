@@ -8,10 +8,6 @@ from strawberry.scalars import JSON
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db.models import PromptVersion as ORMPromptVersion
-from phoenix.server.api.helpers.prompts.models import ImageContentPart as ImageContentPartModel
-from phoenix.server.api.helpers.prompts.models import (
-    ImageContentValue as ImageContentValueModel,
-)
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate as PromptChatTemplateModel,
 )
@@ -53,16 +49,6 @@ class TextContentPart:
     text: TextContentValue
 
 
-@strawberry.experimental.pydantic.type(ImageContentValueModel, all_fields=True)
-class ImageContentValue:
-    pass
-
-
-@strawberry.experimental.pydantic.type(ImageContentPartModel)
-class ImageContentPart:
-    image: ImageContentValue
-
-
 @strawberry.experimental.pydantic.type(ToolCallFunctionModel)
 class ToolCallFunction:
     name: strawberry.auto
@@ -92,7 +78,7 @@ class ToolResultContentPart:
 
 
 ContentPart: TypeAlias = Annotated[
-    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
+    Union[TextContentPart, ToolCallContentPart, ToolResultContentPart],
     strawberry.union("ContentPart"),
 ]
 

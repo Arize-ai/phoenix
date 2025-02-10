@@ -22,8 +22,6 @@ from phoenix.server.api.helpers.jsonschema import (
     JSONSchemaDraft7ObjectSchemaContent,
 )
 from phoenix.server.api.helpers.prompts.models import (
-    ImageContentPart,
-    ImageContentValue,
     PromptChatTemplate,
     PromptFunctionTool,
     PromptMessage,
@@ -180,10 +178,6 @@ class TestPrompts:
                                 TextContentPart(
                                     type="text",
                                     text=TextContentValue(text="hi"),
-                                ),
-                                ImageContentPart(
-                                    type="image",
-                                    image=ImageContentValue(url="https://example.com/image.jpg"),
                                 ),
                                 ToolCallContentPart(
                                     type="tool_call",
