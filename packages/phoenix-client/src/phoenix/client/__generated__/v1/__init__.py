@@ -268,7 +268,7 @@ class PromptChatTemplate(TypedDict):
 class PromptVersion(TypedDict):
     id: str
     description: str
-    model_provider: str
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]

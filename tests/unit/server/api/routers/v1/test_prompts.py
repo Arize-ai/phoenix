@@ -16,6 +16,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.jsonschema import (
     JSONSchemaDraft7ObjectSchema,
     JSONSchemaDraft7ObjectSchemaContent,
@@ -123,7 +124,7 @@ class TestPrompts:
             prompt_version.invocation_parameters,
         )
         assert data.pop("model_name") == prompt_version.model_name
-        assert data.pop("model_provider") == prompt_version.model_provider
+        assert data.pop("model_provider") == prompt_version.model_provider.value
         if prompt_version.response_format:
             assert not DeepDiff(
                 data.pop("response_format"),
@@ -212,7 +213,7 @@ class TestPrompts:
                         template_format="MUSTACHE",
                         template=template,
                         invocation_parameters=fake.pydict(value_types=[str, int, float, bool]),
-                        model_provider=token_hex(16),
+                        model_provider=ModelProvider.OPENAI,
                         model_name=token_hex(16),
                         tools=PromptTools(
                             type="tools",

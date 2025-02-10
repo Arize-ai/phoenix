@@ -41,6 +41,7 @@ from typing_extensions import assert_never
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptResponseFormat,
@@ -1003,7 +1004,7 @@ class PromptVersion(Base):
     response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
         _PromptResponseFormat, default=Null(), nullable=True
     )
-    model_provider: Mapped[str]
+    model_provider: Mapped[ModelProvider]
     model_name: Mapped[str]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())

@@ -6,6 +6,7 @@ from typing import Any, Literal, Mapping, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated, TypeAlias, assert_never
 
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.jsonschema import (
     JSONSchemaDraft7ObjectSchema,
     JSONSchemaObjectSchema,
@@ -291,9 +292,9 @@ def _prompt_to_openai_response_format(
 
 
 def normalize_response_format(
-    response_format: dict[str, Any], model_provider: str
+    response_format: dict[str, Any], model_provider: ModelProvider
 ) -> PromptResponseFormat:
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(
             response_format
         )
@@ -302,9 +303,9 @@ def normalize_response_format(
 
 
 def denormalize_response_format(
-    response_format: PromptResponseFormat, model_provider: str
+    response_format: PromptResponseFormat, model_provider: ModelProvider
 ) -> dict[str, Any]:
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_response_format = _prompt_to_openai_response_format(response_format)
         return openai_response_format.model_dump()
     raise ValueError(f"Unsupported model provider: {model_provider}")
@@ -353,23 +354,23 @@ class AnthropicToolDefinition(PromptModel):
 
 def normalize_tools(
     schemas: list[dict[str, Any]],
-    model_provider: str,
+    model_provider: ModelProvider,
     tool_choice: Optional[Union[str, Mapping[str, Any]]] = None,
 ) -> PromptTools:
     tools: list[PromptFunctionTool]
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
-    elif model_provider.lower() == "anthropic":
+    elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
     ans = PromptTools(type="tools", tools=tools)
     if tool_choice is not None:
-        if model_provider.lower() == "openai":
+        if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
-        if model_provider.lower() == "anthropic":
+        elif model_provider is ModelProvider.ANTHROPIC:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
                 tool_choice  # type: ignore[arg-type]
             )
@@ -379,12 +380,12 @@ def normalize_tools(
     return ans
 
 
-def denormalize_tools(tools: PromptTools, model_provider: str) -> list[dict[str, Any]]:
+def denormalize_tools(tools: PromptTools, model_provider: ModelProvider) -> list[dict[str, Any]]:
     assert tools.type == "tools"
     denormalized_tools: list[PromptModel]
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
-    elif model_provider.lower() == "anthropic":
+    elif model_provider is ModelProvider.ANTHROPIC:
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")

@@ -12,6 +12,7 @@ from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
     PromptTemplate,
@@ -38,7 +39,7 @@ class Prompt(V1RoutesBaseModel):
 class PromptVersion(V1RoutesBaseModel):
     id: str
     description: str
-    model_provider: str
+    model_provider: ModelProvider
     model_name: str
     template: PromptTemplate
     template_type: PromptTemplateType

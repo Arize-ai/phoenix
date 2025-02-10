@@ -6,6 +6,7 @@ from sqlalchemy import select, text
 
 from phoenix.db.models import Prompt, PromptVersion
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentPart,
     ImageContentValue,
@@ -86,7 +87,7 @@ async def test_chat_template_materializes_to_expected_format(
             invocation_parameters={},
             tools=None,
             response_format=None,
-            model_provider="anthropic",
+            model_provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-5-sonnet",
         )
         session.add(prompt_version)
@@ -103,7 +104,7 @@ async def test_chat_template_materializes_to_expected_format(
     else:
         materialized_template_dict = materialized_template
     assert materialized_template_dict == {
-        "version": "chat",
+        "type": "chat",
         "messages": [
             {
                 "role": "USER",
@@ -299,8 +300,9 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    model_provider = ModelProvider.ANTHROPIC
     # normalize tools
-    normalized_tools = normalize_tools([anthropic_tool_dict], "anthropic")
+    normalized_tools = normalize_tools([anthropic_tool_dict], model_provider)
 
     # persist to db
     async with db() as session:
@@ -322,7 +324,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             invocation_parameters={},
             tools=normalized_tools,
             response_format=None,
-            model_provider="anthropic",
+            model_provider=model_provider,
             model_name="claude-3-5-sonnet",
         )
         session.add(prompt_version)
@@ -353,7 +355,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     # denormalize tools and check they match the input tools
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
-    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "anthropic")
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, model_provider)
     assert len(denormalized_tool_dicts) == 1
     assert denormalized_tool_dicts[0] == anthropic_tool_dict
 
@@ -531,8 +533,9 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    model_provider = ModelProvider.OPENAI
     # normalize tools
-    normalized_tools = normalize_tools([openai_tool_dict], "openai")
+    normalized_tools = normalize_tools([openai_tool_dict], model_provider)
 
     # persist to db
     async with db() as session:
@@ -554,7 +557,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             invocation_parameters={},
             tools=normalized_tools,
             response_format=None,
-            model_provider="openai",
+            model_provider=model_provider,
             model_name="gpt-4o",
         )
         session.add(prompt_version)
@@ -585,7 +588,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     # denormalize tools and check they match the input tools
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
-    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, "openai")
+    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, model_provider)
     assert len(denormalized_tool_dicts) == 1
     assert denormalized_tool_dicts[0] == openai_tool_dict
 
@@ -804,8 +807,11 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    model_provider = ModelProvider.OPENAI
     # normalize output schema
-    normalized_response_format = normalize_response_format(openai_response_format_dict, "openai")
+    normalized_response_format = normalize_response_format(
+        openai_response_format_dict, model_provider
+    )
 
     # persist to db
     async with db() as session:
@@ -827,7 +833,7 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
             invocation_parameters={},
             tools=None,
             response_format=normalized_response_format,
-            model_provider="openai",
+            model_provider=model_provider,
             model_name="gpt-4o",
         )
         session.add(prompt_version)
@@ -854,6 +860,6 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
     rehydrated_response_format = rehydrated_prompt_version.response_format
     assert rehydrated_response_format is not None
     denormalized_response_format_dict = denormalize_response_format(
-        rehydrated_response_format, "openai"
+        rehydrated_response_format, model_provider
     )
     assert denormalized_response_format_dict == openai_response_format_dict

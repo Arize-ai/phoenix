@@ -2152,6 +2152,16 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "ModelProvider": {
+        "type": "string",
+        "enum": [
+          "OPENAI",
+          "AZURE_OPENAI",
+          "ANTHROPIC",
+          "GEMINI"
+        ],
+        "title": "ModelProvider"
+      },
       "Prompt": {
         "properties": {
           "id": {
@@ -2533,8 +2543,7 @@
             "title": "Description"
           },
           "model_provider": {
-            "type": "string",
-            "title": "Model Provider"
+            "$ref": "#/components/schemas/ModelProvider"
           },
           "model_name": {
             "type": "string",
