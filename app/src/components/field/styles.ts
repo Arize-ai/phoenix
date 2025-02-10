@@ -11,7 +11,8 @@ export const fieldBaseCSS = css`
     font-weight: var(--px-font-weight-heavy);
   }
 
-  .react-aria-Input {
+  .react-aria-Input,
+  .react-aria-TextArea {
     transition: all 0.2s ease-in-out;
     margin: 0;
     flex: 1 1 auto;
