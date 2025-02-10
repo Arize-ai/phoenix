@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Annotated, List, Optional, TypeAlias, Union
 
 import strawberry
+from strawberry.relay import Node, NodeID
 
 from phoenix.db import models
 
@@ -22,7 +23,7 @@ class ScoreDirection(str, Enum):
 
 @strawberry.interface
 class AnnotationConfigInterface:
-    id: int
+    id_attr: NodeID[int]
     name: str
     annotation_type: AnnotationType
     score_direction: ScoreDirection
@@ -30,27 +31,27 @@ class AnnotationConfigInterface:
 
 
 @strawberry.type
-class ContinuousAnnotationConfig(AnnotationConfigInterface):
+class ContinuousAnnotationConfig(Node, AnnotationConfigInterface):
     lower_bound: Optional[float]
     upper_bound: Optional[float]
 
 
 @strawberry.type
-class CategoricalAnnotationValueType:
-    id: int
+class CategoricalAnnotationValue(Node):
+    id_attr: NodeID[int]
     label: str
     numeric_score: Optional[float]
 
 
 @strawberry.type
-class CategoricalAnnotationConfig(AnnotationConfigInterface):
+class CategoricalAnnotationConfig(Node, AnnotationConfigInterface):
     is_ordinal: bool
     multilabel_allowed: bool
-    allowed_values: List[CategoricalAnnotationValueType]
+    allowed_values: List[CategoricalAnnotationValue]
 
 
 @strawberry.type
-class FreeformAnnotationConfig(AnnotationConfigInterface):
+class FreeformAnnotationConfig(Node, AnnotationConfigInterface):
     pass
 
 
@@ -74,18 +75,14 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
 
     gql_score_direction = ScoreDirection(annotation_config.score_direction.upper())
 
-    common = {
-        "id": annotation_config.id,
-        "name": annotation_config.name,
-        "annotation_type": gql_annotation_type,
-        "score_direction": gql_score_direction,
-        "description": annotation_config.description,
-    }
-
     if gql_annotation_type == AnnotationType.CONTINUOUS:
         continuous = annotation_config.continuous_config
         return ContinuousAnnotationConfig(
-            **common,
+            id_attr=annotation_config.id,
+            name=annotation_config.name,
+            annotation_type=gql_annotation_type,
+            score_direction=gql_score_direction,
+            description=annotation_config.description,
             lower_bound=continuous.lower_bound if continuous else None,
             upper_bound=continuous.upper_bound if continuous else None,
         )
@@ -96,8 +93,8 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
         categorical = annotation_config.categorical_config
         allowed_values = (
             [
-                CategoricalAnnotationValueType(
-                    id=val.id,
+                CategoricalAnnotationValue(
+                    id_attr=val.id,
                     label=val.label,
                     numeric_score=val.numeric_score,
                 )
@@ -107,10 +104,20 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             else []
         )
         return CategoricalAnnotationConfig(
-            **common,
+            id_attr=annotation_config.id,
+            name=annotation_config.name,
+            annotation_type=gql_annotation_type,
+            score_direction=gql_score_direction,
+            description=annotation_config.description,
             is_ordinal=categorical.is_ordinal if categorical else False,
             multilabel_allowed=categorical.multilabel_allowed if categorical else False,
             allowed_values=allowed_values,
         )
     else:
-        return FreeformAnnotationConfig(**common)
+        return FreeformAnnotationConfig(
+            id_attr=annotation_config.id,
+            name=annotation_config.name,
+            annotation_type=gql_annotation_type,
+            score_direction=gql_score_direction,
+            description=annotation_config.description,
+        )
