@@ -9,7 +9,8 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
   const {
     size = "M",
     variant = "default",
-    icon,
+    leadingVisual,
+    trailingVisual,
     children,
     css: propCSS,
     ...otherProps
@@ -24,8 +25,9 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
       data-childless={!children}
       css={css(buttonCSS, propCSS)}
     >
-      {icon}
+      {leadingVisual}
       <>{children}</>
+      {trailingVisual}
     </AriaButton>
   );
 }

@@ -102,7 +102,7 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
           variant="primary"
           size="S"
           isDisabled={!isValid || isCommitting}
-          icon={
+          leadingVisual={
             <Icon
               svg={
                 isCommitting ? <Icons.LoadingOutline /> : <Icons.SaveOutline />

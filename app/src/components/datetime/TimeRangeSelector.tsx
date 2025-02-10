@@ -57,7 +57,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     <DialogTrigger>
       <Button
         size="S"
-        icon={<Icon svg={<Icons.CalendarOutline />} />}
+        leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
         isDisabled={isDisabled}
         onPress={() => setOpen(true)}
       >

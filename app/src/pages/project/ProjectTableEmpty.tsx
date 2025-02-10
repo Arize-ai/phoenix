@@ -46,7 +46,7 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
             No traces found that match the selected filters
             <Button
               variant="default"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               onPress={onGettingStartedPress}
             >
               Get Started

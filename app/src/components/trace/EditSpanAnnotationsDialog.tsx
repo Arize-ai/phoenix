@@ -135,7 +135,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         variant="primary"
         disabled={disabled}
         size="compact"
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         onClick={() => {
           setIsPopoverOpen(true);
         }}
@@ -272,7 +272,7 @@ function NewSpanAnnotationCard(props: {
             size="S"
             isDisabled
             aria-label="delete annotation"
-            icon={<Icon svg={<Icons.CloseOutline />} />}
+            leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
             onPress={onDelete}
           />
         </Flex>

@@ -140,7 +140,7 @@ export function ExperimentSelectionToolbar(
             <Button
               variant="danger"
               size="S"
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     isDeletingExperiments ? (
@@ -164,7 +164,7 @@ export function ExperimentSelectionToolbar(
                   `/datasets/${datasetId}/compare?${selectedExperiments.map((experiment) => `experimentId=${experiment.id}`).join("&")}`
                 );
               }}
-              icon={<Icon svg={<Icons.ArrowCompareOutline />} />}
+              leadingVisual={<Icon svg={<Icons.ArrowCompareOutline />} />}
             >
               Compare Experiments
             </Button>

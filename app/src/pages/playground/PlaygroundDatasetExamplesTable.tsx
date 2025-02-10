@@ -268,7 +268,7 @@ function ExampleOutputContent({
               <Button
                 size="S"
                 aria-label="View experiment run details"
-                icon={<Icon svg={<Icons.ExpandOutline />} />}
+                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                 onPress={() => {
                   startTransition(() => {
                     setDialog(
@@ -288,7 +288,7 @@ function ExampleOutputContent({
                 <Button
                   size="S"
                   aria-label="View run trace"
-                  icon={<Icon svg={<Icons.Trace />} />}
+                  leadingVisual={<Icon svg={<Icons.Trace />} />}
                   onPress={() => {
                     startTransition(() => {
                       setDialog(
@@ -806,7 +806,7 @@ export function PlaygroundDatasetExamplesTable({
                 <Button
                   size="S"
                   aria-label="View example details"
-                  icon={<Icon svg={<Icons.ExpandOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                   onPress={() => {
                     setSearchParams((prev) => {
                       prev.set("exampleId", row.original.id);
