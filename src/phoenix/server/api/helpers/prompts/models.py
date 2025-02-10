@@ -6,6 +6,7 @@ from typing import Any, Literal, Mapping, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated, TypeAlias, assert_never
 
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.jsonschema import (
     JSONSchemaDraft7ObjectSchema,
     JSONSchemaObjectSchema,
@@ -73,18 +74,6 @@ class TextContentPart(PromptModel):
     text: TextContentValue
 
 
-class ImageContentValue(BaseModel):
-    # http url, or base64 encoded image
-    url: str
-    # detail: Optional[Literal["auto", "low", "high"]]
-
-
-class ImageContentPart(PromptModel):
-    type: Literal["image"]
-    # the image data
-    image: ImageContentValue
-
-
 class ToolCallFunction(BaseModel):
     type: Literal["function"]
     name: str
@@ -113,28 +102,28 @@ class ToolResultContentPart(PromptModel):
 
 
 ContentPart: TypeAlias = Annotated[
-    Union[TextContentPart, ImageContentPart, ToolCallContentPart, ToolResultContentPart],
+    Union[TextContentPart, ToolCallContentPart, ToolResultContentPart],
     Field(..., discriminator="type"),
 ]
 
 
 class PromptMessage(PromptModel):
     role: PromptMessageRole
-    content: list[ContentPart]
+    content: Annotated[list[ContentPart], Field(..., min_length=1)]
 
 
-class PromptChatTemplateV1(PromptModel):
-    version: Literal["chat-template-v1"]
+class PromptChatTemplate(PromptModel):
+    type: Literal["chat"]
     messages: list[PromptMessage]
 
 
-class PromptStringTemplateV1(PromptModel):
-    version: Literal["string-template-v1"]
+class PromptStringTemplate(PromptModel):
+    type: Literal["string"]
     template: str
 
 
 PromptTemplate: TypeAlias = Annotated[
-    Union[PromptChatTemplateV1, PromptStringTemplateV1], Field(..., discriminator="version")
+    Union[PromptChatTemplate, PromptStringTemplate], Field(..., discriminator="type")
 ]
 
 
@@ -147,8 +136,8 @@ class PromptTemplateWrapper(PromptModel):
     template: PromptTemplate
 
 
-class PromptFunctionToolV1(PromptModel):
-    type: Literal["function-tool-v1"]
+class PromptFunctionTool(PromptModel):
+    type: Literal["function-tool"]
     name: str
     description: str = UNDEFINED
     schema_: JSONSchemaObjectSchema = Field(
@@ -158,11 +147,11 @@ class PromptFunctionToolV1(PromptModel):
     extra_parameters: dict[str, Any] = UNDEFINED
 
 
-PromptTool: TypeAlias = Annotated[Union[PromptFunctionToolV1], Field(..., discriminator="type")]
+PromptTool: TypeAlias = Annotated[Union[PromptFunctionTool], Field(..., discriminator="type")]
 
 
-class PromptToolsV1(PromptModel):
-    type: Literal["tools-v1"]
+class PromptTools(PromptModel):
+    type: Literal["tools"]
     tools: Annotated[list[PromptTool], Field(..., min_length=1)]
     tool_choice: PromptToolChoice = UNDEFINED
     disable_parallel_tool_calls: bool = UNDEFINED
@@ -220,7 +209,7 @@ class PromptOpenAIResponseFormatJSONSchema(PromptModel):
 
 
 class PromptResponseFormatJSONSchema(PromptModel):
-    type: Literal["response-format-json-schema-v1"]
+    type: Literal["response-format-json-schema"]
     name: str
     description: str = UNDEFINED
     schema_: JSONSchemaObjectSchema = Field(
@@ -259,7 +248,7 @@ def _openai_to_prompt_response_format(
     if (strict := json_schema.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
     return PromptResponseFormatJSONSchema(
-        type="response-format-json-schema-v1",
+        type="response-format-json-schema",
         name=json_schema.name,
         description=json_schema.description,
         schema=JSONSchemaDraft7ObjectSchema(
@@ -291,9 +280,9 @@ def _prompt_to_openai_response_format(
 
 
 def normalize_response_format(
-    response_format: dict[str, Any], model_provider: str
+    response_format: dict[str, Any], model_provider: ModelProvider
 ) -> PromptResponseFormat:
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_response_format = PromptOpenAIResponseFormatJSONSchema.model_validate(
             response_format
         )
@@ -302,9 +291,9 @@ def normalize_response_format(
 
 
 def denormalize_response_format(
-    response_format: PromptResponseFormat, model_provider: str
+    response_format: PromptResponseFormat, model_provider: ModelProvider
 ) -> dict[str, Any]:
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_response_format = _prompt_to_openai_response_format(response_format)
         return openai_response_format.model_dump()
     raise ValueError(f"Unsupported model provider: {model_provider}")
@@ -353,23 +342,23 @@ class AnthropicToolDefinition(PromptModel):
 
 def normalize_tools(
     schemas: list[dict[str, Any]],
-    model_provider: str,
+    model_provider: ModelProvider,
     tool_choice: Optional[Union[str, Mapping[str, Any]]] = None,
-) -> PromptToolsV1:
-    tools: list[PromptFunctionToolV1]
-    if model_provider.lower() == "openai":
+) -> PromptTools:
+    tools: list[PromptFunctionTool]
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
-    elif model_provider.lower() == "anthropic":
+    elif model_provider is ModelProvider.ANTHROPIC:
         anthropic_tools = [AnthropicToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_anthropic_to_prompt_tool(anthropic_tool) for anthropic_tool in anthropic_tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
-    ans = PromptToolsV1(type="tools-v1", tools=tools)
+    ans = PromptTools(type="tools", tools=tools)
     if tool_choice is not None:
-        if model_provider.lower() == "openai":
+        if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
             ans.tool_choice = OpenAIToolChoiceConversion.from_openai(tool_choice)  # type: ignore[arg-type]
-        if model_provider.lower() == "anthropic":
+        elif model_provider is ModelProvider.ANTHROPIC:
             choice, disable_parallel_tool_calls = AnthropicToolChoiceConversion.from_anthropic(
                 tool_choice  # type: ignore[arg-type]
             )
@@ -379,12 +368,12 @@ def normalize_tools(
     return ans
 
 
-def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[str, Any]]:
-    assert tools.type == "tools-v1"
+def denormalize_tools(tools: PromptTools, model_provider: ModelProvider) -> list[dict[str, Any]]:
+    assert tools.type == "tools"
     denormalized_tools: list[PromptModel]
-    if model_provider.lower() == "openai":
+    if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
-    elif model_provider.lower() == "anthropic":
+    elif model_provider is ModelProvider.ANTHROPIC:
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
@@ -393,15 +382,15 @@ def denormalize_tools(tools: PromptToolsV1, model_provider: str) -> list[dict[st
 
 def _openai_to_prompt_tool(
     tool: OpenAIToolDefinition,
-) -> PromptFunctionToolV1:
+) -> PromptFunctionTool:
     function_definition = tool.function
     name = function_definition.name
     description = function_definition.description
     extra_parameters = {}
     if (strict := function_definition.strict) is not UNDEFINED:
         extra_parameters["strict"] = strict
-    return PromptFunctionToolV1(
-        type="function-tool-v1",
+    return PromptFunctionTool(
+        type="function-tool",
         name=name,
         description=description,
         schema=JSONSchemaDraft7ObjectSchema(
@@ -415,7 +404,7 @@ def _openai_to_prompt_tool(
 
 
 def _prompt_to_openai_tool(
-    tool: PromptFunctionToolV1,
+    tool: PromptFunctionTool,
 ) -> OpenAIToolDefinition:
     return OpenAIToolDefinition(
         type="function",
@@ -430,7 +419,7 @@ def _prompt_to_openai_tool(
 
 def _anthropic_to_prompt_tool(
     tool: AnthropicToolDefinition,
-) -> PromptFunctionToolV1:
+) -> PromptFunctionTool:
     extra_parameters: dict[str, Any] = {}
     if (cache_control := tool.cache_control) is not UNDEFINED:
         if cache_control is None:
@@ -439,8 +428,8 @@ def _anthropic_to_prompt_tool(
             extra_parameters["cache_control"] = cache_control.model_dump()
         else:
             assert_never(cache_control)
-    return PromptFunctionToolV1(
-        type="function-tool-v1",
+    return PromptFunctionTool(
+        type="function-tool",
         name=tool.name,
         description=tool.description,
         schema=JSONSchemaDraft7ObjectSchema(
@@ -452,7 +441,7 @@ def _anthropic_to_prompt_tool(
 
 
 def _prompt_to_anthropic_tool(
-    tool: PromptFunctionToolV1,
+    tool: PromptFunctionTool,
 ) -> AnthropicToolDefinition:
     cache_control = tool.extra_parameters.get("cache_control", UNDEFINED)
     anthropic_cache_control: Optional[AnthropicCacheControlParam]

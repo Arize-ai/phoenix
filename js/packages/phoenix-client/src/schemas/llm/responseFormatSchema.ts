@@ -11,7 +11,7 @@ import { jsonSchemaZodSchema } from "./toolSchemas";
  * Phoenix response format schema
  */
 export const phoenixResponseFormatSchema = z.object({
-  type: z.literal("response-format-json-schema-v1"),
+  type: z.literal("response-format-json-schema"),
   name: z.string(),
   description: z.string().optional(),
   schema: z.object({

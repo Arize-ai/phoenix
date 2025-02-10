@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<550b49f30ca7c43c741a95abf9884fcd>>
+ * @generated SignedSource<<66058dfaeffd13acd63e348585ba331f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,16 +33,12 @@ export type PromptMessageInput = {
   role: string;
 };
 export type ContentPartInput = {
-  image?: ImageContentValueInput | null;
   text?: TextContentValueInput | null;
   toolCall?: ToolCallContentValueInput | null;
   toolResult?: ToolResultContentValueInput | null;
 };
 export type TextContentValueInput = {
   text: string;
-};
-export type ImageContentValueInput = {
-  url: string;
 };
 export type ToolCallContentValueInput = {
   toolCall: ToolCallFunctionInput;

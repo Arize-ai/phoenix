@@ -59,11 +59,6 @@ export function PromptChatMessages({
                     text
                   }
                 }
-                ... on ImageContentPart {
-                  image {
-                    url
-                  }
-                }
                 ... on ToolCallContentPart {
                   toolCall {
                     toolCallId

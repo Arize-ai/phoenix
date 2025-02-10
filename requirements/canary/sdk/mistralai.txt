@@ -1,2 +1,0 @@
--r common.txt
-mistralai>=1.5.0

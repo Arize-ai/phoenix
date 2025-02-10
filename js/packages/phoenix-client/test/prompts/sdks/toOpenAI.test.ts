@@ -102,11 +102,11 @@ describe("toOpenAI type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        type: "tools-v1",
+        type: "tools",
         tool_choice: { type: "zero-or-more" },
         tools: [
           {
-            type: "function-tool-v1",
+            type: "function-tool",
             name: "edit_image",
             description: "edit an image",
             schema: {
@@ -129,7 +129,7 @@ describe("toOpenAI type compatibility", () => {
         ],
       },
       response_format: {
-        type: "response-format-json-schema-v1",
+        type: "response-format-json-schema",
         name: "test",
         description: "test function",
         schema: {
@@ -142,13 +142,12 @@ describe("toOpenAI type compatibility", () => {
         extra_parameters: {},
       },
       template: {
-        version: "chat-template-v1",
+        type: "chat",
         messages: [
           {
             role: "USER",
             content: [
               { type: "text", text: { text: "Can you edit this image?" } },
-              { type: "image", image: { url: "test.jpg" } },
             ],
           },
           {
@@ -206,12 +205,6 @@ describe("toOpenAI type compatibility", () => {
             {
               text: "Can you edit this image?",
               type: "text",
-            },
-            {
-              image_url: {
-                url: "test.jpg",
-              },
-              type: "image_url",
             },
           ],
           role: "user",

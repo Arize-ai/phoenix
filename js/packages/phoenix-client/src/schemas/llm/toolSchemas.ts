@@ -55,7 +55,7 @@ export const jsonSchemaZodSchema = z
  * The Phoenix tool definition schema
  */
 export const phoenixToolDefinitionSchema = z.object({
-  type: z.literal("function-tool-v1"),
+  type: z.literal("function-tool"),
   name: z.string(),
   description: z.string().optional(),
   schema: z.object({

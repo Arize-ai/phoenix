@@ -254,11 +254,10 @@ input ClusterInput {
   id: ID
 }
 
-union ContentPart = TextContentPart | ImageContentPart | ToolCallContentPart | ToolResultContentPart
+union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
 
 input ContentPartInput @oneOf {
   text: TextContentValueInput
-  image: ImageContentValueInput
   toolCall: ToolCallContentValueInput
   toolResult: ToolResultContentValueInput
 }
@@ -1069,18 +1068,6 @@ input Granularity {
 }
 
 scalar Identifier
-
-type ImageContentPart {
-  image: ImageContentValue!
-}
-
-type ImageContentValue {
-  url: String!
-}
-
-input ImageContentValueInput {
-  url: String!
-}
 
 type Inferences {
   """The start bookend of the data"""

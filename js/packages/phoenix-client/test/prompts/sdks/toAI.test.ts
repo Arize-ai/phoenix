@@ -112,14 +112,14 @@ describe("toAI type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        type: "tools-v1",
+        type: "tools",
         tool_choice: {
           type: "specific-function-tool",
           function_name: "edit_image",
         },
         tools: [
           {
-            type: "function-tool-v1",
+            type: "function-tool",
             name: "edit_image",
             description: "edit an image",
             schema: {
@@ -143,20 +143,12 @@ describe("toAI type compatibility", () => {
         ],
       },
       template: {
-        version: "chat-template-v1",
+        type: "chat",
         messages: [
           {
             role: "USER",
             content: [
               { type: "text", text: { text: "Can you edit this image?" } },
-              {
-                type: "image",
-                image: {
-                  // Anthropic only supports base64 images
-                  // if this is any other url, image parts will be dropped
-                  url: "data:image/jpeg;base64,test.jpg",
-                },
-              },
             ],
           },
           {
@@ -214,10 +206,6 @@ describe("toAI type compatibility", () => {
             {
               text: "Can you edit this image?",
               type: "text",
-            },
-            {
-              image: "data:image/jpeg;base64,test.jpg",
-              type: "image",
             },
           ],
           role: "user",
