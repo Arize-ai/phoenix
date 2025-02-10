@@ -1,55 +1,68 @@
 import z from "zod";
-import { jsonLiteralSchema } from "../../jsonLiteralSchema";
+import { schemaMatches } from "../../../utils/schemaMatches";
+import type { PromptChatMessagePart } from "../../../types/prompts";
 
-export const textPartSchema = z.object({
-  type: z.literal("text"),
-  text: z.object({
-    text: z.string(),
-  }),
-});
+export const textPartSchema = schemaMatches<
+  Extract<PromptChatMessagePart, { type: "text" }>
+>()(
+  z.object({
+    type: z.literal("text"),
+    text: z.object({
+      text: z.string(),
+    }),
+  })
+);
 
 export type TextPart = z.infer<typeof textPartSchema>;
 
-export const imagePartSchema = z.object({
-  type: z.literal("image"),
-  image: z.object({
-    url: z.string(),
-  }),
-});
-
-export type ImagePart = z.infer<typeof imagePartSchema>;
-
-export const toolCallPartSchema = z.object({
-  type: z.literal("tool_call"),
-  tool_call: z.object({
-    tool_call_id: z.string(),
+export const toolCallPartSchema = schemaMatches<
+  Extract<PromptChatMessagePart, { type: "tool_call" }>
+>()(
+  z.object({
+    type: z.literal("tool_call"),
     tool_call: z.object({
-      name: z.string(),
-      arguments: z.string(),
+      tool_call_id: z.string(),
+      tool_call: z.object({
+        type: z.literal("function"),
+        name: z.string(),
+        arguments: z.string(),
+      }),
     }),
-  }),
-});
+  })
+);
 
 export type ToolCallPart = z.infer<typeof toolCallPartSchema>;
 
-export const toolResultPartSchema = z.object({
-  type: z.literal("tool_result"),
-  tool_result: z.object({
-    tool_call_id: z.string(),
-    result: jsonLiteralSchema,
-  }),
-});
+export const toolResultPartSchema = schemaMatches<
+  Extract<PromptChatMessagePart, { type: "tool_result" }>
+>()(
+  z.object({
+    type: z.literal("tool_result"),
+    tool_result: z.object({
+      tool_call_id: z.string(),
+      result: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+        z.null(),
+        z.record(z.unknown()),
+        z.array(z.unknown()),
+      ]),
+    }),
+  })
+);
 
 export type ToolResultPart = z.infer<typeof toolResultPartSchema>;
 
-export const promptPartSchema = z.union([
-  textPartSchema,
-  imagePartSchema,
-  toolCallPartSchema,
-  toolResultPartSchema,
-]);
+export const phoenixContentPartSchema = schemaMatches<PromptChatMessagePart>()(
+  z.discriminatedUnion("type", [
+    textPartSchema,
+    toolCallPartSchema,
+    toolResultPartSchema,
+  ])
+);
 
-export type PhoenixPromptPart = z.infer<typeof promptPartSchema>;
+export type PhoenixContentPart = z.infer<typeof phoenixContentPartSchema>;
 
 /*
  *
@@ -65,12 +78,6 @@ export const asTextPart = (maybePart: unknown): TextPart | null => {
 export const makeTextPart = (text?: string | null) => {
   const optimisticTextPart = { text: { text } };
   const parsed = textPartSchema.safeParse(optimisticTextPart);
-  return parsed.success ? parsed.data : null;
-};
-
-export const makeImagePart = (url?: string | null) => {
-  const optimisticImagePart = { image: { url } };
-  const parsed = imagePartSchema.safeParse(optimisticImagePart);
   return parsed.success ? parsed.data : null;
 };
 

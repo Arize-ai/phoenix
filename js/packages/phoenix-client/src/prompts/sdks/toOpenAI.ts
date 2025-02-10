@@ -7,12 +7,13 @@ import type { Variables, toSDKParamsBase } from "./types";
 
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
-  phoenixPromptResponseFormatToOpenAI,
-  phoenixPromptToolChoiceToOpenAI,
-  phoenixPromptToolDefinitionToOpenAI,
-  phoenixPromptMessageToOpenAI,
-} from "../../schemas/llm/phoenixPrompt/converters";
-import { safelyConvertToolChoiceToProvider } from "../../schemas/llm/converters";
+  safelyConvertMessageToProvider,
+  safelyConvertToolChoiceToProvider,
+  safelyConvertToolDefinitionToProvider,
+} from "../../schemas/llm/converters";
+import invariant from "tiny-invariant";
+import { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
+import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type {
@@ -54,28 +55,35 @@ export const toOpenAI = <V extends Variables = Variables>({
       );
     }
 
-    const messages = formattedMessages.map((message) =>
-      phoenixPromptMessageToOpenAI.parse(message)
-    );
+    const messages = formattedMessages.map((message) => {
+      const openAIMessage = safelyConvertMessageToProvider({
+        message,
+        targetProvider: "OPENAI",
+      });
+      invariant(openAIMessage, "Message is not valid");
+      return openAIMessage;
+    });
 
-    let tools = prompt.tools?.tools
-      .map((tool) => phoenixPromptToolDefinitionToOpenAI.parse(tool))
-      .filter((tool) => tool !== null);
+    let tools = prompt.tools?.tools.map((tool) => {
+      const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
+        toolDefinition: tool,
+        targetProvider: "OPENAI",
+      });
+      invariant(openAIToolDefinition, "Tool definition is not valid");
+      return openAIToolDefinition;
+    });
     tools = (tools?.length ?? 0) > 0 ? tools : undefined;
 
-    const response_format = prompt.response_format
-      ? phoenixPromptResponseFormatToOpenAI.parse(prompt.response_format)
-      : undefined;
+    let tool_choice: OpenaiToolChoice | undefined =
+      safelyConvertToolChoiceToProvider({
+        toolChoice: prompt?.tools?.tool_choice,
+        targetProvider: "OPENAI",
+      }) || undefined;
+    tool_choice = tools?.length ? tool_choice : undefined;
 
-    const tool_choice =
-      (tools?.length ?? 0) > 0 && prompt.tools?.tool_choice
-        ? (safelyConvertToolChoiceToProvider({
-            toolChoice: phoenixPromptToolChoiceToOpenAI.parse(
-              prompt.tools?.tool_choice
-            ),
-            targetProvider: "OPENAI",
-          }) ?? undefined)
-        : undefined;
+    const response_format = prompt.response_format
+      ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)
+      : undefined;
 
     // combine base and computed params
     const completionParams = {

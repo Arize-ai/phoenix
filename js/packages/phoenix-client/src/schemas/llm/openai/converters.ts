@@ -10,22 +10,22 @@ import { AnthropicMessage } from "../anthropic/messageSchemas";
 import { openaiChatPartSchema } from "./messagePartSchemas";
 import { openAIMessageSchema } from "./messageSchemas";
 import {
-  PromptContentPart,
-  PromptMessage,
-  PromptMessageRole,
+  PhoenixMessage,
+  PhoenixMessageRole,
 } from "../phoenixPrompt/messageSchemas";
 import {
   makeTextPart,
   makeToolResultPart,
+  PhoenixContentPart,
   ToolCallPart,
 } from "../phoenixPrompt/messagePartSchemas";
-import { VercelAIMessage } from "../ai/messageSchemas";
+import { VercelAIMessage } from "../vercel/messageSchemas";
 import { openAIToolCallSchema } from "./toolCallSchemas";
 import { AnthropicToolCall } from "../anthropic/toolCallSchemas";
 import { AnthropicToolChoice } from "../anthropic/toolChoiceSchemas";
 import { openAIToolChoiceSchema } from "./toolChoiceSchemas";
 import { isObject } from "../../../utils/isObject";
-import { VercelAIToolChoice } from "../ai/toolChoiceSchemas";
+import { VercelAIToolChoice } from "../vercel/toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./toolSchemas";
 import { AnthropicToolDefinition } from "../anthropic/toolSchemas";
 
@@ -134,8 +134,8 @@ export const openAIMessageToAnthropic = openAIMessageSchema.transform(
  * Hub → Spoke: Convert an OpenAI message to Prompt format
  */
 export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
-  (openai): PromptMessage => {
-    const content: PromptContentPart[] = [];
+  (openai): PhoenixMessage => {
+    const content: PhoenixContentPart[] = [];
 
     // Special handling for tool messages
     if (openai.role === "tool" && openai.tool_call_id) {
@@ -177,6 +177,7 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
           tool_call: {
             tool_call_id: tc.id,
             tool_call: {
+              type: "function",
               name: tc.function.name,
               arguments: tc.function.arguments,
             },
@@ -199,7 +200,7 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
     } as const;
 
     return {
-      role: roleMap[openai.role] as PromptMessageRole,
+      role: roleMap[openai.role] as PhoenixMessageRole,
       content,
     };
   }

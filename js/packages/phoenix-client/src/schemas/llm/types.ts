@@ -5,8 +5,7 @@ import type { AnthropicMessagePart } from "./anthropic/messagePartSchemas";
 import type {
   VercelAIChatPart,
   VercelAIChatPartToolCall,
-} from "./ai/messagePartSchemas";
-import type { PhoenixPromptPart } from "./phoenixPrompt/messagePartSchemas";
+} from "./vercel/messagePartSchemas";
 import { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
 import { OpenAIMessage } from "./openai/messageSchemas";
 import { AnthropicMessage } from "./anthropic/messageSchemas";
@@ -14,54 +13,55 @@ import { OpenAIToolCall } from "./openai/toolCallSchemas";
 import { AnthropicToolCall } from "./anthropic/toolCallSchemas";
 import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
 import { AnthropicToolChoice } from "./anthropic/toolChoiceSchemas";
-import { VercelAIMessage } from "./ai/messageSchemas";
-import { PromptToolCall } from "./phoenixPrompt/toolCallSchemas";
-import { PromptMessage } from "./phoenixPrompt/messageSchemas";
-import { VercelAIToolChoice } from "./ai/toolChoiceSchemas";
+import { VercelAIMessage } from "./vercel/messageSchemas";
+import { PhoenixToolCall } from "./phoenixPrompt/toolCallSchemas";
+import { PhoenixMessage } from "./phoenixPrompt/messageSchemas";
+import { VercelAIToolChoice } from "./vercel/toolChoiceSchemas";
 import { OpenAIToolDefinition } from "./openai/toolSchemas";
 import { OpenAIResponseFormat } from "./openai/responseFormatSchema";
 import { AnthropicToolDefinition } from "./anthropic/toolSchemas";
-import { PhoenixPromptToolDefinition } from "./phoenixPrompt/toolSchemas";
+import { PhoenixToolDefinition } from "./phoenixPrompt/toolSchemas";
+import { PhoenixContentPart } from "./phoenixPrompt/messagePartSchemas";
 
 export type PromptSDKFormat = PromptProviderSDKs | null;
 
 export type LLMMessagePart =
   | OpenAIChatPart
   | AnthropicMessagePart
-  | PhoenixPromptPart
+  | PhoenixContentPart
   | VercelAIChatPart;
 
 export type SDKConverters<
-  Messages extends ZodTypeAny = never,
-  MessageParts extends ZodTypeAny = never,
-  ToolChoices extends ZodTypeAny = never,
-  ToolCalls extends ZodTypeAny = never,
-  ToolDefinitions extends ZodTypeAny = never,
-  ResponseFormat extends ZodTypeAny = never,
+  MessageSchema extends ZodTypeAny = never,
+  MessagePartSchema extends ZodTypeAny = never,
+  ToolChoiceSchema extends ZodTypeAny = never,
+  ToolCallSchema extends ZodTypeAny = never,
+  ToolDefinitionSchema extends ZodTypeAny = never,
+  ResponseFormatSchema extends ZodTypeAny = never,
 > = {
   messages: {
     toOpenAI: ZodType<OpenAIMessage | null, ZodTypeDef, unknown>;
-    fromOpenAI: Messages;
+    fromOpenAI: MessageSchema;
   };
   messageParts: {
     toOpenAI: ZodType<OpenAIChatPart | null, ZodTypeDef, unknown>;
-    fromOpenAI: MessageParts;
+    fromOpenAI: MessagePartSchema;
   };
   toolChoices: {
     toOpenAI: ZodType<OpenaiToolChoice | null, ZodTypeDef, unknown>;
-    fromOpenAI: ToolChoices;
+    fromOpenAI: ToolChoiceSchema;
   };
   toolCalls: {
     toOpenAI: ZodType<OpenAIToolCall | null, ZodTypeDef, unknown>;
-    fromOpenAI: ToolCalls;
+    fromOpenAI: ToolCallSchema;
   };
   toolDefinitions: {
     toOpenAI: ZodType<OpenAIToolDefinition | null, ZodTypeDef, unknown>;
-    fromOpenAI: ToolDefinitions;
+    fromOpenAI: ToolDefinitionSchema;
   };
   responseFormat?: {
     toOpenAI: ZodType<OpenAIResponseFormat | null, ZodTypeDef, unknown>;
-    fromOpenAI: ResponseFormat;
+    fromOpenAI: ResponseFormatSchema;
   };
 };
 
@@ -75,8 +75,8 @@ export type MessagePartWithProvider =
       validatedMessage: AnthropicMessagePart;
     }
   | {
-      provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
-      validatedMessage: PhoenixPromptPart;
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedMessage: PhoenixContentPart;
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;
@@ -94,8 +94,8 @@ export type MessageWithProvider =
       validatedMessage: AnthropicMessage;
     }
   | {
-      provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
-      validatedMessage: PromptMessage;
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedMessage: PhoenixMessage;
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;
@@ -113,8 +113,8 @@ export type ToolDefinitionWithProvider =
       validatedToolDefinition: AnthropicToolDefinition;
     }
   | {
-      provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
-      validatedToolDefinition: PhoenixPromptToolDefinition;
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedToolDefinition: PhoenixToolDefinition;
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;
@@ -132,8 +132,8 @@ export type ToolCallWithProvider =
       validatedToolCall: AnthropicToolCall;
     }
   | {
-      provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
-      validatedToolCall: PromptToolCall;
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedToolCall: PhoenixToolCall;
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;
@@ -151,7 +151,7 @@ export type ToolChoiceWithProvider =
       toolChoice: AnthropicToolChoice;
     }
   | {
-      provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
       toolChoice: PromptToolChoice;
     }
   | {

@@ -3,23 +3,21 @@ import { OpenAIToolDefinition } from "../openai/toolSchemas";
 import { OpenAIMessage } from "../openai/messageSchemas";
 import { OpenAIToolCall } from "../openai/toolCallSchemas";
 import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { promptMessageSchema } from "./messageSchemas";
+import { phoenixMessageSchema } from "./messageSchemas";
 import {
   ToolCallPart,
   ToolResultPart,
   asToolResultPart,
-  promptPartSchema,
+  phoenixContentPartSchema,
 } from "./messagePartSchemas";
-import { promptToolCallSchema } from "./toolCallSchemas";
+import { phoenixToolCallSchema } from "./toolCallSchemas";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
-import {
-  OpenAIChatPartImage,
-  OpenAIChatPartText,
-} from "../openai/messagePartSchemas";
+import { OpenAIChatPartText } from "../openai/messagePartSchemas";
 import { phoenixResponseFormatSchema } from "./responseFormatSchema";
 import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
 import { phoenixToolDefinitionSchema } from "./toolSchemas";
 import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
+import { jsonSchemaZodSchema } from "../../jsonSchema";
 
 /*
  * Conversion Functions
@@ -28,7 +26,7 @@ import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
  * All conversions between different formats go through OpenAI as an intermediate step.
  */
 
-export const phoenixPromptMessagePartToOpenAI = promptPartSchema.transform(
+export const phoenixMessagePartToOpenAI = phoenixContentPartSchema.transform(
   (part) => {
     const type = part.type;
     switch (type) {
@@ -41,11 +39,6 @@ export const phoenixPromptMessagePartToOpenAI = promptPartSchema.transform(
         return null;
       case "tool_result":
         return null;
-      case "image":
-        return {
-          type: "image_url",
-          image_url: { url: part.image.url },
-        } satisfies OpenAIChatPartImage;
       default:
         return assertUnreachable(type);
     }
@@ -55,7 +48,7 @@ export const phoenixPromptMessagePartToOpenAI = promptPartSchema.transform(
 /**
  * Spoke → Hub: Convert a Prompt message to OpenAI format
  */
-export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
+export const phoenixMessageToOpenAI = phoenixMessageSchema.transform(
   (prompt) => {
     // Special handling for TOOL role messages
     if (prompt.role === "TOOL") {
@@ -84,7 +77,7 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
         return {
           role: "system",
           content: prompt.content
-            .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
+            .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
@@ -94,18 +87,17 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
         return {
           role: "user",
           content: prompt.content
-            .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
+            .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
-              (part): part is OpenAIChatPartText | OpenAIChatPartImage =>
-                part !== null &&
-                (part.type === "text" || part.type === "image_url")
+              (part): part is OpenAIChatPartText =>
+                part !== null && part.type === "text"
             ),
         } satisfies OpenAIMessage;
       case "AI":
         return {
           role: "assistant",
           content: prompt.content
-            .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
+            .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
@@ -115,7 +107,7 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
                 .filter(
                   (part): part is ToolCallPart => part.type === "tool_call"
                 )
-                .map((part) => phoenixPromptToOpenAI.parse(part))
+                .map((part) => phoenixToolCallToOpenAI.parse(part))
                 .filter((part): part is OpenAIToolCall => part !== null)
             : undefined,
         } satisfies OpenAIMessage;
@@ -125,19 +117,19 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
   }
 );
 
-export const phoenixPromptResponseFormatToOpenAI =
+export const phoenixResponseFormatToOpenAI =
   phoenixResponseFormatSchema.transform(
     (phoenix): OpenAIResponseFormat => ({
       type: "json_schema",
       json_schema: {
         name: phoenix.name,
         description: phoenix.description,
-        schema: phoenix.schema.json,
+        schema: jsonSchemaZodSchema.parse(phoenix.schema.json),
       },
     })
   );
 
-export const phoenixPromptToOpenAI = promptToolCallSchema.transform(
+export const phoenixToolCallToOpenAI = phoenixToolCallSchema.transform(
   (prompt): OpenAIToolCall => ({
     type: "function",
     id: prompt.tool_call.tool_call_id,
@@ -152,20 +144,20 @@ export const phoenixPromptToOpenAI = promptToolCallSchema.transform(
   })
 );
 
-export const phoenixPromptToolDefinitionToOpenAI =
+export const phoenixToolDefinitionToOpenAI =
   phoenixToolDefinitionSchema.transform(
     (phoenix): OpenAIToolDefinition => ({
       type: "function",
       function: {
         name: phoenix.name,
         description: phoenix.description,
-        parameters: phoenix.schema.json,
+        parameters: jsonSchemaZodSchema.parse(phoenix.schema?.json),
       },
     })
   );
 
-export const phoenixPromptToolChoiceToOpenAI =
-  phoenixToolChoiceSchema.transform((phoenix): OpenaiToolChoice => {
+export const phoenixToolChoiceToOpenAI = phoenixToolChoiceSchema.transform(
+  (phoenix): OpenaiToolChoice => {
     switch (phoenix.type) {
       case "none":
         return "none";
@@ -176,4 +168,5 @@ export const phoenixPromptToolChoiceToOpenAI =
       case "specific-function-tool":
         return { type: "function", function: { name: phoenix.function_name } };
     }
-  });
+  }
+);

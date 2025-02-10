@@ -18,19 +18,19 @@ import {
   openAIToolDefinitionToAnthropic,
 } from "./openai/converters";
 import {
-  phoenixPromptResponseFormatToOpenAI,
-  phoenixPromptToolChoiceToOpenAI,
-  phoenixPromptToolDefinitionToOpenAI,
-  phoenixPromptMessagePartToOpenAI,
-  phoenixPromptMessageToOpenAI,
-  phoenixPromptToOpenAI,
+  phoenixResponseFormatToOpenAI,
+  phoenixToolChoiceToOpenAI,
+  phoenixToolDefinitionToOpenAI,
+  phoenixMessagePartToOpenAI,
+  phoenixMessageToOpenAI,
+  phoenixToolCallToOpenAI,
 } from "./phoenixPrompt/converters";
 import { makeSDKConverters } from "./utils";
 import { openAIMessageSchema } from "./openai/messageSchemas";
 import {
   vercelAIChatPartSchema,
   vercelAIChatPartToolCallSchema,
-} from "./ai/messagePartSchemas";
+} from "./vercel/messagePartSchemas";
 import { openaiChatPartSchema } from "./openai/messagePartSchemas";
 import { openAIToolChoiceSchema } from "./openai/toolChoiceSchemas";
 import { openAIToolCallSchema } from "./openai/toolCallSchemas";
@@ -41,7 +41,7 @@ export const SDKProviderIdMap: Record<PromptProviderSDKs, string> = {
   OPENAI: "openai",
   AZURE_OPENAI: "azure-openai",
   ANTHROPIC: "anthropic",
-  PHOENIX_PROMPT: "phoenix-prompt",
+  PHOENIX: "phoenix",
   VERCEL_AI: "ai",
 };
 
@@ -72,6 +72,14 @@ const OPENAI = makeSDKConverters({
   },
 });
 
+/**
+ * SDK Provider Converter Map
+ *
+ * This map contains the converters for each SDK provider.
+ *
+ * If a "from" direction is not supported for a particular provider, you can set the schema to `z.unknown()`,
+ * passing contents directly through, but forcing the caller to handle the unknown type.
+ */
 export const SDKProviderConverterMap = {
   OPENAI,
   AZURE_OPENAI: OPENAI,
@@ -97,30 +105,30 @@ export const SDKProviderConverterMap = {
       fromOpenAI: openAIToolDefinitionToAnthropic,
     },
   }),
-  PHOENIX_PROMPT: makeSDKConverters({
+  PHOENIX: makeSDKConverters({
     messages: {
-      toOpenAI: phoenixPromptMessageToOpenAI,
+      toOpenAI: phoenixMessageToOpenAI,
       fromOpenAI: openAIMessageToPhoenixPrompt,
     },
     messageParts: {
-      toOpenAI: phoenixPromptMessagePartToOpenAI,
-      fromOpenAI: z.any(),
+      toOpenAI: phoenixMessagePartToOpenAI,
+      fromOpenAI: z.unknown(),
     },
     toolChoices: {
-      toOpenAI: phoenixPromptToolChoiceToOpenAI,
-      fromOpenAI: z.any(),
+      toOpenAI: phoenixToolChoiceToOpenAI,
+      fromOpenAI: z.unknown(),
     },
     toolCalls: {
-      toOpenAI: phoenixPromptToOpenAI,
-      fromOpenAI: z.any(),
+      toOpenAI: phoenixToolCallToOpenAI,
+      fromOpenAI: z.unknown(),
     },
     toolDefinitions: {
-      toOpenAI: phoenixPromptToolDefinitionToOpenAI,
-      fromOpenAI: z.any(),
+      toOpenAI: phoenixToolDefinitionToOpenAI,
+      fromOpenAI: z.unknown(),
     },
     responseFormat: {
-      toOpenAI: phoenixPromptResponseFormatToOpenAI,
-      fromOpenAI: z.any(),
+      toOpenAI: phoenixResponseFormatToOpenAI,
+      fromOpenAI: z.unknown(),
     },
   }),
   VERCEL_AI: makeSDKConverters({
@@ -142,7 +150,7 @@ export const SDKProviderConverterMap = {
     },
     toolDefinitions: {
       toOpenAI: openAIToolDefinitionSchema,
-      fromOpenAI: z.any(),
+      fromOpenAI: z.unknown(),
     },
   }),
 } satisfies Record<PromptProviderSDKs, unknown>;

@@ -20,20 +20,20 @@ import type {
 } from "./types";
 import { isObject } from "../../utils/isObject";
 import type { ZodTypeAny } from "zod";
-import { vercelAIMessageSchema } from "./ai/messageSchemas";
-import { promptMessageSchema } from "./phoenixPrompt/messageSchemas";
-import { promptPartSchema } from "./phoenixPrompt/messagePartSchemas";
-import { promptToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
+import { vercelAIMessageSchema } from "./vercel/messageSchemas";
+import { phoenixMessageSchema } from "./phoenixPrompt/messageSchemas";
+import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
 import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixContentPartSchema } from "./phoenixPrompt/messagePartSchemas";
 
 export const makeSDKConverters = <
-  Messages extends ZodTypeAny,
-  MessageParts extends ZodTypeAny,
-  ToolChoices extends ZodTypeAny,
-  ToolCalls extends ZodTypeAny,
-  ToolDefinitions extends ZodTypeAny,
-  ResponseFormat extends ZodTypeAny,
+  MessageSchema extends ZodTypeAny,
+  MessagePartSchema extends ZodTypeAny,
+  ToolChoiceSchema extends ZodTypeAny,
+  ToolCallSchema extends ZodTypeAny,
+  ToolDefinitionSchema extends ZodTypeAny,
+  ResponseFormatSchema extends ZodTypeAny,
 >({
   messages,
   messageParts,
@@ -42,19 +42,19 @@ export const makeSDKConverters = <
   toolDefinitions,
   responseFormat,
 }: SDKConverters<
-  Messages,
-  MessageParts,
-  ToolChoices,
-  ToolCalls,
-  ToolDefinitions,
-  ResponseFormat
+  MessageSchema,
+  MessagePartSchema,
+  ToolChoiceSchema,
+  ToolCallSchema,
+  ToolDefinitionSchema,
+  ResponseFormatSchema
 >): SDKConverters<
-  Messages,
-  MessageParts,
-  ToolChoices,
-  ToolCalls,
-  ToolDefinitions,
-  ResponseFormat
+  MessageSchema,
+  MessagePartSchema,
+  ToolChoiceSchema,
+  ToolCallSchema,
+  ToolDefinitionSchema,
+  ResponseFormatSchema
 > => {
   return {
     messages,
@@ -95,9 +95,9 @@ export const detectMessageProvider = (
     return { provider: "VERCEL_AI", validatedMessage: vercelData };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    promptMessageSchema.safeParse(message);
+    phoenixMessageSchema.safeParse(message);
   if (phoenixSuccess) {
-    return { provider: "PHOENIX_PROMPT", validatedMessage: phoenixData };
+    return { provider: "PHOENIX", validatedMessage: phoenixData };
   }
   return { provider: null, validatedMessage: null };
 };
@@ -122,9 +122,9 @@ export const detectMessagePartProvider = (
     };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    promptPartSchema.safeParse(part);
+    phoenixContentPartSchema.safeParse(part);
   if (phoenixSuccess) {
-    return { provider: "PHOENIX_PROMPT", validatedMessage: phoenixData };
+    return { provider: "PHOENIX", validatedMessage: phoenixData };
   }
   return { provider: null, validatedMessage: null };
 };
@@ -147,9 +147,9 @@ export const detectToolCallProvider = (
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    promptToolCallSchema.safeParse(toolCall);
+    phoenixToolCallSchema.safeParse(toolCall);
   if (phoenixSuccess) {
-    return { provider: "PHOENIX_PROMPT", validatedToolCall: phoenixData };
+    return { provider: "PHOENIX", validatedToolCall: phoenixData };
   }
   return { provider: null, validatedToolCall: null };
 };
@@ -175,7 +175,7 @@ export const detectToolChoiceProvider = (
   const { success: phoenixSuccess, data: phoenixData } =
     phoenixToolChoiceSchema.safeParse(toolChoice);
   if (phoenixSuccess) {
-    return { provider: "PHOENIX_PROMPT", toolChoice: phoenixData };
+    return { provider: "PHOENIX", toolChoice: phoenixData };
   }
   return { provider: null, toolChoice: null };
 };
@@ -206,7 +206,7 @@ export const detectToolDefinitionProvider = (
   const { success: phoenixSuccess, data: phoenixData } =
     phoenixToolDefinitionSchema.safeParse(toolDefinition);
   if (phoenixSuccess) {
-    return { provider: "PHOENIX_PROMPT", validatedToolDefinition: phoenixData };
+    return { provider: "PHOENIX", validatedToolDefinition: phoenixData };
   }
   return { provider: null, validatedToolDefinition: null };
 };

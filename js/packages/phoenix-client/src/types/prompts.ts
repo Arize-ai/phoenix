@@ -15,7 +15,7 @@ export type PromptModelProvider =
  * These are possible sdk formats for prompt templates
  */
 export type PromptProviderSDKs =
-  | "PHOENIX_PROMPT"
+  | "PHOENIX"
   | "AZURE_OPENAI"
   | "OPENAI"
   | "ANTHROPIC"
@@ -85,6 +85,14 @@ export type PromptChatMessage = Extract<
   PromptVersion["template"],
   { messages: unknown[] }
 >["messages"][number];
+
+/**
+ * Extracts the chat message part type from the prompt chat message.
+ */
+export type PromptChatMessagePart = Extract<
+  PromptChatMessage,
+  { content: unknown[] }
+>["content"][number];
 
 /**
  * The Phoenix prompt tool type from the API.
