@@ -193,6 +193,8 @@ def _psycopg_url_query(query: Mapping[str, Any]) -> dict[str, Any]:
     ans = dict(query)
     if sslmode := (ans.pop("sslmode", None) or ans.pop("ssl", None)):
         ans["sslmode"] = sslmode
+    # prepared_statement_cache_size is only used by asyncpg, see:
+    # https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#prepared-statement-cache
     ans.pop("prepared_statement_cache_size", None)
     return ans
 
