@@ -1,5 +1,5 @@
 import z from "zod";
-import { JSONLiteral, jsonLiteralSchema } from "../jsonLiteralSchema";
+import { jsonLiteralSchema } from "../jsonLiteralSchema";
 import { anthropicMessageSchema } from "./anthropic/messageSchemas";
 import { openAIMessageSchema } from "./openai/messageSchemas";
 import { promptMessageSchema } from "./phoenixPrompt/messageSchemas";
@@ -7,15 +7,8 @@ import { openAIToolCallSchema } from "./openai/toolCallSchemas";
 import { anthropicToolCallSchema } from "./anthropic/toolCallSchemas";
 import { openAIToolChoiceSchema } from "./openai/toolChoiceSchemas";
 import { anthropicToolChoiceSchema } from "./anthropic/toolChoiceSchemas";
-import {
-  OpenAIToolDefinition,
-  openAIToolDefinitionSchema,
-} from "./openai/toolSchemas";
-import {
-  AnthropicToolDefinition,
-  anthropicToolDefinitionSchema,
-} from "./anthropic/toolSchemas";
-import { PromptModelProvider } from "../../types/prompts";
+import { openAIToolDefinitionSchema } from "./openai/toolSchemas";
+import { anthropicToolDefinitionSchema } from "./anthropic/toolSchemas";
 
 /**
  * Union of all message formats
@@ -91,25 +84,3 @@ export const llmProviderToolDefinitionSchema = z.union([
 export type LlmProviderToolDefinition = z.infer<
   typeof llmProviderToolDefinitionSchema
 >;
-
-export type ToolDefinitionWithProvider =
-  | {
-      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
-      validatedToolDefinition: OpenAIToolDefinition;
-    }
-  | {
-      provider: Extract<PromptModelProvider, "ANTHROPIC">;
-      validatedToolDefinition: AnthropicToolDefinition;
-    }
-  | {
-      provider: "UNKNOWN";
-      validatedToolDefinition: null;
-    };
-
-export type ProviderToToolDefinitionMap = {
-  OPENAI: OpenAIToolDefinition;
-  AZURE_OPENAI: OpenAIToolDefinition;
-  ANTHROPIC: AnthropicToolDefinition;
-  // Use generic JSON type for unknown tool formats / new providers
-  GEMINI: JSONLiteral;
-};

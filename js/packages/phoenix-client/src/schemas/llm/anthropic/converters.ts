@@ -31,7 +31,7 @@ import { anthropicToolDefinitionSchema } from "./toolSchemas";
  */
 
 export const anthropicMessagePartToOpenAIChatPart =
-  anthropicMessagePartSchema.transform((anthropic) => {
+  anthropicMessagePartSchema.transform((anthropic): OpenAIChatPart | null => {
     const type = anthropic.type;
     switch (type) {
       case "text":

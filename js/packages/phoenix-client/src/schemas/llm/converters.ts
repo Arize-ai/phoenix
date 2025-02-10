@@ -1,37 +1,14 @@
-import { PromptModelProvider } from "../../types/prompts";
 import { assertUnreachable } from "../../utils/assertUnreachable";
 import { safelyParseJSON } from "../../utils/safelyParseJSON";
 import { JSONLiteral } from "../jsonLiteralSchema";
-import {
-  anthropicMessagePartToOpenAIChatPart,
-  anthropicMessageToOpenAI,
-  anthropicToolCallToOpenAI,
-  anthropicToolChoiceToOpenaiToolChoice,
-  anthropicToolToOpenAI,
-} from "./anthropic/converters";
-import {
-  openAIMessageToAnthropic,
-  openAIToolCallToAnthropic,
-  openAIToolChoiceToAnthropicToolChoice,
-  openAIToolToAnthropic,
-} from "./openai/converters";
 import { OpenAIChatPart } from "./openai/messagePartSchemas";
 import { OpenAIMessage } from "./openai/messageSchemas";
 import { OpenAIToolCall } from "./openai/toolCallSchemas";
 import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
 import { OpenAIToolDefinition } from "./openai/toolSchemas";
-import {
-  LlmProviderMessage,
-  ProviderToToolDefinitionMap,
-  toolCallHeuristicSchema,
-} from "./schemas";
-import {
-  LLMMessagePart,
-  MessageProvider,
-  ProviderToMessageMap,
-  ProviderToToolCallMap,
-  ProviderToToolChoiceMap,
-} from "./types";
+import { LlmProviderMessage, toolCallHeuristicSchema } from "./schemas";
+import { SDKProviderConverterMap } from "./constants";
+import { LLMMessagePart, PromptSDKFormat } from "./types";
 import {
   detectMessagePartProvider,
   detectMessageProvider,
@@ -39,18 +16,32 @@ import {
   detectToolChoiceProvider,
   detectToolDefinitionProvider,
 } from "./utils";
+import invariant from "tiny-invariant";
 
 export const toOpenAIChatPart = (
   part: LLMMessagePart
 ): OpenAIChatPart | null => {
   const { provider, validatedMessage } = detectMessagePartProvider(part);
   switch (provider) {
+    case "AZURE_OPENAI":
     case "OPENAI":
       return validatedMessage;
     case "ANTHROPIC":
-      return anthropicMessagePartToOpenAIChatPart.parse(validatedMessage);
-    default:
+      return SDKProviderConverterMap.ANTHROPIC.messageParts.toOpenAI.parse(
+        validatedMessage
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.messageParts.toOpenAI.parse(
+        validatedMessage
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.messageParts.toOpenAI.parse(
+        validatedMessage
+      );
+    case null:
       return null;
+    default:
+      return assertUnreachable(provider);
   }
 };
 
@@ -61,42 +52,57 @@ export const toOpenAIMessage = (
   message: LlmProviderMessage
 ): OpenAIMessage | null => {
   const { provider, validatedMessage } = detectMessageProvider(message);
-  const messageProvider = provider as MessageProvider;
-  switch (messageProvider) {
+  switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
       return validatedMessage as OpenAIMessage;
     case "ANTHROPIC":
-      return anthropicMessageToOpenAI.parse(validatedMessage);
-    case "GEMINI":
-      // TODO: Add Gemini message support
-      return null;
-    case "UNKNOWN":
+      return SDKProviderConverterMap.ANTHROPIC.messages.toOpenAI.parse(
+        validatedMessage
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.messages.toOpenAI.parse(
+        validatedMessage
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.messages.toOpenAI.parse(
+        validatedMessage
+      );
+    case null:
       return null;
     default:
-      return assertUnreachable(messageProvider);
+      return assertUnreachable(provider);
   }
 };
 
 /**
  * Convert from OpenAI message format to any other format
  */
-export const fromOpenAIMessage = <T extends PromptModelProvider>({
+export const fromOpenAIMessage = <T extends NonNullable<PromptSDKFormat>>({
   message,
   targetProvider,
 }: {
   message: OpenAIMessage;
   targetProvider: T;
-}): ProviderToMessageMap[T] => {
+}) => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return message as ProviderToMessageMap[T];
+      return SDKProviderConverterMap.OPENAI.messages.fromOpenAI.parse(message);
     case "ANTHROPIC":
-      return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
-    case "GEMINI":
-      // TODO: Add Gemini message support
-      return message as ProviderToMessageMap[T];
+      return SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(
+        message
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.messages.fromOpenAI.parse(
+        message
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(
+        message
+      );
+    case null:
+      return null;
     default:
       return assertUnreachable(targetProvider);
   }
@@ -116,11 +122,21 @@ export const toOpenAIToolCall = (
     case "OPENAI":
       return validatedToolCall;
     case "ANTHROPIC":
-      return anthropicToolCallToOpenAI.parse(validatedToolCall);
-    case "UNKNOWN":
+      return SDKProviderConverterMap.ANTHROPIC.toolCalls.toOpenAI.parse(
+        validatedToolCall
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.toolCalls.toOpenAI.parse(
+        validatedToolCall
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.toolCalls.toOpenAI.parse(
+        validatedToolCall
+      );
+    case null:
       return null;
     default:
-      assertUnreachable(provider);
+      return assertUnreachable(provider);
   }
 };
 
@@ -130,23 +146,31 @@ export const toOpenAIToolCall = (
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolCall = <T extends PromptModelProvider>({
+export const fromOpenAIToolCall = <T extends NonNullable<PromptSDKFormat>>({
   toolCall,
   targetProvider,
 }: {
   toolCall: OpenAIToolCall;
   targetProvider: T;
-}): ProviderToToolCallMap[T] => {
+}) => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return toolCall as ProviderToToolCallMap[T];
-    case "ANTHROPIC":
-      return openAIToolCallToAnthropic.parse(
+      return SDKProviderConverterMap.OPENAI.toolCalls.fromOpenAI.parse(
         toolCall
-      ) as ProviderToToolCallMap[T];
-    case "GEMINI":
-      return toolCall as ProviderToToolCallMap[T];
+      );
+    case "ANTHROPIC":
+      return SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(
+        toolCall
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.toolCalls.fromOpenAI.parse(
+        toolCall
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.toolCalls.fromOpenAI.parse(
+        toolCall
+      );
     default:
       assertUnreachable(targetProvider);
   }
@@ -157,7 +181,9 @@ export const fromOpenAIToolCall = <T extends PromptModelProvider>({
  * @param toolChoice a tool choice from an unknown LlmProvider
  * @returns the tool choice parsed to the OpenAI format
  */
-export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
+export const toOpenAIToolChoice = (
+  toolChoice: unknown
+): OpenaiToolChoice | null => {
   const { provider, toolChoice: validatedToolChoice } =
     detectToolChoiceProvider(toolChoice);
   if (provider == null || validatedToolChoice == null) {
@@ -168,7 +194,17 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
     case "OPENAI":
       return validatedToolChoice;
     case "ANTHROPIC":
-      return anthropicToolChoiceToOpenaiToolChoice.parse(validatedToolChoice);
+      return SDKProviderConverterMap.ANTHROPIC.toolChoices.toOpenAI.parse(
+        validatedToolChoice
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.toolChoices.toOpenAI.parse(
+        validatedToolChoice
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.toolChoices.toOpenAI.parse(
+        validatedToolChoice
+      );
     default:
       assertUnreachable(provider);
   }
@@ -180,41 +216,52 @@ export const toOpenAIToolChoice = (toolChoice: unknown): OpenaiToolChoice => {
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolChoice = <T extends PromptModelProvider>({
+export const fromOpenAIToolChoice = <T extends NonNullable<PromptSDKFormat>>({
   toolChoice,
   targetProvider,
 }: {
   toolChoice: OpenaiToolChoice;
   targetProvider: T;
-}): ProviderToToolChoiceMap[T] => {
+}) => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return toolChoice as ProviderToToolChoiceMap[T];
-    case "ANTHROPIC":
-      return openAIToolChoiceToAnthropicToolChoice.parse(
+      return SDKProviderConverterMap.OPENAI.toolChoices.fromOpenAI.parse(
         toolChoice
-      ) as ProviderToToolChoiceMap[T];
-    // TODO(apowell): #5348 Add Gemini tool choice
-    case "GEMINI":
-      return toolChoice as ProviderToToolChoiceMap[T];
+      );
+    case "ANTHROPIC":
+      return SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(
+        toolChoice
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.toolChoices.fromOpenAI.parse(
+        toolChoice
+      );
+    case "VERCEL_AI":
+      return SDKProviderConverterMap.VERCEL_AI.toolChoices.fromOpenAI.parse(
+        toolChoice
+      );
     default:
       assertUnreachable(targetProvider);
   }
 };
 
 export const safelyConvertToolChoiceToProvider = <
-  T extends PromptModelProvider,
+  T extends NonNullable<PromptSDKFormat>,
 >({
   toolChoice,
   targetProvider,
 }: {
   toolChoice: unknown;
   targetProvider: T;
-}): ProviderToToolChoiceMap[T] | null => {
+}) => {
   try {
     // convert incoming tool choice to the OpenAI format
     const openAIToolChoice = toOpenAIToolChoice(toolChoice);
+    invariant(
+      openAIToolChoice != null,
+      "Could not convert tool choice to OpenAI format"
+    );
     // convert the OpenAI format to the target provider format
     return fromOpenAIToolChoice({
       toolChoice: openAIToolChoice,
@@ -236,10 +283,20 @@ export const toOpenAIToolDefinition = (
   switch (provider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return validatedToolDefinition;
+      return SDKProviderConverterMap.OPENAI.toolDefinitions.toOpenAI.parse(
+        validatedToolDefinition
+      );
     case "ANTHROPIC":
-      return anthropicToolToOpenAI.parse(validatedToolDefinition);
-    case "UNKNOWN":
+      return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.toOpenAI.parse(
+        validatedToolDefinition
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.toolDefinitions.toOpenAI.parse(
+        validatedToolDefinition
+      );
+    case "VERCEL_AI":
+      return null;
+    case null:
       return null;
     default:
       assertUnreachable(provider);
@@ -249,24 +306,31 @@ export const toOpenAIToolDefinition = (
 /**
  * Convert from OpenAI tool call format to any other format
  */
-export const fromOpenAIToolDefinition = <T extends PromptModelProvider>({
+export const fromOpenAIToolDefinition = <
+  T extends NonNullable<PromptSDKFormat>,
+>({
   toolDefinition,
   targetProvider,
 }: {
   toolDefinition: OpenAIToolDefinition;
   targetProvider: T;
-}): ProviderToToolDefinitionMap[T] => {
+}) => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
-      return toolDefinition as ProviderToToolDefinitionMap[T];
-    case "ANTHROPIC":
-      return openAIToolToAnthropic.parse(
+      return SDKProviderConverterMap.OPENAI.toolDefinitions.fromOpenAI.parse(
         toolDefinition
-      ) as ProviderToToolDefinitionMap[T];
-    // TODO(apowell): #5348 Add Gemini tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
-    case "GEMINI":
-      return toolDefinition as ProviderToToolDefinitionMap[T];
+      );
+    case "ANTHROPIC":
+      return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
+        toolDefinition
+      );
+    case "PHOENIX_PROMPT":
+      return SDKProviderConverterMap.PHOENIX_PROMPT.toolDefinitions.fromOpenAI.parse(
+        toolDefinition
+      );
+    case "VERCEL_AI":
+      return null;
     default:
       assertUnreachable(targetProvider);
   }

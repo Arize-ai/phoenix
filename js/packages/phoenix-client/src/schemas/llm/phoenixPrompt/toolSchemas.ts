@@ -14,3 +14,7 @@ export const phoenixToolDefinitionSchema = z.object({
   }),
   extra_parameters: z.record(z.unknown()).optional(),
 });
+
+export type PhoenixPromptToolDefinition = z.infer<
+  typeof phoenixToolDefinitionSchema
+>;
