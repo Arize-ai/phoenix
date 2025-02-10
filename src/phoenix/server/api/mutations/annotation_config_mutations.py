@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import strawberry
 from sqlalchemy import delete, select, update
@@ -68,6 +68,20 @@ class PatchAnnotationConfigInput:
     name: Optional[str] = None
     description: Optional[str] = None
     score_direction: Optional[ScoreDirection] = None
+
+
+@strawberry.input
+class PatchContinuousAnnotationConfigInput:
+    config_id: GlobalID
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+
+@strawberry.input
+class PatchCategoricalAnnotationConfigInput:
+    config_id: GlobalID
+    is_ordinal: Optional[bool] = None
+    multilabel_allowed: Optional[bool] = None
 
 
 @strawberry.input
@@ -238,6 +252,74 @@ class AnnotationConfigMutationMixin:
         return to_gql_annotation_config(config)
 
     @strawberry.mutation
+    async def patch_continuous_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: PatchContinuousAnnotationConfigInput,
+    ) -> AnnotationConfig:
+        config_id = from_global_id_with_expected_type(
+            global_id=input.config_id, expected_type_name="AnnotationConfig"
+        )
+        async with info.context.db() as session:
+            config = await session.get(models.AnnotationConfig, config_id)
+            if not config or config.annotation_type.upper() != "CONTINUOUS":
+                raise NotFound(
+                    f"Continuous annotation configuration with ID '{input.config_id}' not found"
+                )
+            values = {}
+            if input.lower_bound is not None:
+                values["lower_bound"] = input.lower_bound
+            if input.upper_bound is not None:
+                values["upper_bound"] = input.upper_bound
+            if values:
+                stmt = (
+                    update(models.ContinuousAnnotationConfig)
+                    .where(models.ContinuousAnnotationConfig.annotation_config_id == config_id)
+                    .values(**values)
+                    .returning(models.ContinuousAnnotationConfig)
+                )
+                await session.execute(stmt)
+                await session.commit()
+                await session.refresh(config)
+            return to_gql_annotation_config(config)
+
+    @strawberry.mutation
+    async def patch_categorical_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: PatchCategoricalAnnotationConfigInput,
+    ) -> AnnotationConfig:
+        """
+        Update the categorical configuration details (is_ordinal and/or multilabel_allowed)
+        for an annotation configuration identified by its base config ID.
+        """
+        config_id = from_global_id_with_expected_type(
+            global_id=input.config_id, expected_type_name="AnnotationConfig"
+        )
+        async with info.context.db() as session:
+            config = await session.get(models.AnnotationConfig, config_id)
+            if not config or not config.categorical_config:
+                raise NotFound(
+                    f"Categorical annotation configuration with ID '{input.config_id}' not found"
+                )
+            values = {}
+            if input.is_ordinal is not None:
+                values["is_ordinal"] = input.is_ordinal
+            if input.multilabel_allowed is not None:
+                values["multilabel_allowed"] = input.multilabel_allowed
+            if values:
+                stmt = (
+                    update(models.CategoricalAnnotationConfig)
+                    .where(models.CategoricalAnnotationConfig.annotation_config_id == config_id)
+                    .values(**values)
+                    .returning(models.CategoricalAnnotationConfig)
+                )
+                await session.execute(stmt)
+                await session.commit()
+                await session.refresh(config)
+            return to_gql_annotation_config(config)
+
+    @strawberry.mutation
     async def patch_categorical_annotation_values(
         self,
         info: Info[Context, None],
@@ -301,7 +383,7 @@ class AnnotationConfigMutationMixin:
             allowed_value = await session.get(models.CategoricalAnnotationValue, value_id)
             if not allowed_value:
                 raise NotFound(f"Categorical annotation value with ID '{input.value_id}' not found")
-            update_values = {}
+            update_values: dict[str, Any] = {}
             if input.label is not None:
                 update_values["label"] = input.label
             if input.numeric_score is not None:
@@ -324,10 +406,6 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: DeleteAnnotationConfigInput,
     ) -> bool:
-        """
-        Delete an annotation configuration by its global ID.
-        Returns True on successful deletion.
-        """
         real_id = from_global_id_with_expected_type(
             global_id=input.config_id, expected_type_name="AnnotationConfig"
         )
