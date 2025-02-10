@@ -19,6 +19,7 @@ import {
   View,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { EditPromptButton_data$key } from "./__generated__/EditPromptButton_data.graphql";
 import { EditPromptButtonPatchPromptMutation } from "./__generated__/EditPromptButtonPatchPromptMutation.graphql";
@@ -71,7 +72,7 @@ export function EditPromptButton(props: { prompt: EditPromptButton_data$key }) {
         onError: (error) => {
           notifyError({
             title: "Error updating prompt",
-            message: error.message,
+            message: getErrorMessagesFromRelayMutationError(error)?.[0],
           });
         },
       });
