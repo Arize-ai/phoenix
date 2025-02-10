@@ -135,7 +135,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         variant="primary"
         disabled={disabled}
         size="compact"
-        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         onClick={() => {
           setIsPopoverOpen(true);
         }}
