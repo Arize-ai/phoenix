@@ -28,12 +28,12 @@ import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
 import { phoenixContentPartSchema } from "./phoenixPrompt/messagePartSchemas";
 
 export const makeSDKConverters = <
-  Messages extends ZodTypeAny,
-  MessageParts extends ZodTypeAny,
-  ToolChoices extends ZodTypeAny,
-  ToolCalls extends ZodTypeAny,
-  ToolDefinitions extends ZodTypeAny,
-  ResponseFormat extends ZodTypeAny,
+  MessageSchema extends ZodTypeAny,
+  MessagePartSchema extends ZodTypeAny,
+  ToolChoiceSchema extends ZodTypeAny,
+  ToolCallSchema extends ZodTypeAny,
+  ToolDefinitionSchema extends ZodTypeAny,
+  ResponseFormatSchema extends ZodTypeAny,
 >({
   messages,
   messageParts,
@@ -42,19 +42,19 @@ export const makeSDKConverters = <
   toolDefinitions,
   responseFormat,
 }: SDKConverters<
-  Messages,
-  MessageParts,
-  ToolChoices,
-  ToolCalls,
-  ToolDefinitions,
-  ResponseFormat
+  MessageSchema,
+  MessagePartSchema,
+  ToolChoiceSchema,
+  ToolCallSchema,
+  ToolDefinitionSchema,
+  ResponseFormatSchema
 >): SDKConverters<
-  Messages,
-  MessageParts,
-  ToolChoices,
-  ToolCalls,
-  ToolDefinitions,
-  ResponseFormat
+  MessageSchema,
+  MessagePartSchema,
+  ToolChoiceSchema,
+  ToolCallSchema,
+  ToolDefinitionSchema,
+  ResponseFormatSchema
 > => {
   return {
     messages,

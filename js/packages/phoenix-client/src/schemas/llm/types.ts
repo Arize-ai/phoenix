@@ -32,36 +32,36 @@ export type LLMMessagePart =
   | VercelAIChatPart;
 
 export type SDKConverters<
-  Messages extends ZodTypeAny = never,
-  MessageParts extends ZodTypeAny = never,
-  ToolChoices extends ZodTypeAny = never,
-  ToolCalls extends ZodTypeAny = never,
-  ToolDefinitions extends ZodTypeAny = never,
-  ResponseFormat extends ZodTypeAny = never,
+  MessageSchema extends ZodTypeAny = never,
+  MessagePartSchema extends ZodTypeAny = never,
+  ToolChoiceSchema extends ZodTypeAny = never,
+  ToolCallSchema extends ZodTypeAny = never,
+  ToolDefinitionSchema extends ZodTypeAny = never,
+  ResponseFormatSchema extends ZodTypeAny = never,
 > = {
   messages: {
     toOpenAI: ZodType<OpenAIMessage | null, ZodTypeDef, unknown>;
-    fromOpenAI: Messages;
+    fromOpenAI: MessageSchema;
   };
   messageParts: {
     toOpenAI: ZodType<OpenAIChatPart | null, ZodTypeDef, unknown>;
-    fromOpenAI: MessageParts;
+    fromOpenAI: MessagePartSchema;
   };
   toolChoices: {
     toOpenAI: ZodType<OpenaiToolChoice | null, ZodTypeDef, unknown>;
-    fromOpenAI: ToolChoices;
+    fromOpenAI: ToolChoiceSchema;
   };
   toolCalls: {
     toOpenAI: ZodType<OpenAIToolCall | null, ZodTypeDef, unknown>;
-    fromOpenAI: ToolCalls;
+    fromOpenAI: ToolCallSchema;
   };
   toolDefinitions: {
     toOpenAI: ZodType<OpenAIToolDefinition | null, ZodTypeDef, unknown>;
-    fromOpenAI: ToolDefinitions;
+    fromOpenAI: ToolDefinitionSchema;
   };
   responseFormat?: {
     toOpenAI: ZodType<OpenAIResponseFormat | null, ZodTypeDef, unknown>;
-    fromOpenAI: ResponseFormat;
+    fromOpenAI: ResponseFormatSchema;
   };
 };
 

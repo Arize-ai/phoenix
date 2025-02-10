@@ -21,13 +21,13 @@ import {
 import invariant from "tiny-invariant";
 
 export const safelyConvertMessageToProvider = <
-  T extends NonNullable<PromptSDKFormat>,
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
   message,
   targetProvider,
 }: {
   message: unknown;
-  targetProvider: T;
+  targetProvider: TargetProviderSDK;
 }) => {
   try {
     // convert incoming message to OpenAI format
@@ -44,13 +44,13 @@ export const safelyConvertMessageToProvider = <
 };
 
 export const safelyConvertToolCallToProvider = <
-  T extends NonNullable<PromptSDKFormat>,
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
   toolCall,
   targetProvider,
 }: {
   toolCall: unknown;
-  targetProvider: T;
+  targetProvider: TargetProviderSDK;
 }) => {
   try {
     // convert incoming tool call to OpenAI format
@@ -70,13 +70,13 @@ export const safelyConvertToolCallToProvider = <
 };
 
 export const safelyConvertToolDefinitionToProvider = <
-  T extends NonNullable<PromptSDKFormat>,
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
   toolDefinition,
   targetProvider,
 }: {
   toolDefinition: unknown;
-  targetProvider: T;
+  targetProvider: TargetProviderSDK;
 }) => {
   try {
     // convert incoming tool definition to OpenAI format
@@ -96,13 +96,13 @@ export const safelyConvertToolDefinitionToProvider = <
 };
 
 export const safelyConvertToolChoiceToProvider = <
-  T extends NonNullable<PromptSDKFormat>,
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
   toolChoice,
   targetProvider,
 }: {
   toolChoice: unknown;
-  targetProvider: T;
+  targetProvider: TargetProviderSDK;
 }) => {
   try {
     // convert incoming tool choice to OpenAI format
@@ -179,13 +179,17 @@ export const toOpenAIMessage = (message: unknown): OpenAIMessage | null => {
 /**
  * Convert from OpenAI message format to any other format
  */
-export const fromOpenAIMessage = <T extends NonNullable<PromptSDKFormat>>({
+export const fromOpenAIMessage = <
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
+>({
   message,
   targetProvider,
 }: {
   message: OpenAIMessage;
-  targetProvider: T;
-}): z.infer<(typeof SDKProviderConverterMap)[T]["messages"]["fromOpenAI"]> => {
+  targetProvider: TargetProviderSDK;
+}): z.infer<
+  (typeof SDKProviderConverterMap)[TargetProviderSDK]["messages"]["fromOpenAI"]
+> => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
@@ -243,13 +247,17 @@ export const toOpenAIToolCall = (
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolCall = <T extends NonNullable<PromptSDKFormat>>({
+export const fromOpenAIToolCall = <
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
+>({
   toolCall,
   targetProvider,
 }: {
   toolCall: OpenAIToolCall;
-  targetProvider: T;
-}): z.infer<(typeof SDKProviderConverterMap)[T]["toolCalls"]["fromOpenAI"]> => {
+  targetProvider: TargetProviderSDK;
+}): z.infer<
+  (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolCalls"]["fromOpenAI"]
+> => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
@@ -313,14 +321,16 @@ export const toOpenAIToolChoice = (
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolChoice = <T extends NonNullable<PromptSDKFormat>>({
+export const fromOpenAIToolChoice = <
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
+>({
   toolChoice,
   targetProvider,
 }: {
   toolChoice: OpenaiToolChoice;
-  targetProvider: T;
+  targetProvider: TargetProviderSDK;
 }): z.infer<
-  (typeof SDKProviderConverterMap)[T]["toolChoices"]["fromOpenAI"]
+  (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolChoices"]["fromOpenAI"]
 > => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
@@ -380,15 +390,15 @@ export const toOpenAIToolDefinition = (
  * Convert from OpenAI tool call format to any other format
  */
 export const fromOpenAIToolDefinition = <
-  T extends NonNullable<PromptSDKFormat>,
+  TargetProviderSDK extends NonNullable<PromptSDKFormat>,
 >({
   toolDefinition,
   targetProvider,
 }: {
   toolDefinition: OpenAIToolDefinition;
-  targetProvider: T;
+  targetProvider: TargetProviderSDK;
 }): z.infer<
-  (typeof SDKProviderConverterMap)[T]["toolDefinitions"]["fromOpenAI"]
+  (typeof SDKProviderConverterMap)[TargetProviderSDK]["toolDefinitions"]["fromOpenAI"]
 > => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
