@@ -223,6 +223,19 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name="AnnotationConfig"
         )
         async with info.context.db() as session:
+            stmt = (
+                select(models.AnnotationConfig)
+                .options(
+                    selectinload(models.AnnotationConfig.continuous_config),
+                    selectinload(models.AnnotationConfig.categorical_config).selectinload(
+                        models.CategoricalAnnotationConfig.allowed_values
+                    ),
+                )
+                .where(models.AnnotationConfig.id == config_id)
+            )
+            config = await session.scalar(stmt)
+            if not config:
+                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
             values = {}
             if input.name is not None:
                 values["name"] = input.name
@@ -230,26 +243,21 @@ class AnnotationConfigMutationMixin:
                 values["description"] = input.description
             if input.score_direction is not None:
                 values["score_direction"] = input.score_direction.upper()
-            if not values:
-                config = await session.get(models.AnnotationConfig, config_id)
-                if not config:
+            if values:
+                update_stmt = (
+                    update(models.AnnotationConfig)
+                    .where(models.AnnotationConfig.id == config_id)
+                    .values(**values)
+                    .returning(models.AnnotationConfig)
+                )
+                result = await session.execute(update_stmt)
+                config = result.scalar_one_or_none()
+                if config is None:
                     raise NotFound(
                         f"Annotation configuration with ID '{input.config_id}' not found"
                     )
-                return to_gql_annotation_config(config)
-
-            stmt = (
-                update(models.AnnotationConfig)
-                .where(models.AnnotationConfig.id == config_id)
-                .values(**values)
-                .returning(models.AnnotationConfig)
-            )
-            result = await session.execute(stmt)
-            config = result.scalar_one_or_none()
-            if config is None:
-                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-            await session.commit()
-        return to_gql_annotation_config(config)
+                await session.commit()
+            return to_gql_annotation_config(config)
 
     @strawberry.mutation
     async def patch_continuous_annotation_config(
@@ -261,7 +269,17 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name="AnnotationConfig"
         )
         async with info.context.db() as session:
-            config = await session.get(models.AnnotationConfig, config_id)
+            stmt = (
+                select(models.AnnotationConfig)
+                .options(
+                    selectinload(models.AnnotationConfig.continuous_config),
+                    selectinload(models.AnnotationConfig.categorical_config).selectinload(
+                        models.CategoricalAnnotationConfig.allowed_values
+                    ),
+                )
+                .where(models.AnnotationConfig.id == config_id)
+            )
+            config = await session.scalar(stmt)
             if not config or config.annotation_type.upper() != "CONTINUOUS":
                 raise NotFound(
                     f"Continuous annotation configuration with ID '{input.config_id}' not found"
@@ -272,13 +290,13 @@ class AnnotationConfigMutationMixin:
             if input.upper_bound is not None:
                 values["upper_bound"] = input.upper_bound
             if values:
-                stmt = (
+                update_stmt = (
                     update(models.ContinuousAnnotationConfig)
                     .where(models.ContinuousAnnotationConfig.annotation_config_id == config_id)
                     .values(**values)
                     .returning(models.ContinuousAnnotationConfig)
                 )
-                await session.execute(stmt)
+                await session.execute(update_stmt)
                 await session.commit()
                 await session.refresh(config)
             return to_gql_annotation_config(config)
@@ -297,7 +315,17 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name="AnnotationConfig"
         )
         async with info.context.db() as session:
-            config = await session.get(models.AnnotationConfig, config_id)
+            stmt = (
+                select(models.AnnotationConfig)
+                .options(
+                    selectinload(models.AnnotationConfig.categorical_config).selectinload(
+                        models.CategoricalAnnotationConfig.allowed_values
+                    ),
+                    selectinload(models.AnnotationConfig.continuous_config),
+                )
+                .where(models.AnnotationConfig.id == config_id)
+            )
+            config = await session.scalar(stmt)
             if not config or not config.categorical_config:
                 raise NotFound(
                     f"Categorical annotation configuration with ID '{input.config_id}' not found"
@@ -308,13 +336,13 @@ class AnnotationConfigMutationMixin:
             if input.multilabel_allowed is not None:
                 values["multilabel_allowed"] = input.multilabel_allowed
             if values:
-                stmt = (
+                update_stmt = (
                     update(models.CategoricalAnnotationConfig)
                     .where(models.CategoricalAnnotationConfig.annotation_config_id == config_id)
                     .values(**values)
                     .returning(models.CategoricalAnnotationConfig)
                 )
-                await session.execute(stmt)
+                await session.execute(update_stmt)
                 await session.commit()
                 await session.refresh(config)
             return to_gql_annotation_config(config)
@@ -337,8 +365,10 @@ class AnnotationConfigMutationMixin:
             stmt = (
                 select(models.AnnotationConfig)
                 .options(
-                    selectinload(models.AnnotationConfig.categorical_config),
-                    selectinload(models.CategoricalAnnotationConfig.allowed_values),
+                    selectinload(models.AnnotationConfig.categorical_config).selectinload(
+                        models.CategoricalAnnotationConfig.allowed_values
+                    ),
+                    selectinload(models.AnnotationConfig.continuous_config),
                 )
                 .where(models.AnnotationConfig.id == config_id)
             )
@@ -365,7 +395,7 @@ class AnnotationConfigMutationMixin:
                 new_values.append(new_val)
             cat.allowed_values = new_values
             await session.commit()
-        return to_gql_annotation_config(config)
+            return to_gql_annotation_config(config)
 
     @strawberry.mutation
     async def patch_categorical_annotation_value(
@@ -397,7 +427,24 @@ class AnnotationConfigMutationMixin:
                 )
                 await session.execute(stmt)
                 await session.commit()
-            config = allowed_value.categorical_config.annotation_config
+            update_stmt = (
+                select(models.AnnotationConfig)
+                .options(
+                    selectinload(models.AnnotationConfig.categorical_config).selectinload(
+                        models.CategoricalAnnotationConfig.allowed_values
+                    ),
+                    selectinload(models.AnnotationConfig.continuous_config),
+                )
+                .where(
+                    models.AnnotationConfig.id
+                    == allowed_value.categorical_config.annotation_config.id
+                )
+            )
+            config = await session.scalar(update_stmt)
+            if not config:
+                raise NotFound(
+                    f"Unable to update annotation value with ID '{input.value_id}'"
+                )
             return to_gql_annotation_config(config)
 
     @strawberry.mutation
