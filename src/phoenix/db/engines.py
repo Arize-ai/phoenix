@@ -181,17 +181,17 @@ def aio_postgresql_engine(
     return engine
 
 
-def _asyncpg_url_query(url_query: Mapping[str, Any]) -> dict[str, Any]:
-    ans = dict(url_query)
-    if sslmode := ans.pop("sslmode", None) or ans.pop("ssl", None):
+def _asyncpg_url_query(query: Mapping[str, Any]) -> dict[str, Any]:
+    ans = dict(query)
+    if sslmode := (ans.pop("sslmode", None) or ans.pop("ssl", None)):
         # https://github.com/MagicStack/asyncpg/issues/737
         ans["ssl"] = sslmode
     return ans
 
 
-def _psycopg_url_query(url_query: Mapping[str, Any]) -> dict[str, Any]:
-    ans = dict(url_query)
-    if sslmode := ans.pop("sslmode", None) or ans.pop("ssl", None):
+def _psycopg_url_query(query: Mapping[str, Any]) -> dict[str, Any]:
+    ans = dict(query)
+    if sslmode := (ans.pop("sslmode", None) or ans.pop("ssl", None)):
         ans["sslmode"] = sslmode
     ans.pop("prepared_statement_cache_size", None)
     return ans
