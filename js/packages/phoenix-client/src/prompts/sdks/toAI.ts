@@ -1,11 +1,8 @@
+import invariant from "tiny-invariant";
 import {
-  openAIMessageToAI,
-  promptMessageToOpenAI,
-} from "../../schemas/llm/messageSchemas";
-import {
-  openAIToolChoiceToVercelToolChoice,
-  phoenixToolChoiceToOpenaiToolChoice,
-} from "../../schemas/llm/toolChoiceSchemas";
+  safelyConvertMessageToProvider,
+  safelyConvertToolChoiceToProvider,
+} from "../../schemas/llm/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
 import {
@@ -15,6 +12,7 @@ import {
   type Tool,
   jsonSchema,
 } from "ai";
+import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
 export type PartialStreamTextParams = Omit<
   Parameters<typeof streamText>[0] | Parameters<typeof generateText>[0],
@@ -54,10 +52,16 @@ export const toAI = <V extends Variables>({
       );
     }
 
-    const messages = formattedMessages.map((message) =>
-      openAIMessageToAI.parse(promptMessageToOpenAI.parse(message))
-    );
+    const messages = formattedMessages.map((message) => {
+      const vercelAIMessage = safelyConvertMessageToProvider({
+        message,
+        targetProvider: "VERCEL_AI",
+      });
+      invariant(vercelAIMessage, "Message is not valid");
+      return vercelAIMessage;
+    });
 
+    // convert tools to Vercel AI tool set, which is a map of tool name to tool
     let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
       if (!tool.schema?.json) {
         return acc;
@@ -72,12 +76,12 @@ export const toAI = <V extends Variables>({
     const hasTools = Object.keys(tools ?? {}).length > 0;
     tools = hasTools ? tools : undefined;
 
-    const toolChoice =
-      hasTools && prompt.tools?.tool_choice
-        ? openAIToolChoiceToVercelToolChoice.parse(
-            phoenixToolChoiceToOpenaiToolChoice.parse(prompt.tools?.tool_choice)
-          )
-        : undefined;
+    let toolChoice: VercelAIToolChoice | undefined =
+      safelyConvertToolChoiceToProvider({
+        toolChoice: prompt.tools?.tool_choice,
+        targetProvider: "VERCEL_AI",
+      }) || undefined;
+    toolChoice = hasTools ? toolChoice : undefined;
 
     // combine base and computed params
     const completionParams = {

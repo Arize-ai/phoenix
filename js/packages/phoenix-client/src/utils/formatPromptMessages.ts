@@ -1,7 +1,10 @@
 import { Variables } from "../prompts/sdks/types";
 import { PromptChatMessage, PromptTemplateFormat } from "../types/prompts";
 import { assertUnreachable } from "./assertUnreachable";
-import { TextPart, asTextPart } from "../schemas/llm/promptSchemas";
+import {
+  TextPart,
+  asTextPart,
+} from "../schemas/llm/phoenixPrompt/messagePartSchemas";
 
 /**
  * Format a list of prompt messages
