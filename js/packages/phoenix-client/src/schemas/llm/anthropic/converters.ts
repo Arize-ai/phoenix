@@ -30,7 +30,7 @@ import { anthropicToolDefinitionSchema } from "./toolSchemas";
  * All conversions between different formats go through OpenAI as an intermediate step.
  */
 
-export const anthropicMessagePartToOpenAIChatPart =
+export const anthropicMessagePartToOpenAI =
   anthropicMessagePartSchema.transform((anthropic): OpenAIChatPart | null => {
     const type = anthropic.type;
     switch (type) {
@@ -86,7 +86,7 @@ export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
     switch (role) {
       case "assistant": {
         const content = nonToolCallParts
-          .map((part) => anthropicMessagePartToOpenAIChatPart.parse(part))
+          .map((part) => anthropicMessagePartToOpenAI.parse(part))
           .filter(
             (part): part is OpenAIChatPartText =>
               part !== null && part.type === "text"
@@ -102,7 +102,7 @@ export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
       }
       case "user": {
         const content = nonToolCallParts
-          .map((part) => anthropicMessagePartToOpenAIChatPart.parse(part))
+          .map((part) => anthropicMessagePartToOpenAI.parse(part))
           .filter((part): part is OpenAIChatPart => part !== null);
         return {
           role: "user",
@@ -135,8 +135,8 @@ export const anthropicToolCallToOpenAI = anthropicToolCallSchema.transform(
 /**
  * Parse incoming object as an Anthropic tool choice and immediately convert to OpenAI format
  */
-export const anthropicToolChoiceToOpenaiToolChoice =
-  anthropicToolChoiceSchema.transform((anthropic): OpenaiToolChoice => {
+export const anthropicToolChoiceToOpenAI = anthropicToolChoiceSchema.transform(
+  (anthropic): OpenaiToolChoice => {
     switch (anthropic.type) {
       case "any":
         return "required";
@@ -153,18 +153,20 @@ export const anthropicToolChoiceToOpenaiToolChoice =
       default:
         return "auto";
     }
-  });
+  }
+);
 
 /**
  * Parse incoming object as an Anthropic tool call and immediately convert to OpenAI format
  */
-export const anthropicToolToOpenAI = anthropicToolDefinitionSchema.transform(
-  (anthropic): OpenAIToolDefinition => ({
-    type: "function",
-    function: {
-      name: anthropic.name,
-      description: anthropic.description,
-      parameters: anthropic.input_schema,
-    },
-  })
-);
+export const anthropicToolDefinitionToOpenAI =
+  anthropicToolDefinitionSchema.transform(
+    (anthropic): OpenAIToolDefinition => ({
+      type: "function",
+      function: {
+        name: anthropic.name,
+        description: anthropic.description,
+        parameters: anthropic.input_schema,
+      },
+    })
+  );

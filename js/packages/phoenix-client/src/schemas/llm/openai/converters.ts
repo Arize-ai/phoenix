@@ -29,8 +29,8 @@ import { VercelAIToolChoice } from "../ai/toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./toolSchemas";
 import { AnthropicToolDefinition } from "../anthropic/toolSchemas";
 
-export const openAIChatPartToAnthropicMessagePart =
-  openaiChatPartSchema.transform((openai) => {
+export const openAIChatPartToAnthropic = openaiChatPartSchema.transform(
+  (openai) => {
     const type = openai.type;
     switch (type) {
       case "text":
@@ -70,7 +70,8 @@ export const openAIChatPartToAnthropicMessagePart =
       default:
         return assertUnreachable(type);
     }
-  });
+  }
+);
 
 /**
  * Hub → Spoke: Convert an OpenAI message to Anthropic format
@@ -94,7 +95,7 @@ export const openAIMessageToAnthropic = openAIMessageSchema.transform(
     } else if (Array.isArray(openai.content)) {
       openai.content.forEach((part) => {
         if (part.type === "text" || part.type === "image_url") {
-          const parsedPart = openAIChatPartToAnthropicMessagePart.parse(part);
+          const parsedPart = openAIChatPartToAnthropic.parse(part);
           if (parsedPart) {
             content.push(parsedPart);
           }
@@ -132,7 +133,7 @@ export const openAIMessageToAnthropic = openAIMessageSchema.transform(
 /**
  * Hub → Spoke: Convert an OpenAI message to Prompt format
  */
-export const openAIMessageToPrompt = openAIMessageSchema.transform(
+export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
   (openai): PromptMessage => {
     const content: PromptContentPart[] = [];
 
@@ -207,7 +208,7 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
 /**
  * Spoke → Hub: Convert a Prompt message to AI format
  */
-export const openAIMessageToAI = openAIMessageSchema.transform(
+export const openAIMessageToVercelAI = openAIMessageSchema.transform(
   (openai): VercelAIMessage => {
     const role = openai.role;
     switch (role) {
@@ -334,8 +335,8 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
   })
 );
 
-export const openAIToolChoiceToAnthropicToolChoice =
-  openAIToolChoiceSchema.transform((openAI): AnthropicToolChoice => {
+export const openAIToolChoiceToAnthropic = openAIToolChoiceSchema.transform(
+  (openAI): AnthropicToolChoice => {
     if (isObject(openAI)) {
       return { type: "tool", name: openAI.function.name };
     }
@@ -349,10 +350,11 @@ export const openAIToolChoiceToAnthropicToolChoice =
       default:
         assertUnreachable(openAI);
     }
-  });
+  }
+);
 
-export const openAIToolChoiceToVercelToolChoice =
-  openAIToolChoiceSchema.transform((openAI): VercelAIToolChoice => {
+export const openAIToolChoiceToVercelAI = openAIToolChoiceSchema.transform(
+  (openAI): VercelAIToolChoice => {
     if (isObject(openAI)) {
       return { type: "tool", toolName: openAI.function.name };
     }
@@ -366,15 +368,17 @@ export const openAIToolChoiceToVercelToolChoice =
       default:
         assertUnreachable(openAI);
     }
-  });
+  }
+);
 
 /**
  * Parse incoming object as an OpenAI tool call and immediately convert to Anthropic format
  */
-export const openAIToolToAnthropic = openAIToolDefinitionSchema.transform(
-  (openai): AnthropicToolDefinition => ({
-    name: openai.function.name,
-    description: openai.function.description ?? openai.function.name,
-    input_schema: openai.function.parameters,
-  })
-);
+export const openAIToolDefinitionToAnthropic =
+  openAIToolDefinitionSchema.transform(
+    (openai): AnthropicToolDefinition => ({
+      name: openai.function.name,
+      description: openai.function.description ?? openai.function.name,
+      input_schema: openai.function.parameters,
+    })
+  );

@@ -7,9 +7,9 @@ import { formatPromptMessages } from "../../utils/formatPromptMessages";
 
 import invariant from "tiny-invariant";
 import {
-  phoenixToolChoiceToOpenaiToolChoice,
-  phoenixToolToOpenAI,
-  promptMessageToOpenAI,
+  phoenixPromptToolChoiceToOpenAI,
+  phoenixPromptToolDefinitionToOpenAI,
+  phoenixPromptMessageToOpenAI,
 } from "../../schemas/llm/phoenixPrompt/converters";
 import { openAIMessageToAnthropic } from "../../schemas/llm/openai/converters";
 import {
@@ -55,11 +55,13 @@ export const toAnthropic = <V extends Variables = Variables>({
     }
 
     const messages = formattedMessages.map((message) =>
-      openAIMessageToAnthropic.parse(promptMessageToOpenAI.parse(message))
+      openAIMessageToAnthropic.parse(
+        phoenixPromptMessageToOpenAI.parse(message)
+      )
     ) as MessageParam[];
 
     let tools = prompt.tools?.tools.map((tool) => {
-      const openaiDefinition = phoenixToolToOpenAI.parse(tool);
+      const openaiDefinition = phoenixPromptToolDefinitionToOpenAI.parse(tool);
       invariant(openaiDefinition, "Tool definition is not valid");
       return fromOpenAIToolDefinition({
         toolDefinition: openaiDefinition,
@@ -70,7 +72,7 @@ export const toAnthropic = <V extends Variables = Variables>({
     const tool_choice =
       (tools?.length ?? 0) > 0 && prompt.tools?.tool_choice
         ? (safelyConvertToolChoiceToProvider({
-            toolChoice: phoenixToolChoiceToOpenaiToolChoice.parse(
+            toolChoice: phoenixPromptToolChoiceToOpenAI.parse(
               prompt.tools.tool_choice
             ),
             targetProvider: "ANTHROPIC",

@@ -1,29 +1,29 @@
 import { z } from "zod";
 import { PromptProviderSDKs } from "../../types/prompts";
 import {
-  anthropicMessagePartToOpenAIChatPart,
+  anthropicMessagePartToOpenAI,
   anthropicMessageToOpenAI,
   anthropicToolCallToOpenAI,
-  anthropicToolChoiceToOpenaiToolChoice,
-  anthropicToolToOpenAI,
+  anthropicToolChoiceToOpenAI,
+  anthropicToolDefinitionToOpenAI,
 } from "./anthropic/converters";
 import {
-  openAIChatPartToAnthropicMessagePart,
-  openAIMessageToAI,
+  openAIChatPartToAnthropic,
+  openAIMessageToVercelAI,
   openAIMessageToAnthropic,
-  openAIMessageToPrompt,
+  openAIMessageToPhoenixPrompt,
   openAIToolCallToAnthropic,
-  openAIToolChoiceToAnthropicToolChoice,
-  openAIToolChoiceToVercelToolChoice,
-  openAIToolToAnthropic,
+  openAIToolChoiceToAnthropic,
+  openAIToolChoiceToVercelAI,
+  openAIToolDefinitionToAnthropic,
 } from "./openai/converters";
 import {
-  phoenixResponseFormatToOpenAI,
-  phoenixToolChoiceToOpenaiToolChoice,
-  phoenixToolToOpenAI,
-  promptMessagePartToOpenAIChatPart,
-  promptMessageToOpenAI,
-  promptToOpenAIToolCall,
+  phoenixPromptResponseFormatToOpenAI,
+  phoenixPromptToolChoiceToOpenAI,
+  phoenixPromptToolDefinitionToOpenAI,
+  phoenixPromptMessagePartToOpenAI,
+  phoenixPromptMessageToOpenAI,
+  phoenixPromptToOpenAI,
 } from "./phoenixPrompt/converters";
 import { makeSDKConverters } from "./utils";
 import { openAIMessageSchema } from "./openai/messageSchemas";
@@ -81,52 +81,52 @@ export const SDKProviderConverterMap = {
       fromOpenAI: openAIMessageToAnthropic,
     },
     messageParts: {
-      toOpenAI: anthropicMessagePartToOpenAIChatPart,
-      fromOpenAI: openAIChatPartToAnthropicMessagePart,
+      toOpenAI: anthropicMessagePartToOpenAI,
+      fromOpenAI: openAIChatPartToAnthropic,
     },
     toolChoices: {
-      toOpenAI: anthropicToolChoiceToOpenaiToolChoice,
-      fromOpenAI: openAIToolChoiceToAnthropicToolChoice,
+      toOpenAI: anthropicToolChoiceToOpenAI,
+      fromOpenAI: openAIToolChoiceToAnthropic,
     },
     toolCalls: {
       toOpenAI: anthropicToolCallToOpenAI,
       fromOpenAI: openAIToolCallToAnthropic,
     },
     toolDefinitions: {
-      toOpenAI: anthropicToolToOpenAI,
-      fromOpenAI: openAIToolToAnthropic,
+      toOpenAI: anthropicToolDefinitionToOpenAI,
+      fromOpenAI: openAIToolDefinitionToAnthropic,
     },
   }),
   PHOENIX_PROMPT: makeSDKConverters({
     messages: {
-      toOpenAI: promptMessageToOpenAI,
-      fromOpenAI: openAIMessageToPrompt,
+      toOpenAI: phoenixPromptMessageToOpenAI,
+      fromOpenAI: openAIMessageToPhoenixPrompt,
     },
     messageParts: {
-      toOpenAI: promptMessagePartToOpenAIChatPart,
+      toOpenAI: phoenixPromptMessagePartToOpenAI,
       fromOpenAI: z.any(),
     },
     toolChoices: {
-      toOpenAI: phoenixToolChoiceToOpenaiToolChoice,
+      toOpenAI: phoenixPromptToolChoiceToOpenAI,
       fromOpenAI: z.any(),
     },
     toolCalls: {
-      toOpenAI: promptToOpenAIToolCall,
+      toOpenAI: phoenixPromptToOpenAI,
       fromOpenAI: z.any(),
     },
     toolDefinitions: {
-      toOpenAI: phoenixToolToOpenAI,
+      toOpenAI: phoenixPromptToolDefinitionToOpenAI,
       fromOpenAI: z.any(),
     },
     responseFormat: {
-      toOpenAI: phoenixResponseFormatToOpenAI,
+      toOpenAI: phoenixPromptResponseFormatToOpenAI,
       fromOpenAI: z.any(),
     },
   }),
   VERCEL_AI: makeSDKConverters({
     messages: {
       toOpenAI: openAIMessageSchema,
-      fromOpenAI: openAIMessageToAI,
+      fromOpenAI: openAIMessageToVercelAI,
     },
     messageParts: {
       fromOpenAI: vercelAIChatPartSchema,
@@ -134,7 +134,7 @@ export const SDKProviderConverterMap = {
     },
     toolChoices: {
       toOpenAI: openAIToolChoiceSchema,
-      fromOpenAI: openAIToolChoiceToVercelToolChoice,
+      fromOpenAI: openAIToolChoiceToVercelAI,
     },
     toolCalls: {
       toOpenAI: openAIToolCallSchema,

@@ -7,10 +7,10 @@ import type { Variables, toSDKParamsBase } from "./types";
 
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import {
-  phoenixResponseFormatToOpenAI,
-  phoenixToolChoiceToOpenaiToolChoice,
-  phoenixToolToOpenAI,
-  promptMessageToOpenAI,
+  phoenixPromptResponseFormatToOpenAI,
+  phoenixPromptToolChoiceToOpenAI,
+  phoenixPromptToolDefinitionToOpenAI,
+  phoenixPromptMessageToOpenAI,
 } from "../../schemas/llm/phoenixPrompt/converters";
 import { safelyConvertToolChoiceToProvider } from "../../schemas/llm/converters";
 
@@ -55,22 +55,22 @@ export const toOpenAI = <V extends Variables = Variables>({
     }
 
     const messages = formattedMessages.map((message) =>
-      promptMessageToOpenAI.parse(message)
+      phoenixPromptMessageToOpenAI.parse(message)
     );
 
     let tools = prompt.tools?.tools
-      .map((tool) => phoenixToolToOpenAI.parse(tool))
+      .map((tool) => phoenixPromptToolDefinitionToOpenAI.parse(tool))
       .filter((tool) => tool !== null);
     tools = (tools?.length ?? 0) > 0 ? tools : undefined;
 
     const response_format = prompt.response_format
-      ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)
+      ? phoenixPromptResponseFormatToOpenAI.parse(prompt.response_format)
       : undefined;
 
     const tool_choice =
       (tools?.length ?? 0) > 0 && prompt.tools?.tool_choice
         ? (safelyConvertToolChoiceToProvider({
-            toolChoice: phoenixToolChoiceToOpenaiToolChoice.parse(
+            toolChoice: phoenixPromptToolChoiceToOpenAI.parse(
               prompt.tools?.tool_choice
             ),
             targetProvider: "OPENAI",

@@ -1,10 +1,10 @@
 import {
-  openAIMessageToAI,
-  openAIToolChoiceToVercelToolChoice,
+  openAIMessageToVercelAI,
+  openAIToolChoiceToVercelAI,
 } from "../../schemas/llm/openai/converters";
 import {
-  phoenixToolChoiceToOpenaiToolChoice,
-  promptMessageToOpenAI,
+  phoenixPromptToolChoiceToOpenAI,
+  phoenixPromptMessageToOpenAI,
 } from "../../schemas/llm/phoenixPrompt/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
@@ -55,7 +55,7 @@ export const toAI = <V extends Variables>({
     }
 
     const messages = formattedMessages.map((message) =>
-      openAIMessageToAI.parse(promptMessageToOpenAI.parse(message))
+      openAIMessageToVercelAI.parse(phoenixPromptMessageToOpenAI.parse(message))
     );
 
     let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
@@ -74,8 +74,8 @@ export const toAI = <V extends Variables>({
 
     const toolChoice =
       hasTools && prompt.tools?.tool_choice
-        ? openAIToolChoiceToVercelToolChoice.parse(
-            phoenixToolChoiceToOpenaiToolChoice.parse(prompt.tools?.tool_choice)
+        ? openAIToolChoiceToVercelAI.parse(
+            phoenixPromptToolChoiceToOpenAI.parse(prompt.tools?.tool_choice)
           )
         : undefined;
 
