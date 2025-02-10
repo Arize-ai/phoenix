@@ -5,6 +5,7 @@ export {
   Label,
   Dialog,
   DialogTrigger,
+  Form,
 } from "react-aria-components";
 export type {
   InputProps,

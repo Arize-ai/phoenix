@@ -1124,6 +1124,10 @@ const appGlobalStylesCSS = css`
 
     /* Fields */
     --ac-global-input-field-min-width: 200px;
+
+    /* Modal */
+    --ac-global-modal-width-S: 500px;
+    --ac-global-modal-width-M: 700px;
   }
 
   .ac-theme--dark {

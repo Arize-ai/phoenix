@@ -7,6 +7,7 @@ import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelC
 
 import { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
 import { PromptIndexPage__main$key } from "./__generated__/PromptIndexPage__main.graphql";
+import { EditPromptButton } from "./EditPromptButton";
 import { PromptChatMessagesCard } from "./PromptChatMessagesCard";
 import { PromptCodeExportCard } from "./PromptCodeExportCard";
 import { PromptLatestVersionsList } from "./PromptLatestVersionsList";
@@ -86,6 +87,7 @@ function PromptIndexPageAside({
       fragment PromptIndexPage__aside on Prompt {
         description
         ...PromptLatestVersionsListFragment
+        ...EditPromptButton_data
       }
     `,
     prompt
@@ -99,7 +101,14 @@ function PromptIndexPageAside({
       borderStartWidth="thin"
     >
       <View paddingStart="size-200" paddingEnd="size-200">
-        <Heading level={3}>Description</Heading>
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Heading level={3}>Description</Heading>
+          <EditPromptButton prompt={data} />
+        </Flex>
         {/* TODO: Add a markdown view here */}
         <Text color={hasDescription ? "text-900" : "text-700"}>
           {data.description || "No Description"}
