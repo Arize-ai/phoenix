@@ -87,6 +87,7 @@ function PromptIndexPageAside({
       fragment PromptIndexPage__aside on Prompt {
         description
         ...PromptLatestVersionsListFragment
+        ...EditPromptButton_data
       }
     `,
     prompt
@@ -106,7 +107,7 @@ function PromptIndexPageAside({
           alignItems="center"
         >
           <Heading level={3}>Description</Heading>
-          <EditPromptButton />
+          <EditPromptButton prompt={data} />
         </Flex>
         {/* TODO: Add a markdown view here */}
         <Text color={hasDescription ? "text-900" : "text-700"}>

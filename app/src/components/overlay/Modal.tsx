@@ -5,6 +5,8 @@ import {
 } from "react-aria-components";
 import { css, keyframes } from "@emotion/react";
 
+import { SizingProps } from "../types";
+
 const modalFade = keyframes`
   from {
     opacity: 0;
@@ -22,6 +24,7 @@ const modalZoom = keyframes`
   }
   `;
 const modalCSS = css`
+  --modal-width: var(--ac-global-modal-width-M);
   position: fixed;
   top: 0;
   left: 0;
@@ -40,9 +43,18 @@ const modalCSS = css`
     animation: ${modalFade} 150ms reverse ease-in;
   }
 
+  &[data-size="S"] {
+    --modal-width: var(--ac-global-modal-width-S);
+  }
+
+  &[data-size="M"] {
+    --modal-width: var(--ac-global-modal-width-M);
+  }
+
   .react-aria-Dialog {
     box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
-    border-radius: 6px;
+    width: var(--modal-width);
+    border-radius: var(--ac-global-rounding-medium);
     background: var(--ac-global-background-color-dark);
     color: var(--ac-global-text-color-900);
     border: 1px solid var(--ac-global-border-color-light);
@@ -60,9 +72,12 @@ const modalCSS = css`
   }
 `;
 
-export type ModalProps = AriaModalOverlayProps;
+export interface ModalProps extends AriaModalOverlayProps, SizingProps {}
 function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
-  return <AriaModal {...props} ref={ref} css={modalCSS} />;
+  const { size = "M", ...otherProps } = props;
+  return (
+    <AriaModal {...otherProps} data-size={size} ref={ref} css={modalCSS} />
+  );
 }
 
 const _Modal = React.forwardRef(Modal);
