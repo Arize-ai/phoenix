@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, Mapping
 
 import aiosqlite
 import numpy as np
@@ -163,23 +163,15 @@ def aio_postgresql_engine(
     log_to_stdout: bool = False,
     log_migrations_to_stdout: bool = True,
 ) -> AsyncEngine:
-    url_query = dict(url.query)
-    sslmode = url_query.pop("sslmode", None) or url_query.pop("ssl", None)
     engine = create_async_engine(
-        url=url.set(
-            # https://github.com/MagicStack/asyncpg/issues/737
-            query={**url_query, "ssl": sslmode} if sslmode else url_query,
-        ),
+        url=url.set(query=_asyncpg_url_query(url.query)),
         echo=log_to_stdout,
         json_serializer=_dumps,
     )
     if not migrate:
         return engine
     sync_engine = sqlalchemy.create_engine(
-        url=url.set(
-            drivername="postgresql+psycopg",
-            query={**url_query, "sslmode": sslmode} if sslmode else url_query,
-        ),
+        url=url.set(drivername="postgresql+psycopg", query=_psycopg_url_query(url.query)),
         echo=log_migrations_to_stdout,
         json_serializer=_dumps,
     )
@@ -187,6 +179,22 @@ def aio_postgresql_engine(
         event.listen(sync_engine, "connect", set_postgresql_search_path(schema))
     migrate_in_thread(sync_engine)
     return engine
+
+
+def _asyncpg_url_query(url_query: Mapping[str, Any]) -> dict[str, Any]:
+    ans = dict(url_query)
+    if sslmode := ans.pop("sslmode", None) or ans.pop("ssl", None):
+        # https://github.com/MagicStack/asyncpg/issues/737
+        ans["ssl"] = sslmode
+    return ans
+
+
+def _psycopg_url_query(url_query: Mapping[str, Any]) -> dict[str, Any]:
+    ans = dict(url_query)
+    if sslmode := ans.pop("sslmode", None) or ans.pop("ssl", None):
+        ans["sslmode"] = sslmode
+    ans.pop("prepared_statement_cache_size", None)
+    return ans
 
 
 def _dumps(obj: Any) -> str:
