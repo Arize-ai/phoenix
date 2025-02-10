@@ -6,7 +6,6 @@ import type {
   VercelAIChatPart,
   VercelAIChatPartToolCall,
 } from "./ai/messagePartSchemas";
-import type { PhoenixPromptPart } from "./phoenixPrompt/messagePartSchemas";
 import { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
 import { OpenAIMessage } from "./openai/messageSchemas";
 import { AnthropicMessage } from "./anthropic/messageSchemas";
@@ -15,20 +14,21 @@ import { AnthropicToolCall } from "./anthropic/toolCallSchemas";
 import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
 import { AnthropicToolChoice } from "./anthropic/toolChoiceSchemas";
 import { VercelAIMessage } from "./ai/messageSchemas";
-import { PromptToolCall } from "./phoenixPrompt/toolCallSchemas";
+import { PhoenixPromptToolCall } from "./phoenixPrompt/toolCallSchemas";
 import { PromptMessage } from "./phoenixPrompt/messageSchemas";
 import { VercelAIToolChoice } from "./ai/toolChoiceSchemas";
 import { OpenAIToolDefinition } from "./openai/toolSchemas";
 import { OpenAIResponseFormat } from "./openai/responseFormatSchema";
 import { AnthropicToolDefinition } from "./anthropic/toolSchemas";
 import { PhoenixPromptToolDefinition } from "./phoenixPrompt/toolSchemas";
+import { PhoenixPromptContentPart } from "./phoenixPrompt/messagePartSchemas";
 
 export type PromptSDKFormat = PromptProviderSDKs | null;
 
 export type LLMMessagePart =
   | OpenAIChatPart
   | AnthropicMessagePart
-  | PhoenixPromptPart
+  | PhoenixPromptContentPart
   | VercelAIChatPart;
 
 export type SDKConverters<
@@ -76,7 +76,7 @@ export type MessagePartWithProvider =
     }
   | {
       provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
-      validatedMessage: PhoenixPromptPart;
+      validatedMessage: PhoenixPromptContentPart;
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;
@@ -133,7 +133,7 @@ export type ToolCallWithProvider =
     }
   | {
       provider: Extract<PromptSDKFormat, "PHOENIX_PROMPT">;
-      validatedToolCall: PromptToolCall;
+      validatedToolCall: PhoenixPromptToolCall;
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;

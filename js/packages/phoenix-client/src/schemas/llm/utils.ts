@@ -22,10 +22,10 @@ import { isObject } from "../../utils/isObject";
 import type { ZodTypeAny } from "zod";
 import { vercelAIMessageSchema } from "./ai/messageSchemas";
 import { promptMessageSchema } from "./phoenixPrompt/messageSchemas";
-import { promptPartSchema } from "./phoenixPrompt/messagePartSchemas";
-import { promptToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
-import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
-import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixPromptToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
+import { phoenixPromptToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
+import { phoenixPromptToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixPromptContentPartSchema } from "./phoenixPrompt/messagePartSchemas";
 
 export const makeSDKConverters = <
   Messages extends ZodTypeAny,
@@ -122,7 +122,7 @@ export const detectMessagePartProvider = (
     };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    promptPartSchema.safeParse(part);
+    phoenixPromptContentPartSchema.safeParse(part);
   if (phoenixSuccess) {
     return { provider: "PHOENIX_PROMPT", validatedMessage: phoenixData };
   }
@@ -147,7 +147,7 @@ export const detectToolCallProvider = (
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    promptToolCallSchema.safeParse(toolCall);
+    phoenixPromptToolCallSchema.safeParse(toolCall);
   if (phoenixSuccess) {
     return { provider: "PHOENIX_PROMPT", validatedToolCall: phoenixData };
   }
@@ -173,7 +173,7 @@ export const detectToolChoiceProvider = (
     return { provider: "ANTHROPIC", toolChoice: anthropicData };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    phoenixToolChoiceSchema.safeParse(toolChoice);
+    phoenixPromptToolChoiceSchema.safeParse(toolChoice);
   if (phoenixSuccess) {
     return { provider: "PHOENIX_PROMPT", toolChoice: phoenixData };
   }
@@ -204,7 +204,7 @@ export const detectToolDefinitionProvider = (
     };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    phoenixToolDefinitionSchema.safeParse(toolDefinition);
+    phoenixPromptToolDefinitionSchema.safeParse(toolDefinition);
   if (phoenixSuccess) {
     return { provider: "PHOENIX_PROMPT", validatedToolDefinition: phoenixData };
   }

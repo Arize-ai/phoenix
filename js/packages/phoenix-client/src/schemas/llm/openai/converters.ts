@@ -10,13 +10,13 @@ import { AnthropicMessage } from "../anthropic/messageSchemas";
 import { openaiChatPartSchema } from "./messagePartSchemas";
 import { openAIMessageSchema } from "./messageSchemas";
 import {
-  PromptContentPart,
   PromptMessage,
   PromptMessageRole,
 } from "../phoenixPrompt/messageSchemas";
 import {
   makeTextPart,
   makeToolResultPart,
+  PhoenixPromptContentPart,
   ToolCallPart,
 } from "../phoenixPrompt/messagePartSchemas";
 import { VercelAIMessage } from "../ai/messageSchemas";
@@ -135,7 +135,7 @@ export const openAIMessageToAnthropic = openAIMessageSchema.transform(
  */
 export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
   (openai): PromptMessage => {
-    const content: PromptContentPart[] = [];
+    const content: PhoenixPromptContentPart[] = [];
 
     // Special handling for tool messages
     if (openai.role === "tool" && openai.tool_call_id) {
@@ -177,6 +177,7 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
           tool_call: {
             tool_call_id: tc.id,
             tool_call: {
+              type: "function",
               name: tc.function.name,
               arguments: tc.function.arguments,
             },
