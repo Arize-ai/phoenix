@@ -10,6 +10,18 @@ export type PromptModelProvider =
   | "GEMINI";
 
 /**
+ * Supported prompt provider SDKs
+ *
+ * These are possible sdk formats for prompt templates
+ */
+export type PromptProviderSDKs =
+  | "PHOENIX"
+  | "AZURE_OPENAI"
+  | "OPENAI"
+  | "ANTHROPIC"
+  | "VERCEL_AI";
+
+/**
  * The role of a prompt chat message
  */
 export type PromptChatMessageRole = "user" | "system" | "ai" | "tool";
@@ -73,6 +85,14 @@ export type PromptChatMessage = Extract<
   PromptVersion["template"],
   { messages: unknown[] }
 >["messages"][number];
+
+/**
+ * Extracts the chat message part type from the prompt chat message.
+ */
+export type PromptChatMessagePart = Extract<
+  PromptChatMessage,
+  { content: unknown[] }
+>["content"][number];
 
 /**
  * The Phoenix prompt tool type from the API.

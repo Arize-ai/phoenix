@@ -220,6 +220,7 @@ describe("toOpenAI type compatibility", () => {
           tool_calls: [
             {
               function: {
+                type: "function",
                 name: "edit_image",
                 arguments: '{"image_url":"test.jpg","edit_type":"blur"}',
               },
