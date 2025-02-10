@@ -5,7 +5,7 @@ import { PromptTool } from "../../../types/prompts";
 /**
  * The Phoenix tool definition schema
  */
-export const phoenixPromptToolDefinitionSchema = schemaMatches<PromptTool>()(
+export const phoenixToolDefinitionSchema = schemaMatches<PromptTool>()(
   z.object({
     type: z.literal("function-tool"),
     name: z.string(),
@@ -20,6 +20,4 @@ export const phoenixPromptToolDefinitionSchema = schemaMatches<PromptTool>()(
   })
 );
 
-export type PhoenixPromptToolDefinition = z.infer<
-  typeof phoenixPromptToolDefinitionSchema
->;
+export type PhoenixToolDefinition = z.infer<typeof phoenixToolDefinitionSchema>;

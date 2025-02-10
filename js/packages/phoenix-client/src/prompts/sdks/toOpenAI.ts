@@ -13,7 +13,7 @@ import {
 } from "../../schemas/llm/converters";
 import invariant from "tiny-invariant";
 import { OpenaiToolChoice } from "../../schemas/llm/openai/toolChoiceSchemas";
-import { phoenixPromptResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
+import { phoenixResponseFormatToOpenAI } from "../../schemas/llm/phoenixPrompt/converters";
 
 // We must re-export these types so that they are included in the phoenix-client distribution
 export type {
@@ -82,7 +82,7 @@ export const toOpenAI = <V extends Variables = Variables>({
     tool_choice = tools?.length ? tool_choice : undefined;
 
     const response_format = prompt.response_format
-      ? phoenixPromptResponseFormatToOpenAI.parse(prompt.response_format)
+      ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)
       : undefined;
 
     // combine base and computed params

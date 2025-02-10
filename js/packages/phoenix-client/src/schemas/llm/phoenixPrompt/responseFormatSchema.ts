@@ -5,7 +5,7 @@ import { PromptResponseFormat } from "../../../types/prompts";
 /**
  * Phoenix response format schema
  */
-export const phoenixPromptResponseFormatSchema =
+export const phoenixResponseFormatSchema =
   schemaMatches<PromptResponseFormat>()(
     z.object({
       type: z.literal("response-format-json-schema"),
@@ -19,6 +19,4 @@ export const phoenixPromptResponseFormatSchema =
     })
   );
 
-export type PhoenixPromptResponseFormat = z.infer<
-  typeof phoenixPromptResponseFormatSchema
->;
+export type PhoenixResponseFormat = z.infer<typeof phoenixResponseFormatSchema>;

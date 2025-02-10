@@ -18,19 +18,19 @@ import {
   openAIToolDefinitionToAnthropic,
 } from "./openai/converters";
 import {
-  phoenixPromptResponseFormatToOpenAI,
-  phoenixPromptToolChoiceToOpenAI,
-  phoenixPromptToolDefinitionToOpenAI,
-  phoenixPromptMessagePartToOpenAI,
-  phoenixPromptMessageToOpenAI,
-  phoenixPromptToOpenAI,
+  phoenixResponseFormatToOpenAI,
+  phoenixToolChoiceToOpenAI,
+  phoenixToolDefinitionToOpenAI,
+  phoenixMessagePartToOpenAI,
+  phoenixMessageToOpenAI,
+  phoenixToolCallToOpenAI,
 } from "./phoenixPrompt/converters";
 import { makeSDKConverters } from "./utils";
 import { openAIMessageSchema } from "./openai/messageSchemas";
 import {
   vercelAIChatPartSchema,
   vercelAIChatPartToolCallSchema,
-} from "./ai/messagePartSchemas";
+} from "./vercel/messagePartSchemas";
 import { openaiChatPartSchema } from "./openai/messagePartSchemas";
 import { openAIToolChoiceSchema } from "./openai/toolChoiceSchemas";
 import { openAIToolCallSchema } from "./openai/toolCallSchemas";
@@ -41,7 +41,7 @@ export const SDKProviderIdMap: Record<PromptProviderSDKs, string> = {
   OPENAI: "openai",
   AZURE_OPENAI: "azure-openai",
   ANTHROPIC: "anthropic",
-  PHOENIX_PROMPT: "phoenix-prompt",
+  PHOENIX: "phoenix",
   VERCEL_AI: "ai",
 };
 
@@ -105,29 +105,29 @@ export const SDKProviderConverterMap = {
       fromOpenAI: openAIToolDefinitionToAnthropic,
     },
   }),
-  PHOENIX_PROMPT: makeSDKConverters({
+  PHOENIX: makeSDKConverters({
     messages: {
-      toOpenAI: phoenixPromptMessageToOpenAI,
+      toOpenAI: phoenixMessageToOpenAI,
       fromOpenAI: openAIMessageToPhoenixPrompt,
     },
     messageParts: {
-      toOpenAI: phoenixPromptMessagePartToOpenAI,
+      toOpenAI: phoenixMessagePartToOpenAI,
       fromOpenAI: z.unknown(),
     },
     toolChoices: {
-      toOpenAI: phoenixPromptToolChoiceToOpenAI,
+      toOpenAI: phoenixToolChoiceToOpenAI,
       fromOpenAI: z.unknown(),
     },
     toolCalls: {
-      toOpenAI: phoenixPromptToOpenAI,
+      toOpenAI: phoenixToolCallToOpenAI,
       fromOpenAI: z.unknown(),
     },
     toolDefinitions: {
-      toOpenAI: phoenixPromptToolDefinitionToOpenAI,
+      toOpenAI: phoenixToolDefinitionToOpenAI,
       fromOpenAI: z.unknown(),
     },
     responseFormat: {
-      toOpenAI: phoenixPromptResponseFormatToOpenAI,
+      toOpenAI: phoenixResponseFormatToOpenAI,
       fromOpenAI: z.unknown(),
     },
   }),

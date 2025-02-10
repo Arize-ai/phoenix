@@ -2,6 +2,6 @@ import z from "zod";
 
 import { toolCallPartSchema } from "./messagePartSchemas";
 
-export const phoenixPromptToolCallSchema = toolCallPartSchema;
+export const phoenixToolCallSchema = toolCallPartSchema;
 
-export type PhoenixPromptToolCall = z.infer<typeof phoenixPromptToolCallSchema>;
+export type PhoenixToolCall = z.infer<typeof phoenixToolCallSchema>;

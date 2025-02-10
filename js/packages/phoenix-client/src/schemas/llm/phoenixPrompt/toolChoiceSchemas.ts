@@ -5,7 +5,7 @@ import { PromptToolChoice } from "../../../types/prompts";
 /**
  * Phoenix's tool choice schema
  */
-export const phoenixPromptToolChoiceSchema = schemaMatches<PromptToolChoice>()(
+export const phoenixToolChoiceSchema = schemaMatches<PromptToolChoice>()(
   z.union([
     z.object({
       type: z.literal("none"),
@@ -23,6 +23,4 @@ export const phoenixPromptToolChoiceSchema = schemaMatches<PromptToolChoice>()(
   ])
 );
 
-export type PhoenixPromptToolChoice = z.infer<
-  typeof phoenixPromptToolChoiceSchema
->;
+export type PhoenixToolChoice = z.infer<typeof phoenixToolChoiceSchema>;

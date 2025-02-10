@@ -54,18 +54,15 @@ export const toolResultPartSchema = schemaMatches<
 
 export type ToolResultPart = z.infer<typeof toolResultPartSchema>;
 
-export const phoenixPromptContentPartSchema =
-  schemaMatches<PromptChatMessagePart>()(
-    z.discriminatedUnion("type", [
-      textPartSchema,
-      toolCallPartSchema,
-      toolResultPartSchema,
-    ])
-  );
+export const phoenixContentPartSchema = schemaMatches<PromptChatMessagePart>()(
+  z.discriminatedUnion("type", [
+    textPartSchema,
+    toolCallPartSchema,
+    toolResultPartSchema,
+  ])
+);
 
-export type PhoenixPromptContentPart = z.infer<
-  typeof phoenixPromptContentPartSchema
->;
+export type PhoenixContentPart = z.infer<typeof phoenixContentPartSchema>;
 
 /*
  *

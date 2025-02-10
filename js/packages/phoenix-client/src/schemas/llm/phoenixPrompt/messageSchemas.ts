@@ -1,6 +1,6 @@
 import z from "zod";
 
-import { phoenixPromptContentPartSchema } from "./messagePartSchemas";
+import { phoenixContentPartSchema } from "./messagePartSchemas";
 import type { PromptChatMessage } from "../../../types/prompts";
 import { schemaMatches } from "../../../utils/schemaMatches";
 
@@ -10,17 +10,22 @@ import { schemaMatches } from "../../../utils/schemaMatches";
  *
  */
 
-export const promptMessageRoleSchema = z.enum(["SYSTEM", "USER", "AI", "TOOL"]);
+export const phoenixMessageRoleSchema = z.enum([
+  "SYSTEM",
+  "USER",
+  "AI",
+  "TOOL",
+]);
 
-export type PromptMessageRole = z.infer<typeof promptMessageRoleSchema>;
+export type PhoenixMessageRole = z.infer<typeof phoenixMessageRoleSchema>;
 
-export const promptMessageSchema = schemaMatches<PromptChatMessage>()(
+export const phoenixMessageSchema = schemaMatches<PromptChatMessage>()(
   z.object({
-    role: promptMessageRoleSchema,
-    content: phoenixPromptContentPartSchema.array(),
+    role: phoenixMessageRoleSchema,
+    content: phoenixContentPartSchema.array(),
   })
 );
 
-export type PromptMessage = z.infer<typeof promptMessageSchema>;
+export type PhoenixMessage = z.infer<typeof phoenixMessageSchema>;
 
-export const promptMessagesSchema = z.array(promptMessageSchema);
+export const phoenixMessagesSchema = z.array(phoenixMessageSchema);

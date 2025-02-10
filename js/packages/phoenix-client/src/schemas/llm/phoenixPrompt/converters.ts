@@ -3,20 +3,20 @@ import { OpenAIToolDefinition } from "../openai/toolSchemas";
 import { OpenAIMessage } from "../openai/messageSchemas";
 import { OpenAIToolCall } from "../openai/toolCallSchemas";
 import { OpenaiToolChoice } from "../openai/toolChoiceSchemas";
-import { promptMessageSchema } from "./messageSchemas";
+import { phoenixMessageSchema } from "./messageSchemas";
 import {
   ToolCallPart,
   ToolResultPart,
   asToolResultPart,
-  phoenixPromptContentPartSchema,
+  phoenixContentPartSchema,
 } from "./messagePartSchemas";
-import { phoenixPromptToolCallSchema } from "./toolCallSchemas";
+import { phoenixToolCallSchema } from "./toolCallSchemas";
 import { safelyStringifyJSON } from "../../../utils/safelyStringifyJSON";
 import { OpenAIChatPartText } from "../openai/messagePartSchemas";
-import { phoenixPromptResponseFormatSchema } from "./responseFormatSchema";
+import { phoenixResponseFormatSchema } from "./responseFormatSchema";
 import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
-import { phoenixPromptToolDefinitionSchema } from "./toolSchemas";
-import { phoenixPromptToolChoiceSchema } from "./toolChoiceSchemas";
+import { phoenixToolDefinitionSchema } from "./toolSchemas";
+import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
 import { jsonSchemaZodSchema } from "../../jsonSchema";
 
 /*
@@ -26,8 +26,8 @@ import { jsonSchemaZodSchema } from "../../jsonSchema";
  * All conversions between different formats go through OpenAI as an intermediate step.
  */
 
-export const phoenixPromptMessagePartToOpenAI =
-  phoenixPromptContentPartSchema.transform((part) => {
+export const phoenixMessagePartToOpenAI = phoenixContentPartSchema.transform(
+  (part) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -42,12 +42,13 @@ export const phoenixPromptMessagePartToOpenAI =
       default:
         return assertUnreachable(type);
     }
-  });
+  }
+);
 
 /**
  * Spoke → Hub: Convert a Prompt message to OpenAI format
  */
-export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
+export const phoenixMessageToOpenAI = phoenixMessageSchema.transform(
   (prompt) => {
     // Special handling for TOOL role messages
     if (prompt.role === "TOOL") {
@@ -76,7 +77,7 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
         return {
           role: "system",
           content: prompt.content
-            .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
+            .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
@@ -86,7 +87,7 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
         return {
           role: "user",
           content: prompt.content
-            .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
+            .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
@@ -96,7 +97,7 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
         return {
           role: "assistant",
           content: prompt.content
-            .map((part) => phoenixPromptMessagePartToOpenAI.parse(part))
+            .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
@@ -106,7 +107,7 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
                 .filter(
                   (part): part is ToolCallPart => part.type === "tool_call"
                 )
-                .map((part) => phoenixPromptToOpenAI.parse(part))
+                .map((part) => phoenixToolCallToOpenAI.parse(part))
                 .filter((part): part is OpenAIToolCall => part !== null)
             : undefined,
         } satisfies OpenAIMessage;
@@ -116,8 +117,8 @@ export const phoenixPromptMessageToOpenAI = promptMessageSchema.transform(
   }
 );
 
-export const phoenixPromptResponseFormatToOpenAI =
-  phoenixPromptResponseFormatSchema.transform(
+export const phoenixResponseFormatToOpenAI =
+  phoenixResponseFormatSchema.transform(
     (phoenix): OpenAIResponseFormat => ({
       type: "json_schema",
       json_schema: {
@@ -128,7 +129,7 @@ export const phoenixPromptResponseFormatToOpenAI =
     })
   );
 
-export const phoenixPromptToOpenAI = phoenixPromptToolCallSchema.transform(
+export const phoenixToolCallToOpenAI = phoenixToolCallSchema.transform(
   (prompt): OpenAIToolCall => ({
     type: "function",
     id: prompt.tool_call.tool_call_id,
@@ -143,8 +144,8 @@ export const phoenixPromptToOpenAI = phoenixPromptToolCallSchema.transform(
   })
 );
 
-export const phoenixPromptToolDefinitionToOpenAI =
-  phoenixPromptToolDefinitionSchema.transform(
+export const phoenixToolDefinitionToOpenAI =
+  phoenixToolDefinitionSchema.transform(
     (phoenix): OpenAIToolDefinition => ({
       type: "function",
       function: {
@@ -155,8 +156,8 @@ export const phoenixPromptToolDefinitionToOpenAI =
     })
   );
 
-export const phoenixPromptToolChoiceToOpenAI =
-  phoenixPromptToolChoiceSchema.transform((phoenix): OpenaiToolChoice => {
+export const phoenixToolChoiceToOpenAI = phoenixToolChoiceSchema.transform(
+  (phoenix): OpenaiToolChoice => {
     switch (phoenix.type) {
       case "none":
         return "none";
@@ -167,4 +168,5 @@ export const phoenixPromptToolChoiceToOpenAI =
       case "specific-function-tool":
         return { type: "function", function: { name: phoenix.function_name } };
     }
-  });
+  }
+);

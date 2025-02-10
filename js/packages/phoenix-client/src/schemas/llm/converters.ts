@@ -133,8 +133,8 @@ export const toOpenAIChatPart = (
       return SDKProviderConverterMap.ANTHROPIC.messageParts.toOpenAI.parse(
         validatedMessage
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.messageParts.toOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.messageParts.toOpenAI.parse(
         validatedMessage
       );
     case "VERCEL_AI":
@@ -161,8 +161,8 @@ export const toOpenAIMessage = (message: unknown): OpenAIMessage | null => {
       return SDKProviderConverterMap.ANTHROPIC.messages.toOpenAI.parse(
         validatedMessage
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.messages.toOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.messages.toOpenAI.parse(
         validatedMessage
       );
     case "VERCEL_AI":
@@ -194,10 +194,8 @@ export const fromOpenAIMessage = <T extends NonNullable<PromptSDKFormat>>({
       return SDKProviderConverterMap.ANTHROPIC.messages.fromOpenAI.parse(
         message
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.messages.fromOpenAI.parse(
-        message
-      );
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.messages.fromOpenAI.parse(message);
     case "VERCEL_AI":
       return SDKProviderConverterMap.VERCEL_AI.messages.fromOpenAI.parse(
         message
@@ -224,8 +222,8 @@ export const toOpenAIToolCall = (
       return SDKProviderConverterMap.ANTHROPIC.toolCalls.toOpenAI.parse(
         validatedToolCall
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.toolCalls.toOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.toolCalls.toOpenAI.parse(
         validatedToolCall
       );
     case "VERCEL_AI":
@@ -262,8 +260,8 @@ export const fromOpenAIToolCall = <T extends NonNullable<PromptSDKFormat>>({
       return SDKProviderConverterMap.ANTHROPIC.toolCalls.fromOpenAI.parse(
         toolCall
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.toolCalls.fromOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.toolCalls.fromOpenAI.parse(
         toolCall
       );
     case "VERCEL_AI":
@@ -296,8 +294,8 @@ export const toOpenAIToolChoice = (
       return SDKProviderConverterMap.ANTHROPIC.toolChoices.toOpenAI.parse(
         validatedToolChoice
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.toolChoices.toOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.toolChoices.toOpenAI.parse(
         validatedToolChoice
       );
     case "VERCEL_AI":
@@ -334,8 +332,8 @@ export const fromOpenAIToolChoice = <T extends NonNullable<PromptSDKFormat>>({
       return SDKProviderConverterMap.ANTHROPIC.toolChoices.fromOpenAI.parse(
         toolChoice
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.toolChoices.fromOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.toolChoices.fromOpenAI.parse(
         toolChoice
       );
     case "VERCEL_AI":
@@ -365,8 +363,8 @@ export const toOpenAIToolDefinition = (
       return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.toOpenAI.parse(
         validatedToolDefinition
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.toolDefinitions.toOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.toolDefinitions.toOpenAI.parse(
         validatedToolDefinition
       );
     case "VERCEL_AI":
@@ -402,8 +400,8 @@ export const fromOpenAIToolDefinition = <
       return SDKProviderConverterMap.ANTHROPIC.toolDefinitions.fromOpenAI.parse(
         toolDefinition
       );
-    case "PHOENIX_PROMPT":
-      return SDKProviderConverterMap.PHOENIX_PROMPT.toolDefinitions.fromOpenAI.parse(
+    case "PHOENIX":
+      return SDKProviderConverterMap.PHOENIX.toolDefinitions.fromOpenAI.parse(
         toolDefinition
       );
     case "VERCEL_AI":

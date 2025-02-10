@@ -12,7 +12,7 @@ import {
   type Tool,
   jsonSchema,
 } from "ai";
-import { VercelAIToolChoice } from "../../schemas/llm/ai/toolChoiceSchemas";
+import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
 export type PartialStreamTextParams = Omit<
   Parameters<typeof streamText>[0] | Parameters<typeof generateText>[0],

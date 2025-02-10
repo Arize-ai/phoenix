@@ -15,7 +15,7 @@ export type PromptModelProvider =
  * These are possible sdk formats for prompt templates
  */
 export type PromptProviderSDKs =
-  | "PHOENIX_PROMPT"
+  | "PHOENIX"
   | "AZURE_OPENAI"
   | "OPENAI"
   | "ANTHROPIC"
