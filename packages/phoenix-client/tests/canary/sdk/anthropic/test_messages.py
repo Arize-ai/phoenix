@@ -4,7 +4,6 @@ from typing import Any, Iterable, Mapping, Optional
 
 import pytest
 from anthropic.types import (
-    ImageBlockParam,
     MessageParam,
     TextBlockParam,
     ToolChoiceAnyParam,
@@ -14,35 +13,18 @@ from anthropic.types import (
     ToolResultBlockParam,
     ToolUseBlockParam,
 )
-from anthropic.types.image_block_param import Source
 from deepdiff.diff import DeepDiff
 from faker import Faker
 
-from phoenix.client.__generated__.v1 import (
-    ImageContentPart,
-    PromptMessage,
-    PromptToolsV1,
-    TextContentPart,
-    TextContentValue,
-    ToolCallContentPart,
-    ToolResultContentPart,
-)
+from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.anthropic.messages import (
-    _from_image,
-    _from_message,
-    _from_text,
-    _from_tool_call,
-    _from_tool_kwargs,
-    _from_tool_result,
-    _from_tools,
-    _to_image,
-    _to_messages,
-    _to_text,
-    _to_tool_call,
-    _to_tool_kwargs,
-    _to_tool_result,
-    _to_tools,
+    _MessageConversion,
+    _TextContentPartConversion,
+    _ToolCallContentPartConversion,
+    _ToolConversion,
     _ToolKwargs,
+    _ToolKwargsConversion,
+    _ToolResultContentPartConversion,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
@@ -61,17 +43,6 @@ def _text() -> TextBlockParam:
     return TextBlockParam(
         type="text",
         text=_str(),
-    )
-
-
-def _image() -> ImageBlockParam:
-    return ImageBlockParam(
-        type="image",
-        source=Source(
-            data=_str(),
-            media_type="image/png",
-            type="base64",
-        ),
     )
 
 
@@ -108,73 +79,65 @@ def _tool(name: Optional[str] = None) -> ToolParam:
     )
 
 
-class TestMessageParam:
+class TestMessageConversion:
     @pytest.mark.parametrize(
-        "messages",
+        "obj",
         [
-            [
-                MessageParam(role="user", content=[_text(), _image(), _text()]),
-                MessageParam(role="assistant", content=[_text(), _tool_use(), _tool_use()]),
-                MessageParam(role="user", content=[_text(), _tool_result(), _tool_result()]),
-                MessageParam(role="assistant", content=[_image(), _text(), _image()]),
-                MessageParam(role="user", content=_str()),
-                MessageParam(role="assistant", content=_str()),
-            ],
+            MessageParam(role="user", content=[_text(), _text()]),
+            MessageParam(role="assistant", content=[_text(), _tool_use(), _tool_use()]),
+            MessageParam(role="user", content=[_text(), _tool_result(), _tool_result()]),
+            MessageParam(role="assistant", content=[_text(), _text()]),
+            MessageParam(role="user", content=_str()),
+            MessageParam(role="assistant", content=_str()),
         ],
     )
-    def test_round_trip(self, messages: Iterable[MessageParam]) -> None:
-        new_messages: list[MessageParam] = []
-        for message in messages:
-            x: PromptMessage = _from_message(message)
-            new_messages.extend(_to_messages(x, {}, NO_OP_FORMATTER))
-        assert not DeepDiff(list(messages), new_messages)
+    def test_round_trip(self, obj: MessageParam) -> None:
+        x: v1.PromptMessage = _MessageConversion.from_anthropic(obj)
+        new_obj = next(_MessageConversion.to_anthropic(x, {}, NO_OP_FORMATTER))
+        assert not DeepDiff(obj, new_obj)
 
 
-class TestToolParam:
+class TestToolConversion:
     @pytest.mark.parametrize(
         "tools",
         [[_tool() for _ in range(3)]],
     )
     def test_round_trip(self, tools: Iterable[ToolParam]) -> None:
-        new_tools = list(_to_tools(_from_tools(tools)))
+        new_tools = list(_ToolConversion.to_anthropic(_ToolConversion.from_anthropic(tools)))
         assert not DeepDiff(list(tools), new_tools)
 
 
-class TestTextBlockParam:
+class TestTextConversion:
     def test_round_trip(self) -> None:
         obj: TextBlockParam = _text()
-        x: TextContentPart = _from_text(obj)
-        new_obj: TextBlockParam = _to_text(x, {}, NO_OP_FORMATTER)
+        x: v1.TextContentPart = _TextContentPartConversion.from_anthropic(obj)
+        new_obj: TextBlockParam = _TextContentPartConversion.to_anthropic(x, {}, NO_OP_FORMATTER)
         assert not DeepDiff(obj, new_obj)
 
     def test_formatter(self) -> None:
-        x = TextContentPart(type="text", text=TextContentValue(text=_str()))
+        x = v1.TextContentPart(type="text", text=v1.TextContentValue(text=_str()))
         formatter, variables = _MockFormatter(), _dict()
-        ans: TextBlockParam = _to_text(x, variables, formatter)
+        ans: TextBlockParam = _TextContentPartConversion.to_anthropic(x, variables, formatter)
         assert ans["text"] == formatter.format(x["text"]["text"], variables=variables)
 
 
-class TestToolUseBlockParam:
+class TestToolCallConversion:
     def test_round_trip(self) -> None:
         obj: ToolUseBlockParam = _tool_use()
-        x: ToolCallContentPart = _from_tool_call(obj)
-        new_obj: ToolUseBlockParam = _to_tool_call(x, {}, NO_OP_FORMATTER)
+        x: v1.ToolCallContentPart = _ToolCallContentPartConversion.from_anthropic(obj)
+        new_obj: ToolUseBlockParam = _ToolCallContentPartConversion.to_anthropic(
+            x, {}, NO_OP_FORMATTER
+        )
         assert not DeepDiff(obj, new_obj)
 
 
 class TestToolResultBlockParam:
     def test_round_trip(self) -> None:
         obj: ToolResultBlockParam = _tool_result()
-        x: ToolResultContentPart = _from_tool_result(obj)
-        new_obj: ToolResultBlockParam = _to_tool_result(x, {}, NO_OP_FORMATTER)
-        assert not DeepDiff(obj, new_obj)
-
-
-class TestImageBlockParam:
-    def test_round_trip(self) -> None:
-        obj: ImageBlockParam = _image()
-        x: ImageContentPart = _from_image(obj)
-        new_obj: ImageBlockParam = _to_image(x, {}, NO_OP_FORMATTER)
+        x: v1.ToolResultContentPart = _ToolResultContentPartConversion.from_anthropic(obj)
+        new_obj: ToolResultBlockParam = _ToolResultContentPartConversion.to_anthropic(
+            x, {}, NO_OP_FORMATTER
+        )
         assert not DeepDiff(obj, new_obj)
 
 
@@ -226,8 +189,8 @@ class TestToolKwargs:
         ],
     )
     def test_round_trip(self, obj: _ToolKwargs) -> None:
-        x: Optional[PromptToolsV1] = _from_tool_kwargs(obj)
-        new_obj: _ToolKwargs = _to_tool_kwargs(x)
+        x: Optional[v1.PromptToolsV1] = _ToolKwargsConversion.from_anthropic(obj)
+        new_obj: _ToolKwargs = _ToolKwargsConversion.to_anthropic(x)
         assert not DeepDiff(obj, new_obj)
 
 
