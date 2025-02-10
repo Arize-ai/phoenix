@@ -23,12 +23,12 @@ from phoenix.server.api.helpers.jsonschema import (
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentPart,
     ImageContentValue,
-    PromptChatTemplateV1,
-    PromptFunctionToolV1,
+    PromptChatTemplate,
+    PromptFunctionTool,
     PromptMessage,
     PromptMessageRole,
     PromptResponseFormatJSONSchema,
-    PromptToolsV1,
+    PromptTools,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -170,8 +170,8 @@ class TestPrompts:
             session.add(prompt)
             await session.flush()
             for _ in range(n):
-                template = PromptChatTemplateV1(
-                    version="chat-template-v1",
+                template = PromptChatTemplate(
+                    type="chat",
                     messages=[
                         PromptMessage(
                             role=PromptMessageRole.USER,
@@ -214,11 +214,11 @@ class TestPrompts:
                         invocation_parameters=fake.pydict(value_types=[str, int, float, bool]),
                         model_provider=token_hex(16),
                         model_name=token_hex(16),
-                        tools=PromptToolsV1(
-                            type="tools-v1",
+                        tools=PromptTools(
+                            type="tools",
                             tools=[
-                                PromptFunctionToolV1(
-                                    type="function-tool-v1",
+                                PromptFunctionTool(
+                                    type="function-tool",
                                     name=token_hex(8),
                                     schema=JSONSchemaDraft7ObjectSchema(
                                         type="json-schema-draft-7-object-schema",
@@ -231,7 +231,7 @@ class TestPrompts:
                             ],
                         ),
                         response_format=PromptResponseFormatJSONSchema(
-                            type="response-format-json-schema-v1",
+                            type="response-format-json-schema",
                             name=token_hex(8),
                             extra_parameters=fake.pydict(value_types=[str, int, float, bool]),
                             schema=JSONSchemaDraft7ObjectSchema(

@@ -17,7 +17,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
-    PromptToolsV1,
+    PromptTools,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
@@ -44,7 +44,7 @@ class PromptVersion(V1RoutesBaseModel):
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
     invocation_parameters: dict[str, Any]
-    tools: Optional[PromptToolsV1] = None
+    tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
 
 

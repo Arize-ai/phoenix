@@ -1,2 +1,0 @@
--r common.txt
-groq>=0.16.0

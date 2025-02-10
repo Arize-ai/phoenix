@@ -189,7 +189,7 @@ class TestToolKwargs:
         ],
     )
     def test_round_trip(self, obj: _ToolKwargs) -> None:
-        x: Optional[v1.PromptToolsV1] = _ToolKwargsConversion.from_anthropic(obj)
+        x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_anthropic(obj)
         new_obj: _ToolKwargs = _ToolKwargsConversion.to_anthropic(x)
         assert not DeepDiff(obj, new_obj)
 

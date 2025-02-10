@@ -113,9 +113,9 @@ class Prompt(TypedDict):
     description: Optional[str]
 
 
-class PromptFunctionToolV1(TypedDict):
+class PromptFunctionTool(TypedDict):
     name: str
-    type: Literal["function-tool-v1"]
+    type: Literal["function-tool"]
     description: NotRequired[str]
     schema: NotRequired[JSONSchemaDraft7ObjectSchema]
     extra_parameters: NotRequired[Mapping[str, Any]]
@@ -125,13 +125,13 @@ class PromptResponseFormatJSONSchema(TypedDict):
     name: str
     schema: JSONSchemaDraft7ObjectSchema
     extra_parameters: Mapping[str, Any]
-    type: Literal["response-format-json-schema-v1"]
+    type: Literal["response-format-json-schema"]
     description: NotRequired[str]
 
 
-class PromptStringTemplateV1(TypedDict):
+class PromptStringTemplate(TypedDict):
     template: str
-    version: Literal["string-template-v1"]
+    type: Literal["string"]
 
 
 class PromptToolChoiceNone(TypedDict):
@@ -151,9 +151,9 @@ class PromptToolChoiceZeroOrMore(TypedDict):
     type: Literal["zero-or-more"]
 
 
-class PromptToolsV1(TypedDict):
-    tools: Sequence[PromptFunctionToolV1]
-    type: Literal["tools-v1"]
+class PromptTools(TypedDict):
+    tools: Sequence[PromptFunctionTool]
+    type: Literal["tools"]
     tool_choice: NotRequired[
         Union[
             PromptToolChoiceNone,
@@ -260,9 +260,9 @@ class PromptMessage(TypedDict):
     ]
 
 
-class PromptChatTemplateV1(TypedDict):
+class PromptChatTemplate(TypedDict):
     messages: Sequence[PromptMessage]
-    version: Literal["chat-template-v1"]
+    type: Literal["chat"]
 
 
 class PromptVersion(TypedDict):
@@ -270,11 +270,11 @@ class PromptVersion(TypedDict):
     description: str
     model_provider: str
     model_name: str
-    template: Union[PromptChatTemplateV1, PromptStringTemplateV1]
+    template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
     template_format: Literal["MUSTACHE", "FSTRING", "NONE"]
     invocation_parameters: Mapping[str, Any]
-    tools: NotRequired[PromptToolsV1]
+    tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 
 

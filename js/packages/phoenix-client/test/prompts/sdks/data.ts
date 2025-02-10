@@ -8,7 +8,7 @@ export const BASE_MOCK_PROMPT_VERSION = {
   template_type: "CHAT",
   template_format: "MUSTACHE",
   template: {
-    version: "chat-template-v1",
+    type: "chat",
     messages: [
       {
         role: "USER",
@@ -23,11 +23,11 @@ export const BASE_MOCK_PROMPT_VERSION = {
 
 export const BASE_MOCK_PROMPT_VERSION_TOOLS = {
   tools: {
-    type: "tools-v1",
+    type: "tools",
     tool_choice: { type: "zero-or-more" },
     tools: [
       {
-        type: "function-tool-v1",
+        type: "function-tool",
         name: "test",
         description: "test function",
         schema: {
@@ -44,7 +44,7 @@ export const BASE_MOCK_PROMPT_VERSION_TOOLS = {
 
 export const BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT = {
   response_format: {
-    type: "response-format-json-schema-v1",
+    type: "response-format-json-schema",
     name: "test",
     description: "test function",
     schema: {

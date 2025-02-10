@@ -3,7 +3,7 @@ from secrets import token_hex
 from alembic.config import Config
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.helpers.prompts.models import PromptChatTemplateV1
+from phoenix.server.api.helpers.prompts.models import PromptChatTemplate
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import sessionmaker
 
@@ -22,7 +22,7 @@ def test_prompt_versions(
         session.add(prompt)
     values = dict(
         prompt_id=prompt.id,
-        template=PromptChatTemplateV1(version="chat-template-v1", messages=[]),
+        template=PromptChatTemplate(type="chat", messages=[]),
         template_type="CHAT",
         template_format="MUSTACHE",
         model_provider=token_hex(16),

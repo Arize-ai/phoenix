@@ -98,11 +98,11 @@ describe("toAnthropic type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        type: "tools-v1",
+        type: "tools",
         tool_choice: { type: "zero-or-more" },
         tools: [
           {
-            type: "function-tool-v1",
+            type: "function-tool",
             name: "edit_image",
             description: "edit an image",
             schema: {
@@ -125,7 +125,7 @@ describe("toAnthropic type compatibility", () => {
         ],
       },
       template: {
-        version: "chat-template-v1",
+        type: "chat",
         messages: [
           {
             role: "USER",

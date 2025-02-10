@@ -313,7 +313,7 @@ class TestToolKwargsConversion:
         ],
     )
     def test_round_trip(self, obj: _ToolKwargs) -> None:
-        x: Optional[v1.PromptToolsV1] = _ToolKwargsConversion.from_openai(obj)
+        x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_openai(obj)
         new_obj: _ToolKwargs = _ToolKwargsConversion.to_openai(x)
         assert not DeepDiff(obj, new_obj)
 

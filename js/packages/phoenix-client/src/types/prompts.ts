@@ -77,14 +77,13 @@ export type PromptChatMessage = Extract<
 /**
  * The Phoenix prompt tool type from the API.
  */
-export type PromptTool =
-  components["schemas"]["PromptToolsV1"]["tools"][number];
+export type PromptTool = components["schemas"]["PromptTools"]["tools"][number];
 
 /**
  * The Phoenix prompt tool choice type from the API.
  */
 export type PromptToolChoice = NonNullable<
-  components["schemas"]["PromptToolsV1"]["tool_choice"]
+  components["schemas"]["PromptTools"]["tool_choice"]
 >;
 /**
  * The Phoenix prompt output schema type from the API.

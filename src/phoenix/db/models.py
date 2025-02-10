@@ -42,13 +42,13 @@ from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplateV1,
+    PromptChatTemplate,
     PromptResponseFormat,
     PromptResponseFormatWrapper,
-    PromptStringTemplateV1,
+    PromptStringTemplate,
     PromptTemplate,
     PromptTemplateWrapper,
-    PromptToolsV1,
+    PromptTools,
 )
 
 
@@ -134,7 +134,7 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
     ) -> Optional[dict[str, Any]]:
         if value is None:
             raise ValueError("cannot be None")
-        if isinstance(value, PromptChatTemplateV1) or isinstance(value, PromptStringTemplateV1):
+        if isinstance(value, PromptChatTemplate) or isinstance(value, PromptStringTemplate):
             pass
         else:
             assert_never(value)
@@ -149,20 +149,20 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
         return wrapped_template.template
 
 
-class _Tools(TypeDecorator[PromptToolsV1]):
+class _Tools(TypeDecorator[PromptTools]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = JSON_
 
     def process_bind_param(
-        self, value: Optional[PromptToolsV1], _: Dialect
+        self, value: Optional[PromptTools], _: Dialect
     ) -> Optional[dict[str, Any]]:
         return value.model_dump() if value is not None else None
 
     def process_result_value(
         self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[PromptToolsV1]:
-        return PromptToolsV1.model_validate(value) if value is not None else None
+    ) -> Optional[PromptTools]:
+        return PromptTools.model_validate(value) if value is not None else None
 
 
 class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
@@ -999,7 +999,7 @@ class PromptVersion(Base):
     )
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
     invocation_parameters: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
-    tools: Mapped[Optional[PromptToolsV1]] = mapped_column(_Tools, default=Null(), nullable=True)
+    tools: Mapped[Optional[PromptTools]] = mapped_column(_Tools, default=Null(), nullable=True)
     response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
         _PromptResponseFormat, default=Null(), nullable=True
     )

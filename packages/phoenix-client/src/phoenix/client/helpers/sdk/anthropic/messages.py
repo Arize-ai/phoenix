@@ -102,7 +102,7 @@ def to_chat_messages_and_kwargs(
     template = obj["template"]
     system_messages: list[str] = []
     messages: list[MessageParam] = []
-    if template["version"] == "chat-template-v1":
+    if template["type"] == "chat":
         for message in template["messages"]:
             if message["role"] == "SYSTEM":
                 for block in _ContentConversion.to_anthropic(
@@ -112,7 +112,7 @@ def to_chat_messages_and_kwargs(
                         system_messages.append(block["text"])
             else:
                 messages.extend(_MessageConversion.to_anthropic(message, variables, formatter))
-    elif template["version"] == "string-template-v1":
+    elif template["type"] == "string":
         content = formatter.format(template["template"], variables=variables)
         messages.append({"role": "user", "content": content})
     elif TYPE_CHECKING:
@@ -176,7 +176,7 @@ class _ModelKwargsConversion:
 class _ToolKwargsConversion:
     @staticmethod
     def to_anthropic(
-        obj: Optional[v1.PromptToolsV1],
+        obj: Optional[v1.PromptTools],
     ) -> _ToolKwargs:
         ans: _ToolKwargs = {}
         if not obj:
@@ -199,14 +199,14 @@ class _ToolKwargsConversion:
     @staticmethod
     def from_anthropic(
         obj: _ToolKwargs,
-    ) -> Optional[v1.PromptToolsV1]:
+    ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptFunctionToolV1] = list(_ToolConversion.from_anthropic(obj["tools"]))
+        tools: list[v1.PromptFunctionTool] = list(_ToolConversion.from_anthropic(obj["tools"]))
         if not tools:
             return None
-        ans = v1.PromptToolsV1(
-            type="tools-v1",
+        ans = v1.PromptTools(
+            type="tools",
             tools=tools,
         )
         if "tool_choice" in obj:
@@ -283,7 +283,7 @@ class _ToolChoiceConversion:
 class _ToolConversion:
     @staticmethod
     def to_anthropic(
-        obj: Iterable[v1.PromptFunctionToolV1],
+        obj: Iterable[v1.PromptFunctionTool],
     ) -> Iterator[ToolParam]:
         for ft in obj:
             input_schema: dict[str, Any] = dict(ft["schema"]["json"]) if "schema" in ft else {}
@@ -298,10 +298,10 @@ class _ToolConversion:
     @staticmethod
     def from_anthropic(
         obj: Iterable[ToolParam],
-    ) -> Iterator[v1.PromptFunctionToolV1]:
+    ) -> Iterator[v1.PromptFunctionTool]:
         for tp in obj:
-            function = v1.PromptFunctionToolV1(
-                type="function-tool-v1",
+            function = v1.PromptFunctionTool(
+                type="function-tool",
                 name=tp["name"],
             )
             if "description" in tp:

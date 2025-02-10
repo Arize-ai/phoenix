@@ -112,14 +112,14 @@ describe("toAI type compatibility", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
       tools: {
-        type: "tools-v1",
+        type: "tools",
         tool_choice: {
           type: "specific-function-tool",
           function_name: "edit_image",
         },
         tools: [
           {
-            type: "function-tool-v1",
+            type: "function-tool",
             name: "edit_image",
             description: "edit an image",
             schema: {
@@ -143,7 +143,7 @@ describe("toAI type compatibility", () => {
         ],
       },
       template: {
-        version: "chat-template-v1",
+        type: "chat",
         messages: [
           {
             role: "USER",

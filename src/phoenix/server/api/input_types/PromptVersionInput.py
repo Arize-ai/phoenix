@@ -8,7 +8,7 @@ from phoenix.server.api.helpers.prompts.models import (
     ContentPart,
     ImageContentPart,
     ImageContentValue,
-    PromptChatTemplateV1,
+    PromptChatTemplate,
     PromptMessage,
     PromptTemplateFormat,
     TextContentPart,
@@ -95,9 +95,9 @@ class ChatPromptVersionInput:
 
 def to_pydantic_prompt_chat_template_v1(
     prompt_chat_template_input: PromptChatTemplateInput,
-) -> PromptChatTemplateV1:
-    return PromptChatTemplateV1(
-        version="chat-template-v1",
+) -> PromptChatTemplate:
+    return PromptChatTemplate(
+        type="chat",
         messages=[
             to_pydantic_prompt_message(message) for message in prompt_chat_template_input.messages
         ],

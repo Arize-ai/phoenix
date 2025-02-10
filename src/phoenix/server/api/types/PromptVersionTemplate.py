@@ -13,13 +13,14 @@ from phoenix.server.api.helpers.prompts.models import (
     ImageContentValue as ImageContentValueModel,
 )
 from phoenix.server.api.helpers.prompts.models import (
-    PromptChatTemplateV1,
-    PromptStringTemplateV1,
-    PromptTemplateType,
+    PromptChatTemplate as PromptChatTemplateModel,
 )
 from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
 from phoenix.server.api.helpers.prompts.models import (
-    PromptStringTemplateV1 as PromptStringTemplateModel,
+    PromptStringTemplate as PromptStringTemplateModel,
+)
+from phoenix.server.api.helpers.prompts.models import (
+    PromptTemplateType,
 )
 from phoenix.server.api.helpers.prompts.models import TextContentPart as TextContentPartModel
 from phoenix.server.api.helpers.prompts.models import (
@@ -102,13 +103,13 @@ class PromptMessage:
     content: list[ContentPart]
 
 
-@strawberry.experimental.pydantic.type(PromptChatTemplateV1)
+@strawberry.experimental.pydantic.type(PromptChatTemplateModel)
 class PromptChatTemplate:
     messages: list[PromptMessage]
 
 
 def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptChatTemplate":
-    template = PromptChatTemplateV1.model_validate(orm_model.template)
+    template = PromptChatTemplateModel.model_validate(orm_model.template)
     messages: list[PromptMessage] = []
     for msg in template.messages:
         if isinstance(msg, PromptMessageModel):
@@ -124,7 +125,7 @@ class PromptStringTemplate:
 
 
 def to_gql_prompt_string_template_from_orm(orm_model: "ORMPromptVersion") -> "PromptStringTemplate":
-    model = PromptStringTemplateV1.model_validate(orm_model.template)
+    model = PromptStringTemplateModel.model_validate(orm_model.template)
     return PromptStringTemplate(template=model.template)
 
 

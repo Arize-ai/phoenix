@@ -150,7 +150,7 @@ def _to_model_kwargs(
                 ans["tool_choice"] = tool_kwargs["tool_choice"]
     if "response_format" in obj:
         response_format = obj["response_format"]
-        if response_format["type"] == "response-format-json-schema-v1":
+        if response_format["type"] == "response-format-json-schema":
             ans["response_format"] = _ResponseFormatJSONSchemaConversion.to_openai(response_format)
         elif TYPE_CHECKING:
             assert_never(response_format)
@@ -166,10 +166,10 @@ def _to_chat_completion_messages(
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
-    if template["version"] == "chat-template-v1":
+    if template["type"] == "chat":
         for message in template["messages"]:
             yield from _MessageConversion.to_openai(message, variables, formatter)
-    elif template["version"] == "string-template-v1":
+    elif template["type"] == "string":
         content = formatter.format(template["template"], variables=variables)
         yield {"role": "user", "content": content}
     elif TYPE_CHECKING:
@@ -179,14 +179,14 @@ def _to_chat_completion_messages(
 class _ToolKwargsConversion:
     @staticmethod
     def to_openai(
-        obj: Optional[v1.PromptToolsV1],
+        obj: Optional[v1.PromptTools],
     ) -> _ToolKwargs:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
         tools: list[ChatCompletionToolParam] = []
         for ft in obj["tools"]:
-            if ft["type"] == "function-tool-v1":
+            if ft["type"] == "function-tool":
                 tools.append(_FunctionToolConversion.to_openai(ft))
         if not tools:
             return ans
@@ -202,16 +202,16 @@ class _ToolKwargsConversion:
     @staticmethod
     def from_openai(
         obj: _ToolKwargs,
-    ) -> Optional[v1.PromptToolsV1]:
+    ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptFunctionToolV1] = []
+        tools: list[v1.PromptFunctionTool] = []
         for tp in obj["tools"]:
             if tp["type"] == "function":
                 tools.append(_FunctionToolConversion.from_openai(tp))
         if not tools:
             return None
-        ans = v1.PromptToolsV1(type="tools-v1", tools=tools)
+        ans = v1.PromptTools(type="tools", tools=tools)
         if "tool_choice" in obj:
             tc: ChatCompletionToolChoiceOptionParam = obj["tool_choice"]
             ans["tool_choice"] = _from_tool_choice(tc)
@@ -274,7 +274,7 @@ def _from_tool_choice(
 class _FunctionToolConversion:
     @staticmethod
     def to_openai(
-        obj: v1.PromptFunctionToolV1,
+        obj: v1.PromptFunctionTool,
     ) -> ChatCompletionToolParam:
         definition: FunctionDefinition = {"name": obj["name"]}
         if "description" in obj:
@@ -293,10 +293,10 @@ class _FunctionToolConversion:
     @staticmethod
     def from_openai(
         obj: ChatCompletionToolParam,
-    ) -> v1.PromptFunctionToolV1:
+    ) -> v1.PromptFunctionTool:
         definition: FunctionDefinition = obj["function"]
         name = definition["name"]
-        function = v1.PromptFunctionToolV1(type="function-tool-v1", name=name)
+        function = v1.PromptFunctionTool(type="function-tool", name=name)
         if "description" in definition:
             function["description"] = definition["description"]
         if "parameters" in definition:
@@ -346,7 +346,7 @@ class _ResponseFormatJSONSchemaConversion:
             if "strict" in json_schema:
                 extra_parameters["strict"] = json_schema["strict"]
             ans = v1.PromptResponseFormatJSONSchema(
-                type="response-format-json-schema-v1",
+                type="response-format-json-schema",
                 extra_parameters=extra_parameters,
                 name=json_schema["name"],
                 schema=v1.JSONSchemaDraft7ObjectSchema(

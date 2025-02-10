@@ -70,7 +70,7 @@ def to_chat_messages_and_kwargs(
     template = obj["template"]
     system_messages: list[str] = []
     messages: list[protos.Content] = []
-    if template["version"] == "chat-template-v1":
+    if template["type"] == "chat":
         for message in template["messages"]:
             if message["role"] == "SYSTEM":
                 for content in _ContentConversion.to_google(message, variables, formatter):
@@ -79,7 +79,7 @@ def to_chat_messages_and_kwargs(
                             system_messages.append(text)
             else:
                 messages.extend(_ContentConversion.to_google(message, variables, formatter))
-    elif template["version"] == "string-template-v1":
+    elif template["type"] == "string":
         text = formatter.format(template["template"], variables=variables)
         messages.append(protos.Content(role="user", parts=[protos.Part(text=text)]))  # type: ignore[no-untyped-call]
     elif TYPE_CHECKING:
@@ -146,14 +146,14 @@ def _to_model_kwargs(
 class _ToolKwargsConversion:
     @staticmethod
     def to_google(
-        obj: Optional[v1.PromptToolsV1],
+        obj: Optional[v1.PromptTools],
     ) -> _ToolKwargs:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
         function_declarations: list[content_types.FunctionDeclaration] = []
         for t in obj["tools"]:
-            if t["type"] == "function-tool-v1":
+            if t["type"] == "function-tool":
                 function_declarations.append(_FunctionDeclarationConversion.to_google(t))
         from google.generativeai.types import content_types
 
@@ -169,16 +169,16 @@ class _ToolKwargsConversion:
     @staticmethod
     def from_google(
         obj: _ToolKwargs,
-    ) -> Optional[v1.PromptToolsV1]:
+    ) -> Optional[v1.PromptTools]:
         if not obj:
             return None
-        tools: list[v1.PromptFunctionToolV1] = []
+        tools: list[v1.PromptFunctionTool] = []
         if "tools" in obj:
             for tool in obj["tools"]:
                 for fd in tool.function_declarations:
                     tools.append(_FunctionDeclarationConversion.from_google(fd))
-        ans = v1.PromptToolsV1(
-            type="tools-v1",
+        ans = v1.PromptTools(
+            type="tools",
             tools=tools,
         )
         if "tool_config" in obj:
@@ -249,7 +249,7 @@ class _ToolConfigConversion:
 class _FunctionDeclarationConversion:
     @staticmethod
     def to_google(
-        obj: v1.PromptFunctionToolV1,
+        obj: v1.PromptFunctionTool,
     ) -> content_types.FunctionDeclaration:
         from google.generativeai.types import content_types
 
@@ -262,9 +262,9 @@ class _FunctionDeclarationConversion:
     @staticmethod
     def from_google(
         obj: Union[content_types.FunctionDeclaration, protos.FunctionDeclaration],
-    ) -> v1.PromptFunctionToolV1:
-        return v1.PromptFunctionToolV1(
-            type="function-tool-v1",
+    ) -> v1.PromptFunctionTool:
+        return v1.PromptFunctionTool(
+            type="function-tool",
             name=obj.name,
             description=obj.description,
             schema=v1.JSONSchemaDraft7ObjectSchema(

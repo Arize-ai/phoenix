@@ -567,23 +567,23 @@ export interface components {
             /** Description */
             description: string | null;
         };
-        /** PromptChatTemplateV1 */
-        PromptChatTemplateV1: {
+        /** PromptChatTemplate */
+        PromptChatTemplate: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            version: "chat-template-v1";
+            type: "chat";
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
         };
-        /** PromptFunctionToolV1 */
-        PromptFunctionToolV1: {
+        /** PromptFunctionTool */
+        PromptFunctionTool: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "function-tool-v1";
+            type: "function-tool";
             /** Name */
             name: string;
             /** Description */
@@ -610,7 +610,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "response-format-json-schema-v1";
+            type: "response-format-json-schema";
             /** Name */
             name: string;
             /** Description */
@@ -620,13 +620,13 @@ export interface components {
             /** Extra Parameters */
             extra_parameters: Record<string, unknown>;
         };
-        /** PromptStringTemplateV1 */
-        PromptStringTemplateV1: {
+        /** PromptStringTemplate */
+        PromptStringTemplate: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            version: "string-template-v1";
+            type: "string";
             /** Template */
             template: string;
         };
@@ -674,15 +674,15 @@ export interface components {
              */
             type: "zero-or-more";
         };
-        /** PromptToolsV1 */
-        PromptToolsV1: {
+        /** PromptTools */
+        PromptTools: {
             /**
              * Type
              * @constant
              */
-            type: "tools-v1";
+            type: "tools";
             /** Tools */
-            tools: components["schemas"]["PromptFunctionToolV1"][];
+            tools: components["schemas"]["PromptFunctionTool"][];
             /** Tool Choice */
             tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
             /** Disable Parallel Tool Calls */
@@ -699,12 +699,12 @@ export interface components {
             /** Model Name */
             model_name: string;
             /** Template */
-            template: components["schemas"]["PromptChatTemplateV1"] | components["schemas"]["PromptStringTemplateV1"];
+            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
             invocation_parameters: Record<string, unknown>;
-            tools?: components["schemas"]["PromptToolsV1"] | null;
+            tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
         };

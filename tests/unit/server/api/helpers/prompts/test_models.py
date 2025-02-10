@@ -9,7 +9,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.helpers.prompts.models import (
     ImageContentPart,
     ImageContentValue,
-    PromptChatTemplateV1,
+    PromptChatTemplate,
     PromptMessage,
     PromptMessageRole,
     TextContentPart,
@@ -32,8 +32,8 @@ async def test_chat_template_materializes_to_expected_format(
     dialect: str,
 ) -> None:
     # create a template
-    template = PromptChatTemplateV1(
-        version="chat-template-v1",
+    template = PromptChatTemplate(
+        type="chat",
         messages=[
             PromptMessage(
                 role=PromptMessageRole.USER,
@@ -103,7 +103,7 @@ async def test_chat_template_materializes_to_expected_format(
     else:
         materialized_template_dict = materialized_template
     assert materialized_template_dict == {
-        "version": "chat-template-v1",
+        "version": "chat",
         "messages": [
             {
                 "role": "USER",
@@ -172,7 +172,7 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -203,7 +203,7 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "description": "Gets the current weather for a given city",
                 "schema": {
@@ -237,7 +237,7 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -272,7 +272,7 @@ async def test_chat_template_materializes_to_expected_format(
                 "cache_control": None,
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -315,8 +315,8 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             user_id=None,
             template_type="CHAT",
             template_format="MUSTACHE",
-            template=PromptChatTemplateV1(
-                version="chat-template-v1",
+            template=PromptChatTemplate(
+                type="chat",
                 messages=[],
             ),
             invocation_parameters={},
@@ -339,7 +339,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     else:
         materialized_tool_dict = materialized_tools
     assert materialized_tool_dict == {
-        "type": "tools-v1",
+        "type": "tools",
         "tools": [
             expected_normalized_tool_dict,
         ],
@@ -377,7 +377,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -411,7 +411,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "description": "Gets current weather for a given city",
                 "schema": {
@@ -437,7 +437,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "escalate_to_human_customer_support",
                 "extra_parameters": {},
             },
@@ -462,7 +462,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -502,7 +502,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "function-tool-v1",
+                "type": "function-tool",
                 "name": "get_weather",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -547,8 +547,8 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             user_id=None,
             template_type="CHAT",
             template_format="MUSTACHE",
-            template=PromptChatTemplateV1(
-                version="chat-template-v1",
+            template=PromptChatTemplate(
+                type="chat",
                 messages=[],
             ),
             invocation_parameters={},
@@ -571,7 +571,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     else:
         materialized_tool_dict = materialized_tools
     assert materialized_tool_dict == {
-        "type": "tools-v1",
+        "type": "tools",
         "tools": [
             expected_normalized_tool_dict,
         ],
@@ -614,7 +614,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -662,7 +662,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -716,7 +716,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "schema": {
                     "type": "json-schema-draft-7-object-schema",
@@ -769,7 +769,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 },
             },
             {
-                "type": "response-format-json-schema-v1",
+                "type": "response-format-json-schema",
                 "name": "classify_user_intent",
                 "description": "Classifies the user's intent into one of several categories",
                 "schema": {
@@ -820,8 +820,8 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
             user_id=None,
             template_type="CHAT",
             template_format="MUSTACHE",
-            template=PromptChatTemplateV1(
-                version="chat-template-v1",
+            template=PromptChatTemplate(
+                type="chat",
                 messages=[],
             ),
             invocation_parameters={},
