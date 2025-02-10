@@ -437,11 +437,6 @@ const fetchPlaygroundPromptQuery = graphql`
                           text
                         }
                       }
-                      ... on ImageContentPart {
-                        image {
-                          url
-                        }
-                      }
                       ... on ToolCallContentPart {
                         toolCall {
                           toolCallId

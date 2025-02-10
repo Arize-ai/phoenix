@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff02c19a03d740388e2ee8d6037b0d55>>
+ * @generated SignedSource<<d6f0b6d44e5a652a6eae70f8359580cc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,11 +24,6 @@ export type PromptCodeExportCard__main$data = {
     readonly __typename: "PromptChatTemplate";
     readonly messages: ReadonlyArray<{
       readonly content: ReadonlyArray<{
-        readonly __typename: "ImageContentPart";
-        readonly image: {
-          readonly url: string;
-        };
-      } | {
         readonly __typename: "TextContentPart";
         readonly text: {
           readonly text: string;
@@ -214,32 +209,6 @@ return {
                         {
                           "alias": null,
                           "args": null,
-                          "concreteType": "ImageContentValue",
-                          "kind": "LinkedField",
-                          "name": "image",
-                          "plural": false,
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "url",
-                              "storageKey": null
-                            }
-                          ],
-                          "storageKey": null
-                        }
-                      ],
-                      "type": "ImageContentPart",
-                      "abstractKey": null
-                    },
-                    {
-                      "kind": "InlineFragment",
-                      "selections": [
-                        (v1/*: any*/),
-                        {
-                          "alias": null,
-                          "args": null,
                           "concreteType": "ToolCallContentValue",
                           "kind": "LinkedField",
                           "name": "toolCall",
@@ -352,6 +321,6 @@ return {
 };
 })();
 
-(node as any).hash = "8449160e6ba1fd2bf040b8d2ce4182f7";
+(node as any).hash = "f109600f56fdc122adef37a44500f450";
 
 export default node;

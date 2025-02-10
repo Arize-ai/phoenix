@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6623e4180478f9fbce22dfb0204fe9e2>>
+ * @generated SignedSource<<7b9ab07fb61de5d9ba0af2dc890d7297>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,11 +36,6 @@ export type fetchPlaygroundPromptQuery$data = {
             readonly __typename: "PromptChatTemplate";
             readonly messages: ReadonlyArray<{
               readonly content: ReadonlyArray<{
-                readonly __typename: "ImageContentPart";
-                readonly image: {
-                  readonly url: string;
-                };
-              } | {
                 readonly __typename: "TextContentPart";
                 readonly text: {
                   readonly text: string;
@@ -297,31 +292,6 @@ v9 = {
                                 {
                                   "alias": null,
                                   "args": null,
-                                  "concreteType": "ImageContentValue",
-                                  "kind": "LinkedField",
-                                  "name": "image",
-                                  "plural": false,
-                                  "selections": [
-                                    {
-                                      "alias": null,
-                                      "args": null,
-                                      "kind": "ScalarField",
-                                      "name": "url",
-                                      "storageKey": null
-                                    }
-                                  ],
-                                  "storageKey": null
-                                }
-                              ],
-                              "type": "ImageContentPart",
-                              "abstractKey": null
-                            },
-                            {
-                              "kind": "InlineFragment",
-                              "selections": [
-                                {
-                                  "alias": null,
-                                  "args": null,
                                   "concreteType": "ToolCallContentValue",
                                   "kind": "LinkedField",
                                   "name": "toolCall",
@@ -483,16 +453,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "19bd0beec784e42e878698170e75bbf9",
+    "cacheID": "cdb5b08e01bb4ae4d007563d57362619",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            responseFormat {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ImageContentPart {\n                      image {\n                        url\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptQuery(\n  $promptId: GlobalID!\n) {\n  prompt: node(id: $promptId) {\n    __typename\n    ... on Prompt {\n      id\n      name\n      createdAt\n      description\n      promptVersions(first: 1) {\n        edges {\n          promptVersion: node {\n            id\n            description\n            modelName\n            modelProvider\n            invocationParameters\n            templateType\n            templateFormat\n            responseFormat {\n              definition\n            }\n            template {\n              __typename\n              ... on PromptChatTemplate {\n                messages {\n                  role\n                  content {\n                    __typename\n                    ... on TextContentPart {\n                      text {\n                        text\n                      }\n                    }\n                    ... on ToolCallContentPart {\n                      toolCall {\n                        toolCallId\n                        toolCall {\n                          name\n                          arguments\n                        }\n                      }\n                    }\n                    ... on ToolResultContentPart {\n                      toolResult {\n                        toolCallId\n                        result\n                      }\n                    }\n                  }\n                }\n              }\n            }\n            tools {\n              definition\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e90031b9619682499a3e5227b2690cb3";
+(node as any).hash = "0118ead04aa7447b54365bf6eb1a1b1c";
 
 export default node;
