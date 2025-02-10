@@ -2,7 +2,6 @@ import csv
 import gzip
 import logging
 import re
-import weakref
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
@@ -85,7 +84,6 @@ class Client(TraceDataExtractor):
             host = "127.0.0.1"
         base_url = endpoint or get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
         self._client = VersionedClient(headers=headers, base_url=httpx.URL(base_url))
-        weakref.finalize(self._client, self._client.close)
         if warn_if_server_not_running:
             self._warn_if_phoenix_is_not_running()
         try:
