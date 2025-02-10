@@ -2193,13 +2193,13 @@
       },
       "PromptAnthropicInvocationParametersContent": {
         "properties": {
-          "temperature": {
-            "type": "number",
-            "title": "Temperature"
-          },
           "max_tokens": {
             "type": "integer",
             "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
           },
           "top_p": {
             "type": "number",
@@ -2215,6 +2215,9 @@
         },
         "additionalProperties": false,
         "type": "object",
+        "required": [
+          "max_tokens"
+        ],
         "title": "PromptAnthropicInvocationParametersContent"
       },
       "PromptAzureOpenAIInvocationParameters": {

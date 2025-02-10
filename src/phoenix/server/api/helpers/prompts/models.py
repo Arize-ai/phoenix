@@ -352,8 +352,8 @@ class PromptAzureOpenAIInvocationParameters(PromptModel):
 
 
 class PromptAnthropicInvocationParametersContent(PromptModel):
+    max_tokens: int
     temperature: float = UNDEFINED
-    max_tokens: int = UNDEFINED
     top_p: float = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
 

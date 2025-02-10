@@ -110,8 +110,8 @@ class Prompt(TypedDict):
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):
+    max_tokens: int
     temperature: NotRequired[float]
-    max_tokens: NotRequired[int]
     top_p: NotRequired[float]
     stop_sequences: NotRequired[Sequence[str]]
 
