@@ -1,21 +1,19 @@
 import z from "zod";
-import { JSONLiteral, jsonLiteralSchema } from "../jsonLiteralSchema";
 import { anthropicMessageSchema } from "./anthropic/messageSchemas";
 import { openAIMessageSchema } from "./openai/messageSchemas";
-import { promptMessageSchema } from "./phoenixPrompt/messageSchemas";
+import { phoenixMessageSchema } from "./phoenixPrompt/messageSchemas";
 import { openAIToolCallSchema } from "./openai/toolCallSchemas";
 import { anthropicToolCallSchema } from "./anthropic/toolCallSchemas";
 import { openAIToolChoiceSchema } from "./openai/toolChoiceSchemas";
 import { anthropicToolChoiceSchema } from "./anthropic/toolChoiceSchemas";
-import {
-  OpenAIToolDefinition,
-  openAIToolDefinitionSchema,
-} from "./openai/toolSchemas";
-import {
-  AnthropicToolDefinition,
-  anthropicToolDefinitionSchema,
-} from "./anthropic/toolSchemas";
-import { PromptModelProvider } from "../../types/prompts";
+import { openAIToolDefinitionSchema } from "./openai/toolSchemas";
+import { anthropicToolDefinitionSchema } from "./anthropic/toolSchemas";
+import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
+import { vercelAIToolChoiceSchema } from "./vercel/toolChoiceSchemas";
+import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
+import { vercelAIChatPartToolCallSchema } from "./vercel/messagePartSchemas";
+import { vercelAIMessageSchema } from "./vercel/messageSchemas";
 
 /**
  * Union of all message formats
@@ -23,8 +21,8 @@ import { PromptModelProvider } from "../../types/prompts";
 export const llmProviderMessageSchema = z.union([
   openAIMessageSchema,
   anthropicMessageSchema,
-  promptMessageSchema,
-  jsonLiteralSchema,
+  phoenixMessageSchema,
+  vercelAIMessageSchema,
 ]);
 
 export type LlmProviderMessage = z.infer<typeof llmProviderMessageSchema>;
@@ -37,7 +35,8 @@ export type LlmProviderMessage = z.infer<typeof llmProviderMessageSchema>;
 export const llmProviderToolCallSchema = z.union([
   openAIToolCallSchema,
   anthropicToolCallSchema,
-  jsonLiteralSchema,
+  phoenixToolCallSchema,
+  vercelAIChatPartToolCallSchema,
 ]);
 
 export type LlmProviderToolCall = z.infer<typeof llmProviderToolCallSchema>;
@@ -73,6 +72,8 @@ export const toolCallHeuristicSchema = z.object({
 export const llmProviderToolChoiceSchema = z.union([
   openAIToolChoiceSchema,
   anthropicToolChoiceSchema,
+  phoenixToolChoiceSchema,
+  vercelAIToolChoiceSchema,
 ]);
 
 export type LlmProviderToolChoice = z.infer<typeof llmProviderToolChoiceSchema>;
@@ -85,31 +86,9 @@ export type LlmProviderToolChoice = z.infer<typeof llmProviderToolChoiceSchema>;
 export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
-  jsonLiteralSchema,
+  phoenixToolDefinitionSchema,
 ]);
 
 export type LlmProviderToolDefinition = z.infer<
   typeof llmProviderToolDefinitionSchema
 >;
-
-export type ToolDefinitionWithProvider =
-  | {
-      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
-      validatedToolDefinition: OpenAIToolDefinition;
-    }
-  | {
-      provider: Extract<PromptModelProvider, "ANTHROPIC">;
-      validatedToolDefinition: AnthropicToolDefinition;
-    }
-  | {
-      provider: "UNKNOWN";
-      validatedToolDefinition: null;
-    };
-
-export type ProviderToToolDefinitionMap = {
-  OPENAI: OpenAIToolDefinition;
-  AZURE_OPENAI: OpenAIToolDefinition;
-  ANTHROPIC: AnthropicToolDefinition;
-  // Use generic JSON type for unknown tool formats / new providers
-  GEMINI: JSONLiteral;
-};

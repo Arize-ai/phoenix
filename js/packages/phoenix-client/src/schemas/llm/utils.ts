@@ -8,18 +8,63 @@ import { anthropicToolChoiceSchema } from "./anthropic/toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./openai/toolSchemas";
 import { anthropicToolDefinitionSchema } from "./anthropic/toolSchemas";
 import { anthropicToolCallSchema } from "./anthropic/toolCallSchemas";
-import {
-  ToolDefinitionWithProvider,
-  llmProviderToolDefinitionSchema,
-} from "./schemas";
-import {
+import { llmProviderToolDefinitionSchema } from "./schemas";
+import type {
   LLMMessagePart,
   MessagePartWithProvider,
   MessageWithProvider,
+  SDKConverters,
   ToolCallWithProvider,
   ToolChoiceWithProvider,
+  ToolDefinitionWithProvider,
 } from "./types";
 import { isObject } from "../../utils/isObject";
+import type { ZodTypeAny } from "zod";
+import { vercelAIMessageSchema } from "./vercel/messageSchemas";
+import { phoenixMessageSchema } from "./phoenixPrompt/messageSchemas";
+import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
+import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
+import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixContentPartSchema } from "./phoenixPrompt/messagePartSchemas";
+
+export const makeSDKConverters = <
+  MessageSchema extends ZodTypeAny,
+  MessagePartSchema extends ZodTypeAny,
+  ToolChoiceSchema extends ZodTypeAny,
+  ToolCallSchema extends ZodTypeAny,
+  ToolDefinitionSchema extends ZodTypeAny,
+  ResponseFormatSchema extends ZodTypeAny,
+>({
+  messages,
+  messageParts,
+  toolChoices,
+  toolCalls,
+  toolDefinitions,
+  responseFormat,
+}: SDKConverters<
+  MessageSchema,
+  MessagePartSchema,
+  ToolChoiceSchema,
+  ToolCallSchema,
+  ToolDefinitionSchema,
+  ResponseFormatSchema
+>): SDKConverters<
+  MessageSchema,
+  MessagePartSchema,
+  ToolChoiceSchema,
+  ToolCallSchema,
+  ToolDefinitionSchema,
+  ResponseFormatSchema
+> => {
+  return {
+    messages,
+    messageParts,
+    toolChoices,
+    toolCalls,
+    toolDefinitions,
+    responseFormat,
+  };
+};
 
 /**
  * Detect the provider of a message object
@@ -44,7 +89,17 @@ export const detectMessageProvider = (
       validatedMessage: anthropicData,
     };
   }
-  return { provider: "UNKNOWN", validatedMessage: null };
+  const { success: vercelSuccess, data: vercelData } =
+    vercelAIMessageSchema.safeParse(message);
+  if (vercelSuccess) {
+    return { provider: "VERCEL_AI", validatedMessage: vercelData };
+  }
+  const { success: phoenixSuccess, data: phoenixData } =
+    phoenixMessageSchema.safeParse(message);
+  if (phoenixSuccess) {
+    return { provider: "PHOENIX", validatedMessage: phoenixData };
+  }
+  return { provider: null, validatedMessage: null };
 };
 
 export const detectMessagePartProvider = (
@@ -66,7 +121,12 @@ export const detectMessagePartProvider = (
       validatedMessage: anthropicData,
     };
   }
-  return { provider: "UNKNOWN", validatedMessage: null };
+  const { success: phoenixSuccess, data: phoenixData } =
+    phoenixContentPartSchema.safeParse(part);
+  if (phoenixSuccess) {
+    return { provider: "PHOENIX", validatedMessage: phoenixData };
+  }
+  return { provider: null, validatedMessage: null };
 };
 
 /**
@@ -86,7 +146,12 @@ export const detectToolCallProvider = (
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", validatedToolCall: anthropicData };
   }
-  return { provider: "UNKNOWN", validatedToolCall: null };
+  const { success: phoenixSuccess, data: phoenixData } =
+    phoenixToolCallSchema.safeParse(toolCall);
+  if (phoenixSuccess) {
+    return { provider: "PHOENIX", validatedToolCall: phoenixData };
+  }
+  return { provider: null, validatedToolCall: null };
 };
 
 /**
@@ -106,6 +171,11 @@ export const detectToolChoiceProvider = (
     anthropicToolChoiceSchema.safeParse(toolChoice);
   if (anthropicSuccess) {
     return { provider: "ANTHROPIC", toolChoice: anthropicData };
+  }
+  const { success: phoenixSuccess, data: phoenixData } =
+    phoenixToolChoiceSchema.safeParse(toolChoice);
+  if (phoenixSuccess) {
+    return { provider: "PHOENIX", toolChoice: phoenixData };
   }
   return { provider: null, toolChoice: null };
 };
@@ -133,7 +203,12 @@ export const detectToolDefinitionProvider = (
       validatedToolDefinition: anthropicData,
     };
   }
-  return { provider: "UNKNOWN", validatedToolDefinition: null };
+  const { success: phoenixSuccess, data: phoenixData } =
+    phoenixToolDefinitionSchema.safeParse(toolDefinition);
+  if (phoenixSuccess) {
+    return { provider: "PHOENIX", validatedToolDefinition: phoenixData };
+  }
+  return { provider: null, validatedToolDefinition: null };
 };
 
 export const findToolDefinitionName = (toolDefinition: unknown) => {

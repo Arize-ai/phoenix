@@ -44,7 +44,7 @@ export const openAIMessageSchema = z.discriminatedUnion("role", [
     .object({
       role: z.literal("function"),
       content: z.string().nullable(),
-      name: z.string().optional(),
+      name: z.string(),
     })
     .passthrough(),
   z

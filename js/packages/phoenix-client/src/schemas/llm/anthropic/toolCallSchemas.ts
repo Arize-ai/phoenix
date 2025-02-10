@@ -1,16 +1,15 @@
 import z from "zod";
+import { jsonLiteralSchema } from "../../jsonLiteralSchema";
 
 /**
  * The schema for an Anthropic tool call, this is what a message that calls a tool looks like
  */
-export const anthropicToolCallSchema = z
-  .object({
-    id: z.string().describe("The ID of the tool call"),
-    type: z.literal("tool_use"),
-    name: z.string().describe("The name of the tool"),
-    input: z.unknown().describe("The input for the tool"),
-  })
-  .passthrough();
+export const anthropicToolCallSchema = z.object({
+  id: z.string().describe("The ID of the tool call"),
+  type: z.literal("tool_use"),
+  name: z.string().describe("The name of the tool"),
+  input: jsonLiteralSchema.describe("The input for the tool"),
+});
 
 /**
  * The type of an Anthropic tool call

@@ -1,95 +1,161 @@
+import { ZodType, ZodTypeAny, ZodTypeDef } from "zod";
+
 import type { OpenAIChatPart } from "./openai/messagePartSchemas";
 import type { AnthropicMessagePart } from "./anthropic/messagePartSchemas";
-import type { VercelAIChatPart } from "./ai/messagePartSchemas";
-import type { PhoenixPromptPart } from "./phoenixPrompt/messagePartSchemas";
-import { PromptModelProvider } from "../../types/prompts";
+import type {
+  VercelAIChatPart,
+  VercelAIChatPartToolCall,
+} from "./vercel/messagePartSchemas";
+import { PromptProviderSDKs, PromptToolChoice } from "../../types/prompts";
 import { OpenAIMessage } from "./openai/messageSchemas";
 import { AnthropicMessage } from "./anthropic/messageSchemas";
-import { JSONLiteral } from "../jsonLiteralSchema";
 import { OpenAIToolCall } from "./openai/toolCallSchemas";
 import { AnthropicToolCall } from "./anthropic/toolCallSchemas";
 import { OpenaiToolChoice } from "./openai/toolChoiceSchemas";
 import { AnthropicToolChoice } from "./anthropic/toolChoiceSchemas";
+import { VercelAIMessage } from "./vercel/messageSchemas";
+import { PhoenixToolCall } from "./phoenixPrompt/toolCallSchemas";
+import { PhoenixMessage } from "./phoenixPrompt/messageSchemas";
+import { VercelAIToolChoice } from "./vercel/toolChoiceSchemas";
+import { OpenAIToolDefinition } from "./openai/toolSchemas";
+import { OpenAIResponseFormat } from "./openai/responseFormatSchema";
+import { AnthropicToolDefinition } from "./anthropic/toolSchemas";
+import { PhoenixToolDefinition } from "./phoenixPrompt/toolSchemas";
+import { PhoenixContentPart } from "./phoenixPrompt/messagePartSchemas";
+
+export type PromptSDKFormat = PromptProviderSDKs | null;
 
 export type LLMMessagePart =
   | OpenAIChatPart
   | AnthropicMessagePart
-  | PhoenixPromptPart
+  | PhoenixContentPart
   | VercelAIChatPart;
 
-export type MessagePartProvider = PromptModelProvider | "UNKNOWN";
+export type SDKConverters<
+  MessageSchema extends ZodTypeAny = never,
+  MessagePartSchema extends ZodTypeAny = never,
+  ToolChoiceSchema extends ZodTypeAny = never,
+  ToolCallSchema extends ZodTypeAny = never,
+  ToolDefinitionSchema extends ZodTypeAny = never,
+  ResponseFormatSchema extends ZodTypeAny = never,
+> = {
+  messages: {
+    toOpenAI: ZodType<OpenAIMessage | null, ZodTypeDef, unknown>;
+    fromOpenAI: MessageSchema;
+  };
+  messageParts: {
+    toOpenAI: ZodType<OpenAIChatPart | null, ZodTypeDef, unknown>;
+    fromOpenAI: MessagePartSchema;
+  };
+  toolChoices: {
+    toOpenAI: ZodType<OpenaiToolChoice | null, ZodTypeDef, unknown>;
+    fromOpenAI: ToolChoiceSchema;
+  };
+  toolCalls: {
+    toOpenAI: ZodType<OpenAIToolCall | null, ZodTypeDef, unknown>;
+    fromOpenAI: ToolCallSchema;
+  };
+  toolDefinitions: {
+    toOpenAI: ZodType<OpenAIToolDefinition | null, ZodTypeDef, unknown>;
+    fromOpenAI: ToolDefinitionSchema;
+  };
+  responseFormat?: {
+    toOpenAI: ZodType<OpenAIResponseFormat | null, ZodTypeDef, unknown>;
+    fromOpenAI: ResponseFormatSchema;
+  };
+};
 
-/**
- * @todo We need to distinguish between provider and sdk types
- */
 export type MessagePartWithProvider =
   | {
-      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptSDKFormat, "OPENAI" | "AZURE_OPENAI">;
       validatedMessage: OpenAIChatPart;
     }
   | {
-      provider: Extract<PromptModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptSDKFormat, "ANTHROPIC">;
       validatedMessage: AnthropicMessagePart;
     }
-  | { provider: "UNKNOWN"; validatedMessage: null };
-
-export type MessageProvider = PromptModelProvider | "UNKNOWN";
+  | {
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedMessage: PhoenixContentPart;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "VERCEL_AI">;
+      validatedMessage: VercelAIChatPart;
+    }
+  | { provider: null; validatedMessage: null };
 
 export type MessageWithProvider =
   | {
-      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptSDKFormat, "OPENAI" | "AZURE_OPENAI">;
       validatedMessage: OpenAIMessage;
     }
   | {
-      provider: Extract<PromptModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptSDKFormat, "ANTHROPIC">;
       validatedMessage: AnthropicMessage;
     }
   | {
-      provider: Extract<PromptModelProvider, "GEMINI">;
-      validatedMessage: JSONLiteral;
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedMessage: PhoenixMessage;
     }
-  | { provider: "UNKNOWN"; validatedMessage: null };
+  | {
+      provider: Extract<PromptSDKFormat, "VERCEL_AI">;
+      validatedMessage: VercelAIMessage;
+    }
+  | { provider: null; validatedMessage: null };
 
-export type ProviderToMessageMap = {
-  OPENAI: OpenAIMessage;
-  AZURE_OPENAI: OpenAIMessage;
-  ANTHROPIC: AnthropicMessage;
-  // Use generic JSON type for unknown message formats / new providers
-  GEMINI: JSONLiteral;
-};
+export type ToolDefinitionWithProvider =
+  | {
+      provider: Extract<PromptSDKFormat, "OPENAI" | "AZURE_OPENAI">;
+      validatedToolDefinition: OpenAIToolDefinition;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "ANTHROPIC">;
+      validatedToolDefinition: AnthropicToolDefinition;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedToolDefinition: PhoenixToolDefinition;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "VERCEL_AI">;
+      validatedToolDefinition: null;
+    }
+  | { provider: null; validatedToolDefinition: null };
 
 export type ToolCallWithProvider =
   | {
-      provider: Extract<PromptModelProvider, "OPENAI" | "AZURE_OPENAI">;
+      provider: Extract<PromptSDKFormat, "OPENAI" | "AZURE_OPENAI">;
       validatedToolCall: OpenAIToolCall;
     }
   | {
-      provider: Extract<PromptModelProvider, "ANTHROPIC">;
+      provider: Extract<PromptSDKFormat, "ANTHROPIC">;
       validatedToolCall: AnthropicToolCall;
     }
-  | { provider: "UNKNOWN"; validatedToolCall: null };
-
-export type ProviderToToolCallMap = {
-  OPENAI: OpenAIToolCall;
-  AZURE_OPENAI: OpenAIToolCall;
-  ANTHROPIC: AnthropicToolCall;
-  // Use generic JSON type for unknown tool formats / new providers
-  GEMINI: JSONLiteral;
-};
+  | {
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      validatedToolCall: PhoenixToolCall;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "VERCEL_AI">;
+      validatedToolCall: VercelAIChatPartToolCall;
+    }
+  | { provider: null; validatedToolCall: null };
 
 export type ToolChoiceWithProvider =
   | {
-      provider: "OPENAI";
+      provider: Extract<PromptSDKFormat, "OPENAI" | "AZURE_OPENAI">;
       toolChoice: OpenaiToolChoice;
     }
-  | { provider: "AZURE_OPENAI"; toolChoice: OpenaiToolChoice }
-  | { provider: "ANTHROPIC"; toolChoice: AnthropicToolChoice }
+  | {
+      provider: Extract<PromptSDKFormat, "ANTHROPIC">;
+      toolChoice: AnthropicToolChoice;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "PHOENIX">;
+      toolChoice: PromptToolChoice;
+    }
+  | {
+      provider: Extract<PromptSDKFormat, "VERCEL_AI">;
+      toolChoice: VercelAIToolChoice;
+    }
   | { provider: null; toolChoice: null };
-
-export type ProviderToToolChoiceMap = {
-  OPENAI: OpenaiToolChoice;
-  AZURE_OPENAI: OpenaiToolChoice;
-  ANTHROPIC: AnthropicToolChoice;
-  // TODO(apowell): #5348 Add Gemini tool choice schema
-  GEMINI: OpenaiToolChoice;
-};
