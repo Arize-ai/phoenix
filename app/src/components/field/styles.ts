@@ -73,3 +73,42 @@ export const fieldPopoverCSS = css`
   border: 1px solid var(--ac-global-menu-border-color);
   max-height: inherit;
 `;
+
+export const textFieldCSS = css`
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  &[data-size="S"] {
+    --textfield-input-height: 30px;
+    --textfield-vertical-padding: 6px;
+    --textfield-horizontal-padding: 6px;
+  }
+  &[data-size="M"] {
+    --textfield-input-height: 38px;
+    --textfield-vertical-padding: 10px;
+    --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);
+  }
+
+  .react-aria-Input,
+  .react-aria-TextArea {
+    margin: 0;
+    border: var(--ac-global-border-size-thin) solid
+      var(--ac-global-input-field-border-color);
+    border-radius: var(--ac-global-rounding-small);
+    background-color: var(--ac-global-input-field-background-color);
+    color: var(--ac-global-text-color-900);
+    padding: var(--textfield-vertical-padding)
+      var(--textfield-horizontal-padding);
+    box-sizing: border-box;
+    outline-offset: -1px;
+    outline: var(--ac-global-border-size-thin) solid transparent;
+    &[data-focused] {
+      outline: 1px solid var(--ac-global-input-field-border-color-active);
+    }
+  }
+  .react-aria-Input {
+    /* TODO: remove this sizing */
+    height: var(--textfield-input-height);
+  }
+`;

@@ -8,7 +8,6 @@ import {
   Form,
   TabPane,
   Tabs,
-  TextField,
 } from "@arizeai/components";
 
 import {
@@ -16,6 +15,9 @@ import {
   Flex,
   Icon,
   Icons,
+  Input,
+  Label,
+  TextField,
   View,
 } from "@phoenix/components";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
@@ -73,16 +75,21 @@ export function DatasetCodeDropdown() {
                   alignItems="end"
                   width="100%"
                 >
-                  <TextField label="Dataset ID" isReadOnly value={datasetId} />
+                  <TextField isReadOnly value={datasetId}>
+                    <Label>Dataset ID</Label>
+                    <Input />
+                  </TextField>
                   <CopyToClipboardButton text={datasetId} size="M" />
                 </Flex>
                 <Flex direction="row" gap="size-100" alignItems="end">
                   <TextField
-                    label="Version ID"
                     isReadOnly
                     value={version?.id || "No Versions"}
-                    validationState={!version ? "invalid" : "valid"}
-                  />
+                    isInvalid={!version}
+                  >
+                    <Label>Version ID</Label>
+                    <Input />
+                  </TextField>
                   <CopyToClipboardButton
                     text={version?.id || "No Versions"}
                     isDisabled={!version}
@@ -106,7 +113,10 @@ export function DatasetCodeDropdown() {
                 <View padding="size-200">
                   <Form>
                     <Flex direction="row" gap="size-100" alignItems="end">
-                      <TextField label="URL" isReadOnly value={datasetURL} />
+                      <TextField isReadOnly value={datasetURL}>
+                        <Label>URL</Label>
+                        <Input />
+                      </TextField>
                       <CopyToClipboardButton text={datasetURL} size="M" />
                     </Flex>
                   </Form>

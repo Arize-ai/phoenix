@@ -48,5 +48,10 @@ export const Gallery = () => (
       <Input type="text" />
       <FieldError>Field error</FieldError>
     </TextField>
+    <TextField isReadOnly>
+      <Label>Label</Label>
+      <Input type="text" />
+      <Text slot="description">This is read only</Text>
+    </TextField>
   </Flex>
 );
