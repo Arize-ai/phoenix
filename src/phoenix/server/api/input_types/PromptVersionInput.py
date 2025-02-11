@@ -14,7 +14,6 @@ from phoenix.server.api.helpers.prompts.models import (
     TextContentValue,
     ToolCallContentPart,
     ToolCallContentValue,
-    ToolCallFunction,
     ToolResultContentPart,
     ToolResultContentValue,
 )
@@ -44,10 +43,11 @@ class ToolResultContentValueInput:
     result: JSON
 
 
-@strawberry.experimental.pydantic.input(ToolCallFunction)
+@strawberry.input
 class ToolCallFunctionInput:
-    name: strawberry.auto
-    arguments: strawberry.auto
+    type: Optional[str] = strawberry.field(default="function")
+    name: str
+    arguments: str
 
 
 @strawberry.experimental.pydantic.input(ToolCallContentValue)

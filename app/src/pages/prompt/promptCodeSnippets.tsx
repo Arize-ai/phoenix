@@ -4,6 +4,7 @@ import { CodeLanguage } from "@phoenix/components/code";
 import {
   fromOpenAIMessage,
   LlmProviderMessage,
+  OpenAIMessage,
   promptMessageToOpenAI,
 } from "@phoenix/schemas/messageSchemas";
 
@@ -106,6 +107,29 @@ response.then((completion) => console.log(completion.choices[0].message));
 );
 
 /**
+ * Stringify the arguments of a message's tool calls
+ *
+ * @param message the message to stringify
+ * @returns the message with stringified tool call arguments
+ */
+const stringifyOpenAIToolCallArguments = (message: OpenAIMessage) => {
+  if ("tool_calls" in message && message.tool_calls) {
+    return {
+      ...message,
+      tool_calls: message.tool_calls.map((toolCall) => ({
+        ...toolCall,
+        function: {
+          ...toolCall.function,
+          arguments: JSON.stringify(toolCall.function.arguments),
+        },
+      })),
+    };
+  } else {
+    return message;
+  }
+};
+
+/**
  * A map of languages to model providers to code snippets
  *
  * @todo when we implement more langs / providers, replace with a react-like DSL, for example something like the following:
@@ -151,7 +175,9 @@ export const promptCodeSnippets: Record<
       let messages = "";
       if (prompt.template.messages.length > 0) {
         const fmt = jsonFormatter({
-          json: prompt.template.messages,
+          json: prompt.template.messages.map((m) =>
+            stringifyOpenAIToolCallArguments(m as OpenAIMessage)
+          ),
           level: 0,
         });
         messages = `${fmt}`;
@@ -204,7 +230,9 @@ export const promptCodeSnippets: Record<
       let messages = "";
       if (prompt.template.messages.length > 0) {
         const fmt = jsonFormatter({
-          json: prompt.template.messages,
+          json: prompt.template.messages.map((m) =>
+            stringifyOpenAIToolCallArguments(m as OpenAIMessage)
+          ),
           level: 0,
           removeKeyQuotes: true,
         });

@@ -109,6 +109,7 @@ export const testSpanToolCall: SpanToolCall = {
 
 export const expectedTestOpenAIToolCall: OpenAIToolCall = {
   id: "1",
+  type: "function",
   function: {
     name: "functionName",
     arguments: { arg1: "value1" },
