@@ -32,11 +32,21 @@ export const toOpenAI = <V extends Variables = Variables>({
   variables,
 }: ToOpenAIParams<V>): ChatCompletionCreateParams | null => {
   try {
+    let invocationParameters: Partial<ChatCompletionCreateParams>;
+    if (prompt.invocation_parameters.type === "openai") {
+      invocationParameters = prompt.invocation_parameters.openai;
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "Prompt is not an OpenAI prompt, falling back to default OpenAI invocation parameters"
+      );
+      invocationParameters = {};
+    }
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       model: prompt.model_name,
       // Invocation parameters are validated on the phoenix-side
-      ...prompt.invocation_parameters,
+      ...invocationParameters,
     } satisfies Partial<ChatCompletionCreateParams>;
 
     if (!("messages" in prompt.template)) {
