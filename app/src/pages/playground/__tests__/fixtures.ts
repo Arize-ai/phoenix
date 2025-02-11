@@ -107,6 +107,14 @@ export const testSpanToolCall: SpanToolCall = {
   },
 };
 
+export const expectedUnknownToolCall = {
+  id: "1",
+  function: {
+    name: "functionName",
+    arguments: { arg1: "value1" },
+  },
+};
+
 export const expectedTestOpenAIToolCall: OpenAIToolCall = {
   id: "1",
   type: "function",
