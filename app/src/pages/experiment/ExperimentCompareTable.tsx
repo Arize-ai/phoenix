@@ -258,7 +258,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   <Button
                     size="S"
                     aria-label="View example details"
-                    icon={<Icon svg={<Icons.ExpandOutline />} />}
+                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                     onPress={() => {
                       startTransition(() => {
                         setDialog(
@@ -352,7 +352,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 className="trace-button"
                 size="S"
                 aria-label="View run trace"
-                icon={<Icon svg={<Icons.Trace />} />}
+                leadingVisual={<Icon svg={<Icons.Trace />} />}
                 onPress={() => {
                   startTransition(() => {
                     setDialog(
@@ -377,7 +377,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 className="expand-button"
                 size="S"
                 aria-label="View example run details"
-                icon={<Icon svg={<Icons.ExpandOutline />} />}
+                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                 onPress={() => {
                   startTransition(() => {
                     setDialog(

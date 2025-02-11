@@ -114,7 +114,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
             variant="danger"
             isDisabled={!isValid || isCommitting}
             size="S"
-            icon={
+            leadingVisual={
               isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
             }
             onPress={() => {

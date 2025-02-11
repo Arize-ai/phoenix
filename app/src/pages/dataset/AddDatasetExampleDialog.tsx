@@ -222,7 +222,9 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
             variant="primary"
             size="S"
             isDisabled={!isValid || isCommitting}
-            icon={isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null}
+            leadingVisual={
+              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
+            }
             onPress={() => handleSubmit(onSubmit)()}
           >
             {isCommitting ? "Adding Example..." : "Add Example"}

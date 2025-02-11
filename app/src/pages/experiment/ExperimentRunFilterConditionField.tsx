@@ -443,7 +443,7 @@ function FilterConditionSnippet(props: {
           aria-label="Add to filter condition"
           variant="default"
           onPress={() => onAddFilterConditionSnippet(snippet)}
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         />
       </Flex>
     </Field>

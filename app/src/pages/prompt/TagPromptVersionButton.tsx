@@ -35,7 +35,10 @@ export function TagPromptVersionButton() {
   return (
     <div>
       <DialogTrigger>
-        <Button size="S" icon={<Icon svg={<Icons.PriceTagsOutline />} />}>
+        <Button
+          size="S"
+          leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        >
           Tag Version
         </Button>
         <Popover placement="bottom end">
@@ -63,7 +66,7 @@ export function TagPromptVersionButton() {
             </Suspense>
             <View padding="size-100" width="250px">
               <Button
-                icon={<Icon svg={<Icons.PlusOutline />} />}
+                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
                 size="S"
                 css={css`
                   width: 100%;

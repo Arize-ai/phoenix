@@ -129,7 +129,7 @@ export function LoginForm(props: LoginFormProps) {
           <Button
             variant="primary"
             isDisabled={isLoading}
-            icon={
+            leadingVisual={
               isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
             }
             onPress={() => handleSubmit(onSubmit)()}

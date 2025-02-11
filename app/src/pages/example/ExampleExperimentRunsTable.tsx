@@ -202,7 +202,7 @@ export function ExampleExperimentRunsTable({
           return (
             <Button
               size="S"
-              icon={<Icon svg={<Icons.Trace />} />}
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
               onPress={() => {
                 navigate(
                   `/projects/${trace.projectId}/traces/${trace.traceId}`

@@ -45,7 +45,7 @@ export function DeletePromptVersionTagButton({
       <Button
         aria-label="Delete tag"
         size="S"
-        icon={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
       />
       <Popover placement="bottom end">
         <PopoverArrow />

@@ -72,7 +72,7 @@ export function ViewerAPIKeys({
       extra={
         <Button
           size="S"
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
           onPress={() =>
             setDialog(
               <CreateAPIKeyDialog

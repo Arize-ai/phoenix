@@ -27,7 +27,7 @@ export function PromptsPage() {
           <Heading level={1}>Prompts</Heading>
           <LinkButton
             size="S"
-            icon={<Icon svg={<Icons.PlusOutline />} />}
+            leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
             to="/playground"
           >
             Create Prompt

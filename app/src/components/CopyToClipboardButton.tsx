@@ -41,7 +41,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
       <TooltipTrigger delay={0} offset={5}>
         <Button
           size={size}
-          icon={
+          leadingVisual={
             <Icon
               svg={isCopied ? <Icons.Checkmark /> : <Icons.ClipboardCopy />}
             />

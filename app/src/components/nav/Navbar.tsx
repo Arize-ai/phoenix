@@ -80,10 +80,14 @@ const brandCSS = css`
   margin: 0 0 var(--ac-global-dimension-static-size-200) 0;
 `;
 
-function ExternalLink(props: { href: string; icon: ReactNode; text: string }) {
+function ExternalLink(props: {
+  href: string;
+  leadingVisual: ReactNode;
+  text: string;
+}) {
   return (
     <a href={props.href} target="_blank" css={navLinkCSS} rel="noreferrer">
-      {props.icon}
+      {props.leadingVisual}
       <Text>{props.text}</Text>
     </a>
   );
@@ -93,7 +97,7 @@ export function DocsLink() {
   return (
     <ExternalLink
       href="https://docs.arize.com/phoenix"
-      icon={<Icon svg={<Icons.BookOutline />} />}
+      leadingVisual={<Icon svg={<Icons.BookOutline />} />}
       text="Documentation"
     />
   );
@@ -148,10 +152,14 @@ export function SideNavbar({ children }: { children: ReactNode }) {
   );
 }
 
-export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
+export function NavLink(props: {
+  to: string;
+  text: string;
+  leadingVisual: ReactNode;
+}) {
   return (
     <RRNavLink to={props.to} css={navLinkCSS}>
-      {props.icon}
+      {props.leadingVisual}
       <Text>{props.text}</Text>
     </RRNavLink>
   );
@@ -159,12 +167,12 @@ export function NavLink(props: { to: string; text: string; icon: ReactNode }) {
 
 export function NavButton(props: {
   text: string;
-  icon: ReactNode;
+  leadingVisual: ReactNode;
   onClick: () => void;
 }) {
   return (
     <button className="button--reset" css={navLinkCSS} onClick={props.onClick}>
-      {props.icon}
+      {props.leadingVisual}
       <Text>{props.text}</Text>
     </button>
   );

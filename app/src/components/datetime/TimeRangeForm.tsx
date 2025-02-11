@@ -150,7 +150,7 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
           excludeFromTabOrder
           onPress={onStartClear}
           aria-label="Clear start date and time"
-          icon={<Icon svg={<Icons.Refresh />} />}
+          leadingVisual={<Icon svg={<Icons.Refresh />} />}
         />
       </div>
       <div data-testid="end-time" css={formRowCSS}>
@@ -185,7 +185,7 @@ export function TimeRangeForm(props: TimeRangeFormProps) {
           excludeFromTabOrder
           onPress={onEndClear}
           aria-label="Clear end date and time"
-          icon={<Icon svg={<Icons.Refresh />} />}
+          leadingVisual={<Icon svg={<Icons.Refresh />} />}
         />
       </div>
       <div data-testid="controls" css={controlsRowCSS}>

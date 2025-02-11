@@ -86,7 +86,7 @@ export function Table<DataRow extends object>({
           onPress={table.previousPage}
           isDisabled={!table.getCanPreviousPage()}
           aria-label="Previous Page"
-          icon={<Icon svg={<Icons.ArrowIosBackOutline />} />}
+          leadingVisual={<Icon svg={<Icons.ArrowIosBackOutline />} />}
         />
 
         <Button
@@ -94,7 +94,7 @@ export function Table<DataRow extends object>({
           onPress={table.nextPage}
           isDisabled={!table.getCanNextPage()}
           aria-label="Next Page"
-          icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
+          leadingVisual={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
         />
       </div>
     </>

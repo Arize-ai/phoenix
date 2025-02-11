@@ -156,7 +156,7 @@ export function PlaygroundTool({
           <CopyToClipboardButton text={initialEditorValue} />
           <Button
             aria-label="Delete tool"
-            icon={<Icon svg={<Icons.TrashOutline />} />}
+            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
             size="S"
             onPress={() => {
               const newTools = instanceTools.filter((t) => t.id !== tool.id);
