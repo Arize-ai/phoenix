@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo } from "react";
+import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
-import { EditorView, hoverTooltip } from "@codemirror/view";
+import { EditorView, hoverTooltip, keymap } from "@codemirror/view";
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
@@ -45,7 +46,14 @@ export function JSONEditor(props: JSONEditorProps) {
   // If optionalLint is true, we only lint when there is content to allow for empty json values
   const shouldLint = !optionalLint || (contentLength && contentLength > 0);
   const extensions = useMemo(() => {
-    const baseExtensions = [json(), EditorView.lineWrapping];
+    const baseExtensions = [
+      json(),
+      EditorView.lineWrapping,
+      // Reserve Mod-Enter for the submit button
+      keymap.of([
+        ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
+      ]),
+    ];
 
     if (shouldLint) {
       baseExtensions.push(linter(jsonParseLinter()));

@@ -1,8 +1,8 @@
 import React, { useCallback } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import { Button, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { useHotkeys } from "react-hotkeys-hook";
 
 export function PlaygroundRunButton() {
   const runPlaygroundInstances = usePlaygroundContext(
