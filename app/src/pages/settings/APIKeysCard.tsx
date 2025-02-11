@@ -115,7 +115,7 @@ export function APIKeysCard() {
         extra={
           <Button
             size="S"
-            icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+            leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
             onPress={showCreateSystemAPIKeyDialog}
           >
             System Key

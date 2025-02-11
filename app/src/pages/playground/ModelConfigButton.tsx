@@ -317,7 +317,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
             size="S"
             variant="default"
             onPress={onSaveConfig}
-            icon={<Icon svg={<Icons.SaveOutline />} />}
+            leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
           >
             Save as Default
           </Button>

@@ -140,7 +140,7 @@ function DeleteButton(props: PlaygroundInstanceProps) {
         <Button
           size="S"
           aria-label="Delete this instance of the playground"
-          icon={<Icon svg={<Icons.TrashOutline />} />}
+          leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
           onPress={() => {
             deleteInstance(props.playgroundInstanceId);
           }}

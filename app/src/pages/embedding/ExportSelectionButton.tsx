@@ -90,7 +90,7 @@ export function ExportSelectionButton() {
     <>
       <Button
         size="S"
-        icon={
+        leadingVisual={
           <Icon
             svg={
               isInFlight ? <Icons.LoadingOutline /> : <Icons.DownloadOutline />
@@ -205,7 +205,7 @@ function ExportsList() {
               size="S"
               aria-label="Download"
               variant="default"
-              icon={<Icon svg={<Download />} />}
+              leadingVisual={<Icon svg={<Download />} />}
               onPress={() => {
                 window.open(`/exports?filename=${fileInfo.fileName}`, "_self");
               }}
