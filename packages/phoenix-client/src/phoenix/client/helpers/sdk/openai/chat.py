@@ -102,43 +102,26 @@ def to_chat_messages_and_kwargs(
 def _to_model_kwargs(
     obj: v1.PromptVersion,
 ) -> _ModelKwargs:
+    parameters: v1.PromptOpenAIInvocationParametersContent = (
+        obj["invocation_parameters"]["openai"]
+        if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "openai"
+        else {}
+    )
     ans: _ModelKwargs = {
         "model": obj["model_name"],
     }
-    parameters: Mapping[str, Any] = (
-        obj["invocation_parameters"] if "invocation_parameters" in obj else {}
-    )
-    if (v := parameters.get("temperature")) is not None:
-        try:
-            ans["temperature"] = float(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("top_p")) is not None:
-        try:
-            ans["top_p"] = float(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("stop")) is not None:
-        try:
-            ans["stop"] = list(map(str, v))
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("presence_penalty")) is not None:
-        try:
-            ans["presence_penalty"] = float(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("frequency_penalty")) is not None:
-        try:
-            ans["frequency_penalty"] = float(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("seed")) is not None:
-        try:
-            ans["seed"] = int(v)
-        except (ValueError, TypeError):
-            pass
-    if (v := parameters.get("reasoning_effort")) is not None:
+    if "temperature" in parameters:
+        ans["temperature"] = parameters["temperature"]
+    if "top_p" in parameters:
+        ans["top_p"] = parameters["top_p"]
+    if "presence_penalty" in parameters:
+        ans["presence_penalty"] = parameters["presence_penalty"]
+    if "frequency_penalty" in parameters:
+        ans["frequency_penalty"] = parameters["frequency_penalty"]
+    if "seed" in parameters:
+        ans["seed"] = parameters["seed"]
+    if "reasoning_effort" in parameters:
+        v = parameters["reasoning_effort"]
         if v in ("low", "medium", "high"):
             ans["reasoning_effort"] = v
     if "tools" in obj:
