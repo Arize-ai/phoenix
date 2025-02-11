@@ -24,7 +24,7 @@ from phoenix.client.utils.template_formatters import TemplateFormatter, to_forma
 if TYPE_CHECKING:
     from google.generativeai import protos
     from google.generativeai.generative_models import GenerativeModel
-    from google.generativeai.types import GenerationConfigDict, content_types
+    from google.generativeai.types import GenerationConfig, content_types
 
     _ContentPart: TypeAlias = Union[
         v1.TextContentPart,
@@ -45,7 +45,7 @@ class _ToolKwargs(TypedDict, total=False):
 
 class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
     model_name: Required[str]
-    generation_config: GenerationConfigDict
+    generation_config: GenerationConfig
     system_instruction: str | list[str]
 
 
@@ -96,49 +96,30 @@ def _to_model_kwargs(
     obj: v1.PromptVersion,
     /,
 ) -> _ModelKwargs:
-    invocation_parameters: Mapping[str, Any] = (
-        obj["invocation_parameters"] if "invocation_parameters" in obj else {}
+    invocation_parameters: v1.PromptGeminiInvocationParametersContent = (
+        obj["invocation_parameters"]["gemini"]
+        if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "gemini"
+        else {}
     )
-    config: GenerationConfigDict = {}
-    if (v := invocation_parameters.get("candidate_count")) is not None:
-        try:
-            config["candidate_count"] = int(v)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid candidate_count: {v}")
-            pass
-    if (v := invocation_parameters.get("stop_sequences")) is not None:
-        try:
-            config["stop_sequences"] = list(map(str, v))
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid stop_sequences: {v}")
-            pass
-    if (v := invocation_parameters.get("max_output_tokens")) is not None:
-        try:
-            config["max_output_tokens"] = int(v)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid max_output_tokens: {v}")
-            pass
-    if (v := invocation_parameters.get("temperature")) is not None:
-        try:
-            config["temperature"] = float(v)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid temperature: {v}")
-            pass
-    if (v := invocation_parameters.get("response_mime_type")) is not None:
-        try:
-            config["response_mime_type"] = str(v)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid response_mime_type: {v}")
-            pass
-    if (v := invocation_parameters.get("response_schema")) is not None:
-        try:
-            config["response_schema"] = dict(v)
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid response_schema: {v}")
-            pass
+    temperature = invocation_parameters.get("temperature")
+    max_output_tokens = invocation_parameters.get("max_output_tokens")
+    stop_sequences = invocation_parameters.get("stop_sequences")
+    presence_penalty = invocation_parameters.get("presence_penalty")
+    frequency_penalty = invocation_parameters.get("frequency_penalty")
+    top_p = invocation_parameters.get("top_p")
+    top_k = invocation_parameters.get("top_k")
+    generation_config = GenerationConfig(
+        temperature=temperature,
+        max_output_tokens=max_output_tokens,
+        stop_sequences=stop_sequences,
+        presence_penalty=presence_penalty,
+        frequency_penalty=frequency_penalty,
+        top_p=top_p,
+        top_k=top_k,
+    )
     return {
         "model_name": obj["model_name"],
-        "generation_config": config,
+        "generation_config": generation_config,
     }
 
 
