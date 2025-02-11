@@ -41,7 +41,6 @@ export const toAI = <V extends Variables>({
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       // Invocation parameters are validated on the phoenix-side
-      ...prompt.invocation_parameters,
     } satisfies Partial<PartialStreamTextParams>;
 
     if (!("messages" in prompt.template)) {
