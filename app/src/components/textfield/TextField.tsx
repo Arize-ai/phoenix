@@ -14,12 +14,12 @@ const textFieldCSS = css`
   flex-direction: column;
   width: 100%;
 
-  &[data-size="M"] {
+  &[data-size="S"] {
     --textfield-input-height: 30px;
     --textfield-vertical-padding: 6px;
     --textfield-horizontal-padding: 6px;
   }
-  &[data-size="L"] {
+  &[data-size="M"] {
     --textfield-input-height: 38px;
     --textfield-vertical-padding: 10px;
     --textfield-horizontal-padding: var(--ac-global-dimension-static-size-200);

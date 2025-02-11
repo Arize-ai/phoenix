@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
+import { css } from "@emotion/react";
 
 import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
@@ -22,6 +23,11 @@ export type CopyToClipboardButtonProps = Omit<
   text: string;
 };
 
+const copyToClipboardButtonCSS = css`
+  flex: none;
+  box-sizing: content-box;
+`;
+
 /**
  * An Icon button that copies the given text to the clipboard when clicked.
  */
@@ -37,7 +43,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
     }, SHOW_COPIED_TIMEOUT_MS);
   }, [text]);
   return (
-    <div className="copy-to-clipboard-button">
+    <div className="copy-to-clipboard-button" css={copyToClipboardButtonCSS}>
       <TooltipTrigger delay={0} offset={5}>
         <Button
           size={size}

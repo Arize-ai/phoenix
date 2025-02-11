@@ -2,13 +2,7 @@ import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import {
-  Alert,
-  Dialog,
-  DialogContainer,
-  Form,
-  TextArea,
-} from "@arizeai/components";
+import { Alert, Dialog, DialogContainer, Form } from "@arizeai/components";
 
 import {
   Button,
@@ -17,6 +11,7 @@ import {
   Input,
   Label,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
@@ -131,18 +126,23 @@ export function NewPromptVersionDialog({
                 field: { name, onChange, onBlur, value },
                 fieldState: { invalid, error },
               }) => (
-                <TextArea
-                  label="description"
-                  description={`A description of the tag (optional)`}
-                  isRequired={false}
-                  name={name}
-                  height={100}
-                  errorMessage={error?.message}
-                  validationState={invalid ? "invalid" : "valid"}
+                <TextField
+                  isInvalid={invalid}
                   onChange={onChange}
+                  name={name}
                   onBlur={onBlur}
-                  value={value?.toString()}
-                />
+                  value={value.toString()}
+                >
+                  <Label>Description</Label>
+                  <TextArea placeholder="A description of the tag" />
+                  {error?.message ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      A description of the tag (optional)
+                    </Text>
+                  )}
+                </TextField>
               )}
             />
           </View>
