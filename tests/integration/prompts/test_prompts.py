@@ -120,11 +120,18 @@ class TestTools:
             for t in types_
         }
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
-        prompt = _create_chat_prompt(u, tools=tools, model_provider="ANTHROPIC")
+        prompt = _create_chat_prompt(
+            u,
+            tools=tools,
+            model_provider="ANTHROPIC",
+            invocation_parameters={"max_tokens": 1024},
+        )
         _, kwargs = to_chat_messages_and_kwargs(prompt)
         assert "tools" in kwargs
         actual = {t["name"]: t for t in cast(Iterable[ToolParam], kwargs["tools"])}
         assert not DeepDiff(expected, actual)
+        assert "max_tokens" in kwargs
+        assert kwargs["max_tokens"] == 1024
 
 
 class TestToolChoice:
@@ -178,7 +185,7 @@ class TestToolChoice:
             )
             for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
         ]
-        invocation_parameters = {"tool_choice": expected}
+        invocation_parameters = {"max_tokens": 1024, "tool_choice": expected}
         prompt = _create_chat_prompt(
             u,
             tools=tools,
@@ -189,6 +196,8 @@ class TestToolChoice:
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
+        assert "max_tokens" in kwargs
+        assert kwargs["max_tokens"] == 1024
 
 
 class _UIType(str, Enum):

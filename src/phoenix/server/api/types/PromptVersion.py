@@ -16,6 +16,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateType,
     denormalize_response_format,
     denormalize_tools,
+    get_raw_invocation_parameters,
 )
 from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 from phoenix.server.api.types.PromptVersionTemplate import (
@@ -123,6 +124,7 @@ def to_gql_prompt_version(
         if prompt_version.response_format is not None
         else None
     )
+    invocation_parameters = get_raw_invocation_parameters(prompt_version.invocation_parameters)
     return PromptVersion(
         id_attr=prompt_version.id,
         user_id=prompt_version.user_id,
@@ -130,7 +132,7 @@ def to_gql_prompt_version(
         template_type=prompt_template_type,
         template_format=prompt_template_format,
         template=prompt_template,
-        invocation_parameters=prompt_version.invocation_parameters,
+        invocation_parameters=invocation_parameters,
         tools=tools,
         response_format=response_format,
         model_name=prompt_version.model_name,

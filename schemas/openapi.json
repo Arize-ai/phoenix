@@ -2172,6 +2172,113 @@
         ],
         "title": "Prompt"
       },
+      "PromptAnthropicInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "anthropic",
+            "title": "Type"
+          },
+          "anthropic": {
+            "$ref": "#/components/schemas/PromptAnthropicInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "anthropic"
+        ],
+        "title": "PromptAnthropicInvocationParameters"
+      },
+      "PromptAnthropicInvocationParametersContent": {
+        "properties": {
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "max_tokens"
+        ],
+        "title": "PromptAnthropicInvocationParametersContent"
+      },
+      "PromptAzureOpenAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "azure_openai",
+            "title": "Type"
+          },
+          "azure_openai": {
+            "$ref": "#/components/schemas/PromptAzureOpenAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "azure_openai"
+        ],
+        "title": "PromptAzureOpenAIInvocationParameters"
+      },
+      "PromptAzureOpenAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAzureOpenAIInvocationParametersContent"
+      },
       "PromptChatTemplate": {
         "properties": {
           "type": {
@@ -2237,6 +2344,63 @@
         ],
         "title": "PromptFunctionTool"
       },
+      "PromptGeminiInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "gemini",
+            "title": "Type"
+          },
+          "gemini": {
+            "$ref": "#/components/schemas/PromptGeminiInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "gemini"
+        ],
+        "title": "PromptGeminiInvocationParameters"
+      },
+      "PromptGeminiInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "title": "Max Output Tokens"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptGeminiInvocationParametersContent"
+      },
       "PromptMessage": {
         "properties": {
           "role": {
@@ -2286,6 +2450,65 @@
           "TOOL"
         ],
         "title": "PromptMessageRole"
+      },
+      "PromptOpenAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "openai",
+            "title": "Type"
+          },
+          "openai": {
+            "$ref": "#/components/schemas/PromptOpenAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "openai"
+        ],
+        "title": "PromptOpenAIInvocationParameters"
+      },
+      "PromptOpenAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptOpenAIInvocationParametersContent"
       },
       "PromptResponseFormatJSONSchema": {
         "properties": {
@@ -2539,8 +2762,30 @@
             "$ref": "#/components/schemas/PromptTemplateFormat"
           },
           "invocation_parameters": {
-            "type": "object",
-            "title": "Invocation Parameters"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAzureOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptGeminiInvocationParameters"
+              }
+            ],
+            "title": "Invocation Parameters",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "gemini": "#/components/schemas/PromptGeminiInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+              }
+            }
           },
           "tools": {
             "anyOf": [

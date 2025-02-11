@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Optional, Union, cast
+from typing import Any, Optional, Union, cast
 
 import strawberry
 from fastapi import Request
@@ -18,6 +18,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
     normalize_response_format,
     normalize_tools,
+    validate_invocation_parameters,
 )
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
@@ -87,7 +88,9 @@ class PromptMutationMixin:
         tool_definitions = [tool.definition for tool in input_prompt_version.tools]
         tool_choice = cast(
             Optional[Union[str, dict[str, Any]]],
-            cast(Mapping[str, Any], input.prompt_version.invocation_parameters).get("tool_choice"),
+            cast(dict[str, Any], input.prompt_version.invocation_parameters).pop(
+                "tool_choice", None
+            ),
         )
         model_provider = ModelProvider(input_prompt_version.model_provider)
         try:
@@ -105,6 +108,10 @@ class PromptMutationMixin:
                 if input_prompt_version.response_format
                 else None
             )
+            invocation_parameters = validate_invocation_parameters(
+                input_prompt_version.invocation_parameters,
+                model_provider,
+            )
         except ValidationError as error:
             raise BadRequest(str(error))
 
@@ -115,7 +122,7 @@ class PromptMutationMixin:
                 template_type="CHAT",
                 template_format=input_prompt_version.template_format,
                 template=template,
-                invocation_parameters=input_prompt_version.invocation_parameters,
+                invocation_parameters=invocation_parameters,
                 tools=tools,
                 response_format=response_format,
                 model_provider=input_prompt_version.model_provider,
@@ -150,7 +157,9 @@ class PromptMutationMixin:
         tool_definitions = [tool.definition for tool in input.prompt_version.tools]
         tool_choice = cast(
             Optional[Union[str, dict[str, Any]]],
-            cast(Mapping[str, Any], input.prompt_version.invocation_parameters).get("tool_choice"),
+            cast(dict[str, Any], input.prompt_version.invocation_parameters).pop(
+                "tool_choice", None
+            ),
         )
         model_provider = ModelProvider(input_prompt_version.model_provider)
         try:
@@ -159,7 +168,7 @@ class PromptMutationMixin:
                 if tool_definitions
                 else None
             )
-            template = to_pydantic_prompt_chat_template_v1(input.prompt_version.template)
+            template = to_pydantic_prompt_chat_template_v1(input_prompt_version.template)
             response_format = (
                 normalize_response_format(
                     input_prompt_version.response_format.definition,
@@ -167,6 +176,10 @@ class PromptMutationMixin:
                 )
                 if input_prompt_version.response_format
                 else None
+            )
+            invocation_parameters = validate_invocation_parameters(
+                input_prompt_version.invocation_parameters,
+                model_provider,
             )
         except ValidationError as error:
             raise BadRequest(str(error))
@@ -186,7 +199,7 @@ class PromptMutationMixin:
                 template_type="CHAT",
                 template_format=input.prompt_version.template_format,
                 template=template,
-                invocation_parameters=input.prompt_version.invocation_parameters,
+                invocation_parameters=invocation_parameters,
                 tools=tools,
                 response_format=response_format,
                 model_provider=input.prompt_version.model_provider,

@@ -26,6 +26,8 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptFunctionTool,
     PromptMessage,
     PromptMessageRole,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
     PromptTools,
     TextContentPart,
@@ -119,7 +121,7 @@ class TestPrompts:
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),
-            prompt_version.invocation_parameters,
+            prompt_version.invocation_parameters.model_dump(),
         )
         assert data.pop("model_name") == prompt_version.model_name
         assert data.pop("model_provider") == prompt_version.model_provider.value
@@ -206,7 +208,16 @@ class TestPrompts:
                         template_type="CHAT",
                         template_format="MUSTACHE",
                         template=template,
-                        invocation_parameters=fake.pydict(value_types=[str, int, float, bool]),
+                        invocation_parameters=PromptOpenAIInvocationParameters(
+                            type="openai",
+                            openai=PromptOpenAIInvocationParametersContent(
+                                temperature=fake.pyfloat(min_value=0, max_value=1),
+                                max_tokens=fake.pyint(min_value=1, max_value=1000),
+                                top_p=fake.pyfloat(min_value=0, max_value=1),
+                                frequency_penalty=fake.pyfloat(min_value=0, max_value=1),
+                                presence_penalty=fake.pyfloat(min_value=0, max_value=1),
+                            ),
+                        ),
                         model_provider=ModelProvider.OPENAI,
                         model_name=token_hex(16),
                         tools=PromptTools(
