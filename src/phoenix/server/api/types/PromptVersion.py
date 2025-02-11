@@ -9,6 +9,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
     PromptTemplateFormat,
@@ -39,7 +40,7 @@ class PromptVersion(Node):
     tools: list[ToolDefinition]
     response_format: Optional[ResponseFormat] = None
     model_name: str
-    model_provider: str
+    model_provider: ModelProvider
     metadata: JSON
     created_at: datetime
     cached_sequence_number: Private[Optional[int]] = None
@@ -133,7 +134,7 @@ def to_gql_prompt_version(
         tools=tools,
         response_format=response_format,
         model_name=prompt_version.model_name,
-        model_provider=prompt_version.model_provider.value,
+        model_provider=prompt_version.model_provider,
         metadata=prompt_version.metadata_,
         created_at=prompt_version.created_at,
         cached_sequence_number=sequence_number,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b9ab07fb61de5d9ba0af2dc890d7297>>
+ * @generated SignedSource<<f40ab576e0b77c8118665cf631707595>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
@@ -28,7 +29,7 @@ export type fetchPlaygroundPromptQuery$data = {
           readonly id: string;
           readonly invocationParameters: any | null;
           readonly modelName: string;
-          readonly modelProvider: string;
+          readonly modelProvider: ModelProvider;
           readonly responseFormat: {
             readonly definition: any;
           } | null;

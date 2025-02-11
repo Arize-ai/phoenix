@@ -92,6 +92,7 @@ export const ModelSupportedParamsFetcher = ({
       supportedInvocationParameters: modelInvocationParameters as Mutable<
         typeof modelInvocationParameters
       >,
+      modelConfigByProvider,
     });
   }, [
     modelInvocationParameters,
