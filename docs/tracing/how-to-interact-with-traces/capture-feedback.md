@@ -43,10 +43,21 @@ If you're self-hosting Phoenix, be sure to change the endpoint in the code below
 If you'd like to collect feedback on currently instrumented code, you can get the current span using the `opentelemetry` SDK.
 
 ```python
-from opentelemetry import trace
+from opentelemetry.trace import format_span_id, get_current_span
 
-span = trace.get_current_span()
-span_id = span.get_span_context().span_id.to_bytes(8, "big").hex()
+span = get_current_span()
+span_id = format_span_id(span.get_span_context().span_id)
+```
+
+For LangChain, import `get_current_span` from our instrumentation library instead.
+
+```python
+from opentelemetry.trace import format_span_id
+from openinference.instrumentation.langchain import get_current_span
+
+span = get_current_span()
+if span is not None:
+   span_id = format_span_id(span.get_span_context().span_id)
 ```
 
 You can use the span\_id to send an annotation associated with that span.
