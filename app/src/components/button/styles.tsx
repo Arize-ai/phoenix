@@ -7,8 +7,10 @@ export const buttonCSS = css`
   margin: 0;
 
   display: flex;
+  gap: var(--ac-global-dimension-static-size-100);
   justify-content: center;
   align-items: center;
+  flex-direction: row;
   box-sizing: border-box;
   border-radius: var(--ac-global-rounding-small);
   color: var(--ac-global-text-color-900);
@@ -85,8 +87,15 @@ export const buttonCSS = css`
     }
   }
 
-  &[data-childless="false"] > i,
-  & > .ac-spinner {
-    margin-right: var(--ac-global-dimension-static-size-50);
+  kbd {
+    background-color: var(--ac-global-text-color-300);
+    border-radius: var(--ac-global-rounding-small);
+    padding: var(--ac-global-dimension-static-size-50);
+    font-size: var(--ac-global-font-size-xs);
+    line-height: var(--ac-global-font-size-xxs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ac-global-dimension-static-size-25);
   }
 `;

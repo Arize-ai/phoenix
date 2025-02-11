@@ -23,6 +23,9 @@ importers:
       '@codemirror/autocomplete':
         specifier: 6.12.0
         version: 6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1)
+      '@codemirror/commands':
+        specifier: ^6.8.0
+        version: 6.8.0
       '@codemirror/lang-javascript':
         specifier: ^6.2.2
         version: 6.2.2
@@ -513,8 +516,8 @@ packages:
       '@codemirror/view': ^6.0.0
       '@lezer/common': ^1.0.0
 
-  '@codemirror/commands@6.6.0':
-    resolution: {integrity: sha512-qnY+b7j1UNcTS31Eenuc/5YJB6gQOzkUoNmJQc0rznwqSRpeaWWpjkWy2C/MPTcePpsKJEM26hXrOXl1+nceXg==}
+  '@codemirror/commands@6.8.0':
+    resolution: {integrity: sha512-q8VPEFaEP4ikSlt6ZxjB3zW72+7osfAYW9i8Zu943uqbKuz6utc1+F170hyLUCUltXORjQXRyYQNfkckzA/bPQ==}
 
   '@codemirror/lang-javascript@6.2.2':
     resolution: {integrity: sha512-VGQfY+FCc285AhWuwjYxQyUQcYurWlxdKYT4bqwr3Twnd5wP5WSeu52t4tvvuWmljT4EmgEgZCqSieokhtY8hg==}
@@ -5058,7 +5061,7 @@ snapshots:
       '@lezer/common': 1.2.1
     optional: true
 
-  '@codemirror/commands@6.6.0':
+  '@codemirror/commands@6.8.0':
     dependencies:
       '@codemirror/language': 6.10.3
       '@codemirror/state': 6.4.1
@@ -7164,10 +7167,10 @@ snapshots:
       '@typescript-eslint/types': 8.17.0
       eslint-visitor-keys: 4.2.0
 
-  '@uiw/codemirror-extensions-basic-setup@4.23.0(@codemirror/autocomplete@6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1))(@codemirror/commands@6.6.0)(@codemirror/language@6.10.3)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)':
+  '@uiw/codemirror-extensions-basic-setup@4.23.0(@codemirror/autocomplete@6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1))(@codemirror/commands@6.8.0)(@codemirror/language@6.10.3)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)':
     dependencies:
       '@codemirror/autocomplete': 6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1)
-      '@codemirror/commands': 6.6.0
+      '@codemirror/commands': 6.8.0
       '@codemirror/language': 6.10.3
       '@codemirror/lint': 6.8.1
       '@codemirror/search': 6.5.6
@@ -7205,11 +7208,11 @@ snapshots:
   '@uiw/react-codemirror@4.23.0(@babel/runtime@7.24.8)(@codemirror/autocomplete@6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1))(@codemirror/language@6.10.3)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/theme-one-dark@6.1.2)(@codemirror/view@6.29.0)(codemirror@6.0.1(@lezer/common@1.2.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@babel/runtime': 7.24.8
-      '@codemirror/commands': 6.6.0
+      '@codemirror/commands': 6.8.0
       '@codemirror/state': 6.4.1
       '@codemirror/theme-one-dark': 6.1.2
       '@codemirror/view': 6.29.0
-      '@uiw/codemirror-extensions-basic-setup': 4.23.0(@codemirror/autocomplete@6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1))(@codemirror/commands@6.6.0)(@codemirror/language@6.10.3)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)
+      '@uiw/codemirror-extensions-basic-setup': 4.23.0(@codemirror/autocomplete@6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1))(@codemirror/commands@6.8.0)(@codemirror/language@6.10.3)(@codemirror/lint@6.8.1)(@codemirror/search@6.5.6)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)
       codemirror: 6.0.1(@lezer/common@1.2.1)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -7611,7 +7614,7 @@ snapshots:
   codemirror@6.0.1(@lezer/common@1.2.1):
     dependencies:
       '@codemirror/autocomplete': 6.12.0(@codemirror/language@6.10.3)(@codemirror/state@6.4.1)(@codemirror/view@6.29.0)(@lezer/common@1.2.1)
-      '@codemirror/commands': 6.6.0
+      '@codemirror/commands': 6.8.0
       '@codemirror/language': 6.10.3
       '@codemirror/lint': 6.8.1
       '@codemirror/search': 6.5.6

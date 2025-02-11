@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { defaultKeymap } from "@codemirror/commands";
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror, {
   BasicSetupOptions,
   EditorView,
+  keymap,
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
@@ -27,7 +29,15 @@ const basicSetupOptions: BasicSetupOptions = {
   foldGutter: false,
   highlightActiveLineGutter: false,
   bracketMatching: false,
+  defaultKeymap: false,
 };
+
+const baseExtensions = [
+  EditorView.lineWrapping,
+  keymap.of([
+    ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
+  ]),
+];
 
 /**
  * A template editor that is used to edit the template of a tool.
@@ -48,7 +58,7 @@ export const TemplateEditor = ({
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
-    const ext: TemplateEditorProps["extensions"] = [EditorView.lineWrapping];
+    const ext: TemplateEditorProps["extensions"] = baseExtensions;
     switch (templateLanguage) {
       case TemplateLanguages.FString:
         ext.push(FStringTemplating());
