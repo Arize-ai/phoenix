@@ -14,6 +14,7 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
+    PromptInvocationParameters,
     PromptResponseFormat,
     PromptTemplate,
     PromptTemplateFormat,
@@ -44,7 +45,7 @@ class PromptVersion(V1RoutesBaseModel):
     template: PromptTemplate
     template_type: PromptTemplateType
     template_format: PromptTemplateFormat
-    invocation_parameters: dict[str, Any]
+    invocation_parameters: PromptInvocationParameters
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
 

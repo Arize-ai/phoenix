@@ -73,7 +73,6 @@ class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
     stop_sequences: list[str]
     system: Union[str, list[TextBlockParam]]
     temperature: float
-    top_k: int
     top_p: float
 
 
@@ -127,39 +126,22 @@ class _ModelKwargsConversion:
     def to_anthropic(
         obj: v1.PromptVersion,
     ) -> _ModelKwargs:
-        parameters: Mapping[str, Any] = (
-            obj["invocation_parameters"] if "invocation_parameters" in obj else {}
+        parameters: v1.PromptAnthropicInvocationParametersContent = (
+            obj["invocation_parameters"]["anthropic"]
+            if "invocation_parameters" in obj
+            and obj["invocation_parameters"]["type"] == "anthropic"
+            else {"max_tokens": 100}
         )
-        max_tokens = 100
-        if (v := parameters.get("max_tokens")) is not None:
-            try:
-                max_tokens = int(v)
-            except (ValueError, TypeError):
-                pass
         ans: _ModelKwargs = {
-            "max_tokens": max_tokens,
+            "max_tokens": parameters["max_tokens"],
             "model": obj["model_name"],
         }
-        if (v := parameters.get("stop_sequences")) is not None:
-            try:
-                ans["stop_sequences"] = list(map(str, v))
-            except (ValueError, TypeError):
-                pass
-        if (v := parameters.get("temperature")) is not None:
-            try:
-                ans["temperature"] = float(v)
-            except (ValueError, TypeError):
-                pass
-        if (v := parameters.get("top_k")) is not None:
-            try:
-                ans["top_k"] = int(v)
-            except (ValueError, TypeError):
-                pass
-        if (v := parameters.get("top_p")) is not None:
-            try:
-                ans["top_p"] = float(v)
-            except (ValueError, TypeError):
-                pass
+        if "stop_sequences" in parameters:
+            ans["stop_sequences"] = list(parameters["stop_sequences"])
+        if "temperature" in parameters:
+            ans["temperature"] = parameters["temperature"]
+        if "top_p" in parameters:
+            ans["top_p"] = parameters["top_p"]
         if "tools" in obj:
             tool_kwargs = _ToolKwargsConversion.to_anthropic(obj["tools"])
             if "tools" in tool_kwargs:

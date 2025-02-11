@@ -17,7 +17,10 @@ export const BASE_MOCK_PROMPT_VERSION = {
     ],
   },
   invocation_parameters: {
-    temperature: 0.7,
+    type: "openai",
+    openai: {
+      temperature: 0.7,
+    },
   },
 } satisfies Partial<PromptVersion>;
 

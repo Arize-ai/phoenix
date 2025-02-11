@@ -31,11 +31,14 @@ export const toAI = <V extends Variables>({
   prompt,
   variables,
 }: ToAIParams<V>): PartialStreamTextParams | null => {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "Prompt invocation parameters not currently supported in AI SDK, falling back to default invocation parameters"
+  );
   try {
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       // Invocation parameters are validated on the phoenix-side
-      ...prompt.invocation_parameters,
     } satisfies Partial<PartialStreamTextParams>;
 
     if (!("messages" in prompt.template)) {

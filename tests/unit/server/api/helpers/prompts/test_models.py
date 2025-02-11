@@ -8,9 +8,13 @@ from phoenix.db.models import Prompt, PromptVersion
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
     PromptChatTemplate,
     PromptMessage,
     PromptMessageRole,
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
     TextContentPart,
     TextContentValue,
     ToolCallContentPart,
@@ -20,8 +24,10 @@ from phoenix.server.api.helpers.prompts.models import (
     ToolResultContentValue,
     denormalize_response_format,
     denormalize_tools,
+    get_raw_invocation_parameters,
     normalize_response_format,
     normalize_tools,
+    validate_invocation_parameters,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -78,7 +84,12 @@ async def test_chat_template_materializes_to_expected_format(
             template_type="CHAT",
             template_format="MUSTACHE",
             template=template,
-            invocation_parameters={},
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(
+                    max_tokens=1024,
+                ),
+            ),
             tools=None,
             response_format=None,
             model_provider=ModelProvider.ANTHROPIC,
@@ -309,7 +320,12 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 type="chat",
                 messages=[],
             ),
-            invocation_parameters={},
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(
+                    max_tokens=1024,
+                ),
+            ),
             tools=normalized_tools,
             response_format=None,
             model_provider=model_provider,
@@ -542,7 +558,10 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                 type="chat",
                 messages=[],
             ),
-            invocation_parameters={},
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=PromptOpenAIInvocationParametersContent(),
+            ),
             tools=normalized_tools,
             response_format=None,
             model_provider=model_provider,
@@ -818,7 +837,10 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
                 type="chat",
                 messages=[],
             ),
-            invocation_parameters={},
+            invocation_parameters=PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=PromptOpenAIInvocationParametersContent(),
+            ),
             tools=None,
             response_format=normalized_response_format,
             model_provider=model_provider,
@@ -851,3 +873,125 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
         rehydrated_response_format, model_provider
     )
     assert denormalized_response_format_dict == openai_response_format_dict
+
+
+@pytest.mark.parametrize(
+    "input_invocation_parameters_dict,model_provider",
+    [
+        pytest.param(
+            {
+                "temperature": 0.73,
+                "max_tokens": 256,
+                "frequency_penalty": 0.12,
+                "presence_penalty": 0.25,
+                "top_p": 0.92,
+                "seed": 42,
+                "reasoning_effort": "high",
+            },
+            ModelProvider.OPENAI,
+            id="openai-parameters",
+        ),
+        pytest.param(
+            {
+                "temperature": 0.73,
+                "max_tokens": 256,
+                "frequency_penalty": 0.12,
+                "presence_penalty": 0.25,
+                "top_p": 0.92,
+                "seed": 42,
+                "reasoning_effort": "high",
+            },
+            ModelProvider.AZURE_OPENAI,
+            id="azure-openai-parameters",
+        ),
+        pytest.param(
+            {
+                "max_tokens": 256,
+                "temperature": 0.73,
+                "stop_sequences": ["<|endoftext|>"],
+                "top_p": 0.92,
+            },
+            ModelProvider.ANTHROPIC,
+            id="anthropic-parameters",
+        ),
+        pytest.param(
+            {
+                "temperature": 0.73,
+                "max_output_tokens": 256,
+                "stop_sequences": ["<|endoftext|>"],
+                "presence_penalty": 0.25,
+                "frequency_penalty": 0.12,
+                "top_p": 0.92,
+                "top_k": 40,
+            },
+            ModelProvider.GEMINI,
+            id="gemini-parameters",
+        ),
+    ],
+)
+async def test_invocation_parameters_are_round_tripped_without_data_loss(
+    input_invocation_parameters_dict: dict[str, Any],
+    model_provider: ModelProvider,
+    db: DbSessionFactory,
+    dialect: str,
+) -> None:
+    # validate invocation parameters
+    invocation_parameters = validate_invocation_parameters(
+        input_invocation_parameters_dict, model_provider
+    )
+
+    # persist to db
+    async with db() as session:
+        prompt = Prompt(
+            name=Identifier("prompt-name"),
+            description=None,
+            metadata_={},
+        )
+        prompt_version = PromptVersion(
+            prompt=prompt,
+            description=None,
+            user_id=None,
+            template_type="CHAT",
+            template_format="MUSTACHE",
+            template=PromptChatTemplate(
+                type="chat",
+                messages=[],
+            ),
+            invocation_parameters=invocation_parameters,
+            tools=None,
+            response_format=None,
+            model_provider=model_provider,
+            model_name="gpt-4o",
+        )
+        session.add(prompt_version)
+
+    # check the materialized tools
+    async with db() as session:
+        materialized_invocation_parameters = await session.scalar(
+            select(text("invocation_parameters"))
+            .select_from(PromptVersion)
+            .where(PromptVersion.id == prompt_version.id)
+        )
+    if dialect == "sqlite":
+        materialized_invocation_parameters_dict = json.loads(materialized_invocation_parameters)
+    else:
+        materialized_invocation_parameters_dict = materialized_invocation_parameters
+    model_provider_lower = model_provider.value.lower()
+    assert materialized_invocation_parameters_dict == {
+        "type": model_provider_lower,
+        model_provider_lower: input_invocation_parameters_dict,
+    }
+
+    # fetch prompt version
+    async with db() as session:
+        rehydrated_prompt_version = await session.get(PromptVersion, prompt_version.id)
+    assert rehydrated_prompt_version is not None
+
+    # check it matches the input invocation parameters
+    rehydrated_invocation_parameters = rehydrated_prompt_version.invocation_parameters
+    assert rehydrated_invocation_parameters is not None
+    assert rehydrated_invocation_parameters.type == model_provider_lower
+    assert (
+        get_raw_invocation_parameters(rehydrated_invocation_parameters)
+        == input_invocation_parameters_dict
+    )
