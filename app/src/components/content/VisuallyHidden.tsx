@@ -16,8 +16,8 @@ const visuallyHiddenCSS = css`
  */
 export const VisuallyHidden = ({ children }: { children: ReactNode }) => {
   return (
-    <div className="ac-visually-hidden" css={visuallyHiddenCSS}>
+    <span className="ac-visually-hidden" css={visuallyHiddenCSS}>
       {children}
-    </div>
+    </span>
   );
 };
