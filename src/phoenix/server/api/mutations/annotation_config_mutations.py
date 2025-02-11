@@ -442,9 +442,7 @@ class AnnotationConfigMutationMixin:
             )
             config = await session.scalar(update_stmt)
             if not config:
-                raise NotFound(
-                    f"Unable to update annotation value with ID '{input.value_id}'"
-                )
+                raise NotFound(f"Unable to update annotation value with ID '{input.value_id}'")
             return to_gql_annotation_config(config)
 
     @strawberry.mutation
