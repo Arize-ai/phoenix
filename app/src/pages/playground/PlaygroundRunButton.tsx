@@ -9,8 +9,9 @@ import {
   VisuallyHidden,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 export function PlaygroundRunButton() {
+  const modifierKey = useModifierKey();
   const runPlaygroundInstances = usePlaygroundContext(
     (state) => state.runPlaygroundInstances
   );
@@ -56,8 +57,8 @@ export function PlaygroundRunButton() {
       }}
       trailingVisual={
         <Keyboard>
-          <VisuallyHidden>command</VisuallyHidden>
-          <span aria-hidden="true">⌘</span>
+          <VisuallyHidden>{modifierKey}</VisuallyHidden>
+          <span aria-hidden="true">{modifierKey === "Cmd" ? "⌘" : "Ctrl"}</span>
           <VisuallyHidden>enter</VisuallyHidden>
           <span aria-hidden="true">⏎</span>
         </Keyboard>

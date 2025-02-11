@@ -53,7 +53,7 @@ WithKeyboard.args = {
   variant: "primary",
   trailingVisual: (
     <Keyboard>
-      <VisuallyHidden>command</VisuallyHidden>
+      <VisuallyHidden>modifier</VisuallyHidden>
       <span aria-hidden="true">⌘</span>
       <VisuallyHidden>enter</VisuallyHidden>
       <span aria-hidden="true">⏎</span>
