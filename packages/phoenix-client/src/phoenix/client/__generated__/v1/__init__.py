@@ -109,12 +109,49 @@ class Prompt(TypedDict):
     description: Optional[str]
 
 
+class PromptAnthropicInvocationParametersContent(TypedDict):
+    max_tokens: int
+    temperature: NotRequired[float]
+    top_p: NotRequired[float]
+    stop_sequences: NotRequired[Sequence[str]]
+
+
+class PromptAzureOpenAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
 class PromptFunctionTool(TypedDict):
     name: str
     type: Literal["function-tool"]
     description: NotRequired[str]
     schema: NotRequired[JSONSchemaDraft7ObjectSchema]
     extra_parameters: NotRequired[Mapping[str, Any]]
+
+
+class PromptGeminiInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_output_tokens: NotRequired[int]
+    stop_sequences: NotRequired[Sequence[str]]
+    presence_penalty: NotRequired[float]
+    frequency_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    top_k: NotRequired[int]
+
+
+class PromptOpenAIInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_tokens: NotRequired[int]
+    frequency_penalty: NotRequired[float]
+    presence_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    seed: NotRequired[int]
+    reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
 class PromptResponseFormatJSONSchema(TypedDict):
@@ -212,6 +249,26 @@ class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
 
 
+class PromptAnthropicInvocationParameters(TypedDict):
+    anthropic: PromptAnthropicInvocationParametersContent
+    type: Literal["anthropic"]
+
+
+class PromptAzureOpenAIInvocationParameters(TypedDict):
+    azure_openai: PromptAzureOpenAIInvocationParametersContent
+    type: Literal["azure_openai"]
+
+
+class PromptGeminiInvocationParameters(TypedDict):
+    gemini: PromptGeminiInvocationParametersContent
+    type: Literal["gemini"]
+
+
+class PromptOpenAIInvocationParameters(TypedDict):
+    openai: PromptOpenAIInvocationParametersContent
+    type: Literal["openai"]
+
+
 class SpanAnnotation(TypedDict):
     span_id: str
     name: str
@@ -262,7 +319,12 @@ class PromptVersion(TypedDict):
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
     template_format: Literal["MUSTACHE", "FSTRING", "NONE"]
-    invocation_parameters: Mapping[str, Any]
+    invocation_parameters: Union[
+        PromptOpenAIInvocationParameters,
+        PromptAzureOpenAIInvocationParameters,
+        PromptAnthropicInvocationParameters,
+        PromptGeminiInvocationParameters,
+    ]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 
