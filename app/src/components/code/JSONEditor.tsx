@@ -33,7 +33,7 @@ export type JSONEditorProps = Omit<
 
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
-  const { jsonSchema, optionalLint, ...restProps } = props;
+  const { jsonSchema, optionalLint, basicSetup, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   // Force a refresh of the editor when the jsonSchema changes
   // Code mirror does not automatically refresh when the extensions change
@@ -79,6 +79,10 @@ export function JSONEditor(props: JSONEditorProps) {
       extensions={extensions}
       editable
       theme={codeMirrorTheme}
+      basicSetup={{
+        ...(basicSetup as object),
+        defaultKeymap: false,
+      }}
       {...restProps}
     />
   );
