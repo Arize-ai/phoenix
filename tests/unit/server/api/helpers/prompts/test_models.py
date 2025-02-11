@@ -86,7 +86,9 @@ async def test_chat_template_materializes_to_expected_format(
             template=template,
             invocation_parameters=PromptAnthropicInvocationParameters(
                 type="anthropic",
-                anthropic=PromptAnthropicInvocationParametersContent(),
+                anthropic=PromptAnthropicInvocationParametersContent(
+                    max_tokens=1024,
+                ),
             ),
             tools=None,
             response_format=None,
@@ -320,7 +322,9 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             ),
             invocation_parameters=PromptAnthropicInvocationParameters(
                 type="anthropic",
-                anthropic=PromptAnthropicInvocationParametersContent(),
+                anthropic=PromptAnthropicInvocationParametersContent(
+                    max_tokens=1024,
+                ),
             ),
             tools=normalized_tools,
             response_format=None,
