@@ -276,7 +276,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
@@ -376,7 +376,8 @@ class TestPromptMutations:
         expected_model_name = variables["input"]["promptVersion"]["modelName"]
         assert prompt_version.pop("modelProvider") == expected_model_provider
         assert prompt_version.pop("modelName") == expected_model_name
-        assert prompt_version.pop("invocationParameters") == {"temperature": 0.4}
+        expected_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
+        assert prompt_version.pop("invocationParameters") == expected_invocation_parameters
         expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert prompt_version.pop("tools") == expected_tools
         expected_response_format = variables["input"]["promptVersion"].get("responseFormat")
@@ -787,7 +788,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
@@ -874,7 +875,8 @@ class TestPromptMutations:
         expected_model_name = variables["input"]["promptVersion"]["modelName"]
         assert latest_prompt_version.pop("modelProvider") == expected_model_provider
         assert latest_prompt_version.pop("modelName") == expected_model_name
-        assert latest_prompt_version.pop("invocationParameters") == {"temperature": 0.4}
+        expected_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
+        assert latest_prompt_version.pop("invocationParameters") == expected_invocation_parameters
         expected_tools = variables["input"]["promptVersion"].get("tools", [])
         assert latest_prompt_version.pop("tools") == expected_tools
         expected_response_format = variables["input"]["promptVersion"].get("responseFormat")
