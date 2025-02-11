@@ -4,14 +4,18 @@ description: Phoenix can be accessed via our website or self-hosted.
 
 # Quickstart
 
+## Launch and Connect to the Phoenix App
+
+To access the Phoenix app, you can either sign up for a free Phoenix Cloud account, or run the application locally.
+
 {% tabs %}
-{% tab title="☁️  Phoenix Developer Edition" %}
+{% tab title="☁️ Phoenix Cloud" %}
 ### Create an account and retrieve API key
 
 1. Create an account on the [**Phoenix website**](https://app.phoenix.arize.com/)
 2. Grab your API key from the "Keys" section of the site
 
-<figure><img src=".gitbook/assets/Screenshot 2024-10-29 at 2.28.28 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/Screenshot 2024-10-29 at 2.28.28 PM.png" alt=""><figcaption><p>Accessing your API key</p></figcaption></figure>
 
 ### Connect your app to Phoenix
 
@@ -37,51 +41,9 @@ tracer_provider = register()
 ```
 
 Your app is now connected to Phoenix! Any OpenTelemetry traces you generate will be sent to your Phoenix instance.
-
-### Instrument your app and trace a request
-
-Let's generate some of those traces now. We'll use OpenAI in this example, but Phoenix has [dozens of other integrations](tracing/integrations-tracing/) to choose from as well.
-
-First we'll import our instrumentor and the OpenAI package:
-
-```bash
-pip install openinference-instrumentation-openai openai
-```
-
-Then enable our OpenAI integration:
-
-```python
-from openinference.instrumentation.openai import OpenAIInstrumentor
-
-OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
-```
-
-And finally send a request to OpenAI:
-
-```python
-import openai
-import os
-
-os.environ["OPENAI_API_KEY"] = "YOUR OPENAI API KEY"
-
-client = openai.OpenAI()
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Write a haiku."}],
-)
-print(response.choices[0].message.content)
-```
-
-### View traces in Phoenix
-
-You should now see traces in Phoenix!
-
-<figure><img src=".gitbook/assets/Screenshot 2024-10-29 at 2.51.24 PM.png" alt=""><figcaption></figcaption></figure>
 {% endtab %}
 
-{% tab title="🖥️  Run Phoenix Locally" %}
-### Launch a local version of Phoenix
-
+{% tab title="🖥️ Run Locally" %}
 You can use Phoenix's open-source package to launch a local instance of Phoenix on your machine. For more info on other self-hosting options, like Docker, see [deployment](deployment/ "mention")
 
 First, install the Phoenix package:
@@ -118,18 +80,28 @@ tracer_provider = register(
 ```
 
 Your app is now connected to Phoenix! Any OpenTelemetry traces you generate will be sent to your Phoenix instance.
+{% endtab %}
+{% endtabs %}
 
-### Instrument your app and trace a request
+## Instrument your Application
 
-Let's generate some of those traces now. We'll use OpenAI in this example, but Phoenix has [dozens of other integrations](tracing/integrations-tracing/) to choose from as well.
+Now that your app is connected to Phoenix, you'll need to instrument your application to send traces.
 
-First we'll import our instrumentor and the OpenAI package:
+You have two main options for instrumentation: Automatic or Manual.
+
+{% tabs %}
+{% tab title=" 🚀 Automatic Instrumentation" %}
+Phoenix's [auto-instrumentors](tracing/integrations-tracing/) allow you to easily trace all calls made to a specified framework.
+
+For example, OpenAI:
+
+First, import the instrumentor and OpenAI package:
 
 ```bash
-pip install openinference-instrumentation-openai openai 'httpx<0.28'
+pip install openinference-instrumentation-openai openai
 ```
 
-Then enable our OpenAI integration:
+Then enable the OpenAI integration:
 
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
@@ -152,14 +124,39 @@ response = client.chat.completions.create(
 )
 print(response.choices[0].message.content)
 ```
+{% endtab %}
+
+{% tab title="⚙️ Manual Instrumentation" %}
+Manual instrumentation gives you fine-grain control over exactly which calls to trace, and which attributes to send to Phoenix.
+
+```python
+# retrieve the tracer object
+tracer = tracer_provider.get_tracer(__name__)
+
+# add the @tracer decorator to automatically trace your function
+@tracer.chain
+def my_func(input: str) -> str:
+    return "output"
+    
+# or use a with clause to trace a block of code
+with tracer.start_as_current_span(
+    "my-span-name",
+    openinference_span_kind="chain",
+) as span:
+    span.set_input("input")
+    span.set_output("output")
+    span.set_status(Status(StatusCode.OK))
+```
+
+For more information on manual tracing, see [setup-tracing-python.md](tracing/how-to-tracing/setup-tracing-python.md "mention") or [javascript.md](tracing/how-to-tracing/javascript.md "mention")
+{% endtab %}
+{% endtabs %}
 
 ### View traces in Phoenix
 
 You should now see traces in Phoenix!
 
 <figure><img src=".gitbook/assets/Screenshot 2024-10-29 at 2.51.24 PM.png" alt=""><figcaption></figcaption></figure>
-{% endtab %}
-{% endtabs %}
 
 ## Next Steps
 
