@@ -1,9 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 
-import {
-  DEFAULT_MODEL_NAME,
-  DEFAULT_MODEL_PROVIDER,
-} from "@phoenix/constants/generativeConstants";
+import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
 import { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import { GenerativeProviderKey } from "@phoenix/pages/playground/__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
@@ -152,10 +149,7 @@ export const promptVersionToInstance = ({
   } satisfies Partial<PlaygroundInstance>;
 
   const modelName = promptVersion.modelName;
-  const provider =
-    openInferenceModelProviderToPhoenixModelProvider(
-      promptVersion.modelProvider
-    ) || DEFAULT_MODEL_PROVIDER;
+  const provider = promptVersion.modelProvider;
   const toolChoice =
     safelyConvertToolChoiceToProvider({
       toolChoice: promptVersion.invocationParameters?.tool_choice,

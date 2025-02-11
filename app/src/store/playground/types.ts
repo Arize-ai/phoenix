@@ -300,6 +300,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   updateModelSupportedInvocationParameters: (params: {
     instanceId: number;
     supportedInvocationParameters: InvocationParameter[];
+    modelConfigByProvider: ModelConfigByProvider;
   }) => void;
   /**
    * Update an instances model provider, transforming various aspects about the instance to fit the new provider if possible

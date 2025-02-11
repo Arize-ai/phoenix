@@ -4,6 +4,7 @@ import strawberry
 from strawberry import UNSET
 from strawberry.scalars import JSON
 
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
     ContentPart,
     PromptChatTemplate,
@@ -81,7 +82,7 @@ class ChatPromptVersionInput:
     invocation_parameters: JSON = strawberry.field(default_factory=dict)
     tools: list[ToolDefinitionInput] = strawberry.field(default_factory=list)
     response_format: Optional[ResponseFormatInput] = None
-    model_provider: str
+    model_provider: ModelProvider
     model_name: str
 
 
