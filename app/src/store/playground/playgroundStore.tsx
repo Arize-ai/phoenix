@@ -335,15 +335,24 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     updateModelSupportedInvocationParameters: ({
       instanceId,
       supportedInvocationParameters,
+      modelConfigByProvider,
     }) => {
       const instances = get().instances;
       set({
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
+            // if we have top level model config for the provider, merge it in
+            // this allows us to populate default values for baseUrl, endpoint, and apiVersion
+            // when the user has saved an azure prompt and we load it back in
+            const { baseUrl, endpoint, apiVersion } =
+              modelConfigByProvider[instance.model.provider] ?? {};
             return {
               ...instance,
               model: {
                 ...instance.model,
+                baseUrl: instance.model.baseUrl ?? baseUrl,
+                endpoint: instance.model.endpoint ?? endpoint,
+                apiVersion: instance.model.apiVersion ?? apiVersion,
                 supportedInvocationParameters,
                 // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
                 invocationParameters: mergeInvocationParametersWithDefaults(
