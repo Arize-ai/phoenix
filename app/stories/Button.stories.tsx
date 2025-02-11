@@ -44,3 +44,10 @@ CustomCSS.args = {
   `,
   children: "Custom",
 };
+
+export const WithKeyboard = Template.bind({});
+
+WithKeyboard.args = {
+  children: "With Keyboard",
+  icon: "Mod-Enter",
+};
