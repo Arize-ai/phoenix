@@ -16,7 +16,7 @@ export function PlaygroundRunButton() {
   return (
     <Button
       variant="primary"
-      icon={
+      leadingVisual={
         <Icon
           svg={
             isRunning ? <Icons.LoadingOutline /> : <Icons.PlayCircleOutline />

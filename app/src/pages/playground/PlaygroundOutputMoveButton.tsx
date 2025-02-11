@@ -32,7 +32,7 @@ export const PlaygroundOutputMoveButton = ({
     <TooltipTrigger delay={500} offset={10}>
       <Button
         size="S"
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         aria-label="Move the output message to the end of the prompt"
         onPress={() => {
           if (instance.template.__type !== "chat") {

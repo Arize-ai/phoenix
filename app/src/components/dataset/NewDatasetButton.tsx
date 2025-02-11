@@ -27,7 +27,7 @@ export function NewDatasetButton({
     >
       <Button
         variant="default"
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         aria-label="Create a new dataset"
       />
       <Card

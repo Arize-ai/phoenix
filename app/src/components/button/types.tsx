@@ -10,9 +10,13 @@ export interface ButtonProps
     SizingProps,
     StylableProps {
   /**
-   * An optional prefixed icon for the button
+   * A leading visual element before the text. Note visual elements alone should not be used as the only content of a button.
    */
-  icon?: ReactNode;
+  leadingVisual?: ReactNode;
+  /**
+   * A trailing visual element after the text. Note visual elements alone should not be used as the only content of a button.
+   */
+  trailingVisual?: ReactNode;
   /**
    * The variant of the button
    * @default: 'default'

@@ -102,7 +102,7 @@ export function PlaygroundResponseFormat({
                 <CopyToClipboardButton text={responseFormatDefinition} />
                 <Button
                   aria-label="Delete Response Format"
-                  icon={<Icon svg={<Icons.TrashOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
                   size="S"
                   onPress={() => {
                     deleteInvocationParameterInput({

@@ -47,7 +47,7 @@ export function SessionsTableEmpty() {
           <Flex direction="column" gap="size-200" alignItems="center">
             No sessions found for this project
             <Button
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               onPress={onGettingStartedPress}
             >
               Setup Sessions

@@ -56,7 +56,7 @@ export function PlaygroundDatasetPicker() {
       />
       <Button
         size="S"
-        icon={<Icon svg={<Icons.CloseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
         onPress={() => {
           setSearchParams((prev) => {
             prev.delete("datasetId");

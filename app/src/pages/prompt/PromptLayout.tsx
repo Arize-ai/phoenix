@@ -112,7 +112,7 @@ export function PromptLayout() {
           <Flex direction="row" gap="size-100">
             <Button
               size="S"
-              icon={<Icon svg={<Icons.DuplicateIcon />} />}
+              leadingVisual={<Icon svg={<Icons.DuplicateIcon />} />}
               onPress={() => {
                 setDialog(
                   <ClonePromptDialog
@@ -128,7 +128,7 @@ export function PromptLayout() {
             </Button>
             <Button
               size="S"
-              icon={<Icon svg={<Icons.Edit2Outline />} />}
+              leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
               onPress={() => {
                 navigate(`/prompts/${loaderData.prompt.id}/playground`);
               }}

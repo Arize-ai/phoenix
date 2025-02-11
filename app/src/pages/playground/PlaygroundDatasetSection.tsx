@@ -58,7 +58,7 @@ export function PlaygroundDatasetSection({ datasetId }: { datasetId: string }) {
             <Button
               size="S"
               isDisabled={isRunning}
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     isRunning ? (

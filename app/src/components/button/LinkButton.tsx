@@ -7,7 +7,10 @@ import { ButtonProps } from "./types";
 
 interface LinkButtonProps
   extends Pick<LinkProps, "to" | "children">,
-    Pick<ButtonProps, "size" | "variant" | "icon" | "css"> {}
+    Pick<
+      ButtonProps,
+      "size" | "variant" | "leadingVisual" | "trailingVisual" | "css"
+    > {}
 
 const linkButtonCSS = css`
   text-decoration: none;
@@ -21,7 +24,8 @@ function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
   const {
     size = "M",
     variant = "default",
-    icon,
+    leadingVisual,
+    trailingVisual,
     children,
     css: propCSS,
     to,
@@ -35,8 +39,9 @@ function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
       css={css(buttonCSS, linkButtonCSS, propCSS)}
       to={to}
     >
-      {icon}
+      {leadingVisual}
       {children}
+      {trailingVisual}
     </Link>
   );
 }
