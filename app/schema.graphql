@@ -208,7 +208,7 @@ input ChatPromptVersionInput {
   invocationParameters: JSON! = {}
   tools: [ToolDefinitionInput!]! = []
   responseFormat: ResponseFormatInput = null
-  modelProvider: String!
+  modelProvider: ModelProvider!
   modelName: String!
 }
 
@@ -1202,6 +1202,13 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
+enum ModelProvider {
+  OPENAI
+  AZURE_OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
 input ModelsInput {
   providerKey: GenerativeProviderKey
   modelName: String = null
@@ -1586,7 +1593,7 @@ type PromptVersion implements Node {
   tools: [ToolDefinition!]!
   responseFormat: ResponseFormat
   modelName: String!
-  modelProvider: String!
+  modelProvider: ModelProvider!
   metadata: JSON!
   createdAt: DateTime!
   tags: [PromptVersionTag!]!
