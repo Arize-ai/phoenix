@@ -28,10 +28,15 @@ export const toAnthropic = <V extends Variables = Variables>({
   variables,
 }: ToAnthropicParams<V>): MessageCreateParams | null => {
   try {
-    const invocationParameters =
-      prompt.invocation_parameters as unknown as Record<string, unknown> & {
-        max_tokens: number;
-      };
+    let invocationParameters: { max_tokens: number } | undefined;
+    if (prompt.invocation_parameters.type === "anthropic") {
+      invocationParameters = prompt.invocation_parameters.anthropic;
+    } else {
+      console.warn(
+        "Prompt is not an Anthropic prompt, falling back to default Anthropic invocation parameters"
+      ); // eslint-disable-line no-console
+      invocationParameters = { max_tokens: 1024 };
+    }
     // parts of the prompt that can be directly converted to Anthropic params
     const baseCompletionParams = {
       model: prompt.model_name,

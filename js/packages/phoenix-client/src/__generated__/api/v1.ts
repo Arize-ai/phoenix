@@ -558,6 +558,55 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** PromptAnthropicInvocationParameters */
+        PromptAnthropicInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "anthropic";
+            anthropic: components["schemas"]["PromptAnthropicInvocationParametersContent"];
+        };
+        /** PromptAnthropicInvocationParametersContent */
+        PromptAnthropicInvocationParametersContent: {
+            /** Max Tokens */
+            max_tokens: number;
+            /** Temperature */
+            temperature?: number;
+            /** Top P */
+            top_p?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
+        };
+        /** PromptAzureOpenAIInvocationParameters */
+        PromptAzureOpenAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "azure_openai";
+            azure_openai: components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
+        };
+        /** PromptAzureOpenAIInvocationParametersContent */
+        PromptAzureOpenAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
         /** PromptChatTemplate */
         PromptChatTemplate: {
             /**
@@ -584,6 +633,32 @@ export interface components {
             /** Extra Parameters */
             extra_parameters?: Record<string, unknown>;
         };
+        /** PromptGeminiInvocationParameters */
+        PromptGeminiInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "gemini";
+            gemini: components["schemas"]["PromptGeminiInvocationParametersContent"];
+        };
+        /** PromptGeminiInvocationParametersContent */
+        PromptGeminiInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Output Tokens */
+            max_output_tokens?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Top K */
+            top_k?: number;
+        };
         /** PromptMessage */
         PromptMessage: {
             role: components["schemas"]["PromptMessageRole"];
@@ -595,6 +670,35 @@ export interface components {
          * @enum {string}
          */
         PromptMessageRole: "USER" | "SYSTEM" | "AI" | "TOOL";
+        /** PromptOpenAIInvocationParameters */
+        PromptOpenAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "openai";
+            openai: components["schemas"]["PromptOpenAIInvocationParametersContent"];
+        };
+        /** PromptOpenAIInvocationParametersContent */
+        PromptOpenAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
         /** PromptResponseFormatJSONSchema */
         PromptResponseFormatJSONSchema: {
             /**
@@ -693,7 +797,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: Record<string, unknown>;
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGeminiInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;

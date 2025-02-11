@@ -97,6 +97,12 @@ describe("toAnthropic type compatibility", () => {
   it("should handle complex message types", () => {
     const mockPrompt = {
       ...BASE_MOCK_PROMPT_VERSION,
+      invocation_parameters: {
+        type: "anthropic",
+        anthropic: {
+          max_tokens: 1024,
+        },
+      },
       tools: {
         type: "tools",
         tool_choice: { type: "zero-or-more" },
@@ -219,7 +225,7 @@ describe("toAnthropic type compatibility", () => {
         },
       ],
       model: "gpt-4",
-      temperature: 0.7,
+      max_tokens: 1024,
       tool_choice: {
         type: "auto",
       },
