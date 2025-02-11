@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
+import { defaultKeymap } from "@codemirror/commands";
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
 import ReactCodeMirror, {
   BasicSetupOptions,
   EditorView,
+  keymap,
 } from "@uiw/react-codemirror";
 
 import { Field } from "@arizeai/components";
@@ -24,9 +26,16 @@ const basicSetupOptions: BasicSetupOptions = {
   highlightActiveLineGutter: false,
   bracketMatching: false,
   syntaxHighlighting: false,
+  defaultKeymap: false,
 };
 
-const extensions = [EditorView.lineWrapping];
+const extensions = [
+  EditorView.lineWrapping,
+  keymap.of([
+    // Reserve Mod-Enter for the submit button
+    ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
+  ]),
+];
 
 /**
  * A mostly uncontrolled editor that re-mounts when the label changes.
