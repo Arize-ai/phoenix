@@ -237,7 +237,6 @@ describe("toAI type compatibility", () => {
           role: "tool",
         },
       ],
-      temperature: 0.7,
       toolChoice: {
         toolName: "edit_image",
         type: "tool",
