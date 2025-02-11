@@ -32,9 +32,10 @@ export const toAnthropic = <V extends Variables = Variables>({
     if (prompt.invocation_parameters.type === "anthropic") {
       invocationParameters = prompt.invocation_parameters.anthropic;
     } else {
+      // eslint-disable-next-line no-console
       console.warn(
         "Prompt is not an Anthropic prompt, falling back to default Anthropic invocation parameters"
-      ); // eslint-disable-line no-console
+      );
       invocationParameters = { max_tokens: 1024 };
     }
     // parts of the prompt that can be directly converted to Anthropic params
