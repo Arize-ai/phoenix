@@ -346,6 +346,13 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             // when the user has saved an azure prompt and we load it back in
             const { baseUrl, endpoint, apiVersion } =
               modelConfigByProvider[instance.model.provider] ?? {};
+            // ensure that the invocation parameters are only the ones that are supported by the model
+            const filteredInvocationParameters =
+              instance.model.invocationParameters.filter((p) =>
+                supportedInvocationParameters.find((p2) =>
+                  areInvocationParamsEqual(p, p2)
+                )
+              );
             return {
               ...instance,
               model: {
@@ -356,7 +363,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 supportedInvocationParameters,
                 // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
                 invocationParameters: mergeInvocationParametersWithDefaults(
-                  instance.model.invocationParameters,
+                  filteredInvocationParameters,
                   supportedInvocationParameters
                 ),
               },
@@ -385,22 +392,25 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const savedProviderConfig = modelConfigByProvider[provider];
 
       const patch: Partial<PlaygroundNormalizedInstance> = {
-        // If we have a saved config for the provider, use it as the default otherwise reset the model config entirely to defaults / unset which will be controlled by invocation params coming from the server
+        // If we have a saved config for the provider, use it as the default otherwise reset the
+        // model config entirely to defaults / unset which will be controlled by invocation params coming from the server
         model: savedProviderConfig
           ? {
+              ...instance.model,
               ...savedProviderConfig,
-              // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
-              // These are not be saved in the model config as they are controlled exclusively by the server
+              // reset supportedInvocationParameters to unset, these will be subsequently fetched and updated from the server
               supportedInvocationParameters: [],
+              // these will get merged/reconciled with supportedInvocationParameters via ModelSupportedParamsFetcher
+              // so we don't need to replace them with the savedProviderConfig
+              invocationParameters: instance.model.invocationParameters,
               provider,
             }
           : {
+              ...instance.model,
+              // reset supportedInvocationParameters to unset, these will be subsequently fetched and updated from the server
+              supportedInvocationParameters: [],
               modelName: null,
               baseUrl: null,
-              // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
-              invocationParameters: [],
-              // Reset supported invocation parameters to unset, these will be subsequently fetched and updated from the server
-              supportedInvocationParameters: [],
               apiVersion: null,
               endpoint: null,
               provider,
