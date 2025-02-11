@@ -3,7 +3,7 @@ import { Meta, StoryFn } from "@storybook/react";
 import { css } from "@emotion/react";
 
 import { Button, ButtonProps } from "@phoenix/components";
-
+import { Keyboard, VisuallyHidden } from "@phoenix/components/content";
 const meta: Meta = {
   title: "Button",
   component: Button,
@@ -49,5 +49,14 @@ export const WithKeyboard = Template.bind({});
 
 WithKeyboard.args = {
   children: "With Keyboard",
-  icon: "Mod-Enter",
+  size: "S",
+  variant: "primary",
+  trailingVisual: (
+    <Keyboard>
+      <VisuallyHidden>command</VisuallyHidden>
+      <span aria-hidden="true">⌘</span>
+      <VisuallyHidden>enter</VisuallyHidden>
+      <span aria-hidden="true">⏎</span>
+    </Keyboard>
+  ),
 };

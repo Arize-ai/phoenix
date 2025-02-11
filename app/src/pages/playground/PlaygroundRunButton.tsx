@@ -1,7 +1,13 @@
 import React, { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  Keyboard,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 export function PlaygroundRunButton() {
@@ -48,6 +54,14 @@ export function PlaygroundRunButton() {
       onPress={() => {
         toggleRunning();
       }}
+      trailingVisual={
+        <Keyboard>
+          <VisuallyHidden>command</VisuallyHidden>
+          <span aria-hidden="true">⌘</span>
+          <VisuallyHidden>enter</VisuallyHidden>
+          <span aria-hidden="true">⏎</span>
+        </Keyboard>
+      }
     >
       {isRunning ? "Cancel" : "Run"}
     </Button>
