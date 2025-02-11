@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.0...arize-phoenix-v7.12.1) (2025-02-11)
+
+
+### Bug Fixes
+
+* allow `prepared_statement_cache_size` for asyncpg ([#6324](https://github.com/Arize-ai/phoenix/issues/6324)) ([713cf97](https://github.com/Arize-ai/phoenix/commit/713cf97a1f1b20bf26bd6a16dfb7eb335d575261))
+
 ## [7.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.11.0...arize-phoenix-v7.12.0) (2025-02-05)
 
 
