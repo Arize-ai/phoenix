@@ -16,13 +16,21 @@ import {
   DialogContainer,
   Item,
   Picker,
-  TextField,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Input,
+  Label,
+  Text,
+  TextField,
+} from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
@@ -117,7 +125,6 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
-        label="Base URL"
         defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
           updateModelConfig({
@@ -125,7 +132,10 @@ function OpenAiModelConfigFormField({
             value,
           });
         }}
-      />
+      >
+        <Label>Base URL</Label>
+        <Input placeholder="e.x. https://my-llm.com/v1" />
+      </TextField>
     </>
   );
 }
@@ -169,14 +179,15 @@ function AzureOpenAiModelConfigFormField({
   return (
     <>
       <TextField
-        label="Deployment Name"
         defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
         }}
-      />
+      >
+        <Label>Deployment Name</Label>
+        <Input placeholder="e.x. azure-openai-deployment-name" />
+      </TextField>
       <TextField
-        label="Endpoint"
         defaultValue={instance.model.endpoint ?? ""}
         onChange={(value) => {
           updateModelConfig({
@@ -184,7 +195,10 @@ function AzureOpenAiModelConfigFormField({
             value,
           });
         }}
-      />
+      >
+        <Label>Endpoint</Label>
+        <Input placeholder="e.x. https://my.openai.azure.com" />
+      </TextField>
       <Picker
         label="API Version"
         defaultSelectedKey={instance.model.apiVersion ?? undefined}

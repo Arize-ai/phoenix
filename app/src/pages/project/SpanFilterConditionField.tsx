@@ -19,7 +19,6 @@ import { css } from "@emotion/react";
 import {
   AddonBefore,
   Field,
-  Form,
   HelpTooltip,
   PopoverTrigger,
   TooltipTrigger,
@@ -375,15 +374,13 @@ function FilterConditionBuilder(props: {
   return (
     <View
       width="500px"
-      paddingTop="size-200"
-      paddingStart="size-200"
-      paddingEnd="size-200"
+      padding="size-200"
       borderRadius="medium"
       borderWidth="thin"
       borderColor="light"
       backgroundColor="light"
     >
-      <Form>
+      <Flex direction="column" gap="size-100">
         <FilterConditionSnippet
           key="kind"
           label="filter by kind"
@@ -426,7 +423,7 @@ function FilterConditionBuilder(props: {
           initialSnippet="'agent' in input.value"
           onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
-      </Form>
+      </Flex>
     </View>
   );
 }

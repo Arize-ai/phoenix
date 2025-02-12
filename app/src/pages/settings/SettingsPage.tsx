@@ -2,9 +2,17 @@ import React from "react";
 import { useLoaderData } from "react-router";
 import { css } from "@emotion/react";
 
-import { Card, TextField } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { CopyToClipboardButton, Flex, View } from "@phoenix/components";
+import {
+  CopyToClipboardButton,
+  Flex,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 
@@ -44,21 +52,21 @@ export function SettingsPage() {
           <Card title="Platform Settings" variant="compact">
             <form css={formCSS}>
               <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  label="Hostname"
-                  value={BASE_URL}
-                  isReadOnly
-                  description="Connect to Phoenix over HTTP"
-                />
+                <TextField value={BASE_URL} isReadOnly>
+                  <Label>Hostname</Label>
+                  <Input />
+                  <Text slot="description">Connect to Phoenix over HTTP</Text>
+                </TextField>
                 <CopyToClipboardButtonWithPadding text={BASE_URL} />
               </Flex>
               <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField
-                  label="Platform Version"
-                  isReadOnly
-                  value={VERSION}
-                  description="The version of the Phoenix server"
-                />
+                <TextField value={VERSION} isReadOnly>
+                  <Label>Platform Version</Label>
+                  <Input />
+                  <Text slot="description">
+                    The version of the Phoenix server
+                  </Text>
+                </TextField>
                 <CopyToClipboardButtonWithPadding text={VERSION} />
               </Flex>
               <Flex
@@ -68,11 +76,16 @@ export function SettingsPage() {
                 justifyContent="center"
               >
                 <TextField
-                  label="Python Version"
-                  isReadOnly
                   value={`pip install 'arize-phoenix==${VERSION}'`}
-                  description="The version of the Python client library to use to connect to this Phoenix"
-                />
+                  isReadOnly
+                >
+                  <Label>Python Version</Label>
+                  <Input />
+                  <Text slot="description">
+                    The version of the Python client library to use to connect
+                    to this Phoenix
+                  </Text>
+                </TextField>
                 <CopyToClipboardButtonWithPadding text={VERSION} />
               </Flex>
             </form>
@@ -92,7 +105,7 @@ export function SettingsPage() {
 
 function CopyToClipboardButtonWithPadding(props: { text: string }) {
   return (
-    <View paddingBottom="19px">
+    <View paddingBottom="19px" flex="none">
       <CopyToClipboardButton text={props.text} size="M" />
     </View>
   );

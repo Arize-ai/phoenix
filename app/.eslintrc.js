@@ -108,6 +108,16 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      {
+        name: "TextField",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
+      {
+        name: "TextArea",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

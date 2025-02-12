@@ -3,7 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 
-import { Dialog, TextArea } from "@arizeai/components";
+import { Dialog } from "@arizeai/components";
 
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   Label,
   Loading,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
@@ -141,16 +142,15 @@ export const ClonePromptDialog = ({
                 field: { onChange, onBlur, value, disabled },
                 fieldState: { error },
               }) => (
-                <TextField isInvalid={!!error?.message}>
+                <TextField
+                  isInvalid={!!error?.message}
+                  isDisabled={disabled}
+                  value={value}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                >
                   <Label>Description</Label>
-                  <TextArea
-                    name="description"
-                    onChange={onChange}
-                    onBlur={onBlur}
-                    value={value}
-                    height={100}
-                    isDisabled={disabled}
-                  />
+                  <TextArea name="description" />
                   {!error && (
                     <Text slot="description">
                       A description for the cloned prompt.
