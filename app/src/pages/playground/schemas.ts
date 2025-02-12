@@ -8,7 +8,10 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { llmProviderToolDefinitionSchema } from "@phoenix/schemas";
+import {
+  jsonSchemaZodSchema,
+  llmProviderToolDefinitionSchema,
+} from "@phoenix/schemas";
 import {
   JSONLiteral,
   jsonLiteralSchema,
@@ -264,7 +267,9 @@ export const openAIResponseFormatSchema = z.lazy(() =>
     type: z.literal("json_schema"),
     json_schema: z.object({
       name: z.string().describe("The name of the schema"),
-      schema: jsonLiteralSchema.describe("The schema itself in JSON format"),
+      schema: jsonSchemaZodSchema.describe(
+        "The schema itself in JSON schema format"
+      ),
       strict: z.literal(true).describe("The schema must be strict"),
     }),
   })
