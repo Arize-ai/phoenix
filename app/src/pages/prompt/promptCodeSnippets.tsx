@@ -72,6 +72,17 @@ const jsonFormatter = ({
   return fmt;
 };
 
+type LanguageConfig = {
+  assignmentOperator: string;
+  removeKeyQuotes: boolean;
+  stringQuote: string;
+  template: (params: {
+    tab: string;
+    args: string[];
+    messages: string;
+  }) => string;
+};
+
 const openaiTemplatePython = template(
   `
 from openai import OpenAI
@@ -106,6 +117,84 @@ response.then((completion) => console.log(completion.choices[0].message));
 `.trim()
 );
 
+const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
+  python: {
+    openai: {
+      assignmentOperator: "=",
+      removeKeyQuotes: false,
+      stringQuote: '"',
+      template: openaiTemplatePython,
+    },
+  },
+  typescript: {
+    openai: {
+      assignmentOperator: ": ",
+      removeKeyQuotes: true,
+      stringQuote: '"',
+      template: openaiTemplateTypeScript,
+    },
+  },
+};
+
+const preparePromptData = (
+  prompt: Parameters<PromptToSnippetParams>[0],
+  config: LanguageConfig
+) => {
+  if (!("messages" in prompt.template)) {
+    throw new Error("Prompt template does not contain messages");
+  }
+
+  const args: string[] = [];
+  const { assignmentOperator, removeKeyQuotes, stringQuote } = config;
+
+  if (prompt.modelName) {
+    args.push(
+      `model${assignmentOperator}${stringQuote}${prompt.modelName}${stringQuote}`
+    );
+  }
+
+  if (prompt.invocationParameters) {
+    const invocationArgs = Object.entries(prompt.invocationParameters).map(
+      ([key, value]) =>
+        typeof value === "string"
+          ? `${key}${assignmentOperator}${stringQuote}${value}${stringQuote}`
+          : `${key}${assignmentOperator}${value}`
+    );
+    args.push(...invocationArgs);
+  }
+
+  let messages = "";
+  if (prompt.template.messages.length > 0) {
+    const fmt = jsonFormatter({
+      json: prompt.template.messages,
+      level: 0,
+      removeKeyQuotes,
+    });
+    messages = fmt;
+    args.push(assignmentOperator === "=" ? "messages=messages" : "messages");
+  }
+
+  if (prompt.tools && prompt.tools.length > 0) {
+    const fmt = jsonFormatter({
+      json: prompt.tools.map((tool) => tool.definition),
+      level: 1,
+      removeKeyQuotes,
+    });
+    args.push(`tools${assignmentOperator}${fmt}`);
+  }
+
+  if (prompt.responseFormat && "definition" in prompt.responseFormat) {
+    const fmt = jsonFormatter({
+      json: prompt.responseFormat.definition,
+      level: 1,
+      removeKeyQuotes,
+    });
+    args.push(`response_format${assignmentOperator}${fmt}`);
+  }
+
+  return { args, messages };
+};
+
 /**
  * Stringify the arguments of a message's tool calls
  *
@@ -129,77 +218,27 @@ const stringifyOpenAIToolCallArguments = (message: OpenAIMessage) => {
   }
 };
 
-/**
- * A map of languages to model providers to code snippets
- *
- * @todo when we implement more langs / providers, replace with a react-like DSL, for example something like the following:
- * @example
- * ```tsx
- * code(
- *   { language, provider },
- *   [
- *     providerSetup(),
- *     messages({messages}),
- *     providerCompletion(null, [argument({messages}), argument({tools}), argument({response_format})])
- *   ]
- * )
- * ```
- * where each function takes a props object and optional children, and returns a string.
- *
- * That way, each component can manage how to emit its portion of the string based on language and model provider,
- * accessible via context from the top level code component.
- */
 export const promptCodeSnippets: Record<
   string,
   Record<string, PromptToSnippetParams>
 > = {
   python: {
     openai: (prompt) => {
-      if (!("messages" in prompt.template)) {
-        throw new Error("Prompt template does not contain messages");
-      }
-      // collect args to the provider completion fn call from the incoming template
-      const args: string[] = [];
-      if (prompt.modelName) {
-        args.push(`model="${prompt.modelName}"`);
-      }
-      if (prompt.invocationParameters) {
-        const invocationArgs = Object.entries(prompt.invocationParameters).map(
-          ([key, value]) =>
-            typeof value === "string" ? `${key}="${value}"` : `${key}=${value}`
-        );
-        args.push(...invocationArgs);
-      }
-      // messages are special, they are passed as a kwarg to the provider completion fn
-      // but defined in the template as a top level variable first
-      let messages = "";
-      if (prompt.template.messages.length > 0) {
-        const fmt = jsonFormatter({
-          json: prompt.template.messages.map((m) =>
+      const config = languageConfigs.python.openai;
+      const promptWithStringifiedToolCallArguments = {
+        ...prompt,
+        template: {
+          ...prompt.template,
+          messages: prompt.template.messages.map((m) =>
             stringifyOpenAIToolCallArguments(m as OpenAIMessage)
           ),
-          level: 0,
-        });
-        messages = `${fmt}`;
-        args.push(`messages=messages`);
-      }
-      if (prompt.tools && prompt.tools.length > 0) {
-        const fmt = jsonFormatter({
-          json: prompt.tools.map((tool) => tool.definition),
-          level: 1,
-        });
-        args.push(`tools=${fmt}`);
-      }
-      if (prompt.responseFormat && "definition" in prompt.responseFormat) {
-        const fmt = jsonFormatter({
-          json: prompt.responseFormat.definition,
-          level: 1,
-        });
-        args.push(`response_format=${fmt}`);
-      }
-
-      // now emit the template with the collected args and messages
-      return openaiTemplatePython({
+        },
+      };
+      const { args, messages } = preparePromptData(
+        promptWithStringifiedToolCallArguments,
+        config
+      );
+      return config.template({
         tab: TAB,
         args,
         messages,
@@ -208,56 +247,21 @@ export const promptCodeSnippets: Record<
   },
   typescript: {
     openai: (prompt) => {
-      if (!("messages" in prompt.template)) {
-        throw new Error("Prompt template does not contain messages");
-      }
-      // collect args to the provider completion fn call from the incoming template
-      const args: string[] = [];
-      if (prompt.modelName) {
-        args.push(`model: "${prompt.modelName}"`);
-      }
-      if (prompt.invocationParameters) {
-        const invocationArgs = Object.entries(prompt.invocationParameters).map(
-          ([key, value]) =>
-            typeof value === "string"
-              ? `${key}: "${value}"`
-              : `${key}: ${value}`
-        );
-        args.push(...invocationArgs);
-      }
-      // messages are special, they are passed as a kwarg to the provider completion fn
-      // but defined in the template as a top level variable first
-      let messages = "";
-      if (prompt.template.messages.length > 0) {
-        const fmt = jsonFormatter({
-          json: prompt.template.messages.map((m) =>
+      const config = languageConfigs.typescript.openai;
+      const promptWithStringifiedToolCallArguments = {
+        ...prompt,
+        template: {
+          ...prompt.template,
+          messages: prompt.template.messages.map((m) =>
             stringifyOpenAIToolCallArguments(m as OpenAIMessage)
           ),
-          level: 0,
-          removeKeyQuotes: true,
-        });
-        messages = `${fmt}`;
-        args.push(`messages`);
-      }
-      if (prompt.tools && prompt.tools.length > 0) {
-        const fmt = jsonFormatter({
-          json: prompt.tools.map((tool) => tool.definition),
-          level: 1,
-          removeKeyQuotes: true,
-        });
-        args.push(`tools: ${fmt}`);
-      }
-      if (prompt.responseFormat && "definition" in prompt.responseFormat) {
-        const fmt = jsonFormatter({
-          json: prompt.responseFormat.definition,
-          level: 1,
-          removeKeyQuotes: true,
-        });
-        args.push(`response_format: ${fmt}`);
-      }
-
-      // now emit the template with the collected args and messages
-      return openaiTemplateTypeScript({
+        },
+      };
+      const { args, messages } = preparePromptData(
+        promptWithStringifiedToolCallArguments,
+        config
+      );
+      return config.template({
         tab: TAB,
         args,
         messages,
