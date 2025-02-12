@@ -156,7 +156,11 @@ export function SavePromptForm({
                 value={value}
                 size="S"
               >
-                <Label>Description</Label>
+                <Label>
+                  {mode === "create"
+                    ? "Prompt Description"
+                    : "Change Description"}
+                </Label>
                 <TextArea />
                 {error ? (
                   <FieldError>{error.message}</FieldError>
