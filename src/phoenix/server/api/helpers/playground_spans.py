@@ -269,7 +269,7 @@ def input_value_and_mime_type(
 
 def prompt_metadata(prompt_name: Optional[Identifier]) -> Iterator[tuple[str, Any]]:
     if prompt_name:
-        yield METADATA, {"phoenixPromptId": prompt_name}
+        yield METADATA, {"phoenix_prompt_id": prompt_name}
 
 
 def _merge_tool_call_chunks(
