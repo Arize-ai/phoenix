@@ -109,6 +109,7 @@ def to_gql_prompt_version(
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
+    tool_choice = None
     if prompt_version.tools is not None:
         tool_schemas, tool_choice = denormalize_tools(
             prompt_version.tools, prompt_version.model_provider
