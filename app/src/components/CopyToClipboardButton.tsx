@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { RefObject, useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 import { css } from "@emotion/react";
 
@@ -20,7 +20,7 @@ export type CopyToClipboardButtonProps = Omit<
   /**
    * The text to copy to the clipboard
    */
-  text: string;
+  text: string | RefObject<string>;
 };
 
 const copyToClipboardButtonCSS = css`
@@ -36,7 +36,8 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   const onPress = useCallback(() => {
-    copy(text);
+    const textToCopy = typeof text === "string" ? text : text.current || "";
+    copy(textToCopy);
     setIsCopied(true);
     setTimeout(() => {
       setIsCopied(false);
