@@ -254,7 +254,7 @@ class TestResponseFormat:
         _can_recreate_under_new_identifier(prompt)
 
 
-def _can_recreate_under_new_identifier(version: v1.PromptVersionData) -> None:
+def _can_recreate_under_new_identifier(version: v1.PromptVersion) -> None:
     new_name = token_hex(8)
     a = px.Client().prompts.create(name=new_name, version=version)
     assert version["id"] != a["id"]
@@ -280,7 +280,7 @@ def _create_chat_prompt(
     tools: Sequence[ToolDefinitionInput] = (),
     invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
     template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "NONE",
-) -> v1.PromptVersionData:
+) -> v1.PromptVersion:
     messages = list(messages) or [
         PromptMessageInput(
             role="USER",

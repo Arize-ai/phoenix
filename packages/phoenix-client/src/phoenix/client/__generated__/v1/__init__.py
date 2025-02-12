@@ -103,6 +103,7 @@ class ListExperimentsResponseBody(TypedDict):
 
 class Prompt(TypedDict):
     name: str
+    id: str
     description: NotRequired[str]
     source_prompt_id: NotRequired[str]
 
@@ -126,7 +127,6 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
 
 class PromptData(TypedDict):
     name: str
-    id: str
     description: NotRequired[str]
     source_prompt_id: NotRequired[str]
 
@@ -247,7 +247,7 @@ class CreateExperimentResponseBody(TypedDict):
 
 
 class GetPromptsResponseBody(TypedDict):
-    data: Sequence[PromptData]
+    data: Sequence[Prompt]
 
 
 class HTTPValidationError(TypedDict):
@@ -328,6 +328,7 @@ class PromptVersion(TypedDict):
         PromptAnthropicInvocationParameters,
         PromptGeminiInvocationParameters,
     ]
+    id: str
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
@@ -345,24 +346,23 @@ class PromptVersionData(TypedDict):
         PromptAnthropicInvocationParameters,
         PromptGeminiInvocationParameters,
     ]
-    id: str
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 
 
 class CreatePromptRequestBody(TypedDict):
-    prompt: Prompt
-    version: PromptVersion
+    prompt: PromptData
+    version: PromptVersionData
 
 
 class CreatePromptResponseBody(TypedDict):
-    data: PromptVersionData
+    data: PromptVersion
 
 
 class GetPromptResponseBody(TypedDict):
-    data: PromptVersionData
+    data: PromptVersion
 
 
 class GetPromptVersionsResponseBody(TypedDict):
-    data: Sequence[PromptVersionData]
+    data: Sequence[PromptVersion]

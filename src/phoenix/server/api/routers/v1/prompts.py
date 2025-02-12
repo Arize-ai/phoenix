@@ -30,17 +30,17 @@ from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersio
 logger = logging.getLogger(__name__)
 
 
-class Prompt(V1RoutesBaseModel):
+class PromptData(V1RoutesBaseModel):
     name: Identifier
     description: Optional[str] = None
     source_prompt_id: Optional[str] = None
 
 
-class PromptData(Prompt):
+class Prompt(PromptData):
     id: str
 
 
-class PromptVersion(V1RoutesBaseModel):
+class PromptVersionData(V1RoutesBaseModel):
     description: Optional[str] = None
     model_provider: ModelProvider
     model_name: str
@@ -52,36 +52,28 @@ class PromptVersion(V1RoutesBaseModel):
     response_format: Optional[PromptResponseFormat] = None
 
 
-class PromptVersionData(PromptVersion):
+class PromptVersion(PromptVersionData):
     id: str
 
 
-class GetPromptResponseBody(ResponseBody[PromptVersionData]):
+class GetPromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
-class GetPromptsResponseBody(ResponseBody[list[PromptData]]):
+class GetPromptsResponseBody(ResponseBody[list[Prompt]]):
     pass
 
 
-class GetPromptVersionsResponseBody(ResponseBody[list[PromptVersionData]]):
+class GetPromptVersionsResponseBody(ResponseBody[list[PromptVersion]]):
     pass
 
 
 class CreatePromptRequestBody(V1RoutesBaseModel):
-    prompt: Prompt
-    version: PromptVersion
+    prompt: PromptData
+    version: PromptVersionData
 
 
-class CreatePromptResponseBody(ResponseBody[PromptVersionData]):
-    pass
-
-
-class CreatePromptVersionRequestBody(V1RoutesBaseModel):
-    version: PromptVersion
-
-
-class CreatePromptVersionResponseBody(ResponseBody[PromptVersionData]):
+class CreatePromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
@@ -379,10 +371,10 @@ def _filter_by_prompt_identifier(
 
 def _prompt_version_from_orm_version(
     prompt_version: models.PromptVersion,
-) -> PromptVersionData:
+) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
-    return PromptVersionData(
+    return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
         description=prompt_version.description or "",
         model_provider=prompt_version.model_provider,

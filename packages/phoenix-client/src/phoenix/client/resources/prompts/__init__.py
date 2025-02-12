@@ -17,7 +17,7 @@ class Prompts:
         prompt_version_id: Optional[str] = None,
         prompt_identifier: Optional[str] = None,
         tag: Optional[str] = None,
-    ) -> v1.PromptVersionData:
+    ) -> v1.PromptVersion:
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
         response.raise_for_status()
@@ -29,7 +29,7 @@ class Prompts:
         version: v1.PromptVersion,
         name: str,
         prompt_description: Optional[str] = None,
-    ) -> v1.PromptVersionData:
+    ) -> v1.PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
         be created if it doesn't already exist.
@@ -43,10 +43,10 @@ class Prompts:
                 If prompt already exists, this value is ignored by the server.
 
         Returns:
-            v1.PromptVersionData: The created prompt version data.
+            v1.PromptVersion: The created prompt version data.
         """
         url = "v1/prompts"
-        prompt = v1.Prompt(name=name)
+        prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
         if _PYDANTIC_VERSION.startswith("2"):
@@ -78,7 +78,7 @@ class AsyncPrompts:
         prompt_version_id: Optional[str] = None,
         prompt_identifier: Optional[str] = None,
         tag: Optional[str] = None,
-    ) -> v1.PromptVersionData:
+    ) -> v1.PromptVersion:
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
         response.raise_for_status()

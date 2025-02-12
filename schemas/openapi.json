@@ -1714,10 +1714,10 @@
       "CreatePromptRequestBody": {
         "properties": {
           "prompt": {
-            "$ref": "#/components/schemas/Prompt"
+            "$ref": "#/components/schemas/PromptData"
           },
           "version": {
-            "$ref": "#/components/schemas/PromptVersion"
+            "$ref": "#/components/schemas/PromptVersionData"
           }
         },
         "type": "object",
@@ -1730,7 +1730,7 @@
       "CreatePromptResponseBody": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/PromptVersionData"
+            "$ref": "#/components/schemas/PromptVersion"
           }
         },
         "type": "object",
@@ -2000,7 +2000,7 @@
       "GetPromptResponseBody": {
         "properties": {
           "data": {
-            "$ref": "#/components/schemas/PromptVersionData"
+            "$ref": "#/components/schemas/PromptVersion"
           }
         },
         "type": "object",
@@ -2013,7 +2013,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/PromptVersionData"
+              "$ref": "#/components/schemas/PromptVersion"
             },
             "type": "array",
             "title": "Data"
@@ -2029,7 +2029,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/PromptData"
+              "$ref": "#/components/schemas/Prompt"
             },
             "type": "array",
             "title": "Data"
@@ -2238,11 +2238,16 @@
               }
             ],
             "title": "Source Prompt Id"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
           }
         },
         "type": "object",
         "required": [
-          "name"
+          "name",
+          "id"
         ],
         "title": "Prompt"
       },
@@ -2402,16 +2407,11 @@
               }
             ],
             "title": "Source Prompt Id"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
           }
         },
         "type": "object",
         "required": [
-          "name",
-          "id"
+          "name"
         ],
         "title": "PromptData"
       },
@@ -2933,6 +2933,10 @@
               }
             ],
             "title": "Response Format"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
           }
         },
         "type": "object",
@@ -2942,7 +2946,8 @@
           "template",
           "template_type",
           "template_format",
-          "invocation_parameters"
+          "invocation_parameters",
+          "id"
         ],
         "title": "PromptVersion"
       },
@@ -3046,10 +3051,6 @@
               }
             ],
             "title": "Response Format"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
           }
         },
         "type": "object",
@@ -3059,8 +3060,7 @@
           "template",
           "template_type",
           "template_format",
-          "invocation_parameters",
-          "id"
+          "invocation_parameters"
         ],
         "title": "PromptVersionData"
       },

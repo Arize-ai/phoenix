@@ -32,7 +32,7 @@ if TYPE_CHECKING:
         v1.ToolResultContentPart,
     ]
 
-    def _(obj: v1.PromptVersion) -> None:
+    def _(obj: v1.PromptVersionData) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
         GenerativeModel(**kwargs)
         _: Iterable[protos.Content] = messages
@@ -57,7 +57,7 @@ __all__ = [
 
 
 def to_chat_messages_and_kwargs(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
     /,
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
@@ -92,7 +92,7 @@ def to_chat_messages_and_kwargs(
 
 
 def _to_model_kwargs(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
     /,
 ) -> _ModelKwargs:
     invocation_parameters: v1.PromptGeminiInvocationParametersContent = (

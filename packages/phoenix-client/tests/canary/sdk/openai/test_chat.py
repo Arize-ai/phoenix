@@ -398,7 +398,7 @@ class TestCompletionCreateParamsBase:
         ],
     )
     def test_round_trip(self, obj: CompletionCreateParamsBase) -> None:
-        pv: v1.PromptVersion = create_prompt_version_from_openai_chat(obj)
+        pv: v1.PromptVersionData = create_prompt_version_from_openai_chat(obj)
         messages, kwargs = to_chat_messages_and_kwargs(pv, formatter=NO_OP_FORMATTER)
         new_obj = CompletionCreateParamsBase(messages=messages, **kwargs)  # type: ignore[typeddict-item]
         assert not DeepDiff(obj, new_obj)

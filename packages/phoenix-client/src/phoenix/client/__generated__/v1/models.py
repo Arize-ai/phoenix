@@ -172,6 +172,7 @@ class Prompt(BaseModel):
     name: Annotated[str, Field(pattern="^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$", title="Identifier")]
     description: Annotated[Optional[str], Field(title="Description")] = None
     source_prompt_id: Annotated[Optional[str], Field(title="Source Prompt Id")] = None
+    id: Annotated[str, Field(title="Id")]
 
 
 class PromptAnthropicInvocationParametersContent(BaseModel):
@@ -200,7 +201,6 @@ class PromptData(BaseModel):
     name: Annotated[str, Field(pattern="^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$", title="Identifier")]
     description: Annotated[Optional[str], Field(title="Description")] = None
     source_prompt_id: Annotated[Optional[str], Field(title="Source Prompt Id")] = None
-    id: Annotated[str, Field(title="Id")]
 
 
 class PromptFunctionTool(BaseModel):
@@ -364,7 +364,7 @@ class CreateExperimentResponseBody(BaseModel):
 
 class GetPromptsResponseBody(BaseModel):
     model_config = ConfigDict(strict=True, validate_assignment=True)
-    data: Annotated[Sequence[PromptData], Field(title="Data")]
+    data: Annotated[Sequence[Prompt], Field(title="Data")]
 
 
 class HTTPValidationError(BaseModel):
@@ -492,6 +492,7 @@ class PromptVersion(BaseModel):
     response_format: Annotated[
         Optional[PromptResponseFormatJSONSchema], Field(title="Response Format")
     ] = None
+    id: Annotated[str, Field(title="Id")]
 
 
 class PromptVersionData(BaseModel):
@@ -522,25 +523,24 @@ class PromptVersionData(BaseModel):
     response_format: Annotated[
         Optional[PromptResponseFormatJSONSchema], Field(title="Response Format")
     ] = None
-    id: Annotated[str, Field(title="Id")]
 
 
 class CreatePromptRequestBody(BaseModel):
     model_config = ConfigDict(strict=True, validate_assignment=True)
-    prompt: Prompt
-    version: PromptVersion
+    prompt: PromptData
+    version: PromptVersionData
 
 
 class CreatePromptResponseBody(BaseModel):
     model_config = ConfigDict(strict=True, validate_assignment=True)
-    data: PromptVersionData
+    data: PromptVersion
 
 
 class GetPromptResponseBody(BaseModel):
     model_config = ConfigDict(strict=True, validate_assignment=True)
-    data: PromptVersionData
+    data: PromptVersion
 
 
 class GetPromptVersionsResponseBody(BaseModel):
     model_config = ConfigDict(strict=True, validate_assignment=True)
-    data: Annotated[Sequence[PromptVersionData], Field(title="Data")]
+    data: Annotated[Sequence[PromptVersion], Field(title="Data")]

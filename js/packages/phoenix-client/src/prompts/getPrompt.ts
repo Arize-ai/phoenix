@@ -1,6 +1,6 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { PromptSelector, PromptVersionData } from "../types/prompts";
+import { PromptSelector, PromptVersion } from "../types/prompts";
 import { getPromptBySelector } from "../utils/getPromptVersionLike";
 
 /**
@@ -19,7 +19,7 @@ export interface GetPromptParams extends ClientFn {
 export async function getPrompt({
   client: _client,
   prompt: _prompt,
-}: GetPromptParams): Promise<PromptVersionData | null> {
+}: GetPromptParams): Promise<PromptVersion | null> {
   const client = _client ?? createClient();
   const promptVersion = await getPromptBySelector({ client, prompt: _prompt });
   return promptVersion;

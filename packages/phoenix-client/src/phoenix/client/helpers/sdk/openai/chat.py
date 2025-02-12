@@ -98,7 +98,7 @@ def create_prompt_version_from_openai_chat(
     *,
     description: Optional[str] = None,
     template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-) -> v1.PromptVersion:
+) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
         type="chat",
@@ -119,7 +119,7 @@ def create_prompt_version_from_openai_chat(
         params["seed"] = int(obj["seed"])
     if "reasoning_effort" in obj and obj["reasoning_effort"] is not None:
         params["reasoning_effort"] = obj["reasoning_effort"]
-    ans = v1.PromptVersion(
+    ans = v1.PromptVersionData(
         model_provider="OPENAI",
         model_name=obj["model"],
         template=template,
@@ -144,7 +144,7 @@ def create_prompt_version_from_openai_chat(
 
 
 def to_chat_messages_and_kwargs(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
     /,
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
@@ -157,7 +157,7 @@ def to_chat_messages_and_kwargs(
 
 
 def _to_model_kwargs(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
 ) -> _ModelKwargs:
     parameters: v1.PromptOpenAIInvocationParametersContent = (
         obj["invocation_parameters"]["openai"]
@@ -199,7 +199,7 @@ def _to_model_kwargs(
 
 
 def _to_chat_completion_messages(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
     variables: Mapping[str, str],
     formatter: Optional[TemplateFormatter] = None,
     /,

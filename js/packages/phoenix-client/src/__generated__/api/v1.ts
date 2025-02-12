@@ -349,12 +349,12 @@ export interface components {
         };
         /** CreatePromptRequestBody */
         CreatePromptRequestBody: {
-            prompt: components["schemas"]["Prompt"];
-            version: components["schemas"]["PromptVersion"];
+            prompt: components["schemas"]["PromptData"];
+            version: components["schemas"]["PromptVersionData"];
         };
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
-            data: components["schemas"]["PromptVersionData"];
+            data: components["schemas"]["PromptVersion"];
         };
         /** Dataset */
         Dataset: {
@@ -485,17 +485,17 @@ export interface components {
         };
         /** GetPromptResponseBody */
         GetPromptResponseBody: {
-            data: components["schemas"]["PromptVersionData"];
+            data: components["schemas"]["PromptVersion"];
         };
         /** GetPromptVersionsResponseBody */
         GetPromptVersionsResponseBody: {
             /** Data */
-            data: components["schemas"]["PromptVersionData"][];
+            data: components["schemas"]["PromptVersion"][];
         };
         /** GetPromptsResponseBody */
         GetPromptsResponseBody: {
             /** Data */
-            data: components["schemas"]["PromptData"][];
+            data: components["schemas"]["Prompt"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -566,6 +566,8 @@ export interface components {
             description?: string | null;
             /** Source Prompt Id */
             source_prompt_id?: string | null;
+            /** Id */
+            id: string;
         };
         /** PromptAnthropicInvocationParameters */
         PromptAnthropicInvocationParameters: {
@@ -633,8 +635,6 @@ export interface components {
             description?: string | null;
             /** Source Prompt Id */
             source_prompt_id?: string | null;
-            /** Id */
-            id: string;
         };
         /** PromptFunctionTool */
         PromptFunctionTool: {
@@ -818,6 +818,8 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /** Id */
+            id: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
@@ -835,8 +837,6 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
-            /** Id */
-            id: string;
         };
         /** SpanAnnotation */
         SpanAnnotation: {
