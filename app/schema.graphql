@@ -2056,6 +2056,7 @@ type ToolCallFunction {
 }
 
 input ToolCallFunctionInput {
+  type: String = "function"
   name: String!
   arguments: String!
 }

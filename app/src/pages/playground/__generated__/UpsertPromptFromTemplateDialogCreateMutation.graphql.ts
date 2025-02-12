@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ec25f9c2f7d790a93fc796dedd2ba27>>
+ * @generated SignedSource<<bb3a6ca4638cc993cc09a030defe1b77>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,6 +48,7 @@ export type ToolCallContentValueInput = {
 export type ToolCallFunctionInput = {
   arguments: string;
   name: string;
+  type?: string | null;
 };
 export type ToolResultContentValueInput = {
   result: any;

@@ -14,7 +14,6 @@ import {
   jsonLiteralSchema,
 } from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
-import { ChatMessage } from "@phoenix/store";
 import {
   isObject,
   isStringKeyedObject,
@@ -100,16 +99,14 @@ export const chatMessageRolesSchema = schemaForType<ChatMessageRole>()(
   z.enum(["user", "ai", "system", "tool"])
 );
 
-const chatMessageSchema = schemaForType<ChatMessage>()(
-  z.object({
-    id: z.number(),
-    role: chatMessageRolesSchema,
-    // Tool call messages may not have content
-    content: z.string().optional(),
-    toolCallId: z.string().optional(),
-    toolCalls: z.array(llmProviderToolCallSchema).optional(),
-  })
-);
+export const chatMessageSchema = z.object({
+  id: z.number(),
+  role: chatMessageRolesSchema,
+  // Tool call messages may not have content
+  content: z.string().optional(),
+  toolCallId: z.string().optional(),
+  toolCalls: z.array(llmProviderToolCallSchema).optional(),
+});
 
 /**
  * The zod schema for ChatMessages

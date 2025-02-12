@@ -1,10 +1,10 @@
+import { z } from "zod";
+
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
-import {
-  LlmProviderToolCall,
-  LlmProviderToolDefinition,
-} from "@phoenix/schemas";
+import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
+import { LlmProviderToolDefinition } from "@phoenix/schemas";
 import {
   AnthropicToolChoice,
   OpenaiToolChoice,
@@ -32,14 +32,7 @@ export type GenAIOperationType = "chat" | "text_completion";
  * }
  * ```
  */
-export type ChatMessage = {
-  id: number;
-  role: ChatMessageRole;
-  // Tool call messages may not have content
-  content?: string;
-  toolCalls?: LlmProviderToolCall[];
-  toolCallId?: string;
-};
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
 /**
  * A template for a chat completion playground
