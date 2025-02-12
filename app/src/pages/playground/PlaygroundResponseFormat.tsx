@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Card } from "@arizeai/components";
@@ -32,6 +32,11 @@ import { PlaygroundInstanceProps } from "./types";
  */
 const RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT = 400;
 
+/**
+ * This component is uncontrolled once the initial value is provided.
+ * To reset the value in response to external changes, the parent must
+ * provide a new key prop.
+ */
 export function PlaygroundResponseFormat({
   playgroundInstanceId,
 }: PlaygroundInstanceProps) {
@@ -55,13 +60,16 @@ export function PlaygroundResponseFormat({
       p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
   );
 
-  const [responseFormatDefinition, setResponseFormatDefinition] = useState(
+  const [initialResponseFormatDefinition] = useState(
     JSON.stringify(responseFormat?.valueJson ?? {}, null, 2)
   );
 
+  const currentValueRef = useRef(initialResponseFormatDefinition);
+
   const onChange = useCallback(
     (value: string) => {
-      setResponseFormatDefinition(value);
+      // track the current value of the editor, even when it is invalid
+      currentValueRef.current = value;
       const { json: format } = safelyParseJSON(value);
       if (format == null) {
         return;
@@ -99,7 +107,7 @@ export function PlaygroundResponseFormat({
             bodyStyle={{ padding: 0 }}
             extra={
               <Flex direction="row" gap="size-100">
-                <CopyToClipboardButton text={responseFormatDefinition} />
+                <CopyToClipboardButton text={currentValueRef} />
                 <Button
                   aria-label="Delete Response Format"
                   leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
@@ -121,7 +129,7 @@ export function PlaygroundResponseFormat({
               }
             >
               <JSONEditor
-                value={responseFormatDefinition}
+                value={initialResponseFormatDefinition}
                 onChange={onChange}
                 jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
               />
