@@ -1,7 +1,7 @@
 import ast
 import sys
 from pathlib import Path
-from typing import Callable, Mapping
+from typing import Callable
 
 
 class ConvertDataClassToTypedDict(ast.NodeTransformer):
@@ -286,11 +286,6 @@ def _transform_dataclass(
             break
     transformed = ConvertDataClassToTypedDict().visit(parsed)
     return transformed
-
-
-_PARENTS: Mapping[str, list[str]] = {
-    "PromptVersionData": ["PromptVersion"],
-}
 
 
 def _rewrite(
