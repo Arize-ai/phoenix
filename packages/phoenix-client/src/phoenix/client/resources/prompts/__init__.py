@@ -28,19 +28,37 @@ class Prompts:
         *,
         version: v1.PromptVersion,
         name: str,
-        description: Optional[str] = None,
+        prompt_description: Optional[str] = None,
     ) -> v1.PromptVersionData:
+        """
+        Creates a new version for the prompt under the name specified. The prompt will
+        be created if it doesn't already exist.
+
+        Args:
+            version (v1.PromptVersion): The version of the prompt to create.
+            name (str): The identifier for the prompt. It can contain alphanumeric
+                characters, hyphens and underscores, but must begin with an
+                alphanumeric character.
+            prompt_description (Optional[str]): An optional description for the prompt.
+                If prompt already exists, this value is ignored by the server.
+
+        Returns:
+            v1.PromptVersionData: The created prompt version data.
+        """
         url = "v1/prompts"
         prompt = v1.Prompt(name=name)
-        if description:
-            prompt["description"] = description
+        if prompt_description:
+            prompt["description"] = prompt_description
         if _PYDANTIC_VERSION.startswith("2"):
             import phoenix.client.__generated__.v1.models as m1
 
             json_ = cast(
                 v1.CreatePromptRequestBody,
                 m1.CreatePromptRequestBody.model_validate(
-                    {"prompt": {"name": name, "description": description}, "version": version}
+                    {
+                        "prompt": {"name": name, "description": prompt_description},
+                        "version": version,
+                    }
                 ).model_dump(exclude_unset=True, exclude_defaults=True, by_alias=True),
             )
         else:
