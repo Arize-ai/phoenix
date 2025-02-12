@@ -1222,13 +1222,10 @@ export function mergeInvocationParametersWithDefaults(
 ) {
   // Convert the current invocation parameters to a map for quick lookup
   const currentInvocationParametersMap = new Map(
-    invocationParameters.map((param) => [
-      param.canonicalName || param.invocationName,
-      param,
-    ])
+    invocationParameters.map((param) => [param.invocationName, param])
   );
   supportedInvocationParameters.forEach((param) => {
-    const paramKeyName = param.canonicalName || param.invocationName;
+    const paramKeyName = param.invocationName;
     // Extract the default value for the invocation parameter definition
     // And the key name that should be used in the invocation parameter input if we need to make a new one
     const defaultValue = getInvocationParamDefaultValue(param);

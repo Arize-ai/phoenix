@@ -1509,7 +1509,7 @@ describe("mergeInvocationParametersWithDefaults", () => {
         invocationInputField: "value_int",
       },
       {
-        invocationName: "random seed",
+        invocationName: "seed",
         canonicalName: "RANDOM_SEED",
         required: true,
         intDefaultValue: 1000,
