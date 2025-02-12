@@ -14,6 +14,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.types.AnnotationConfig import (
     AnnotationConfig,
     AnnotationType,
+    ProjectAnnotationConfig,
     ScoreDirection,
     to_gql_annotation_config,
 )
@@ -97,9 +98,15 @@ class PatchCategoricalAnnotationValueInput:
     numeric_score: Optional[float] = None
 
 
-@strawberry.type
+@strawberry.input
 class DeleteAnnotationConfigInput:
     config_id: GlobalID
+
+
+@strawberry.input
+class CreateProjectAnnotationConfigInput:
+    project_id: GlobalID
+    annotation_config_id: GlobalID
 
 
 @strawberry.type
@@ -461,3 +468,29 @@ class AnnotationConfigMutationMixin:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
             await session.commit()
         return True
+
+    @strawberry.mutation
+    async def create_project_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: list[CreateProjectAnnotationConfigInput],
+    ) -> ProjectAnnotationConfig:
+        async with info.context.db() as session:
+            for item in input:
+                project_id = from_global_id_with_expected_type(
+                    global_id=item.project_id, expected_type_name="Project"
+                )
+                annotation_config_id = from_global_id_with_expected_type(
+                    global_id=item.annotation_config_id, expected_type_name="AnnotationConfig"
+                )
+                project_annotation_config = models.ProjectAnnotationConfig(
+                    project_id=project_id,
+                    annotation_config_id=annotation_config_id,
+                )
+                session.add(project_annotation_config)
+            await session.commit()
+            return ProjectAnnotationConfig(
+                id_attr=project_annotation_config.id,
+                project_id=project_id,
+                annotation_config_id=annotation_config_id,
+            )
