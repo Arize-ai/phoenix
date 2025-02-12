@@ -23,6 +23,7 @@ import {
 } from "@arizeai/components";
 
 import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   AZURE_OPENAI_API_VERSIONS,
@@ -239,9 +240,14 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             setDialog(<ModelConfigDialog {...props} />);
           });
         }}
+        leadingVisual={
+          <GenerativeProviderIcon
+            provider={instance.model.provider}
+            height={16}
+          />
+        }
       >
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
+        <Flex direction="row" gap="size-100" alignItems="center" height="100%">
           <Truncate maxWidth={MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}>
             <Text>{instance.model.modelName || "--"}</Text>
           </Truncate>
