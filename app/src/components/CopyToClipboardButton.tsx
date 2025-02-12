@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { Ref, RefObject, useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 
 import { Tooltip, TooltipTrigger } from "@arizeai/components";
@@ -19,7 +19,7 @@ export type CopyToClipboardButtonProps = Omit<
   /**
    * The text to copy to the clipboard
    */
-  text: string;
+  text: string | RefObject<string>;
 };
 
 /**
@@ -30,7 +30,8 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   const onPress = useCallback(() => {
-    copy(text);
+    const textToCopy = typeof text === "string" ? text : text.current || "";
+    copy(textToCopy);
     setIsCopied(true);
     setTimeout(() => {
       setIsCopied(false);
