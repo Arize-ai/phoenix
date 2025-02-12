@@ -47,6 +47,7 @@ import {
   basePlaygroundSpan,
   expectedAnthropicToolCall,
   expectedTestOpenAIToolCall,
+  expectedUnknownToolCall,
   spanAttributesWithInputMessages,
   SpanTool,
   SpanToolCall,
@@ -702,7 +703,7 @@ describe("processAttributeToolCalls", () => {
       expectedTestOpenAIToolCall,
     ],
     // TODO(apowell): #5348 Add Gemini tool tests
-    GEMINI: ["GEMINI", testSpanToolCall, expectedTestOpenAIToolCall],
+    GEMINI: ["GEMINI", testSpanToolCall, expectedUnknownToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",

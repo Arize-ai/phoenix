@@ -11,10 +11,13 @@ import {
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
 } from "@phoenix/schemas";
+import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import {
+  AnthropicToolCall,
   createAnthropicToolCall,
   createOpenAIToolCall,
   LlmProviderToolCall,
+  OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
@@ -150,18 +153,19 @@ export function processAttributeToolCalls({
         case "AZURE_OPENAI":
           return {
             id: tool_call.id ?? "",
+            type: "function" as const,
             function: {
               name: tool_call.function?.name ?? "",
               arguments: toolCallArgs,
             },
-          };
+          } satisfies OpenAIToolCall;
         case "ANTHROPIC": {
           return {
             id: tool_call.id ?? "",
             type: "tool_use" as const,
             name: tool_call.function?.name ?? "",
             input: toolCallArgs,
-          };
+          } satisfies AnthropicToolCall;
         }
         // TODO(apowell): #5348 Add Gemini tool call
         case "GEMINI":
@@ -171,7 +175,7 @@ export function processAttributeToolCalls({
               name: tool_call.function?.name ?? "",
               arguments: toolCallArgs,
             },
-          };
+          } as JSONLiteral;
         default:
           assertUnreachable(provider);
       }

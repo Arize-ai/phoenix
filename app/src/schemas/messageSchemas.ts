@@ -266,6 +266,7 @@ export const promptMessageToOpenAI = promptMessageSchema.transform(
       .filter((part): part is ToolCallPart => !!part)
       .map((part) => ({
         id: part.toolCall.toolCallId,
+        type: "function" as const,
         function: {
           name: part.toolCall.toolCall.name,
           arguments:

@@ -16,11 +16,16 @@ import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
  */
 export const openAIToolCallSchema = z.object({
   id: z.string().describe("The ID of the tool call"),
+  type: z
+    .literal("function")
+    .describe("The type of the tool call")
+    .default("function"),
   function: z
     .object({
       name: z.string().describe("The name of the function"),
       // TODO(Parker): The arguments here should not actually be a string, however this is a relic from the current way we stream tool calls where the chunks will come in as strings of partial json objects fix this here: https://github.com/Arize-ai/phoenix/issues/5269
       arguments: z
+        // TODO(apowell): This is dishonest. OpenAI and our backend expects a string, but we stringify it behind the scenes.
         .record(z.unknown())
         .describe("The arguments for the function"),
     })
@@ -103,6 +108,7 @@ export const anthropicToolCallsJSONSchema = zodToJsonSchema(
 export const anthropicToolCallToOpenAI = anthropicToolCallSchema.transform(
   (anthropic): OpenAIToolCall => ({
     id: anthropic.id,
+    type: "function",
     function: {
       name: anthropic.name,
       arguments: anthropic.input,
@@ -266,6 +272,7 @@ export const fromPromptToolCallPart = (
 export function createOpenAIToolCall(): OpenAIToolCall {
   return {
     id: "",
+    type: "function",
     function: {
       name: "",
       arguments: {},
