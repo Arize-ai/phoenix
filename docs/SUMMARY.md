@@ -88,9 +88,11 @@
     * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
     * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
   * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
+  * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
 
 ## 📃 Prompt Engineering
 
