@@ -2,7 +2,6 @@ import { template } from "lodash";
 
 import { CodeLanguage } from "@phoenix/components/code";
 import {
-  AnthropicMessage,
   fromOpenAIMessage,
   OpenAIMessage,
   promptMessageToOpenAI,
@@ -130,13 +129,13 @@ completion = client.messages.create(
 <% _.forEach(args, function(arg) { %><%= tab %><%= arg %>,
 <% }); %>)
 
-print(completion.content[0].text)
+print(completion.content)
 `.trim()
 );
 
 const anthropicTemplateTypeScript = template(
   `
-import { Anthropic } from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
 
@@ -147,7 +146,7 @@ const response = await client.messages.create({
 <% _.forEach(args, function(arg) { %><%= tab %><%= arg %>,
 <% }); %>});
 
-console.log(response.content[0].text);
+console.log(response.content);
 `.trim()
 );
 
@@ -267,48 +266,6 @@ const convertOpenAIMessageToOpenAISDKMessage = (message: OpenAIMessage) => {
   }
 };
 
-/**
- * Convert playground Anthropic messages to Anthropic SDK messages, for use in the native SDK
- *
- * @todo The playground really needs to manage messages fully in Phoenix Prompt format, or, in
- * native SDK format. This in-between format is a mess.
- *
- * @param message the message to convert
- * @returns the converted message
- */
-const convertMessagesToAnthropicSDKMessages = (message: AnthropicMessage) => {
-  if ("tool_calls" in message && message.tool_calls) {
-    const newMessage = {
-      ...message,
-      content: [
-        ...message.content,
-        ...message.tool_calls.map((tc) => ({
-          type: "tool_use",
-          id: tc.id,
-          name: tc.name,
-          input: tc.input,
-        })),
-      ],
-    };
-    delete newMessage.tool_calls;
-    return newMessage;
-  } else if (message.role === "tool") {
-    return {
-      ...message,
-      role: "user",
-      content: [
-        {
-          type: "tool_result",
-          tool_use_id: message.tool_use_id,
-          content: message.content,
-        },
-      ],
-    };
-  } else {
-    return message;
-  }
-};
-
 export const promptCodeSnippets: Record<
   string,
   Record<string, PromptToSnippetParams>
@@ -334,16 +291,7 @@ export const promptCodeSnippets: Record<
     },
     anthropic: (prompt) => {
       const config = languageConfigs.python.anthropic;
-      const convertedPrompt = {
-        ...prompt,
-        template: {
-          ...prompt.template,
-          messages: prompt.template.messages.map((m) =>
-            convertMessagesToAnthropicSDKMessages(m as AnthropicMessage)
-          ),
-        },
-      };
-      const { args, messages } = preparePromptData(convertedPrompt, config);
+      const { args, messages } = preparePromptData(prompt, config);
       return config.template({
         tab: TAB,
         args,
@@ -372,16 +320,7 @@ export const promptCodeSnippets: Record<
     },
     anthropic: (prompt) => {
       const config = languageConfigs.typescript.anthropic;
-      const convertedPrompt = {
-        ...prompt,
-        template: {
-          ...prompt.template,
-          messages: prompt.template.messages.map((m) =>
-            convertMessagesToAnthropicSDKMessages(m as AnthropicMessage)
-          ),
-        },
-      };
-      const { args, messages } = preparePromptData(convertedPrompt, config);
+      const { args, messages } = preparePromptData(prompt, config);
       return config.template({
         tab: TAB,
         args,
@@ -395,7 +334,7 @@ export const mapPromptToSnippet = ({
   promptVersion,
   language,
 }: {
-  promptVersion: PromptVersion;
+  promptVersion: Omit<PromptVersion, " $fragmentType">;
   language: CodeLanguage;
 }) => {
   const generator =
