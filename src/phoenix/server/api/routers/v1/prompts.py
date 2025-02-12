@@ -151,7 +151,7 @@ async def list_prompt_versions(
     ),
 ) -> GetPromptVersionsResponseBody:
     query = select(models.PromptVersion)
-    query = _filter_by_prompt_identifier(query, prompt_identifier)
+    query = _filter_by_prompt_identifier(query.join(models.Prompt), prompt_identifier)
     query = query.order_by(models.PromptVersion.id.desc())
 
     async with request.app.state.db() as session:
@@ -241,10 +241,9 @@ async def get_prompt_version_by_tag_name(
     stmt = (
         select(models.PromptVersion)
         .join_from(models.PromptVersion, models.PromptVersionTag)
-        .join_from(models.PromptVersionTag, models.Prompt)
         .where(models.PromptVersionTag.name == name)
     )
-    stmt = _filter_by_prompt_identifier(stmt, prompt_identifier)
+    stmt = _filter_by_prompt_identifier(stmt.join(models.Prompt), prompt_identifier)
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
@@ -272,7 +271,7 @@ async def get_prompt_version_by_latest(
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
 ) -> GetPromptResponseBody:
     stmt = select(models.PromptVersion).order_by(models.PromptVersion.id.desc()).limit(1)
-    stmt = _filter_by_prompt_identifier(stmt, prompt_identifier)
+    stmt = _filter_by_prompt_identifier(stmt.join(models.Prompt), prompt_identifier)
     async with request.app.state.db() as session:
         prompt_version: models.PromptVersion = await session.scalar(stmt)
         if prompt_version is None:
