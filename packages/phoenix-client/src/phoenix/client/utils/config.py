@@ -1,4 +1,5 @@
 import os
+from importlib.metadata import version
 from typing import Optional
 
 from phoenix.client.constants import (
@@ -68,3 +69,9 @@ def get_base_url() -> str:
         host = "127.0.0.1"
     base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
     return base_url if base_url.endswith("/") else base_url + "/"
+
+
+try:
+    _PYDANTIC_VERSION = version("pydantic")
+except Exception:
+    _PYDANTIC_VERSION = ""  # pyright: ignore[reportConstantRedefinition]

@@ -13,9 +13,17 @@ from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google_generativeai,  # pyright: ignore[reportUnknownVariableType]
 )
 from phoenix.client.helpers.sdk.openai.chat import (
-    to_chat_messages_and_kwargs as to_messages_openai,  # pyright: ignore[reportUnknownVariableType]
+    create_prompt_version_from_openai_chat,  # pyright: ignore[reportUnknownVariableType]
+)
+from phoenix.client.helpers.sdk.openai.chat import (
+    to_chat_messages_and_kwargs as to_messages_openai,
 )
 from phoenix.client.utils.template_formatters import TemplateFormatter
+
+__all__ = [
+    "to_chat_messages_and_kwargs",
+    "create_prompt_version_from_openai_chat",
+]
 
 SDK: TypeAlias = Literal[
     "anthropic",  # https://pypi.org/project/anthropic/
