@@ -1,4 +1,4 @@
-import React, { Ref, RefObject, useCallback, useState } from "react";
+import React, { RefObject, useCallback, useState } from "react";
 import copy from "copy-to-clipboard";
 
 import { Tooltip, TooltipTrigger } from "@arizeai/components";
