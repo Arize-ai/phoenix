@@ -4,6 +4,13 @@ import { css } from "@emotion/react";
  * Base style for all fields (TextField, TextArea, ComboBox, etc.)
  */
 export const fieldBaseCSS = css`
+  &[data-required] {
+    .react-aria-Label {
+      &::after {
+        content: " *";
+      }
+    }
+  }
   .react-aria-Label {
     padding: 5px 0;
     display: inline-block;
