@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Card } from "@arizeai/components";
@@ -69,6 +75,9 @@ export function PlaygroundTool({
     JSON.stringify(tool.definition, null, 2)
   );
 
+  // track the current value of the editor, even when it is invalid
+  const currentValueRef = useRef(initialEditorValue);
+
   const [lastValidDefinition, setLastValidDefinition] = useState(
     tool.definition
   );
@@ -86,6 +95,8 @@ export function PlaygroundTool({
 
   const onChange = useCallback(
     (value: string) => {
+      // track the current value of the editor, even when it is invalid
+      currentValueRef.current = value;
       // note that we do not update initialEditorValue here, we only want to update it when
       // we are okay with the editor state resetting, which is basically only when the provider
       // changes
@@ -102,6 +113,8 @@ export function PlaygroundTool({
         return;
       }
 
+      // @todo: Reconsider this approach, as it may lead to a situation where the editor
+      // reflects one definition while what gets saved is another (the last valid one).
       setLastValidDefinition(definition);
 
       updateInstance({
@@ -153,7 +166,7 @@ export function PlaygroundTool({
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={initialEditorValue} />
+          <CopyToClipboardButton text={currentValueRef} />
           <Button
             aria-label="Delete tool"
             leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
