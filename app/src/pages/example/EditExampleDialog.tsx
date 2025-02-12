@@ -3,9 +3,20 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Alert, Card, CardProps, Dialog, TextArea } from "@arizeai/components";
+import { Alert, Card, CardProps, Dialog } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Icon,
+  Icons,
+  Label,
+  Text,
+  TextArea,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
@@ -220,16 +231,23 @@ export function EditExampleDialog(props: EditExampleDialogProps) {
                   field: { onChange, onBlur, value },
                   fieldState: { invalid, error },
                 }) => (
-                  <TextArea
-                    label="Revision Description"
+                  <TextField
                     value={value}
                     onChange={onChange}
                     onBlur={onBlur}
-                    errorMessage={error?.message}
-                    validationState={invalid ? "invalid" : "valid"}
-                    placeholder="A description of the changes made in this revision. Will be displayed in the version history."
-                    height={100}
-                  />
+                    isInvalid={invalid}
+                  >
+                    <Label>Revision Description</Label>
+                    <TextArea />
+                    {error ? (
+                      <FieldError>{error?.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        A description of the changes made in this revision. Will
+                        be displayed in the version history.
+                      </Text>
+                    )}
+                  </TextField>
                 )}
               />
             </Flex>

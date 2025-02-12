@@ -1,17 +1,23 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { Form } from "react-router-dom";
-import { isValid as dateIsValid, parseISO } from "date-fns";
+import { getLocalTimeZone } from "@internationalized/date";
+import { css } from "@emotion/react";
 
-import { Dialog, TextArea } from "@arizeai/components";
+import { Dialog } from "@arizeai/components";
 
 import {
   Button,
+  DateField,
+  DateInput,
+  DateSegment,
+  DateValue,
   FieldError,
   Flex,
   Input,
   Label,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
@@ -19,7 +25,7 @@ import {
 export type APIKeyFormParams = {
   name: string;
   description: string | null;
-  expiresAt: string;
+  expiresAt: DateValue | null;
 };
 
 /**
@@ -39,7 +45,7 @@ export function CreateAPIKeyDialog(props: {
     defaultValues: {
       name: defaultName ?? "New Key",
       description: "",
-      expiresAt: "",
+      expiresAt: null,
     },
   });
 
@@ -62,6 +68,7 @@ export function CreateAPIKeyDialog(props: {
                 onChange={onChange}
                 onBlur={onBlur}
                 value={value.toString()}
+                size="S"
               >
                 <Label>Name</Label>
                 <Input />
@@ -80,17 +87,23 @@ export function CreateAPIKeyDialog(props: {
               field: { onChange, onBlur, value },
               fieldState: { invalid, error },
             }) => (
-              <TextArea
-                label="description"
-                description={`A description of the system key`}
-                isRequired={false}
-                height={100}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
+              <TextField
+                isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
                 value={value?.toString()}
-              />
+                size="S"
+              >
+                <Label>Description</Label>
+                <TextArea />
+                {error?.message ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    A description of the system key
+                  </Text>
+                )}
+              </TextField>
             )}
           />
           <Controller
@@ -98,11 +111,7 @@ export function CreateAPIKeyDialog(props: {
             control={control}
             rules={{
               validate: (value) => {
-                const parsedDate = parseISO(value);
-                if (value && !dateIsValid(parsedDate)) {
-                  return "Date is not in a valid format";
-                }
-                if (parsedDate < new Date()) {
+                if (value && value.toDate(getLocalTimeZone()) < new Date()) {
                   return "Date must be in the future";
                 }
                 return true;
@@ -112,14 +121,23 @@ export function CreateAPIKeyDialog(props: {
               field: { name, onChange, onBlur, value },
               fieldState: { invalid, error },
             }) => (
-              <TextField
+              <DateField
                 isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
-                value={value.toString()}
+                value={value}
+                name={name}
+                granularity="minute"
+                css={css`
+                  .react-aria-DateInput {
+                    width: 100%;
+                  }
+                `}
               >
                 <Label>Expires At</Label>
-                <Input type="datetime-local" name={name} />
+                <DateInput>
+                  {(segment) => <DateSegment segment={segment} />}
+                </DateInput>
                 {error?.message ? (
                   <FieldError>{error.message}</FieldError>
                 ) : (
@@ -127,7 +145,7 @@ export function CreateAPIKeyDialog(props: {
                     {"The date at which the key will expire. Optional"}
                   </Text>
                 )}
-              </TextField>
+              </DateField>
             )}
           />
         </View>
