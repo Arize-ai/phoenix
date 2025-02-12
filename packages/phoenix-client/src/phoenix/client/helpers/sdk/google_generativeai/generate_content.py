@@ -62,7 +62,6 @@ def to_chat_messages_and_kwargs(
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-    **_: Any,
 ) -> tuple[list[protos.Content], _ModelKwargs]:
     formatter = formatter or to_formatter(obj)
     assert formatter is not None

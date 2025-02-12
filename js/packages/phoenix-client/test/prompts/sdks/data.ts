@@ -1,4 +1,4 @@
-import { PromptVersion } from "../../../src/types/prompts";
+import { PromptVersionData } from "../../../src/types/prompts";
 
 export const BASE_MOCK_PROMPT_VERSION = {
   id: "test",
@@ -22,7 +22,7 @@ export const BASE_MOCK_PROMPT_VERSION = {
       temperature: 0.7,
     },
   },
-} satisfies Partial<PromptVersion>;
+} satisfies Partial<PromptVersionData>;
 
 export const BASE_MOCK_PROMPT_VERSION_TOOLS = {
   tools: {
@@ -43,7 +43,7 @@ export const BASE_MOCK_PROMPT_VERSION_TOOLS = {
       },
     ],
   },
-} satisfies Partial<PromptVersion>;
+} satisfies Partial<PromptVersionData>;
 
 export const BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT = {
   response_format: {
@@ -59,4 +59,4 @@ export const BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT = {
     },
     extra_parameters: {},
   },
-} satisfies Partial<PromptVersion>;
+} satisfies Partial<PromptVersionData>;

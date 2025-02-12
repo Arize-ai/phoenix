@@ -1,4 +1,3 @@
-# pyright: reportUnusedImport=false
 """Do not edit"""
 
 from __future__ import annotations
@@ -103,10 +102,9 @@ class ListExperimentsResponseBody(TypedDict):
 
 
 class Prompt(TypedDict):
-    id: str
-    source_prompt_id: Optional[str]
     name: str
-    description: Optional[str]
+    description: NotRequired[str]
+    source_prompt_id: NotRequired[str]
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):
@@ -124,6 +122,13 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     top_p: NotRequired[float]
     seed: NotRequired[int]
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
+
+
+class PromptData(TypedDict):
+    name: str
+    id: str
+    description: NotRequired[str]
+    source_prompt_id: NotRequired[str]
 
 
 class PromptFunctionTool(TypedDict):
@@ -242,7 +247,7 @@ class CreateExperimentResponseBody(TypedDict):
 
 
 class GetPromptsResponseBody(TypedDict):
-    data: Sequence[Prompt]
+    data: Sequence[PromptData]
 
 
 class HTTPValidationError(TypedDict):
@@ -312,8 +317,6 @@ class PromptChatTemplate(TypedDict):
 
 
 class PromptVersion(TypedDict):
-    id: str
-    description: str
     model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
@@ -325,13 +328,41 @@ class PromptVersion(TypedDict):
         PromptAnthropicInvocationParameters,
         PromptGeminiInvocationParameters,
     ]
+    description: NotRequired[str]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
 
 
+class PromptVersionData(TypedDict):
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
+    model_name: str
+    template: Union[PromptChatTemplate, PromptStringTemplate]
+    template_type: Literal["STR", "CHAT"]
+    template_format: Literal["MUSTACHE", "FSTRING", "NONE"]
+    invocation_parameters: Union[
+        PromptOpenAIInvocationParameters,
+        PromptAzureOpenAIInvocationParameters,
+        PromptAnthropicInvocationParameters,
+        PromptGeminiInvocationParameters,
+    ]
+    id: str
+    description: NotRequired[str]
+    tools: NotRequired[PromptTools]
+    response_format: NotRequired[PromptResponseFormatJSONSchema]
+
+
+class CreatePromptRequestBody(TypedDict):
+    prompt: Prompt
+    version: PromptVersion
+
+
+class CreatePromptResponseBody(TypedDict):
+    data: PromptVersionData
+
+
 class GetPromptResponseBody(TypedDict):
-    data: PromptVersion
+    data: PromptVersionData
 
 
 class GetPromptVersionsResponseBody(TypedDict):
-    data: Sequence[PromptVersion]
+    data: Sequence[PromptVersionData]

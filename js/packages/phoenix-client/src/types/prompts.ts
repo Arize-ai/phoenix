@@ -72,6 +72,7 @@ export type PromptSelector =
  * aka the prompt at a specific point in time
  */
 export type PromptVersion = components["schemas"]["PromptVersion"];
+export type PromptVersionData = components["schemas"]["PromptVersionData"];
 
 /**
  * The format of the prompt template message(s).

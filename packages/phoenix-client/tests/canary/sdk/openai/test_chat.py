@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 from enum import Enum
+from random import randint, random
+from secrets import token_hex
 from typing import Any, Iterable, Mapping, Optional, Union, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
 from openai.lib._parsing import type_to_response_format_param
+from openai.lib._tools import pydantic_function_tool
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartParam,
@@ -21,7 +24,7 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
 from openai.types.chat.chat_completion_message_tool_call_param import Function
-from openai.types.chat.completion_create_params import ResponseFormat
+from openai.types.chat.completion_create_params import CompletionCreateParamsBase, ResponseFormat
 from openai.types.shared_params import FunctionDefinition
 from pydantic import BaseModel, create_model
 
@@ -29,11 +32,13 @@ from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.openai.chat import (
     _FunctionToolConversion,
     _MessageConversion,
-    _ResponseFormatJSONSchemaConversion,
+    _ResponseFormatConversion,
     _TextContentPartConversion,
     _ToolCallContentPartConversion,
     _ToolKwargs,
     _ToolKwargsConversion,
+    create_prompt_version_from_openai_chat,
+    to_chat_messages_and_kwargs,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
@@ -212,6 +217,24 @@ class TestTextContentPartConversion:
         assert ans["text"] == formatter.format(x["text"]["text"], variables=variables)
 
 
+class _GetWeather(BaseModel):
+    city: str
+
+
+class _GetPopulation(BaseModel):
+    country: str
+    year: Optional[int] = None
+
+
+_TOOLS = [
+    cast(
+        ChatCompletionToolParam,
+        json.loads(json.dumps(pydantic_function_tool(t))),
+    )
+    for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
+]
+
+
 class TestToolCallContentPartConversion:
     def test_round_trip(self) -> None:
         obj: ChatCompletionMessageToolCallParam = _tool_call()
@@ -255,8 +278,8 @@ class TestResponseFormatJSONSchemaConversion:
     )
     def test_round_trip(self, type_: type[BaseModel]) -> None:
         obj = cast(ResponseFormat, type_to_response_format_param(type_))
-        x: v1.PromptResponseFormatJSONSchema = _ResponseFormatJSONSchemaConversion.from_openai(obj)
-        new_obj = _ResponseFormatJSONSchemaConversion.to_openai(x)
+        x: v1.PromptResponseFormatJSONSchema = _ResponseFormatConversion.from_openai(obj)
+        new_obj = _ResponseFormatConversion.to_openai(x)
         assert not DeepDiff(obj, new_obj)
 
 
@@ -315,6 +338,69 @@ class TestToolKwargsConversion:
     def test_round_trip(self, obj: _ToolKwargs) -> None:
         x: Optional[v1.PromptTools] = _ToolKwargsConversion.from_openai(obj)
         new_obj: _ToolKwargs = _ToolKwargsConversion.to_openai(x)
+        assert not DeepDiff(obj, new_obj)
+
+
+class TestCompletionCreateParamsBase:
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            CompletionCreateParamsBase(
+                model=token_hex(8),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You will be provided with statements, and your task is"
+                        "to convert them to standard English.",
+                    },
+                    {"role": "user", "content": "{{ statement }}"},
+                ],
+                temperature=random(),
+                max_completion_tokens=randint(1, 256),
+                top_p=random(),
+            ),
+            CompletionCreateParamsBase(
+                model=token_hex(8),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a UI generator. Convert the user input into a UI.",
+                    },
+                    {
+                        "role": "user",
+                        "content": "Make a form for {{ feature }}.",
+                    },
+                ],
+                response_format=cast(
+                    ResponseFormat,
+                    type_to_response_format_param(
+                        create_model("Response", ui=(_UI, ...)),
+                    ),
+                ),
+                temperature=random(),
+                max_completion_tokens=randint(1, 256),
+                top_p=random(),
+            ),
+            CompletionCreateParamsBase(
+                model=token_hex(8),
+                messages=[
+                    {
+                        "role": "user",
+                        "content": "What is the latest population estimate for {{ location }}?",
+                    }
+                ],
+                tools=_TOOLS,
+                tool_choice="required",
+                temperature=random(),
+                max_completion_tokens=randint(1, 256),
+                top_p=random(),
+            ),
+        ],
+    )
+    def test_round_trip(self, obj: CompletionCreateParamsBase) -> None:
+        pv: v1.PromptVersion = create_prompt_version_from_openai_chat(obj)
+        messages, kwargs = to_chat_messages_and_kwargs(pv, formatter=NO_OP_FORMATTER)
+        new_obj = CompletionCreateParamsBase(messages=messages, **kwargs)  # type: ignore[typeddict-item]
         assert not DeepDiff(obj, new_obj)
 
 
