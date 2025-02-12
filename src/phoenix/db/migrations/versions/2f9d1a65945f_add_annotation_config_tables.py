@@ -85,9 +85,29 @@ def upgrade() -> None:
         sa.Column("numeric_score", sa.Float, nullable=True),
     )
 
+    op.create_table(
+        "project_annotation_configs",
+        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column(
+            "project_id",
+            sa.Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column(
+            "annotation_config_id",
+            sa.Integer,
+            sa.ForeignKey("annotation_configs.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
+    )
+
 
 def downgrade() -> None:
     op.drop_table("categorical_annotation_values")
     op.drop_table("categorical_annotation_configs")
     op.drop_table("continuous_annotation_configs")
     op.drop_table("annotation_configs")
+    op.drop_table("project_annotation_configs")
