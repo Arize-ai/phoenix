@@ -9,7 +9,6 @@ import {
   makeAnthropicToolChoice,
   makeOpenAIToolChoice,
   OpenaiToolChoice,
-  safelyConvertToolChoiceToProvider,
 } from "@phoenix/schemas/toolChoiceSchemas";
 import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
@@ -223,12 +222,24 @@ export function ToolChoiceSelector<
               assertUnreachable(provider);
           }
         } else if (isDefaultToolChoice(provider, choice)) {
-          const convertedChoice = safelyConvertToolChoiceToProvider({
-            toolChoice: choice,
-            targetProvider: provider,
-          });
-          if (convertedChoice) {
-            onChange(convertedChoice);
+          switch (provider) {
+            case "AZURE_OPENAI":
+            case "OPENAI":
+              onChange(
+                makeOpenAIToolChoice(
+                  choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["OPENAI"][number]
+                )
+              );
+              break;
+            case "ANTHROPIC":
+              onChange(
+                makeAnthropicToolChoice({
+                  type: choice as (typeof DEFAULT_TOOL_CHOICES_BY_PROVIDER)["ANTHROPIC"][number],
+                })
+              );
+              break;
+            default:
+              assertUnreachable(provider);
           }
         }
       }}

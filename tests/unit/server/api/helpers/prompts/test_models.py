@@ -359,7 +359,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
     # denormalize tools and check they match the input tools
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
-    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, model_provider)
+    denormalized_tool_dicts, _ = denormalize_tools(rehydrated_tools, model_provider)
     assert len(denormalized_tool_dicts) == 1
     assert denormalized_tool_dicts[0] == anthropic_tool_dict
 
@@ -595,7 +595,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
     # denormalize tools and check they match the input tools
     rehydrated_tools = rehydrated_prompt_version.tools
     assert rehydrated_tools is not None
-    denormalized_tool_dicts = denormalize_tools(rehydrated_tools, model_provider)
+    denormalized_tool_dicts, _ = denormalize_tools(rehydrated_tools, model_provider)
     assert len(denormalized_tool_dicts) == 1
     assert denormalized_tool_dicts[0] == openai_tool_dict
 

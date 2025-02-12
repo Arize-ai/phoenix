@@ -506,7 +506,7 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
     tool_schema: dict[str, Any],
 ) -> None:
     normalized_tools = normalize_tools([tool_schema], ModelProvider.OPENAI)
-    denormalized_tools = denormalize_tools(normalized_tools, ModelProvider.OPENAI)
+    denormalized_tools, _ = denormalize_tools(normalized_tools, ModelProvider.OPENAI)
     assert len(denormalized_tools) == 1
     assert denormalized_tools[0] == tool_schema
 
@@ -718,6 +718,6 @@ def test_valid_anthropic_tool_schemas_can_be_normalized_and_denormalized_without
     tool_schema: dict[str, Any],
 ) -> None:
     normalized_tools = normalize_tools([tool_schema], ModelProvider.ANTHROPIC)
-    denormalized_tools = denormalize_tools(normalized_tools, ModelProvider.ANTHROPIC)
+    denormalized_tools, _ = denormalize_tools(normalized_tools, ModelProvider.ANTHROPIC)
     assert len(denormalized_tools) == 1
     assert denormalized_tools[0] == tool_schema
