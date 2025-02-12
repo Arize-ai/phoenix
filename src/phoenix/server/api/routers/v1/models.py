@@ -36,4 +36,7 @@ assert "json_encoders" in ConfigDict.__annotations__, (
 
 
 class V1RoutesBaseModel(BaseModel):
-    model_config = ConfigDict({"json_encoders": {datetime: datetime_encoder}})
+    model_config = ConfigDict(
+        json_encoders={datetime: datetime_encoder},
+        validate_assignment=True,
+    )

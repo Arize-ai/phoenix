@@ -24,7 +24,7 @@ from openai.types.chat import (
     ChatCompletionToolParam,
 )
 from openai.types.shared_params import ResponseFormatJSONSchema
-from phoenix.client.__generated__.v1 import PromptVersion
+from phoenix.client.__generated__ import v1
 from phoenix.client.utils import to_chat_messages_and_kwargs
 from pydantic import BaseModel, create_model
 
@@ -54,6 +54,7 @@ class TestUserMessage:
         prompt = _create_chat_prompt(u, template_format="FSTRING")
         messages, _ = to_chat_messages_and_kwargs(prompt, variables={"x": x})
         assert not DeepDiff(expected, messages)
+        _can_recreate_under_new_identifier(prompt)
 
 
 class _GetWeather(BaseModel):
@@ -97,6 +98,7 @@ class TestTools:
             if t["type"] == "function" and "parameters" in t["function"]
         }
         assert not DeepDiff(expected, actual)
+        _can_recreate_under_new_identifier(prompt)
 
     @pytest.mark.parametrize(
         "types_",
@@ -132,6 +134,7 @@ class TestTools:
         assert not DeepDiff(expected, actual)
         assert "max_tokens" in kwargs
         assert kwargs["max_tokens"] == 1024
+        _can_recreate_under_new_identifier(prompt)
 
 
 class TestToolChoice:
@@ -162,6 +165,7 @@ class TestToolChoice:
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
+        _can_recreate_under_new_identifier(prompt)
 
     @pytest.mark.parametrize(
         "expected",
@@ -198,6 +202,7 @@ class TestToolChoice:
         assert not DeepDiff(expected, actual)
         assert "max_tokens" in kwargs
         assert kwargs["max_tokens"] == 1024
+        _can_recreate_under_new_identifier(prompt)
 
 
 class _UIType(str, Enum):
@@ -246,6 +251,22 @@ class TestResponseFormat:
         assert "response_format" in kwargs
         actual = kwargs["response_format"]
         assert not DeepDiff(expected, actual)
+        _can_recreate_under_new_identifier(prompt)
+
+
+def _can_recreate_under_new_identifier(version: v1.PromptVersion) -> None:
+    new_name = token_hex(8)
+    a = px.Client().prompts.create(name=new_name, version=version)
+    assert version["id"] != a["id"]
+    expected = {**version, "id": ""}
+    assert not DeepDiff(expected, {**a, "id": ""})
+    b = px.Client().prompts.get(prompt_identifier=new_name)
+    assert a["id"] == b["id"]
+    assert not DeepDiff(expected, {**b, "id": ""})
+    same_name = new_name
+    c = px.Client().prompts.create(name=same_name, version=version)
+    assert a["id"] != c["id"]
+    assert not DeepDiff(expected, {**c, "id": ""})
 
 
 def _create_chat_prompt(
@@ -259,7 +280,7 @@ def _create_chat_prompt(
     tools: Sequence[ToolDefinitionInput] = (),
     invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
     template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "NONE",
-) -> PromptVersion:
+) -> v1.PromptVersion:
     messages = list(messages) or [
         PromptMessageInput(
             role="USER",

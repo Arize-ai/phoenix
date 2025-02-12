@@ -44,13 +44,19 @@ if TYPE_CHECKING:
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
     from openai.types.chat.chat_completion_named_tool_choice_param import Function
-    from openai.types.chat.completion_create_params import ResponseFormat
+    from openai.types.chat.completion_create_params import (
+        CompletionCreateParamsBase,
+        ResponseFormat,
+    )
     from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
     from openai.types.shared_params.response_format_json_schema import JSONSchema
 
     def _(obj: v1.PromptVersion) -> None:
         messages, kwargs = to_chat_messages_and_kwargs(obj)
         OpenAI().chat.completions.create(messages=messages, **kwargs)
+
+    def __(obj: CompletionCreateParamsBase) -> None:
+        create_prompt_version_from_openai_chat(obj)
 
 
 class _ToolKwargs(TypedDict, total=False):
@@ -62,7 +68,7 @@ class _ToolKwargs(TypedDict, total=False):
 class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
     model: Required[str]
     frequency_penalty: float
-    max_tokens: int
+    max_completion_tokens: int
     presence_penalty: float
     reasoning_effort: ChatCompletionReasoningEffort
     response_format: ResponseFormat
@@ -79,19 +85,70 @@ _ContentPart: TypeAlias = Union[
 ]
 
 __all__ = [
+    "create_prompt_version_from_openai_chat",
     "to_chat_messages_and_kwargs",
 ]
 
 logger = logging.getLogger(__name__)
 
 
+def create_prompt_version_from_openai_chat(
+    obj: CompletionCreateParamsBase,
+    /,
+    *,
+    description: Optional[str] = None,
+    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+) -> v1.PromptVersionData:
+    messages: list[ChatCompletionMessageParam] = list(obj["messages"])
+    template = v1.PromptChatTemplate(
+        type="chat",
+        messages=[_MessageConversion.from_openai(m) for m in messages],
+    )
+    params = v1.PromptOpenAIInvocationParametersContent()
+    if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
+        params["max_tokens"] = int(obj["max_completion_tokens"])
+    if "temperature" in obj and obj["temperature"] is not None:
+        params["temperature"] = float(obj["temperature"])
+    if "top_p" in obj and obj["top_p"] is not None:
+        params["top_p"] = float(obj["top_p"])
+    if "presence_penalty" in obj and obj["presence_penalty"] is not None:
+        params["presence_penalty"] = float(obj["presence_penalty"])
+    if "frequency_penalty" in obj and obj["frequency_penalty"] is not None:
+        params["frequency_penalty"] = float(obj["frequency_penalty"])
+    if "seed" in obj and obj["seed"] is not None:
+        params["seed"] = int(obj["seed"])
+    if "reasoning_effort" in obj and obj["reasoning_effort"] is not None:
+        params["reasoning_effort"] = obj["reasoning_effort"]
+    ans = v1.PromptVersionData(
+        model_provider="OPENAI",
+        model_name=obj["model"],
+        template=template,
+        template_type="CHAT",
+        template_format=template_format,
+        invocation_parameters=v1.PromptOpenAIInvocationParameters(type="openai", openai=params),
+    )
+    tool_kwargs: _ToolKwargs = {}
+    if "tools" in obj:
+        tool_kwargs["tools"] = list(obj["tools"])
+    if "tool_choice" in obj:
+        tool_kwargs["tool_choice"] = obj["tool_choice"]
+    if "parallel_tool_calls" in obj:
+        tool_kwargs["parallel_tool_calls"] = obj["parallel_tool_calls"]
+    if (tools := _ToolKwargsConversion.from_openai(tool_kwargs)) is not None:
+        ans["tools"] = tools
+    if "response_format" in obj:
+        ans["response_format"] = _ResponseFormatConversion.from_openai(obj["response_format"])
+    if description:
+        ans["description"] = description
+    return ans
+
+
 def to_chat_messages_and_kwargs(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
     /,
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-    **_: Any,
 ) -> tuple[list[ChatCompletionMessageParam], _ModelKwargs]:
     return (
         list(_to_chat_completion_messages(obj, variables, formatter)),
@@ -100,7 +157,7 @@ def to_chat_messages_and_kwargs(
 
 
 def _to_model_kwargs(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
 ) -> _ModelKwargs:
     parameters: v1.PromptOpenAIInvocationParametersContent = (
         obj["invocation_parameters"]["openai"]
@@ -110,6 +167,8 @@ def _to_model_kwargs(
     ans: _ModelKwargs = {
         "model": obj["model_name"],
     }
+    if "max_tokens" in parameters:
+        ans["max_completion_tokens"] = parameters["max_tokens"]
     if "temperature" in parameters:
         ans["temperature"] = parameters["temperature"]
     if "top_p" in parameters:
@@ -133,14 +192,14 @@ def _to_model_kwargs(
     if "response_format" in obj:
         response_format = obj["response_format"]
         if response_format["type"] == "response-format-json-schema":
-            ans["response_format"] = _ResponseFormatJSONSchemaConversion.to_openai(response_format)
+            ans["response_format"] = _ResponseFormatConversion.to_openai(response_format)
         elif TYPE_CHECKING:
             assert_never(response_format)
     return ans
 
 
 def _to_chat_completion_messages(
-    obj: v1.PromptVersion,
+    obj: v1.PromptVersionData,
     variables: Mapping[str, str],
     formatter: Optional[TemplateFormatter] = None,
     /,
@@ -291,7 +350,7 @@ class _FunctionToolConversion:
         return function
 
 
-class _ResponseFormatJSONSchemaConversion:
+class _ResponseFormatConversion:
     @staticmethod
     def to_openai(
         obj: v1.PromptResponseFormatJSONSchema,
