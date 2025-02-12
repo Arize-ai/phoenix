@@ -29,6 +29,9 @@ class Undefined:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def __bool__(self) -> bool:
+        return False
+
 
 UNDEFINED: Any = Undefined()
 
@@ -480,16 +483,23 @@ def normalize_tools(
     return ans
 
 
-def denormalize_tools(tools: PromptTools, model_provider: ModelProvider) -> list[dict[str, Any]]:
+def denormalize_tools(
+    tools: PromptTools, model_provider: ModelProvider
+) -> tuple[list[dict[str, Any]], Optional[Any]]:
     assert tools.type == "tools"
     denormalized_tools: list[PromptModel]
+    tool_choice: Optional[Any] = None
     if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
+        if tools.tool_choice:
+            tool_choice = OpenAIToolChoiceConversion.to_openai(tools.tool_choice)
     elif model_provider is ModelProvider.ANTHROPIC:
         denormalized_tools = [_prompt_to_anthropic_tool(tool) for tool in tools.tools]
+        if tools.tool_choice and tools.tool_choice.type != "none":
+            tool_choice = AnthropicToolChoiceConversion.to_anthropic(tools.tool_choice)
     else:
         raise ValueError(f"Unsupported model provider: {model_provider}")
-    return [tool.model_dump() for tool in denormalized_tools]
+    return [tool.model_dump() for tool in denormalized_tools], tool_choice
 
 
 def _openai_to_prompt_tool(
