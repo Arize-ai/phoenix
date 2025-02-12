@@ -2,8 +2,8 @@ import { template } from "lodash";
 
 import { CodeLanguage } from "@phoenix/components/code";
 import {
+  AnthropicMessage,
   fromOpenAIMessage,
-  LlmProviderMessage,
   OpenAIMessage,
   promptMessageToOpenAI,
 } from "@phoenix/schemas/messageSchemas";
@@ -26,7 +26,7 @@ export type PromptToSnippetParams = ({
   | "tools"
 > & {
   template: {
-    messages: LlmProviderMessage[];
+    messages: unknown[];
   };
 }) => string;
 
@@ -117,6 +117,40 @@ response.then((completion) => console.log(completion.choices[0].message));
 `.trim()
 );
 
+const anthropicTemplatePython = template(
+  `
+from anthropic import Anthropic
+
+client = Anthropic()
+
+messages=<%= messages %>
+# ^ apply additional templating to messages if needed
+
+completion = client.messages.create(
+<% _.forEach(args, function(arg) { %><%= tab %><%= arg %>,
+<% }); %>)
+
+print(completion.content[0].text)
+`.trim()
+);
+
+const anthropicTemplateTypeScript = template(
+  `
+import { Anthropic } from "@anthropic-ai/sdk";
+
+const client = new Anthropic();
+
+const messages = <%= messages %>;
+// ^ apply additional templating to messages if needed
+
+const response = await client.messages.create({
+<% _.forEach(args, function(arg) { %><%= tab %><%= arg %>,
+<% }); %>});
+
+console.log(response.content[0].text);
+`.trim()
+);
+
 const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
   python: {
     openai: {
@@ -125,6 +159,12 @@ const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
       stringQuote: '"',
       template: openaiTemplatePython,
     },
+    anthropic: {
+      assignmentOperator: "=",
+      removeKeyQuotes: false,
+      stringQuote: '"',
+      template: anthropicTemplatePython,
+    },
   },
   typescript: {
     openai: {
@@ -132,6 +172,12 @@ const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
       removeKeyQuotes: true,
       stringQuote: '"',
       template: openaiTemplateTypeScript,
+    },
+    anthropic: {
+      assignmentOperator: ": ",
+      removeKeyQuotes: true,
+      stringQuote: '"',
+      template: anthropicTemplateTypeScript,
     },
   },
 };
@@ -196,12 +242,15 @@ const preparePromptData = (
 };
 
 /**
- * Stringify the arguments of a message's tool calls
+ * Convert OpenAI messages to OpenAI SDK messages, for use in the native SDK
  *
- * @param message the message to stringify
- * @returns the message with stringified tool call arguments
+ * @todo The playground really needs to manage messages fully in Phoenix Prompt format, or, in
+ * native SDK format. This in-between format is a mess.
+ *
+ * @param message the message to convert
+ * @returns the converted message
  */
-const stringifyOpenAIToolCallArguments = (message: OpenAIMessage) => {
+const convertOpenAIMessageToOpenAISDKMessage = (message: OpenAIMessage) => {
   if ("tool_calls" in message && message.tool_calls) {
     return {
       ...message,
@@ -218,6 +267,48 @@ const stringifyOpenAIToolCallArguments = (message: OpenAIMessage) => {
   }
 };
 
+/**
+ * Convert playground Anthropic messages to Anthropic SDK messages, for use in the native SDK
+ *
+ * @todo The playground really needs to manage messages fully in Phoenix Prompt format, or, in
+ * native SDK format. This in-between format is a mess.
+ *
+ * @param message the message to convert
+ * @returns the converted message
+ */
+const convertMessagesToAnthropicSDKMessages = (message: AnthropicMessage) => {
+  if ("tool_calls" in message && message.tool_calls) {
+    const newMessage = {
+      ...message,
+      content: [
+        ...message.content,
+        ...message.tool_calls.map((tc) => ({
+          type: "tool_use",
+          id: tc.id,
+          name: tc.name,
+          input: tc.input,
+        })),
+      ],
+    };
+    delete newMessage.tool_calls;
+    return newMessage;
+  } else if (message.role === "tool") {
+    return {
+      ...message,
+      role: "user",
+      content: [
+        {
+          type: "tool_result",
+          tool_use_id: message.tool_use_id,
+          content: message.content,
+        },
+      ],
+    };
+  } else {
+    return message;
+  }
+};
+
 export const promptCodeSnippets: Record<
   string,
   Record<string, PromptToSnippetParams>
@@ -225,19 +316,34 @@ export const promptCodeSnippets: Record<
   python: {
     openai: (prompt) => {
       const config = languageConfigs.python.openai;
-      const promptWithStringifiedToolCallArguments = {
+      const convertedPrompt = {
         ...prompt,
         template: {
           ...prompt.template,
           messages: prompt.template.messages.map((m) =>
-            stringifyOpenAIToolCallArguments(m as OpenAIMessage)
+            convertOpenAIMessageToOpenAISDKMessage(m as OpenAIMessage)
           ),
         },
       };
-      const { args, messages } = preparePromptData(
-        promptWithStringifiedToolCallArguments,
-        config
-      );
+      const { args, messages } = preparePromptData(convertedPrompt, config);
+      return config.template({
+        tab: TAB,
+        args,
+        messages,
+      });
+    },
+    anthropic: (prompt) => {
+      const config = languageConfigs.python.anthropic;
+      const convertedPrompt = {
+        ...prompt,
+        template: {
+          ...prompt.template,
+          messages: prompt.template.messages.map((m) =>
+            convertMessagesToAnthropicSDKMessages(m as AnthropicMessage)
+          ),
+        },
+      };
+      const { args, messages } = preparePromptData(convertedPrompt, config);
       return config.template({
         tab: TAB,
         args,
@@ -248,19 +354,34 @@ export const promptCodeSnippets: Record<
   typescript: {
     openai: (prompt) => {
       const config = languageConfigs.typescript.openai;
-      const promptWithStringifiedToolCallArguments = {
+      const convertedPrompt = {
         ...prompt,
         template: {
           ...prompt.template,
           messages: prompt.template.messages.map((m) =>
-            stringifyOpenAIToolCallArguments(m as OpenAIMessage)
+            convertOpenAIMessageToOpenAISDKMessage(m as OpenAIMessage)
           ),
         },
       };
-      const { args, messages } = preparePromptData(
-        promptWithStringifiedToolCallArguments,
-        config
-      );
+      const { args, messages } = preparePromptData(convertedPrompt, config);
+      return config.template({
+        tab: TAB,
+        args,
+        messages,
+      });
+    },
+    anthropic: (prompt) => {
+      const config = languageConfigs.typescript.anthropic;
+      const convertedPrompt = {
+        ...prompt,
+        template: {
+          ...prompt.template,
+          messages: prompt.template.messages.map((m) =>
+            convertMessagesToAnthropicSDKMessages(m as AnthropicMessage)
+          ),
+        },
+      };
+      const { args, messages } = preparePromptData(convertedPrompt, config);
       return config.template({
         tab: TAB,
         args,
