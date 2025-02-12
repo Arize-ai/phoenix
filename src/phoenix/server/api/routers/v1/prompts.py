@@ -30,16 +30,18 @@ from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersio
 logger = logging.getLogger(__name__)
 
 
-class Prompt(V1RoutesBaseModel):
-    id: str
-    source_prompt_id: Optional[str]
-    name: str
-    description: Optional[str]
+class PromptData(V1RoutesBaseModel):
+    name: Identifier
+    description: Optional[str] = None
+    source_prompt_id: Optional[str] = None
 
 
-class PromptVersion(V1RoutesBaseModel):
+class Prompt(PromptData):
     id: str
-    description: str
+
+
+class PromptVersionData(V1RoutesBaseModel):
+    description: Optional[str] = None
     model_provider: ModelProvider
     model_name: str
     template: PromptTemplate
@@ -48,6 +50,10 @@ class PromptVersion(V1RoutesBaseModel):
     invocation_parameters: PromptInvocationParameters
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
+
+
+class PromptVersion(PromptVersionData):
+    id: str
 
 
 class GetPromptResponseBody(ResponseBody[PromptVersion]):
@@ -59,6 +65,15 @@ class GetPromptsResponseBody(ResponseBody[list[Prompt]]):
 
 
 class GetPromptVersionsResponseBody(ResponseBody[list[PromptVersion]]):
+    pass
+
+
+class CreatePromptRequestBody(V1RoutesBaseModel):
+    prompt: PromptData
+    version: PromptVersionData
+
+
+class CreatePromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
@@ -266,6 +281,58 @@ async def get_prompt_version_by_latest(
     return GetPromptResponseBody(data=data)
 
 
+@router.post(
+    "/prompts",
+    operation_id="postPromptVersion",
+    summary="Create a prompt version",
+    responses=add_errors_to_responses(
+        [
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def create_prompt(
+    request: Request,
+    request_body: CreatePromptRequestBody,
+) -> CreatePromptResponseBody:
+    prompt = request_body.prompt
+    try:
+        name = Identifier.model_validate(prompt.name)
+    except ValidationError as e:
+        raise HTTPException(
+            HTTP_422_UNPROCESSABLE_ENTITY,
+            "Invalid name identifier for prompt: " + e.errors()[0]["msg"],
+        )
+    version = request_body.version
+    async with request.app.state.db() as session:
+        if not (prompt_id := await session.scalar(select(models.Prompt.id).filter_by(name=name))):
+            prompt_orm = models.Prompt(
+                name=name,
+                description=prompt.description,
+            )
+            session.add(prompt_orm)
+            await session.flush()
+            prompt_id = prompt_orm.id
+        version_orm = models.PromptVersion(
+            prompt_id=prompt_id,
+            description=version.description,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            template_type=version.template_type,
+            template_format=version.template_format,
+            template=version.template,
+            invocation_parameters=version.invocation_parameters,
+            tools=version.tools,
+            response_format=version.response_format,
+        )
+        session.add(version_orm)
+    data = _prompt_version_from_orm_version(version_orm)
+    return CreatePromptResponseBody(data=data)
+
+
 class _PromptId(int): ...
 
 
@@ -321,13 +388,13 @@ def _prompt_version_from_orm_version(
     )
 
 
-def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> Prompt:
+def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> PromptData:
     source_prompt_id = (
         str(GlobalID(PromptNodeType.__name__, str(orm_prompt.source_prompt_id)))
         if orm_prompt.source_prompt_id
         else None
     )
-    return Prompt(
+    return PromptData(
         id=str(GlobalID(PromptNodeType.__name__, str(orm_prompt.id))),
         source_prompt_id=source_prompt_id,
         name=orm_prompt.name,

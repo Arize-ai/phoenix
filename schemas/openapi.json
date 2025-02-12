@@ -1264,6 +1264,55 @@
             "description": "Unprocessable Entity"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Create a prompt version",
+        "operationId": "postPromptVersion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/prompts/{prompt_identifier}/versions": {
@@ -1662,6 +1711,34 @@
         ],
         "title": "CreateExperimentResponseBody"
       },
+      "CreatePromptRequestBody": {
+        "properties": {
+          "prompt": {
+            "$ref": "#/components/schemas/PromptData"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "version"
+        ],
+        "title": "CreatePromptRequestBody"
+      },
+      "CreatePromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptResponseBody"
+      },
       "Dataset": {
         "properties": {
           "id": {
@@ -1977,6 +2054,11 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "Identifier": {
+        "type": "string",
+        "pattern": "^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$",
+        "title": "Identifier"
+      },
       "InsertedSpanAnnotation": {
         "properties": {
           "id": {
@@ -2132,9 +2214,19 @@
       },
       "Prompt": {
         "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "source_prompt_id": {
             "anyOf": [
@@ -2147,28 +2239,15 @@
             ],
             "title": "Source Prompt Id"
           },
-          "name": {
+          "id": {
             "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
+            "title": "Id"
           }
         },
         "type": "object",
         "required": [
-          "id",
-          "source_prompt_id",
           "name",
-          "description"
+          "id"
         ],
         "title": "Prompt"
       },
@@ -2301,6 +2380,40 @@
           "messages"
         ],
         "title": "PromptChatTemplate"
+      },
+      "PromptData": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source_prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Prompt Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptData"
       },
       "PromptFunctionTool": {
         "properties": {
@@ -2722,12 +2835,133 @@
       },
       "PromptVersion": {
         "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "model_provider": {
+            "$ref": "#/components/schemas/ModelProvider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "template": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptChatTemplate"
+              },
+              {
+                "$ref": "#/components/schemas/PromptStringTemplate"
+              }
+            ],
+            "title": "Template",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "chat": "#/components/schemas/PromptChatTemplate",
+                "string": "#/components/schemas/PromptStringTemplate"
+              }
+            }
+          },
+          "template_type": {
+            "$ref": "#/components/schemas/PromptTemplateType"
+          },
+          "template_format": {
+            "$ref": "#/components/schemas/PromptTemplateFormat"
+          },
+          "invocation_parameters": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAzureOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptGeminiInvocationParameters"
+              }
+            ],
+            "title": "Invocation Parameters",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "gemini": "#/components/schemas/PromptGeminiInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+              }
+            }
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptTools"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "response-format-json-schema": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          },
           "id": {
             "type": "string",
             "title": "Id"
-          },
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_provider",
+          "model_name",
+          "template",
+          "template_type",
+          "template_format",
+          "invocation_parameters",
+          "id"
+        ],
+        "title": "PromptVersion"
+      },
+      "PromptVersionData": {
+        "properties": {
           "description": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Description"
           },
           "model_provider": {
@@ -2821,8 +3055,6 @@
         },
         "type": "object",
         "required": [
-          "id",
-          "description",
           "model_provider",
           "model_name",
           "template",
@@ -2830,7 +3062,7 @@
           "template_format",
           "invocation_parameters"
         ],
-        "title": "PromptVersion"
+        "title": "PromptVersionData"
       },
       "SpanAnnotation": {
         "properties": {

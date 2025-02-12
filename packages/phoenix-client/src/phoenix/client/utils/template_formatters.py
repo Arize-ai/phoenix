@@ -7,7 +7,7 @@ from typing import Any, Mapping, Protocol
 
 from typing_extensions import assert_never
 
-from phoenix.client.__generated__.v1 import PromptVersion
+from phoenix.client.__generated__ import v1
 
 
 class TemplateFormatter(Protocol):
@@ -142,7 +142,7 @@ MUSTACHE_TEMPLATE_FORMATTER = MustacheBaseTemplateFormatter()
 NO_OP_FORMATTER = NoOpFormatterBase()
 
 
-def to_formatter(obj: PromptVersion) -> BaseTemplateFormatter:
+def to_formatter(obj: v1.PromptVersionData) -> BaseTemplateFormatter:
     if (
         "template_format" not in obj
         or not obj["template_format"]

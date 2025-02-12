@@ -47,7 +47,9 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
     PromptResponseFormatRootModel,
     PromptTemplate,
+    PromptTemplateFormat,
     PromptTemplateRootModel,
+    PromptTemplateType,
     PromptTools,
     is_prompt_invocation_parameters,
     is_prompt_template,
@@ -210,6 +212,40 @@ class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
         return (
             PromptResponseFormatRootModel.model_validate(value).root if value is not None else None
         )
+
+
+class _PromptTemplateType(TypeDecorator[PromptTemplateType]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[PromptTemplateType], _: Dialect) -> Optional[str]:
+        if isinstance(value, str):
+            return PromptTemplateType(value).value
+        return None if value is None else value.value
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[PromptTemplateType]:
+        return None if value is None else PromptTemplateType(value)
+
+
+class _PromptTemplateFormat(TypeDecorator[PromptTemplateFormat]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(
+        self, value: Optional[PromptTemplateFormat], _: Dialect
+    ) -> Optional[str]:
+        if isinstance(value, str):
+            return PromptTemplateFormat(value).value
+        return None if value is None else value.value
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[PromptTemplateFormat]:
+        return None if value is None else PromptTemplateFormat(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1013,13 +1049,13 @@ class PromptVersion(Base):
         index=True,
         nullable=True,
     )
-    template_type: Mapped[str] = mapped_column(
-        String,
+    template_type: Mapped[PromptTemplateType] = mapped_column(
+        _PromptTemplateType,
         CheckConstraint("template_type IN ('CHAT', 'STR')", name="template_type"),
         nullable=False,
     )
-    template_format: Mapped[str] = mapped_column(
-        String,
+    template_format: Mapped[PromptTemplateFormat] = mapped_column(
+        _PromptTemplateFormat,
         CheckConstraint(
             "template_format IN ('FSTRING', 'MUSTACHE', 'NONE')", name="template_format"
         ),

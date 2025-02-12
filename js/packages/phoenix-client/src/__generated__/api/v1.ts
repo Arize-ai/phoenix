@@ -221,7 +221,8 @@ export interface paths {
         /** Get all prompts */
         get: operations["getPrompts"];
         put?: never;
-        post?: never;
+        /** Create a prompt version */
+        post: operations["postPromptVersion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -345,6 +346,15 @@ export interface components {
         /** CreateExperimentResponseBody */
         CreateExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
+        };
+        /** CreatePromptRequestBody */
+        CreatePromptRequestBody: {
+            prompt: components["schemas"]["PromptData"];
+            version: components["schemas"]["PromptVersionData"];
+        };
+        /** CreatePromptResponseBody */
+        CreatePromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
         };
         /** Dataset */
         Dataset: {
@@ -492,6 +502,8 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** Identifier */
+        Identifier: string;
         /** InsertedSpanAnnotation */
         InsertedSpanAnnotation: {
             /**
@@ -549,14 +561,13 @@ export interface components {
         ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GEMINI";
         /** Prompt */
         Prompt: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Prompt Id */
+            source_prompt_id?: string | null;
             /** Id */
             id: string;
-            /** Source Prompt Id */
-            source_prompt_id: string | null;
-            /** Name */
-            name: string;
-            /** Description */
-            description: string | null;
         };
         /** PromptAnthropicInvocationParameters */
         PromptAnthropicInvocationParameters: {
@@ -616,6 +627,14 @@ export interface components {
             type: "chat";
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
+        };
+        /** PromptData */
+        PromptData: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Prompt Id */
+            source_prompt_id?: string | null;
         };
         /** PromptFunctionTool */
         PromptFunctionTool: {
@@ -785,10 +804,27 @@ export interface components {
         };
         /** PromptVersion */
         PromptVersion: {
+            /** Description */
+            description?: string | null;
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /** Template */
+            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
+            template_type: components["schemas"]["PromptTemplateType"];
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** Invocation Parameters */
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGeminiInvocationParameters"];
+            tools?: components["schemas"]["PromptTools"] | null;
+            /** Response Format */
+            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
+        };
+        /** PromptVersionData */
+        PromptVersionData: {
             /** Description */
-            description: string;
+            description?: string | null;
             model_provider: components["schemas"]["ModelProvider"];
             /** Model Name */
             model_name: string;
@@ -1697,6 +1733,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GetPromptsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    postPromptVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptResponseBody"];
                 };
             };
             /** @description Forbidden */
