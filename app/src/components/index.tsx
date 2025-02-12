@@ -33,7 +33,7 @@ export * from "./icon";
 export * from "./view";
 export * from "./layout";
 export * from "./content";
-export * from "./textfield";
+export * from "./field";
 export * from "./tag";
 export * from "./overlay";
 export * from "./datetime";

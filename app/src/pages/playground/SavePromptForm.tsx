@@ -2,9 +2,17 @@ import React, { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Form, TextArea } from "@arizeai/components";
-
-import { Button, Flex, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Form,
+  Label,
+  Text,
+  TextArea,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import { identifierPattern } from "@phoenix/utils/identifierUtils";
@@ -92,8 +100,8 @@ export function SavePromptForm({
   );
 
   return (
-    <Flex direction="column" gap="size-200" ref={flexContainer}>
-      <View padding="size-200" paddingBottom={0}>
+    <Flex direction="column" gap="size-100" ref={flexContainer}>
+      <View paddingX="size-200" paddingTop="size-200">
         <Controller
           name="name"
           control={control}
@@ -133,7 +141,7 @@ export function SavePromptForm({
         />
       </View>
       <Form onSubmit={handleSubmit(onSubmit)}>
-        <View padding="size-200" paddingTop={0}>
+        <View paddingX="size-200" paddingBottom="size-200">
           <Controller
             name="description"
             control={control}
@@ -141,24 +149,33 @@ export function SavePromptForm({
               field: { onChange, onBlur, value },
               fieldState: { invalid, error },
             }) => (
-              <TextArea
-                label="Description"
-                description={
-                  mode === "create"
-                    ? "A description of your prompt (optional)"
-                    : "A description of your changes to the prompt (optional)"
-                }
-                isRequired={false}
-                height={100}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
+              <TextField
+                isInvalid={invalid}
                 onChange={onChange}
                 onBlur={onBlur}
                 value={value}
-              />
+                size="S"
+              >
+                <Label>
+                  {mode === "create"
+                    ? "Prompt Description"
+                    : "Change Description"}
+                </Label>
+                <TextArea />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    {mode === "create"
+                      ? "A description of your prompt (optional)"
+                      : "A description of your changes to the prompt (optional)"}
+                  </Text>
+                )}
+              </TextField>
             )}
           />
         </View>
+
         <View
           paddingEnd="size-200"
           paddingTop="size-100"

@@ -1,5 +1,6 @@
 import React, { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { getLocalTimeZone } from "@internationalized/date";
 
 import {
   DialogContainer,
@@ -82,7 +83,8 @@ export function APIKeysCard() {
       commit({
         variables: {
           ...data,
-          expiresAt: data.expiresAt || null,
+          expiresAt:
+            data.expiresAt?.toDate(getLocalTimeZone()).toISOString() || null,
         },
         onCompleted: (response) => {
           showOneTimeAPIKeyDialog(response.createSystemApiKey.jwt);

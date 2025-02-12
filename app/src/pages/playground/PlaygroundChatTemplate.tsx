@@ -20,7 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { css } from "@emotion/react";
 
-import { Card, Field, Form, TextField } from "@arizeai/components";
+import { Card, Field, Form } from "@arizeai/components";
 
 import {
   Button,
@@ -29,6 +29,8 @@ import {
   Flex,
   Icon,
   Icons,
+  Input,
+  TextField,
   View,
 } from "@phoenix/components";
 import { CodeWrap, JSONEditor } from "@phoenix/components/code";
@@ -234,10 +236,8 @@ function MessageEditor({
         }}
       >
         <View
-          paddingStart="size-200"
-          paddingEnd="size-200"
-          paddingTop="size-200"
-          paddingBottom="size-200"
+          paddingX="size-200"
+          paddingY="size-100"
           borderColor="yellow-700"
           borderBottomWidth="thin"
         >
@@ -245,8 +245,10 @@ function MessageEditor({
             value={message.toolCallId}
             onChange={(val) => updateMessage({ toolCallId: val })}
             aria-label="Tool Call ID"
-            addonBefore="Tool Call ID"
-          />
+            size="S"
+          >
+            <Input placeholder="Tool Call ID" />
+          </TextField>
         </View>
         <JSONEditor
           value={toolMessageContent}
