@@ -2,12 +2,13 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Card, Form } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import {
   Button,
   FieldError,
   Flex,
+  Form,
   Heading,
   Input,
   Label,

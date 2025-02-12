@@ -1,12 +1,11 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { Form } from "@arizeai/components";
-
 import {
   Button,
   FieldError,
   Flex,
+  Form,
   Input,
   Label,
   Text,

@@ -6,6 +6,7 @@ import {
   parseAbsoluteToLocal,
 } from "@internationalized/date";
 import { isValid as dateIsValid } from "date-fns";
+import { css } from "@emotion/react";
 
 import {
   Button,
@@ -112,6 +113,11 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
               value={value}
               granularity="second"
               hideTimeZone
+              css={css`
+                .react-aria-DateInput {
+                  width: 100%;
+                }
+              `}
             >
               <Label>End Date</Label>
               <DateInput>

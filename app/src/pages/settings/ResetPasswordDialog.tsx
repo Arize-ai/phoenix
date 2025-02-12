@@ -107,6 +107,8 @@ export function ResetPasswordDialog({
                   onBlur={onBlur}
                   value={value.toString()}
                   type="password"
+                  id="new-password"
+                  autoComplete="new-password"
                 >
                   <Label>New Password</Label>
                   <Input placeholder="New password" />

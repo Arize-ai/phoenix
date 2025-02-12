@@ -2,12 +2,13 @@ import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Alert, Dialog, DialogContainer, Form } from "@arizeai/components";
+import { Alert, Dialog, DialogContainer } from "@arizeai/components";
 
 import {
   Button,
   FieldError,
   Flex,
+  Form,
   Input,
   Label,
   Text,

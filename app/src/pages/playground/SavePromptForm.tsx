@@ -101,7 +101,7 @@ export function SavePromptForm({
 
   return (
     <Flex direction="column" gap="size-100" ref={flexContainer}>
-      <View paddingX="size-100" paddingTop="size-100">
+      <View paddingX="size-200" paddingTop="size-200">
         <Controller
           name="name"
           control={control}
@@ -141,7 +141,7 @@ export function SavePromptForm({
         />
       </View>
       <Form onSubmit={handleSubmit(onSubmit)}>
-        <View paddingX="size-100" paddingBottom="size-100">
+        <View paddingX="size-200" paddingBottom="size-200">
           <Controller
             name="description"
             control={control}

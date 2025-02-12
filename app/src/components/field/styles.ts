@@ -94,7 +94,10 @@ export const textFieldCSS = css`
   .react-aria-TextArea {
     margin: 0;
     border: var(--ac-global-border-size-thin) solid
-      var(--ac-global-input-field-border-color);
+      var(
+        --ac-field-border-color-override,
+        var(--ac-global-input-field-border-color)
+      );
     border-radius: var(--ac-global-rounding-small);
     background-color: var(--ac-global-input-field-background-color);
     color: var(--ac-global-text-color-900);
