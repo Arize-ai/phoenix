@@ -1354,3 +1354,15 @@ class CategoricalAnnotationValue(Base):
     categorical_config = relationship(
         "CategoricalAnnotationConfig", back_populates="allowed_values"
     )
+
+
+class ProjectAnnotationConfig(Base):
+    __tablename__ = "project_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
