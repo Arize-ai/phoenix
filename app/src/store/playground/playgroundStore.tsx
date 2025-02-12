@@ -8,9 +8,14 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { TOOL_CHOICE_PARAM_CANONICAL_NAME } from "@phoenix/pages/playground/constants";
+import {
+  RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
+  RESPONSE_FORMAT_PARAM_NAME,
+  TOOL_CHOICE_PARAM_CANONICAL_NAME,
+} from "@phoenix/pages/playground/constants";
 import {
   areInvocationParamsEqual,
+  constrainInvocationParameterInputsToDefinition,
   mergeInvocationParametersWithDefaults,
 } from "@phoenix/pages/playground/playgroundUtils";
 import { OpenAIResponseFormat } from "@phoenix/pages/playground/schemas";
@@ -346,6 +351,18 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             // when the user has saved an azure prompt and we load it back in
             const { baseUrl, endpoint, apiVersion } =
               modelConfigByProvider[instance.model.provider] ?? {};
+            // ensure that the invocation parameters are only the ones that are supported by the model
+            const filteredInvocationParameters =
+              constrainInvocationParameterInputsToDefinition(
+                instance.model.invocationParameters,
+                supportedInvocationParameters
+              );
+            // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
+            const mergedInvocationParameters =
+              mergeInvocationParametersWithDefaults(
+                filteredInvocationParameters,
+                supportedInvocationParameters
+              );
             return {
               ...instance,
               model: {
@@ -354,11 +371,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 endpoint: instance.model.endpoint ?? endpoint,
                 apiVersion: instance.model.apiVersion ?? apiVersion,
                 supportedInvocationParameters,
-                // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
-                invocationParameters: mergeInvocationParametersWithDefaults(
-                  instance.model.invocationParameters,
-                  supportedInvocationParameters
-                ),
+                invocationParameters: mergedInvocationParameters,
               },
               // Delete tools if the model does not support tool choice
               tools: supportedInvocationParameters.find(
@@ -384,23 +397,34 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
       const savedProviderConfig = modelConfigByProvider[provider];
 
+      // pluck the response format invocation parameter from the current invocation parameters
+      // so we can merge it with the saved provider config if necessary
+      const responseFormatInvocationParameter =
+        instance.model.invocationParameters.find(
+          (p) =>
+            p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME ||
+            p.invocationName === RESPONSE_FORMAT_PARAM_NAME
+        );
+
       const patch: Partial<PlaygroundNormalizedInstance> = {
-        // If we have a saved config for the provider, use it as the default otherwise reset the model config entirely to defaults / unset which will be controlled by invocation params coming from the server
+        // If we have a saved config for the provider, use it as the default otherwise reset the
+        // model config entirely to defaults / unset which will be controlled by invocation params coming from the server
         model: savedProviderConfig
           ? {
+              ...instance.model,
               ...savedProviderConfig,
-              // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
-              // These are not be saved in the model config as they are controlled exclusively by the server
-              supportedInvocationParameters: [],
+              invocationParameters: [
+                ...savedProviderConfig.invocationParameters,
+                ...(responseFormatInvocationParameter
+                  ? [responseFormatInvocationParameter]
+                  : []),
+              ],
               provider,
             }
           : {
+              ...instance.model,
               modelName: null,
               baseUrl: null,
-              // Reset invocation parameters to unset, these will be subsequently fetched and updated from the server
-              invocationParameters: [],
-              // Reset supported invocation parameters to unset, these will be subsequently fetched and updated from the server
-              supportedInvocationParameters: [],
               apiVersion: null,
               endpoint: null,
               provider,
