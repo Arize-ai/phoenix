@@ -27,7 +27,7 @@ const jsonSchemaPropertiesSchema = z
   .passthrough()
   .describe("A map of parameter names to their definitions");
 
-const jsonSchemaZodSchema = z
+export const jsonSchemaZodSchema = z
   .object({
     type: z.literal("object"),
     properties: z.record(
