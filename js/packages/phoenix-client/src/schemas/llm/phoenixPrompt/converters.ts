@@ -18,7 +18,6 @@ import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
 import { phoenixToolDefinitionSchema } from "./toolSchemas";
 import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
 import { jsonSchemaZodSchema } from "../../jsonSchema";
-import { type } from "node:os";
 
 /*
  * Conversion Functions
