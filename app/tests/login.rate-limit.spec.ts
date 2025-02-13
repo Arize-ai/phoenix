@@ -9,7 +9,7 @@ test("that login gets rate limited after too many attempts", async ({
   const email = `fakeuser@localhost.com`;
   // Add the user
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password *", { exact: true }).fill("not-a-password");
+  await page.getByLabel("Password", { exact: true }).fill("not-a-password");
 
   const numberOfAttempts = 10;
   for (let i = 0; i < numberOfAttempts; i++) {

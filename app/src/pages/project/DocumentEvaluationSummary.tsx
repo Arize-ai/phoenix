@@ -5,7 +5,7 @@ import { useParams } from "react-router";
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
-import { useLastNTimeRange } from "@phoenix/components/datetime";
+import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -20,7 +20,7 @@ export function DocumentEvaluationSummary({
   evaluationName,
 }: DocumentEvaluationSummaryProps) {
   const { projectId } = useParams();
-  const { timeRange } = useLastNTimeRange();
+  const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
       query DocumentEvaluationSummaryQuery(
@@ -38,8 +38,8 @@ export function DocumentEvaluationSummary({
       id: projectId as string,
       evaluationName,
       timeRange: {
-        start: timeRange.start.toISOString(),
-        end: timeRange.end.toISOString(),
+        start: timeRange?.start?.toISOString(),
+        end: timeRange?.end?.toISOString(),
       },
     }
   );

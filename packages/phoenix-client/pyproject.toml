@@ -2,8 +2,8 @@
 name = "arize-phoenix-client"
 description = "LLM Observability"
 readme = "README.md"
-requires-python = ">=3.8, <3.14"
-license = {text="Elastic-2.0"}
+requires-python = ">=3.9, <3.14"
+license = { text = "Elastic-2.0" }
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
@@ -15,7 +15,6 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -24,6 +23,8 @@ classifiers = [
 ]
 version = "0.1.0-alpha.1"
 dependencies = [
+  "httpx",
+  "typing-extensions",
 ]
 
 [project.urls]
@@ -58,10 +59,12 @@ pypi = [
 ]
 
 [tool.ruff]
-exclude = [".git", "__pycache__", ".tox", "dist"]
+exclude = [
+  "dist",
+]
 extend-include = ["*.ipynb"]
 line-length = 100
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
@@ -71,20 +74,39 @@ force-single-line = false
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
+"src/phoenix/client/__generated__/v1/*.py" = ["E501"]
 
 [tool.ruff.format]
 line-ending = "native"
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 explicit_package_bases = true
 strict = true
 exclude = [
   "dist/",
-  "tests/",
+  "examples",
+  "tests/canary",
+  "scripts/",
+  "src/phoenix/client/helpers/sdk/",
 ]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.9"
+reportUnusedFunction = false
+exclude = [
+  "dist/",
+  "examples",
+  "tests/canary/",
+  "scripts/",
+  "src/phoenix/client/helpers/sdk/",
+]
+
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = [
   "tests",
 ]

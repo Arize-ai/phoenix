@@ -43,10 +43,10 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
           `}
         >
           <Flex direction="column" gap="size-200" alignItems="center">
-            No traces found for this project
+            No traces found that match the selected filters
             <Button
               variant="default"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               onPress={onGettingStartedPress}
             >
               Get Started

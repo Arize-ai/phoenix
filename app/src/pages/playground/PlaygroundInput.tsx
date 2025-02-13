@@ -56,7 +56,7 @@ export function PlaygroundInput() {
             // change rapidly for a given variable
             key={i}
             label={variableKey}
-            value={variablesMap[variableKey]}
+            defaultValue={variablesMap[variableKey] ?? ""}
             onChange={(value) => setVariableValue(variableKey, value)}
           />
         );

@@ -1,9 +1,17 @@
-import React from "react";
+import React, { useCallback } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
-import { Button, Icon, Icons } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  Keyboard,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 export function PlaygroundRunButton() {
+  const modifierKey = useModifierKey();
   const runPlaygroundInstances = usePlaygroundContext(
     (state) => state.runPlaygroundInstances
   );
@@ -13,10 +21,30 @@ export function PlaygroundRunButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  const toggleRunning = useCallback(() => {
+    if (isRunning) {
+      cancelPlaygroundInstances();
+    } else {
+      runPlaygroundInstances();
+    }
+  }, [isRunning, cancelPlaygroundInstances, runPlaygroundInstances]);
+  useHotkeys(
+    "mod+enter",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleRunning();
+    },
+    {
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    }
+  );
   return (
     <Button
       variant="primary"
-      icon={
+      leadingVisual={
         <Icon
           svg={
             isRunning ? <Icons.LoadingOutline /> : <Icons.PlayCircleOutline />
@@ -25,12 +53,16 @@ export function PlaygroundRunButton() {
       }
       size="S"
       onPress={() => {
-        if (isRunning) {
-          cancelPlaygroundInstances();
-        } else {
-          runPlaygroundInstances();
-        }
+        toggleRunning();
       }}
+      trailingVisual={
+        <Keyboard>
+          <VisuallyHidden>{modifierKey}</VisuallyHidden>
+          <span aria-hidden="true">{modifierKey === "Cmd" ? "⌘" : "Ctrl"}</span>
+          <VisuallyHidden>enter</VisuallyHidden>
+          <span aria-hidden="true">⏎</span>
+        </Keyboard>
+      }
     >
       {isRunning ? "Cancel" : "Run"}
     </Button>

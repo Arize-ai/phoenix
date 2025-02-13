@@ -2,9 +2,9 @@ name: Playwright Tests
 
 on:
   push:
-    branches: [main, sessions]
+    branches: [main, prompts]
   pull_request:
-    branches: [main, sessions]
+    branches: [main, prompts]
 jobs:
   e2e-test:
     timeout-minutes: 60

@@ -1,16 +1,25 @@
 import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { graphql, useMutation } from "react-relay";
+import { graphql, useFragment, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Form, TextField } from "@arizeai/components";
+import { Form } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Input,
+  Label,
+  Text,
+  TextField,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
+import { ResetPasswordFormQuery$key } from "./__generated__/ResetPasswordFormQuery.graphql";
 
 const MIN_PASSWORD_LENGTH = 4;
 
@@ -20,9 +29,21 @@ export type ResetPasswordFormParams = {
   confirmPassword: string;
 };
 
-export function ResetPasswordForm() {
+export function ResetPasswordForm(props: {
+  query: ResetPasswordFormQuery$key;
+}) {
   const navigate = useNavigate();
   const notifyError = useNotifyError();
+  const data = useFragment(
+    graphql`
+      fragment ResetPasswordFormQuery on Query {
+        viewer {
+          email
+        }
+      }
+    `,
+    props.query
+  );
   const [commit, isCommitting] = useMutation<ResetPasswordFormMutation>(graphql`
     mutation ResetPasswordFormMutation($input: PatchViewerInput!) {
       patchViewer(input: $input) {
@@ -66,6 +87,19 @@ export function ResetPasswordForm() {
   );
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
+      <VisuallyHidden>
+        <TextField
+          name="email"
+          type="email"
+          autoComplete="email"
+          isRequired
+          isReadOnly
+          value={data.viewer?.email}
+        >
+          <Label>Email</Label>
+          <Input />
+        </TextField>
+      </VisuallyHidden>
       <Controller
         name="currentPassword"
         control={control}
@@ -77,17 +111,24 @@ export function ResetPasswordForm() {
           fieldState: { invalid, error },
         }) => (
           <TextField
-            label="Old Password"
             type="password"
             name={name}
             isRequired
-            description="The current password"
-            errorMessage={error?.message}
-            validationState={invalid ? "invalid" : "valid"}
+            isInvalid={invalid}
             onChange={onChange}
             onBlur={onBlur}
             value={value}
-          />
+            id="current-password"
+            autoComplete="current-password"
+          >
+            <Label>Old Password</Label>
+            <Input />
+            {error ? (
+              <FieldError>{error?.message}</FieldError>
+            ) : (
+              <Text slot="description">The current password</Text>
+            )}
+          </TextField>
         )}
       />
       <Controller
@@ -108,17 +149,26 @@ export function ResetPasswordForm() {
           fieldState: { invalid, error },
         }) => (
           <TextField
-            label="New Password"
             type="password"
             isRequired
-            description={`Password must be at least ${MIN_PASSWORD_LENGTH} characters`}
             name={name}
-            errorMessage={error?.message}
-            validationState={invalid ? "invalid" : "valid"}
+            isInvalid={invalid}
             onChange={onChange}
             onBlur={onBlur}
             defaultValue={value}
-          />
+            id="new-password"
+            autoComplete="new-password"
+          >
+            <Label>New Password</Label>
+            <Input />
+            {error ? (
+              <FieldError>{error?.message}</FieldError>
+            ) : (
+              <Text slot="description">
+                Password must be at least {MIN_PASSWORD_LENGTH} characters
+              </Text>
+            )}
+          </TextField>
         )}
       />
       <Controller
@@ -138,42 +188,47 @@ export function ResetPasswordForm() {
           fieldState: { invalid, error },
         }) => (
           <TextField
-            label="Confirm Password"
             isRequired
             type="password"
-            description="Confirm the new password"
             name={name}
-            errorMessage={error?.message}
-            validationState={invalid ? "invalid" : "valid"}
+            isInvalid={invalid}
             onChange={onChange}
             onBlur={onBlur}
             defaultValue={value}
-          />
+            autoComplete="new-password"
+          >
+            <Label>Confirm Password</Label>
+            <Input />
+            {error ? (
+              <FieldError>{error?.message}</FieldError>
+            ) : (
+              <Text slot="description">Confirm the new password</Text>
+            )}
+          </TextField>
         )}
       />
-      <View paddingTop="size-200">
-        <div
-          css={css`
-            display: flex;
-            flex-direction: row;
-            gap: var(--ac-global-dimension-size-200);
-            & > * {
-              width: 50%;
-            }
-          `}
+      <div
+        css={css`
+          display: flex;
+          flex-direction: row;
+          gap: var(--ac-global-dimension-size-200);
+          padding-top: var(--ac-global-dimension-size-100);
+          & > * {
+            width: 50%;
+          }
+        `}
+      >
+        <Button
+          onPress={() => {
+            navigate(-1);
+          }}
         >
-          <Button
-            onPress={() => {
-              navigate(-1);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" isDisabled={isCommitting}>
-            {isCommitting ? "Resetting..." : "Reset Password"}
-          </Button>
-        </div>
-      </View>
+          Cancel
+        </Button>
+        <Button variant="primary" type="submit" isDisabled={isCommitting}>
+          {isCommitting ? "Resetting..." : "Reset Password"}
+        </Button>
+      </div>
     </Form>
   );
 }

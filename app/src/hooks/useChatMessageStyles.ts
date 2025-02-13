@@ -1,27 +1,28 @@
 import { useMemo } from "react";
 
-import { ViewProps } from "@phoenix/components";
+import { ViewStyleProps } from "@phoenix/components/types";
 
 export function useChatMessageStyles(
   role: string
-): Pick<ViewProps, "backgroundColor" | "borderColor"> {
-  return useMemo<ViewProps>(() => {
-    if (role === "user" || role === "human") {
+): Pick<ViewStyleProps, "backgroundColor" | "borderColor"> {
+  return useMemo<ViewStyleProps>(() => {
+    const normalizedRole = role.toLowerCase();
+    if (normalizedRole === "user" || normalizedRole === "human") {
       return {
-        backgroundColor: "grey-100",
+        backgroundColor: "grey-200",
         borderColor: "grey-500",
       };
-    } else if (role === "assistant" || role === "ai") {
+    } else if (normalizedRole === "assistant" || normalizedRole === "ai") {
       return {
         backgroundColor: "blue-100",
         borderColor: "blue-700",
       };
-    } else if (role === "system") {
+    } else if (normalizedRole === "system" || normalizedRole === "developer") {
       return {
         backgroundColor: "indigo-100",
         borderColor: "indigo-700",
       };
-    } else if (["function", "tool"].includes(role)) {
+    } else if (["function", "tool"].includes(normalizedRole)) {
       return {
         backgroundColor: "yellow-100",
         borderColor: "yellow-700",

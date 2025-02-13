@@ -13,4 +13,5 @@ def get_openapi_schema() -> dict[str, Any]:
         openapi_version="3.1.0",
         description="Schema for Arize-Phoenix REST API",
         routes=v1_router.routes,
+        separate_input_output_schemas=False,
     )

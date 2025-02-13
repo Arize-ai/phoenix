@@ -17,7 +17,7 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useNavigate } from "react-router";
+import { useSearchParams } from "react-router-dom";
 import {
   CellContext,
   ColumnDef,
@@ -79,6 +79,7 @@ import {
   PlaygroundToolCall,
 } from "./PlaygroundToolCall";
 import {
+  denormalizePlaygroundInstance,
   extractVariablesFromInstance,
   getChatCompletionOverDatasetInput,
 } from "./playgroundUtils";
@@ -267,7 +268,7 @@ function ExampleOutputContent({
               <Button
                 size="S"
                 aria-label="View experiment run details"
-                icon={<Icon svg={<Icons.ExpandOutline />} />}
+                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                 onPress={() => {
                   startTransition(() => {
                     setDialog(
@@ -287,7 +288,7 @@ function ExampleOutputContent({
                 <Button
                   size="S"
                   aria-label="View run trace"
-                  icon={<Icon svg={<Icons.Trace />} />}
+                  leadingVisual={<Icon svg={<Icons.Trace />} />}
                   onPress={() => {
                     startTransition(() => {
                       setDialog(
@@ -417,6 +418,9 @@ export function PlaygroundDatasetExamplesTable({
 }) {
   const environment = useRelayEnvironment();
   const instances = usePlaygroundContext((state) => state.instances);
+  const allInstanceMessages = usePlaygroundContext(
+    (state) => state.allInstanceMessages
+  );
   const templateLanguage = usePlaygroundContext(
     (state) => state.templateLanguage
   );
@@ -440,7 +444,7 @@ export function PlaygroundDatasetExamplesTable({
   );
 
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const hasSomeRunIds = instances.some(
     (instance) => instance.activeRunId !== null
   );
@@ -465,6 +469,7 @@ export function PlaygroundDatasetExamplesTable({
             updateInstance({
               instanceId,
               patch: { experimentId: chatCompletion.experiment.id },
+              dirty: null,
             });
             break;
           case "ChatCompletionSubscriptionResult":
@@ -552,6 +557,7 @@ export function PlaygroundDatasetExamplesTable({
           patch: {
             experimentId: response.chatCompletionOverDataset.experimentId,
           },
+          dirty: null,
         });
         setExampleDataForInstance({
           instanceId,
@@ -581,6 +587,7 @@ export function PlaygroundDatasetExamplesTable({
         updateInstance({
           instanceId: instance.id,
           patch: { experimentId: null },
+          dirty: null,
         });
         if (activeRunId === null) {
           continue;
@@ -638,6 +645,7 @@ export function PlaygroundDatasetExamplesTable({
         updateInstance({
           instanceId: instance.id,
           patch: { experimentId: null },
+          dirty: null,
         });
         const variables = {
           input: getChatCompletionOverDatasetInput({
@@ -752,8 +760,12 @@ export function PlaygroundDatasetExamplesTable({
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
-      const instanceVariables = extractVariablesFromInstance({
+      const enrichedInstance = denormalizePlaygroundInstance(
         instance,
+        allInstanceMessages
+      );
+      const instanceVariables = extractVariablesFromInstance({
+        instance: enrichedInstance,
         templateLanguage,
       });
       return {
@@ -780,7 +792,7 @@ export function PlaygroundDatasetExamplesTable({
         size: 500,
       };
     });
-  }, [hasSomeRunIds, instances, templateLanguage]);
+  }, [hasSomeRunIds, instances, templateLanguage, allInstanceMessages]);
 
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -794,11 +806,12 @@ export function PlaygroundDatasetExamplesTable({
                 <Button
                   size="S"
                   aria-label="View example details"
-                  icon={<Icon svg={<Icons.ExpandOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                   onPress={() => {
-                    navigate(
-                      `/playground/datasets/${datasetId}/examples/${row.original.id}`
-                    );
+                    setSearchParams((prev) => {
+                      prev.set("exampleId", row.original.id);
+                      return prev;
+                    });
                   }}
                 />
                 <Tooltip>View Example</Tooltip>

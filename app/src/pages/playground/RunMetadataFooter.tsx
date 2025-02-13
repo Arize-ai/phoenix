@@ -67,7 +67,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
         <Flex direction="row" gap="size-100" alignItems="center">
           <Button
             size="S"
-            icon={<Icon svg={<Icons.EditOutline />} />}
+            leadingVisual={<Icon svg={<Icons.EditOutline />} />}
             onPress={() =>
               setDialog(
                 <EditSpanAnnotationsDialog
@@ -81,7 +81,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
           </Button>
           <Button
             size="S"
-            icon={<Icon svg={<Icons.Trace />} />}
+            leadingVisual={<Icon svg={<Icons.Trace />} />}
             onPress={() => {
               startTransition(() => {
                 setDialog(

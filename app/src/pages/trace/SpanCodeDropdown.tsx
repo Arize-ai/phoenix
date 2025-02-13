@@ -5,8 +5,6 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  Form,
-  TextField,
 } from "@arizeai/components";
 
 import {
@@ -14,6 +12,9 @@ import {
   Flex,
   Icon,
   Icons,
+  Input,
+  Label,
+  TextField,
   View,
 } from "@phoenix/components";
 
@@ -44,16 +45,22 @@ export function SpanCodeDropdown(props: SpanCodeDropdownProps) {
         </DropdownButton>
         <DropdownMenu>
           <View padding="size-200">
-            <Form>
+            <Flex direction="column" gap="size-100">
               <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField label="Span ID" isReadOnly value={spanId} />
+                <TextField value={spanId} isReadOnly size="L">
+                  <Label>Span ID</Label>
+                  <Input />
+                </TextField>
                 <CopyToClipboardButton text={spanId} size="M" />
               </Flex>
               <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField label="Trace ID" isReadOnly value={traceId} />
+                <TextField value={traceId} isReadOnly size="L">
+                  <Label>Trace ID</Label>
+                  <Input />
+                </TextField>
                 <CopyToClipboardButton text={traceId} size="M" />
               </Flex>
-            </Form>
+            </Flex>
           </View>
         </DropdownMenu>
       </DropdownTrigger>

@@ -2,9 +2,16 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp, Form, TextField } from "@arizeai/components";
-
-import { Button, Heading, Text } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import {
   MAX_INFERENCES_SAMPLE_SIZE,
   MAX_MIN_DIST,
@@ -15,81 +22,6 @@ import {
 } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { UMAPParameters } from "@phoenix/store";
-
-import { ExternalLink } from "../ExternalLink";
-
-const nNeighborsContextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      UMAP N Neighbors
-    </Heading>
-
-    <Content>
-      <Text>
-        This parameter controls how UMAP balances local versus global structure
-        in the data. It does this by constraining the size of the local
-        neighborhood UMAP will look at when attempting to learn the manifold
-        structure of the data. This means that low values of n_neighbors will
-        force UMAP to concentrate on very local structure (potentially to the
-        detriment of the big picture), while large values will push UMAP to look
-        at larger neighborhoods of each point when estimating the manifold
-        structure of the data, losing fine detail structure for the sake of
-        getting the broader of the data.
-      </Text>
-    </Content>
-    <footer>
-      <ExternalLink href="https://umap-learn.readthedocs.io/en/latest/parameters.html#n-neighbors">
-        View UMAP documentation
-      </ExternalLink>
-    </footer>
-  </ContextualHelp>
-);
-
-const minDistContextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      UMAP Minimum Distance
-    </Heading>
-    <Content>
-      <Text>
-        The min_dist parameter controls how tightly UMAP is allowed to pack
-        points together. It, quite literally, provides the minimum distance
-        apart that points are allowed to be in the low dimensional
-        representation. This means that low values of min_dist will result in
-        clumpier embeddings. This can be useful if you are interested in
-        clustering, or in finer topological structure. Larger values of min_dist
-        will prevent UMAP from packing points together and will focus on the
-        preservation of the broad topological structure instead.
-      </Text>
-    </Content>
-    <footer>
-      <ExternalLink href="https://umap-learn.readthedocs.io/en/latest/parameters.html#min-dist">
-        View UMAP documentation
-      </ExternalLink>
-    </footer>
-  </ContextualHelp>
-);
-
-const nSamplesContextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      Number of Samples
-    </Heading>
-    <Content>
-      <Text elementType="p">
-        Determines the number of samples from each inferences to use when
-        projecting the point cloud using UMAP. This number is per-inferences so
-        a value of 500 means that the point cloud will contain up to 1000
-        points.
-      </Text>
-      <br />
-      <Text elementType="p">
-        For best results keep this value low until you have identified a sample
-        that you would like to analyze in more detail.
-      </Text>
-    </Content>
-  </ContextualHelp>
-);
 
 export function PointCloudParameterSettings() {
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
@@ -142,109 +74,123 @@ export function PointCloudParameterSettings() {
       `}
     >
       <Form onSubmit={handleSubmit(onSubmit)}>
-        <Controller
-          name="minDist"
-          control={control}
-          rules={{
-            required: "field is required",
-          }}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              label="min distance"
-              labelExtra={minDistContextualHelp}
-              type="number"
-              description={`how tightly to pack points`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={(v) => onChange(parseFloat(v))}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <Controller
-          name="nNeighbors"
-          control={control}
-          rules={{
-            required: "n neighbors is required",
-            min: {
-              value: MIN_N_NEIGHBORS,
-              message: `greater than or equal to ${MIN_N_NEIGHBORS}`,
-            },
-            max: {
-              value: MAX_N_NEIGHBORS,
-              message: `less than or equal to ${MAX_N_NEIGHBORS}`,
-            },
-          }}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              label="n neighbors"
-              labelExtra={nNeighborsContextualHelp}
-              type="number"
-              // @ts-expect-error fix in the component
-              step="0.01"
-              description={`balances local versus global structure`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              {...field}
-              value={field.value as unknown as string}
-            />
-          )}
-        />
-        <Controller
-          name="nSamples"
-          control={control}
-          rules={{
-            required: "n samples is required",
-            max: {
-              value: MAX_INFERENCES_SAMPLE_SIZE,
-              message: `must be below ${MAX_INFERENCES_SAMPLE_SIZE}`,
-            },
-            min: {
-              value: MIN_INFERENCES_SAMPLE_SIZE,
-              message: `must be above ${MIN_INFERENCES_SAMPLE_SIZE}`,
-            },
-          }}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              label="n samples"
-              labelExtra={nSamplesContextualHelp}
-              defaultValue="500"
-              type="number"
-              description={`number of points to use per inferences`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={(v) => onChange(parseInt(v, 10))}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <div
-          css={css`
-            display: flex;
-            flex-direction: row;
-            justify-content: flex-end;
-            margin-top: var(--ac-global-dimension-static-size-100);
-          `}
-        >
+        <View padding="size-100">
+          <Controller
+            name="minDist"
+            control={control}
+            rules={{
+              required: "field is required",
+            }}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                type="number"
+                isInvalid={invalid}
+                onChange={(v) => onChange(parseFloat(v))}
+                onBlur={onBlur}
+                value={value.toString()}
+                size="S"
+              >
+                <Label>min distance</Label>
+                <Input step={0.01} min={MIN_MIN_DIST} max={MAX_MIN_DIST} />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">how tightly to pack points</Text>
+                )}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="nNeighbors"
+            control={control}
+            rules={{
+              required: "n neighbors is required",
+              min: {
+                value: MIN_N_NEIGHBORS,
+                message: `greater than or equal to ${MIN_N_NEIGHBORS}`,
+              },
+              max: {
+                value: MAX_N_NEIGHBORS,
+                message: `less than or equal to ${MAX_N_NEIGHBORS}`,
+              },
+            }}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                type="number"
+                isInvalid={invalid}
+                {...field}
+                value={field.value as unknown as string}
+                size="S"
+              >
+                <Label>n neighbors</Label>
+                <Input
+                  step={0.01}
+                  min={MIN_N_NEIGHBORS}
+                  max={MAX_N_NEIGHBORS}
+                />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    Balances local versus global structure
+                  </Text>
+                )}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="nSamples"
+            control={control}
+            rules={{
+              required: "n samples is required",
+              max: {
+                value: MAX_INFERENCES_SAMPLE_SIZE,
+                message: `must be below ${MAX_INFERENCES_SAMPLE_SIZE}`,
+              },
+              min: {
+                value: MIN_INFERENCES_SAMPLE_SIZE,
+                message: `must be above ${MIN_INFERENCES_SAMPLE_SIZE}`,
+              },
+            }}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                type="number"
+                isInvalid={invalid}
+                onChange={(v) => onChange(parseInt(v, 10))}
+                onBlur={onBlur}
+                value={value.toString()}
+                size="S"
+              >
+                <Label>n samples</Label>
+                <Input />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    number of points to use per inferences
+                  </Text>
+                )}
+              </TextField>
+            )}
+          />
           <Button
             variant={isDirty ? "primary" : "default"}
             type="submit"
             isDisabled={!isValid}
             css={css`
               width: 100%;
+              margin-top: var(--ac-global-dimension-static-size-100);
             `}
           >
             Apply UMAP Parameters
           </Button>
-        </div>
+        </View>
       </Form>
     </section>
   );

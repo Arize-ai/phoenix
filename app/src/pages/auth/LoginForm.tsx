@@ -3,9 +3,20 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Form, TextField } from "@arizeai/components";
+import { Alert } from "@arizeai/components";
 
-import { Button, Icon, Icons, Link, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Form,
+  Icon,
+  Icons,
+  Input,
+  Label,
+  Link,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { getReturnUrl, prependBasename } from "@phoenix/utils/routingUtils";
 
 type LoginFormParams = {
@@ -68,75 +79,71 @@ export function LoginForm(props: LoginFormProps) {
         </View>
       ) : null}
       <Form>
-        <Controller
-          name="email"
-          control={control}
-          render={({ field: { onChange, value } }) => (
-            <TextField
-              label="Email"
-              name="email"
-              isRequired
-              type="email"
-              onChange={onChange}
-              value={value}
-              placeholder="your email address"
-            />
-          )}
-        />
-        <div
-          css={css`
-            position: relative;
-            a {
-              position: absolute;
-              float: right;
-              right: 0;
-              top: var(--ac-global-dimension-size-50);
-              font-size: 12px;
-            }
-          `}
-        >
+        <Flex direction="column" gap="size-100">
           <Controller
-            name="password"
+            name="email"
             control={control}
             render={({ field: { onChange, value } }) => (
               <TextField
-                label="Password"
-                name="password"
-                type="password"
+                name="email"
                 isRequired
+                type="email"
                 onChange={onChange}
                 value={value}
-                placeholder="your password"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleSubmit(onSubmit)();
-                  }
-                }}
-              />
+                autoComplete="email"
+              >
+                <Label>Email</Label>
+                <Input placeholder="your email address" />
+              </TextField>
             )}
           />
-          <Link to="/forgot-password">Forgot your password?</Link>
-        </div>
-        <div
-          css={css`
-            margin-top: var(--ac-global-dimension-size-200);
-            margin-bottom: var(--ac-global-dimension-size-50);
-            button {
-              width: 100%;
-            }
-          `}
-        >
+          <div
+            css={css`
+              position: relative;
+              a {
+                position: absolute;
+                float: right;
+                right: 0;
+                top: var(--ac-global-dimension-size-50);
+                font-size: 12px;
+              }
+            `}
+          >
+            <Controller
+              name="password"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <TextField
+                  name="password"
+                  type="password"
+                  isRequired
+                  onChange={onChange}
+                  value={value}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSubmit(onSubmit)();
+                    }
+                  }}
+                  autoComplete="password"
+                >
+                  <Label>Password</Label>
+                  <Input placeholder="your password" />
+                </TextField>
+              )}
+            />
+            <Link to="/forgot-password">Forgot your password?</Link>
+          </div>
           <Button
             variant="primary"
             isDisabled={isLoading}
-            icon={
+            leadingVisual={
               isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
             }
             onPress={() => handleSubmit(onSubmit)()}
           >
             {isLoading ? "Logging In" : "Log In"}
           </Button>
-        </div>
+        </Flex>
       </Form>
     </>
   );

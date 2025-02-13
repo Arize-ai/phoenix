@@ -2,9 +2,17 @@ import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Alert, Form, TextField } from "@arizeai/components";
+import { Alert } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import {
+  Button,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type ForgotPasswordFormParams = {
@@ -61,15 +69,18 @@ export function ForgotPasswordForm({
           control={control}
           render={({ field: { onChange, value } }) => (
             <TextField
-              label="Email"
               name="email"
               isRequired
               type="email"
               onChange={onChange}
               value={value}
-              placeholder="your email address"
-              description="Enter the email address associated with your account."
-            />
+            >
+              <Label>Email</Label>
+              <Input placeholder="your email address" />
+              <Text slot="description">
+                Enter the email address associated with your account.
+              </Text>
+            </TextField>
           )}
         />
         <div
