@@ -7,6 +7,8 @@
 * [Self-hosting](deployment/README.md)
   * [Quickstart: Deployment](deployment/deploying-phoenix.md)
   * [Environments](deployment/environments.md)
+  * [Local instance](deployment/local-instance.md)
+  * [Python notebook](deployment/python-notebook.md)
   * [Docker](deployment/docker.md)
   * [Kubernetes](deployment/kubernetes.md)
   * [Authentication](deployment/authentication.md)
