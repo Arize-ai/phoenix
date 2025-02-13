@@ -151,6 +151,7 @@ export function UserForm({
                   onChange={onChange}
                   onBlur={onBlur}
                   defaultValue={value}
+                  autoComplete="new-password"
                 >
                   <Label>Password</Label>
                   <Input />
@@ -188,6 +189,7 @@ export function UserForm({
                   onChange={onChange}
                   onBlur={onBlur}
                   defaultValue={value ?? undefined}
+                  autoComplete="new-password"
                 >
                   <Label>Confirm Password</Label>
                   <Input />
