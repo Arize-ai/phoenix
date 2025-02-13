@@ -14,6 +14,7 @@ test("can create a prompt", async ({ page }) => {
   await page.goto("/prompts");
   await page.waitForURL("**/prompts");
   await page.getByRole("link", { name: "Create Prompt" }).click();
+  await page.waitForURL("**/playground");
   await page.getByText("You are a chatbot").fill("You are a helpful assistant");
   await await page.getByRole("button", { name: "Save" }).click();
   await page.getByPlaceholder("Select or enter new prompt").click();
