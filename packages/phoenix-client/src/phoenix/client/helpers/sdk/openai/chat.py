@@ -56,7 +56,7 @@ if TYPE_CHECKING:
         OpenAI().chat.completions.create(messages=messages, **kwargs)
 
     def __(obj: CompletionCreateParamsBase) -> None:
-        create_prompt_version_from_openai_chat(obj)
+        create_prompt_version_from_openai(obj)
 
 
 class _ToolKwargs(TypedDict, total=False):
@@ -65,7 +65,7 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[ChatCompletionToolParam]
 
 
-class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
+class OpenAIModelKwargs(_ToolKwargs, TypedDict, total=False):
     model: Required[str]
     frequency_penalty: float
     max_completion_tokens: int
@@ -85,14 +85,14 @@ _ContentPart: TypeAlias = Union[
 ]
 
 __all__ = [
-    "create_prompt_version_from_openai_chat",
+    "create_prompt_version_from_openai",
     "to_chat_messages_and_kwargs",
 ]
 
 logger = logging.getLogger(__name__)
 
 
-def create_prompt_version_from_openai_chat(
+def create_prompt_version_from_openai(
     obj: CompletionCreateParamsBase,
     /,
     *,
@@ -149,7 +149,7 @@ def to_chat_messages_and_kwargs(
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-) -> tuple[list[ChatCompletionMessageParam], _ModelKwargs]:
+) -> tuple[list[ChatCompletionMessageParam], OpenAIModelKwargs]:
     return (
         list(_to_chat_completion_messages(obj, variables, formatter)),
         _to_model_kwargs(obj),
@@ -158,13 +158,13 @@ def to_chat_messages_and_kwargs(
 
 def _to_model_kwargs(
     obj: v1.PromptVersionData,
-) -> _ModelKwargs:
+) -> OpenAIModelKwargs:
     parameters: v1.PromptOpenAIInvocationParametersContent = (
         obj["invocation_parameters"]["openai"]
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "openai"
         else {}
     )
-    ans: _ModelKwargs = {
+    ans: OpenAIModelKwargs = {
         "model": obj["model_name"],
     }
     if "max_tokens" in parameters:
@@ -211,9 +211,8 @@ def _to_chat_completion_messages(
         for message in template["messages"]:
             yield from _MessageConversion.to_openai(message, variables, formatter)
     elif template["type"] == "string":
-        content = formatter.format(template["template"], variables=variables)
-        yield {"role": "user", "content": content}
-    elif TYPE_CHECKING:
+        raise NotImplementedError
+    else:
         assert_never(template)
 
 
@@ -414,18 +413,20 @@ class _MessageConversion:
         formatter: TemplateFormatter,
         /,
     ) -> Iterator[ChatCompletionMessageParam]:
-        if obj["role"] == "USER":
+        if obj["role"] == "user":
             yield from _UserMessageConversion.to_openai(obj, variables, formatter)
-        elif obj["role"] == "SYSTEM":
+        elif obj["role"] == "system":
             yield from _SystemMessageConversion.to_openai(obj, variables, formatter)
-        elif obj["role"] == "AI":
+        elif obj["role"] == "developer":
+            raise NotImplementedError
+        elif obj["role"] == "assistant" or obj["role"] == "model" or obj["role"] == "ai":
             yield from _AssistantMessageConversion.to_openai(obj, variables, formatter)
-        elif obj["role"] == "TOOL":
+        elif obj["role"] == "tool":
             yield from _ToolMessageConversion.to_openai(obj, variables, formatter)
         elif TYPE_CHECKING:
             assert_never(obj["role"])
         else:
-            content = list(_ContentPartConversion.to_openai(obj["content"], variables, formatter))
+            content = list(_ContentPartsConversion.to_openai(obj["content"], variables, formatter))
             yield {"role": obj["role"], "content": content}
 
     @staticmethod
@@ -446,7 +447,7 @@ class _MessageConversion:
             raise NotImplementedError
         if TYPE_CHECKING:
             assert_never(obj["role"])
-        content = list(_ContentPartConversion.from_openai(obj["content"]))
+        content = list(_ContentPartsConversion.from_openai(obj["content"]))
         return v1.PromptMessage(role=obj["role"], content=content)
 
 
@@ -458,7 +459,13 @@ class _UserMessageConversion:
         formatter: TemplateFormatter,
         /,
     ) -> Iterator[ChatCompletionUserMessageParam]:
-        content = list(_ContentPartConversion.to_openai(obj["content"], variables, formatter))
+        if isinstance(obj["content"], str):
+            yield {
+                "role": "user",
+                "content": formatter.format(obj["content"], variables=variables),
+            }
+            return
+        content = list(_ContentPartsConversion.to_openai(obj["content"], variables, formatter))
         yield _user_msg(content)
 
     @staticmethod
@@ -466,9 +473,11 @@ class _UserMessageConversion:
         obj: ChatCompletionUserMessageParam,
         /,
         *,
-        role: Literal["USER"] = "USER",
+        role: Literal["user"] = "user",
     ) -> v1.PromptMessage:
-        content = list(_ContentPartConversion.from_openai(obj["content"]))
+        if isinstance(obj["content"], str):
+            return v1.PromptMessage(role=role, content=obj["content"])
+        content = list(_ContentPartsConversion.from_openai(obj["content"]))
         return v1.PromptMessage(role=role, content=content)
 
 
@@ -480,19 +489,36 @@ class _SystemMessageConversion:
         formatter: TemplateFormatter,
         /,
     ) -> Iterator[ChatCompletionSystemMessageParam]:
+        if isinstance(obj["content"], str):
+            yield {
+                "role": "system",
+                "content": formatter.format(obj["content"], variables=variables),
+            }
+            return
         content = list(
-            _ContentPartConversion.to_openai(obj["content"], variables, formatter, text_only=True)
+            _ContentPartsConversion.to_openai(obj["content"], variables, formatter, text_only=True)
         )
-        yield _system_msg(content)
+        if len(content) == 1 and content[0]["type"] == "text":
+            yield {
+                "role": "system",
+                "content": content[0]["text"],
+            }
+            return
+        yield {
+            "role": "system",
+            "content": content,
+        }
 
     @staticmethod
     def from_openai(
         obj: ChatCompletionSystemMessageParam,
         /,
         *,
-        role: Literal["SYSTEM"] = "SYSTEM",
+        role: Literal["system"] = "system",
     ) -> v1.PromptMessage:
-        content = list(_ContentPartConversion.from_openai(obj["content"]))
+        if isinstance(obj["content"], str):
+            return v1.PromptMessage(role=role, content=obj["content"])
+        content = list(_ContentPartsConversion.from_openai(obj["content"]))
         return v1.PromptMessage(role=role, content=content)
 
 
@@ -506,6 +532,12 @@ class _AssistantMessageConversion:
     ) -> Iterator[ChatCompletionAssistantMessageParam]:
         content: list[ContentArrayOfContentPart] = []
         tool_calls: list[ChatCompletionMessageToolCallParam] = []
+        if isinstance(obj["content"], str):
+            yield {
+                "role": "assistant",
+                "content": formatter.format(obj["content"], variables=variables),
+            }
+            return
         for part in obj["content"]:
             if part["type"] == "tool_call":
                 if content:
@@ -534,13 +566,15 @@ class _AssistantMessageConversion:
         obj: ChatCompletionAssistantMessageParam,
         /,
         *,
-        role: Literal["AI"] = "AI",
+        role: Literal["assistant"] = "assistant",
     ) -> v1.PromptMessage:
         content: list[_ContentPart] = []
-        if "content" in obj:
-            content.extend(_ContentPartConversion.from_openai(obj["content"]))
+        if "content" in obj and obj["content"] is not None:
+            content.extend(_ContentPartsConversion.from_openai(obj["content"]))
         if "tool_calls" in obj and (tool_calls := obj["tool_calls"]):
             content.extend(map(_ToolCallContentPartConversion.from_openai, tool_calls))
+        if len(content) == 1 and content[0]["type"] == "text":
+            return v1.PromptMessage(role=role, content=content[0]["text"])
         return v1.PromptMessage(role=role, content=content)
 
 
@@ -554,10 +588,16 @@ class _ToolMessageConversion:
     ) -> Iterator[ChatCompletionToolMessageParam]:
         current_tool_call_id: Optional[str] = None
         current_content: list[ChatCompletionContentPartTextParam] = []
+        if isinstance(obj["content"], str):
+            yield {
+                "role": "tool",
+                "tool_call_id": "",
+                "content": formatter.format(obj["content"], variables=variables),
+            }
+            return
         for part in obj["content"]:
             if part["type"] == "tool_result":
-                tool_result = part["tool_result"]
-                tool_call_id = tool_result["tool_call_id"] if "tool_call_id" in tool_result else ""
+                tool_call_id = part["tool_call_id"]
                 if (
                     current_tool_call_id is not None
                     and current_tool_call_id != tool_call_id
@@ -566,13 +606,12 @@ class _ToolMessageConversion:
                     yield _tool_msg(tool_call_id=current_tool_call_id, content=current_content)
                     current_content = []
                 current_tool_call_id = tool_call_id
-                if "result" in tool_result:
-                    current_content.append(
-                        {
-                            "type": "text",
-                            "text": _str_tool_result(part["tool_result"]["result"]),
-                        }
-                    )
+                current_content.append(
+                    {
+                        "type": "text",
+                        "text": _str_tool_result(part["tool_result"]),
+                    }
+                )
             elif part["type"] == "text":
                 continue
             elif part["type"] == "tool_call":
@@ -587,18 +626,16 @@ class _ToolMessageConversion:
         obj: ChatCompletionToolMessageParam,
         /,
         *,
-        role: Literal["TOOL"] = "TOOL",
+        role: Literal["tool"] = "tool",
     ) -> v1.PromptMessage:
         if isinstance(obj["content"], str):
             return v1.PromptMessage(
-                role="TOOL",
+                role="tool",
                 content=[
                     v1.ToolResultContentPart(
                         type="tool_result",
-                        tool_result=v1.ToolResultContentValue(
-                            tool_call_id=obj["tool_call_id"],
-                            result=obj["content"],
-                        ),
+                        tool_call_id=obj["tool_call_id"],
+                        tool_result=obj["content"],
                     )
                 ],
             )
@@ -608,10 +645,8 @@ class _ToolMessageConversion:
                 content.append(
                     v1.ToolResultContentPart(
                         type="tool_result",
-                        tool_result=v1.ToolResultContentValue(
-                            tool_call_id=obj["tool_call_id"],
-                            result=part["text"],
-                        ),
+                        tool_call_id=obj["tool_call_id"],
+                        tool_result=part["text"],
                     )
                 )
             elif TYPE_CHECKING:
@@ -635,8 +670,8 @@ class _ToolCallContentPartConversion:
         formatter: TemplateFormatter,
         /,
     ) -> ChatCompletionMessageToolCallParam:
-        id_ = obj["tool_call"]["tool_call_id"] if "tool_call_id" in obj["tool_call"] else ""
-        tool_call = obj["tool_call"]["tool_call"]
+        id_ = obj["tool_call_id"]
+        tool_call = obj["tool_call"]
         name = tool_call["name"]
         arguments = tool_call["arguments"] if "arguments" in tool_call else "{}"
         return {
@@ -654,22 +689,20 @@ class _ToolCallContentPartConversion:
     ) -> v1.ToolCallContentPart:
         return v1.ToolCallContentPart(
             type="tool_call",
-            tool_call=v1.ToolCallContentValue(
-                tool_call_id=obj["id"],
-                tool_call=v1.ToolCallFunction(
-                    type="function",
-                    name=obj["function"]["name"],
-                    arguments=obj["function"]["arguments"],
-                ),
+            tool_call_id=obj["id"],
+            tool_call=v1.ToolCallFunction(
+                type="function",
+                name=obj["function"]["name"],
+                arguments=obj["function"]["arguments"],
             ),
         )
 
 
-class _ContentPartConversion:
+class _ContentPartsConversion:
     @overload
     @staticmethod
     def to_openai(
-        parts: Iterable[_ContentPart],
+        parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
@@ -680,7 +713,7 @@ class _ContentPartConversion:
     @overload
     @staticmethod
     def to_openai(
-        parts: Iterable[_ContentPart],
+        parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
@@ -690,7 +723,7 @@ class _ContentPartConversion:
 
     @staticmethod
     def to_openai(
-        parts: Iterable[_ContentPart],
+        parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
@@ -725,8 +758,7 @@ class _ContentPartConversion:
         ],
     ) -> Iterator[_ContentPart]:
         if isinstance(obj, str):
-            text = v1.TextContentValue(text=obj)
-            yield v1.TextContentPart(type="text", text=text)
+            yield v1.TextContentPart(type="text", text=obj)
             return
         for part in obj or ():
             if part["type"] == "text":
@@ -749,15 +781,14 @@ class _TextContentPartConversion:
         formatter: TemplateFormatter,
         /,
     ) -> ChatCompletionContentPartTextParam:
-        text = formatter.format(obj["text"]["text"], variables=variables)
+        text = formatter.format(obj["text"], variables=variables)
         return {"type": "text", "text": text}
 
     @staticmethod
     def from_openai(
         obj: ChatCompletionContentPartTextParam,
     ) -> v1.TextContentPart:
-        text = v1.TextContentValue(text=obj["text"])
-        return v1.TextContentPart(type="text", text=text)
+        return v1.TextContentPart(type="text", text=obj["text"])
 
 
 def _user_msg(
@@ -788,20 +819,6 @@ def _assistant_msg(
     }
 
 
-def _system_msg(
-    content: Sequence[ChatCompletionContentPartTextParam],
-) -> ChatCompletionSystemMessageParam:
-    if len(content) == 1 and content[0]["type"] == "text":
-        return {
-            "role": "system",
-            "content": content[0]["text"],
-        }
-    return {
-        "role": "system",
-        "content": content,
-    }
-
-
 def _tool_msg(
     tool_call_id: str,
     content: Sequence[ChatCompletionContentPartTextParam],
@@ -825,13 +842,19 @@ class _RoleConversion:
         obj: v1.PromptMessage,
     ) -> ChatCompletionRole:
         role = obj["role"]
-        if role == "USER":
+        if role == "user":
             return "user"
-        if role == "AI":
+        if role == "assistant":
             return "assistant"
-        if role == "SYSTEM":
+        if role == "model":
+            return "assistant"
+        if role == "ai":
+            return "assistant"
+        if role == "system":
             return "system"
-        if role == "TOOL":
+        if role == "developer":
+            return "developer"
+        if role == "tool":
             return "tool"
         if TYPE_CHECKING:
             assert_never(role)
@@ -840,19 +863,19 @@ class _RoleConversion:
     @staticmethod
     def from_openai(
         obj: ChatCompletionMessageParam,
-    ) -> Literal["USER", "AI", "TOOL", "SYSTEM"]:
+    ) -> Literal["user", "assistant", "tool", "system", "developer"]:
         if obj["role"] == "user":
-            return "USER"
+            return "user"
         if obj["role"] == "system":
-            return "SYSTEM"
+            return "system"
         if obj["role"] == "developer":
-            raise NotImplementedError
+            return "developer"
         if obj["role"] == "assistant":
-            return "AI"
+            return "assistant"
         if obj["role"] == "tool":
-            return "TOOL"
+            return "tool"
         if obj["role"] == "function":
-            return "TOOL"
+            return "tool"
         if TYPE_CHECKING:
             assert_never(obj["role"])
         return obj["role"]

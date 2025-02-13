@@ -37,7 +37,7 @@ from phoenix.client.helpers.sdk.openai.chat import (
     _ToolCallContentPartConversion,
     _ToolKwargs,
     _ToolKwargsConversion,
-    create_prompt_version_from_openai_chat,
+    create_prompt_version_from_openai,
     to_chat_messages_and_kwargs,
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
@@ -209,12 +209,12 @@ class TestTextContentPartConversion:
         assert not DeepDiff(obj, new_obj)
 
     def test_formatter(self) -> None:
-        x = v1.TextContentPart(type="text", text=v1.TextContentValue(text=_str()))
+        x = v1.TextContentPart(type="text", text=_str())
         formatter, variables = _MockFormatter(), _dict()
         ans: ChatCompletionContentPartTextParam = _TextContentPartConversion.to_openai(
             x, variables, formatter
         )
-        assert ans["text"] == formatter.format(x["text"]["text"], variables=variables)
+        assert ans["text"] == formatter.format(x["text"], variables=variables)
 
 
 class _GetWeather(BaseModel):
@@ -398,7 +398,7 @@ class TestCompletionCreateParamsBase:
         ],
     )
     def test_round_trip(self, obj: CompletionCreateParamsBase) -> None:
-        pv: v1.PromptVersionData = create_prompt_version_from_openai_chat(obj)
+        pv: v1.PromptVersionData = create_prompt_version_from_openai(obj)
         messages, kwargs = to_chat_messages_and_kwargs(pv, formatter=NO_OP_FORMATTER)
         new_obj = CompletionCreateParamsBase(messages=messages, **kwargs)  # type: ignore[typeddict-item]
         assert not DeepDiff(obj, new_obj)

@@ -145,42 +145,36 @@ describe("toOpenAI type compatibility", () => {
         type: "chat",
         messages: [
           {
-            role: "USER",
-            content: [
-              { type: "text", text: { text: "Can you edit this image?" } },
-            ],
+            role: "user",
+            content: [{ type: "text", text: "Can you edit this image?" }],
           },
           {
-            role: "AI",
+            role: "ai",
             content: [
-              { type: "text", text: { text: "Yes I can edit this image" } },
+              { type: "text", text: "Yes I can edit this image" },
               {
                 type: "tool_call",
+                tool_call_id: "123",
                 tool_call: {
-                  tool_call_id: "123",
-                  tool_call: {
-                    type: "function",
-                    name: "edit_image",
-                    arguments: JSON.stringify({
-                      image_url: "test.jpg",
-                      edit_type: "blur",
-                    }),
-                  },
+                  type: "function",
+                  name: "edit_image",
+                  arguments: JSON.stringify({
+                    image_url: "test.jpg",
+                    edit_type: "blur",
+                  }),
                 },
               },
             ],
           },
           {
-            role: "TOOL",
+            role: "tool",
             content: [
               {
                 type: "tool_result",
-                tool_result: {
-                  tool_call_id: "123",
-                  result: JSON.stringify({
-                    new_image_url: "test_edited.jpg",
-                  }),
-                },
+                tool_call_id: "123",
+                tool_result: JSON.stringify({
+                  new_image_url: "test_edited.jpg",
+                }),
               },
             ],
           },

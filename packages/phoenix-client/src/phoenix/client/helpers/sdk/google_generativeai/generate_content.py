@@ -43,7 +43,7 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[content_types.Tool]
 
 
-class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
+class GoogleModelKwargs(_ToolKwargs, TypedDict, total=False):
     model_name: Required[str]
     generation_config: GenerationConfig
     system_instruction: str | list[str]
@@ -52,8 +52,19 @@ class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "create_prompt_version_from_google",
     "to_chat_messages_and_kwargs",
 ]
+
+
+def create_prompt_version_from_google(
+    obj: Any,
+    /,
+    *,
+    description: Optional[str] = None,
+    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+) -> v1.PromptVersionData:
+    raise NotImplementedError
 
 
 def to_chat_messages_and_kwargs(
@@ -62,7 +73,7 @@ def to_chat_messages_and_kwargs(
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-) -> tuple[list[protos.Content], _ModelKwargs]:
+) -> tuple[list[protos.Content], GoogleModelKwargs]:
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
@@ -70,7 +81,7 @@ def to_chat_messages_and_kwargs(
     messages: list[protos.Content] = []
     if template["type"] == "chat":
         for message in template["messages"]:
-            if message["role"] == "SYSTEM":
+            if message["role"] == "system":
                 for content in _ContentConversion.to_google(message, variables, formatter):
                     for part in content.parts:
                         if text := part.text:
@@ -78,11 +89,10 @@ def to_chat_messages_and_kwargs(
             else:
                 messages.extend(_ContentConversion.to_google(message, variables, formatter))
     elif template["type"] == "string":
-        text = formatter.format(template["template"], variables=variables)
-        messages.append(protos.Content(role="user", parts=[protos.Part(text=text)]))  # type: ignore[no-untyped-call]
-    elif TYPE_CHECKING:
+        raise NotImplementedError
+    else:
         assert_never(template)
-    kwargs: _ModelKwargs = _to_model_kwargs(obj)
+    kwargs: GoogleModelKwargs = _to_model_kwargs(obj)
     if system_messages:
         if len(system_messages) == 1:
             kwargs["system_instruction"] = system_messages[0]
@@ -94,7 +104,7 @@ def to_chat_messages_and_kwargs(
 def _to_model_kwargs(
     obj: v1.PromptVersionData,
     /,
-) -> _ModelKwargs:
+) -> GoogleModelKwargs:
     invocation_parameters: v1.PromptGeminiInvocationParametersContent = (
         obj["invocation_parameters"]["gemini"]
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "gemini"
@@ -107,6 +117,8 @@ def _to_model_kwargs(
     frequency_penalty = invocation_parameters.get("frequency_penalty")
     top_p = invocation_parameters.get("top_p")
     top_k = invocation_parameters.get("top_k")
+    from google.generativeai.types import GenerationConfig
+
     generation_config = GenerationConfig(
         temperature=temperature,
         max_output_tokens=max_output_tokens,
@@ -351,6 +363,10 @@ class _ContentConversion:
 
         role = _RoleConversion.to_google(obj)
         parts: list[protos.Part] = []
+        if isinstance(obj["content"], str):
+            text = formatter.format(obj["content"], variables=variables)
+            yield protos.Content(role=role, parts=[protos.Part(text=text)])  # type: ignore[no-untyped-call]
+            return
         for part in obj["content"]:
             if part["type"] == "text":
                 parts.append(_TextContentPartConversion.to_google(part, variables, formatter))
@@ -388,7 +404,7 @@ class _TextContentPartConversion:
     ) -> protos.Part:
         from google.generativeai import protos
 
-        text = formatter.format(obj["text"]["text"], variables=variables)
+        text = formatter.format(obj["text"], variables=variables)
         ans: protos.Part = protos.Part()  # type: ignore[no-untyped-call]
         ans.text = text
         return ans
@@ -399,7 +415,7 @@ class _TextContentPartConversion:
     ) -> v1.TextContentPart:
         return v1.TextContentPart(
             type="text",
-            text=v1.TextContentValue(text=obj.text),
+            text=obj.text,
         )
 
 
@@ -409,13 +425,19 @@ class _RoleConversion:
         obj: v1.PromptMessage,
     ) -> Literal["user", "model"]:
         role = obj["role"]
-        if role == "USER":
+        if role == "user":
             return "user"
-        if role == "AI":
+        if role == "assistant":
             return "model"
-        if role == "SYSTEM":
+        if role == "model":
+            return "model"
+        if role == "ai":
+            return "model"
+        if role == "system":
             raise NotImplementedError
-        if role == "TOOL":
+        if role == "developer":
+            raise NotImplementedError
+        if role == "tool":
             return "user"
         if TYPE_CHECKING:
             assert_never(role)
@@ -424,17 +446,17 @@ class _RoleConversion:
     @staticmethod
     def from_google(
         obj: protos.Content,
-    ) -> Literal["USER", "AI", "TOOL"]:
+    ) -> Literal["user", "assistant", "tool"]:
         if obj.role in ("model", "assistant"):
-            return "AI"
+            return "assistant"
         if obj.role == "user":
             for part in obj.parts:
                 p: protos.Part = part
                 if _has_function_response(p):
-                    return "TOOL"
+                    return "tool"
                 else:
                     continue
-            return "USER"
+            return "user"
         return obj.role  # type: ignore
 
 

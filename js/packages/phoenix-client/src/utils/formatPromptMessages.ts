@@ -45,21 +45,24 @@ export function formatPromptMessages(
 
   return promptMessages.map((message) => ({
     ...message,
-    content: message.content.map((content) => {
-      const textPart = asTextPart(content);
-      if (textPart) {
-        let newText = textPart.text.text;
-        const toReplace = [...replacements];
-        while (toReplace.length > 0) {
-          const [key, value] = toReplace.shift()!;
-          newText = newText.replaceAll(key, value);
-        }
-        return {
-          ...textPart,
-          text: { text: newText },
-        } satisfies TextPart;
-      }
-      return content;
-    }),
+    content:
+      typeof message.content == "string"
+        ? message.content // TODO: Fix this string substitution
+        : message.content.map((content) => {
+            const textPart = asTextPart(content);
+            if (textPart) {
+              let newText = textPart.text;
+              const toReplace = [...replacements];
+              while (toReplace.length > 0) {
+                const [key, value] = toReplace.shift()!;
+                newText = newText.replaceAll(key, value);
+              }
+              return {
+                ...textPart,
+                text: newText,
+              } satisfies TextPart;
+            }
+            return content;
+          }),
   }));
 }

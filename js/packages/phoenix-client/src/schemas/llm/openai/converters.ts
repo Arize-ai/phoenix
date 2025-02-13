@@ -147,7 +147,7 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
         content.push(toolResultPart);
       }
       return {
-        role: "TOOL",
+        role: "tool",
         content,
       };
     }
@@ -174,13 +174,11 @@ export const openAIMessageToPhoenixPrompt = openAIMessageSchema.transform(
       openai.tool_calls.forEach((tc) => {
         const toolCallPart = {
           type: "tool_call",
+          tool_call_id: tc.id,
           tool_call: {
-            tool_call_id: tc.id,
-            tool_call: {
-              type: "function",
-              name: tc.function.name,
-              arguments: tc.function.arguments,
-            },
+            type: "function",
+            name: tc.function.name,
+            arguments: tc.function.arguments,
           },
         } satisfies ToolCallPart;
         if (toolCallPart) {
