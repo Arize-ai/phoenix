@@ -152,7 +152,6 @@ export function PromptsTable(props: PromptsTableProps) {
     data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    manualSorting: true,
   });
 
   const rows = table.getRowModel().rows;
