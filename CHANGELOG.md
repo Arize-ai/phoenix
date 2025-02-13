@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.12.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.1...arize-phoenix-v7.12.2) (2025-02-13)
+
+
+### Bug Fixes
+
+* **prompts:** trim leading and trailing whitespace from mustache template variables ([#6357](https://github.com/Arize-ai/phoenix/issues/6357)) ([0743206](https://github.com/Arize-ai/phoenix/commit/074320697855419c9e6cb5bfb9d4a06e9c259648))
+
 ## [7.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.0...arize-phoenix-v7.12.1) (2025-02-11)
 
 
