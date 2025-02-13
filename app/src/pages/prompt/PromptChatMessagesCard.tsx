@@ -171,7 +171,7 @@ function ChatMessages({
 }) {
   const { messages } = template;
   return (
-    <Flex direction="column" gap="size-100">
+    <Flex direction="column" gap="size-100" data-testid="chat-messages">
       {messages.map((message, i) => {
         const isOnlyChild =
           message.content.length === 1 &&
@@ -202,7 +202,12 @@ export function PromptChatMessagesCard({
   promptVersion: PromptChatMessagesCard__main$key;
 }) {
   return (
-    <Card title={title} variant="compact" collapsible>
+    <Card
+      title={title}
+      variant="compact"
+      collapsible
+      data-testid="prompt-chat-messages-card"
+    >
       <PromptChatMessages promptVersion={promptVersion} />
     </Card>
   );
