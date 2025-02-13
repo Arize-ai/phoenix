@@ -1,5 +1,6 @@
 import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
 
+import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
 import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
 import {
@@ -40,8 +41,6 @@ import {
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
-import { TemplateLanguages } from "../../components/templateEditor/constants";
-
 import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
   ChatCompletionInput,
@@ -49,6 +48,7 @@ import {
   ChatCompletionMessageRole,
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
+import { PromptTemplateFormat } from "./__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
 import {
   ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
@@ -1260,4 +1260,40 @@ export function mergeInvocationParametersWithDefaults(
 
   // Return the new invocation parameter inputs as an array
   return Array.from(currentInvocationParametersMap.values());
+}
+
+/**
+ * Function that converts graphql template format to a template language
+ */
+export function convertTemplateFormatToTemplateLanguage(
+  templateFormat: PromptTemplateFormat
+): TemplateLanguage {
+  switch (templateFormat) {
+    case "MUSTACHE":
+      return TemplateLanguages.Mustache;
+    case "FSTRING":
+      return TemplateLanguages.FString;
+    case "NONE":
+      return TemplateLanguages.NONE;
+    default:
+      assertUnreachable(templateFormat);
+  }
+}
+
+/**
+ * Function that converts a template language to a graphql template format
+ */
+export function convertTemplateLanguageToTemplateFormat(
+  templateLanguage: TemplateLanguage
+): PromptTemplateFormat {
+  switch (templateLanguage) {
+    case TemplateLanguages.Mustache:
+      return "MUSTACHE";
+    case TemplateLanguages.FString:
+      return "FSTRING";
+    case TemplateLanguages.NONE:
+      return "NONE";
+    default:
+      assertUnreachable(templateLanguage);
+  }
 }
