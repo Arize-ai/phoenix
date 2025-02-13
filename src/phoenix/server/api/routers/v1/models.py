@@ -39,4 +39,7 @@ class V1RoutesBaseModel(BaseModel):
     model_config = ConfigDict(
         json_encoders={datetime: datetime_encoder},
         validate_assignment=True,
+        protected_namespaces=tuple(
+            []
+        ),  # suppress warnings about protected namespaces starting with `model_` on pydantic 2.9
     )
