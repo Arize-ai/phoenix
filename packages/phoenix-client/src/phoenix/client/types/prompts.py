@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from collections import abc
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -126,7 +127,7 @@ class PromptVersion:
     def format(
         self,
         *,
-        variables: Mapping[str, str],
+        variables: Mapping[str, str] = MappingProxyType({}),
         formatter: Optional[TemplateFormatter] = None,
         sdk: Optional[SDK] = None,
     ) -> FormattedPrompt:
