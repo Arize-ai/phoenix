@@ -7,9 +7,7 @@ export const textPartSchema = schemaMatches<
 >()(
   z.object({
     type: z.literal("text"),
-    text: z.object({
-      text: z.string(),
-    }),
+    text: z.string(),
   })
 );
 
@@ -20,13 +18,11 @@ export const toolCallPartSchema = schemaMatches<
 >()(
   z.object({
     type: z.literal("tool_call"),
+    tool_call_id: z.string(),
     tool_call: z.object({
-      tool_call_id: z.string(),
-      tool_call: z.object({
-        type: z.literal("function"),
-        name: z.string(),
-        arguments: z.string(),
-      }),
+      type: z.literal("function"),
+      name: z.string(),
+      arguments: z.string(),
     }),
   })
 );
@@ -38,17 +34,15 @@ export const toolResultPartSchema = schemaMatches<
 >()(
   z.object({
     type: z.literal("tool_result"),
-    tool_result: z.object({
-      tool_call_id: z.string(),
-      result: z.union([
-        z.string(),
-        z.number(),
-        z.boolean(),
-        z.null(),
-        z.record(z.unknown()),
-        z.array(z.unknown()),
-      ]),
-    }),
+    tool_call_id: z.string(),
+    tool_result: z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.null(),
+      z.record(z.unknown()),
+      z.array(z.unknown()),
+    ]),
   })
 );
 

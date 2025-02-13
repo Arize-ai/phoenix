@@ -7,10 +7,8 @@ describe("formatPromptMessages", () => {
   it("should only format TextPart content", () => {
     const messages: PromptChatMessage[] = [
       {
-        role: "USER",
-        content: [
-          { type: "text", text: { text: "Hello {{name}}" } } as TextPart,
-        ],
+        role: "user",
+        content: [{ type: "text", text: "Hello {{name}}" } as TextPart],
       },
     ];
 
@@ -19,7 +17,7 @@ describe("formatPromptMessages", () => {
     });
     expect(formatted?.[0]?.content?.[0]).toEqual({
       type: "text",
-      text: { text: "Hello World" },
+      text: "Hello World",
     });
   });
 
@@ -27,8 +25,8 @@ describe("formatPromptMessages", () => {
     it("should replace single variable", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
-          content: [{ type: "text", text: { text: "Hello {{name}}" } }],
+          role: "user",
+          content: [{ type: "text", text: "Hello {{name}}" }],
         },
       ];
 
@@ -37,18 +35,18 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "Hello World" },
+        text: "Hello World",
       });
     });
 
     it("should replace multiple variables", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
+          role: "user",
           content: [
             {
               type: "text",
-              text: { text: "{{greeting}} there, {{name}}!" },
+              text: "{{greeting}} there, {{name}}!",
             },
           ],
         },
@@ -60,15 +58,15 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "Hello there, World!" },
+        text: "Hello there, World!",
       });
     });
 
     it("should replace multiple instances of same variable", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
-          content: [{ type: "text", text: { text: "{{name}}, {{name}}!" } }],
+          role: "user",
+          content: [{ type: "text", text: "{{name}}, {{name}}!" }],
         },
       ];
 
@@ -77,18 +75,18 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "World, World!" },
+        text: "World, World!",
       });
     });
 
     it("should handle escaped mustache syntax", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
+          role: "user",
           content: [
             {
               type: "text",
-              text: { text: "Hello {{name}}, use {{{escaped}}} {{name}}" },
+              text: "Hello {{name}}, use {{{escaped}}} {{name}}",
             },
           ],
         },
@@ -99,7 +97,7 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "Hello World, use {{{escaped}}} World" },
+        text: "Hello World, use {{{escaped}}} World",
       });
     });
   });
@@ -108,8 +106,8 @@ describe("formatPromptMessages", () => {
     it("should replace single variable", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
-          content: [{ type: "text", text: { text: "Hello {name}" } }],
+          role: "user",
+          content: [{ type: "text", text: "Hello {name}" }],
         },
       ];
 
@@ -118,17 +116,15 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "Hello World" },
+        text: "Hello World",
       });
     });
 
     it("should replace multiple variables", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
-          content: [
-            { type: "text", text: { text: "{greeting} there, {name}!" } },
-          ],
+          role: "user",
+          content: [{ type: "text", text: "{greeting} there, {name}!" }],
         },
       ];
 
@@ -138,15 +134,15 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "Hello there, World!" },
+        text: "Hello there, World!",
       });
     });
 
     it("should replace multiple instances of same variable", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
-          content: [{ type: "text", text: { text: "{name}, {name}!" } }],
+          role: "user",
+          content: [{ type: "text", text: "{name}, {name}!" }],
         },
       ];
 
@@ -155,18 +151,18 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "World, World!" },
+        text: "World, World!",
       });
     });
 
     it("should handle escaped fstring syntax", () => {
       const messages: PromptChatMessage[] = [
         {
-          role: "USER",
+          role: "user",
           content: [
             {
               type: "text",
-              text: { text: "Hello {name}, use {{escaped}} {name}" },
+              text: "Hello {name}, use {{escaped}} {name}",
             },
           ],
         },
@@ -177,7 +173,7 @@ describe("formatPromptMessages", () => {
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
-        text: { text: "Hello World, use {{escaped}} World" },
+        text: "Hello World, use {{escaped}} World",
       });
     });
   });
@@ -185,12 +181,12 @@ describe("formatPromptMessages", () => {
   it("should not modify text when format is NONE", () => {
     const messages: PromptChatMessage[] = [
       {
-        role: "USER",
-        content: [{ type: "text", text: { text: "Hello {name} {{name}}" } }],
+        role: "user",
+        content: [{ type: "text", text: "Hello {name} {{name}}" }],
       },
       {
-        role: "AI",
-        content: [{ type: "text", text: { text: "Hello {name} {{name}}" } }],
+        role: "ai",
+        content: [{ type: "text", text: "Hello {name} {{name}}" }],
       },
     ];
 
@@ -199,11 +195,11 @@ describe("formatPromptMessages", () => {
     });
     expect(formatted?.[0]?.content?.[0]).toEqual({
       type: "text",
-      text: { text: "Hello {name} {{name}}" },
+      text: "Hello {name} {{name}}",
     });
     expect(formatted?.[1]?.content?.[0]).toEqual({
       type: "text",
-      text: { text: "Hello {name} {{name}}" },
+      text: "Hello {name} {{name}}",
     });
   });
 });

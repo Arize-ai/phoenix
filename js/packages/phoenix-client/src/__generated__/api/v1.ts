@@ -680,15 +680,14 @@ export interface components {
         };
         /** PromptMessage */
         PromptMessage: {
-            role: components["schemas"]["PromptMessageRole"];
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
             /** Content */
-            content: (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+            content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
         };
-        /**
-         * PromptMessageRole
-         * @enum {string}
-         */
-        PromptMessageRole: "USER" | "SYSTEM" | "AI" | "TOOL";
         /** PromptOpenAIInvocationParameters */
         PromptOpenAIInvocationParameters: {
             /**
@@ -889,10 +888,6 @@ export interface components {
              * @enum {string}
              */
             type: "text";
-            text: components["schemas"]["TextContentValue"];
-        };
-        /** TextContentValue */
-        TextContentValue: {
             /** Text */
             text: string;
         };
@@ -903,19 +898,16 @@ export interface components {
              * @enum {string}
              */
             type: "tool_call";
-            tool_call: components["schemas"]["ToolCallContentValue"];
-        };
-        /** ToolCallContentValue */
-        ToolCallContentValue: {
             /** Tool Call Id */
             tool_call_id: string;
+            /** Tool Call */
             tool_call: components["schemas"]["ToolCallFunction"];
         };
         /** ToolCallFunction */
         ToolCallFunction: {
             /**
-             * Type
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             type: "function";
             /** Name */
@@ -930,14 +922,10 @@ export interface components {
              * @enum {string}
              */
             type: "tool_result";
-            tool_result: components["schemas"]["ToolResultContentValue"];
-        };
-        /** ToolResultContentValue */
-        ToolResultContentValue: {
             /** Tool Call Id */
             tool_call_id: string;
-            /** Result */
-            result: boolean | number | string | Record<string, unknown> | unknown[] | null;
+            /** Tool Result */
+            tool_result: boolean | number | string | Record<string, unknown> | unknown[] | null;
         };
         /** UploadDatasetData */
         UploadDatasetData: {

@@ -18,6 +18,7 @@ import { OpenAIResponseFormat } from "../openai/responseFormatSchema";
 import { phoenixToolDefinitionSchema } from "./toolSchemas";
 import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
 import { jsonSchemaZodSchema } from "../../jsonSchema";
+import { type } from "node:os";
 
 /*
  * Conversion Functions
@@ -33,7 +34,7 @@ export const phoenixMessagePartToOpenAI = phoenixContentPartSchema.transform(
       case "text":
         return {
           type: "text",
-          text: part.text.text,
+          text: part.text,
         } satisfies OpenAIChatPartText;
       case "tool_call":
         return null;
@@ -50,9 +51,13 @@ export const phoenixMessagePartToOpenAI = phoenixContentPartSchema.transform(
  */
 export const phoenixMessageToOpenAI = phoenixMessageSchema.transform(
   (prompt) => {
+    const content =
+      typeof prompt.content == "string"
+        ? [{ type: "text", text: prompt.content }]
+        : prompt.content;
     // Special handling for TOOL role messages
-    if (prompt.role === "TOOL") {
-      const toolResult = prompt.content
+    if (prompt.role === "tool") {
+      const toolResult = content
         .map((part) => asToolResultPart(part))
         .find((part): part is ToolResultPart => !!part);
 
@@ -63,47 +68,50 @@ export const phoenixMessageToOpenAI = phoenixMessageSchema.transform(
       return {
         role: "tool",
         content:
-          typeof toolResult.tool_result.result === "string"
-            ? toolResult.tool_result.result
-            : safelyStringifyJSON(toolResult.tool_result.result).json || "",
-        tool_call_id: toolResult.tool_result.tool_call_id,
+          typeof toolResult.tool_result === "string"
+            ? toolResult.tool_result
+            : safelyStringifyJSON(toolResult.tool_result).json || "",
+        tool_call_id: toolResult.tool_call_id,
       } satisfies OpenAIMessage;
     }
 
     // Handle other roles
     const role = prompt.role;
     switch (role) {
-      case "SYSTEM":
+      case "system":
+      case "developer":
         return {
           role: "system",
-          content: prompt.content
+          content: content
             .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
             ),
         } satisfies OpenAIMessage;
-      case "USER":
+      case "user":
         return {
           role: "user",
-          content: prompt.content
+          content: content
             .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
             ),
         } satisfies OpenAIMessage;
-      case "AI":
+      case "assistant":
+      case "ai":
+      case "model":
         return {
           role: "assistant",
-          content: prompt.content
+          content: content
             .map((part) => phoenixMessagePartToOpenAI.parse(part))
             .filter(
               (part): part is OpenAIChatPartText =>
                 part !== null && part.type === "text"
             ),
-          tool_calls: prompt.content.some((part) => part.type === "tool_call")
-            ? prompt.content
+          tool_calls: content.some((part) => part.type === "tool_call")
+            ? content
                 .filter(
                   (part): part is ToolCallPart => part.type === "tool_call"
                 )
@@ -132,14 +140,13 @@ export const phoenixResponseFormatToOpenAI =
 export const phoenixToolCallToOpenAI = phoenixToolCallSchema.transform(
   (prompt): OpenAIToolCall => ({
     type: "function",
-    id: prompt.tool_call.tool_call_id,
+    id: prompt.tool_call_id,
     function: {
-      ...prompt.tool_call.tool_call,
+      ...prompt.tool_call,
       arguments:
-        typeof prompt.tool_call.tool_call.arguments === "string"
-          ? prompt.tool_call.tool_call.arguments
-          : (safelyStringifyJSON(prompt.tool_call.tool_call.arguments).json ??
-            ""),
+        typeof prompt.tool_call.arguments === "string"
+          ? prompt.tool_call.arguments
+          : (safelyStringifyJSON(prompt.tool_call.arguments).json ?? ""),
     },
   })
 );
