@@ -24,7 +24,8 @@ export const extractVariables = ({
   const cur = tree.cursor();
   do {
     if (cur.name === "Variable") {
-      variables.push(text.slice(cur.node.from, cur.node.to));
+      const variable = text.slice(cur.node.from, cur.node.to).trim();
+      variables.push(variable);
     }
   } while (cur.next());
   return variables;
