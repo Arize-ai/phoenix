@@ -109,7 +109,7 @@
     "typescript": "~5.4.5",
     "vite": "^5.3.6",
     "vite-plugin-relay": "^2.1.0",
-    "vitest": "^2.1.2",
+    "vitest": "^2.1.9",
     "vitest-canvas-mock": "^0.3.3"
   },
   "scripts": {
