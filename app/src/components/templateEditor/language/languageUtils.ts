@@ -75,12 +75,12 @@ export const format = ({
   let cur = tree.cursor();
   do {
     if (cur.name === "Variable") {
-      // grab the content inside of the braces
-      const variable = result.slice(cur.node.from, cur.node.to);
+      // grab the content inside of the braces, ignoring whitespace
+      const variable = result.slice(cur.node.from, cur.node.to).trim();
       // grab the position of the content including the braces
       const Template = cur.node.parent!;
       if (variable in variables) {
-        // replace the content (including braces) with the variable value
+        // replace the content (including braces and whitespace) with the variable value
         result = `${result.slice(0, Template.from)}${variables[variable]}${result.slice(Template.to)}`;
         // reparse the result so that positions are updated
         tree = parser.parse(result);
