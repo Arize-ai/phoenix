@@ -52,8 +52,19 @@ class GoogleModelKwargs(_ToolKwargs, TypedDict, total=False):
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "create_prompt_version_from_google",
     "to_chat_messages_and_kwargs",
 ]
+
+
+def create_prompt_version_from_google(
+    obj: Any,
+    /,
+    *,
+    description: Optional[str] = None,
+    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+) -> v1.PromptVersionData:
+    raise NotImplementedError
 
 
 def to_chat_messages_and_kwargs(
@@ -78,9 +89,8 @@ def to_chat_messages_and_kwargs(
             else:
                 messages.extend(_ContentConversion.to_google(message, variables, formatter))
     elif template["type"] == "string":
-        text = formatter.format(template["template"], variables=variables)
-        messages.append(protos.Content(role="user", parts=[protos.Part(text=text)]))  # type: ignore[no-untyped-call]
-    elif TYPE_CHECKING:
+        raise NotImplementedError
+    else:
         assert_never(template)
     kwargs: GoogleModelKwargs = _to_model_kwargs(obj)
     if system_messages:

@@ -20,10 +20,7 @@ from typing import (
 from typing_extensions import Required, TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
-from phoenix.client.utils.template_formatters import (
-    TemplateFormatter,
-    to_formatter,
-)
+from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
 
 if TYPE_CHECKING:
     from anthropic._client import Anthropic
@@ -82,6 +79,7 @@ logger = logging.getLogger(__name__)
 
 
 __all__ = [
+    "create_prompt_version_from_anthropic",
     "to_chat_messages_and_kwargs",
 ]
 
@@ -122,9 +120,8 @@ def to_chat_messages_and_kwargs(
             else:
                 messages.extend(_MessageConversion.to_anthropic(message, variables, formatter))
     elif template["type"] == "string":
-        content = formatter.format(template["template"], variables=variables)
-        messages.append({"role": "user", "content": content})
-    elif TYPE_CHECKING:
+        raise NotImplementedError
+    else:
         assert_never(template)
     kwargs: AnthropicModelKwargs = _ModelKwargsConversion.to_anthropic(obj)
     if system_messages:

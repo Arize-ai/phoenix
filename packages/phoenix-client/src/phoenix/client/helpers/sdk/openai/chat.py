@@ -211,9 +211,8 @@ def _to_chat_completion_messages(
         for message in template["messages"]:
             yield from _MessageConversion.to_openai(message, variables, formatter)
     elif template["type"] == "string":
-        content = formatter.format(template["template"], variables=variables)
-        yield {"role": "user", "content": content}
-    elif TYPE_CHECKING:
+        raise NotImplementedError
+    else:
         assert_never(template)
 
 

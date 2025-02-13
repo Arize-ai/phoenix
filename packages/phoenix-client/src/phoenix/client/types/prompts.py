@@ -24,7 +24,10 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 from phoenix.client.helpers.sdk.anthropic.messages import (
     to_chat_messages_and_kwargs as to_messages_anthropic,
 )
-from phoenix.client.helpers.sdk.google_generativeai.generate_content import GoogleModelKwargs
+from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
+    GoogleModelKwargs,
+    create_prompt_version_from_google,
+)
 from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google,
 )
@@ -63,65 +66,46 @@ class PromptVersion:
 
     def __init__(
         self,
-        messages: Sequence[v1.PromptMessage],
+        prompt: Sequence[v1.PromptMessage],
+        /,
+        *,
         model_name: str,
         description: Optional[str] = None,
         model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = "OPENAI",
         template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-        tools: Optional[v1.PromptTools] = None,
-        response_format: Optional[v1.PromptResponseFormatJSONSchema] = None,
-        invocation_parameters: Optional[
-            Union[
-                v1.PromptOpenAIInvocationParameters,
-                v1.PromptAzureOpenAIInvocationParameters,
-                v1.PromptAnthropicInvocationParameters,
-                v1.PromptGeminiInvocationParameters,
-            ]
-        ] = None,
     ) -> None:
-        template = v1.PromptChatTemplate(messages=messages, type="chat")
+        self.template = v1.PromptChatTemplate(messages=prompt, type="chat")
+        self.template_type: Literal["CHAT"] = "CHAT"
         self.model_name = model_name
         self.model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = (
             model_provider
         )
-        self.template = template
         self.template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = template_format
-        self.template_type: Literal["CHAT"] = "CHAT"
-        self.tools: Optional[v1.PromptTools] = tools
-        self.response_format: Optional[v1.PromptResponseFormatJSONSchema] = response_format
         self.description = description
         if model_provider == "OPENAI":
-            if invocation_parameters is None:
-                invocation_parameters = v1.PromptOpenAIInvocationParameters(
-                    type="openai",
-                    openai=v1.PromptOpenAIInvocationParametersContent(),
-                )
-            assert invocation_parameters["type"] == "openai"
+            self.invocation_parameters = v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=v1.PromptOpenAIInvocationParametersContent(),
+            )
         elif model_provider == "AZURE_OPENAI":
-            if invocation_parameters is None:
-                invocation_parameters = v1.PromptAzureOpenAIInvocationParameters(
-                    type="azure_openai",
-                    azure_openai=v1.PromptAzureOpenAIInvocationParametersContent(),
-                )
-            assert invocation_parameters["type"] == "azure_openai"
+            self.invocation_parameters = v1.PromptAzureOpenAIInvocationParameters(
+                type="azure_openai",
+                azure_openai=v1.PromptAzureOpenAIInvocationParametersContent(),
+            )
         elif model_provider == "ANTHROPIC":
-            if invocation_parameters is None:
-                invocation_parameters = v1.PromptAnthropicInvocationParameters(
-                    type="anthropic",
-                    anthropic=v1.PromptAnthropicInvocationParametersContent(
-                        max_tokens=1000,
-                    ),
-                )
-            assert invocation_parameters["type"] == "anthropic"
+            self.invocation_parameters = v1.PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=v1.PromptAnthropicInvocationParametersContent(
+                    max_tokens=1000,
+                ),
+            )
         elif model_provider == "GEMINI":
-            if invocation_parameters is None:
-                invocation_parameters = v1.PromptGeminiInvocationParameters(
-                    type="gemini",
-                    gemini=v1.PromptGeminiInvocationParametersContent(),
-                )
-            assert invocation_parameters["type"] == "gemini"
-        assert invocation_parameters is not None
-        self.invocation_parameters = invocation_parameters
+            self.invocation_parameters = v1.PromptGeminiInvocationParameters(
+                type="gemini",
+                gemini=v1.PromptGeminiInvocationParametersContent(),
+            )
+        else:
+            assert_never(model_provider)
         self.id: Optional[str] = None
 
     def format(
@@ -167,13 +151,13 @@ class PromptVersion:
         assert obj["template"]["type"] == "chat"
         messages: Sequence[v1.PromptMessage] = obj["template"]["messages"]
         ans = cls(
-            messages=messages,
+            messages,
             model_name=obj["model_name"],
             description=obj.get("description"),
             model_provider=obj["model_provider"],
             template_format=obj["template_format"],
-            invocation_parameters=obj["invocation_parameters"],
         )
+        ans.invocation_parameters = obj["invocation_parameters"]
         if "tools" in obj:
             ans.tools = obj["tools"]
         if "response_format" in obj:
@@ -185,6 +169,7 @@ class PromptVersion:
     def dumps(
         self,
     ) -> v1.PromptVersionData:
+        assert self.template["type"] == "chat"
         ans = v1.PromptVersionData(
             model_provider=self.model_provider,
             model_name=self.model_name,
@@ -229,6 +214,23 @@ class PromptVersion:
     ) -> Self:
         return cls.loads(
             create_prompt_version_from_anthropic(
+                obj,
+                description=description,
+                template_format=template_format,
+            )
+        )
+
+    @classmethod
+    def from_google(
+        cls,
+        obj: Any,
+        /,
+        *,
+        template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        description: Optional[str] = None,
+    ) -> Self:
+        return cls.loads(
+            create_prompt_version_from_google(
                 obj,
                 description=description,
                 template_format=template_format,
