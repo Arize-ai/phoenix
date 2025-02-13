@@ -48,6 +48,8 @@ projects.push({
  */
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
+  // CI runs are slower and need a higher timeout.
+  timeout: process.env.CI ? 120_000 : 30000,
   testDir: "./tests",
   /* Run tests in files in parallel */
   fullyParallel: true,
