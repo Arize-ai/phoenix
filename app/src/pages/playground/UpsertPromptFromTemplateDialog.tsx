@@ -10,7 +10,10 @@ import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
 import { instanceToPromptVersion } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
-import { denormalizePlaygroundInstance } from "@phoenix/pages/playground/playgroundUtils";
+import {
+  convertTemplateLanguageToTemplateFormat,
+  denormalizePlaygroundInstance,
+} from "@phoenix/pages/playground/playgroundUtils";
 import {
   SavePromptForm,
   SavePromptSubmitHandler,
@@ -43,12 +46,9 @@ const getInstancePromptParamsFromStore = (
   if (!promptInput) {
     throw new Error(`Could not convert instance ${instanceId} to prompt`);
   }
-  const templateFormat: "FSTRING" | "MUSTACHE" | "NONE" =
-    state.templateLanguage === "F_STRING"
-      ? "FSTRING"
-      : state.templateLanguage === "MUSTACHE"
-        ? "MUSTACHE"
-        : "NONE";
+  const templateFormat = convertTemplateLanguageToTemplateFormat(
+    state.templateLanguage
+  );
   return {
     promptInput,
     templateFormat,

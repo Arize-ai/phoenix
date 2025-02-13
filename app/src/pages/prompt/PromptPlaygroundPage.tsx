@@ -8,9 +8,11 @@ import {
 } from "@phoenix/store";
 
 import { Playground } from "../playground/Playground";
+import { convertTemplateFormatToTemplateLanguage } from "../playground/playgroundUtils";
 
 export function PromptPlaygroundPage() {
-  const { instanceWithPrompt } = useLoaderData() as PromptPlaygroundLoaderData;
+  const { instanceWithPrompt, templateFormat } =
+    useLoaderData() as PromptPlaygroundLoaderData;
 
   // create a playground instance with the prompt details configured
   // When the playground component mounts and sees the prompt id in the instance,
@@ -24,9 +26,15 @@ export function PromptPlaygroundPage() {
       // we don't want default messages in the instance, just the prompt messages
       template: instanceWithPrompt.template,
     } satisfies PlaygroundInstance;
+    // If there is a template loaded, we default to that format
 
     return { instance };
   }, [instanceWithPrompt]);
 
-  return <Playground instances={[instance]} />;
+  return (
+    <Playground
+      instances={[instance]}
+      templateLanguage={convertTemplateFormatToTemplateLanguage(templateFormat)}
+    />
+  );
 }
