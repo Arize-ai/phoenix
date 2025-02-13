@@ -24,12 +24,21 @@ import {
 } from "./promptSchemas";
 import {
   anthropicToolCallSchema,
-  anthropicToolCallToOpenAI,
   openAIToolCallSchema,
   openAIToolCallToAnthropic,
 } from "./toolCallSchemas";
 
 type ModelProvider = keyof typeof ModelProviders;
+
+/**
+ * This file contains the schemas for the different message format SDKs.
+ *
+ * It is not used for playground validation / transformations.
+ *
+ * It is likely not complete, and may drift from the actual provider SDKs.
+ *
+ * @todo: Consider importing schemas from @arize-ai/phoenix-client
+ */
 
 /**
  * OpenAI Message Schemas
@@ -70,12 +79,13 @@ export const anthropicMessageRoleSchema = z.enum(["user", "assistant", "tool"]);
 
 export type AnthropicMessageRole = z.infer<typeof anthropicMessageRoleSchema>;
 
-export const anthropicBlockSchema = z.object({
+export const anthropicBlockSchema = anthropicToolCallSchema.extend({
   type: z.string(),
   text: z.string().optional(),
   id: z.string().optional(),
+  tool_use_id: z.string().optional(),
   name: z.string().optional(),
-  input: z.record(jsonLiteralSchema).optional(),
+  input: z.record(z.unknown()).optional(),
   source: z
     .object({
       type: z.string(),
@@ -85,14 +95,10 @@ export const anthropicBlockSchema = z.object({
     .optional(),
 });
 
-export const anthropicMessageSchema = z
-  .object({
-    role: anthropicMessageRoleSchema,
-    content: z.union([z.string(), z.array(anthropicBlockSchema)]),
-    tool_calls: z.array(anthropicToolCallSchema).optional(),
-    tool_call_id: z.string().optional(),
-  })
-  .passthrough();
+export const anthropicMessageSchema = z.object({
+  role: anthropicMessageRoleSchema,
+  content: z.union([z.string(), z.array(anthropicBlockSchema)]),
+});
 
 export type AnthropicMessage = z.infer<typeof anthropicMessageSchema>;
 
@@ -147,76 +153,37 @@ export const promptMessagesJSONSchema = zodToJsonSchema(promptMessagesSchema, {
 });
 
 /**
- * Conversion Functions
- *
- * These follow a hub-and-spoke model where OpenAI is the hub format.
- * All conversions between different formats go through OpenAI as an intermediate step.
- */
-
-/**
- * Spoke → Hub: Convert an Anthropic message to OpenAI format
- */
-export const anthropicMessageToOpenAI = anthropicMessageSchema.transform(
-  (anthropic): OpenAIMessage => {
-    const base: OpenAIMessage = {
-      role: anthropic.role as OpenAIMessageRole,
-      content: Array.isArray(anthropic.content)
-        ? anthropic.content
-            .filter((block) => block.type === "text" && block.text)
-            .map((block) => block.text!)
-            .join("\n")
-        : anthropic.content,
-    };
-
-    if (anthropic.tool_calls) {
-      return {
-        ...base,
-        tool_calls: anthropic.tool_calls.map((tc) =>
-          anthropicToolCallToOpenAI.parse(tc)
-        ),
-      };
-    }
-
-    if (anthropic.tool_call_id) {
-      return {
-        ...base,
-        tool_call_id: anthropic.tool_call_id,
-      };
-    }
-
-    return base;
-  }
-);
-
-/**
  * Hub → Spoke: Convert an OpenAI message to Anthropic format
  */
 export const openAIMessageToAnthropic = openAIMessageSchema.transform(
   (openai): AnthropicMessage => {
-    const base: AnthropicMessage = {
-      role:
-        openai.role === "system"
-          ? "user"
-          : (openai.role as AnthropicMessageRole),
+    const base = {
+      role: openai.role === "assistant" ? "assistant" : "user",
       content: openai.content ? [{ type: "text", text: openai.content }] : [],
-    };
+    } satisfies AnthropicMessage;
 
     if (openai.tool_calls) {
       return {
         ...base,
-        tool_calls: openai.tool_calls.map((tc) =>
-          openAIToolCallToAnthropic.parse(tc)
-        ),
+        content: [
+          ...base.content,
+          ...openai.tool_calls.map((tc) => openAIToolCallToAnthropic.parse(tc)),
+        ],
       };
     }
 
     if (openai.tool_call_id) {
       return {
         ...base,
-        tool_call_id: openai.tool_call_id,
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: openai.tool_call_id,
+            content: openai.content,
+          },
+        ],
       };
     }
-
     return base;
   }
 );
@@ -357,8 +324,6 @@ export const openAIMessageToPrompt = openAIMessageSchema.transform(
   }
 );
 
-type MessageProvider = ModelProvider | "UNKNOWN";
-
 type MessageWithProvider =
   | {
       provider: Extract<ModelProvider, "OPENAI" | "AZURE_OPENAI">;
@@ -398,29 +363,6 @@ export const detectMessageProvider = (
     };
   }
   return { provider: "UNKNOWN", validatedMessage: null };
-};
-
-/**
- * Convert from any message format to OpenAI format if possible
- */
-export const toOpenAIMessage = (
-  message: LlmProviderMessage
-): OpenAIMessage | null => {
-  const { provider, validatedMessage } = detectMessageProvider(message);
-  switch (provider as MessageProvider) {
-    case "AZURE_OPENAI":
-    case "OPENAI":
-      return validatedMessage as OpenAIMessage;
-    case "ANTHROPIC":
-      return anthropicMessageToOpenAI.parse(validatedMessage);
-    case "GEMINI":
-      // TODO: Add Gemini message support
-      return null;
-    case "UNKNOWN":
-      return null;
-  }
-  // This will never happen due to the exhaustive switch above
-  return assertUnreachable(provider as never);
 };
 
 /**
@@ -466,14 +408,6 @@ type ProviderToMessageMap = {
   // Use generic JSON type for unknown message formats / new providers
   GEMINI: JSONLiteral;
 };
-
-/**
- * Convert an Anthropic message to Prompt format via OpenAI
- */
-export const anthropicMessageToPrompt = anthropicMessageSchema.transform(
-  (anthropic): PromptMessage =>
-    openAIMessageToPrompt.parse(anthropicMessageToOpenAI.parse(anthropic))
-);
 
 /**
  * Convert a Prompt message to Anthropic format via OpenAI
