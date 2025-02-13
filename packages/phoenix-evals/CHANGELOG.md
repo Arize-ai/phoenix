@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.2...arize-phoenix-evals-v0.20.3) (2025-02-13)
+
+
+### Bug Fixes
+
+* o1-preview does not support developer role ([#6370](https://github.com/Arize-ai/phoenix/issues/6370)) ([9ea8651](https://github.com/Arize-ai/phoenix/commit/9ea8651b7734898a8b3050b335a759657ea18712))
+
 ## [0.20.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.1...arize-phoenix-evals-v0.20.2) (2025-02-06)
 
 
