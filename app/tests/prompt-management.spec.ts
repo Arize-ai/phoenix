@@ -50,7 +50,7 @@ test.describe("Prompt Management", () => {
     await page.getByRole("button", { name: "View Prompt" }).click();
 
     // Go to the prompt listing
-    await page.getByRole("link", { name: "Prompts" }).click();
+    await page.getByRole("link", { name: "Prompts", exact: true }).click();
     await page.waitForURL("**/prompts");
     await page.getByRole("link", { name: promptName }).click();
 
