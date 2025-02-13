@@ -1,6 +1,5 @@
 # Part of the Phoenix PromptHub feature set
-
-
+import json
 from typing import Annotated, Union
 
 import strawberry
@@ -13,66 +12,49 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.server.api.helpers.prompts.models import PromptMessage as PromptMessageModel
 from phoenix.server.api.helpers.prompts.models import (
+    PromptMessageRole,
+    PromptTemplateType,
+    RoleConversion,
+)
+from phoenix.server.api.helpers.prompts.models import (
     PromptStringTemplate as PromptStringTemplateModel,
 )
-from phoenix.server.api.helpers.prompts.models import (
-    PromptTemplateType,
-)
-from phoenix.server.api.helpers.prompts.models import TextContentPart as TextContentPartModel
-from phoenix.server.api.helpers.prompts.models import (
-    TextContentValue as TextContentValueModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    ToolCallContentPart as ToolCallContentPartModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    ToolCallContentValue as ToolCallContentValueModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    ToolCallFunction as ToolCallFunctionModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    ToolResultContentPart as ToolResultContentPartModel,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    ToolResultContentValue as ToolResultContentValueModel,
-)
 
 
-@strawberry.experimental.pydantic.type(TextContentValueModel, all_fields=True)
+@strawberry.type
 class TextContentValue:
-    pass
+    text: str
 
 
-@strawberry.experimental.pydantic.type(TextContentPartModel)
+@strawberry.type
 class TextContentPart:
     text: TextContentValue
 
 
-@strawberry.experimental.pydantic.type(ToolCallFunctionModel)
+@strawberry.type
 class ToolCallFunction:
-    name: strawberry.auto
-    arguments: strawberry.auto
+    name: str
+    arguments: str
 
 
-@strawberry.experimental.pydantic.type(ToolCallContentValueModel)
+@strawberry.type
 class ToolCallContentValue:
-    tool_call_id: strawberry.auto
+    tool_call_id: str
     tool_call: ToolCallFunction
 
 
-@strawberry.experimental.pydantic.type(ToolCallContentPartModel)
+@strawberry.type
 class ToolCallContentPart:
     tool_call: ToolCallContentValue
 
 
-@strawberry.experimental.pydantic.type(ToolResultContentValueModel)
+@strawberry.type
 class ToolResultContentValue:
-    tool_call_id: strawberry.auto
+    tool_call_id: str
     result: JSON
 
 
-@strawberry.experimental.pydantic.type(ToolResultContentPartModel)
+@strawberry.type
 class ToolResultContentPart:
     tool_result: ToolResultContentValue
 
@@ -83,9 +65,9 @@ ContentPart: TypeAlias = Annotated[
 ]
 
 
-@strawberry.experimental.pydantic.type(PromptMessageModel)
+@strawberry.type
 class PromptMessage:
-    role: strawberry.auto
+    role: PromptMessageRole
     content: list[ContentPart]
 
 
@@ -98,8 +80,44 @@ def to_gql_prompt_chat_template_from_orm(orm_model: "ORMPromptVersion") -> "Prom
     template = PromptChatTemplateModel.model_validate(orm_model.template)
     messages: list[PromptMessage] = []
     for msg in template.messages:
+        role = RoleConversion.to_gql(msg.role)
         if isinstance(msg, PromptMessageModel):
-            messages.append(PromptMessage(role=msg.role, content=msg.content))
+            if isinstance(msg.content, str):
+                messages.append(
+                    PromptMessage(
+                        role=role,
+                        content=[TextContentPart(text=TextContentValue(text=msg.content))],
+                    )
+                )
+                continue
+            content: list[ContentPart] = []
+            for part in msg.content:
+                if part.type == "text":
+                    content.append(TextContentPart(text=TextContentValue(text=part.text)))
+                elif part.type == "tool_call":
+                    content.append(
+                        ToolCallContentPart(
+                            tool_call=ToolCallContentValue(
+                                tool_call_id=part.tool_call_id,
+                                tool_call=ToolCallFunction(
+                                    name=part.tool_call.name,
+                                    arguments=part.tool_call.arguments,
+                                ),
+                            )
+                        )
+                    )
+                elif part.type == "tool_result":
+                    content.append(
+                        ToolResultContentPart(
+                            tool_result=ToolResultContentValue(
+                                tool_call_id=part.tool_call_id,
+                                result=json.dumps(part.tool_result),
+                            )
+                        )
+                    )
+                else:
+                    assert_never(part)
+            messages.append(PromptMessage(role=role, content=content))
         else:
             assert_never(msg)
     return PromptChatTemplate(messages=messages)

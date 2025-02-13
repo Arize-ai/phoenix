@@ -1,4 +1,5 @@
-from typing import Optional
+import json
+from typing import Optional, cast
 
 import strawberry
 from strawberry import UNSET
@@ -9,16 +10,13 @@ from phoenix.server.api.helpers.prompts.models import (
     ContentPart,
     PromptChatTemplate,
     PromptMessage,
+    PromptMessageRole,
     PromptTemplateFormat,
+    RoleConversion,
     TextContentPart,
-    TextContentValue,
     ToolCallContentPart,
-    ToolCallContentValue,
+    ToolCallFunction,
     ToolResultContentPart,
-    ToolResultContentValue,
-)
-from phoenix.server.api.helpers.prompts.models import (
-    PromptMessage as PromptMessageModel,
 )
 
 
@@ -32,14 +30,14 @@ class ResponseFormatInput:
     definition: JSON
 
 
-@strawberry.experimental.pydantic.input(TextContentValue)
+@strawberry.input
 class TextContentValueInput:
     text: str
 
 
-@strawberry.experimental.pydantic.input(ToolResultContentValue)
+@strawberry.input
 class ToolResultContentValueInput:
-    tool_call_id: strawberry.auto
+    tool_call_id: str
     result: JSON
 
 
@@ -50,9 +48,9 @@ class ToolCallFunctionInput:
     arguments: str
 
 
-@strawberry.experimental.pydantic.input(ToolCallContentValue)
+@strawberry.input
 class ToolCallContentValueInput:
-    tool_call_id: strawberry.auto
+    tool_call_id: str
     tool_call: ToolCallFunctionInput
 
 
@@ -63,10 +61,10 @@ class ContentPartInput:
     tool_result: Optional[ToolResultContentValueInput] = strawberry.UNSET
 
 
-@strawberry.experimental.pydantic.input(PromptMessageModel)
+@strawberry.input
 class PromptMessageInput:
     role: str
-    content: list[ContentPartInput] = strawberry.field(default_factory=list)
+    content: list[ContentPartInput]
 
 
 @strawberry.input
@@ -98,33 +96,38 @@ def to_pydantic_prompt_chat_template_v1(
 
 
 def to_pydantic_prompt_message(prompt_message_input: PromptMessageInput) -> PromptMessage:
+    content = [
+        to_pydantic_content_part(content_part) for content_part in prompt_message_input.content
+    ]
     return PromptMessage(
-        role=prompt_message_input.role,
-        content=[
-            to_pydantic_content_part(content_part) for content_part in prompt_message_input.content
-        ],
+        role=RoleConversion.from_gql(PromptMessageRole(prompt_message_input.role)),
+        content=content,
     )
 
 
 def to_pydantic_content_part(content_part_input: ContentPartInput) -> ContentPart:
-    content_part_cls: type[ContentPart]
     if content_part_input.text is not UNSET:
-        content_part_cls = TextContentPart
-        content_part_type = "text"
-    elif content_part_input.tool_call is not UNSET:
-        content_part_cls = ToolCallContentPart
-        content_part_type = "tool_call"
-    elif content_part_input.tool_result is not UNSET:
-        content_part_cls = ToolResultContentPart
-        content_part_type = "tool_result"
-    else:
-        raise ValueError("content part input has no content")
-    content_part_data = {
-        k: v for k, v in strawberry.asdict(content_part_input).items() if v is not UNSET
-    }
-    return content_part_cls.model_validate(
-        {
-            "type": content_part_type,
-            **content_part_data,
-        }
-    )
+        assert content_part_input.text is not None
+        return TextContentPart(
+            type="text",
+            text=content_part_input.text.text,
+        )
+    if content_part_input.tool_call is not UNSET:
+        assert content_part_input.tool_call is not None
+        return ToolCallContentPart(
+            type="tool_call",
+            tool_call_id=content_part_input.tool_call.tool_call_id,
+            tool_call=ToolCallFunction(
+                type="function",
+                name=content_part_input.tool_call.tool_call.name,
+                arguments=content_part_input.tool_call.tool_call.arguments,
+            ),
+        )
+    if content_part_input.tool_result is not UNSET:
+        assert content_part_input.tool_result is not None
+        return ToolResultContentPart(
+            type="tool_result",
+            tool_call_id=content_part_input.tool_result.tool_call_id,
+            tool_result=json.loads(cast(str, content_part_input.tool_result.result)),
+        )
+    raise ValueError("content part input has no content")

@@ -11,6 +11,7 @@ from typing import (
     Literal,
     Mapping,
     Optional,
+    Sequence,
     TypedDict,
     Union,
     overload,
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
         ContentBlock,
         DocumentBlockParam,
         ImageBlockParam,
+        MessageCreateParams,
         MessageParam,
         ModelParam,
         TextBlock,
@@ -67,7 +69,7 @@ class _ToolKwargs(TypedDict, total=False):
     tool_choice: ToolChoiceParam
 
 
-class _ModelKwargs(_ToolKwargs, TypedDict, total=False):
+class AnthropicModelKwargs(_ToolKwargs, TypedDict, total=False):
     max_tokens: Required[int]
     model: Required[ModelParam]
     stop_sequences: list[str]
@@ -84,13 +86,23 @@ __all__ = [
 ]
 
 
+def create_prompt_version_from_anthropic(
+    obj: MessageCreateParams,
+    /,
+    *,
+    description: Optional[str] = None,
+    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+) -> v1.PromptVersionData:
+    raise NotImplementedError
+
+
 def to_chat_messages_and_kwargs(
     obj: v1.PromptVersionData,
     /,
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-) -> tuple[list[MessageParam], _ModelKwargs]:
+) -> tuple[list[MessageParam], AnthropicModelKwargs]:
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
@@ -98,7 +110,10 @@ def to_chat_messages_and_kwargs(
     messages: list[MessageParam] = []
     if template["type"] == "chat":
         for message in template["messages"]:
-            if message["role"] == "SYSTEM":
+            if message["role"] == "system":
+                if isinstance(message["content"], str):
+                    system_messages.append(message["content"])
+                    continue
                 for block in _ContentConversion.to_anthropic(
                     message["content"], variables, formatter
                 ):
@@ -111,7 +126,7 @@ def to_chat_messages_and_kwargs(
         messages.append({"role": "user", "content": content})
     elif TYPE_CHECKING:
         assert_never(template)
-    kwargs: _ModelKwargs = _ModelKwargsConversion.to_anthropic(obj)
+    kwargs: AnthropicModelKwargs = _ModelKwargsConversion.to_anthropic(obj)
     if system_messages:
         if len(system_messages) == 1:
             kwargs["system"] = system_messages[0]
@@ -124,14 +139,14 @@ class _ModelKwargsConversion:
     @staticmethod
     def to_anthropic(
         obj: v1.PromptVersionData,
-    ) -> _ModelKwargs:
+    ) -> AnthropicModelKwargs:
         parameters: v1.PromptAnthropicInvocationParametersContent = (
             obj["invocation_parameters"]["anthropic"]
             if "invocation_parameters" in obj
             and obj["invocation_parameters"]["type"] == "anthropic"
             else {"max_tokens": 100}
         )
-        ans: _ModelKwargs = {
+        ans: AnthropicModelKwargs = {
             "max_tokens": parameters["max_tokens"],
             "model": obj["model_name"],
         }
@@ -299,8 +314,11 @@ class _MessageConversion:
         formatter: TemplateFormatter,
         /,
     ) -> Iterator[MessageParam]:
-        blocks = list(_ContentConversion.to_anthropic(obj["content"], variables, formatter))
         role = _RoleConversion.to_anthropic(obj)
+        if isinstance(obj["content"], str):
+            yield {"role": role, "content": formatter.format(obj["content"], variables=variables)}
+            return
+        blocks = list(_ContentConversion.to_anthropic(obj["content"], variables, formatter))
         if len(blocks) == 1 and blocks[0]["type"] == "text":
             yield {"role": role, "content": blocks[0]["text"]}
             return
@@ -323,22 +341,20 @@ class _TextContentPartConversion:
         formatter: TemplateFormatter,
         /,
     ) -> TextBlockParam:
-        text = formatter.format(obj["text"]["text"], variables=variables)
+        text = formatter.format(obj["text"], variables=variables)
         return {"type": "text", "text": text}
 
     @staticmethod
     def from_anthropic_block(
         obj: TextBlock,
     ) -> v1.TextContentPart:
-        text = v1.TextContentValue(text=obj.text)
-        return v1.TextContentPart(type="text", text=text)
+        return v1.TextContentPart(type="text", text=obj.text)
 
     @staticmethod
     def from_anthropic(
         obj: TextBlockParam,
     ) -> v1.TextContentPart:
-        text = v1.TextContentValue(text=obj["text"])
-        return v1.TextContentPart(type="text", text=text)
+        return v1.TextContentPart(type="text", text=obj["text"])
 
 
 class _ToolCallContentPartConversion:
@@ -349,8 +365,8 @@ class _ToolCallContentPartConversion:
         formatter: TemplateFormatter,
         /,
     ) -> ToolUseBlockParam:
-        id_ = obj["tool_call"]["tool_call_id"] if "tool_call_id" in obj["tool_call"] else ""
-        tool_call = obj["tool_call"]["tool_call"]
+        id_ = obj["tool_call_id"]
+        tool_call = obj["tool_call"]
         name = tool_call["name"]
         input_ = tool_call["arguments"] if "arguments" in tool_call else "{}"
         return {
@@ -371,13 +387,11 @@ class _ToolCallContentPartConversion:
         assert isinstance(arguments, str)
         return v1.ToolCallContentPart(
             type="tool_call",
-            tool_call=v1.ToolCallContentValue(
-                tool_call_id=obj.id,
-                tool_call=v1.ToolCallFunction(
-                    type="function",
-                    name=obj.name,
-                    arguments=arguments,
-                ),
+            tool_call_id=obj.id,
+            tool_call=v1.ToolCallFunction(
+                type="function",
+                name=obj.name,
+                arguments=arguments,
             ),
         )
 
@@ -392,13 +406,11 @@ class _ToolCallContentPartConversion:
         assert isinstance(arguments, str)
         return v1.ToolCallContentPart(
             type="tool_call",
-            tool_call=v1.ToolCallContentValue(
-                tool_call_id=obj["id"],
-                tool_call=v1.ToolCallFunction(
-                    type="function",
-                    name=obj["name"],
-                    arguments=arguments,
-                ),
+            tool_call_id=obj["id"],
+            tool_call=v1.ToolCallFunction(
+                type="function",
+                name=obj["name"],
+                arguments=arguments,
             ),
         )
 
@@ -411,36 +423,33 @@ class _ToolResultContentPartConversion:
         formatter: TemplateFormatter,
         /,
     ) -> ToolResultBlockParam:
-        id_ = obj["tool_result"]["tool_call_id"] if "tool_call_id" in obj["tool_result"] else ""
+        id_ = obj["tool_call_id"]
         param: ToolResultBlockParam = {
             "type": "tool_result",
             "tool_use_id": id_,
         }
-        if "result" in obj["tool_result"]:
-            param["content"] = str(obj["tool_result"]["result"])
+        param["content"] = _str_tool_result(obj["tool_result"])
         return param
 
     @staticmethod
     def from_anthropic(
         obj: ToolResultBlockParam,
     ) -> v1.ToolResultContentPart:
-        tool_result = v1.ToolResultContentValue(
+        ans = v1.ToolResultContentPart(
+            type="tool_result",
             tool_call_id=obj["tool_use_id"],
-            result=None,
+            tool_result=None,
         )
         if "content" in obj:
-            tool_result["result"] = str(obj["content"])
-        return v1.ToolResultContentPart(
-            type="tool_result",
-            tool_result=tool_result,
-        )
+            ans["tool_result"] = _str_tool_result(obj["content"])
+        return ans
 
 
 class _ContentConversion:
     @overload
     @staticmethod
     def to_anthropic(
-        parts: Iterable[_ContentPart],
+        parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
@@ -451,7 +460,7 @@ class _ContentConversion:
     @overload
     @staticmethod
     def to_anthropic(
-        parts: Iterable[_ContentPart],
+        parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
@@ -461,7 +470,7 @@ class _ContentConversion:
 
     @staticmethod
     def to_anthropic(
-        parts: Iterable[_ContentPart],
+        parts: Sequence[_ContentPart],
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
@@ -488,7 +497,7 @@ class _ContentConversion:
             return [
                 v1.TextContentPart(
                     type="text",
-                    text=v1.TextContentValue(text=obj),
+                    text=obj,
                 )
             ]
         content: list[_ContentPart] = []
@@ -524,13 +533,19 @@ class _RoleConversion:
         obj: v1.PromptMessage,
     ) -> Literal["user", "assistant"]:
         role = obj["role"]
-        if role == "USER":
+        if role == "user":
             return "user"
-        if role == "AI":
+        if role == "assistant":
             return "assistant"
-        if role == "SYSTEM":
+        if role == "model":
+            return "assistant"
+        if role == "ai":
+            return "assistant"
+        if role == "system":
             raise NotImplementedError
-        if role == "TOOL":
+        if role == "developer":
+            raise NotImplementedError
+        if role == "tool":
             return "user"
         if TYPE_CHECKING:
             assert_never(role)
@@ -539,17 +554,25 @@ class _RoleConversion:
     @staticmethod
     def from_anthropic(
         obj: MessageParam,
-    ) -> Literal["USER", "AI", "TOOL"]:
+    ) -> Literal["user", "assistant", "tool"]:
         if obj["role"] == "assistant":
-            return "AI"
+            return "assistant"
         if obj["role"] == "user":
             if isinstance(obj["content"], list):
                 for block in obj["content"]:
                     if isinstance(block, dict) and block["type"] == "tool_result":
-                        return "TOOL"
+                        return "tool"
                     else:
                         continue
-            return "USER"
+            return "user"
         if TYPE_CHECKING:
             assert_never(obj["role"])
         return obj["role"]
+
+
+def _str_tool_result(
+    obj: Any,
+) -> str:
+    if isinstance(obj, (dict, list)):
+        return json.dumps(obj)
+    return str(obj)

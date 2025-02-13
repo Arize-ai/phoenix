@@ -25,18 +25,16 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptFunctionTool,
     PromptMessage,
-    PromptMessageRole,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
+    PromptTemplateFormat,
+    PromptTemplateType,
     PromptTools,
     TextContentPart,
-    TextContentValue,
     ToolCallContentPart,
-    ToolCallContentValue,
     ToolCallFunction,
     ToolResultContentPart,
-    ToolResultContentValue,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
@@ -175,28 +173,25 @@ class TestPrompts:
                     type="chat",
                     messages=[
                         PromptMessage(
-                            role=PromptMessageRole.USER,
+                            role="user",
                             content=[
                                 TextContentPart(
                                     type="text",
-                                    text=TextContentValue(text="hi"),
+                                    text="hi",
                                 ),
                                 ToolCallContentPart(
                                     type="tool_call",
-                                    tool_call=ToolCallContentValue(
-                                        tool_call_id="1234",
-                                        tool_call=ToolCallFunction(
-                                            type="function",
-                                            name=token_hex(16),
-                                            arguments=token_hex(16),
-                                        ),
+                                    tool_call_id="1234",
+                                    tool_call=ToolCallFunction(
+                                        type="function",
+                                        name=token_hex(16),
+                                        arguments=token_hex(16),
                                     ),
                                 ),
                                 ToolResultContentPart(
                                     type="tool_result",
-                                    tool_result=ToolResultContentValue(
-                                        tool_call_id="1234", result={"foo": "bar"}
-                                    ),
+                                    tool_call_id="1234",
+                                    tool_result={"foo": "bar"},
                                 ),
                             ],
                         )
@@ -205,8 +200,8 @@ class TestPrompts:
                 prompt_versions.append(
                     models.PromptVersion(
                         prompt_id=prompt.id,
-                        template_type="CHAT",
-                        template_format="MUSTACHE",
+                        template_type=PromptTemplateType.CHAT,
+                        template_format=PromptTemplateFormat.MUSTACHE,
                         template=template,
                         invocation_parameters=PromptOpenAIInvocationParameters(
                             type="openai",

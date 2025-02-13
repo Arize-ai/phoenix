@@ -12,16 +12,14 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptAnthropicInvocationParametersContent,
     PromptChatTemplate,
     PromptMessage,
-    PromptMessageRole,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
+    PromptTemplateType,
     TextContentPart,
-    TextContentValue,
     ToolCallContentPart,
-    ToolCallContentValue,
     ToolCallFunction,
     ToolResultContentPart,
-    ToolResultContentValue,
     denormalize_response_format,
     denormalize_tools,
     get_raw_invocation_parameters,
@@ -41,29 +39,25 @@ async def test_chat_template_materializes_to_expected_format(
         type="chat",
         messages=[
             PromptMessage(
-                role=PromptMessageRole.USER,
+                role="user",
                 content=[
                     TextContentPart(
                         type="text",
-                        text=TextContentValue(text="foo"),
+                        text="foo",
                     ),
                     ToolCallContentPart(
                         type="tool_call",
-                        tool_call=ToolCallContentValue(
-                            tool_call_id="1234",
-                            tool_call=ToolCallFunction(
-                                type="function",
-                                name="tool-name",
-                                arguments="{}",
-                            ),
+                        tool_call_id="1234",
+                        tool_call=ToolCallFunction(
+                            type="function",
+                            name="tool-name",
+                            arguments="{}",
                         ),
                     ),
                     ToolResultContentPart(
                         type="tool_result",
-                        tool_result=ToolResultContentValue(
-                            tool_call_id="1234",
-                            result={"foo": "bar"},
-                        ),
+                        tool_call_id="1234",
+                        tool_result={"foo": "bar"},
                     ),
                 ],
             )
@@ -81,8 +75,8 @@ async def test_chat_template_materializes_to_expected_format(
             prompt=prompt,
             description=None,
             user_id=None,
-            template_type="CHAT",
-            template_format="MUSTACHE",
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=template,
             invocation_parameters=PromptAnthropicInvocationParameters(
                 type="anthropic",
@@ -112,32 +106,26 @@ async def test_chat_template_materializes_to_expected_format(
         "type": "chat",
         "messages": [
             {
-                "role": "USER",
+                "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": {
-                            "text": "foo",
-                        },
+                        "text": "foo",
                     },
                     {
                         "type": "tool_call",
+                        "tool_call_id": "1234",
                         "tool_call": {
-                            "tool_call_id": "1234",
-                            "tool_call": {
-                                "type": "function",
-                                "name": "tool-name",
-                                "arguments": "{}",
-                            },
+                            "type": "function",
+                            "name": "tool-name",
+                            "arguments": "{}",
                         },
                     },
                     {
                         "type": "tool_result",
+                        "tool_call_id": "1234",
                         "tool_result": {
-                            "tool_call_id": "1234",
-                            "result": {
-                                "foo": "bar",
-                            },
+                            "foo": "bar",
                         },
                     },
                 ],
@@ -314,8 +302,8 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             prompt=prompt,
             description=None,
             user_id=None,
-            template_type="CHAT",
-            template_format="MUSTACHE",
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
@@ -552,8 +540,8 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             prompt=prompt,
             description=None,
             user_id=None,
-            template_type="CHAT",
-            template_format="MUSTACHE",
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
@@ -831,8 +819,8 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
             prompt=prompt,
             description=None,
             user_id=None,
-            template_type="CHAT",
-            template_format="MUSTACHE",
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
@@ -951,8 +939,8 @@ async def test_invocation_parameters_are_round_tripped_without_data_loss(
             prompt=prompt,
             description=None,
             user_id=None,
-            template_type="CHAT",
-            template_format="MUSTACHE",
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
