@@ -14,7 +14,10 @@ export const promptPlaygroundLoader = async ({
     throw new Error("Prompt not found");
   }
 
-  return { instanceWithPrompt: response.instance };
+  return {
+    instanceWithPrompt: response.instance,
+    templateFormat: response.promptVersion.templateFormat,
+  };
 };
 
 export type PromptPlaygroundLoaderData = Awaited<
