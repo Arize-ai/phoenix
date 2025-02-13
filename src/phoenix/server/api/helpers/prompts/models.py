@@ -58,6 +58,7 @@ class PromptModel(BaseModel):
     model_config = ConfigDict(
         extra="forbid",  # disallow extra attributes
         use_enum_values=True,
+        validate_assignment=True,
     )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -68,40 +69,30 @@ class PromptModel(BaseModel):
         return super().model_dump(*args, exclude_unset=True, by_alias=True, **kwargs)
 
 
-class TextContentValue(BaseModel):
+class TextContentPart(PromptModel):
+    type: Literal["text"]
     text: str
 
 
-class TextContentPart(PromptModel):
-    type: Literal["text"]
-    text: TextContentValue
-
-
-class ToolCallFunction(BaseModel):
+class ToolCallFunction(PromptModel):
     type: Literal["function"]
     name: str
     arguments: str
 
 
-class ToolCallContentValue(BaseModel):
-    tool_call_id: str
-    tool_call: ToolCallFunction
-
-
 class ToolCallContentPart(PromptModel):
     type: Literal["tool_call"]
-    # the identifier of the tool call function
-    tool_call: ToolCallContentValue
-
-
-class ToolResultContentValue(BaseModel):
     tool_call_id: str
-    result: JSONSerializable
+    tool_call: Annotated[
+        ToolCallFunction,
+        Field(..., discriminator="type"),
+    ]
 
 
 class ToolResultContentPart(PromptModel):
     type: Literal["tool_result"]
-    tool_result: ToolResultContentValue
+    tool_call_id: str
+    tool_result: JSONSerializable
 
 
 ContentPart: TypeAlias = Annotated[
@@ -109,10 +100,44 @@ ContentPart: TypeAlias = Annotated[
     Field(..., discriminator="type"),
 ]
 
+Role: TypeAlias = Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
+
+
+class RoleConversion:
+    @staticmethod
+    def from_gql(role: PromptMessageRole) -> Role:
+        if role is PromptMessageRole.USER:
+            return "user"
+        if role is PromptMessageRole.AI:
+            return "ai"
+        if role is PromptMessageRole.TOOL:
+            return "tool"
+        if role is PromptMessageRole.SYSTEM:
+            return "system"
+        assert_never(role)
+
+    @staticmethod
+    def to_gql(role: Role) -> PromptMessageRole:
+        if role == "user":
+            return PromptMessageRole.USER
+        if role == "assistant":
+            return PromptMessageRole.AI
+        if role == "model":
+            return PromptMessageRole.AI
+        if role == "ai":
+            return PromptMessageRole.AI
+        if role == "tool":
+            return PromptMessageRole.TOOL
+        if role == "system":
+            return PromptMessageRole.SYSTEM
+        if role == "developer":
+            return PromptMessageRole.SYSTEM
+        assert_never(role)
+
 
 class PromptMessage(PromptModel):
-    role: PromptMessageRole
-    content: Annotated[list[ContentPart], Field(..., min_length=1)]
+    role: Role
+    content: Union[str, Annotated[list[ContentPart], Field(..., min_length=1)]]
 
 
 class PromptChatTemplate(PromptModel):

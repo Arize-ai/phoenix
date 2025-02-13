@@ -11,10 +11,13 @@ import { schemaMatches } from "../../../utils/schemaMatches";
  */
 
 export const phoenixMessageRoleSchema = z.enum([
-  "SYSTEM",
-  "USER",
-  "AI",
-  "TOOL",
+  "system",
+  "developer",
+  "user",
+  "assistant",
+  "model",
+  "ai",
+  "tool",
 ]);
 
 export type PhoenixMessageRole = z.infer<typeof phoenixMessageRoleSchema>;
@@ -22,7 +25,7 @@ export type PhoenixMessageRole = z.infer<typeof phoenixMessageRoleSchema>;
 export const phoenixMessageSchema = schemaMatches<PromptChatMessage>()(
   z.object({
     role: phoenixMessageRoleSchema,
-    content: phoenixContentPartSchema.array(),
+    content: z.union([z.string(), phoenixContentPartSchema.array()]),
   })
 );
 

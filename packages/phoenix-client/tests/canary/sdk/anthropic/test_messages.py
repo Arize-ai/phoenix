@@ -115,10 +115,10 @@ class TestTextConversion:
         assert not DeepDiff(obj, new_obj)
 
     def test_formatter(self) -> None:
-        x = v1.TextContentPart(type="text", text=v1.TextContentValue(text=_str()))
+        x = v1.TextContentPart(type="text", text=_str())
         formatter, variables = _MockFormatter(), _dict()
         ans: TextBlockParam = _TextContentPartConversion.to_anthropic(x, variables, formatter)
-        assert ans["text"] == formatter.format(x["text"]["text"], variables=variables)
+        assert ans["text"] == formatter.format(x["text"], variables=variables)
 
 
 class TestToolCallConversion:

@@ -209,8 +209,9 @@ class SpanAnnotationResult(TypedDict):
     explanation: NotRequired[str]
 
 
-class TextContentValue(TypedDict):
+class TextContentPart(TypedDict):
     text: str
+    type: Literal["text"]
 
 
 class ToolCallFunction(TypedDict):
@@ -219,9 +220,10 @@ class ToolCallFunction(TypedDict):
     type: Literal["function"]
 
 
-class ToolResultContentValue(TypedDict):
+class ToolResultContentPart(TypedDict):
     tool_call_id: str
-    result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
+    tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
+    type: Literal["tool_result"]
 
 
 class UploadDatasetData(TypedDict):
@@ -282,33 +284,21 @@ class SpanAnnotation(TypedDict):
     metadata: NotRequired[Mapping[str, Any]]
 
 
-class TextContentPart(TypedDict):
-    text: TextContentValue
-    type: Literal["text"]
-
-
-class ToolCallContentValue(TypedDict):
+class ToolCallContentPart(TypedDict):
     tool_call_id: str
     tool_call: ToolCallFunction
-
-
-class ToolResultContentPart(TypedDict):
-    tool_result: ToolResultContentValue
-    type: Literal["tool_result"]
+    type: Literal["tool_call"]
 
 
 class AnnotateSpansRequestBody(TypedDict):
     data: Sequence[SpanAnnotation]
 
 
-class ToolCallContentPart(TypedDict):
-    tool_call: ToolCallContentValue
-    type: Literal["tool_call"]
-
-
 class PromptMessage(TypedDict):
-    role: Literal["USER", "SYSTEM", "AI", "TOOL"]
-    content: Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+    role: Literal["user", "assistant", "model", "ai", "tool", "system", "developer"]
+    content: Union[
+        str, Sequence[Union[TextContentPart, ToolCallContentPart, ToolResultContentPart]]
+    ]
 
 
 class PromptChatTemplate(TypedDict):

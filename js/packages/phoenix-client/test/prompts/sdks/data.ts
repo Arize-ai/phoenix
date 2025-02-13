@@ -11,8 +11,8 @@ export const BASE_MOCK_PROMPT_VERSION = {
     type: "chat",
     messages: [
       {
-        role: "USER",
-        content: [{ type: "text", text: { text: "Hello" } }],
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
       },
     ],
   },
