@@ -760,13 +760,13 @@ class Client(TraceDataExtractor):
             raise
         data = response.json()["data"]
         dataset_id = data["dataset_id"]
-        url = f"v1/datasets/{dataset_id}/examples"
-        response = self._client.get(url)
+        path = f"v1/datasets/{dataset_id}/examples"
+        response = self._client.get(path)
         response.raise_for_status()
         data = response.json()["data"]
         version_id = data["version_id"]
         examples = data["examples"]
-        examples_url = urljoin(self.web_url, url)
+        examples_url = urljoin(self.web_url, path)
         print(f"💾 Examples uploaded: {examples_url}")
         print(f"🗄️ Dataset version ID: {version_id}")
 
