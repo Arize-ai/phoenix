@@ -2517,32 +2517,49 @@
       "PromptMessage": {
         "properties": {
           "role": {
-            "$ref": "#/components/schemas/PromptMessageRole"
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "model",
+              "ai",
+              "tool",
+              "system",
+              "developer"
+            ],
+            "title": "Role"
           },
           "content": {
-            "items": {
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/TextContentPart"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/TextContentPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ToolCallContentPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ToolResultContentPart"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "text": "#/components/schemas/TextContentPart",
+                      "tool_call": "#/components/schemas/ToolCallContentPart",
+                      "tool_result": "#/components/schemas/ToolResultContentPart"
+                    }
+                  }
                 },
-                {
-                  "$ref": "#/components/schemas/ToolCallContentPart"
-                },
-                {
-                  "$ref": "#/components/schemas/ToolResultContentPart"
-                }
-              ],
-              "discriminator": {
-                "propertyName": "type",
-                "mapping": {
-                  "text": "#/components/schemas/TextContentPart",
-                  "tool_call": "#/components/schemas/ToolCallContentPart",
-                  "tool_result": "#/components/schemas/ToolResultContentPart"
-                }
+                "type": "array",
+                "minItems": 1
               }
-            },
-            "type": "array",
-            "minItems": 1,
+            ],
             "title": "Content"
           }
         },
@@ -2553,16 +2570,6 @@
           "content"
         ],
         "title": "PromptMessage"
-      },
-      "PromptMessageRole": {
-        "type": "string",
-        "enum": [
-          "USER",
-          "SYSTEM",
-          "AI",
-          "TOOL"
-        ],
-        "title": "PromptMessageRole"
       },
       "PromptOpenAIInvocationParameters": {
         "properties": {
@@ -3167,7 +3174,8 @@
             "title": "Type"
           },
           "text": {
-            "$ref": "#/components/schemas/TextContentValue"
+            "type": "string",
+            "title": "Text"
           }
         },
         "additionalProperties": false,
@@ -3178,19 +3186,6 @@
         ],
         "title": "TextContentPart"
       },
-      "TextContentValue": {
-        "properties": {
-          "text": {
-            "type": "string",
-            "title": "Text"
-          }
-        },
-        "type": "object",
-        "required": [
-          "text"
-        ],
-        "title": "TextContentValue"
-      },
       "ToolCallContentPart": {
         "properties": {
           "type": {
@@ -3198,34 +3193,33 @@
             "const": "tool_call",
             "title": "Type"
           },
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id"
+          },
           "tool_call": {
-            "$ref": "#/components/schemas/ToolCallContentValue"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ToolCallFunction"
+              }
+            ],
+            "title": "Tool Call",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "function": "#/components/schemas/ToolCallFunction"
+              }
+            }
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
-          "tool_call"
-        ],
-        "title": "ToolCallContentPart"
-      },
-      "ToolCallContentValue": {
-        "properties": {
-          "tool_call_id": {
-            "type": "string",
-            "title": "Tool Call Id"
-          },
-          "tool_call": {
-            "$ref": "#/components/schemas/ToolCallFunction"
-          }
-        },
-        "type": "object",
-        "required": [
           "tool_call_id",
           "tool_call"
         ],
-        "title": "ToolCallContentValue"
+        "title": "ToolCallContentPart"
       },
       "ToolCallFunction": {
         "properties": {
@@ -3243,6 +3237,7 @@
             "title": "Arguments"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
@@ -3258,25 +3253,11 @@
             "const": "tool_result",
             "title": "Type"
           },
-          "tool_result": {
-            "$ref": "#/components/schemas/ToolResultContentValue"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "tool_result"
-        ],
-        "title": "ToolResultContentPart"
-      },
-      "ToolResultContentValue": {
-        "properties": {
           "tool_call_id": {
             "type": "string",
             "title": "Tool Call Id"
           },
-          "result": {
+          "tool_result": {
             "anyOf": [
               {
                 "type": "boolean"
@@ -3301,15 +3282,17 @@
                 "type": "null"
               }
             ],
-            "title": "Result"
+            "title": "Tool Result"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
+          "type",
           "tool_call_id",
-          "result"
+          "tool_result"
         ],
-        "title": "ToolResultContentValue"
+        "title": "ToolResultContentPart"
       },
       "UploadDatasetData": {
         "properties": {

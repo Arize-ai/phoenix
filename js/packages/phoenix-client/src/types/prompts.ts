@@ -89,10 +89,10 @@ export type PromptChatMessage = Extract<
 /**
  * Extracts the chat message part type from the prompt chat message.
  */
-export type PromptChatMessagePart = Extract<
-  PromptChatMessage,
-  { content: unknown[] }
->["content"][number];
+export type PromptChatMessagePart =
+  | components["schemas"]["TextContentPart"]
+  | components["schemas"]["ToolCallContentPart"]
+  | components["schemas"]["ToolResultContentPart"];
 
 /**
  * The Phoenix prompt tool type from the API.

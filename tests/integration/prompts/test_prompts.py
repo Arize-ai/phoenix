@@ -24,8 +24,7 @@ from openai.types.chat import (
     ChatCompletionToolParam,
 )
 from openai.types.shared_params import ResponseFormatJSONSchema
-from phoenix.client.__generated__ import v1
-from phoenix.client.utils import to_chat_messages_and_kwargs
+from phoenix.client.types import PromptVersion
 from pydantic import BaseModel, create_model
 
 from ...__generated__.graphql import (
@@ -52,7 +51,7 @@ class TestUserMessage:
         x = token_hex(4)
         expected = [{"role": "user", "content": f"hello {x}"}]
         prompt = _create_chat_prompt(u, template_format="FSTRING")
-        messages, _ = to_chat_messages_and_kwargs(prompt, variables={"x": x})
+        messages = prompt.format(variables={"x": x}).messages
         assert not DeepDiff(expected, messages)
         _can_recreate_under_new_identifier(prompt)
 
@@ -90,7 +89,7 @@ class TestTools:
         }
         tools = [ToolDefinitionInput(definition=dict(v)) for v in expected.values()]
         prompt = _create_chat_prompt(u, tools=tools)
-        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        kwargs = prompt.format().kwargs
         assert "tools" in kwargs
         actual: dict[str, ChatCompletionToolParam] = {
             t["function"]["name"]: t
@@ -128,7 +127,7 @@ class TestTools:
             model_provider="ANTHROPIC",
             invocation_parameters={"max_tokens": 1024},
         )
-        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        kwargs = prompt.format().kwargs
         assert "tools" in kwargs
         actual = {t["name"]: t for t in cast(Iterable[ToolParam], kwargs["tools"])}
         assert not DeepDiff(expected, actual)
@@ -161,7 +160,7 @@ class TestToolChoice:
         ]
         invocation_parameters = {"tool_choice": expected}
         prompt = _create_chat_prompt(u, tools=tools, invocation_parameters=invocation_parameters)
-        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        kwargs = prompt.format().kwargs
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
@@ -196,7 +195,7 @@ class TestToolChoice:
             invocation_parameters=invocation_parameters,
             model_provider="ANTHROPIC",
         )
-        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        kwargs = prompt.format().kwargs
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
@@ -247,26 +246,26 @@ class TestResponseFormat:
         expected = cast(ResponseFormatJSONSchema, type_to_response_format_param(type_))
         response_format = ResponseFormatInput(definition=dict(expected))
         prompt = _create_chat_prompt(u, response_format=response_format)
-        _, kwargs = to_chat_messages_and_kwargs(prompt)
+        kwargs = prompt.format().kwargs
         assert "response_format" in kwargs
         actual = kwargs["response_format"]
         assert not DeepDiff(expected, actual)
         _can_recreate_under_new_identifier(prompt)
 
 
-def _can_recreate_under_new_identifier(version: v1.PromptVersion) -> None:
+def _can_recreate_under_new_identifier(version: PromptVersion) -> None:
     new_name = token_hex(8)
     a = px.Client().prompts.create(name=new_name, version=version)
-    assert version["id"] != a["id"]
-    expected = {**version, "id": ""}
-    assert not DeepDiff(expected, {**a, "id": ""})
+    assert version.id != a.id
+    expected = version.dumps()
+    assert not DeepDiff(expected, a.dumps())
     b = px.Client().prompts.get(prompt_identifier=new_name)
-    assert a["id"] == b["id"]
-    assert not DeepDiff(expected, {**b, "id": ""})
+    assert a.id == b.id
+    assert not DeepDiff(expected, b.dumps())
     same_name = new_name
     c = px.Client().prompts.create(name=same_name, version=version)
-    assert a["id"] != c["id"]
-    assert not DeepDiff(expected, {**c, "id": ""})
+    assert a.id != c.id
+    assert not DeepDiff(expected, c.dumps())
 
 
 def _create_chat_prompt(
@@ -274,13 +273,13 @@ def _create_chat_prompt(
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
-    model_provider: str = "OPENAI",
+    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"] = "OPENAI",
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
     invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
     template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "NONE",
-) -> v1.PromptVersion:
+) -> PromptVersion:
     messages = list(messages) or [
         PromptMessageInput(
             role="USER",

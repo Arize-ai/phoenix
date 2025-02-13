@@ -9,7 +9,7 @@ from faker import Faker
 from google.generativeai import protos
 from google.generativeai.types import content_types
 
-from phoenix.client.__generated__.v1 import TextContentPart, TextContentValue
+from phoenix.client.__generated__.v1 import TextContentPart
 from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     _ContentConversion,
     _FunctionDeclarationConversion,
@@ -59,10 +59,10 @@ class TestTextPartConversion:
         )
 
     def test_formatter(self) -> None:
-        obj = TextContentPart(type="text", text=TextContentValue(text=token_hex(8)))
+        obj = TextContentPart(type="text", text=token_hex(8))
         formatter, variables = _MockFormatter(), _dict()
         part: protos.Part = _TextContentPartConversion.to_google(obj, variables, formatter)
-        assert part.text == formatter.format(obj["text"]["text"], variables=variables)
+        assert part.text == formatter.format(obj["text"], variables=variables)
 
 
 def _f(a: int, b: list[float], c: str, d: list[bool], e: dict[str, Any]) -> int:
