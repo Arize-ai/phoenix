@@ -58,7 +58,7 @@ export const TemplateEditor = ({
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
-    const ext: TemplateEditorProps["extensions"] = baseExtensions;
+    const ext: TemplateEditorProps["extensions"] = [...baseExtensions];
     switch (templateLanguage) {
       case TemplateLanguages.FString:
         ext.push(FStringTemplating());
