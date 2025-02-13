@@ -36,8 +36,6 @@ type ModelProvider = keyof typeof ModelProviders;
  * It is not used for playground validation / transformations.
  *
  * It is likely not complete, and may drift from the actual provider SDKs.
- *
- * @todo: Consider importing schemas from @arize-ai/phoenix-client
  */
 
 /**
@@ -79,7 +77,12 @@ export const anthropicMessageRoleSchema = z.enum(["user", "assistant", "tool"]);
 
 export type AnthropicMessageRole = z.infer<typeof anthropicMessageRoleSchema>;
 
-export const anthropicBlockSchema = anthropicToolCallSchema.extend({
+/**
+ * Object that represents all possible Anthropic message block type schemas
+ *
+ * @todo use discriminated union instead of including all properties as optional
+ */
+export const anthropicMessageBlockSchema = anthropicToolCallSchema.extend({
   type: z.string(),
   text: z.string().optional(),
   id: z.string().optional(),
@@ -97,7 +100,7 @@ export const anthropicBlockSchema = anthropicToolCallSchema.extend({
 
 export const anthropicMessageSchema = z.object({
   role: anthropicMessageRoleSchema,
-  content: z.union([z.string(), z.array(anthropicBlockSchema)]),
+  content: z.union([z.string(), z.array(anthropicMessageBlockSchema)]),
 });
 
 export type AnthropicMessage = z.infer<typeof anthropicMessageSchema>;
