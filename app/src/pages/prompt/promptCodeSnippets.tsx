@@ -6,6 +6,7 @@ import {
   OpenAIMessage,
   promptMessageToOpenAI,
 } from "@phoenix/schemas/messageSchemas";
+import { isObject } from "@phoenix/typeUtils";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
 
@@ -203,7 +204,13 @@ const preparePromptData = (
       ([key, value]) =>
         typeof value === "string"
           ? `${key}${assignmentOperator}${stringQuote}${value}${stringQuote}`
-          : `${key}${assignmentOperator}${value}`
+          : isObject(value)
+            ? `${key}${assignmentOperator}${jsonFormatter({
+                json: value,
+                level: 1,
+                removeKeyQuotes,
+              })}`
+            : `${key}${assignmentOperator}${value}`
     );
     args.push(...invocationArgs);
   }
