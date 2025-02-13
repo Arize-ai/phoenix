@@ -66,9 +66,9 @@ describe("promptCodeSnippets", () => {
         const prompt = {
           ...BASE_MOCK_PROMPT_VERSION,
           invocationParameters: {
-            toolChoice: JSON.stringify({
+            toolChoice: {
               type: "auto",
-            }),
+            },
           },
           tools: [{ definition: ANTHROPIC_TOOL }],
           modelProvider: "ANTHROPIC",
@@ -153,7 +153,9 @@ describe("promptCodeSnippets", () => {
 
           const response = await client.messages.create({
             model: "claude-3-sonnet-latest",
-            toolChoice: "{"type":"auto"}",
+            toolChoice: {
+              type: "auto"
+            },
             messages,
             tools: [
               {
@@ -278,9 +280,9 @@ describe("promptCodeSnippets", () => {
         const prompt = {
           ...BASE_MOCK_PROMPT_VERSION,
           invocationParameters: {
-            toolChoice: JSON.stringify({
+            toolChoice: {
               type: "auto",
-            }),
+            },
           },
           tools: [{ definition: ANTHROPIC_TOOL }],
           modelProvider: "ANTHROPIC",
@@ -365,7 +367,9 @@ describe("promptCodeSnippets", () => {
 
           completion = client.messages.create(
             model="claude-3-sonnet-latest",
-            toolChoice="{"type":"auto"}",
+            toolChoice={
+              "type": "auto"
+            },
             messages=messages,
             tools=[
               {
