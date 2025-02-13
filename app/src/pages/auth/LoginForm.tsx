@@ -90,6 +90,7 @@ export function LoginForm(props: LoginFormProps) {
                 type="email"
                 onChange={onChange}
                 value={value}
+                autoComplete="email"
               >
                 <Label>Email</Label>
                 <Input placeholder="your email address" />
@@ -123,6 +124,7 @@ export function LoginForm(props: LoginFormProps) {
                       handleSubmit(onSubmit)();
                     }
                   }}
+                  autoComplete="password"
                 >
                   <Label>Password</Label>
                   <Input placeholder="your password" />

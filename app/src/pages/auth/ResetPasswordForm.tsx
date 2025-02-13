@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { graphql, useMutation } from "react-relay";
+import { graphql, useFragment, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
@@ -13,11 +13,13 @@ import {
   Label,
   Text,
   TextField,
+  VisuallyHidden,
 } from "@phoenix/components";
 import { useNotifyError } from "@phoenix/contexts";
 import { createRedirectUrlWithReturn } from "@phoenix/utils/routingUtils";
 
 import { ResetPasswordFormMutation } from "./__generated__/ResetPasswordFormMutation.graphql";
+import { ResetPasswordFormQuery$key } from "./__generated__/ResetPasswordFormQuery.graphql";
 
 const MIN_PASSWORD_LENGTH = 4;
 
@@ -27,9 +29,21 @@ export type ResetPasswordFormParams = {
   confirmPassword: string;
 };
 
-export function ResetPasswordForm() {
+export function ResetPasswordForm(props: {
+  query: ResetPasswordFormQuery$key;
+}) {
   const navigate = useNavigate();
   const notifyError = useNotifyError();
+  const data = useFragment(
+    graphql`
+      fragment ResetPasswordFormQuery on Query {
+        viewer {
+          email
+        }
+      }
+    `,
+    props.query
+  );
   const [commit, isCommitting] = useMutation<ResetPasswordFormMutation>(graphql`
     mutation ResetPasswordFormMutation($input: PatchViewerInput!) {
       patchViewer(input: $input) {
@@ -73,6 +87,19 @@ export function ResetPasswordForm() {
   );
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
+      <VisuallyHidden>
+        <TextField
+          name="email"
+          type="email"
+          autoComplete="email"
+          isRequired
+          isReadOnly
+          value={data.viewer?.email}
+        >
+          <Label>Email</Label>
+          <Input />
+        </TextField>
+      </VisuallyHidden>
       <Controller
         name="currentPassword"
         control={control}
@@ -168,6 +195,7 @@ export function ResetPasswordForm() {
             onChange={onChange}
             onBlur={onBlur}
             defaultValue={value}
+            autoComplete="new-password"
           >
             <Label>Confirm Password</Label>
             <Input />
