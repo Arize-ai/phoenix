@@ -1,16 +1,18 @@
 # Create a prompt
 
-Navigate to the **Prompts** in the navigation and click the add prompt button on the top right. This will navigate you to the Playground.&#x20;
+Prompts with Phoenix can be created usig the playground as well as via the phoenix-clients.
 
-## Compose a prompt
+## Using the Playground
+
+Navigate to the **Prompts** in the navigation and click the add prompt button on the top right. This will navigate you to the Playground.&#x20;
 
 The playground is like the IDE where you will develop your prompt. The prompt section on the right lets you add more messages, change the template format (f-string or mustache), and an output schema (JSON mode).
 
+### Compose a prompt
+
 To the right you can enter sample inputs for your prompt variables and run your prompt against a model. Make sure that you have an API key set for the LLM provider of your choosing.
 
-
-
-## Save the prompt
+### Save the prompt
 
 To save the prompt, click the save button in the header of the prompt on the right. Name the prompt using alpha numeric characters (e.x. \`my-first-prompt\`) with no spaces. \
 \
@@ -18,7 +20,7 @@ The model configuration you selected in the Playground will be saved with the pr
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/create_prompt.png" alt=""><figcaption><p>Once you are satisfied with your prompt in the playground, you can name it and save it</p></figcaption></figure>
 
-## View your prompts
+### View your prompts
 
 You just created your first prompt in Phoenix! You can view and search for prompts by navigating to Prompts in the UI.&#x20;
 
@@ -34,11 +36,11 @@ To view the details of a prompt, click on the prompt name. You will be taken to 
 
 
 
-## Making edits to a prompt
+### Making edits to a prompt
 
 Once you've crated a prompt, you probably need to make teaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](../concepts-prompts.md#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
 
-### Editing a prompt in the playground
+#### Editing a prompt in the playground
 
 To make edits to a prompt, click on the edit in playground on the top right of the prompt details view.
 
@@ -46,9 +48,7 @@ To make edits to a prompt, click on the edit in playground on the top right of t
 
 When you are happy with your prompt, click save. You will be asked to provide a description of the changes you made to the prompt. This description will show up in the history of the prompt for others to understand what you did.
 
-
-
-### Cloning a prompt
+#### Cloning a prompt
 
 In some cases, you may need to modify a prompt without altering its original version. To achieve this, you can **clone** a prompt, similar to forking a repository in Git.
 
@@ -56,11 +56,20 @@ Cloning a prompt allows you to experiment with changes while preserving the hist
 
 This approach ensures that your edits are flexible and reversible, preventing unintended modifications to the original prompt.
 
-
-
-## Adding labels and metadata
+### Adding labels and metadata
 
 :construction: Prompt labels and metadata is still [under construction.](https://github.com/Arize-ai/phoenix/issues/6290)
+
+
+
+## Using the Phoenix Client
+
+Starting with prompts, Phoenix has a dedicated client that lets you programmatically. Make sure you have installed the appropriate phoenix-client before proceeding.\
+
+
+{% hint style="info" %}
+phoenix-client is very early in it's development and may not have every feautere you might be looling for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/phoenix/issues)
+{% endhint %}
 
 
 
