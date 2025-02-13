@@ -18,7 +18,7 @@ In your Python, Jupyter, or Colab environment, run the following command to inst
 pip install arize-phoenix
 ```
 
-For full details on how to run phoenix in various environments such as Databricks, consult our [environments guide.](deployment/environments.md)
+For full details on how to run phoenix in various environments such as Databricks, consult our [environments guide.](environments.md)
 {% endtab %}
 
 {% tab title="conda" %}
@@ -34,11 +34,11 @@ Phoenix can also run via a container. The image can be found at:
 Images for phoenix are published to dockerhub
 {% endembed %}
 
-Checkout the [environments section](deployment/environments.md) and [deployment guide](deployment/deploying-phoenix.md) for details.
+Checkout the [environments section](environments.md) and [deployment guide](deployment/deploying-phoenix.md) for details.
 {% endtab %}
 
 {% tab title="TypeScript" %}
-The Phoenix server can be run as a [#container](./#container "mention")and be interacted with using the phoenix-client  and OpenTelelemetry. See [#packages](./#packages "mention")below.
+The Phoenix server can be run as a [#container](./#container "mention")and be interacted with using the phoenix-client  and OpenTelelemetry. See [#packages](./#packages "mention") below.
 {% endtab %}
 {% endtabs %}
 
