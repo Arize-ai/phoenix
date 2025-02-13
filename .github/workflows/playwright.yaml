@@ -17,7 +17,7 @@ jobs:
       # despite always installing it on cache-hit.
       CI_PLAYWRIGHT_SKIP_WEBKIT: true
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         py: [3.13]
         os: [ubuntu-latest, macos-latest]

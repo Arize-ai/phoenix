@@ -45,7 +45,8 @@ test("can edit a prompt", async ({ page }) => {
   await page.getByRole("button", { name: "View Prompt" }).click();
 
   // Go to the prompt listing
-  await page.goto("/prompts");
+  await page.getByRole("link", { name: "Prompts" }).click();
+  await page.waitForURL("**/prompts");
   await page.getByRole("link", { name: promptName }).click();
 
   await page.getByRole("button", { name: "Edit in Playground" }).click();
