@@ -432,6 +432,8 @@ class OpenAIModel(BaseModel):
             return "system"
         if "o1-mini" in self.model:
             return "user"  # o1-mini does not support either "system" or "developer" roles
+        if "o1-preview" in self.model:
+            return "user"  # o1-preview does not support "system" or "developer" roles
         if "o1" in self.model:
             return "developer"
         if "o3" in self.model:
