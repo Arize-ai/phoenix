@@ -26,7 +26,7 @@ PHOENIX_HOST='http://localhost:12345' PHOENIX_API_KEY='xxxxxx' pnpx tsx examples
 # emits the following request:
 # GET http://localhost:12345/v1/datasets
 # headers: {
-#   "Authorization": "bearer xxxxxx",
+#   "Authorization": "Bearer xxxxxx",
 # }
 ```
 
@@ -37,7 +37,7 @@ const phoenix = createClient({
   options: {
     baseUrl: "http://localhost:6006",
     headers: {
-      Authorization: "bearer xxxxxx",
+      Authorization: "Bearer xxxxxx",
     },
   },
 });
