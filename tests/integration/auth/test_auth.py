@@ -978,3 +978,106 @@ class TestEmbeddingsRestApi:
     def test_unauthenticated_requests_receive_401(self) -> None:
         with _EXPECTATION_401:
             _export_embeddings(None, filename="embeddings")
+
+
+class TestPrompts:
+    def test_authenticated_users_are_recorded_in_prompts(
+        self,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(_MEMBER)
+        logged_in_user = u.log_in()
+
+        # Create new prompt
+        response, _ = logged_in_user.gql(
+            query="""
+              mutation CreateChatPromptMutation($input: CreateChatPromptInput!) {
+                createChatPrompt(input: $input) {
+                  id
+                  promptVersions {
+                    edges {
+                      promptVersion: node {
+                        user {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            """,
+            variables={
+                "input": {
+                    "name": "prompt-name",
+                    "description": "prompt-description",
+                    "promptVersion": {
+                        "description": "prompt-version-description",
+                        "templateFormat": "MUSTACHE",
+                        "template": {
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [{"text": {"text": "hello world"}}],
+                                }
+                            ]
+                        },
+                        "invocationParameters": {"temperature": 0.4},
+                        "modelProvider": "OPENAI",
+                        "modelName": "o1-mini",
+                    },
+                }
+            },
+        )
+        prompt_id = response["data"]["createChatPrompt"]["id"]
+        prompt_versions = response["data"]["createChatPrompt"]["promptVersions"]["edges"]
+        assert len(prompt_versions) == 1
+        user = prompt_versions[0]["promptVersion"]["user"]
+        assert user is not None
+        assert user["id"] == logged_in_user.gid
+
+        # Create new version for existing prompt
+        response, _ = logged_in_user.gql(
+            query="""
+              mutation CreateChatPromptVersionMutation($input: CreateChatPromptVersionInput!) {
+                createChatPromptVersion(input: $input) {
+                  promptVersions {
+                    edges {
+                      promptVersion: node {
+                        user {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            """,
+            variables={
+                "input": {
+                    "promptId": prompt_id,
+                    "promptVersion": {
+                        "description": "new-version-description",
+                        "templateFormat": "MUSTACHE",
+                        "template": {
+                            "messages": [
+                                {
+                                    "role": "USER",
+                                    "content": [{"text": {"text": "new version"}}],
+                                }
+                            ]
+                        },
+                        "invocationParameters": {"temperature": 0.4},
+                        "modelProvider": "OPENAI",
+                        "modelName": "o1-mini",
+                    },
+                }
+            },
+        )
+
+        # Verify both versions record the user
+        prompt_versions = response["data"]["createChatPromptVersion"]["promptVersions"]["edges"]
+        assert len(prompt_versions) == 2
+        for version in prompt_versions:
+            user = version["promptVersion"]["user"]
+            assert user is not None
+            assert user["id"] == logged_in_user.gid

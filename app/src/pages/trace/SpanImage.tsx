@@ -81,7 +81,7 @@ export function SpanImage(props: SpanImageProps) {
           variant="default"
           size="S"
           onPress={() => setIsExpanded(!isExpanded)}
-          icon={
+          leadingVisual={
             <Icon
               svg={
                 isExpanded ? <Icons.CollapseOutline /> : <Icons.ExpandOutline />

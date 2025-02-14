@@ -64,7 +64,7 @@ export function DeleteDatasetDialog({
               handleDelete();
             }}
             isDisabled={isCommittingDelete}
-            icon={
+            leadingVisual={
               <Icon
                 svg={
                   isCommittingDelete ? (

@@ -1,7 +1,6 @@
 import React from "react";
 
-import { Radio, RadioGroup } from "@arizeai/components";
-
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { GenAIOperationType } from "@phoenix/store";
 
@@ -15,21 +14,25 @@ export function PlaygroundOperationTypeRadioGroup() {
     (state) => state.setOperationType
   );
   return (
-    <RadioGroup
-      value={operationType}
-      variant="inline-button"
-      onChange={(v) => {
-        if (isGenAIOperationType(v)) {
-          setOperationType(v);
+    <ToggleButtonGroup
+      defaultSelectedKeys={[operationType]}
+      aria-label="Operation Type"
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const type = v.keys().next().value;
+        if (isGenAIOperationType(type)) {
+          setOperationType(type);
         }
       }}
     >
-      <Radio label="Chat" value={"chat"}>
+      <ToggleButton aria-label="Chat" id={"chat"}>
         Chat
-      </Radio>
-      <Radio label="Completion" value={"text_completion"}>
+      </ToggleButton>
+      <ToggleButton aria-label="Completion" id={"text_completion"}>
         Completion
-      </Radio>
-    </RadioGroup>
+      </ToggleButton>
+    </ToggleButtonGroup>
   );
 }

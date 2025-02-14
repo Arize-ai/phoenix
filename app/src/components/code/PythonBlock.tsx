@@ -24,7 +24,7 @@ export function PythonBlock(props: PythonBlockProps) {
       {...props}
       basicSetup={{
         lineNumbers: false,
-        foldGutter: false,
+        foldGutter: true,
         bracketMatching: true,
         syntaxHighlighting: true,
         highlightActiveLine: false,

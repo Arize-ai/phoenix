@@ -2,84 +2,22 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Content, ContextualHelp, Form, TextField } from "@arizeai/components";
-
-import { Button, Heading, Text } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
 import {
   MIN_CLUSTER_MIN_SAMPLES,
   MIN_MIN_CLUSTER_SIZE,
 } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-
-import { ExternalLink } from "../ExternalLink";
-
-const minClusterSizeContextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      Minimum Cluster Size
-    </Heading>
-    <Content>
-      <Text elementType="p">
-        The primary parameter to effect the resulting clustering is
-        min_cluster_size. Ideally this is a relatively intuitive parameter to
-        select – set it to the smallest size grouping that you wish to consider
-        a cluster.
-      </Text>
-    </Content>
-    <footer>
-      <ExternalLink href="https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-cluster-size">
-        View HDBSCAN documentation
-      </ExternalLink>
-    </footer>
-  </ContextualHelp>
-);
-
-const minSamplesContextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      Minimum Samples
-    </Heading>
-    <Content>
-      <Text elementType="p">
-        The simplest intuition for what min_samples does is provide a measure of
-        how conservative you want you clustering to be. The larger the value of
-        min_samples you provide, the more conservative the clustering – more
-        points will be declared as noise, and clusters will be restricted to
-        progressively more dense areas.
-      </Text>
-    </Content>
-    <footer>
-      <ExternalLink href="https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-samples">
-        View HDBSCAN documentation
-      </ExternalLink>
-    </footer>
-  </ContextualHelp>
-);
-
-const clusterSelectionEpsilonContextualHelp = (
-  <ContextualHelp>
-    <Heading weight="heavy" level={4}>
-      Cluster Selection Epsilon
-    </Heading>
-    <Content>
-      <Text elementType="p">
-        In some cases, we want to choose a small min_cluster_size because even
-        groups of few points might be of interest to us. However, if our data
-        set also contains partitions with high concentrations of objects, this
-        parameter setting can result in a large number of micro-clusters.
-        Selecting a value for cluster_selection_epsilon helps us to merge
-        clusters in these regions. Or in other words, it ensures that clusters
-        below the given threshold are not split up any further.
-      </Text>
-    </Content>
-    <footer>
-      <ExternalLink href="https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-cluster-selection-epsilon">
-        View HDBSCAN documentation
-      </ExternalLink>
-    </footer>
-  </ContextualHelp>
-);
 
 export default function ClusteringSettings() {
   const hdbscanParameters = usePointCloudContext(
@@ -132,118 +70,132 @@ export default function ClusteringSettings() {
       `}
     >
       <Form onSubmit={handleSubmit(onSubmit)}>
-        <Controller
-          name="minClusterSize"
-          control={control}
-          rules={{
-            required: "field is required",
-            min: {
-              value: MIN_MIN_CLUSTER_SIZE,
-              message: "must be greater than 1",
-            },
-            max: {
-              value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647",
-            },
-          }}
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              label="min cluster size"
-              labelExtra={minClusterSizeContextualHelp}
-              type="number"
-              description={`the smallest size for a cluster`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={(v) => onChange(parseInt(v, 10))}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <Controller
-          name="clusterMinSamples"
-          control={control}
-          rules={{
-            required: "field is required",
-            min: {
-              value: MIN_CLUSTER_MIN_SAMPLES,
-              message: `must be greater than ${MIN_CLUSTER_MIN_SAMPLES}`,
-            },
-            max: {
-              value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647",
-            },
-          }}
-          render={({
-            field: { onBlur, onChange, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              label="cluster minimum samples"
-              labelExtra={minSamplesContextualHelp}
-              type="number"
-              description={`determines if a point is a core point`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={(v) => onChange(parseInt(v, 10))}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <Controller
-          name="clusterSelectionEpsilon"
-          control={control}
-          rules={{
-            required: "field is required",
-            min: {
-              value: 0,
-              message: "must be a non-negative number",
-            },
-            max: {
-              value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647",
-            },
-          }}
-          render={({
-            field: { onBlur, onChange, value },
-            fieldState: { invalid, error },
-          }) => (
-            <TextField
-              label="cluster selection epsilon"
-              labelExtra={clusterSelectionEpsilonContextualHelp}
-              type="number"
-              description={`A distance threshold`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
-              onChange={(v) => onChange(parseInt(v, 10))}
-              onBlur={onBlur}
-              value={value.toString()}
-            />
-          )}
-        />
-        <div
-          css={css`
-            display: flex;
-            flex-direction: row;
-            justify-content: flex-end;
-            margin-top: var(--ac-global-dimension-static-size-100);
-          `}
-        >
+        <View padding="size-100">
+          <Controller
+            name="minClusterSize"
+            control={control}
+            rules={{
+              required: "field is required",
+              min: {
+                value: MIN_MIN_CLUSTER_SIZE,
+                message: "must be greater than 1",
+              },
+              max: {
+                value: MAX_32_BIT_INTEGER,
+                message: "must be less than 2,147,483,647",
+              },
+            }}
+            render={({
+              field: { onChange, onBlur, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                type="number"
+                isInvalid={invalid}
+                onChange={(v) => onChange(parseInt(v, 10))}
+                onBlur={onBlur}
+                value={value.toString()}
+                size="S"
+              >
+                <Label>Min Cluster Size</Label>
+                <Input />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    The smallest size for a cluster.
+                  </Text>
+                )}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="clusterMinSamples"
+            control={control}
+            rules={{
+              required: "field is required",
+              min: {
+                value: MIN_CLUSTER_MIN_SAMPLES,
+                message: `must be greater than ${MIN_CLUSTER_MIN_SAMPLES}`,
+              },
+              max: {
+                value: MAX_32_BIT_INTEGER,
+                message: "must be less than 2,147,483,647",
+              },
+            }}
+            render={({
+              field: { onBlur, onChange, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                type="number"
+                isInvalid={invalid}
+                onChange={(v) => onChange(parseInt(v, 10))}
+                onBlur={onBlur}
+                value={value.toString()}
+                size="S"
+              >
+                <Label>Cluster Minimum Samples</Label>
+                <Input />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    Determines if a point is a core point
+                  </Text>
+                )}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="clusterSelectionEpsilon"
+            control={control}
+            rules={{
+              required: "field is required",
+              min: {
+                value: 0,
+                message: "must be a non-negative number",
+              },
+              max: {
+                value: MAX_32_BIT_INTEGER,
+                message: "must be less than 2,147,483,647",
+              },
+            }}
+            render={({
+              field: { onBlur, onChange, value },
+              fieldState: { invalid, error },
+            }) => (
+              <TextField
+                type="number"
+                isInvalid={invalid}
+                onChange={(v) => onChange(parseInt(v, 10))}
+                onBlur={onBlur}
+                value={value.toString()}
+                size="S"
+              >
+                <Label>Cluster Selection Epsilon</Label>
+                <Input />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">A distance threshold</Text>
+                )}
+              </TextField>
+            )}
+          />
+
           <Button
             variant={isDirty ? "primary" : "default"}
             type="submit"
             isDisabled={!isValid || clustersLoading}
             css={css`
               width: 100%;
+              margin-top: var(--ac-global-dimension-static-size-100);
             `}
           >
             {clustersLoading ? "Applying..." : "Apply Clustering Config"}
           </Button>
-        </div>
+        </View>
       </Form>
     </section>
   );

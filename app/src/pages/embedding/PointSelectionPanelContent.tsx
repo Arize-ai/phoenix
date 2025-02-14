@@ -312,7 +312,7 @@ export function PointSelectionPanelContent() {
       >
         <Button
           size="S"
-          icon={<Icon svg={<CloseOutline />} />}
+          leadingVisual={<Icon svg={<CloseOutline />} />}
           aria-label="Clear selection"
           onPress={onClose}
         />

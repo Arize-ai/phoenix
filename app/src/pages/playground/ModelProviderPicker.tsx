@@ -11,6 +11,7 @@ import {
 } from "@arizeai/components";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
 import type { ModelProviderPickerFragment$key } from "./__generated__/ModelProviderPickerFragment.graphql";
@@ -68,7 +69,14 @@ export function ModelProviderPicker({
         {...props}
       >
         {data.modelProviders.map((provider) => {
-          return <Item key={provider.key}>{provider.name}</Item>;
+          return (
+            <Item key={provider.key}>
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <GenerativeProviderIcon provider={provider.key} height={16} />
+                {provider.name}
+              </Flex>
+            </Item>
+          );
         })}
       </Picker>
       {selectedProviderNotInstalled ? (

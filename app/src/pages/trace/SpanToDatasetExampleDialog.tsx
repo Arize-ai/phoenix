@@ -139,7 +139,7 @@ export function SpanToDatasetExampleDialog({
           onPress={() => {
             return handleSubmit(onSubmit)();
           }}
-          icon={
+          leadingVisual={
             <Icon
               svg={
                 isCommitting ? <Icons.LoadingOutline /> : <Icons.PlusOutline />

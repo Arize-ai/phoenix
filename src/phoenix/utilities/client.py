@@ -27,6 +27,12 @@ class VersionedClient(httpx.Client):
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
 
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except BaseException:
+            pass
+
     def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
 

@@ -1,11 +1,22 @@
 import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
-import { useNavigate } from "react-router";
 
-import { Card, Form, TextField } from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
-import { Button, Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Form,
+  Heading,
+  Input,
+  Label,
+  LinkButton,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
@@ -26,7 +37,6 @@ export function ViewerProfileCard() {
       }
     }
   `);
-  const navigate = useNavigate();
   const {
     control,
     handleSubmit,
@@ -74,14 +84,9 @@ export function ViewerProfileCard() {
       bodyStyle={{ padding: 0 }}
       extra={
         viewer.authMethod === "LOCAL" && (
-          <Button
-            size="S"
-            onPress={() => {
-              navigate("/reset-password");
-            }}
-          >
+          <LinkButton size="S" to="/reset-password">
             Reset Password
-          </Button>
+          </LinkButton>
         )
       }
     >
@@ -102,30 +107,41 @@ export function ViewerProfileCard() {
       <View>
         <Form onSubmit={handleSubmit(onSubmit)}>
           <View padding="size-200">
-            <TextField label="Email" value={viewer.email} isReadOnly />
-            <Controller
-              name="username"
-              control={control}
-              rules={{
-                required: "A username is required as it needs to be unique",
-              }}
-              render={({
-                field: { name, onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TextField
-                  label="Username"
-                  isRequired
-                  description="A unique username"
-                  name={name}
-                  errorMessage={error?.message}
-                  validationState={invalid ? "invalid" : "valid"}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  defaultValue={value}
-                />
-              )}
-            />
+            <Flex direction="column" gap="size-100">
+              <TextField value={viewer.email} isReadOnly size="S">
+                <Label>Email</Label>
+                <Input />
+              </TextField>
+              <Controller
+                name="username"
+                control={control}
+                rules={{
+                  required: "A username is required as it needs to be unique",
+                }}
+                render={({
+                  field: { name, onChange, onBlur, value },
+                  fieldState: { invalid, error },
+                }) => (
+                  <TextField
+                    isRequired
+                    name={name}
+                    isInvalid={invalid}
+                    onChange={onChange}
+                    onBlur={onBlur}
+                    defaultValue={value}
+                    size="S"
+                  >
+                    <Label>Username</Label>
+                    <Input />
+                    {error ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">A unique username</Text>
+                    )}
+                  </TextField>
+                )}
+              />
+            </Flex>
           </View>
           <View
             paddingTop="size-100"

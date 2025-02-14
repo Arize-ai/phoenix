@@ -2,9 +2,18 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
-import { Form, TextArea, TextField } from "@arizeai/components";
-
-import { Button, Flex, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextArea,
+  TextField,
+  View,
+} from "@phoenix/components";
 export type AnnotationFormData = {
   name: string;
   score?: number | null;
@@ -108,16 +117,23 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
                 fieldState: { invalid, error },
               }) => (
                 <TextField
-                  label="Label"
-                  placeholder="e.x. good, bad"
-                  description="A categorical label like 'good' or 'bad'"
                   isReadOnly={isReadOnly}
-                  errorMessage={error?.message}
-                  validationState={invalid ? "invalid" : "valid"}
+                  isInvalid={invalid}
                   onChange={onChange}
                   onBlur={onBlur}
                   value={value?.toString() || ""}
-                />
+                  size="S"
+                >
+                  <Label>Label</Label>
+                  <Input placeholder="e.x. good, bad" />
+                  {error ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      A categorical label like good or bad
+                    </Text>
+                  )}
+                </TextField>
               )}
             />
             <Controller
@@ -128,17 +144,22 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
                 fieldState: { invalid, error },
               }) => (
                 <TextField
-                  label="Score"
                   type="number"
-                  placeholder="e.x. 0.8"
-                  description="A numeric grade"
-                  errorMessage={error?.message}
                   isReadOnly={isReadOnly}
-                  validationState={invalid ? "invalid" : "valid"}
+                  isInvalid={invalid}
                   onChange={onChange}
                   onBlur={onBlur}
                   value={value?.toString() || ""}
-                />
+                  size="S"
+                >
+                  <Label>Score</Label>
+                  <Input placeholder="e.x. 0.8" />
+                  {error ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">A numeric grade</Text>
+                  )}
+                </TextField>
               )}
             />
           </div>
@@ -152,17 +173,24 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
                   field: { onChange, onBlur, value },
                   fieldState: { invalid, error },
                 }) => (
-                  <TextArea
-                    label="Explanation"
-                    height={70}
+                  <TextField
                     isReadOnly={isReadOnly}
-                    description="Why this score or label was given"
-                    errorMessage={error?.message}
-                    validationState={invalid ? "invalid" : "valid"}
+                    isInvalid={invalid}
                     onChange={onChange}
                     onBlur={onBlur}
                     value={value?.toString() || ""}
-                  />
+                    size="S"
+                  >
+                    <Label>Explanation</Label>
+                    <TextArea />
+                    {error ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        Why this score or label was given
+                      </Text>
+                    )}
+                  </TextField>
                 )}
               />
             </View>

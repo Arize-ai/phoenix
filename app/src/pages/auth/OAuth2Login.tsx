@@ -49,7 +49,7 @@ export function OAuth2Login({
       <Button
         variant="default"
         type="submit"
-        icon={<IDPIcon idpName={idpName} />}
+        leadingVisual={<IDPIcon idpName={idpName} />}
       >
         Login with {idpDisplayName}
       </Button>

@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - "js/**"
+      - "schemas/**"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 

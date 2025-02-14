@@ -19,14 +19,21 @@ import { css } from "@emotion/react";
 import {
   AddonBefore,
   Field,
-  Form,
   HelpTooltip,
   PopoverTrigger,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Form,
+  Icon,
+  Icons,
+  Text,
+  View,
+} from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
@@ -443,7 +450,7 @@ function FilterConditionSnippet(props: {
           aria-label="Add to filter condition"
           variant="default"
           onPress={() => onAddFilterConditionSnippet(snippet)}
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         />
       </Flex>
     </Field>

@@ -12,8 +12,8 @@ export const disclosureGroupCSS = css`
   }
 
   // add border between items, only when child is expanded
-  > *:not(:last-child) {
-    &[data-expanded] {
+  > .ac-disclosure:not(:last-child) {
+    &[data-expanded="true"] {
       border-bottom: 1px solid var(--ac-global-border-color-default);
     }
   }
@@ -29,13 +29,12 @@ export const disclosureCSS = css`
     background: none;
     border: none;
     box-shadow: none;
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    font-size: var(--ac-global-font-size-s);
+    line-height: var(--ac-global-line-height-s);
     padding: var(--ac-global-dimension-static-size-100)
       var(--ac-global-dimension-static-size-200);
 

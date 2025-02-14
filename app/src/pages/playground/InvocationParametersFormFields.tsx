@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
 import { debounce } from "lodash";
 
-import { Slider, Switch, TextField } from "@arizeai/components";
+import { Slider, Switch } from "@arizeai/components";
 
+import { FieldError, Input, Label, Text, TextField } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { Mutable } from "@phoenix/typeUtils";
 
@@ -84,7 +85,6 @@ const InvocationParameterFormField = ({
           }}
           render={({ field: { onBlur } }) => (
             <TextField
-              label={field.label}
               isRequired={field.required}
               value={value?.toString() || ""}
               type="number"
@@ -96,9 +96,11 @@ const InvocationParameterFormField = ({
                 }
                 onChange(Number(value));
               }}
-              errorMessage={errorMessage}
-              validationState={errorMessage ? "invalid" : "valid"}
-            />
+            >
+              <Label>{field.label}</Label>
+              <Input />
+              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+            </TextField>
           )}
         />
       );
@@ -113,7 +115,6 @@ const InvocationParameterFormField = ({
           }}
           render={({ field: { onBlur } }) => (
             <TextField
-              label={field.label}
               isRequired={field.required}
               defaultValue={value?.join(", ") ?? ""}
               onBlur={onBlur}
@@ -124,9 +125,17 @@ const InvocationParameterFormField = ({
                 }
                 onChange(value.split(/, */g));
               }}
-              description={"A comma separated list of strings"}
-              errorMessage={errorMessage}
-            />
+            >
+              <Label>{field.label}</Label>
+              <Input />
+              {errorMessage ? (
+                <FieldError>{errorMessage}</FieldError>
+              ) : (
+                <Text slot="description">
+                  A comma separated list of strings
+                </Text>
+              )}
+            </TextField>
           )}
         />
       );
@@ -140,7 +149,6 @@ const InvocationParameterFormField = ({
           }}
           render={({ field: { onBlur } }) => (
             <TextField
-              label={field.label}
               isRequired={field.required}
               defaultValue={value?.toString() || ""}
               type="text"
@@ -152,8 +160,11 @@ const InvocationParameterFormField = ({
                 }
                 onChange(value);
               }}
-              errorMessage={errorMessage}
-            />
+            >
+              <Label>{field.label}</Label>
+              <Input />
+              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+            </TextField>
           )}
         />
       );

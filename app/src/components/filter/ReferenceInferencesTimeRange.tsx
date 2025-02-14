@@ -4,12 +4,12 @@ import { css } from "@emotion/react";
 
 import {
   FieldColorDesignation,
-  TextField,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
+import { Input, Label, TextField } from "@phoenix/components";
 import { useInferences } from "@phoenix/contexts";
 
 const timeFormatter = timeFormat("%x %X");
@@ -31,7 +31,7 @@ export function ReferenceInferencesTimeRange({
     <div
       css={css`
         .ac-textfield {
-          min-width: 371px;
+          min-width: 331px;
         }
       `}
     >
@@ -39,14 +39,15 @@ export function ReferenceInferencesTimeRange({
         <TooltipTrigger>
           <TriggerWrap>
             <TextField
-              label="reference inferences"
               isReadOnly
               aria-label={"reference inferences time range"}
               value={`${timeFormatter(timeRange.start)} - ${timeFormatter(
                 timeRange.end
               )}`}
-              addonBefore={nameAbbr}
-            />
+            >
+              <Label>{`${nameAbbr} inferences`}</Label>
+              <Input />
+            </TextField>
           </TriggerWrap>
           <Tooltip>The static time range of the reference inferences</Tooltip>
         </TooltipTrigger>
