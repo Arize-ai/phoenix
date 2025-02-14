@@ -19,7 +19,7 @@ If you'd prefer to use pure OTEL instead, see [custom-spans.md](custom-spans.md 
 Ensure you have OpenInference and OpenTelemetry installed:
 
 ```bash
-pip install openinference opentelemetry-api opentelemetry-sdk
+pip install openinference-semantic-conventions opentelemetry-api opentelemetry-sdk
 ```
 
 ### Setting Up Tracing
