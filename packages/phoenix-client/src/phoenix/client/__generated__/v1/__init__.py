@@ -73,8 +73,8 @@ class InsertedSpanAnnotation(TypedDict):
 
 
 class JSONSchemaDraft7ObjectSchema(TypedDict):
-    json: Mapping[str, Any]
     type: Literal["json-schema-draft-7-object-schema"]
+    json: Mapping[str, Any]
 
 
 class ListDatasetExamplesData(TypedDict):
@@ -101,11 +101,14 @@ class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
 
 
-class Prompt(TypedDict):
+class PromptData(TypedDict):
     name: str
-    id: str
     description: NotRequired[str]
     source_prompt_id: NotRequired[str]
+
+
+class Prompt(PromptData):
+    id: str
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):
@@ -125,15 +128,9 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
-class PromptData(TypedDict):
-    name: str
-    description: NotRequired[str]
-    source_prompt_id: NotRequired[str]
-
-
 class PromptFunctionTool(TypedDict):
-    name: str
     type: Literal["function-tool"]
+    name: str
     description: NotRequired[str]
     schema: NotRequired[JSONSchemaDraft7ObjectSchema]
     extra_parameters: NotRequired[Mapping[str, Any]]
@@ -160,16 +157,16 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
 
 
 class PromptResponseFormatJSONSchema(TypedDict):
+    type: Literal["response-format-json-schema"]
     name: str
     schema: JSONSchemaDraft7ObjectSchema
     extra_parameters: Mapping[str, Any]
-    type: Literal["response-format-json-schema"]
     description: NotRequired[str]
 
 
 class PromptStringTemplate(TypedDict):
-    template: str
     type: Literal["string"]
+    template: str
 
 
 class PromptToolChoiceNone(TypedDict):
@@ -181,8 +178,8 @@ class PromptToolChoiceOneOrMore(TypedDict):
 
 
 class PromptToolChoiceSpecificFunctionTool(TypedDict):
-    function_name: str
     type: Literal["specific-function-tool"]
+    function_name: str
 
 
 class PromptToolChoiceZeroOrMore(TypedDict):
@@ -190,8 +187,8 @@ class PromptToolChoiceZeroOrMore(TypedDict):
 
 
 class PromptTools(TypedDict):
-    tools: Sequence[PromptFunctionTool]
     type: Literal["tools"]
+    tools: Sequence[PromptFunctionTool]
     tool_choice: NotRequired[
         Union[
             PromptToolChoiceNone,
@@ -210,20 +207,20 @@ class SpanAnnotationResult(TypedDict):
 
 
 class TextContentPart(TypedDict):
-    text: str
     type: Literal["text"]
+    text: str
 
 
 class ToolCallFunction(TypedDict):
+    type: Literal["function"]
     name: str
     arguments: str
-    type: Literal["function"]
 
 
 class ToolResultContentPart(TypedDict):
+    type: Literal["tool_result"]
     tool_call_id: str
     tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
-    type: Literal["tool_result"]
 
 
 class UploadDatasetData(TypedDict):
@@ -257,23 +254,23 @@ class HTTPValidationError(TypedDict):
 
 
 class PromptAnthropicInvocationParameters(TypedDict):
-    anthropic: PromptAnthropicInvocationParametersContent
     type: Literal["anthropic"]
+    anthropic: PromptAnthropicInvocationParametersContent
 
 
 class PromptAzureOpenAIInvocationParameters(TypedDict):
-    azure_openai: PromptAzureOpenAIInvocationParametersContent
     type: Literal["azure_openai"]
+    azure_openai: PromptAzureOpenAIInvocationParametersContent
 
 
 class PromptGeminiInvocationParameters(TypedDict):
-    gemini: PromptGeminiInvocationParametersContent
     type: Literal["gemini"]
+    gemini: PromptGeminiInvocationParametersContent
 
 
 class PromptOpenAIInvocationParameters(TypedDict):
-    openai: PromptOpenAIInvocationParametersContent
     type: Literal["openai"]
+    openai: PromptOpenAIInvocationParametersContent
 
 
 class SpanAnnotation(TypedDict):
@@ -285,9 +282,9 @@ class SpanAnnotation(TypedDict):
 
 
 class ToolCallContentPart(TypedDict):
+    type: Literal["tool_call"]
     tool_call_id: str
     tool_call: ToolCallFunction
-    type: Literal["tool_call"]
 
 
 class AnnotateSpansRequestBody(TypedDict):
@@ -302,26 +299,8 @@ class PromptMessage(TypedDict):
 
 
 class PromptChatTemplate(TypedDict):
-    messages: Sequence[PromptMessage]
     type: Literal["chat"]
-
-
-class PromptVersion(TypedDict):
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
-    model_name: str
-    template: Union[PromptChatTemplate, PromptStringTemplate]
-    template_type: Literal["STR", "CHAT"]
-    template_format: Literal["MUSTACHE", "FSTRING", "NONE"]
-    invocation_parameters: Union[
-        PromptOpenAIInvocationParameters,
-        PromptAzureOpenAIInvocationParameters,
-        PromptAnthropicInvocationParameters,
-        PromptGeminiInvocationParameters,
-    ]
-    id: str
-    description: NotRequired[str]
-    tools: NotRequired[PromptTools]
-    response_format: NotRequired[PromptResponseFormatJSONSchema]
+    messages: Sequence[PromptMessage]
 
 
 class PromptVersionData(TypedDict):
@@ -339,6 +318,10 @@ class PromptVersionData(TypedDict):
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
     response_format: NotRequired[PromptResponseFormatJSONSchema]
+
+
+class PromptVersion(PromptVersionData):
+    id: str
 
 
 class CreatePromptRequestBody(TypedDict):
