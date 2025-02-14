@@ -36,43 +36,46 @@ A `ClassificationTemplate` consists of the following components:
 
 The following example demonstrates how to create a `ClassificationTemplate` for an intent detection eval for a voice application:
 
-<pre class="language-python"><code class="lang-python">from phoenix.evals.templates import (
+```python
+from phoenix.evals.templates import (
     ClassificationTemplate,
     PromptPartContentType,
     PromptPartTemplate,
 )
-<strong>INTENT_PROMPT_TEMPLATE = ClassificationTemplate(
-</strong>    rails=INTENT_RAILS,
+
+# Define valid classification labels (rails)
+TONE_EMOTION_RAILS = ["positive", "neutral", "negative"]
+
+# Create the classification template
+template = ClassificationTemplate(
+    rails=TONE_EMOTION_RAILS,  # Specify the valid output labels
     template=[
+        # Prompt part 1: Task description
         PromptPartTemplate(
             content_type=PromptPartContentType.TEXT,
-            template=INTENT_BASE_TEMPLATE_PT1,
+            template="""
+            You are a helpful AI bot that checks for the tone of the audio.
+            Analyze the audio file and determine the tone (e.g., positive, neutral, negative).
+            Your evaluation should provide a multiclass label from the following options: ['positive', 'neutral', 'negative'].
+            
+            Here is the audio:
+            """,
         ),
+        # Prompt part 2: Insert the audio data
         PromptPartTemplate(
             content_type=PromptPartContentType.AUDIO,
-            template=INTENT_BASE_TEMPLATE_PT2,
+            template="{audio}",  # Placeholder for the audio content
         ),
+        # Prompt part 3: Define the response format
         PromptPartTemplate(
             content_type=PromptPartContentType.TEXT,
-            template=INTENT_BASE_TEMPLATE_PT3,
-        ),
-    ],
-    explanation_template=[
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=INTENT_EXPLANATION_TEMPLATE_PT1,
-        ),
-        PromptPartTemplate(
-            content_type=PromptPartContentType.AUDIO,
-            template=INTENT_BASE_TEMPLATE_PT2,
-        ),
-        PromptPartTemplate(
-            content_type=PromptPartContentType.TEXT,
-            template=INTENT_EXPLANATION_TEMPLATE_PT3,
+            template="""
+            Your response must be a string, either positive, neutral, or negative, and should not contain any text or characters aside from that.
+            """,
         ),
     ],
 )
-</code></pre>
+```
 
 #### **Adapting to Different Modalities**
 
