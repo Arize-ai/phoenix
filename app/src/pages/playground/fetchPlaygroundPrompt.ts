@@ -13,7 +13,6 @@ import {
 import {
   areInvocationParamsEqual,
   getChatRole,
-  openInferenceModelProviderToPhoenixModelProvider,
   toCamelCase,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -48,8 +47,8 @@ import {
 } from "./__generated__/fetchPlaygroundPromptQuery.graphql";
 
 type PromptVersion = NonNullable<
-  fetchPlaygroundPromptQuery$data["prompt"]["promptVersions"]
->["edges"][0]["promptVersion"];
+  fetchPlaygroundPromptQuery$data["prompt"]["version"]
+>;
 
 /**
  * Converts a playground chat message role to a prompt message role
@@ -155,7 +154,6 @@ export const promptVersionToInstance = ({
       toolChoice: promptVersion.invocationParameters?.tool_choice,
       targetProvider: provider,
     }) ?? undefined;
-
   return {
     ...newInstance,
     model: {
@@ -401,54 +399,50 @@ const fetchPlaygroundPromptQuery = graphql`
         name
         createdAt
         description
-        promptVersions(first: 1) {
-          edges {
-            promptVersion: node {
-              id
-              description
-              modelName
-              modelProvider
-              invocationParameters
-              templateType
-              templateFormat
-              responseFormat {
-                definition
-              }
-              template {
-                __typename
-                ... on PromptChatTemplate {
-                  messages {
-                    role
-                    content {
-                      __typename
-                      ... on TextContentPart {
-                        text {
-                          text
-                        }
+        version {
+          id
+          description
+          modelName
+          modelProvider
+          invocationParameters
+          templateType
+          templateFormat
+          responseFormat {
+            definition
+          }
+          template {
+            __typename
+            ... on PromptChatTemplate {
+              messages {
+                role
+                content {
+                  __typename
+                  ... on TextContentPart {
+                    text {
+                      text
+                    }
+                  }
+                  ... on ToolCallContentPart {
+                    toolCall {
+                      toolCallId
+                      toolCall {
+                        name
+                        arguments
                       }
-                      ... on ToolCallContentPart {
-                        toolCall {
-                          toolCallId
-                          toolCall {
-                            name
-                            arguments
-                          }
-                        }
-                      }
-                      ... on ToolResultContentPart {
-                        toolResult {
-                          toolCallId
-                          result
-                        }
-                      }
+                    }
+                  }
+                  ... on ToolResultContentPart {
+                    toolResult {
+                      toolCallId
+                      result
                     }
                   }
                 }
               }
-              tools {
-                definition
-              }
             }
+          }
+          tools {
+            definition
           }
         }
       }
@@ -572,8 +566,7 @@ const getLatestPromptVersion = (
   if (!prompt) {
     return null;
   }
-  return prompt?.promptVersions?.edges?.[0]
-    ?.promptVersion as Mutable<PromptVersion> | null;
+  return prompt?.version as Mutable<PromptVersion> | null;
 };
 
 /**
@@ -594,9 +587,7 @@ export const fetchPlaygroundPromptAsInstance = async (
     const supportedInvocationParameters =
       await fetchSupportedInvocationParameters({
         modelName: latestPromptVersion.modelName,
-        providerKey: openInferenceModelProviderToPhoenixModelProvider(
-          latestPromptVersion.modelProvider
-        ),
+        providerKey: latestPromptVersion.modelProvider,
       });
     const promptName = response?.prompt?.name;
     if (!promptName) {
