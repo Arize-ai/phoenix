@@ -766,7 +766,7 @@ class Client(TraceDataExtractor):
         data = response.json()["data"]
         version_id = data["version_id"]
         examples = data["examples"]
-        examples_url = urljoin(self.web_url, path)
+        examples_url = urljoin(self.web_url, f"datasets/{dataset_id}/examples")
         print(f"💾 Examples uploaded: {examples_url}")
         print(f"🗄️ Dataset version ID: {version_id}")
 
