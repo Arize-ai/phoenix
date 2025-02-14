@@ -14,8 +14,6 @@ import { css } from "@emotion/react";
 import {
   Dialog,
   DialogContainer,
-  Item,
-  Picker,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
@@ -23,6 +21,8 @@ import {
 
 import {
   Button,
+  ComboBox,
+  ComboBoxItem,
   Flex,
   Icon,
   Icons,
@@ -199,11 +199,20 @@ function AzureOpenAiModelConfigFormField({
         <Label>Endpoint</Label>
         <Input placeholder="e.x. https://my.openai.azure.com" />
       </TextField>
-      <Picker
+      <ComboBox
+        size="L"
         label="API Version"
-        defaultSelectedKey={instance.model.apiVersion ?? undefined}
+        data-testid="azure-api-version-combobox"
+        selectedKey={instance.model.apiVersion ?? undefined}
         aria-label="api version picker"
         placeholder="Select an AzureOpenAI API Version"
+        inputValue={instance.model.apiVersion ?? ""}
+        onInputChange={(value) => {
+          updateModelConfig({
+            configKey: "apiVersion",
+            value,
+          });
+        }}
         onSelectionChange={(key) => {
           if (typeof key === "string") {
             updateModelConfig({
@@ -212,11 +221,14 @@ function AzureOpenAiModelConfigFormField({
             });
           }
         }}
+        allowsCustomValue
       >
         {AZURE_OPENAI_API_VERSIONS.map((version) => (
-          <Item key={version}>{version}</Item>
+          <ComboBoxItem key={version} textValue={version} id={version}>
+            {version}
+          </ComboBoxItem>
         ))}
-      </Picker>
+      </ComboBox>
     </>
   );
 }
