@@ -387,13 +387,13 @@ def _prompt_version_from_orm_version(
     )
 
 
-def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> PromptData:
+def _prompt_from_orm_prompt(orm_prompt: models.Prompt) -> Prompt:
     source_prompt_id = (
         str(GlobalID(PromptNodeType.__name__, str(orm_prompt.source_prompt_id)))
         if orm_prompt.source_prompt_id
         else None
     )
-    return PromptData(
+    return Prompt(
         id=str(GlobalID(PromptNodeType.__name__, str(orm_prompt.id))),
         source_prompt_id=source_prompt_id,
         name=orm_prompt.name,
