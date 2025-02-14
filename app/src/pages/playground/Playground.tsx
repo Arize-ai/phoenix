@@ -95,7 +95,6 @@ export function Playground(props: Partial<PlaygroundProps>) {
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
-
   return (
     <PlaygroundProvider
       {...props}
