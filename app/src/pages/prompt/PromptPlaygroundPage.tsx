@@ -26,8 +26,6 @@ export function PromptPlaygroundPage() {
       // we don't want default messages in the instance, just the prompt messages
       template: instanceWithPrompt.template,
     } satisfies PlaygroundInstance;
-    // If there is a template loaded, we default to that format
-
     return { instance };
   }, [instanceWithPrompt]);
 
