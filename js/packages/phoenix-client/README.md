@@ -43,32 +43,6 @@ const phoenix = createClient({
 });
 ```
 
-## REST Endpoints
-
-The client provides a REST API for all endpoints defined in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
-
-Endpoints are accessible via strongly-typed string literals and TypeScript auto-completion inside of the client object.
-
-```ts
-import { createClient } from "@arizeai/phoenix-client";
-
-const phoenix = createClient();
-
-// Get all datasets
-const datasets = await phoenix.GET("/v1/datasets");
-
-// Get specific prompt
-const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
-  params: {
-    path: {
-      prompt_identifier: "my-prompt",
-    },
-  },
-});
-```
-
-A comprehensive overview of the available endpoints and their parameters is available in the OpenAPI viewer within Phoenix, or in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
-
 ## Prompts
 
 `@arizeai/phoenix-client` provides a `prompts` export that exposes various utilities for working with prompts.
@@ -131,6 +105,32 @@ const response = await generateText({
   ...promptAsAI,
 });
 ```
+
+## REST Endpoints
+
+The client provides a REST API for all endpoints defined in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
+
+Endpoints are accessible via strongly-typed string literals and TypeScript auto-completion inside of the client object.
+
+```ts
+import { createClient } from "@arizeai/phoenix-client";
+
+const phoenix = createClient();
+
+// Get all datasets
+const datasets = await phoenix.GET("/v1/datasets");
+
+// Get specific prompt
+const prompt = await phoenix.GET("/v1/prompts/{prompt_identifier}/latest", {
+  params: {
+    path: {
+      prompt_identifier: "my-prompt",
+    },
+  },
+});
+```
+
+A comprehensive overview of the available endpoints and their parameters is available in the OpenAPI viewer within Phoenix, or in the [Phoenix OpenAPI spec](https://github.com/Arize-ai/phoenix/blob/main/schemas/openapi.json).
 
 ## Examples
 
