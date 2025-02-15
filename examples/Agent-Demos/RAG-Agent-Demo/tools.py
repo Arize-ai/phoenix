@@ -123,7 +123,7 @@ def web_search(user_query: str) -> str:
     """
     try:
         # Fetch top 5 search results from DuckDuckGo
-        duck_duck_go = DuckDuckGoSearchResults(max_results=5, output_format='list')
+        duck_duck_go = DuckDuckGoSearchResults(max_results=5, output_format="list")
         search_results = duck_duck_go.invoke(user_query)
         # Format the results
         if search_results:
@@ -132,11 +132,13 @@ def web_search(user_query: str) -> str:
                 title = result["title"]
                 snippet = result["snippet"]
                 url = result["link"]
-                formatted_results.append(f"{i}. Title: {title}\n   Snippet: {snippet}\n   URL: {url}")
+                formatted_results.append(
+                    f"{i}. Title: {title}\n   Snippet: {snippet}\n   URL: {url}"
+                )
             logger.info(f"Websearch completed, no of documents retrieved are {formatted_results}")
             return "Top Search Results:\n\n" + "\n\n".join(formatted_results)
         else:
-            logger.info(f"Websearch completed, no documents retrieved")
+            logger.info("Websearch completed, no documents retrieved")
             return "No relevant web search results were found for the given query."
 
     except Exception as e:

@@ -2,15 +2,14 @@ import os
 import uuid
 
 import gradio as gr
+from agent import construct_agent, initialize_agent_llm, initialize_instrumentor
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from openinference.instrumentation import using_session
 from opentelemetry.trace import Status, StatusCode
-
-from agent import initialize_agent_llm
-from agent import initialize_instrumentor, construct_agent
 from rag import initialize_vector_store
-#from tools import initialize_tool_llm
+
+# from tools import initialize_tool_llm
 
 load_dotenv()
 
@@ -23,6 +22,7 @@ SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = """
 
 def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vector_source_web_url):
     from tools import initialize_tool_llm
+
     os.environ["PHOENIX_API_KEY"] = phoenix_key
     os.environ["OPENAI_API_KEY"] = openai_key
     os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/v1/traces"
@@ -32,23 +32,35 @@ def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vec
     # vector_source_web_url = "https://lilianweng.github.io/posts/2023-06-23-agent/"
     initialize_vector_store(vector_source_web_url)
     copilot_agent = construct_agent()
-    return copilot_agent, agent_tracer, tool_model, user_session_id, (f"Configuration Set: Project "
-                                                                      f"'{project_name}' is Ready!")
+    return (
+        copilot_agent,
+        agent_tracer,
+        tool_model,
+        user_session_id,
+        (f"Configuration Set: Project " f"'{project_name}' is Ready!"),
+    )
 
 
-def chat_with_agent(copilot_agent, agent_tracer, tool_model, user_input_message, user_session_id, user_chat_history,
-                    conversation_history):
+def chat_with_agent(
+    copilot_agent,
+    agent_tracer,
+    tool_model,
+    user_input_message,
+    user_session_id,
+    user_chat_history,
+    conversation_history,
+):
     if not agent:
         return "Error: RAG Agent is not initialized. Please set API keys first."
     if not conversation_history:
         messages = [SystemMessage(content=SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW)]
     else:
-        messages = conversation_history['messages']
+        messages = conversation_history["messages"]
     messages.append(HumanMessage(content=user_input_message))
     with using_session(session_id=user_session_id):
         with agent_tracer.start_as_current_span(
-                f"agent-{user_session_id}",
-                openinference_span_kind="chain",
+            f"agent-{user_session_id}",
+            openinference_span_kind="chain",
         ) as span:
             span.set_input(user_input_message)
             conversation_history = copilot_agent.invoke(
@@ -57,15 +69,24 @@ def chat_with_agent(copilot_agent, agent_tracer, tool_model, user_input_message,
                     "configurable": {
                         "thread_id": user_session_id,
                         "user_session_id": user_session_id,
-                        "tool_model": tool_model
+                        "tool_model": tool_model,
                     }
-                }
+                },
             )
             span.set_output(conversation_history["messages"][-1].content)
             span.set_status(Status(StatusCode.OK))
 
-            user_chat_history.append((user_input_message, conversation_history["messages"][-1].content))
-            return copilot_agent, '', user_chat_history, user_session_id, user_chat_history, conversation_history
+            user_chat_history.append(
+                (user_input_message, conversation_history["messages"][-1].content)
+            )
+            return (
+                copilot_agent,
+                "",
+                user_chat_history,
+                user_session_id,
+                user_chat_history,
+                conversation_history,
+            )
 
 
 with gr.Blocks() as demo:
@@ -87,7 +108,7 @@ with gr.Blocks() as demo:
             openai_input = gr.Textbox(label="OpenAI API Key", type="password")
             web_url = gr.Textbox(
                 label="Vector Source Web URL",
-                value='https://lilianweng.github.io/posts/2023-06-23-agent/'
+                value="https://lilianweng.github.io/posts/2023-06-23-agent/",
             )
             set_button = gr.Button("Set API Keys & Initialize")
             output_message = gr.Textbox(label="Status", interactive=False)
@@ -95,7 +116,7 @@ with gr.Blocks() as demo:
             set_button.click(
                 fn=initialize_agent,
                 inputs=[phoenix_input, project_input, openai_input, session_id, web_url],
-                outputs=[agent, tracer, openai_tool_model, session_id, output_message]
+                outputs=[agent, tracer, openai_tool_model, session_id, output_message],
             )
 
         with gr.Column(scale=4):
@@ -108,9 +129,17 @@ with gr.Blocks() as demo:
 
             submit_button.click(
                 fn=chat_with_agent,
-                inputs=[agent, tracer, openai_tool_model, user_input, session_id, chat_display, history],
-                outputs=[agent, user_input, chat_display, session_id, chat_history, history]
+                inputs=[
+                    agent,
+                    tracer,
+                    openai_tool_model,
+                    user_input,
+                    session_id,
+                    chat_display,
+                    history,
+                ],
+                outputs=[agent, user_input, chat_display, session_id, chat_history, history],
             )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     demo.launch(share=True)
