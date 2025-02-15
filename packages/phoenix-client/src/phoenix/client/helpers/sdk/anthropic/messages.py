@@ -89,7 +89,7 @@ def create_prompt_version_from_anthropic(
     /,
     *,
     description: Optional[str] = None,
-    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+    template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
 ) -> v1.PromptVersionData:
     raise NotImplementedError
 
