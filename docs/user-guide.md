@@ -30,7 +30,7 @@ Either as a part of experiments or a standalone feature, evaluations help you un
 
 Prompt engineering is critical changes how a model behaves. While there are other methods such as fine-tuning to change behavior, prompt engineering is the simplest way to get started and often times has the best ROI.&#x20;
 
-* [overview-prompts.md](prompt-engineering/overview-prompts.md "mention")
+* [overview-prompts](prompt-engineering/overview-prompts/ "mention")
 
 Instrument prompt and prompt variable collection to associate iterations of your app with the performance measured through evals and experiments. Phoenix tracks prompt templates, variables, and versions during execution to help you identify improvements and degradations.
 

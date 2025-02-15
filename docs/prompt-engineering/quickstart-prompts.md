@@ -46,7 +46,7 @@ Let's run it and compare results:
 
 <figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.51.07 AM.png" alt=""><figcaption></figcaption></figure>
 
-This is just a basic example of prompt playground. The real power of the tool lies in replaying spans, or running over a dataset. Let's look at a dataset example. If you're interested in replaying spans, see [#span-replay](overview-prompts.md#span-replay "mention").
+This is just a basic example of prompt playground. The real power of the tool lies in replaying spans, or running over a dataset. Let's look at a dataset example. If you're interested in replaying spans, see [#span-replay](overview-prompts/#span-replay "mention").
 
 ## Running over a dataset
 

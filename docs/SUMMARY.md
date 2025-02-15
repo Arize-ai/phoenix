@@ -98,7 +98,11 @@
 
 ## 📃 Prompt Engineering
 
-* [Overview: Prompts](prompt-engineering/overview-prompts.md)
+* [Overview: Prompts](prompt-engineering/overview-prompts/README.md)
+  * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
+  * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)
+  * [Span Replay](prompt-engineering/overview-prompts/span-replay.md)
+  * [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md)
 * [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
 * [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
   * [Configure AI Providers](prompt-engineering/how-to-prompts/configure-ai-providers.md)
@@ -106,6 +110,7 @@
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
+  * [Using the Playground](prompt-engineering/how-to-prompts/using-the-playground.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 * [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
 

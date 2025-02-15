@@ -8,9 +8,13 @@ Prompt engineering is not just about designing and developing prompts. It encomp
 
 ## Prompting Techniques
 
-* [Chain-of-Thought Prompting](https://www.promptingguide.ai/techniques/cot)
+* [Chain-of-Thought Prompting](https://www.promptingguide.ai/techniques/cot)&#x20;
+* [Few Shot Prompting](https://www.promptingguide.ai/techniques/fewshot)&#x20;
+* [ReAct Prompting](https://www.promptingguide.ai/techniques/react)&#x20;
 
 ## Evaluation
 
 * Building a prompt for LLM-as-a-judge
+
+
 

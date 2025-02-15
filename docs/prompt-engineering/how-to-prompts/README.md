@@ -25,7 +25,7 @@ Prompt management is currently available on a feature branch only and will be re
 
 Iterate on prompts and models in the prompt playground
 
-* Testing over a dataset
+* [using-the-playground.md](using-the-playground.md "mention") - how to setup the playground and how to test prompt changes via datasets and experiments.
 
 
 

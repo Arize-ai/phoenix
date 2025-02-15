@@ -68,8 +68,55 @@ Starting with prompts, Phoenix has a dedicated client that lets you programmatic
 
 
 {% hint style="info" %}
-phoenix-client is very early in it's development and may not have every feautere you might be looling for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/phoenix/issues)
+phoenix-client is very early in it's development and may not have every feature you might be looking for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/phoenix/issues)
 {% endhint %}
+
+### Compose a Prompt
+
+{% tabs %}
+{% tab title="Python" %}
+Below is an example prompt for summarizing articles as bullet points. Use the Phoenix client to store the prompt in Phoenix database. The name of the prompt is an identifier with lowercase alphanumeric characters plus hyphens and underscores (no spaces).
+
+```python
+import phoenix as px
+from phoenix.client.types import PromptVersion
+
+content = """\
+You're an expert educator in {{ topic }}. Summarize the following article
+in a few concise bullet points that are easy for beginners to understand.
+
+{{ article }}
+"""
+
+prompt_name = "article-bullet-summarizer"
+prompt = px.Client().prompts.create(
+    name=prompt_name,
+    version=PromptVersion(
+        [{"role": "user", "content": content}],
+        model_name="gpt-4o-mini",
+    ),
+)
+```
+
+A prompt stored in the database can be retrieved later by its name. By default the latest version is fetched. Specific version ID or a tag can also be used for retrieval of a specific version.
+
+```python
+prompt = px.Client().prompts.get(prompt_identifier=prompt_name)
+```
+
+If a version is tagged with, e.g. "prod", it can retrieved as follows.
+
+```
+prompt = px.Client().prompts.get(prompt_identifier=prompt_name, tag="prod")
+```
+{% endtab %}
+
+{% tab title="TypeScript" %}
+:construction: Creating prompts from the typescript client is currently work in progress
+{% endtab %}
+{% endtabs %}
+
+
 
 
 

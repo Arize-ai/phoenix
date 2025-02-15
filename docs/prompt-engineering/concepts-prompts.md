@@ -2,7 +2,7 @@
 
 ## Prompt
 
-Prompts often times refer to the content of how you "prompt" a LLM, e.g. the "text" that you send to a model like gpt-4. Within Phoenix we expand this definition to be everything that's needed to prompt:
+Prompts often times refer to the content of how you "prompt" a LLM, e.g. the "text" that you send to a model like OpenAI's gpt-4. Within Phoenix we expand this definition to be everything that's needed to prompt:
 
 * The[ **prompt template**](concepts-prompts.md#prompt-templates) of the messages to send to a completion endpoint
 * The **invocation parameters** (temperature, frequency penalty, etc.)
@@ -30,6 +30,24 @@ Every time you save a prompt within Phoenix, a snapshot of the prompt is saved a
 Similar to the way in which you can track changes to your code via git shas, Phoenix tracks each change to your **prompt** with a `prompt_id`.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_version_tags.png" alt=""><figcaption></figcaption></figure>
+
+## Prompt Version Tag
+
+Imagine you’re working on a AI project, and you want to **label** specific versions of your prompts so you can control when and where they get deployed. This is where prompt version **tags** come in.
+
+A prompt version tag is like a **sticky note** you put on a specific version of your prompt to mark it as important. Once tagged, that version won’t change, making it easy to reference later.
+
+When building applications, different environments are often used for different stages of readiness before going live, for example:
+
+1. **Development** – Where new features are built.
+2. **Staging** – Where testing happens.
+3. **Production** – The live system that users interact with.
+
+[Tagging prompt versions](how-to-prompts/tag-a-prompt.md) with environment tags can enable building, testing, and deploying prompts in the same way as an application—ensuring that prompt changes can be [systematically tested and deployed](how-to-prompts/using-a-prompt.md#pulling-a-prompt-by-name-or-id).
+
+In addition to environment tags, **custom Git tags** allow teams to label code versions in a way that fits their specific workflow (\``` v0.0.1` ``). These tags can be used to signal different stages of deployment, feature readiness, or any other meaningful status.\
+\
+Prompt version tags work exactly the same way as [git tags](https://git-scm.com/book/en/v2/Git-Basics-Tagging).
 
 ## Prompt Format
 
@@ -59,7 +77,7 @@ We recommend using Mustache where possible, since it supports nested attributes,
 
 ## Tools
 
-Tools allow LLM's to interact with the external environment. This can allow LLM's to interface with your application in more controlled ways. Given a prompt and some tools to choose from an LLM may choose to use some (or one) tools or not. Many LLM API's also expose a tool choice parameter which allow you to constrain how and which tools are selected.
+Tools allow LLMs to interact with the external environment. This can allow LLMs to interface with your application in more controlled ways. Given a prompt and some tools to choose from an LLM may choose to use some (or one) tools or not. Many LLM API's also expose a tool choice parameter which allow you to constrain how and which tools are selected.
 
 Here is an example of what a tool would looke like for the weather API using OpenAI.
 
