@@ -43,6 +43,7 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_tools,
     prompt_metadata,
 )
+from phoenix.server.api.helpers.prompts.models import TemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -61,7 +62,6 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
@@ -206,7 +206,7 @@ class ChatCompletionMutationMixin:
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
                             template=TemplateOptions(
-                                language=input.template_language,
+                                format=input.template_format,
                                 variables=revision.input,
                             ),
                             prompt_name=input.prompt_name,
@@ -462,7 +462,7 @@ def _formatted_messages(
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_language=template_options.language)
+    template_formatter = _template_formatter(template_format=template_options.format)
     (
         roles,
         templates,
@@ -477,17 +477,17 @@ def _formatted_messages(
     return formatted_messages
 
 
-def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
+def _template_formatter(template_format: TemplateFormat) -> TemplateFormatter:
     """
     Instantiates the appropriate template formatter for the template language.
     """
-    if template_language is TemplateLanguage.MUSTACHE:
+    if template_format is TemplateFormat.MUSTACHE:
         return MustacheTemplateFormatter()
-    if template_language is TemplateLanguage.F_STRING:
+    if template_format is TemplateFormat.F_STRING:
         return FStringTemplateFormatter()
-    if template_language is TemplateLanguage.NONE:
+    if template_format is TemplateFormat.NONE:
         return NoOpFormatter()
-    assert_never(template_language)
+    assert_never(template_format)
 
 
 def _output_value_and_mime_type(

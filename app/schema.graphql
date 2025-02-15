@@ -154,7 +154,7 @@ input ChatCompletionOverDatasetInput {
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
-  templateLanguage: TemplateLanguage!
+  templateFormat: TemplateFormat!
   datasetId: GlobalID!
   datasetVersionId: GlobalID = null
   experimentName: String = null
@@ -203,7 +203,7 @@ type ChatCompletionToolCall {
 
 input ChatPromptVersionInput {
   description: String = null
-  templateFormat: PromptTemplateFormat!
+  templateFormat: TemplateFormat!
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}
   tools: [ToolDefinitionInput!]! = []
@@ -1571,12 +1571,6 @@ type PromptStringTemplate {
 
 union PromptTemplate = PromptStringTemplate | PromptChatTemplate
 
-enum PromptTemplateFormat {
-  MUSTACHE
-  FSTRING
-  NONE
-}
-
 enum PromptTemplateType {
   STRING
   CHAT
@@ -1587,7 +1581,7 @@ type PromptVersion implements Node {
   id: GlobalID!
   description: String
   templateType: PromptTemplateType!
-  templateFormat: PromptTemplateFormat!
+  templateFormat: TemplateFormat!
   template: PromptTemplate!
   invocationParameters: JSON
   tools: [ToolDefinition!]!
@@ -1979,15 +1973,15 @@ type SystemApiKey implements ApiKey & Node {
   id: GlobalID!
 }
 
-enum TemplateLanguage {
-  NONE
+enum TemplateFormat {
   MUSTACHE
   F_STRING
+  NONE
 }
 
 input TemplateOptions {
   variables: JSON!
-  language: TemplateLanguage!
+  format: TemplateFormat!
 }
 
 type TextChunk implements ChatCompletionSubscriptionPayload {

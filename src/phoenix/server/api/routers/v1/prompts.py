@@ -17,7 +17,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptInvocationParameters,
     PromptResponseFormat,
     PromptTemplate,
-    PromptTemplateFormat,
+    TemplateFormat,
     PromptTemplateType,
     PromptTools,
 )
@@ -46,7 +46,7 @@ class PromptVersionData(V1RoutesBaseModel):
     model_name: str
     template: PromptTemplate
     template_type: PromptTemplateType
-    template_format: PromptTemplateFormat
+    template_format: TemplateFormat
     invocation_parameters: PromptInvocationParameters
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
@@ -372,7 +372,7 @@ def _prompt_version_from_orm_version(
     prompt_version: models.PromptVersion,
 ) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
-    prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
+    prompt_template_format = TemplateFormat(prompt_version.template_format)
     return PromptVersion(
         id=str(GlobalID(PromptVersionNodeType.__name__, str(prompt_version.id))),
         description=prompt_version.description or "",

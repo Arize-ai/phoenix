@@ -5,8 +5,10 @@ from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON
 
+from phoenix.server.api.helpers.prompts.models import (
+    TemplateFormat,
+)
 from phoenix.server.api.types.Identifier import Identifier
-from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 
 from .ChatCompletionMessageInput import ChatCompletionMessageInput
 from .GenerativeModelInput import GenerativeModelInput
@@ -32,7 +34,7 @@ class ChatCompletionOverDatasetInput:
     invocation_parameters: list[InvocationParameterInput] = strawberry.field(default_factory=list)
     tools: Optional[list[JSON]] = UNSET
     api_key: Optional[str] = strawberry.field(default=None)
-    template_language: TemplateLanguage
+    template_format: TemplateFormat
     dataset_id: GlobalID
     dataset_version_id: Optional[GlobalID] = None
     experiment_name: Optional[str] = None

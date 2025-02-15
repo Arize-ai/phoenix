@@ -11,8 +11,8 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
     PromptMessage,
     PromptMessageRole,
-    PromptTemplateFormat,
     RoleConversion,
+    TemplateFormat,
     TextContentPart,
     ToolCallContentPart,
     ToolCallFunction,
@@ -75,7 +75,7 @@ class PromptChatTemplateInput:
 @strawberry.input
 class ChatPromptVersionInput:
     description: Optional[str] = None
-    template_format: PromptTemplateFormat
+    template_format: TemplateFormat
     template: PromptChatTemplateInput
     invocation_parameters: JSON = strawberry.field(default_factory=dict)
     tools: list[ToolDefinitionInput] = strawberry.field(default_factory=list)

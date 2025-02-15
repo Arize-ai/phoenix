@@ -1,10 +1,10 @@
 import strawberry
 from strawberry.scalars import JSON
 
-from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
+from phoenix.server.api.helpers.prompts.models import TemplateFormat
 
 
 @strawberry.input
 class TemplateOptions:
     variables: JSON
-    language: TemplateLanguage
+    format: TemplateFormat

@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
+from phoenix.server.api.helpers.prompts.models import TemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -59,7 +60,6 @@ from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
-from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -124,7 +124,7 @@ class Subscription:
             messages = list(
                 _formatted_messages(
                     messages=messages,
-                    template_language=template_options.language,
+                    template_format=template_options.format,
                     template_variables=template_options.variables,
                 )
             )
@@ -395,7 +395,7 @@ async def _stream_chat_completion_over_dataset_example(
         messages = list(
             _formatted_messages(
                 messages=messages,
-                template_language=input.template_language,
+                template_format=input.template_format,
                 template_variables=revision.input,
             )
         )
@@ -535,13 +535,13 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
 def _formatted_messages(
     *,
     messages: Iterable[ChatCompletionMessage],
-    template_language: TemplateLanguage,
+    template_format: TemplateFormat,
     template_variables: Mapping[str, Any],
 ) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_language=template_language)
+    template_formatter = _template_formatter(template_format=template_format)
     (
         roles,
         templates,
@@ -556,17 +556,17 @@ def _formatted_messages(
     return formatted_messages
 
 
-def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
+def _template_formatter(template_format: TemplateFormat) -> TemplateFormatter:
     """
-    Instantiates the appropriate template formatter for the template language.
+    Instantiates the appropriate template formatter for the template format
     """
-    if template_language is TemplateLanguage.MUSTACHE:
+    if template_format is TemplateFormat.MUSTACHE:
         return MustacheTemplateFormatter()
-    if template_language is TemplateLanguage.F_STRING:
+    if template_format is TemplateFormat.F_STRING:
         return FStringTemplateFormatter()
-    if template_language is TemplateLanguage.NONE:
+    if template_format is TemplateFormat.NONE:
         return NoOpFormatter()
-    assert_never(template_language)
+    assert_never(template_format)
 
 
 def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> str:

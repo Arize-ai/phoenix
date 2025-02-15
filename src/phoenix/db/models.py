@@ -47,10 +47,10 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptResponseFormat,
     PromptResponseFormatRootModel,
     PromptTemplate,
-    PromptTemplateFormat,
     PromptTemplateRootModel,
     PromptTemplateType,
     PromptTools,
+    TemplateFormat,
     is_prompt_invocation_parameters,
     is_prompt_template,
 )
@@ -230,22 +230,18 @@ class _PromptTemplateType(TypeDecorator[PromptTemplateType]):
         return None if value is None else PromptTemplateType(value)
 
 
-class _PromptTemplateFormat(TypeDecorator[PromptTemplateFormat]):
+class _TemplateFormat(TypeDecorator[TemplateFormat]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
     impl = String
 
-    def process_bind_param(
-        self, value: Optional[PromptTemplateFormat], _: Dialect
-    ) -> Optional[str]:
+    def process_bind_param(self, value: Optional[TemplateFormat], _: Dialect) -> Optional[str]:
         if isinstance(value, str):
-            return PromptTemplateFormat(value).value
+            return TemplateFormat(value).value
         return None if value is None else value.value
 
-    def process_result_value(
-        self, value: Optional[str], _: Dialect
-    ) -> Optional[PromptTemplateFormat]:
-        return None if value is None else PromptTemplateFormat(value)
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[TemplateFormat]:
+        return None if value is None else TemplateFormat(value)
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1054,10 +1050,10 @@ class PromptVersion(Base):
         CheckConstraint("template_type IN ('CHAT', 'STR')", name="template_type"),
         nullable=False,
     )
-    template_format: Mapped[PromptTemplateFormat] = mapped_column(
-        _PromptTemplateFormat,
+    template_format: Mapped[TemplateFormat] = mapped_column(
+        _TemplateFormat,
         CheckConstraint(
-            "template_format IN ('FSTRING', 'MUSTACHE', 'NONE')", name="template_format"
+            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
         ),
         nullable=False,
     )
