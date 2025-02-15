@@ -17,9 +17,7 @@ def load_web_content_to_vector_store(web_post_url):
     docs = loader.load()
     assert len(docs) == 1
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        add_start_index=True
+        chunk_size=1000, chunk_overlap=200, add_start_index=True
     )
     all_splits = text_splitter.split_documents(docs)
     logger.info(f"Split blog post into {len(all_splits)} sub-documents.")
@@ -40,4 +38,3 @@ def initialize_vector_store(web_post_url):
 
 def get_vector_store():
     return vector_store
-
