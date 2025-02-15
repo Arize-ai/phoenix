@@ -744,11 +744,6 @@ export interface components {
             template: string;
         };
         /**
-         * PromptTemplateFormat
-         * @enum {string}
-         */
-        PromptTemplateFormat: "MUSTACHE" | "FSTRING" | "NONE";
-        /**
          * PromptTemplateType
          * @enum {string}
          */
@@ -811,7 +806,7 @@ export interface components {
             /** Template */
             template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
             template_type: components["schemas"]["PromptTemplateType"];
-            template_format: components["schemas"]["PromptTemplateFormat"];
+            template_format: components["schemas"]["TemplateFormat"];
             /** Invocation Parameters */
             invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGeminiInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
@@ -830,7 +825,7 @@ export interface components {
             /** Template */
             template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
             template_type: components["schemas"]["PromptTemplateType"];
-            template_format: components["schemas"]["PromptTemplateFormat"];
+            template_format: components["schemas"]["TemplateFormat"];
             /** Invocation Parameters */
             invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGeminiInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
@@ -881,6 +876,11 @@ export interface components {
              */
             explanation?: string | null;
         };
+        /**
+         * TemplateFormat
+         * @enum {string}
+         */
+        TemplateFormat: "MUSTACHE" | "F_STRING" | "NONE";
         /** TextContentPart */
         TextContentPart: {
             /**
