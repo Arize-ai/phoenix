@@ -13,7 +13,7 @@ def initialize_tool_llm(model, api_key):
 
 
 def llm_call(prompt, config):
-    tool_model_agent = config['configurable']['tool_model']
+    tool_model_agent = config["configurable"]["tool_model"]
     response = tool_model_agent.invoke([HumanMessage(content=prompt)])
     return response.content
 
