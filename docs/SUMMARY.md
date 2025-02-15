@@ -98,7 +98,7 @@
 
 ## 📃 Prompt Engineering
 
-* [Overview: Prompts](prompt-engineering/overview-prompts/README.md)
+* [Overview: Prompts](prompt-engineering/overview-prompts.md)
   * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
   * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)
   * [Span Replay](prompt-engineering/overview-prompts/span-replay.md)

@@ -8,7 +8,7 @@ description: Version and track changes made to prompt templates
 
 
 
-Prompt management you to create, store, and modify prompts for interacting with LLMs. By managing prompts systematically, you can improve reuse, consistency, and experiment with variations across different models and inputs.
+Prompt management allows you to create, store, and modify prompts for interacting with LLMs. By managing prompts systematically, you can improve reuse, consistency, and experiment with variations across different models and inputs.
 
 Key benefits of prompt management include:
 
