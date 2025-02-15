@@ -11,7 +11,7 @@ Using Phoenix as a backend, Prompts can be managed and manipulated via code by u
 With the Phoenix SDK you can:
 
 * Create / Update prompts dynamically
-* Load prompts templates by name, version or tag
+* Load prompts templates by name, version, or tag
 * Format prompt templates with runtime variables and use them in your code
 * Execute tools defined within the prompt
 
