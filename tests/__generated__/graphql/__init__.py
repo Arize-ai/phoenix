@@ -1369,7 +1369,7 @@ class ChatCompletionOverDatasetInput(BaseModel):
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     promptName: Optional[str] = None
-    templateLanguage: Literal["F_STRING", "MUSTACHE", "NONE"]
+    templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
     tools: Optional[list[dict[str, Any]]] = None
 
 

@@ -947,7 +947,7 @@ class TestChatCompletionOverDatasetSubscription:
                         "content": "What country is {city} in? Answer in one word, no punctuation.",
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1320,7 +1320,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ),
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
