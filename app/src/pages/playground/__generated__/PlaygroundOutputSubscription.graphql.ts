@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<415de4c10c2e700705f6d6a3de3f60a2>>
+ * @generated SignedSource<<bd0e2404a2927db1b1d8f995ae92049e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
+export type TemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   apiKey?: string | null;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
@@ -47,7 +47,7 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type TemplateOptions = {
-  language: TemplateLanguage;
+  format: TemplateFormat;
   variables: any;
 };
 export type PlaygroundOutputSubscription$variables = {

@@ -15,11 +15,11 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { FStringTemplating } from "./language/fString";
 import { MustacheLikeTemplating } from "./language/mustacheLike";
-import { TemplateLanguages } from "./constants";
-import { TemplateLanguage } from "./types";
+import { TemplateFormats } from "./constants";
+import { TemplateFormat } from "./types";
 
 type TemplateEditorProps = Omit<ReactCodeMirrorProps, "value"> & {
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
   defaultValue: string;
 };
 
@@ -49,7 +49,7 @@ const baseExtensions = [
  * cursor position when value is updated.
  */
 export const TemplateEditor = ({
-  templateLanguage,
+  templateFormat,
   defaultValue,
   readOnly,
   ...props
@@ -59,20 +59,20 @@ export const TemplateEditor = ({
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [...baseExtensions];
-    switch (templateLanguage) {
-      case TemplateLanguages.FString:
+    switch (templateFormat) {
+      case TemplateFormats.FString:
         ext.push(FStringTemplating());
         break;
-      case TemplateLanguages.Mustache:
+      case TemplateFormats.Mustache:
         ext.push(MustacheLikeTemplating());
         break;
-      case TemplateLanguages.NONE:
+      case TemplateFormats.NONE:
         break;
       default:
-        assertUnreachable(templateLanguage);
+        assertUnreachable(templateFormat);
     }
     return ext;
-  }, [templateLanguage]);
+  }, [templateFormat]);
 
   useEffect(() => {
     if (readOnly) {

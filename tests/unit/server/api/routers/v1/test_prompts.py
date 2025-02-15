@@ -28,9 +28,9 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
-    PromptTemplateFormat,
     PromptTemplateType,
     PromptTools,
+    TemplateFormat,
     TextContentPart,
     ToolCallContentPart,
     ToolCallFunction,
@@ -201,7 +201,7 @@ class TestPrompts:
                     models.PromptVersion(
                         prompt_id=prompt.id,
                         template_type=PromptTemplateType.CHAT,
-                        template_format=PromptTemplateFormat.MUSTACHE,
+                        template_format=TemplateFormat.MUSTACHE,
                         template=template,
                         invocation_parameters=PromptOpenAIInvocationParameters(
                             type="openai",

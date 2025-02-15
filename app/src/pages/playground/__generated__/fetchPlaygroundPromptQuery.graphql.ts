@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6c13e62457c67265be6de352820a0b5>>
+ * @generated SignedSource<<961d8b7cd7403e9a4ebb4a264bf0858f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
+export type TemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type fetchPlaygroundPromptQuery$variables = {
   promptId: string;
 };
@@ -66,7 +66,7 @@ export type fetchPlaygroundPromptQuery$data = {
         // value in case none of the concrete values match.
         readonly __typename: "%other";
       };
-      readonly templateFormat: PromptTemplateFormat;
+      readonly templateFormat: TemplateFormat;
       readonly templateType: PromptTemplateType;
       readonly tools: ReadonlyArray<{
         readonly definition: any;

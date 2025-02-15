@@ -15,8 +15,8 @@ import {
   TemplateEditor,
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
-import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { normalizeMessageContent } from "@phoenix/pages/playground/playgroundUtils";
 import { ToolCallPart, ToolResultPart } from "@phoenix/schemas/promptSchemas";
@@ -70,7 +70,7 @@ export function ChatTemplateMessageToolResultPart({
               readOnly
               height="100%"
               defaultValue={value}
-              templateLanguage={TemplateLanguages.NONE}
+              templateFormat={TemplateFormats.NONE}
             />
           </TemplateEditorWrap>
         </Flex>
@@ -104,7 +104,7 @@ export function ChatTemplateMessageToolCallPart({
           readOnly
           height="100%"
           defaultValue={value}
-          templateLanguage={TemplateLanguages.NONE}
+          templateFormat={TemplateFormats.NONE}
         />
       </TemplateEditorWrap>
     </ChatTemplateMessagePartContainer>
@@ -113,7 +113,7 @@ export function ChatTemplateMessageToolCallPart({
 
 export type ChatTemplateMessageTextPartProps = {
   text: string;
-  templateFormat: TemplateLanguage;
+  templateFormat: TemplateFormat;
   isOnlyChild?: boolean;
 };
 
@@ -131,7 +131,7 @@ export function ChatTemplateMessageTextPart(
           readOnly
           height="100%"
           defaultValue={text}
-          templateLanguage={templateFormat}
+          templateFormat={templateFormat}
         />
       </TemplateEditorWrap>
     </ChatTemplateMessagePartContainer>
@@ -172,7 +172,7 @@ export type ChatTemplateMessageProps = PropsWithChildren<{
  *
  * @example
  * <ChatTemplateMessageCard role="system">
- *   <ChatTemplateMessageTextPart text="Hello, world!" templateFormat={TemplateLanguages.NONE} />
+ *   <ChatTemplateMessageTextPart text="Hello, world!" templateFormat={TemplateFormats.NONE} />
  *   <ChatTemplateMessageToolCallPart toolCall={toolCall} provider={provider} />
  *   <ChatTemplateMessageToolResultPart toolResult={toolResult} />
  * </ChatTemplateMessageCard>

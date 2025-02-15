@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0443688d6cd1a91e966c682a3e7cbd6a>>
+ * @generated SignedSource<<a368c48c7850abab0dafadc4cf33864e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
+export type TemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   apiKey?: string | null;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
@@ -47,7 +47,7 @@ export type InvocationParameterInput = {
   valueStringList?: ReadonlyArray<string> | null;
 };
 export type TemplateOptions = {
-  language: TemplateLanguage;
+  format: TemplateFormat;
   variables: any;
 };
 export type PlaygroundOutputMutation$variables = {
