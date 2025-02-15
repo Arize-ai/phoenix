@@ -1,6 +1,6 @@
 # Create a prompt
 
-Prompts with Phoenix can be created usig the playground as well as via the phoenix-clients.
+Prompts with Phoenix can be created using the playground as well as via the phoenix-clients.
 
 ## Using the Playground
 
@@ -24,7 +24,7 @@ The model configuration you selected in the Playground will be saved with the pr
 
 You just created your first prompt in Phoenix! You can view and search for prompts by navigating to Prompts in the UI.&#x20;
 
-Prompts can be loaded back into the playground at any time by clicking on "open in playground"
+Prompts can be loaded back into the Playground at any time by clicking on "open in playground"
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/open_prompt.gif" alt=""><figcaption><p>You can quickly load in the latest version of a prompt into the playground</p></figcaption></figure>
 
@@ -38,11 +38,11 @@ To view the details of a prompt, click on the prompt name. You will be taken to 
 
 ### Making edits to a prompt
 
-Once you've crated a prompt, you probably need to make teaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](../concepts-prompts.md#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
+Once you've crated a prompt, you probably need to make tweaks over time. The best way to make tweaks to a prompt is using the playground.  Depending on how destructive a change you are making you might want to just create a new [prompt version](../concepts-prompts.md#prompt-version) or [clone](create-a-prompt.md#cloning-a-prompt) the prompt.
 
 #### Editing a prompt in the playground
 
-To make edits to a prompt, click on the edit in playground on the top right of the prompt details view.
+To make edits to a prompt, click on the edit in Playground on the top right of the prompt details view.
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_edit.gif" alt=""><figcaption><p>Iterate on prompts in the playground and save when you are happy with the prompt</p></figcaption></figure>
 
