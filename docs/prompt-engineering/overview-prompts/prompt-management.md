@@ -13,7 +13,7 @@ Prompt management allows you to create, store, and modify prompts for interactin
 Key benefits of prompt management include:
 
 * **Reusability**: Store and load prompts across different use cases.
-* **Versioning**: Track changes over time ensure that best performing version is deployed for use in your application.
-* **Collaboration**: Share prompts with others to maintain consistency and facilitate iteration
+* **Versioning**: Track changes over time to ensure that the best performing version is deployed for use in your application.
+* **Collaboration**: Share prompts with others to maintain consistency and facilitate iteration.
 
 To learn how to get started with prompt management, see [create-a-prompt.md](../how-to-prompts/create-a-prompt.md "mention")
