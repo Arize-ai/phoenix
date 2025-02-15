@@ -162,7 +162,7 @@ function DatasetPageContent({
             <Button
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               onPress={() => {
-                navigate(`/playground/datasets/${dataset.id}`);
+                navigate(`/playground?datasetId=${dataset.id}`);
               }}
             >
               Playground
