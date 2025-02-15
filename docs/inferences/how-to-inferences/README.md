@@ -24,6 +24,11 @@ How to export your data for labeling, evaluation, or fine-tuning
 
 ## [How to generate embeddings](generating-embeddings.md)
 
+* [Auto-embeddings](generating-embeddings.md)
+* [How to enable auto-embeddings](generating-embeddings.md)
+* [How to implement auto-embeddings](generating-embeddings.md)
+
+
+
 ##
 
-\\

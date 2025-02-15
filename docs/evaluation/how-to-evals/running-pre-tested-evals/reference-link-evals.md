@@ -2,8 +2,6 @@
 
 ## Reference Links in Retrieval Q\&A
 
-{% embed url="https://colab.research.google.com/drive/1mAjcIYWCDi9TNFE3p7xRiw0L0hwHzk-q?usp=sharing" %}
-
 In chatbots and Q\&A systems, many times reference links are provided in the response, along with an answer, to help point users to documentation or pages that contain more information or the source for the answer.
 
 **EXAMPLE**: Q\&A from Arize-Phoenix Documentation
@@ -17,7 +15,7 @@ In chatbots and Q\&A systems, many times reference links are provided in the res
 This Eval checks the reference link returned answers the question asked in a conversation
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L381).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L381).
 {% endhint %}
 
 <pre class="language-python"><code class="lang-python"><strong>print(REF_LINK_EVAL_PROMPT_TEMPLATE_STR)
@@ -39,6 +37,8 @@ question is answered, please still answer "correct". If the text does not answer
 question in the conversation, or doesn't contain information that would allow you
 to answer the specific question please answer "incorrect".
 </code></pre>
+
+## How to run the Citation Eval
 
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.evals import (
 </strong><strong>    REF_LINK_EVAL_PROMPT_RAILS_MAP,
@@ -66,7 +66,13 @@ relevance_classifications = llm_classify(
 )
 </code></pre>
 
-### Benchmark Results
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using a handcrafted ground truth dataset consisting of questions on the Arize platform. That [dataset is available here](https://storage.googleapis.com/arize-assets/phoenix/evals/ref-link-classification/ref_link_golden_test_data.csv).
+
+Each example in the dataset was evaluating using the `REF_LINK_EVAL_PROMPT_TEMPLATE_STR` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
+
+{% embed url="https://colab.research.google.com/drive/1mAjcIYWCDi9TNFE3p7xRiw0L0hwHzk-q?usp=sharing" %}
 
 **GPT-4 Results**
 

@@ -38,7 +38,7 @@ For non-mac users, you can follow the instruction [here](https://github.com/cond
 Create a new virtual environment with a Phoenix-compatible Python version. For example,
 
 ```bash
-conda create --name phoenix python=3.8
+conda create --name phoenix python=3.12
 ```
 
 Second, install the web build dependencies.
