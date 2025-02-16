@@ -2694,6 +2694,15 @@
         ],
         "title": "PromptStringTemplate"
       },
+      "PromptTemplateFormat": {
+        "type": "string",
+        "enum": [
+          "MUSTACHE",
+          "F_STRING",
+          "NONE"
+        ],
+        "title": "PromptTemplateFormat"
+      },
       "PromptTemplateType": {
         "type": "string",
         "enum": [
@@ -2873,7 +2882,7 @@
             "$ref": "#/components/schemas/PromptTemplateType"
           },
           "template_format": {
-            "$ref": "#/components/schemas/TemplateFormat"
+            "$ref": "#/components/schemas/PromptTemplateFormat"
           },
           "invocation_parameters": {
             "oneOf": [
@@ -2991,7 +3000,7 @@
             "$ref": "#/components/schemas/PromptTemplateType"
           },
           "template_format": {
-            "$ref": "#/components/schemas/TemplateFormat"
+            "$ref": "#/components/schemas/PromptTemplateFormat"
           },
           "invocation_parameters": {
             "oneOf": [
@@ -3156,15 +3165,6 @@
         },
         "type": "object",
         "title": "SpanAnnotationResult"
-      },
-      "TemplateFormat": {
-        "type": "string",
-        "enum": [
-          "MUSTACHE",
-          "F_STRING",
-          "NONE"
-        ],
-        "title": "TemplateFormat"
       },
       "TextContentPart": {
         "properties": {
