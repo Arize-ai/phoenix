@@ -97,7 +97,7 @@ def create_prompt_version_from_openai(
     /,
     *,
     description: Optional[str] = None,
-    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+    template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(

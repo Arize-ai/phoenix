@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
@@ -164,10 +164,10 @@ export interface PlaygroundProps {
    */
   instances: Array<PlaygroundInstance>;
   /**
-   * The current template language for all instances
+   * The current template format for all instances
    * @default "mustache"
    */
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
   /**
    * Whether or not to use streaming
    * @default true
@@ -327,9 +327,9 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   markPlaygroundInstanceComplete: (instanceId: number) => void;
   /**
-   * Set the template language for all instances
+   * Set the template form  at for all instances
    */
-  setTemplateLanguage: (templateLanguage: TemplateLanguage) => void;
+  setTemplateFormat: (templateFormat: TemplateFormat) => void;
   /**
    * Set the value of a variable in the input
    */

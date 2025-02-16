@@ -52,7 +52,7 @@ class PromptVersion:
     template: v1.PromptChatTemplate
     model_name: str
     model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
-    template_format: Literal["FSTRING", "MUSTACHE", "NONE"]
+    template_format: Literal["F_STRING", "MUSTACHE", "NONE"]
     invocation_parameters: Union[
         v1.PromptOpenAIInvocationParameters,
         v1.PromptAzureOpenAIInvocationParameters,
@@ -72,7 +72,7 @@ class PromptVersion:
         model_name: str,
         description: Optional[str] = None,
         model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = "OPENAI",
-        template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
         self.template = v1.PromptChatTemplate(messages=prompt, type="chat")
         self.template_type: Literal["CHAT"] = "CHAT"
@@ -80,7 +80,7 @@ class PromptVersion:
         self.model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = (
             model_provider
         )
-        self.template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = template_format
+        self.template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
         self.description = description
         if model_provider == "OPENAI":
             self.invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -192,7 +192,7 @@ class PromptVersion:
         obj: CompletionCreateParamsBase,
         /,
         *,
-        template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
     ) -> Self:
         return cls.loads(
@@ -209,7 +209,7 @@ class PromptVersion:
         obj: MessageCreateParams,
         /,
         *,
-        template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
     ) -> Self:
         return cls.loads(
@@ -226,7 +226,7 @@ class PromptVersion:
         obj: Any,
         /,
         *,
-        template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
     ) -> Self:
         return cls.loads(

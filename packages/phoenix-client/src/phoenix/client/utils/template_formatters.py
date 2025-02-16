@@ -149,7 +149,7 @@ def to_formatter(obj: v1.PromptVersionData) -> BaseTemplateFormatter:
         or obj["template_format"] == "MUSTACHE"
     ):
         return MUSTACHE_TEMPLATE_FORMATTER
-    elif obj["template_format"] == "FSTRING":
+    elif obj["template_format"] == "F_STRING":
         return F_STRING_TEMPLATE_FORMATTER
     elif obj["template_format"] == "NONE":
         return NO_OP_FORMATTER

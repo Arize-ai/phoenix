@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6c13e62457c67265be6de352820a0b5>>
+ * @generated SignedSource<<d877926f754e8508c1615b4351ed1955>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
 export type fetchPlaygroundPromptQuery$variables = {
   promptId: string;

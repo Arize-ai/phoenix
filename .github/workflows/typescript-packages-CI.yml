@@ -2,7 +2,7 @@ name: Typescript Packages CI
 
 on:
   push:
-    branches: [main, js]
+    branches: [main, prompts]
   pull_request:
     paths:
       - "js/**"
