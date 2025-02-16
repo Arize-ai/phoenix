@@ -3,6 +3,9 @@ import os
 import sys
 import warnings
 from enum import Enum
+from logging import getLogger
+from os import environ
+from os.path import abspath, dirname, pathsep
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
@@ -15,6 +18,12 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
     OTLPSpanExporter as _HTTPSpanExporter,
 )
+from opentelemetry.instrumentation.auto_instrumentation._load import (
+    _load_configurators,
+    _load_distro,
+    _load_instrumentors,
+)
+from opentelemetry.instrumentation.utils import _python_path_without_directory
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import BatchSpanProcessor as _BatchSpanProcessor
@@ -28,6 +37,9 @@ from .settings import (
     get_env_phoenix_auth_header,
     get_env_project_name,
 )
+
+logger = getLogger(__name__)
+
 
 PROJECT_NAME = _ResourceAttributes.PROJECT_NAME
 
@@ -69,6 +81,7 @@ def register(
     headers: Optional[Dict[str, str]] = None,
     protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     verbose: bool = True,
+    auto_instrument: bool = False,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -93,6 +106,8 @@ def register(
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
             "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
         verbose (bool): If True, configuration details will be printed to stdout.
+        auto_instrument (bool): If True, all installed OpenTelemetry and OpenInference packages
+            will be automatically configured and instrumented.
     """
 
     project_name = project_name or get_env_project_name()
@@ -118,8 +133,12 @@ def register(
         global_provider_msg = ""
 
     details = tracer_provider._tracing_details()
+
+    if auto_instrument:
+        _initialize_installed_otel_packages()
+
     if verbose:
-        print(f"{details}" f"{global_provider_msg}")
+        print(f"{details}{global_provider_msg}")
     return tracer_provider
 
 
@@ -512,3 +531,26 @@ def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
         return new_sig
     else:
         raise RuntimeError("Unsupported Python version")
+
+
+def _initialize_installed_otel_packages():
+    """
+    Copied from https://github.com/open-telemetry/opentelemetry-python-contrib/blob/789bf866e3cb2bbcb92320a0d3141b262a679a8c/opentelemetry-instrumentation/src/opentelemetry/instrumentation/auto_instrumentation/sitecustomize.py#L29
+    Includes the change in https://github.com/open-telemetry/opentelemetry-python-contrib/pull/2886
+
+    This function can be removed and replaced by the OTel equivalent once the PR is merged.
+    """
+    # prevents auto-instrumentation of subprocesses if code execs another python process
+    environ["PYTHONPATH"] = _python_path_without_directory(
+        environ.get("PYTHONPATH", ""),  # this is the change from the pr
+        dirname(abspath(__file__)),
+        pathsep,
+    )
+
+    try:
+        distro = _load_distro()
+        distro.configure()
+        _load_configurators()
+        _load_instrumentors(distro)
+    except Exception:
+        logger.exception("Failed to auto initialize opentelemetry")
