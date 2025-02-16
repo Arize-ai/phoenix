@@ -67,11 +67,21 @@ export type PromptSelector =
   | GetPromptByTagSelector;
 
 /**
+ * The prompt data needed to create a prompt.
+ */
+export type PromptData = components["schemas"]["PromptData"];
+
+/**
  * The prompt version type from the API.
  *
  * aka the prompt at a specific point in time
  */
 export type PromptVersion = components["schemas"]["PromptVersion"];
+
+/**
+ * The prompt version data needed to create a prompt version.
+ */
+export type PromptVersionData = components["schemas"]["PromptVersionData"];
 
 /**
  * The format of the prompt template message(s).

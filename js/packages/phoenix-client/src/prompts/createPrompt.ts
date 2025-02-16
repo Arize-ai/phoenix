@@ -1,11 +1,11 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
-import { PromptVersion } from "../types/prompts";
+import { PromptData, PromptVersionData, PromptVersion } from "../types/prompts";
 
 /**
  * Parameters to crate a prompt
  */
-export interface CreatePromptParams extends ClientFn {
+export interface CreatePromptParams extends ClientFn, PromptData {
   /**
    * The name of the promt
    */
@@ -15,9 +15,9 @@ export interface CreatePromptParams extends ClientFn {
    */
   description?: string;
   /**
-   * The prompt version to push onto the history of the promt
+   * The prompt version to push onto the history of the prompt
    */
-  version: PromptVersion;
+  version: PromptVersionData;
 }
 
 /**
@@ -30,6 +30,15 @@ export async function createPrompt({
   ...promptParams
 }: CreatePromptParams): Promise<PromptVersion> {
   const client = _client ?? createClient();
-  const prompt = await createPrompt({ client, prompt: _prompt });
-  return prompt;
+  const response = await client.POST("/v1/prompts", {
+    body: {
+      prompt: promptParams,
+      version: version,
+    },
+  });
+  const createdPromptVersion = response.data?.data;
+  if (!createdPromptVersion) {
+    throw new Error("Failed to create prompt");
+  }
+  return createdPromptVersion;
 }
