@@ -76,7 +76,7 @@ export type PromptVersion = components["schemas"]["PromptVersion"];
 /**
  * The format of the prompt template message(s).
  */
-export type TemplateFormat = PromptVersion["template_format"];
+export type PromptTemplateFormat = PromptVersion["template_format"];
 
 /**
  * Extracts the chat message type from the prompt template who may be a StringTemplate or ChatTemplate.

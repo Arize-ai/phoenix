@@ -1,5 +1,5 @@
 import { Variables } from "../prompts/sdks/types";
-import { PromptChatMessage, TemplateFormat } from "../types/prompts";
+import { PromptChatMessage, PromptTemplateFormat } from "../types/prompts";
 import { assertUnreachable } from "./assertUnreachable";
 import {
   TextPart,
@@ -15,7 +15,7 @@ import {
  * @returns The formatted prompt messages
  */
 export function formatPromptMessages(
-  format: TemplateFormat,
+  format: PromptTemplateFormat,
   promptMessages: PromptChatMessage[],
   variables: Variables = {}
 ) {
