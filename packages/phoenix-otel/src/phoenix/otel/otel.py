@@ -6,6 +6,9 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
+from importlib_metadata import (
+    entry_points,
+)  # the importlib.metadata module that is part of the stdlib has an inconsistent interface for entry_points between Python 3.9 and 3.10  # noqa: E501
 from openinference.instrumentation import TracerProvider as _TracerProvider
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
 from opentelemetry import trace as trace_api
@@ -69,6 +72,7 @@ def register(
     headers: Optional[Dict[str, str]] = None,
     protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
     verbose: bool = True,
+    auto_instrument: bool = False,
 ) -> _TracerProvider:
     """
     Creates an OpenTelemetry TracerProvider for enabling OpenInference tracing.
@@ -93,6 +97,8 @@ def register(
         protocol (str, optional): The protocol to use for the collector endpoint. Must be either
             "http/protobuf" or "grpc". If not provided, the protocol will be inferred.
         verbose (bool): If True, configuration details will be printed to stdout.
+        auto_instrument (bool): If True, automatically instruments all installed OpenInference
+            libraries.
     """
 
     project_name = project_name or get_env_project_name()
@@ -117,9 +123,12 @@ def register(
     else:
         global_provider_msg = ""
 
+    if auto_instrument:
+        _auto_instrument_installed_openinference_libraries(tracer_provider)
+
     details = tracer_provider._tracing_details()
     if verbose:
-        print(f"{details}" f"{global_provider_msg}")
+        print(f"{details}{global_provider_msg}")
     return tracer_provider
 
 
@@ -512,3 +521,18 @@ def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
         return new_sig
     else:
         raise RuntimeError("Unsupported Python version")
+
+
+def _auto_instrument_installed_openinference_libraries(tracer_provider: TracerProvider) -> None:
+    openinference_entry_points = entry_points(group="openinference_instrumentor")
+    if not openinference_entry_points:
+        warnings.warn(
+            "No OpenInference instrumentors found. "
+            "Maybe you need to update your OpenInference version? "
+            "Skipping auto-instrumentation."
+        )
+        return
+    for entry_point in openinference_entry_points:
+        instrumentor_cls = entry_point.load()
+        instrumentor = instrumentor_cls()
+        instrumentor.instrument(tracer_provider=tracer_provider)

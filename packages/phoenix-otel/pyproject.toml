@@ -24,6 +24,7 @@ classifiers = [
 ]
 version = "0.7.1"
 dependencies = [
+  "importlib-metadata", # the importlib.metadata module that is part of the stdlib has an inconsistent interface for entry_points between Python 3.9 and 3.10
   "opentelemetry-semantic-conventions",
   "opentelemetry-exporter-otlp",
   "opentelemetry-proto>=1.12.0",
