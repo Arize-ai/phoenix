@@ -84,6 +84,30 @@ export type PromptVersion = components["schemas"]["PromptVersion"];
 export type PromptVersionData = components["schemas"]["PromptVersionData"];
 
 /**
+ * The invocation parameters for a prompt version for OpenAI.
+ */
+export type OpenAIInvocationParameters =
+  components["schemas"]["PromptOpenAIInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Azure OpenAI.
+ */
+export type AzureOpenAIInvocationParameters =
+  components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Anthropic.
+ */
+export type AnthropicInvocationParameters =
+  components["schemas"]["PromptAnthropicInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Gemini.
+ */
+export type GeminiInvocationParameters =
+  components["schemas"]["PromptGeminiInvocationParametersContent"];
+
+/**
  * The format of the prompt template message(s).
  */
 export type PromptTemplateFormat = PromptVersion["template_format"];

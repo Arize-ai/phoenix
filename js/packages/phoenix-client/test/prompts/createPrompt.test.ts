@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createPrompt } from "../../src/prompts";
+import { createPrompt, promptVersion } from "../../src/prompts";
 
 // Mock the fetch module
 vi.mock("openapi-fetch", () => ({
@@ -70,6 +70,27 @@ describe("createPrompt", () => {
       },
     });
 
+    expect(prompt).toBeDefined();
+    expect(prompt.id).toBe("mocked-prompt-id");
+  });
+  it("should let you craate a prompt usering promptVersion", async () => {
+    const prompt = await createPrompt({
+      name: "test-prompt",
+      description: "test-description",
+      version: promptVersion({
+        model_provider: "OPENAI",
+        model_name: "gpt-3.5-turbo",
+        template: [
+          {
+            role: "user",
+            content: "{{ question }}",
+          },
+        ],
+        invocation_parameters: {
+          temperature: 0.5,
+        },
+      }),
+    });
     expect(prompt).toBeDefined();
     expect(prompt.id).toBe("mocked-prompt-id");
   });
