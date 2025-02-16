@@ -8,7 +8,6 @@ vi.mock("openapi-fetch", () => ({
       data: {
         data: {
           id: "mocked-prompt-id",
-          // Add other expected prompt properties here
           description: "test-description",
           model_provider: "OPENAI",
           model_name: "gpt-3.5-turbo",
