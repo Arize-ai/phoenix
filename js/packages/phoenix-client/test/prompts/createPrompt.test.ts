@@ -77,15 +77,15 @@ describe("createPrompt", () => {
       name: "test-prompt",
       description: "test-description",
       version: promptVersion({
-        model_provider: "OPENAI",
-        model_name: "gpt-3.5-turbo",
+        modelProvider: "OPENAI",
+        modelName: "gpt-3.5-turbo",
         template: [
           {
             role: "user",
             content: "{{ question }}",
           },
         ],
-        invocation_parameters: {
+        invocationParameters: {
           temperature: 0.5,
         },
       }),

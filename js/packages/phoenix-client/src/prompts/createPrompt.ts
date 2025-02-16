@@ -55,7 +55,7 @@ export async function createPrompt({
 
 interface PromptVersionInputBase {
   description?: string;
-  model_name: PromptVersionData["model_name"];
+  modelName: PromptVersionData["model_name"];
   /**
    * The template for the prompt version.
    * Currently only chat is supported.
@@ -63,33 +63,33 @@ interface PromptVersionInputBase {
   template: PromptChatMessage[];
   /**
    * The format of the template.
-   * Currently only MUSTACHE is supported.
+   * @default "MUSTACHE"
    */
-  template_format?: PromptVersionData["template_format"];
+  templateFormat?: PromptVersionData["template_format"];
 }
 
 interface OpenAIPromptVersionInput extends PromptVersionInputBase {
-  model_provider: "OPENAI";
-  invocation_parameters?: OpenAIInvocationParameters;
+  modelProvider: "OPENAI";
+  invocationParameters?: OpenAIInvocationParameters;
 }
 
 interface AzureOpenAIPromptVersionInput extends PromptVersionInputBase {
-  model_provider: "AZURE_OPENAI";
-  invocation_parameters?: AzureOpenAIInvocationParameters;
+  modelProvider: "AZURE_OPENAI";
+  invocationParameters?: AzureOpenAIInvocationParameters;
 }
 
 interface AnthropicPromptVersionInput extends PromptVersionInputBase {
-  model_provider: "ANTHROPIC";
+  modelProvider: "ANTHROPIC";
   /**
    * The invocation parameters for the prompt version.
    * For Anthropic, the invocation parameters are required since max_tokens is required.
    */
-  invocation_parameters: AnthropicInvocationParameters;
+  invocationParameters: AnthropicInvocationParameters;
 }
 
 interface GeminiPromptVersionInput extends PromptVersionInputBase {
-  model_provider: "GEMINI";
-  invocation_parameters?: GeminiInvocationParameters;
+  modelProvider: "GEMINI";
+  invocationParameters?: GeminiInvocationParameters;
 }
 
 type PromptVersionInput =
@@ -104,11 +104,11 @@ type PromptVersionInput =
 export function promptVersion(params: PromptVersionInput): PromptVersionData {
   const {
     description = "",
-    model_provider,
-    model_name,
+    modelProvider: model_provider,
+    modelName: model_name,
     template: templateMessages,
-    template_format = "MUSTACHE",
-    invocation_parameters,
+    templateFormat: template_format = "MUSTACHE",
+    invocationParameters: invocation_parameters,
   } = params;
   switch (model_provider) {
     case "OPENAI":

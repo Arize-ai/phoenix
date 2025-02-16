@@ -13,15 +13,15 @@ const main = async () => {
     description: "test-description",
     version: promptVersion({
       description: "version description here",
-      model_provider: "OPENAI",
-      model_name: "gpt-4o",
+      modelProvider: "OPENAI",
+      modelName: "gpt-4o",
       template: [
         {
           role: "user",
           content: "{{question}}",
         },
       ],
-      invocation_parameters: {
+      invocationParameters: {
         temperature: 0.8,
       },
     }),
