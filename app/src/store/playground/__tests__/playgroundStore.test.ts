@@ -5,18 +5,27 @@ import {
 
 import {
   _resetInstanceId,
-  createPlaygroundInstance,
+  createNormalizedPlaygroundInstance,
   getInitialInstances,
 } from "../playgroundStore";
-import { InitialPlaygroundState } from "../types";
+import type { InitialPlaygroundState } from "../types";
 
 describe("getInitialInstances", () => {
   beforeEach(() => {
     _resetInstanceId();
   });
   it("should return instances from initialProps if they exist", () => {
-    const existingInstance = {
-      ...createPlaygroundInstance(),
+    const {
+      instance: newInstanceParams,
+      instanceMessages: newInstanceMessages,
+    } = createNormalizedPlaygroundInstance();
+    const newInstance = {
+      ...newInstanceParams,
+      template: {
+        ...newInstanceParams.template,
+        // denormalize messages to simulate a denormalized instance
+        messages: Object.values(newInstanceMessages),
+      },
       model: {
         modelName: "test-model",
         provider: "OPENAI" as const,
@@ -24,21 +33,32 @@ describe("getInitialInstances", () => {
         supportedInvocationParameters: [],
       },
     };
+
+    // simulated props that would be passed to the PlaygroundProvider
     const initialProps: InitialPlaygroundState = {
-      instances: [existingInstance],
+      instances: [newInstance],
       modelConfigByProvider: {},
     };
 
-    const instances = getInitialInstances(initialProps);
+    // Create normalized instances from the denormalized instance
+    const { instances, instanceMessages } = getInitialInstances(initialProps);
 
-    expect(instances).toEqual([existingInstance]);
+    expect(instances).toEqual([
+      {
+        ...newInstanceParams,
+        model: { ...newInstanceParams.model, modelName: "test-model" },
+      },
+    ]);
+
+    // the denormalized instance messages should end up in the instanceMessages object
+    expect(instanceMessages).toEqual(newInstanceMessages);
   });
 
   it("should create a new default instance if no instances exist in initialProps and there are no saved modelConfigs", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},
     };
-    const instances = getInitialInstances(initialProps);
+    const { instances } = getInitialInstances(initialProps);
 
     expect(instances).toHaveLength(1);
     expect(instances[0].id).toBe(0);
@@ -57,7 +77,7 @@ describe("getInitialInstances", () => {
       },
     };
 
-    const instances = getInitialInstances(initialProps);
+    const { instances } = getInitialInstances(initialProps);
 
     expect(instances).toHaveLength(1);
     expect(instances[0].model.provider).toBe("OPENAI");
@@ -80,7 +100,7 @@ describe("getInitialInstances", () => {
       },
     };
 
-    const instances = getInitialInstances(initialProps);
+    const { instances } = getInitialInstances(initialProps);
 
     expect(instances).toHaveLength(1);
     expect(instances[0].model.provider).toBe("OPENAI");
@@ -98,7 +118,7 @@ describe("getInitialInstances", () => {
       },
     };
 
-    const instances = getInitialInstances(initialProps);
+    const { instances } = getInitialInstances(initialProps);
 
     expect(instances).toHaveLength(1);
     expect(instances[0].model.provider).toBe("ANTHROPIC");

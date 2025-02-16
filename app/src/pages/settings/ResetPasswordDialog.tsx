@@ -2,9 +2,19 @@ import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Dialog, Form, TextField } from "@arizeai/components";
+import { Dialog } from "@arizeai/components";
 
-import { Button, Flex, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import { ResetPasswordDialogMutation } from "./__generated__/ResetPasswordDialogMutation.graphql";
@@ -75,64 +85,80 @@ export function ResetPasswordDialog({
     <Dialog title="Reset Password" isDismissable onDismiss={onClose}>
       <Form>
         <View padding="size-200">
-          <Controller
-            name="newPassword"
-            control={control}
-            rules={{
-              required: "Password is required",
-              minLength: {
-                value: MIN_PASSWORD_LENGTH,
-                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-              },
-            }}
-            render={({
-              field: { name, onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextField
-                label="New Password"
-                type="password"
-                isRequired
-                description={`Password must be at least ${MIN_PASSWORD_LENGTH} characters`}
-                name={name}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
-                onChange={onChange}
-                onBlur={onBlur}
-                defaultValue={value}
-              />
-            )}
-          />
-          <Controller
-            name="confirmPassword"
-            control={control}
-            rules={{
-              required: "Password is required",
-              minLength: {
-                value: MIN_PASSWORD_LENGTH,
-                message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-              },
-              validate: (value, formValues) =>
-                value === formValues.newPassword || "Passwords do not match",
-            }}
-            render={({
-              field: { name, onChange, onBlur, value },
-              fieldState: { invalid, error },
-            }) => (
-              <TextField
-                label="Confirm Password"
-                isRequired
-                type="password"
-                description="Confirm the new password"
-                name={name}
-                errorMessage={error?.message}
-                validationState={invalid ? "invalid" : "valid"}
-                onChange={onChange}
-                onBlur={onBlur}
-                defaultValue={value}
-              />
-            )}
-          />
+          <Flex direction="column" gap="size-100">
+            <Controller
+              name="newPassword"
+              control={control}
+              rules={{
+                required: "Password is required",
+                minLength: {
+                  value: MIN_PASSWORD_LENGTH,
+                  message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+                },
+              }}
+              render={({
+                field: { name, onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  name={name}
+                  onBlur={onBlur}
+                  value={value.toString()}
+                  type="password"
+                  id="new-password"
+                  autoComplete="new-password"
+                >
+                  <Label>New Password</Label>
+                  <Input placeholder="New password" />
+                  {error?.message ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      Password must be at least {MIN_PASSWORD_LENGTH} characters
+                    </Text>
+                  )}
+                </TextField>
+              )}
+            />
+            <Controller
+              name="confirmPassword"
+              control={control}
+              rules={{
+                required: "Password is required",
+                minLength: {
+                  value: MIN_PASSWORD_LENGTH,
+                  message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+                },
+                validate: (value, formValues) =>
+                  value === formValues.newPassword || "Passwords do not match",
+              }}
+              render={({
+                field: { name, onChange, onBlur, value },
+                fieldState: { invalid, error },
+              }) => (
+                <TextField
+                  isInvalid={invalid}
+                  onChange={onChange}
+                  name={name}
+                  onBlur={onBlur}
+                  value={value.toString()}
+                  type="password"
+                >
+                  <Label>Confirm Password</Label>
+                  <Input placeholder="Repeat new password" />
+                  {error?.message ? (
+                    <FieldError>{error.message}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      Repeat new password to confirm
+                    </Text>
+                  )}
+                </TextField>
+              )}
+            />
+          </Flex>
           <View paddingTop="size-200">
             <Flex direction="row" gap="size-100" justifyContent="end">
               <Button

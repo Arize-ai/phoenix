@@ -5,8 +5,8 @@ import {
   extractVariablesFromMustacheLike,
   formatMustacheLike,
 } from "./language/mustacheLike";
-import { TemplateLanguages } from "./constants";
-import { TemplateLanguage } from "./types";
+import { TemplateFormats } from "./constants";
+import { TemplateFormat } from "./types";
 
 /**
  * A function that formats a template with the given variables
@@ -24,35 +24,35 @@ export type ExtractVariablesFn = (template: string) => string[];
 /**
  * Get an object of isomorphic functions for processing templates of the given language
  *
- * @param templateLanguage - The language of the template to process
+ * @param templateFormat - The format of the template to process
  *
  * @returns An object containing the `format` and `extractVariables` functions.
  * These functions share the same signature despite the different underlying
  * templating languages.
  */
-export const getTemplateLanguageUtils = (
-  templateLanguage: TemplateLanguage
+export const getTemplateFormatUtils = (
+  templateFormat: TemplateFormat
 ): {
   format: FormatFn;
   extractVariables: ExtractVariablesFn;
 } => {
-  switch (templateLanguage) {
-    case TemplateLanguages.FString:
+  switch (templateFormat) {
+    case TemplateFormats.FString:
       return {
         format: formatFString,
         extractVariables: extractVariablesFromFString,
       };
-    case TemplateLanguages.Mustache:
+    case TemplateFormats.Mustache:
       return {
         format: formatMustacheLike,
         extractVariables: extractVariablesFromMustacheLike,
       };
-    case TemplateLanguages.NONE:
+    case TemplateFormats.NONE:
       return {
         format: ({ text }) => text,
         extractVariables: () => [],
       };
     default:
-      assertUnreachable(templateLanguage);
+      assertUnreachable(templateFormat);
   }
 };

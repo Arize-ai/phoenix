@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c45d85892fa29ddb812f2f2d04bc9c33>>
+ * @generated SignedSource<<094e936ed1ce1b82fff3e09635431574>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,13 +12,14 @@ import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
 export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   apiKey?: string | null;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
-  template?: TemplateOptions | null;
+  promptName?: string | null;
+  template?: PromptTemplateOptions | null;
   tools?: ReadonlyArray<any> | null;
 };
 export type ChatCompletionMessageInput = {
@@ -45,8 +46,8 @@ export type InvocationParameterInput = {
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
 };
-export type TemplateOptions = {
-  language: TemplateLanguage;
+export type PromptTemplateOptions = {
+  format: PromptTemplateFormat;
   variables: any;
 };
 export type PlaygroundOutputSubscription$variables = {

@@ -17,6 +17,7 @@ export async function resetPasswordLoader() {
           id
           email
         }
+        ...ResetPasswordFormQuery
       }
     `,
     {}

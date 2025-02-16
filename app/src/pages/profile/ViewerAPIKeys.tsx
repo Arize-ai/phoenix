@@ -1,5 +1,6 @@
 import React, { ReactNode, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
+import { getLocalTimeZone } from "@internationalized/date";
 
 import { Card, DialogContainer } from "@arizeai/components";
 
@@ -46,7 +47,8 @@ export function ViewerAPIKeys({
         variables: {
           input: {
             ...data,
-            expiresAt: data.expiresAt || null,
+            expiresAt:
+              data.expiresAt?.toDate(getLocalTimeZone()).toISOString() || null,
           },
         },
         onCompleted: (response) => {
@@ -72,7 +74,7 @@ export function ViewerAPIKeys({
       extra={
         <Button
           size="S"
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
           onPress={() =>
             setDialog(
               <CreateAPIKeyDialog

@@ -27,8 +27,8 @@ async function globalSetup(config: FullConfig) {
 
   // Add member user
   await page.getByLabel("Email").fill("member@localhost.com");
-  await page.getByLabel("Username *").fill("member");
-  await page.getByLabel("Password *", { exact: true }).fill("member");
+  await page.getByLabel("Username").fill("member");
+  await page.getByLabel("Password", { exact: true }).fill("member");
   await page.getByLabel("Confirm Password").fill("member");
 
   await page.getByRole("dialog").getByLabel("member", { exact: true }).click();

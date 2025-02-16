@@ -20,6 +20,8 @@ export * from "./apis";
 export * from "./auth";
 export * from "./profile";
 export * from "./playground";
+export * from "./prompts";
+export * from "./prompt";
 export * from "./AuthenticatedRoot";
 export * from "./authenticatedRootLoader";
 export * from "./support";

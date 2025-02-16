@@ -14,7 +14,7 @@ export function EditExampleButton(props: EditExampleButtonProps) {
     <>
       <Button
         size="S"
-        icon={<Icon svg={<Icons.EditOutline />} />}
+        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
         onPress={() =>
           setDialog(
             <EditExampleDialog

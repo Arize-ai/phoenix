@@ -5,11 +5,19 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  Form,
-  TextField,
 } from "@arizeai/components";
 
-import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  ExternalLink,
+  Flex,
+  Form,
+  Heading,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
@@ -71,16 +79,21 @@ export function PlaygroundCredentialsDropdown() {
                   const credentialName = ProviderToCredentialNameMap[provider];
                   return (
                     <TextField
+                      size="S"
                       key={provider}
-                      label={credentialName}
                       type="password"
                       isRequired
                       onChange={(value) => {
                         setCredential({ provider, value });
                       }}
                       value={credentials[provider]}
-                      description={`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
-                    />
+                    >
+                      <Label>{credentialName}</Label>
+                      <Input />
+                      <Text slot="description">
+                        {`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
+                      </Text>
+                    </TextField>
                   );
                 })}
               </Flex>

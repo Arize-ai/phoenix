@@ -248,7 +248,7 @@ export function SpanDetails({
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <Button
               variant="default"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               isDisabled={span.spanKind !== "llm"}
               onPress={() => {
                 navigate(`/playground/spans/${span.id}`);
@@ -272,7 +272,7 @@ export function SpanDetails({
                 onPress={() => {
                   setShowSpanAside(!showSpanAside);
                 }}
-                icon={
+                leadingVisual={
                   <Icon
                     svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
                   />
@@ -383,7 +383,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
     <>
       <Button
         variant="default"
-        icon={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={onAddSpanToDataset}
       >
         Add to Dataset

@@ -44,7 +44,7 @@ export function SpanAnnotationsEmpty() {
           variant="default"
           size={"S"}
           onPress={onGettingStartedPress}
-          icon={<Icon svg={<Icons.Edit2Outline />} />}
+          leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
         >
           How to Annotate
         </Button>

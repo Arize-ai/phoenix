@@ -64,7 +64,7 @@ export function UsersCard() {
             );
           }}
           size="S"
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         >
           Add User
         </Button>

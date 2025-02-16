@@ -94,7 +94,7 @@ function TraceTreeToolbar() {
               onPress={() => {
                 setIsCollapsed(!isCollapsed);
               }}
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     isCollapsed ? (
@@ -125,7 +125,7 @@ function TraceTreeToolbar() {
               onPress={() => {
                 setShowMetricsInTraceTree(!showMetricsInTraceTree);
               }}
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     showMetricsInTraceTree ? (

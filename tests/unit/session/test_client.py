@@ -33,17 +33,17 @@ def test_base_path(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_HOST", "my-host")
     monkeypatch.setenv("PHOENIX_PORT", "1234")
     client = Client()
-    assert client._base_url == "http://my-host:1234/"
+    assert client._client.base_url == "http://my-host:1234"
 
     # Test that a collector endpoint environment variables takes precedence
     monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "http://my-collector-endpoint/with/prefix")
     client = Client()
-    assert client._base_url == "http://my-collector-endpoint/with/prefix/"
+    assert client._client.base_url == "http://my-collector-endpoint/with/prefix/"
 
     # Test a given endpoint takes precedence over environment variables
     endpoint = "https://other-collector-endpoint/with/other/prefix"
     client = Client(endpoint=endpoint)
-    assert client._base_url == "https://other-collector-endpoint/with/other/prefix/"
+    assert client._client.base_url == "https://other-collector-endpoint/with/other/prefix/"
 
 
 def test_get_spans_dataframe(

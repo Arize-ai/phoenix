@@ -160,9 +160,9 @@ function DatasetPageContent({
             <DatasetCodeDropdown />
             <RunExperimentButton />
             <Button
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               onPress={() => {
-                navigate(`/playground/datasets/${dataset.id}`);
+                navigate(`/playground?datasetId=${dataset.id}`);
               }}
             >
               Playground

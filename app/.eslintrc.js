@@ -98,6 +98,26 @@ module.exports = {
         name: "theme",
         module: "@arizeai/components",
       },
+      {
+        name: "RadioGroup",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
+      {
+        name: "Radio",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
+      {
+        name: "TextField",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
+      {
+        name: "TextArea",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },

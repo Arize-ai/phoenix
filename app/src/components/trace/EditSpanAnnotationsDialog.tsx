@@ -272,7 +272,7 @@ function NewSpanAnnotationCard(props: {
             size="S"
             isDisabled
             aria-label="delete annotation"
-            icon={<Icon svg={<Icons.CloseOutline />} />}
+            leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
             onPress={onDelete}
           />
         </Flex>

@@ -2,10 +2,11 @@ import React from "react";
 
 import { Button, Flex, Icon, Icons } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   createOpenAIResponseFormat,
   generateMessageId,
-  PlaygroundInstance,
+  PlaygroundNormalizedInstance,
 } from "@phoenix/store";
 
 import {
@@ -32,6 +33,7 @@ export function PlaygroundChatTemplateFooter({
 }: PlaygroundChatTemplateFooterProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const addMessage = usePlaygroundContext((state) => state.addMessage);
   const upsertInvocationParameterInput = usePlaygroundContext(
     (state) => state.upsertInvocationParameterInput
   );
@@ -71,8 +73,8 @@ export function PlaygroundChatTemplateFooter({
       {supportsResponseFormat ? (
         <Button
           size="S"
-          aria-label="output schema"
-          icon={<Icon svg={<Icons.PlusOutline />} />}
+          aria-label="response format"
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
           isDisabled={hasResponseFormat}
           onPress={() => {
             upsertInvocationParameterInput({
@@ -85,16 +87,16 @@ export function PlaygroundChatTemplateFooter({
             });
           }}
         >
-          Output Schema
+          Response Format
         </Button>
       ) : null}
       {supportsToolChoice ? (
         <Button
           aria-label="add tool"
           size="S"
-          icon={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
           onPress={() => {
-            const patch: Partial<PlaygroundInstance> = {
+            const patch: Partial<PlaygroundNormalizedInstance> = {
               tools: [
                 ...playgroundInstance.tools,
                 createToolForProvider({
@@ -104,19 +106,19 @@ export function PlaygroundChatTemplateFooter({
               ],
             };
             if (playgroundInstance.tools.length === 0) {
-              patch.toolChoice = "auto";
+              const convertedChoice = safelyConvertToolChoiceToProvider({
+                toolChoice: "auto",
+                targetProvider: playgroundInstance.model.provider,
+              });
+              // set a new default tool choice that is appropriate for the provider
+              if (convertedChoice) {
+                patch.toolChoice = convertedChoice;
+              }
             }
             updateInstance({
               instanceId,
-              patch: {
-                tools: [
-                  ...playgroundInstance.tools,
-                  createToolForProvider({
-                    provider: playgroundInstance.model.provider,
-                    toolNumber: playgroundInstance.tools.length + 1,
-                  }),
-                ],
-              },
+              patch,
+              dirty: true,
             });
           }}
         >
@@ -126,23 +128,17 @@ export function PlaygroundChatTemplateFooter({
       <Button
         aria-label="add message"
         size="S"
-        icon={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
         onPress={() => {
-          updateInstance({
-            instanceId,
-            patch: {
-              template: {
-                __type: "chat",
-                messages: [
-                  ...template.messages,
-                  {
-                    id: generateMessageId(),
-                    role: "user",
-                    content: "",
-                  },
-                ],
+          addMessage({
+            playgroundInstanceId: instanceId,
+            messages: [
+              {
+                id: generateMessageId(),
+                role: "user",
+                content: "",
               },
-            },
+            ],
           });
         }}
       >

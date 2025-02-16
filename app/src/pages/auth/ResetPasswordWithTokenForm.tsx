@@ -3,9 +3,17 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Form, TextField } from "@arizeai/components";
+import { Alert, Form } from "@arizeai/components";
 
-import { Button, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 const MIN_PASSWORD_LENGTH = 4;
@@ -91,17 +99,27 @@ export function ResetPasswordWithTokenForm({
             fieldState: { invalid, error },
           }) => (
             <TextField
-              label="New Password"
               type="password"
               isRequired
-              description={`Password must be at least ${MIN_PASSWORD_LENGTH} characters`}
               name={name}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+              isInvalid={invalid}
+              id="new-password"
+              autoComplete="new-password"
               onChange={onChange}
               onBlur={onBlur}
               defaultValue={value}
-            />
+            >
+              <Label>New Password</Label>
+
+              <Input />
+              {error ? (
+                <FieldError>{error?.message}</FieldError>
+              ) : (
+                <Text slot="description">
+                  Password must be at least {MIN_PASSWORD_LENGTH} characters
+                </Text>
+              )}
+            </TextField>
           )}
         />
         <Controller
@@ -121,17 +139,22 @@ export function ResetPasswordWithTokenForm({
             fieldState: { invalid, error },
           }) => (
             <TextField
-              label="Confirm Password"
-              isRequired
               type="password"
-              description="Confirm the new password"
+              isRequired
               name={name}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+              isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
               defaultValue={value}
-            />
+            >
+              <Label>Confirm Password</Label>
+              <Input />
+              {error ? (
+                <FieldError>{error?.message}</FieldError>
+              ) : (
+                <Text slot="description">Confirm the new password</Text>
+              )}
+            </TextField>
           )}
         />
         <div
