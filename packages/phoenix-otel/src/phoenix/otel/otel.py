@@ -3,9 +3,7 @@ import os
 import sys
 import warnings
 from enum import Enum
-from importlib.metadata import (
-    entry_points,
-)  # the importlib.metadata module that is part of the stdlib has an inconsistent interface for entry_points between Python 3.9 and 3.10  # noqa: E501
+from importlib.metadata import entry_points
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
