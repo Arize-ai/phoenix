@@ -1,11 +1,11 @@
-import { TemplateLanguages } from "./constants";
+import { TemplateFormats } from "./constants";
 
-export type TemplateLanguage =
-  (typeof TemplateLanguages)[keyof typeof TemplateLanguages];
+export type TemplateFormat =
+  (typeof TemplateFormats)[keyof typeof TemplateFormats];
 
 /**
- * Type guard for the TemplateLanguage type
+ * Type guard for the TemplateFormat type
  */
-export function isTemplateLanguage(v: string): v is TemplateLanguage {
-  return Object.values(TemplateLanguages).includes(v as TemplateLanguage);
+export function isTemplateFormat(v: string): v is TemplateFormat {
+  return Object.values(TemplateFormats).includes(v as TemplateFormat);
 }

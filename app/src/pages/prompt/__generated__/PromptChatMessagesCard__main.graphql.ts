@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<720d6d757ab57b8bdd05bd92d1042663>>
+ * @generated SignedSource<<16cb974464548fa43645e0e959d27ab7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type PromptTemplateFormat = "FSTRING" | "MUSTACHE" | "NONE";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
 import { FragmentRefs } from "relay-runtime";
 export type PromptChatMessagesCard__main$data = {

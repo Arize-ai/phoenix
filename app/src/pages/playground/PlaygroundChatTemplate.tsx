@@ -39,7 +39,7 @@ import {
   TemplateEditor,
   TemplateEditorWrap,
 } from "@phoenix/components/templateEditor";
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { ChatMessage, PlaygroundState } from "@phoenix/store";
@@ -85,9 +85,7 @@ interface PlaygroundChatTemplateProps extends PlaygroundInstanceProps {}
 export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
   const id = props.playgroundInstanceId;
 
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
-  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const instanceSelector = useMemo(() => selectPlaygroundInstance(id), [id]);
   const playgroundInstance = usePlaygroundContext(instanceSelector);
@@ -156,7 +154,7 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
             return (
               <SortableMessageItem
                 playgroundInstanceId={id}
-                templateLanguage={templateLanguage}
+                templateFormat={templateFormat}
                 key={messageId}
                 messageId={messageId}
               />
@@ -191,13 +189,13 @@ export function PlaygroundChatTemplate(props: PlaygroundChatTemplateProps) {
 function MessageEditor({
   message,
   updateMessage,
-  templateLanguage,
+  templateFormat,
   playgroundInstanceId,
   messageMode,
 }: {
   playgroundInstanceId: number;
   message: ChatMessage;
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
   updateMessage: (patch: Partial<ChatMessage>) => void;
   messageMode: MessageMode;
 }) {
@@ -277,7 +275,7 @@ function MessageEditor({
         height="100%"
         defaultValue={message.content || ""}
         aria-label="Message content"
-        templateLanguage={templateLanguage}
+        templateFormat={templateFormat}
         onChange={onChange}
         placeholder={
           message.role === "system"
@@ -293,12 +291,12 @@ function MessageEditor({
 
 function SortableMessageItem({
   playgroundInstanceId,
-  templateLanguage,
+  templateFormat,
   messageId,
 }: PropsWithChildren<{
   playgroundInstanceId: number;
   messageId: number;
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
 }>) {
   const updateMessage = usePlaygroundContext((state) => state.updateMessage);
   const deleteMessage = usePlaygroundContext((state) => state.deleteMessage);
@@ -482,7 +480,7 @@ function SortableMessageItem({
             message={message}
             messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}
-            templateLanguage={templateLanguage}
+            templateFormat={templateFormat}
             updateMessage={onMessageUpdate}
           />
         </div>

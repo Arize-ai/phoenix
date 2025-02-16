@@ -9,7 +9,7 @@ import {
 /**
  * Format a list of prompt messages
  *
- * @param format - The format of the prompt message variables, e.g. MUSTACHE, FSTRING, NONE
+ * @param format - The format of the prompt message variables, e.g. MUSTACHE, F_STRING, NONE
  * @param promptMessages - The prompt messages to format
  * @param variables - The variables to use in the formatting
  * @returns The formatted prompt messages
@@ -29,12 +29,12 @@ export function formatPromptMessages(
       replacements.push(...asMustache);
       break;
     }
-    case "FSTRING": {
-      const asFString = Object.entries(variables).map(([key, value]) => [
+    case "F_STRING": {
+      const asF_STRING = Object.entries(variables).map(([key, value]) => [
         new RegExp(`(?<!\\{)\\{${key}\\}(?!\\})`, "g"),
         value.toString(),
       ]) satisfies [RegExp, string][];
-      replacements.push(...asFString);
+      replacements.push(...asF_STRING);
       break;
     }
     case "NONE":

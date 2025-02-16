@@ -50,7 +50,7 @@ class TestUserMessage:
         monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
         x = token_hex(4)
         expected = [{"role": "user", "content": f"hello {x}"}]
-        prompt = _create_chat_prompt(u, template_format="FSTRING")
+        prompt = _create_chat_prompt(u, template_format="F_STRING")
         messages = prompt.format(variables={"x": x}).messages
         assert not DeepDiff(expected, messages)
         _can_recreate_under_new_identifier(prompt)
@@ -278,7 +278,7 @@ def _create_chat_prompt(
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
     invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
-    template_format: Literal["FSTRING", "MUSTACHE", "NONE"] = "NONE",
+    template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "NONE",
 ) -> PromptVersion:
     messages = list(messages) or [
         PromptMessageInput(

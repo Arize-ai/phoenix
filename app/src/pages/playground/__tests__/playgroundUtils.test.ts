@@ -1,4 +1,4 @@
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
 import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
@@ -1003,9 +1003,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name"]);
   });
 
@@ -1019,9 +1019,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name"]);
   });
 
@@ -1045,9 +1045,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name", "age"]);
   });
 
@@ -1071,9 +1071,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage: TemplateLanguage = "F_STRING";
+    const templateFormat = TemplateFormats.FString;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name", "age"]);
   });
 });
@@ -1111,11 +1111,11 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     const input: PlaygroundInput = { variablesValueCache: { name: "John" } };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John" },
       variableKeys: ["name"],
@@ -1132,11 +1132,11 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     const input: PlaygroundInput = { variablesValueCache: { name: "John" } };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John" },
       variableKeys: ["name"],
@@ -1163,13 +1163,13 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     const input: PlaygroundInput = {
       variablesValueCache: { name: "John", age: "30" },
     };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],
@@ -1196,13 +1196,13 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage: TemplateLanguage = "F_STRING";
+    const templateFormat = TemplateFormats.FString;
     const input: PlaygroundInput = {
       variablesValueCache: { name: "John", age: "30" },
     };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],

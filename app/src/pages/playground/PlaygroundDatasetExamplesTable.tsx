@@ -421,9 +421,7 @@ export function PlaygroundDatasetExamplesTable({
   const allInstanceMessages = usePlaygroundContext(
     (state) => state.allInstanceMessages
   );
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
-  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
 
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
   const updateExampleData = usePlaygroundDatasetExamplesTableContext(
@@ -766,7 +764,7 @@ export function PlaygroundDatasetExamplesTable({
       );
       const instanceVariables = extractVariablesFromInstance({
         instance: enrichedInstance,
-        templateLanguage,
+        templateFormat,
       });
       return {
         id: `instance-${instance.id}`,
@@ -792,7 +790,7 @@ export function PlaygroundDatasetExamplesTable({
         size: 500,
       };
     });
-  }, [hasSomeRunIds, instances, templateLanguage, allInstanceMessages]);
+  }, [hasSomeRunIds, instances, templateFormat, allInstanceMessages]);
 
   const columns: ColumnDef<TableRow>[] = [
     {

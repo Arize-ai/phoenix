@@ -64,7 +64,7 @@ class TestChatCompletionMutationMixin:
                         "content": "What country is {city} in? Answer in one word, no punctuation.",
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
                 "apiKey": "sk-",
             }
         }

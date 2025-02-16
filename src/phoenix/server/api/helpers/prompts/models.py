@@ -50,7 +50,7 @@ class PromptMessageRole(str, Enum):
 
 class PromptTemplateFormat(str, Enum):
     MUSTACHE = "MUSTACHE"
-    FSTRING = "FSTRING"
+    F_STRING = "F_STRING"
     NONE = "NONE"
 
 

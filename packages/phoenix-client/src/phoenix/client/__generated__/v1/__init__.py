@@ -308,7 +308,7 @@ class PromptVersionData(TypedDict):
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
-    template_format: Literal["MUSTACHE", "FSTRING", "NONE"]
+    template_format: Literal["MUSTACHE", "F_STRING", "NONE"]
     invocation_parameters: Union[
         PromptOpenAIInvocationParameters,
         PromptAzureOpenAIInvocationParameters,

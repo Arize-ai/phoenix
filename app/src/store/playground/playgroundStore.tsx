@@ -1,8 +1,8 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
-import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_NAME,
@@ -249,7 +249,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       // values when variables are removed or when switching to dataset input so that they can be restored.
       variablesValueCache: {},
     },
-    templateLanguage: TemplateLanguages.Mustache,
+    templateFormat: TemplateFormats.Mustache,
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
@@ -646,8 +646,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         }),
       });
     },
-    setTemplateLanguage: (templateLanguage: TemplateLanguage) => {
-      set({ templateLanguage });
+    setTemplateFormat: (templateFormat: TemplateFormat) => {
+      set({ templateFormat });
     },
     setVariableValue: (key: string, value: string) => {
       const input = get().input;
