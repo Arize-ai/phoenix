@@ -533,7 +533,7 @@ def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
         raise RuntimeError("Unsupported Python version")
 
 
-def _initialize_installed_otel_packages():
+def _initialize_installed_otel_packages() -> None:
     """
     Copied from https://github.com/open-telemetry/opentelemetry-python-contrib/blob/789bf866e3cb2bbcb92320a0d3141b262a679a8c/opentelemetry-instrumentation/src/opentelemetry/instrumentation/auto_instrumentation/sitecustomize.py#L29
     Includes the change in https://github.com/open-telemetry/opentelemetry-python-contrib/pull/2886
