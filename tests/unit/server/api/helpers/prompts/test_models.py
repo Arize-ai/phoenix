@@ -14,8 +14,8 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptMessage,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
+    PromptTemplateFormat,
     PromptTemplateType,
-    TemplateFormat,
     TextContentPart,
     ToolCallContentPart,
     ToolCallFunction,
@@ -76,7 +76,7 @@ async def test_chat_template_materializes_to_expected_format(
             description=None,
             user_id=None,
             template_type=PromptTemplateType.CHAT,
-            template_format=TemplateFormat.MUSTACHE,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=template,
             invocation_parameters=PromptAnthropicInvocationParameters(
                 type="anthropic",
@@ -303,7 +303,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
             description=None,
             user_id=None,
             template_type=PromptTemplateType.CHAT,
-            template_format=TemplateFormat.MUSTACHE,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
@@ -541,7 +541,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
             description=None,
             user_id=None,
             template_type=PromptTemplateType.CHAT,
-            template_format=TemplateFormat.MUSTACHE,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
@@ -820,7 +820,7 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
             description=None,
             user_id=None,
             template_type=PromptTemplateType.CHAT,
-            template_format=TemplateFormat.MUSTACHE,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
@@ -940,7 +940,7 @@ async def test_invocation_parameters_are_round_tripped_without_data_loss(
             description=None,
             user_id=None,
             template_type=PromptTemplateType.CHAT,
-            template_format=TemplateFormat.MUSTACHE,
+            template_format=PromptTemplateFormat.MUSTACHE,
             template=PromptChatTemplate(
                 type="chat",
                 messages=[],
