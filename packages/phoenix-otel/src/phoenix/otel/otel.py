@@ -541,7 +541,7 @@ def _initialize_installed_otel_packages() -> None:
     This function can be removed and replaced by the OTel equivalent once the PR is merged.
     """
     # prevents auto-instrumentation of subprocesses if code execs another python process
-    environ["PYTHONPATH"] = _python_path_without_directory(
+    environ["PYTHONPATH"] = _python_path_without_directory(  # type: ignore[no-untyped-call]
         environ.get("PYTHONPATH", ""),  # this is the change from the pr
         dirname(abspath(__file__)),
         pathsep,
@@ -550,7 +550,7 @@ def _initialize_installed_otel_packages() -> None:
     try:
         distro = _load_distro()
         distro.configure()
-        _load_configurators()
-        _load_instrumentors(distro)
+        _load_configurators()  # type: ignore[no-untyped-call]
+        _load_instrumentors(distro)  # type: ignore[no-untyped-call]
     except Exception:
         logger.exception("Failed to auto initialize opentelemetry")

@@ -28,6 +28,7 @@ dependencies = [
   "opentelemetry-exporter-otlp",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk",
+  "opentelemetry-instrumentation",
   "openinference-semantic-conventions>=0.1.9",
   "openinference-instrumentation>=0.1.21",
   "typing-extensions>=4.5, <5",
