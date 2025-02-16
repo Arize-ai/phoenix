@@ -892,7 +892,7 @@ class PromptVersion(Node):
     sequenceNumber: int = Field(...)
     tags: list[PromptVersionTag]
     template: Union["PromptChatTemplate", "PromptStringTemplate"]
-    templateFormat: Literal["FSTRING", "MUSTACHE", "NONE"]
+    templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
     templateType: Literal["CHAT", "STRING"]
     tools: list[ToolDefinition]
     user: Optional[User] = None
@@ -1369,7 +1369,7 @@ class ChatCompletionOverDatasetInput(BaseModel):
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     promptName: Optional[str] = None
-    templateLanguage: Literal["F_STRING", "MUSTACHE", "NONE"]
+    templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
     tools: Optional[list[dict[str, Any]]] = None
 
 
@@ -1381,7 +1381,7 @@ class ChatPromptVersionInput(BaseModel):
     modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
     responseFormat: Optional[ResponseFormatInput] = None
     template: PromptChatTemplateInput
-    templateFormat: Literal["FSTRING", "MUSTACHE", "NONE"]
+    templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
     tools: list[ToolDefinitionInput]
 
 

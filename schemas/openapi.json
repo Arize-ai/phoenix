@@ -2698,7 +2698,7 @@
         "type": "string",
         "enum": [
           "MUSTACHE",
-          "FSTRING",
+          "F_STRING",
           "NONE"
         ],
         "title": "PromptTemplateFormat"

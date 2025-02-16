@@ -1,8 +1,8 @@
 import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
 
-import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
-import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
@@ -48,7 +48,6 @@ import {
   ChatCompletionMessageRole,
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
-import { PromptTemplateFormat } from "./__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
 import {
   ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
@@ -672,17 +671,17 @@ export const isChatMessages = (
 
 export const extractVariablesFromInstance = ({
   instance,
-  templateLanguage,
+  templateFormat,
 }: {
   instance: PlaygroundInstance;
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
 }) => {
-  if (templateLanguage == TemplateLanguages.NONE) {
+  if (templateFormat == TemplateFormats.NONE) {
     return [];
   }
   const variables = new Set<string>();
   const instanceType = instance.template.__type;
-  const utils = getTemplateLanguageUtils(templateLanguage);
+  const utils = getTemplateFormatUtils(templateFormat);
   // this double nested loop should be okay since we don't expect more than 4 instances
   // and a handful of messages per instance
   switch (instanceType) {
@@ -718,18 +717,18 @@ export const extractVariablesFromInstance = ({
 
 export const extractVariablesFromInstances = ({
   instances,
-  templateLanguage,
+  templateFormat,
 }: {
   instances: PlaygroundInstance[];
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
 }) => {
-  if (templateLanguage == TemplateLanguages.NONE) {
+  if (templateFormat == TemplateFormats.NONE) {
     return [];
   }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
-        extractVariablesFromInstance({ instance, templateLanguage })
+        extractVariablesFromInstance({ instance, templateFormat })
       )
     )
   );
@@ -737,19 +736,19 @@ export const extractVariablesFromInstances = ({
 
 export const getVariablesMapFromInstances = ({
   instances,
-  templateLanguage,
+  templateFormat,
   input,
 }: {
   instances: PlaygroundInstance[];
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  if (templateLanguage == TemplateLanguages.NONE) {
+  if (templateFormat == TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
   const variableKeys = extractVariablesFromInstances({
     instances,
-    templateLanguage,
+    templateFormat,
   });
 
   const variableValueCache = input.variablesValueCache ?? {};
@@ -1088,7 +1087,7 @@ export const getChatCompletionInput = ({
 
   const {
     instances,
-    templateLanguage,
+    templateFormat,
     input,
     allInstanceMessages: instanceMessages,
   } = playgroundStore.getState();
@@ -1101,14 +1100,14 @@ export const getChatCompletionInput = ({
   const { variablesMap } = getVariablesMapFromInstances({
     instances: playgroundInstances,
     input,
-    templateLanguage,
+    templateFormat,
   });
 
   return {
     ...baseChatCompletionVariables,
     template: {
       variables: variablesMap,
-      language: templateLanguage,
+      format: templateFormat,
     },
   };
 };
@@ -1135,7 +1134,7 @@ export const getChatCompletionOverDatasetInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    templateLanguage: playgroundStore.getState().templateLanguage,
+    templateFormat: playgroundStore.getState().templateFormat,
     datasetId,
   };
 };
@@ -1260,40 +1259,4 @@ export function mergeInvocationParametersWithDefaults(
 
   // Return the new invocation parameter inputs as an array
   return Array.from(currentInvocationParametersMap.values());
-}
-
-/**
- * Function that converts graphql template format to a template language
- */
-export function convertTemplateFormatToTemplateLanguage(
-  templateFormat: PromptTemplateFormat
-): TemplateLanguage {
-  switch (templateFormat) {
-    case "MUSTACHE":
-      return TemplateLanguages.Mustache;
-    case "FSTRING":
-      return TemplateLanguages.FString;
-    case "NONE":
-      return TemplateLanguages.NONE;
-    default:
-      assertUnreachable(templateFormat);
-  }
-}
-
-/**
- * Function that converts a template language to a graphql template format
- */
-export function convertTemplateLanguageToTemplateFormat(
-  templateLanguage: TemplateLanguage
-): PromptTemplateFormat {
-  switch (templateLanguage) {
-    case TemplateLanguages.Mustache:
-      return "MUSTACHE";
-    case TemplateLanguages.FString:
-      return "FSTRING";
-    case TemplateLanguages.NONE:
-      return "NONE";
-    default:
-      assertUnreachable(templateLanguage);
-  }
 }

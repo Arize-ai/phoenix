@@ -135,7 +135,7 @@ def upgrade() -> None:
             "template_format",
             sa.String,
             sa.CheckConstraint(
-                "template_format IN ('FSTRING', 'MUSTACHE', 'NONE')",
+                "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')",
                 name="template_format",
             ),
             nullable=False,

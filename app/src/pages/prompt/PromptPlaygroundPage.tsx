@@ -8,7 +8,6 @@ import {
 } from "@phoenix/store";
 
 import { Playground } from "../playground/Playground";
-import { convertTemplateFormatToTemplateLanguage } from "../playground/playgroundUtils";
 
 export function PromptPlaygroundPage() {
   const { instanceWithPrompt, templateFormat } =
@@ -29,10 +28,5 @@ export function PromptPlaygroundPage() {
     return { instance };
   }, [instanceWithPrompt]);
 
-  return (
-    <Playground
-      instances={[instance]}
-      templateLanguage={convertTemplateFormatToTemplateLanguage(templateFormat)}
-    />
-  );
+  return <Playground instances={[instance]} templateFormat={templateFormat} />;
 }

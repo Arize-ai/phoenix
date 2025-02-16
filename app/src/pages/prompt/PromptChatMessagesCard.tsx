@@ -4,8 +4,7 @@ import { graphql, useFragment } from "react-relay";
 import { Card } from "@arizeai/components";
 
 import { Flex, Text } from "@phoenix/components";
-import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { openInferenceModelProviderToPhoenixModelProvider } from "@phoenix/pages/playground/playgroundUtils";
 import { AnyPart } from "@phoenix/schemas/promptSchemas";
@@ -18,7 +17,6 @@ import {
 import {
   PromptChatMessagesCard__main$data,
   PromptChatMessagesCard__main$key,
-  PromptTemplateFormat,
 } from "./__generated__/PromptChatMessagesCard__main.graphql";
 import {
   ChatTemplateMessageCard,
@@ -26,17 +24,6 @@ import {
   ChatTemplateMessageToolCallPart,
   ChatTemplateMessageToolResultPart,
 } from "./ChatTemplateMessageCard";
-
-const convertTemplateFormat = (
-  templateFormat: PromptTemplateFormat
-): TemplateLanguage => {
-  if (templateFormat === "FSTRING") {
-    return TemplateLanguages.FString;
-  } else if (templateFormat === "MUSTACHE") {
-    return TemplateLanguages.Mustache;
-  }
-  return TemplateLanguages.NONE;
-};
 
 export function PromptChatMessages({
   promptVersion,
@@ -95,7 +82,7 @@ export function PromptChatMessages({
     return (
       <ChatMessages
         template={template}
-        templateFormat={convertTemplateFormat(templateFormat)}
+        templateFormat={templateFormat}
         provider={
           openInferenceModelProviderToPhoenixModelProvider(provider) ||
           DEFAULT_MODEL_PROVIDER
@@ -118,7 +105,7 @@ function ChatMessageContentPart({
     PromptChatMessagesCard__main$data["template"],
     { __typename: "PromptChatTemplate" }
   >["messages"][number]["content"][number];
-  templateFormat: TemplateLanguage;
+  templateFormat: TemplateFormat;
   provider: ModelProvider;
   isOnlyChild?: boolean;
 }) {
@@ -166,7 +153,7 @@ function ChatMessages({
     PromptChatMessagesCard__main$data["template"],
     { __typename: "PromptChatTemplate" }
   >;
-  templateFormat: TemplateLanguage;
+  templateFormat: TemplateFormat;
   provider: ModelProvider;
 }) {
   const { messages } = template;

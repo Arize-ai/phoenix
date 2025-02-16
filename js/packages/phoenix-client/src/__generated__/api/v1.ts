@@ -747,7 +747,7 @@ export interface components {
          * PromptTemplateFormat
          * @enum {string}
          */
-        PromptTemplateFormat: "MUSTACHE" | "FSTRING" | "NONE";
+        PromptTemplateFormat: "MUSTACHE" | "F_STRING" | "NONE";
         /**
          * PromptTemplateType
          * @enum {string}

@@ -20,7 +20,7 @@ import {
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
@@ -40,7 +40,7 @@ import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
+import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
 
 const playgroundWrapCSS = css`
   display: flex;
@@ -209,9 +209,7 @@ const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
-  );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
   const isDatasetMode = datasetId != null;
@@ -272,7 +270,7 @@ function PlaygroundContent() {
                   Prompts
                   <StopPropagation>
                     <Flex direction="row" gap="size-100" alignItems="center">
-                      <TemplateLanguageRadioGroup size="M" />
+                      <TemplateFormatRadioGroup size="M" />
                       <AddPromptButton />
                     </Flex>
                   </StopPropagation>
@@ -307,7 +305,7 @@ function PlaygroundContent() {
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>
               <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PARAMS}>
-                {templateLanguage !== TemplateLanguages.NONE ? (
+                {templateFormat !== TemplateFormats.NONE ? (
                   <Disclosure id="input" size="L">
                     <DisclosureTrigger arrowPosition="start">
                       Inputs

@@ -102,7 +102,7 @@ describe("formatPromptMessages", () => {
     });
   });
 
-  describe("FSTRING format", () => {
+  describe("F_STRING format", () => {
     it("should replace single variable", () => {
       const messages: PromptChatMessage[] = [
         {
@@ -111,7 +111,7 @@ describe("formatPromptMessages", () => {
         },
       ];
 
-      const formatted = formatPromptMessages("FSTRING", messages, {
+      const formatted = formatPromptMessages("F_STRING", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -128,7 +128,7 @@ describe("formatPromptMessages", () => {
         },
       ];
 
-      const formatted = formatPromptMessages("FSTRING", messages, {
+      const formatted = formatPromptMessages("F_STRING", messages, {
         greeting: "Hello",
         name: "World",
       });
@@ -146,7 +146,7 @@ describe("formatPromptMessages", () => {
         },
       ];
 
-      const formatted = formatPromptMessages("FSTRING", messages, {
+      const formatted = formatPromptMessages("F_STRING", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
@@ -168,7 +168,7 @@ describe("formatPromptMessages", () => {
         },
       ];
 
-      const formatted = formatPromptMessages("FSTRING", messages, {
+      const formatted = formatPromptMessages("F_STRING", messages, {
         name: "World",
       });
       expect(formatted?.[0]?.content?.[0]).toEqual({
