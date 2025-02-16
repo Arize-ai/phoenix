@@ -3,12 +3,12 @@ import os
 import sys
 import warnings
 from enum import Enum
+from importlib.metadata import (
+    entry_points,
+)  # the importlib.metadata module that is part of the stdlib has an inconsistent interface for entry_points between Python 3.9 and 3.10  # noqa: E501
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union, cast
 from urllib.parse import ParseResult, urlparse
 
-from importlib_metadata import (
-    entry_points,
-)  # the importlib.metadata module that is part of the stdlib has an inconsistent interface for entry_points between Python 3.9 and 3.10  # noqa: E501
 from openinference.instrumentation import TracerProvider as _TracerProvider
 from openinference.semconv.resource import ResourceAttributes as _ResourceAttributes
 from opentelemetry import trace as trace_api
@@ -524,7 +524,10 @@ def _get_class_signature(fn: Type[Any]) -> inspect.Signature:
 
 
 def _auto_instrument_installed_openinference_libraries(tracer_provider: TracerProvider) -> None:
-    openinference_entry_points = entry_points(group="openinference_instrumentor")
+    if sys.version_info < (3, 10):
+        openinference_entry_points = entry_points().get("openinference_instrumentor", [])
+    else:
+        openinference_entry_points = entry_points(group="openinference_instrumentor")
     if not openinference_entry_points:
         warnings.warn(
             "No OpenInference instrumentors found. "
