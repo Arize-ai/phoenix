@@ -41,7 +41,7 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
-from phoenix.server.api.helpers.prompts.models import TemplateFormat
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -535,7 +535,7 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
 def _formatted_messages(
     *,
     messages: Iterable[ChatCompletionMessage],
-    template_format: TemplateFormat,
+    template_format: PromptTemplateFormat,
     template_variables: Mapping[str, Any],
 ) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
     """
@@ -556,15 +556,15 @@ def _formatted_messages(
     return formatted_messages
 
 
-def _template_formatter(template_format: TemplateFormat) -> TemplateFormatter:
+def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
     """
     Instantiates the appropriate template formatter for the template format
     """
-    if template_format is TemplateFormat.MUSTACHE:
+    if template_format is PromptTemplateFormat.MUSTACHE:
         return MustacheTemplateFormatter()
-    if template_format is TemplateFormat.F_STRING:
+    if template_format is PromptTemplateFormat.F_STRING:
         return FStringTemplateFormatter()
-    if template_format is TemplateFormat.NONE:
+    if template_format is PromptTemplateFormat.NONE:
         return NoOpFormatter()
     assert_never(template_format)
 

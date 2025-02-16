@@ -48,7 +48,7 @@ class PromptMessageRole(str, Enum):
     TOOL = "TOOL"
 
 
-class TemplateFormat(str, Enum):
+class PromptTemplateFormat(str, Enum):
     MUSTACHE = "MUSTACHE"
     F_STRING = "F_STRING"
     NONE = "NONE"

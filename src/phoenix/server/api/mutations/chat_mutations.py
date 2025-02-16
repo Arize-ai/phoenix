@@ -43,12 +43,12 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_tools,
     prompt_metadata,
 )
-from phoenix.server.api.helpers.prompts.models import TemplateFormat
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
+from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.subscriptions import (
     _default_playground_experiment_description,
     _default_playground_experiment_name,
@@ -205,7 +205,7 @@ class ChatCompletionMutationMixin:
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
-                            template=TemplateOptions(
+                            template=PromptTemplateOptions(
                                 format=input.template_format,
                                 variables=revision.input,
                             ),
@@ -457,7 +457,7 @@ class ChatCompletionMutationMixin:
 
 def _formatted_messages(
     messages: Iterable[ChatCompletionMessage],
-    template_options: TemplateOptions,
+    template_options: PromptTemplateOptions,
 ) -> Iterator[ChatCompletionMessage]:
     """
     Formats the messages using the given template options.
@@ -477,15 +477,15 @@ def _formatted_messages(
     return formatted_messages
 
 
-def _template_formatter(template_format: TemplateFormat) -> TemplateFormatter:
+def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
     """
-    Instantiates the appropriate template formatter for the template language.
+    Instantiates the appropriate template formatter for the template format.
     """
-    if template_format is TemplateFormat.MUSTACHE:
+    if template_format is PromptTemplateFormat.MUSTACHE:
         return MustacheTemplateFormatter()
-    if template_format is TemplateFormat.F_STRING:
+    if template_format is PromptTemplateFormat.F_STRING:
         return FStringTemplateFormatter()
-    if template_format is TemplateFormat.NONE:
+    if template_format is PromptTemplateFormat.NONE:
         return NoOpFormatter()
     assert_never(template_format)
 

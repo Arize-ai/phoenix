@@ -12,8 +12,8 @@ from phoenix.db import models
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.context import Context
 from phoenix.server.api.helpers.prompts.models import (
+    PromptTemplateFormat,
     PromptTemplateType,
-    TemplateFormat,
     denormalize_response_format,
     denormalize_tools,
     get_raw_invocation_parameters,
@@ -35,7 +35,7 @@ class PromptVersion(Node):
     user_id: strawberry.Private[Optional[int]]
     description: Optional[str]
     template_type: PromptTemplateType
-    template_format: TemplateFormat
+    template_format: PromptTemplateFormat
     template: PromptTemplate
     invocation_parameters: Optional[JSON] = None
     tools: list[ToolDefinition]
@@ -108,7 +108,7 @@ def to_gql_prompt_version(
 ) -> PromptVersion:
     prompt_template_type = PromptTemplateType(prompt_version.template_type)
     prompt_template = to_gql_template_from_orm(prompt_version)
-    prompt_template_format = TemplateFormat(prompt_version.template_format)
+    prompt_template_format = PromptTemplateFormat(prompt_version.template_format)
     tool_choice = None
     if prompt_version.tools is not None:
         tool_schemas, tool_choice = denormalize_tools(

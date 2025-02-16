@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd10fa8259520f3610c1b277fe74bb52>>
+ * @generated SignedSource<<9947923a9677809b7b47ffd6ba27b70e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { Fragment, ReaderFragment } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
-export type TemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type PromptCodeExportCard__main$data = {
   readonly invocationParameters: any | null;
@@ -59,7 +59,7 @@ export type PromptCodeExportCard__main$data = {
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   };
-  readonly templateFormat: TemplateFormat;
+  readonly templateFormat: PromptTemplateFormat;
   readonly templateType: PromptTemplateType;
   readonly tools: ReadonlyArray<{
     readonly definition: any;

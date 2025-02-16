@@ -109,7 +109,7 @@ input ChatCompletionInput {
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
-  template: TemplateOptions
+  template: PromptTemplateOptions
   promptName: Identifier = null
 }
 
@@ -154,7 +154,7 @@ input ChatCompletionOverDatasetInput {
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
-  templateFormat: TemplateFormat!
+  templateFormat: PromptTemplateFormat! = MUSTACHE
   datasetId: GlobalID!
   datasetVersionId: GlobalID = null
   experimentName: String = null
@@ -203,7 +203,7 @@ type ChatCompletionToolCall {
 
 input ChatPromptVersionInput {
   description: String = null
-  templateFormat: TemplateFormat!
+  templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
   invocationParameters: JSON! = {}
   tools: [ToolDefinitionInput!]! = []
@@ -1571,6 +1571,17 @@ type PromptStringTemplate {
 
 union PromptTemplate = PromptStringTemplate | PromptChatTemplate
 
+enum PromptTemplateFormat {
+  MUSTACHE
+  F_STRING
+  NONE
+}
+
+input PromptTemplateOptions {
+  variables: JSON!
+  format: PromptTemplateFormat!
+}
+
 enum PromptTemplateType {
   STRING
   CHAT
@@ -1581,7 +1592,7 @@ type PromptVersion implements Node {
   id: GlobalID!
   description: String
   templateType: PromptTemplateType!
-  templateFormat: TemplateFormat!
+  templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
   invocationParameters: JSON
   tools: [ToolDefinition!]!
@@ -1971,17 +1982,6 @@ type SystemApiKey implements ApiKey & Node {
 
   """The Globally Unique ID of this object"""
   id: GlobalID!
-}
-
-enum TemplateFormat {
-  MUSTACHE
-  F_STRING
-  NONE
-}
-
-input TemplateOptions {
-  variables: JSON!
-  format: TemplateFormat!
 }
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
