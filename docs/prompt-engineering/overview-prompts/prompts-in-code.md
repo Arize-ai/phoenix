@@ -8,11 +8,11 @@ description: Pull and push prompt changes via Phoenix's Python and TypeScript Cl
 
 Using Phoenix as a backend, Prompts can be managed and manipulated via code by using our Python or TypeScript SDKs.
 
-With the Phoenix SDK you can:
+With the Phoenix Client SDK you can:
 
-* Create / Update prompts dynamically
-* Load prompts templates by name, version, or tag
-* Format prompt templates with runtime variables and use them in your code
-* Execute tools defined within the prompt
+* [Create / Update](../how-to-prompts/create-a-prompt.md#using-the-phoenix-client) prompts dynamically
+* [Pull prompts](../how-to-prompts/using-a-prompt.md) templates by name, version, or tag
+* [Format prompt](../how-to-prompts/using-a-prompt.md#using-a-prompt) templates with runtime variables and use them in your code.  Native support for OpenAI, Anthropic, Gemini, Vercel AI SDK, and more. No propriatry client necessary.
+* Support for [tool calling](../concepts-prompts.md#tools) and [response formats.](../concepts-prompts.md#response-format) Execute tools defined within the prompt. Phoenix prompts encompasses more than just the text and messages.
 
 To learn more about managing Prompts in code, see [using-a-prompt.md](../how-to-prompts/using-a-prompt.md "mention")

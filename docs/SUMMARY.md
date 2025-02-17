@@ -107,11 +107,11 @@
 * [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
 * [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
   * [Configure AI Providers](prompt-engineering/how-to-prompts/configure-ai-providers.md)
+  * [Using the Playground](prompt-engineering/how-to-prompts/using-the-playground.md)
   * [Create a prompt](prompt-engineering/how-to-prompts/create-a-prompt.md)
   * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
-  * [Using the Playground](prompt-engineering/how-to-prompts/using-the-playground.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 * [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
 
