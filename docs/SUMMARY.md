@@ -46,6 +46,7 @@
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
+  * [LangFlow](tracing/integrations-tracing/langflow.md)
 * [How-to: Tracing (Manual)](tracing/how-to-tracing/README.md)
   * [Setup Tracing: Python](tracing/how-to-tracing/setup-tracing-python.md)
   * [Instrument: Python](tracing/how-to-tracing/instrument-python.md)
