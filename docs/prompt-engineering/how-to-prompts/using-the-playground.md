@@ -26,7 +26,17 @@ Every prompt instance can be configured to use a specific LLM and set of invocat
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/model_config.gif" alt=""><figcaption><p>Switch models and modify invocation params</p></figcaption></figure>
 
+## Comparing Prompts
 
+The Prompt Playground offers the capability to compare multiple prompt variants directly within the playground. Simply click the **+ Compare** button at the top of the first prompt to create duplicate instances. Each prompt variant manages its own independent template, model, and parameters. This allows you to quickly compare prompts (labeled A, B, C, and D in the UI) and run experiments to determine which prompt and model configuration is optimal for the given task.
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_variants.png" alt=""><figcaption><p>Compare multiple different prompt variants at once</p></figcaption></figure>
+
+## Using Datasets with Prompts
+
+Phoenix lets you run a prompt (or multiple prompts) on a dataset. Simply [load a dataset](../../datasets-and-experiments/how-to-datasets/) containing the input variables you want to use in your prompt template. When you click **Run**, Phoenix will apply each configured prompt to every example in the dataset, invoking the LLM for all possible prompt-example combinations. The result of your playground runs will be tracked as an experiment under the loaded dataset (see [#playground-traces](using-the-playground.md#playground-traces "mention"))
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/playground_datasets.png" alt=""><figcaption><p>Each example's input is used to fill the prompt template</p></figcaption></figure>
 
 ## Playground Traces
 
