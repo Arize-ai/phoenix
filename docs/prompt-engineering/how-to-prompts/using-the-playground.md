@@ -16,6 +16,16 @@ If successful you should see the LLM output stream out in the **Output** section
 
 The prompt editor (typically on the left side of the screen)  is where you define the [prompt template](../concepts-prompts.md#prompt-templates). You select the template language (**mustache** or **f-string**)  on the toolbar. Whenever you type a variable placeholder in the prompt (say {**{question\}}** for mustache), the variable to fill will show up in the **inputs** section. Input variables must either be filled in by hand or can be filled in via a dataset (where each row has key / value pairs for the input).
 
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/variable_substitution.gif" alt=""><figcaption><p>Use the template language to create prompt template variables that can be applied during runtime</p></figcaption></figure>
+
+
+
+## Model Configuration
+
+Every prompt instance can be configured to use a specific LLM and set of invocation parameters. Click on the model configuration button at the top of the prompt editor and configure your LLM of choice. Click on the "save as default" option to make your configuration sticky across playground sessions.
+
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/model_config.gif" alt=""><figcaption><p>Switch models and modify invocation params</p></figcaption></figure>
+
 
 
 ## Playground Traces
