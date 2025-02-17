@@ -47,22 +47,33 @@ export function formatPromptMessages(
     ...message,
     content:
       typeof message.content == "string"
-        ? message.content // TODO: Fix this string substitution
+        ? applyReplacements(message.content, replacements)
         : message.content.map((content) => {
             const textPart = asTextPart(content);
             if (textPart) {
-              let newText = textPart.text;
-              const toReplace = [...replacements];
-              while (toReplace.length > 0) {
-                const [key, value] = toReplace.shift()!;
-                newText = newText.replaceAll(key, value);
-              }
               return {
                 ...textPart,
-                text: newText,
+                text: applyReplacements(textPart.text, replacements),
               } satisfies TextPart;
             }
             return content;
           }),
   }));
+}
+
+/**
+ * Apply a list of replacements to a string
+ * @param text - The text to apply the replacements to
+ * @param replacements - The replacements to apply
+ * @returns The text with the replacements applied
+ */
+function applyReplacements(
+  text: string,
+  replacements: [RegExp, string][]
+): string {
+  let newText = text;
+  for (const [key, value] of replacements) {
+    newText = newText.replaceAll(key, value);
+  }
+  return newText;
 }
