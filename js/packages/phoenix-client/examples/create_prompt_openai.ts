@@ -20,6 +20,7 @@ const openai = new OpenAI({
 
 const main = async () => {
   const prompt = await createPrompt({
+    client,
     name: "test-prompt",
     description: "test-description",
     version: promptVersion({
