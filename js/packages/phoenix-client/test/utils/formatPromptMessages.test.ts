@@ -62,6 +62,21 @@ describe("formatPromptMessages", () => {
       });
     });
 
+    it("should support string content", () => {
+      const messages: PromptChatMessage[] = [
+        {
+          role: "user",
+          content: "Hello {{firstName}} {{lastName}}",
+        },
+      ];
+
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
+        firstName: "John",
+        lastName: "Doe",
+      });
+      expect(formatted?.[0]?.content).toEqual("Hello John Doe");
+    });
+
     it("should replace multiple instances of same variable", () => {
       const messages: PromptChatMessage[] = [
         {
@@ -136,6 +151,21 @@ describe("formatPromptMessages", () => {
         type: "text",
         text: "Hello there, World!",
       });
+    });
+
+    it("should support string content", () => {
+      const messages: PromptChatMessage[] = [
+        {
+          role: "user",
+          content: "Hello {firstName} {lastName}",
+        },
+      ];
+
+      const formatted = formatPromptMessages("F_STRING", messages, {
+        firstName: "John",
+        lastName: "Doe",
+      });
+      expect(formatted?.[0]?.content).toEqual("Hello John Doe");
     });
 
     it("should replace multiple instances of same variable", () => {

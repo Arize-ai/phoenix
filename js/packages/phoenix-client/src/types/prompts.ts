@@ -67,11 +67,45 @@ export type PromptSelector =
   | GetPromptByTagSelector;
 
 /**
+ * The prompt data needed to create a prompt.
+ */
+export type PromptData = components["schemas"]["PromptData"];
+
+/**
  * The prompt version type from the API.
  *
  * aka the prompt at a specific point in time
  */
 export type PromptVersion = components["schemas"]["PromptVersion"];
+
+/**
+ * The prompt version data needed to create a prompt version.
+ */
+export type PromptVersionData = components["schemas"]["PromptVersionData"];
+
+/**
+ * The invocation parameters for a prompt version for OpenAI.
+ */
+export type OpenAIInvocationParameters =
+  components["schemas"]["PromptOpenAIInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Azure OpenAI.
+ */
+export type AzureOpenAIInvocationParameters =
+  components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Anthropic.
+ */
+export type AnthropicInvocationParameters =
+  components["schemas"]["PromptAnthropicInvocationParametersContent"];
+
+/**
+ * The invocation parameters for a prompt version for Gemini.
+ */
+export type GeminiInvocationParameters =
+  components["schemas"]["PromptGeminiInvocationParametersContent"];
 
 /**
  * The format of the prompt template message(s).
