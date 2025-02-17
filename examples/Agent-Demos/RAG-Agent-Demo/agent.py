@@ -10,11 +10,9 @@ from langgraph.prebuilt import ToolNode
 from loguru import logger
 from openinference.instrumentation.openai import OpenAIInstrumentor
 from rag import initialize_vector_store
+from tools import analyze_rag_response, create_rag_response, initialize_tool_llm, web_search
 
 from phoenix.otel import register
-
-# from tools import create_rag_response, analyze_rag_response, web_search
-# from tools import initialize_tool_llm
 
 load_dotenv()
 open_ai_llm = None
@@ -53,7 +51,7 @@ def router(state: MessagesState) -> str:
     last_message = messages[-1]
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
-    if type(last_message) == HumanMessage:
+    if type(last_message) is HumanMessage:
         return "agent"
     return END
 
@@ -106,8 +104,6 @@ def construct_agent():
 
 
 def main():
-    from tools import initialize_tool_llm
-
     logger.info("RAG Agent Started....")
 
     initialize_instrumentor("agentic_rag")
