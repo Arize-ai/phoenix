@@ -25,7 +25,7 @@ def router(state: MessagesState):
     last_message = messages[-1]
     if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tools"
-    if type(last_message) == HumanMessage:
+    if type(last_message) is HumanMessage:
         return "agent"
     return END
 
