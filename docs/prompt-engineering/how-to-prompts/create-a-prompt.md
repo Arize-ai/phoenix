@@ -1,3 +1,7 @@
+---
+description: Store and track prompt versions in Phoenix
+---
+
 # Create a prompt
 
 Prompts with Phoenix can be created using the playground as well as via the phoenix-clients.
@@ -6,7 +10,7 @@ Prompts with Phoenix can be created using the playground as well as via the phoe
 
 Navigate to the **Prompts** in the navigation and click the add prompt button on the top right. This will navigate you to the Playground.&#x20;
 
-The playground is like the IDE where you will develop your prompt. The prompt section on the right lets you add more messages, change the template format (f-string or mustache), and an output schema (JSON mode).
+The [playground](../overview-prompts/prompt-playground.md) is like the IDE where you will develop your prompt. The prompt section on the right lets you add more messages, change the template format (f-string or mustache), and an output schema (JSON mode).
 
 ### Compose a prompt
 
@@ -60,22 +64,21 @@ This approach ensures that your edits are flexible and reversible, preventing un
 
 :construction: Prompt labels and metadata is still [under construction.](https://github.com/Arize-ai/phoenix/issues/6290)
 
-
-
 ## Using the Phoenix Client
 
-Starting with prompts, Phoenix has a dedicated client that lets you programmatically. Make sure you have installed the appropriate phoenix-client before proceeding.\
-
+Starting with prompts, Phoenix has a dedicated client that lets you programmatically. Make sure you have installed the appropriate[ phoenix-client](../../#packages) before proceeding.
 
 {% hint style="info" %}
-phoenix-client is very early in it's development and may not have every feature you might be looking for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/phoenix/issues)
+phoenix-client for both Python and TypeScript are very early in it's development and may not have every feature you might be looking for. Please drop us an issue if there's an enhancement you'd like to see. [https://github.com/Arize-ai/phoenix/issues](https://github.com/Arize-ai/phoenix/issues)
 {% endhint %}
 
 ### Compose a Prompt
 
+Creating a prompt in code can be useful if you want a programatic way to sync prompts with the Phoenix server.
+
 {% tabs %}
 {% tab title="Python" %}
-Below is an example prompt for summarizing articles as bullet points. Use the Phoenix client to store the prompt in Phoenix database. The name of the prompt is an identifier with lowercase alphanumeric characters plus hyphens and underscores (no spaces).
+Below is an example prompt for summarizing articles as bullet points. Use the Phoenix client to store the prompt in the Phoenix server. The name of the prompt is an identifier with lowercase alphanumeric characters plus hyphens and underscores (no spaces).
 
 ```python
 import phoenix as px
@@ -104,21 +107,56 @@ A prompt stored in the database can be retrieved later by its name. By default t
 prompt = px.Client().prompts.get(prompt_identifier=prompt_name)
 ```
 
-If a version is tagged with, e.g. "prod", it can retrieved as follows.
+If a version is [tagged](tag-a-prompt.md) with, e.g. "production", it can retrieved as follows.
 
-```
-prompt = px.Client().prompts.get(prompt_identifier=prompt_name, tag="prod")
+```python
+prompt = px.Client().prompts.get(prompt_identifier=prompt_name, tag="production")
 ```
 {% endtab %}
 
 {% tab title="TypeScript" %}
-:construction: Creating prompts from the typescript client is currently work in progress
+Below is an example prompt for summarizing articles as bullet points. Use the Phoenix client to store the prompt in the Phoenix server. The name of the prompt is an identifier with lowercase alphanumeric characters plus hyphens and underscores (no spaces).
+
+```typescript
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client";
+
+const promptTemplate = `
+You're an expert educator in {{ topic }}. Summarize the following article
+in a few concise bullet points that are easy for beginners to understand.
+
+{{ article }}
+`;
+
+const version = createPrompt({
+  name: "article-bullet-summarizer",
+  version: promptVersion({
+    modelProvider: "OPENAI",
+    modelName: "gpt-3.5-turbo",
+    template: [
+      {
+        role: "user",
+        content: promptTemplate,
+      },
+    ],
+  }),
+});
+```
+
+A prompt stored in the database can be retrieved later by its name. By default the latest version is fetched. Specific version ID or a tag can also be used for retrieval of a specific version.
+
+```typescript
+import { getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const prompt = await getPrompt({ name: "article-bullet-summarizer" });
+// ^ you now have a strongly-typed prompt object, in the Phoenix SDK Prompt type
+```
+
+If a version is [tagged](tag-a-prompt.md) with, e.g. "production",  it can retrieved as follows.
+
+```typescript
+const promptByTag = await getPrompt({ tag: "production", name: "article-bullet-summarizer" });
+// ^ you can optionally specify a tag to filter by
+```
 {% endtab %}
 {% endtabs %}
-
-
-
-
-
-
 
