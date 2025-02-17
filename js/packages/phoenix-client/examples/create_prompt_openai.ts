@@ -1,7 +1,18 @@
 /* eslint-disable no-console */
+import { createClient } from "../src";
 import { createPrompt, promptVersion } from "../src/prompts";
 import { toSDK } from "../src/prompts";
 import OpenAI from "openai";
+
+// Optional: create a phoenix client to explicitly set the credentials
+const client = createClient({
+  options: {
+    baseUrl: "http://localhost:6006",
+    // headers: {
+    //   Authorization: `Bearer ${process.env.PHOENIX_API_KEY}`,
+    // },
+  },
+});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,

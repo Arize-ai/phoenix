@@ -1,8 +1,6 @@
 # @arizeai/phoenix-client
 
-This package provides a client for the Phoenix API. It is still under active development and is subject to change.
-
-It utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate the types from the Phoenix OpenAPI spec.
+This package provides a client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
 
 ## Installation
 
@@ -45,11 +43,40 @@ const phoenix = createClient({
 
 ## Prompts
 
-`@arizeai/phoenix-client` provides a `prompts` export that exposes various utilities for working with prompts.
+`@arizeai/phoenix-client` provides a `prompts` export that exposes utilities for working with prompts for LLMs.
+
+### Creating a Prompt and push it to Phoenix
+
+The `createPrompt` function can be used to create a prompt in Phoenix for version control and reuse.
+
+```ts
+import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
+
+const version = createPrompt({
+  name: "my-prompt",
+  description: "test-description",
+  version: promptVersion({
+    description: "version description here",
+    modelProvider: "OPENAI",
+    modelName: "gpt-3.5-turbo",
+    template: [
+      {
+        role: "user",
+        content: "{{ question }}",
+      },
+    ],
+    invocationParameters: {
+      temperature: 0.8,
+    },
+  }),
+});
+```
+
+Prompts that are pushed to Phoenix are versioned and can be tagged.
 
 ### Pulling a Prompt from Phoenix
 
-The `getPrompt` helper function can be used to pull a prompt from Phoenix based on some Prompt Identifier and returns it in the Phoenix SDK Prompt type.
+The `getPrompt` function can be used to pull a prompt from Phoenix based on some Prompt Identifier and returns it in the Phoenix SDK Prompt type.
 
 ```ts
 import { getPrompt } from "@arizeai/phoenix-client/prompts";
@@ -141,3 +168,15 @@ pnpm install
 pnpx tsx examples/list_datasets.ts
 # change the file name to run other examples
 ```
+
+## Compatibility
+
+This package utilizes [openapi-ts](https://openapi-ts.pages.dev/) to generate the types from the Phoenix OpenAPI spec.
+
+Because of this, this package only works with the `arize-phonix` server 8.0.0 and above.
+
+Compatibility Table:
+
+| Phoenix Client Version | Phoenix Server Version |
+| ---------------------- | ---------------------- |
+| ^1.0.0                 | ^8.0.0                 |
