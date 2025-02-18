@@ -129,9 +129,9 @@ export const phoenixResponseFormatToOpenAI =
     (phoenix): OpenAIResponseFormat => ({
       type: "json_schema",
       json_schema: {
-        name: phoenix.name,
-        description: phoenix.description,
-        schema: jsonSchemaZodSchema.parse(phoenix.schema.json),
+        name: phoenix.json_schema.name,
+        description: phoenix.json_schema.description,
+        schema: jsonSchemaZodSchema.parse(phoenix.json_schema.schema),
       },
     })
   );
@@ -155,9 +155,9 @@ export const phoenixToolDefinitionToOpenAI =
     (phoenix): OpenAIToolDefinition => ({
       type: "function",
       function: {
-        name: phoenix.name,
-        description: phoenix.description,
-        parameters: jsonSchemaZodSchema.parse(phoenix.schema?.json),
+        name: phoenix.function.name,
+        description: phoenix.function.description,
+        parameters: jsonSchemaZodSchema.parse(phoenix.function.parameters),
       },
     })
   );
@@ -167,11 +167,11 @@ export const phoenixToolChoiceToOpenAI = phoenixToolChoiceSchema.transform(
     switch (phoenix.type) {
       case "none":
         return "none";
-      case "zero-or-more":
+      case "zero_or_more":
         return "auto";
-      case "one-or-more":
+      case "one_or_more":
         return "required";
-      case "specific-function-tool":
+      case "specific_function":
         return { type: "function", function: { name: phoenix.function_name } };
     }
   }

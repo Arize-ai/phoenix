@@ -105,15 +105,14 @@ describe("toAnthropic type compatibility", () => {
       },
       tools: {
         type: "tools",
-        tool_choice: { type: "zero-or-more" },
+        tool_choice: { type: "zero_or_more" },
         tools: [
           {
-            type: "function-tool",
-            name: "edit_image",
-            description: "edit an image",
-            schema: {
-              type: "json-schema-draft-7-object-schema",
-              json: {
+            type: "function",
+            function: {
+              name: "edit_image",
+              description: "edit an image",
+              parameters: {
                 type: "object",
                 properties: {
                   image_url: {

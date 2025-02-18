@@ -114,17 +114,16 @@ describe("toAI type compatibility", () => {
       tools: {
         type: "tools",
         tool_choice: {
-          type: "specific-function-tool",
+          type: "specific_function",
           function_name: "edit_image",
         },
         tools: [
           {
-            type: "function-tool",
-            name: "edit_image",
-            description: "edit an image",
-            schema: {
-              type: "json-schema-draft-7-object-schema",
-              json: {
+            type: "function",
+            function: {
+              name: "edit_image",
+              description: "edit an image",
+              parameters: {
                 type: "object",
                 properties: {
                   image_url: {

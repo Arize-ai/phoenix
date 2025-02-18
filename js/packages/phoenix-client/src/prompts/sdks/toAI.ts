@@ -66,13 +66,13 @@ export const toAI = <V extends Variables>({
 
     // convert tools to Vercel AI tool set, which is a map of tool name to tool
     let tools: ToolSet | undefined = prompt.tools?.tools.reduce((acc, tool) => {
-      if (!tool.schema?.json) {
+      if (!tool.function.parameters) {
         return acc;
       }
-      acc[tool.name] = {
+      acc[tool.function.name] = {
         type: "function",
-        parameters: jsonSchema(tool.schema.json),
-        description: tool.description,
+        parameters: jsonSchema(tool.function.parameters),
+        description: tool.function.description,
       } satisfies Tool;
       return acc;
     }, {} as ToolSet);

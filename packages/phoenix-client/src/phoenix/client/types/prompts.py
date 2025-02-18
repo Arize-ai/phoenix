@@ -134,7 +134,7 @@ class PromptVersion:
                 )
             )
         if sdk == "google_generativeai":
-            return GooglePrompt(
+            return GoogleGenerativeaiPrompt(
                 *to_messages_google(
                     obj,
                     variables=variables,
@@ -269,7 +269,7 @@ class AnthropicPrompt(FormattedPrompt):
 
 
 @dataclass(frozen=True)
-class GooglePrompt(FormattedPrompt):
+class GoogleGenerativeaiPrompt(FormattedPrompt):
     messages: Sequence[protos.Content]
     kwargs: GoogleModelKwargs
 

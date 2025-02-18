@@ -1,18 +1,9 @@
-# pyright: reportPrivateUsage=false
+from __future__ import annotations
+
 import json
-from typing import Any, Iterable, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional
 
 import pytest
-from anthropic.types import (
-    MessageParam,
-    TextBlockParam,
-    ToolChoiceAnyParam,
-    ToolChoiceAutoParam,
-    ToolChoiceToolParam,
-    ToolParam,
-    ToolResultBlockParam,
-    ToolUseBlockParam,
-)
 from deepdiff.diff import DeepDiff
 from faker import Faker
 
@@ -28,6 +19,15 @@ from phoenix.client.helpers.sdk.anthropic.messages import (
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
+if TYPE_CHECKING:
+    from anthropic.types import (
+        MessageParam,
+        TextBlockParam,
+        ToolParam,
+        ToolResultBlockParam,
+        ToolUseBlockParam,
+    )
+
 fake = Faker()
 
 
@@ -40,34 +40,34 @@ def _str() -> str:
 
 
 def _text() -> TextBlockParam:
-    return TextBlockParam(
-        type="text",
-        text=_str(),
-    )
+    return {
+        "type": "text",
+        "text": _str(),
+    }
 
 
 def _tool_use() -> ToolUseBlockParam:
-    return ToolUseBlockParam(
-        type="tool_use",
-        id=_str(),
-        input=json.dumps(_dict()),
-        name=_str(),
-    )
+    return {
+        "type": "tool_use",
+        "id": _str(),
+        "input": json.dumps(_dict()),
+        "name": _str(),
+    }
 
 
 def _tool_result() -> ToolResultBlockParam:
-    return ToolResultBlockParam(
-        type="tool_result",
-        tool_use_id=_str(),
-        content=_str(),  # TODO: relax this
-    )
+    return {
+        "type": "tool_result",
+        "tool_use_id": _str(),
+        "content": _str(),  # TODO: relax this
+    }
 
 
 def _tool(name: Optional[str] = None) -> ToolParam:
-    return ToolParam(
-        name=name or _str(),
-        description=_str(),
-        input_schema={
+    return {
+        "name": name or _str(),
+        "description": _str(),
+        "input_schema": {
             "type": "object",
             "properties": {
                 "x": {"type": "int", "description": _str()},
@@ -76,19 +76,19 @@ def _tool(name: Optional[str] = None) -> ToolParam:
             "required": ["x", "y"],
             "additionalProperties": False,
         },
-    )
+    }
 
 
 class TestMessageConversion:
     @pytest.mark.parametrize(
         "obj",
         [
-            MessageParam(role="user", content=[_text(), _text()]),
-            MessageParam(role="assistant", content=[_text(), _tool_use(), _tool_use()]),
-            MessageParam(role="user", content=[_text(), _tool_result(), _tool_result()]),
-            MessageParam(role="assistant", content=[_text(), _text()]),
-            MessageParam(role="user", content=_str()),
-            MessageParam(role="assistant", content=_str()),
+            {"role": "user", "content": [_text(), _text()]},
+            {"role": "assistant", "content": [_text(), _tool_use(), _tool_use()]},
+            {"role": "user", "content": [_text(), _tool_result(), _tool_result()]},
+            {"role": "assistant", "content": [_text(), _text()]},
+            {"role": "user", "content": _str()},
+            {"role": "assistant", "content": _str()},
         ],
     )
     def test_round_trip(self, obj: MessageParam) -> None:
@@ -151,40 +151,40 @@ class TestToolKwargs:
             },
             {
                 "tools": [_tool(), _tool()],
-                "tool_choice": ToolChoiceAutoParam(type="auto"),
+                "tool_choice": {"type": "auto"},
             },
             {
                 "tools": [_tool(), _tool()],
-                "tool_choice": ToolChoiceAutoParam(
-                    type="auto",
-                    disable_parallel_tool_use=True,
-                ),
+                "tool_choice": {
+                    "type": "auto",
+                    "disable_parallel_tool_use": True,
+                },
             },
             {
                 "tools": [_tool(), _tool()],
-                "tool_choice": ToolChoiceAnyParam(type="any"),
+                "tool_choice": {"type": "any"},
             },
             {
                 "tools": [_tool(), _tool()],
-                "tool_choice": ToolChoiceAnyParam(
-                    type="any",
-                    disable_parallel_tool_use=True,
-                ),
+                "tool_choice": {
+                    "type": "any",
+                    "disable_parallel_tool_use": True,
+                },
             },
             {
                 "tools": [_tool(), _tool("xyz")],
-                "tool_choice": ToolChoiceToolParam(
-                    type="tool",
-                    name="xyz",
-                ),
+                "tool_choice": {
+                    "type": "tool",
+                    "name": "xyz",
+                },
             },
             {
                 "tools": [_tool(), _tool("xyz")],
-                "tool_choice": ToolChoiceToolParam(
-                    type="tool",
-                    name="xyz",
-                    disable_parallel_tool_use=True,
-                ),
+                "tool_choice": {
+                    "type": "tool",
+                    "name": "xyz",
+                    "disable_parallel_tool_use": True,
+                },
             },
         ],
     )

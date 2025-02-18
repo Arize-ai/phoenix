@@ -512,16 +512,6 @@ export interface components {
              */
             id: string;
         };
-        /** JSONSchemaDraft7ObjectSchema */
-        JSONSchemaDraft7ObjectSchema: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "json-schema-draft-7-object-schema";
-            /** Json */
-            json: Record<string, unknown>;
-        };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
             /** Dataset Id */
@@ -636,22 +626,6 @@ export interface components {
             /** Source Prompt Id */
             source_prompt_id?: string | null;
         };
-        /** PromptFunctionTool */
-        PromptFunctionTool: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "function-tool";
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string;
-            /** Schema */
-            schema?: components["schemas"]["JSONSchemaDraft7ObjectSchema"];
-            /** Extra Parameters */
-            extra_parameters?: Record<string, unknown>;
-        };
         /** PromptGeminiInvocationParameters */
         PromptGeminiInvocationParameters: {
             /**
@@ -723,15 +697,19 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "response-format-json-schema";
+            type: "json_schema";
+            json_schema: components["schemas"]["PromptResponseFormatJSONSchemaDefinition"];
+        };
+        /** PromptResponseFormatJSONSchemaDefinition */
+        PromptResponseFormatJSONSchemaDefinition: {
             /** Name */
             name: string;
             /** Description */
             description?: string;
             /** Schema */
-            schema: components["schemas"]["JSONSchemaDraft7ObjectSchema"];
-            /** Extra Parameters */
-            extra_parameters: Record<string, unknown>;
+            schema?: Record<string, unknown>;
+            /** Strict */
+            strict?: boolean;
         };
         /** PromptStringTemplate */
         PromptStringTemplate: {
@@ -767,7 +745,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "one-or-more";
+            type: "one_or_more";
         };
         /** PromptToolChoiceSpecificFunctionTool */
         PromptToolChoiceSpecificFunctionTool: {
@@ -775,7 +753,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "specific-function-tool";
+            type: "specific_function";
             /** Function Name */
             function_name: string;
         };
@@ -785,7 +763,27 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "zero-or-more";
+            type: "zero_or_more";
+        };
+        /** PromptToolFunction */
+        PromptToolFunction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "function";
+            function: components["schemas"]["PromptToolFunctionDefinition"];
+        };
+        /** PromptToolFunctionDefinition */
+        PromptToolFunctionDefinition: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Parameters */
+            parameters?: Record<string, unknown>;
+            /** Strict */
+            strict?: boolean;
         };
         /** PromptTools */
         PromptTools: {
@@ -795,7 +793,7 @@ export interface components {
              */
             type: "tools";
             /** Tools */
-            tools: components["schemas"]["PromptFunctionTool"][];
+            tools: components["schemas"]["PromptToolFunction"][];
             /** Tool Choice */
             tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
             /** Disable Parallel Tool Calls */
