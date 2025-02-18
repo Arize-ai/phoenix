@@ -82,7 +82,7 @@ const main = async () => {
     // Apply prompt with response format to a generateObject call
     const { object } = await generateObject({
       model: openai("gpt-4o"),
-      schema: jsonSchema(prompt.response_format.schema.json),
+      schema: jsonSchema(prompt.response_format.json_schema),
       ...aiParams,
     });
     console.log("Object generation result:");

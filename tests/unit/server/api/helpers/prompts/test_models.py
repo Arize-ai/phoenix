@@ -160,20 +160,18 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool",
-                "name": "get_weather",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "parameters": {
                         "type": "object",
                         "properties": {
                             "city": {
                                 "type": "string",
-                            },
+                            }
                         },
                     },
                 },
-                "extra_parameters": {},
             },
             id="minimal-tool",
         ),
@@ -191,93 +189,21 @@ async def test_chat_template_materializes_to_expected_format(
                 },
             },
             {
-                "type": "function-tool",
-                "name": "get_weather",
-                "description": "Gets the current weather for a given city",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Gets the current weather for a given city",
+                    "parameters": {
                         "type": "object",
                         "properties": {
                             "city": {
                                 "type": "string",
-                            },
+                            }
                         },
                     },
                 },
-                "extra_parameters": {},
             },
             id="tool-with-description",
-        ),
-        pytest.param(
-            {
-                "name": "get_weather",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                        },
-                    },
-                },
-                "cache_control": {
-                    "type": "ephemeral",
-                },
-            },
-            {
-                "type": "function-tool",
-                "name": "get_weather",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "city": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                },
-                "extra_parameters": {
-                    "cache_control": {
-                        "type": "ephemeral",
-                    },
-                },
-            },
-            id="tool-with-ephemeral-cache-control",
-        ),
-        pytest.param(
-            {
-                "name": "get_weather",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "city": {
-                            "type": "string",
-                        },
-                    },
-                },
-                "cache_control": None,
-            },
-            {
-                "type": "function-tool",
-                "name": "get_weather",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "city": {
-                                "type": "string",
-                            },
-                        },
-                    },
-                },
-                "extra_parameters": {
-                    "cache_control": None,
-                },
-            },
-            id="tool-with-cache-control-set-to-none",
         ),
     ],
 )
@@ -353,7 +279,7 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
 
 
 @pytest.mark.parametrize(
-    "openai_tool_dict,expected_normalized_tool_dict",
+    "openai_tool_dict",
     [
         pytest.param(
             {
@@ -369,22 +295,6 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                         },
                     },
                 },
-            },
-            {
-                "type": "function-tool",
-                "name": "get_weather",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "city": {
-                                "type": "string",
-                            }
-                        },
-                    },
-                },
-                "extra_parameters": {},
             },
             id="minimal-tool",
         ),
@@ -404,23 +314,6 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                     },
                 },
             },
-            {
-                "type": "function-tool",
-                "name": "get_weather",
-                "description": "Gets current weather for a given city",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "city": {
-                                "type": "string",
-                            }
-                        },
-                    },
-                },
-                "extra_parameters": {},
-            },
             id="tool-with-description",
         ),
         pytest.param(
@@ -429,11 +322,6 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                 "function": {
                     "name": "escalate_to_human_customer_support",
                 },
-            },
-            {
-                "type": "function-tool",
-                "name": "escalate_to_human_customer_support",
-                "extra_parameters": {},
             },
             id="tool-with-no-parameters",
         ),
@@ -455,26 +343,6 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                     "strict": True,
                 },
             },
-            {
-                "type": "function-tool",
-                "name": "get_weather",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "city": {
-                                "type": "string",
-                            }
-                        },
-                        "required": ["city"],
-                        "additionalProperties": False,
-                    },
-                },
-                "extra_parameters": {
-                    "strict": True,
-                },
-            },
             id="tool-with-strict-set-to-bool",
         ),
         pytest.param(
@@ -492,39 +360,19 @@ async def test_anthropic_tool_are_round_tripped_without_data_loss(
                         "required": ["city"],
                         "additionalProperties": False,
                     },
-                    "strict": None,
+                    "strict": False,
                 },
             },
-            {
-                "type": "function-tool",
-                "name": "get_weather",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "city": {
-                                "type": "string",
-                            }
-                        },
-                        "required": ["city"],
-                        "additionalProperties": False,
-                    },
-                },
-                "extra_parameters": {
-                    "strict": None,
-                },
-            },
-            id="tool-with-strict-set-to-none",
+            id="tool-with-strict-set-to-false",
         ),
     ],
 )
 async def test_openai_tool_are_round_tripped_without_data_loss(
     openai_tool_dict: dict[str, Any],
-    expected_normalized_tool_dict: dict[str, Any],
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    expected_normalized_tool_dict = openai_tool_dict
     model_provider = ModelProvider.OPENAI
     # normalize tools
     normalized_tools = normalize_tools([openai_tool_dict], model_provider)
@@ -589,7 +437,7 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
 
 
 @pytest.mark.parametrize(
-    "openai_response_format_dict,expected_normalized_response_format_dict",
+    "openai_response_format_dict",
     [
         pytest.param(
             {
@@ -610,27 +458,6 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                         },
                     },
                 },
-            },
-            {
-                "type": "response-format-json-schema",
-                "name": "classify_user_intent",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "user_intent": {
-                                "type": "string",
-                                "enum": [
-                                    "complaint",
-                                    "query",
-                                    "other",
-                                ],
-                            }
-                        },
-                    },
-                },
-                "extra_parameters": {},
             },
             id="minimal-output-schema",
         ),
@@ -659,33 +486,6 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                     "strict": True,
                 },
             },
-            {
-                "type": "response-format-json-schema",
-                "name": "classify_user_intent",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "user_intent": {
-                                "type": "string",
-                                "enum": [
-                                    "complaint",
-                                    "query",
-                                    "other",
-                                ],
-                            },
-                        },
-                        "required": [
-                            "user_intent",
-                        ],
-                        "additionalProperties": False,
-                    },
-                },
-                "extra_parameters": {
-                    "strict": True,
-                },
-            },
             id="with-strict-set-to-bool",
         ),
         pytest.param(
@@ -710,37 +510,10 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                         ],
                         "additionalProperties": False,
                     },
-                    "strict": None,
+                    "strict": False,
                 },
             },
-            {
-                "type": "response-format-json-schema",
-                "name": "classify_user_intent",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "user_intent": {
-                                "type": "string",
-                                "enum": [
-                                    "complaint",
-                                    "query",
-                                    "other",
-                                ],
-                            },
-                        },
-                        "required": [
-                            "user_intent",
-                        ],
-                        "additionalProperties": False,
-                    },
-                },
-                "extra_parameters": {
-                    "strict": None,
-                },
-            },
-            id="with-strict-set-to-none",
+            id="with-strict-set-to-fase",
         ),
         pytest.param(
             {
@@ -766,42 +539,16 @@ async def test_openai_tool_are_round_tripped_without_data_loss(
                     "strict": True,
                 },
             },
-            {
-                "type": "response-format-json-schema",
-                "name": "classify_user_intent",
-                "description": "Classifies the user's intent into one of several categories",
-                "schema": {
-                    "type": "json-schema-draft-7-object-schema",
-                    "json": {
-                        "type": "object",
-                        "properties": {
-                            "user_intent": {
-                                "type": "string",
-                                "enum": [
-                                    "complaint",
-                                    "query",
-                                    "other",
-                                ],
-                            }
-                        },
-                        "required": ["user_intent"],
-                        "additionalProperties": False,
-                    },
-                },
-                "extra_parameters": {
-                    "strict": True,
-                },
-            },
             id="with-description",
         ),
     ],
 )
 async def test_openai_response_format_are_round_tripped_without_data_loss(
     openai_response_format_dict: dict[str, Any],
-    expected_normalized_response_format_dict: dict[str, Any],
     db: DbSessionFactory,
     dialect: str,
 ) -> None:
+    expected_normalized_response_format_dict = openai_response_format_dict
     model_provider = ModelProvider.OPENAI
     # normalize output schema
     normalized_response_format = normalize_response_format(

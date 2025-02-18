@@ -503,85 +503,6 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "OPENAI",
-                            "modelName": "o1-mini",
-                            "responseFormat": {
-                                "definition": {
-                                    "type": "json_schema",
-                                    "json_schema": {
-                                        "name": "response",
-                                        "schema": {
-                                            "type": "invalid_type",  # valid schema other than this
-                                            "properties": {
-                                                "foo": {"type": "string"},
-                                            },
-                                            "required": ["foo"],
-                                            "additionalProperties": False,
-                                        },
-                                        "strict": True,
-                                    },
-                                }
-                            },
-                        },
-                    }
-                },
-                id="invalid-output-schema",
-            ),
-            pytest.param(
-                {
-                    "input": {
-                        "name": "prompt-name",
-                        "description": "prompt-description",
-                        "promptVersion": {
-                            "description": "prompt-version-description",
-                            "templateFormat": "MUSTACHE",
-                            "template": {
-                                "messages": [
-                                    {
-                                        "role": "USER",
-                                        "content": [{"text": {"text": "hello world"}}],
-                                    }
-                                ]
-                            },
-                            "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "OPENAI",
-                            "modelName": "o1-mini",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "type": "function",
-                                        "function": {
-                                            "name": "get_weather",
-                                            "parameters": {
-                                                "type": "invalid_type",  # invalid schema type
-                                                "properties": {"location": {"type": "string"}},
-                                            },
-                                        },
-                                    }
-                                }
-                            ],
-                        },
-                    }
-                },
-                id="with-invalid-openai-tools",
-            ),
-            pytest.param(
-                {
-                    "input": {
-                        "name": "prompt-name",
-                        "description": "prompt-description",
-                        "promptVersion": {
-                            "description": "prompt-version-description",
-                            "templateFormat": "MUSTACHE",
-                            "template": {
-                                "messages": [
-                                    {
-                                        "role": "USER",
-                                        "content": [{"text": {"text": "hello world"}}],
-                                    }
-                                ]
-                            },
-                            "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
@@ -604,9 +525,6 @@ class TestPromptMutations:
                                             },
                                             "required": ["location"],
                                         },
-                                        "cache_control": {
-                                            "type": "invalid_type"
-                                        },  # invalid cache control type
                                     }
                                 }
                             ],
@@ -986,83 +904,6 @@ class TestPromptMutations:
                                 ]
                             },
                             "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "OPENAI",
-                            "modelName": "o1-mini",
-                            "responseFormat": {
-                                "definition": {
-                                    "type": "json_schema",
-                                    "json_schema": {
-                                        "name": "response",
-                                        "schema": {
-                                            "type": "invalid_type",  # valid schema other than this
-                                            "properties": {
-                                                "foo": {"type": "string"},
-                                            },
-                                            "required": ["foo"],
-                                            "additionalProperties": False,
-                                        },
-                                        "strict": True,
-                                    },
-                                }
-                            },
-                        },
-                    }
-                },
-                id="invalid-output-schema",
-            ),
-            pytest.param(
-                {
-                    "input": {
-                        "promptId": str(GlobalID("Prompt", "1")),
-                        "promptVersion": {
-                            "description": "prompt-version-description",
-                            "templateFormat": "MUSTACHE",
-                            "template": {
-                                "messages": [
-                                    {
-                                        "role": "USER",
-                                        "content": [{"text": {"text": "hello world"}}],
-                                    }
-                                ]
-                            },
-                            "invocationParameters": {"temperature": 0.4},
-                            "modelProvider": "OPENAI",
-                            "modelName": "o1-mini",
-                            "tools": [
-                                {
-                                    "definition": {
-                                        "type": "function",
-                                        "function": {
-                                            "name": "get_weather",
-                                            "parameters": {
-                                                "type": "invalid_type",  # invalid schema type
-                                                "properties": {"location": {"type": "string"}},
-                                            },
-                                        },
-                                    }
-                                }
-                            ],
-                        },
-                    }
-                },
-                id="with-invalid-openai-tools",
-            ),
-            pytest.param(
-                {
-                    "input": {
-                        "promptId": str(GlobalID("Prompt", "1")),
-                        "promptVersion": {
-                            "description": "prompt-version-description",
-                            "templateFormat": "MUSTACHE",
-                            "template": {
-                                "messages": [
-                                    {
-                                        "role": "USER",
-                                        "content": [{"text": {"text": "hello world"}}],
-                                    }
-                                ]
-                            },
-                            "invocationParameters": {"temperature": 0.4},
                             "modelProvider": "anthropic",
                             "modelName": "claude-2",
                             "tools": [
@@ -1085,9 +926,6 @@ class TestPromptMutations:
                                             },
                                             "required": ["location"],
                                         },
-                                        "cache_control": {
-                                            "type": "invalid_type"
-                                        },  # invalid cache control type
                                     }
                                 }
                             ],

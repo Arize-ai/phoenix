@@ -31,11 +31,11 @@ class OpenAIToolChoiceConversion:
     ) -> ChatCompletionToolChoiceOptionParam:
         if obj.type == "none":
             return "none"
-        if obj.type == "zero-or-more":
+        if obj.type == "zero_or_more":
             return "auto"
-        if obj.type == "one-or-more":
+        if obj.type == "one_or_more":
             return "required"
-        if obj.type == "specific-function-tool":
+        if obj.type == "specific_function":
             choice_tool: ChatCompletionNamedToolChoiceParam = {
                 "type": "function",
                 "function": {"name": obj.function_name},
@@ -63,15 +63,15 @@ class OpenAIToolChoiceConversion:
             choice_none = PromptToolChoiceNone(type="none")
             return choice_none
         if obj == "auto":
-            choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero-or-more")
+            choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero_or_more")
             return choice_zero_or_more
         if obj == "required":
-            choice_one_or_more = PromptToolChoiceOneOrMore(type="one-or-more")
+            choice_one_or_more = PromptToolChoiceOneOrMore(type="one_or_more")
             return choice_one_or_more
         if obj["type"] == "function":
             function: Function = obj["function"]
             choice_function_tool = PromptToolChoiceSpecificFunctionTool(
-                type="specific-function-tool",
+                type="specific_function",
                 function_name=function["name"],
             )
             return choice_function_tool

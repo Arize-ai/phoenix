@@ -27,15 +27,14 @@ export const BASE_MOCK_PROMPT_VERSION = {
 export const BASE_MOCK_PROMPT_VERSION_TOOLS = {
   tools: {
     type: "tools",
-    tool_choice: { type: "zero-or-more" },
+    tool_choice: { type: "zero_or_more" },
     tools: [
       {
-        type: "function-tool",
-        name: "test",
-        description: "test function",
-        schema: {
-          type: "json-schema-draft-7-object-schema",
-          json: {
+        type: "function",
+        function: {
+          name: "test",
+          description: "test function",
+          parameters: {
             type: "object",
             properties: {},
           },
@@ -47,16 +46,14 @@ export const BASE_MOCK_PROMPT_VERSION_TOOLS = {
 
 export const BASE_MOCK_PROMPT_VERSION_RESPONSE_FORMAT = {
   response_format: {
-    type: "response-format-json-schema",
-    name: "test",
-    description: "test function",
-    schema: {
-      type: "json-schema-draft-7-object-schema",
-      json: {
+    type: "json_schema",
+    json_schema: {
+      name: "test",
+      description: "test function",
+      schema: {
         type: "object",
         properties: {},
       },
     },
-    extra_parameters: {},
   },
 } satisfies Partial<PromptVersion>;

@@ -2073,25 +2073,6 @@
         ],
         "title": "InsertedSpanAnnotation"
       },
-      "JSONSchemaDraft7ObjectSchema": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "json-schema-draft-7-object-schema",
-            "title": "Type"
-          },
-          "json": {
-            "type": "object",
-            "title": "Json"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "json"
-        ],
-        "title": "JSONSchemaDraft7ObjectSchema"
-      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -2415,48 +2396,6 @@
         ],
         "title": "PromptData"
       },
-      "PromptFunctionTool": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "function-tool",
-            "title": "Type"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "type": "string",
-            "title": "Description"
-          },
-          "schema": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
-              }
-            ],
-            "title": "Schema",
-            "discriminator": {
-              "propertyName": "type",
-              "mapping": {
-                "json-schema-draft-7-object-schema": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
-              }
-            }
-          },
-          "extra_parameters": {
-            "type": "object",
-            "title": "Extra Parameters"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "type",
-          "name"
-        ],
-        "title": "PromptFunctionTool"
-      },
       "PromptGeminiInvocationParameters": {
         "properties": {
           "type": {
@@ -2634,9 +2573,23 @@
         "properties": {
           "type": {
             "type": "string",
-            "const": "response-format-json-schema",
+            "const": "json_schema",
             "title": "Type"
           },
+          "json_schema": {
+            "$ref": "#/components/schemas/PromptResponseFormatJSONSchemaDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "json_schema"
+        ],
+        "title": "PromptResponseFormatJSONSchema"
+      },
+      "PromptResponseFormatJSONSchemaDefinition": {
+        "properties": {
           "name": {
             "type": "string",
             "title": "Name"
@@ -2646,33 +2599,20 @@
             "title": "Description"
           },
           "schema": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
-              }
-            ],
-            "title": "Schema",
-            "discriminator": {
-              "propertyName": "type",
-              "mapping": {
-                "json-schema-draft-7-object-schema": "#/components/schemas/JSONSchemaDraft7ObjectSchema"
-              }
-            }
-          },
-          "extra_parameters": {
             "type": "object",
-            "title": "Extra Parameters"
+            "title": "Schema"
+          },
+          "strict": {
+            "type": "boolean",
+            "title": "Strict"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "type",
-          "name",
-          "schema",
-          "extra_parameters"
+          "name"
         ],
-        "title": "PromptResponseFormatJSONSchema"
+        "title": "PromptResponseFormatJSONSchemaDefinition"
       },
       "PromptStringTemplate": {
         "properties": {
@@ -2730,7 +2670,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "const": "one-or-more",
+            "const": "one_or_more",
             "title": "Type"
           }
         },
@@ -2745,7 +2685,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "const": "specific-function-tool",
+            "const": "specific_function",
             "title": "Type"
           },
           "function_name": {
@@ -2765,7 +2705,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "const": "zero-or-more",
+            "const": "zero_or_more",
             "title": "Type"
           }
         },
@@ -2775,6 +2715,51 @@
           "type"
         ],
         "title": "PromptToolChoiceZeroOrMore"
+      },
+      "PromptToolFunction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type"
+          },
+          "function": {
+            "$ref": "#/components/schemas/PromptToolFunctionDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "function"
+        ],
+        "title": "PromptToolFunction"
+      },
+      "PromptToolFunctionDefinition": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parameters": {
+            "type": "object",
+            "title": "Parameters"
+          },
+          "strict": {
+            "type": "boolean",
+            "title": "Strict"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptToolFunctionDefinition"
       },
       "PromptTools": {
         "properties": {
@@ -2787,13 +2772,13 @@
             "items": {
               "oneOf": [
                 {
-                  "$ref": "#/components/schemas/PromptFunctionTool"
+                  "$ref": "#/components/schemas/PromptToolFunction"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
-                  "function-tool": "#/components/schemas/PromptFunctionTool"
+                  "function": "#/components/schemas/PromptToolFunction"
                 }
               }
             },
@@ -2821,9 +2806,9 @@
               "propertyName": "type",
               "mapping": {
                 "none": "#/components/schemas/PromptToolChoiceNone",
-                "one-or-more": "#/components/schemas/PromptToolChoiceOneOrMore",
-                "specific-function-tool": "#/components/schemas/PromptToolChoiceSpecificFunctionTool",
-                "zero-or-more": "#/components/schemas/PromptToolChoiceZeroOrMore"
+                "one_or_more": "#/components/schemas/PromptToolChoiceOneOrMore",
+                "specific_function": "#/components/schemas/PromptToolChoiceSpecificFunctionTool",
+                "zero_or_more": "#/components/schemas/PromptToolChoiceZeroOrMore"
               }
             }
           },
@@ -2931,7 +2916,7 @@
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "response-format-json-schema": "#/components/schemas/PromptResponseFormatJSONSchema"
+                    "json_schema": "#/components/schemas/PromptResponseFormatJSONSchema"
                   }
                 }
               },
@@ -3049,7 +3034,7 @@
                 "discriminator": {
                   "propertyName": "type",
                   "mapping": {
-                    "response-format-json-schema": "#/components/schemas/PromptResponseFormatJSONSchema"
+                    "json_schema": "#/components/schemas/PromptResponseFormatJSONSchema"
                   }
                 }
               },
