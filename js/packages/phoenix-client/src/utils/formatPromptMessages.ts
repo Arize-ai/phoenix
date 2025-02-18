@@ -23,7 +23,7 @@ export function formatPromptMessages(
   switch (format) {
     case "MUSTACHE": {
       const asMustache = Object.entries(variables).map(([key, value]) => [
-        new RegExp(`\\{\\{${key}\\}\\}(?!\\})`, "g"),
+        new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}(?!\\})`, "g"),
         value.toString(),
       ]) satisfies [RegExp, string][];
       replacements.push(...asMustache);
@@ -31,7 +31,7 @@ export function formatPromptMessages(
     }
     case "F_STRING": {
       const asF_STRING = Object.entries(variables).map(([key, value]) => [
-        new RegExp(`(?<!\\{)\\{${key}\\}(?!\\})`, "g"),
+        new RegExp(`(?<!\\{)\\{\\s*${key}\\s*\\}(?!\\})`, "g"),
         value.toString(),
       ]) satisfies [RegExp, string][];
       replacements.push(...asF_STRING);
