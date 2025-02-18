@@ -1,4 +1,4 @@
-import { mapPromptToSnippet } from "../promptCodeSnippets";
+import { mapPromptToSDKSnippet } from "../promptCodeSnippets";
 
 import {
   ANTHROPIC_TOOL,
@@ -30,7 +30,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -111,7 +111,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -188,7 +188,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -244,7 +244,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });
@@ -325,7 +325,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });
@@ -402,7 +402,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });
