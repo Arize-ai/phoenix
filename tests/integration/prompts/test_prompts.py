@@ -414,6 +414,42 @@ class TestClient:
                     presence_penalty=random(),
                     frequency_penalty=random(),
                     seed=randint(24, 42),
+                    messages=[{"role": "developer", "content": "You are {role}."}],
+                ),
+                id="openai-developer-message-string",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "developer",
+                            "content": [
+                                {"type": "text", "text": "You are {role}."},
+                                {"type": "text", "text": "You study {topic}."},
+                            ],
+                        },
+                    ],
+                ),
+                id="openai-developer-message-list",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
                     messages=[
                         {
                             "role": "user",
@@ -424,6 +460,24 @@ class TestClient:
                     tool_choice="required",
                 ),
                 id="openai-tools",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[{"role": "user", "content": "create form for {feature}"}],
+                    response_format=cast(
+                        ResponseFormatJSONSchema,
+                        type_to_response_format_param(create_model("Response", ui=(_UI, ...))),
+                    ),
+                ),
+                id="openai-response-format",
             ),
             pytest.param(
                 "OPENAI",
@@ -627,6 +681,34 @@ class TestClient:
                     tool_choice={"type": "any"},
                 ),
                 id="anthropic-tools",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "Given a description of a character, your task is to "
+                            "extract all the characteristics of the character.\n"
+                            "<description>{desc}</description>",
+                        },
+                    ],
+                    tools=[
+                        {
+                            "name": "print_all_characteristics",
+                            "description": "Prints all characteristics which are provided.",
+                            "input_schema": {"type": "object", "additionalProperties": True},
+                        }
+                    ],
+                    tool_choice={"type": "tool", "name": "print_all_characteristics"},
+                ),
+                id="anthropic-tool-with--unknown-keys",
             ),
             pytest.param(
                 "ANTHROPIC",
