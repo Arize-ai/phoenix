@@ -86,7 +86,7 @@ type LanguageConfig = {
   /**
    * A function that generates a string on how to pull the prompt using the phoenix client
    */
-  clientTemplate: (params: { verionId: string; tab: string }) => string;
+  clientTemplate: (params: { versionId: string; tab: string }) => string;
 };
 
 const openaiSDKTemplatePython = template(
@@ -128,7 +128,7 @@ const openaiClientTemplatePython = template(
 from openai import OpenAI
 from phoenix.client import Client
 
-prompt = Client().prompts.get(prompt_version_id="<%= verionId %>")
+prompt = Client().prompts.get(prompt_version_id="<%= versionId %>")
 
 # Format the prompt template with the appropriate variables
 response = OpenAI().chat.completions.create(**prompt.format(variables={ "variable": "value" }))
@@ -148,7 +148,7 @@ const openai = new OpenAI();
 const prompt = await getPrompt({
   client,
   prompt: {
-    versionId: "<%= verionId %>",
+    versionId: "<%= versionId %>",
   },
 });
 
@@ -208,7 +208,7 @@ const anthropicClientTemplatePython = template(
 from anthropic import Anthropic
 from phoenix.client import Client
 
-prompt = Client().prompts.get(prompt_version_id="<%= verionId %>")
+prompt = Client().prompts.get(prompt_version_id="<%= versionId %>")
 # Format the prompt template with the appropriate variables
 resp = Anthropic().messages.create(**prompt.format(variables={ "variable": "value" }))
   `.trim()
@@ -226,7 +226,7 @@ const anthropic = new Anthropic();
 const prompt = await getPrompt({
   client,
   prompt: {
-    versionId: "<%= verionId %>",
+    versionId: "<%= versionId %>",
   },
 });
 
@@ -446,14 +446,14 @@ export const promptClientCodeSnippets: Record<
       const config = languageConfigs.python.openai;
       return config.clientTemplate({
         tab: TAB,
-        verionId: prompt.versionId,
+        versionId: prompt.versionId,
       });
     },
     anthropic: (prompt) => {
       const config = languageConfigs.python.openai;
       return config.clientTemplate({
         tab: TAB,
-        verionId: prompt.versionId,
+        versionId: prompt.versionId,
       });
     },
   },
@@ -462,14 +462,14 @@ export const promptClientCodeSnippets: Record<
       const config = languageConfigs.typescript.openai;
       return config.clientTemplate({
         tab: TAB,
-        verionId: prompt.versionId,
+        versionId: prompt.versionId,
       });
     },
     anthropic: (prompt) => {
       const config = languageConfigs.typescript.anthropic;
       return config.clientTemplate({
         tab: TAB,
-        verionId: prompt.versionId,
+        versionId: prompt.versionId,
       });
     },
   },
