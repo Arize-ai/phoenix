@@ -708,7 +708,7 @@ class TestClient:
                     ],
                     tool_choice={"type": "tool", "name": "print_all_characteristics"},
                 ),
-                id="anthropic-tool-with--unknown-keys",
+                id="anthropic-tool-with-unknown-keys",
             ),
             pytest.param(
                 "ANTHROPIC",
