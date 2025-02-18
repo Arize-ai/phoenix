@@ -221,7 +221,7 @@ class PromptVersion:
         )
 
     @classmethod
-    def from_google(
+    def from_google_generativeai(
         cls,
         obj: Any,
         /,
