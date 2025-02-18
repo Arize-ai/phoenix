@@ -8,7 +8,7 @@ from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
 from typing import Optional, cast, overload
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse, urlunparse
 
 from phoenix.utilities.logging import log_a_list
 
@@ -624,11 +624,37 @@ def get_env_project_name() -> str:
 
 
 def get_env_database_connection_str() -> str:
-    env_url = getenv(ENV_PHOENIX_SQL_DATABASE_URL)
-    if env_url is None:
-        working_dir = get_working_dir()
-        return f"sqlite:///{working_dir}/phoenix.db"
-    return env_url
+    phoenix_url = os.getenv("ENV_PHOENIX_SQL_DATABASE_URL")
+
+    if phoenix_url:
+        parsed = urlparse(phoenix_url)
+        # If a postgres connection string is provided without credentials,
+        # attempt to insert them from the PostgreSQL environment variables
+        # https://hub.docker.com/_/postgres
+        if phoenix_url.startswith("postgres") and not parsed.username:
+            pg_user = os.getenv("POSTGRES_USER")
+            pg_password = os.getenv("POSTGRES_PASS")
+            pg_db = os.getenv("POSTGRES_DB") or (
+                parsed.path.lstrip("/") if parsed.path.lstrip("/") else None
+            )
+            pg_port = os.getenv("POSTGRES_PORT") or parsed.port
+
+            if pg_user and pg_password:
+                encoded_password = quote_plus(pg_password)
+
+                netloc = f"{pg_user}:{encoded_password}@{parsed.hostname}"
+                if pg_port:
+                    netloc += f":{pg_port}"
+                new_parsed = parsed._replace(netloc=netloc)
+
+                if pg_db:
+                    new_parsed = new_parsed._replace(path=f"/{pg_db}")
+
+                return urlunparse(new_parsed)
+        return phoenix_url
+
+    working_dir = get_working_dir()
+    return f"sqlite:///{working_dir}/phoenix.db"
 
 
 def get_env_database_schema() -> Optional[str]:
