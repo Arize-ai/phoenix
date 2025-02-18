@@ -1,4 +1,4 @@
-import { mapPromptToSnippet } from "../promptCodeSnippets";
+import { mapPromptToSDKSnippet } from "../promptCodeSnippets";
 
 import {
   BASE_MOCK_PROMPT_VERSION,
@@ -29,7 +29,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -101,7 +101,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -172,7 +172,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -206,7 +206,7 @@ describe("promptCodeSnippets", () => {
           responseFormat: { definition: OPENAI_RESPONSE_FORMAT },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "TypeScript",
         });
@@ -269,7 +269,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });
@@ -341,7 +341,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });
@@ -412,7 +412,7 @@ describe("promptCodeSnippets", () => {
           },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });
@@ -446,7 +446,7 @@ describe("promptCodeSnippets", () => {
           responseFormat: { definition: OPENAI_RESPONSE_FORMAT },
         } satisfies FixturePromptVersion;
 
-        const result = mapPromptToSnippet({
+        const result = mapPromptToSDKSnippet({
           promptVersion: prompt,
           language: "Python",
         });

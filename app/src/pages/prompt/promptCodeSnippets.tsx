@@ -10,7 +10,7 @@ import { isObject } from "@phoenix/typeUtils";
 
 import type { PromptCodeExportCard__main$data as PromptVersion } from "./__generated__/PromptCodeExportCard__main.graphql";
 
-export type PromptToSnippetParams = ({
+export type PromptToSDKSnippetFn = ({
   invocationParameters,
   modelName,
   modelProvider,
@@ -29,6 +29,8 @@ export type PromptToSnippetParams = ({
     messages: unknown[];
   };
 }) => string;
+
+export type PromptToClientSnippetFn = (prompt: { versionId: string }) => string;
 
 const TAB = "  ";
 
@@ -76,14 +78,18 @@ type LanguageConfig = {
   assignmentOperator: string;
   removeKeyQuotes: boolean;
   stringQuote: string;
-  template: (params: {
+  sdkTemplate: (params: {
     tab: string;
     args: string[];
     messages: string;
   }) => string;
+  /**
+   * A function that generates a string on how to pull the prompt using the phoenix client
+   */
+  clientTemplate: (params: { verionId: string; tab: string }) => string;
 };
 
-const openaiTemplatePython = template(
+const openaiSDKTemplatePython = template(
   `
 from openai import OpenAI
 
@@ -100,7 +106,7 @@ print(completion.choices[0].message)
 `.trim()
 );
 
-const openaiTemplateTypeScript = template(
+const openaiSDKTemplateTypeScript = template(
   `
 import OpenAI from "openai";
 
@@ -117,7 +123,50 @@ response.then((completion) => console.log(completion.choices[0].message));
 `.trim()
 );
 
-const anthropicTemplatePython = template(
+const openaiClientTemplatePython = template(
+  `
+from openai import OpenAI
+from phoenix.client import Client
+
+prompt = Client().prompts.get(prompt_identifier="<%= verionId %>")
+response = OpenAI().chat.completions.create(**prompt.format(variables={ "variable": "value" }))
+print(response.choices[0].message.content)
+  `.trim()
+);
+
+const openaiClientTemplateTypeScript = template(
+  `
+from openai import OpenAI;
+import { Client } from "@arizeai/phoenix-client";
+import { toSDK, getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const client = new Client();
+const openai = new OpenAI();
+
+const prompt = await getPrompt({
+  client,
+  prompt: {
+    versionId: "<%= verionId %>",
+  },
+});
+
+const openAIParams = toSDK({
+  prompt,
+  sdk: "openai",
+  variables: {
+    key: "value,
+  },
+});
+
+const response = await openai.chat.completions.create({
+  ...openAIParams,
+});
+
+console.log(response.choices[0]?.message.content);
+`.trim()
+);
+
+const anthropicSDKTemplatePython = template(
   `
 from anthropic import Anthropic
 
@@ -134,7 +183,7 @@ print(completion.content)
 `.trim()
 );
 
-const anthropicTemplateTypeScript = template(
+const anthropicSDKTemplateTypeScript = template(
   `
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -151,19 +200,63 @@ console.log(response.content);
 `.trim()
 );
 
+const anthropicClientTemplatePython = template(
+  `
+from anthropic import Anthropic
+from phoenix.client import Client
+
+prompt = Client().prompts.get(prompt_identifier="<%= verionId %>")
+resp = Anthropic().messages.create(**prompt.format())
+  `.trim()
+);
+
+const anthropicClientTemplateTypeScript = template(
+  `
+import Anthropic from "@anthropic-ai/sdk";
+import { Client } from "@arizeai/phoenix-client";
+import { toSDK, getPrompt } from "@arizeai/phoenix-client/prompts";
+
+const client = new Client();
+const anthropic = new Anthropic();
+
+const prompt = await getPrompt({
+  client,
+  prompt: {
+    versionId: "<%= verionId %>",
+  },
+});
+
+const anthropicParams = toSDK({
+  prompt,
+  sdk: "anthropic",
+  variables: {
+    key: "value,
+  },
+});
+
+const response = await anthropic.messages.create({
+  ...anthropicParams,
+});
+
+console.log(response.content);
+`.trim()
+);
+
 const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
   python: {
     openai: {
       assignmentOperator: "=",
       removeKeyQuotes: false,
       stringQuote: '"',
-      template: openaiTemplatePython,
+      sdkTemplate: openaiSDKTemplatePython,
+      clientTemplate: openaiClientTemplatePython,
     },
     anthropic: {
       assignmentOperator: "=",
       removeKeyQuotes: false,
       stringQuote: '"',
-      template: anthropicTemplatePython,
+      sdkTemplate: anthropicSDKTemplatePython,
+      clientTemplate: anthropicClientTemplatePython,
     },
   },
   typescript: {
@@ -171,19 +264,21 @@ const languageConfigs: Record<string, Record<string, LanguageConfig>> = {
       assignmentOperator: ": ",
       removeKeyQuotes: true,
       stringQuote: '"',
-      template: openaiTemplateTypeScript,
+      sdkTemplate: openaiSDKTemplateTypeScript,
+      clientTemplate: openaiClientTemplateTypeScript,
     },
     anthropic: {
       assignmentOperator: ": ",
       removeKeyQuotes: true,
       stringQuote: '"',
-      template: anthropicTemplateTypeScript,
+      sdkTemplate: anthropicSDKTemplateTypeScript,
+      clientTemplate: anthropicClientTemplateTypeScript,
     },
   },
 };
 
 const preparePromptData = (
-  prompt: Parameters<PromptToSnippetParams>[0],
+  prompt: Parameters<PromptToSDKSnippetFn>[0],
   config: LanguageConfig
 ) => {
   if (!("messages" in prompt.template)) {
@@ -273,9 +368,9 @@ const convertOpenAIMessageToOpenAISDKMessage = (message: OpenAIMessage) => {
   }
 };
 
-export const promptCodeSnippets: Record<
+export const promptSDKCodeSnippets: Record<
   string,
-  Record<string, PromptToSnippetParams>
+  Record<string, PromptToSDKSnippetFn>
 > = {
   python: {
     openai: (prompt) => {
@@ -290,7 +385,7 @@ export const promptCodeSnippets: Record<
         },
       };
       const { args, messages } = preparePromptData(convertedPrompt, config);
-      return config.template({
+      return config.sdkTemplate({
         tab: TAB,
         args,
         messages,
@@ -299,7 +394,7 @@ export const promptCodeSnippets: Record<
     anthropic: (prompt) => {
       const config = languageConfigs.python.anthropic;
       const { args, messages } = preparePromptData(prompt, config);
-      return config.template({
+      return config.sdkTemplate({
         tab: TAB,
         args,
         messages,
@@ -319,7 +414,7 @@ export const promptCodeSnippets: Record<
         },
       };
       const { args, messages } = preparePromptData(convertedPrompt, config);
-      return config.template({
+      return config.sdkTemplate({
         tab: TAB,
         args,
         messages,
@@ -328,7 +423,7 @@ export const promptCodeSnippets: Record<
     anthropic: (prompt) => {
       const config = languageConfigs.typescript.anthropic;
       const { args, messages } = preparePromptData(prompt, config);
-      return config.template({
+      return config.sdkTemplate({
         tab: TAB,
         args,
         messages,
@@ -337,7 +432,45 @@ export const promptCodeSnippets: Record<
   },
 };
 
-export const mapPromptToSnippet = ({
+export const promptClientCodeSnippets: Record<
+  string,
+  Record<string, PromptToClientSnippetFn>
+> = {
+  python: {
+    openai: (prompt) => {
+      const config = languageConfigs.python.openai;
+      return config.clientTemplate({
+        tab: TAB,
+        verionId: prompt.versionId,
+      });
+    },
+    anthropic: (prompt) => {
+      const config = languageConfigs.python.openai;
+      return config.clientTemplate({
+        tab: TAB,
+        verionId: prompt.versionId,
+      });
+    },
+  },
+  typescript: {
+    openai: (prompt) => {
+      const config = languageConfigs.typescript.openai;
+      return config.clientTemplate({
+        tab: TAB,
+        verionId: prompt.versionId,
+      });
+    },
+    anthropic: (prompt) => {
+      const config = languageConfigs.typescript.anthropic;
+      return config.clientTemplate({
+        tab: TAB,
+        verionId: prompt.versionId,
+      });
+    },
+  },
+};
+
+export const mapPromptToSDKSnippet = ({
   promptVersion,
   language,
 }: {
@@ -345,7 +478,7 @@ export const mapPromptToSnippet = ({
   language: CodeLanguage;
 }) => {
   const generator =
-    promptCodeSnippets[language.toLocaleLowerCase()][
+    promptSDKCodeSnippets[language.toLocaleLowerCase()][
       promptVersion.modelProvider?.toLocaleLowerCase()
     ];
   if (!generator) {
@@ -380,3 +513,24 @@ export const mapPromptToSnippet = ({
   };
   return generator(convertedPrompt);
 };
+
+export function mapPromptToClientSnippet({
+  promptVersion,
+  language,
+}: {
+  promptVersion: Omit<PromptVersion, " $fragmentType">;
+  language: CodeLanguage;
+}) {
+  const generator =
+    promptClientCodeSnippets[language.toLocaleLowerCase()][
+      promptVersion.modelProvider?.toLocaleLowerCase()
+    ];
+  if (!generator) {
+    return null;
+  }
+
+  const promptParams = {
+    versionId: promptVersion.id,
+  };
+  return generator(promptParams);
+}
