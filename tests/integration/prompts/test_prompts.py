@@ -66,7 +66,7 @@ class _GetWeather(BaseModel):
 
 
 class _GetPopulation(BaseModel):
-    country: str
+    location: str
     year: Optional[int]
 
 
@@ -503,7 +503,7 @@ class TestClient:
                                     "type": "function",
                                     "function": {
                                         "name": "get_weather",
-                                        "arguments": '{"location": "Los Angeles"}',
+                                        "arguments": '{"city": "Los Angeles"}',
                                     },
                                 },
                                 {
@@ -546,7 +546,7 @@ class TestClient:
                                     "type": "function",
                                     "function": {
                                         "name": "get_weather",
-                                        "arguments": '{"location": "Los Angeles"}',
+                                        "arguments": '{"city": "Los Angeles"}',
                                     },
                                 },
                                 {
@@ -594,7 +594,7 @@ class TestClient:
                                     "type": "function",
                                     "function": {
                                         "name": "get_weather",
-                                        "arguments": '{"location": "Los Angeles"}',
+                                        "arguments": '{"city": "Los Angeles"}',
                                     },
                                 },
                                 {
@@ -741,7 +741,7 @@ class TestClient:
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_population",
-                                    "input": '{"city": "Los Angeles"}',
+                                    "input": '{"location": "Los Angeles"}',
                                 },
                             ],
                         },
@@ -782,7 +782,7 @@ class TestClient:
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_population",
-                                    "input": '{"city": "Los Angeles"}',
+                                    "input": '{"location": "Los Angeles"}',
                                 },
                             ],
                         },
@@ -842,7 +842,7 @@ class TestClient:
                                     "type": "tool_use",
                                     "id": token_hex(8),
                                     "name": "get_population",
-                                    "input": '{"city": "Los Angeles"}',
+                                    "input": '{"location": "Los Angeles"}',
                                 },
                             ],
                         },
