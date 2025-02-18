@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 from enum import Enum
+from random import randint, random
 from secrets import token_hex
 from types import MappingProxyType
-from typing import Any, Iterable, Literal, Mapping, Sequence, cast
+from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Sequence, cast
 
 import phoenix as px
 import pytest
@@ -15,6 +16,7 @@ from anthropic.types import (
     ToolChoiceToolParam,
     ToolParam,
 )
+from anthropic.types.message_create_params import MessageCreateParamsBase
 from deepdiff.diff import DeepDiff
 from openai import pydantic_function_tool
 from openai.lib._parsing import type_to_response_format_param
@@ -23,8 +25,10 @@ from openai.types.chat import (
     ChatCompletionToolChoiceOptionParam,
     ChatCompletionToolParam,
 )
+from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.types import PromptVersion
+from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 from pydantic import BaseModel, create_model
 
 from ...__generated__.graphql import (
@@ -58,12 +62,43 @@ class TestUserMessage:
 
 class _GetWeather(BaseModel):
     city: str
-    country: str
+    country: Optional[str]
 
 
 class _GetPopulation(BaseModel):
     country: str
-    year: int
+    year: Optional[int]
+
+
+_OPENAI_TOOLS = [
+    json.loads(
+        json.dumps(
+            pydantic_function_tool(
+                _GetWeather,
+                name="get_weather",
+                description="Get the weather",
+            )
+        )
+    ),
+    json.loads(
+        json.dumps(
+            pydantic_function_tool(
+                _GetPopulation,
+                name="get_population",
+                description="Get the population",
+            )
+        )
+    ),
+]
+
+_ANTHROPIC_TOOLS: list[ToolParam] = [
+    {
+        "name": t["function"]["name"],
+        "description": t["function"]["description"],
+        "input_schema": t["function"]["parameters"],
+    }
+    for t in _OPENAI_TOOLS
+]
 
 
 class TestTools:
@@ -313,3 +348,476 @@ _CREATE_CHAT_PROMPT = """
         }
     }
 """
+
+
+class TestClient:
+    @pytest.mark.parametrize(
+        "template_format",
+        ["F_STRING", "MUSTACHE", "NONE"],
+    )
+    @pytest.mark.parametrize(
+        "model_provider,convert,params",
+        [
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {"role": "system", "content": "You are {role}."},
+                        {"role": "user", "content": "Write a poem about {topic}."},
+                    ],
+                ),
+                id="openai-system-message-string",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": [
+                                {"type": "text", "text": "You are {role}."},
+                                {"type": "text", "text": "You study {topic}."},
+                            ],
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Write a poem about {topic}."},
+                                {"type": "text", "text": "Make it rhyme."},
+                            ],
+                        },
+                    ],
+                ),
+                id="openai-system-message-list",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                    ],
+                    tools=_OPENAI_TOOLS,
+                    tool_choice="required",
+                ),
+                id="openai-tools",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "I'll call these functions",
+                            "tool_calls": [
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_population",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                            ],
+                        },
+                    ],
+                    tools=_OPENAI_TOOLS,
+                    tool_choice="required",
+                ),
+                id="openai-function-calling",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "I'll call these functions",
+                            "tool_calls": [
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_population",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            "role": "tool",
+                            "tool_call_id": token_hex(8),
+                            "content": "temp is hot and pop is large",
+                        },
+                    ],
+                    tools=_OPENAI_TOOLS,
+                    tool_choice="required",
+                ),
+                id="openai-tool-message-string",
+            ),
+            pytest.param(
+                "OPENAI",
+                PromptVersion.from_openai,
+                CompletionCreateParamsBase(
+                    model=token_hex(8),
+                    temperature=random(),
+                    top_p=random(),
+                    presence_penalty=random(),
+                    frequency_penalty=random(),
+                    seed=randint(24, 42),
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": "I'll call these functions",
+                            "tool_calls": [
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_weather",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                                {
+                                    "id": token_hex(8),
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_population",
+                                        "arguments": '{"location": "Los Angeles"}',
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            "role": "tool",
+                            "tool_call_id": token_hex(8),
+                            "content": [
+                                {"type": "text", "text": "temp is hot"},
+                                {"type": "text", "text": "pop is large"},
+                            ],
+                        },
+                    ],
+                    tools=_OPENAI_TOOLS,
+                    tool_choice="required",
+                ),
+                id="openai-tool-message-list",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    system="You are {role}.",
+                    messages=[
+                        {"role": "user", "content": "Write a haiku about {topic}."},
+                    ],
+                ),
+                id="anthropic-system-message-string",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    system=[
+                        {"type": "text", "text": "You are {role}."},
+                        {"type": "text", "text": "You study {topic}."},
+                    ],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Write a poem about {topic}."},
+                                {"type": "text", "text": "Make it rhyme."},
+                            ],
+                        },
+                    ],
+                ),
+                id="anthropic-system-message-list",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                    ],
+                    tools=_ANTHROPIC_TOOLS,
+                    tool_choice={"type": "any"},
+                ),
+                id="anthropic-tools",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "I'll call these functions",
+                                },
+                                {
+                                    "type": "tool_use",
+                                    "id": token_hex(8),
+                                    "name": "get_weather",
+                                    "input": '{"city": "Los Angeles"}',
+                                },
+                                {
+                                    "type": "tool_use",
+                                    "id": token_hex(8),
+                                    "name": "get_population",
+                                    "input": '{"city": "Los Angeles"}',
+                                },
+                            ],
+                        },
+                    ],
+                    tools=_ANTHROPIC_TOOLS,
+                    tool_choice={"type": "any"},
+                ),
+                id="anthropic-tool-use",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "I'll call these functions",
+                                },
+                                {
+                                    "type": "tool_use",
+                                    "id": token_hex(8),
+                                    "name": "get_weather",
+                                    "input": '{"city": "Los Angeles"}',
+                                },
+                                {
+                                    "type": "tool_use",
+                                    "id": token_hex(8),
+                                    "name": "get_population",
+                                    "input": '{"city": "Los Angeles"}',
+                                },
+                            ],
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "These are function results",
+                                },
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": token_hex(8),
+                                    "content": "temp is hot",
+                                },
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": token_hex(8),
+                                    "content": "pop is large",
+                                },
+                            ],
+                        },
+                    ],
+                    tools=_ANTHROPIC_TOOLS,
+                    tool_choice={"type": "any"},
+                ),
+                id="anthropic-tool-result-string",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": "What's the temperature and population in Los Angeles?",
+                        },
+                        {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "I'll call these functions",
+                                },
+                                {
+                                    "type": "tool_use",
+                                    "id": token_hex(8),
+                                    "name": "get_weather",
+                                    "input": '{"city": "Los Angeles"}',
+                                },
+                                {
+                                    "type": "tool_use",
+                                    "id": token_hex(8),
+                                    "name": "get_population",
+                                    "input": '{"city": "Los Angeles"}',
+                                },
+                            ],
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "These are function results",
+                                },
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": token_hex(8),
+                                    "content": [
+                                        {"type": "text", "text": "temp"},
+                                        {"type": "text", "text": "is"},
+                                        {"type": "text", "text": "hot"},
+                                    ],
+                                },
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": token_hex(8),
+                                    "content": [
+                                        {"type": "text", "text": "pop"},
+                                        {"type": "text", "text": "is"},
+                                        {"type": "text", "text": "large"},
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                    tools=_ANTHROPIC_TOOLS,
+                    tool_choice={"type": "any"},
+                ),
+                id="anthropic-tool-result-list",
+            ),
+        ],
+    )
+    def test_round_trip(
+        self,
+        model_provider: Literal["OPENAI", "ANTHROPIC", "GEMINI"],
+        convert: Callable[..., Any],
+        params: Mapping[str, Any],
+        template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        prompt_identifier = token_hex(16)
+        from phoenix.client import Client
+
+        Client().prompts.create(
+            name=prompt_identifier,
+            version=convert(params, template_format=template_format),
+        )
+        prompt = Client().prompts.get(prompt_identifier=prompt_identifier)
+        assert prompt.model_provider == model_provider
+        assert prompt.template_format == template_format
+        assert not DeepDiff(params, {**prompt.format(formatter=NO_OP_FORMATTER)})
