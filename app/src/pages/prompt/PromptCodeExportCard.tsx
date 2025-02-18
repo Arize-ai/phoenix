@@ -20,13 +20,13 @@ import {
   PythonBlock,
   TypeScriptBlock,
 } from "@phoenix/components/code";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { PromptCodeExportCard__main$key } from "./__generated__/PromptCodeExportCard__main.graphql";
 import {
-  mapPromptToSDKSnippet,
   mapPromptToClientSnippet,
+  mapPromptToSDKSnippet,
 } from "./promptCodeSnippets";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 export function PromptCodeExportCard({
   promptVersion,
