@@ -129,6 +129,8 @@ from openai import OpenAI
 from phoenix.client import Client
 
 prompt = Client().prompts.get(prompt_version_id="<%= verionId %>")
+
+# Format the prompt template with the appropriate variables
 response = OpenAI().chat.completions.create(**prompt.format(variables={ "variable": "value" }))
 print(response.choices[0].message.content)
   `.trim()
@@ -153,6 +155,7 @@ const prompt = await getPrompt({
 const openAIParams = toSDK({
   prompt,
   sdk: "openai",
+  // Apply the prompt template variables
   variables: {
     key: "value,
   },
@@ -206,7 +209,8 @@ from anthropic import Anthropic
 from phoenix.client import Client
 
 prompt = Client().prompts.get(prompt_version_id="<%= verionId %>")
-resp = Anthropic().messages.create(**prompt.format())
+# Format the prompt template with the appropriate variables
+resp = Anthropic().messages.create(**prompt.format(variables={ "variable": "value" }))
   `.trim()
 );
 
@@ -229,6 +233,7 @@ const prompt = await getPrompt({
 const anthropicParams = toSDK({
   prompt,
   sdk: "anthropic",
+  // Apply the prompt template variables
   variables: {
     key: "value,
   },
