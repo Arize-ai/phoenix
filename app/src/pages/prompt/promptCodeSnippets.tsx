@@ -128,7 +128,7 @@ const openaiClientTemplatePython = template(
 from openai import OpenAI
 from phoenix.client import Client
 
-prompt = Client().prompts.get(prompt_identifier="<%= verionId %>")
+prompt = Client().prompts.get(prompt_version_id="<%= verionId %>")
 response = OpenAI().chat.completions.create(**prompt.format(variables={ "variable": "value" }))
 print(response.choices[0].message.content)
   `.trim()
@@ -205,7 +205,7 @@ const anthropicClientTemplatePython = template(
 from anthropic import Anthropic
 from phoenix.client import Client
 
-prompt = Client().prompts.get(prompt_identifier="<%= verionId %>")
+prompt = Client().prompts.get(prompt_version_id="<%= verionId %>")
 resp = Anthropic().messages.create(**prompt.format())
   `.trim()
 );
