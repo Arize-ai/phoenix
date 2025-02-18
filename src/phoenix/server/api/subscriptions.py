@@ -23,6 +23,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import get_env_enable_auth
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
@@ -271,13 +272,23 @@ class Subscription:
                         description="Traces from prompt playground",
                     )
                 )
+
+            username: Optional[str] = None
+            if user := info.context.user and get_env_enable_auth():
+                user_id = user.identity
+                db_user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
+                if db_user:
+                    username = db_user.username
+
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
+                or _default_playground_experiment_description(
+                    dataset_name=dataset.name, username=username
+                ),
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
@@ -571,12 +582,17 @@ def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormat
 
 def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> str:
     if prompt_name:
-        return f"prompt:{prompt_name}-playground-experiment"
+        return f"playground-experiment prompt:{prompt_name}"
     return "playground-experiment"
 
 
-def _default_playground_experiment_description(dataset_name: str) -> str:
-    return f'Playground experiment for dataset "{dataset_name}"'
+def _default_playground_experiment_description(
+    dataset_name: str, username: Optional[str] = None
+) -> str:
+    description = f'Playground experiment using dataset "{dataset_name}"'
+    if username:
+        description += f" run by {username}"
+    return description
 
 
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
