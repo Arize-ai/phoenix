@@ -28,7 +28,7 @@ If the following variables are set in the server environment, they'll be used at
 
 ### Option 1: Configure the base URL in the prompt playground
 
-Since you can configure the base URL for the OpenAI client, you can use the prompt playground with a variety of OpenAI Client compatible LLMs such as Ollama, DeepSeek, and more.\
+Since you can configure the base URL for the OpenAI client, you can use the prompt playground with a variety of OpenAI Client compatible LLMs such as **Ollama**, **DeepSeek**, and more.\
 
 
 <figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/cutom_openai_llm.png" alt=""><figcaption><p>Simply insert the URL for the OpenAI client compatible LLM provider</p></figcaption></figure>
@@ -48,13 +48,10 @@ OpenAI Client compatible providers Include
 
 Optionally, the server can be configured with the `OPENAI_BASE_URL` environment variable to change target any OpenAI compatible REST API.
 
-
-
 {% hint style="warning" %}
-For app.phoenix.arize.com, this may fail due to security reasons. If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix-support@arize.com](mailto://phoenix-support@arize.com)
+For app.phoenix.arize.com, this may fail due to security reasons. In that case, you'd see a Connection Error appear.
+
+
+
+If there is a LLM endpoint you would like to use, reach out to [mailto://phoenix-support@arize.com](mailto://phoenix-support@arize.com)
 {% endhint %}
-
-
-
-
-
