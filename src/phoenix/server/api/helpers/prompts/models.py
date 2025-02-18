@@ -7,10 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import Annotated, TypeAlias, TypeGuard, assert_never
 
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.jsonschema import (
-    JSONSchemaDraft7ObjectSchema,
-    JSONSchemaObjectSchema,
-)
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
 
@@ -163,18 +159,19 @@ class PromptTemplateRootModel(RootModel[PromptTemplate]):
     root: PromptTemplate
 
 
-class PromptFunctionTool(PromptModel):
-    type: Literal["function-tool"]
+class PromptToolFunction(PromptModel):
+    type: Literal["function"]
+    function: PromptToolFunctionDefinition
+
+
+class PromptToolFunctionDefinition(PromptModel):
     name: str
     description: str = UNDEFINED
-    schema_: JSONSchemaObjectSchema = Field(
-        default=UNDEFINED,
-        alias="schema",  # avoid conflict with pydantic schema class method
-    )
-    extra_parameters: dict[str, Any] = UNDEFINED
+    parameters: dict[str, Any] = UNDEFINED
+    strict: bool = UNDEFINED
 
 
-PromptTool: TypeAlias = Annotated[Union[PromptFunctionTool], Field(..., discriminator="type")]
+PromptTool: TypeAlias = Annotated[Union[PromptToolFunction], Field(..., discriminator="type")]
 
 
 class PromptTools(PromptModel):
@@ -189,15 +186,15 @@ class PromptToolChoiceNone(PromptModel):
 
 
 class PromptToolChoiceZeroOrMore(PromptModel):
-    type: Literal["zero-or-more"]
+    type: Literal["zero_or_more"]
 
 
 class PromptToolChoiceOneOrMore(PromptModel):
-    type: Literal["one-or-more"]
+    type: Literal["one_or_more"]
 
 
 class PromptToolChoiceSpecificFunctionTool(PromptModel):
-    type: Literal["specific-function-tool"]
+    type: Literal["specific_function"]
     function_name: str
 
 
@@ -236,14 +233,15 @@ class PromptOpenAIResponseFormatJSONSchema(PromptModel):
 
 
 class PromptResponseFormatJSONSchema(PromptModel):
-    type: Literal["response-format-json-schema"]
+    type: Literal["json_schema"]
+    json_schema: PromptResponseFormatJSONSchemaDefinition
+
+
+class PromptResponseFormatJSONSchemaDefinition(PromptModel):
     name: str
     description: str = UNDEFINED
-    schema_: JSONSchemaObjectSchema = Field(
-        ...,
-        alias="schema",  # an alias is used to avoid conflict with the pydantic schema class method
-    )
-    extra_parameters: dict[str, Any]
+    schema_: dict[str, Any] = Field(UNDEFINED, alias="schema")
+    strict: bool = UNDEFINED
 
 
 PromptResponseFormat: TypeAlias = Annotated[
@@ -259,18 +257,14 @@ def _openai_to_prompt_response_format(
     schema: PromptOpenAIResponseFormatJSONSchema,
 ) -> PromptResponseFormat:
     json_schema = schema.json_schema
-    extra_parameters = {}
-    if (strict := json_schema.strict) is not UNDEFINED:
-        extra_parameters["strict"] = strict
     return PromptResponseFormatJSONSchema(
-        type="response-format-json-schema",
-        name=json_schema.name,
-        description=json_schema.description,
-        schema=JSONSchemaDraft7ObjectSchema(
-            type="json-schema-draft-7-object-schema",
-            json=json_schema.schema_,
+        type="json_schema",
+        json_schema=PromptResponseFormatJSONSchemaDefinition(
+            name=json_schema.name,
+            description=json_schema.description,
+            schema=json_schema.schema_,
+            strict=json_schema.strict if isinstance(json_schema.strict, bool) else UNDEFINED,
         ),
-        extra_parameters=extra_parameters,
     )
 
 
@@ -278,18 +272,14 @@ def _prompt_to_openai_response_format(
     response_format: PromptResponseFormat,
 ) -> PromptOpenAIResponseFormatJSONSchema:
     assert isinstance(response_format, PromptResponseFormatJSONSchema)
-    name = response_format.name
-    description = response_format.description
-    schema = response_format.schema_
-    extra_parameters = response_format.extra_parameters
-    strict = extra_parameters.get("strict", UNDEFINED)
+    json_schema = response_format.json_schema
     return PromptOpenAIResponseFormatJSONSchema(
         type="json_schema",
         json_schema=PromptOpenAIJSONSchema(
-            name=name,
-            description=description,
-            schema=schema.json_,
-            strict=strict,
+            name=json_schema.name,
+            description=json_schema.description,
+            schema=json_schema.schema_,
+            strict=json_schema.strict if isinstance(json_schema.strict, bool) else UNDEFINED,
         ),
     )
 
@@ -485,7 +475,7 @@ def normalize_tools(
     model_provider: ModelProvider,
     tool_choice: Optional[Union[str, Mapping[str, Any]]] = None,
 ) -> PromptTools:
-    tools: list[PromptFunctionTool]
+    tools: list[PromptToolFunction]
     if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         openai_tools = [OpenAIToolDefinition.model_validate(schema) for schema in schemas]
         tools = [_openai_to_prompt_tool(openai_tool) for openai_tool in openai_tools]
@@ -529,78 +519,57 @@ def denormalize_tools(
 
 def _openai_to_prompt_tool(
     tool: OpenAIToolDefinition,
-) -> PromptFunctionTool:
+) -> PromptToolFunction:
     function_definition = tool.function
     name = function_definition.name
     description = function_definition.description
-    extra_parameters = {}
-    if (strict := function_definition.strict) is not UNDEFINED:
-        extra_parameters["strict"] = strict
-    return PromptFunctionTool(
-        type="function-tool",
-        name=name,
-        description=description,
-        schema=JSONSchemaDraft7ObjectSchema(
-            type="json-schema-draft-7-object-schema",
-            json=schema_content,
-        )
-        if (schema_content := function_definition.parameters) is not UNDEFINED
-        else UNDEFINED,
-        extra_parameters=extra_parameters,
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name=name,
+            description=description,
+            parameters=function_definition.parameters,
+            strict=function_definition.strict
+            if isinstance(function_definition.strict, bool)
+            else UNDEFINED,
+        ),
     )
 
 
 def _prompt_to_openai_tool(
-    tool: PromptFunctionTool,
+    tool: PromptToolFunction,
 ) -> OpenAIToolDefinition:
+    function = tool.function
     return OpenAIToolDefinition(
         type="function",
         function=OpenAIFunctionDefinition(
-            name=tool.name,
-            description=tool.description,
-            parameters=schema.json_ if (schema := tool.schema_) is not UNDEFINED else UNDEFINED,
-            strict=tool.extra_parameters.get("strict", UNDEFINED),
+            name=function.name,
+            description=function.description,
+            parameters=function.parameters,
+            strict=function.strict if isinstance(function.strict, bool) else UNDEFINED,
         ),
     )
 
 
 def _anthropic_to_prompt_tool(
     tool: AnthropicToolDefinition,
-) -> PromptFunctionTool:
-    extra_parameters: dict[str, Any] = {}
-    if (cache_control := tool.cache_control) is not UNDEFINED:
-        if cache_control is None:
-            extra_parameters["cache_control"] = None
-        elif isinstance(cache_control, AnthropicCacheControlParam):
-            extra_parameters["cache_control"] = cache_control.model_dump()
-        else:
-            assert_never(cache_control)
-    return PromptFunctionTool(
-        type="function-tool",
-        name=tool.name,
-        description=tool.description,
-        schema=JSONSchemaDraft7ObjectSchema(
-            type="json-schema-draft-7-object-schema",
-            json=tool.input_schema,
+) -> PromptToolFunction:
+    return PromptToolFunction(
+        type="function",
+        function=PromptToolFunctionDefinition(
+            name=tool.name,
+            description=tool.description,
+            parameters=tool.input_schema,
         ),
-        extra_parameters=extra_parameters,
     )
 
 
 def _prompt_to_anthropic_tool(
-    tool: PromptFunctionTool,
+    tool: PromptToolFunction,
 ) -> AnthropicToolDefinition:
-    cache_control = tool.extra_parameters.get("cache_control", UNDEFINED)
-    anthropic_cache_control: Optional[AnthropicCacheControlParam]
-    if cache_control is UNDEFINED:
-        anthropic_cache_control = UNDEFINED
-    elif cache_control is None:
-        anthropic_cache_control = None
-    else:
-        anthropic_cache_control = AnthropicCacheControlParam.model_validate(cache_control)
+    function = tool.function
     return AnthropicToolDefinition(
-        input_schema=tool.schema_.json_,
-        name=tool.name,
-        description=tool.description,
-        cache_control=anthropic_cache_control,
+        input_schema=function.parameters if function.parameters is not UNDEFINED else {},
+        name=function.name,
+        description=function.description,
     )

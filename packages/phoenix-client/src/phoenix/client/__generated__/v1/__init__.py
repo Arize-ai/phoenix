@@ -72,11 +72,6 @@ class InsertedSpanAnnotation(TypedDict):
     id: str
 
 
-class JSONSchemaDraft7ObjectSchema(TypedDict):
-    type: Literal["json-schema-draft-7-object-schema"]
-    json: Mapping[str, Any]
-
-
 class ListDatasetExamplesData(TypedDict):
     dataset_id: str
     version_id: str
@@ -128,14 +123,6 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
-class PromptFunctionTool(TypedDict):
-    type: Literal["function-tool"]
-    name: str
-    description: NotRequired[str]
-    schema: NotRequired[JSONSchemaDraft7ObjectSchema]
-    extra_parameters: NotRequired[Mapping[str, Any]]
-
-
 class PromptGeminiInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_output_tokens: NotRequired[int]
@@ -156,12 +143,11 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
-class PromptResponseFormatJSONSchema(TypedDict):
-    type: Literal["response-format-json-schema"]
+class PromptResponseFormatJSONSchemaDefinition(TypedDict):
     name: str
-    schema: JSONSchemaDraft7ObjectSchema
-    extra_parameters: Mapping[str, Any]
     description: NotRequired[str]
+    schema: NotRequired[Mapping[str, Any]]
+    strict: NotRequired[bool]
 
 
 class PromptStringTemplate(TypedDict):
@@ -174,30 +160,23 @@ class PromptToolChoiceNone(TypedDict):
 
 
 class PromptToolChoiceOneOrMore(TypedDict):
-    type: Literal["one-or-more"]
+    type: Literal["one_or_more"]
 
 
 class PromptToolChoiceSpecificFunctionTool(TypedDict):
-    type: Literal["specific-function-tool"]
+    type: Literal["specific_function"]
     function_name: str
 
 
 class PromptToolChoiceZeroOrMore(TypedDict):
-    type: Literal["zero-or-more"]
+    type: Literal["zero_or_more"]
 
 
-class PromptTools(TypedDict):
-    type: Literal["tools"]
-    tools: Sequence[PromptFunctionTool]
-    tool_choice: NotRequired[
-        Union[
-            PromptToolChoiceNone,
-            PromptToolChoiceZeroOrMore,
-            PromptToolChoiceOneOrMore,
-            PromptToolChoiceSpecificFunctionTool,
-        ]
-    ]
-    disable_parallel_tool_calls: NotRequired[bool]
+class PromptToolFunctionDefinition(TypedDict):
+    name: str
+    description: NotRequired[str]
+    parameters: NotRequired[Mapping[str, Any]]
+    strict: NotRequired[bool]
 
 
 class SpanAnnotationResult(TypedDict):
@@ -271,6 +250,30 @@ class PromptGeminiInvocationParameters(TypedDict):
 class PromptOpenAIInvocationParameters(TypedDict):
     type: Literal["openai"]
     openai: PromptOpenAIInvocationParametersContent
+
+
+class PromptResponseFormatJSONSchema(TypedDict):
+    type: Literal["json_schema"]
+    json_schema: PromptResponseFormatJSONSchemaDefinition
+
+
+class PromptToolFunction(TypedDict):
+    type: Literal["function"]
+    function: PromptToolFunctionDefinition
+
+
+class PromptTools(TypedDict):
+    type: Literal["tools"]
+    tools: Sequence[PromptToolFunction]
+    tool_choice: NotRequired[
+        Union[
+            PromptToolChoiceNone,
+            PromptToolChoiceZeroOrMore,
+            PromptToolChoiceOneOrMore,
+            PromptToolChoiceSpecificFunctionTool,
+        ]
+    ]
+    disable_parallel_tool_calls: NotRequired[bool]
 
 
 class SpanAnnotation(TypedDict):

@@ -53,7 +53,7 @@ class TestUserMessage:
         prompt = _create_chat_prompt(u, template_format="F_STRING")
         messages = prompt.format(variables={"x": x}).messages
         assert not DeepDiff(expected, messages)
-        _can_recreate_under_new_identifier(prompt)
+        _can_recreate_via_client(prompt)
 
 
 class _GetWeather(BaseModel):
@@ -97,7 +97,7 @@ class TestTools:
             if t["type"] == "function" and "parameters" in t["function"]
         }
         assert not DeepDiff(expected, actual)
-        _can_recreate_under_new_identifier(prompt)
+        _can_recreate_via_client(prompt)
 
     @pytest.mark.parametrize(
         "types_",
@@ -133,7 +133,7 @@ class TestTools:
         assert not DeepDiff(expected, actual)
         assert "max_tokens" in kwargs
         assert kwargs["max_tokens"] == 1024
-        _can_recreate_under_new_identifier(prompt)
+        _can_recreate_via_client(prompt)
 
 
 class TestToolChoice:
@@ -164,7 +164,7 @@ class TestToolChoice:
         assert "tool_choice" in kwargs
         actual = kwargs["tool_choice"]
         assert not DeepDiff(expected, actual)
-        _can_recreate_under_new_identifier(prompt)
+        _can_recreate_via_client(prompt)
 
     @pytest.mark.parametrize(
         "expected",
@@ -201,7 +201,7 @@ class TestToolChoice:
         assert not DeepDiff(expected, actual)
         assert "max_tokens" in kwargs
         assert kwargs["max_tokens"] == 1024
-        _can_recreate_under_new_identifier(prompt)
+        _can_recreate_via_client(prompt)
 
 
 class _UIType(str, Enum):
@@ -250,10 +250,10 @@ class TestResponseFormat:
         assert "response_format" in kwargs
         actual = kwargs["response_format"]
         assert not DeepDiff(expected, actual)
-        _can_recreate_under_new_identifier(prompt)
+        _can_recreate_via_client(prompt)
 
 
-def _can_recreate_under_new_identifier(version: PromptVersion) -> None:
+def _can_recreate_via_client(version: PromptVersion) -> None:
     new_name = token_hex(8)
     a = px.Client().prompts.create(name=new_name, version=version)
     assert version.id != a.id

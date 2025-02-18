@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         ChatCompletionContentPartParam,
         ChatCompletionContentPartRefusalParam,
         ChatCompletionContentPartTextParam,
+        ChatCompletionDeveloperMessageParam,
         ChatCompletionMessageParam,
         ChatCompletionMessageToolCallParam,
         ChatCompletionNamedToolChoiceParam,
@@ -119,13 +120,14 @@ def create_prompt_version_from_openai(
         params["seed"] = int(obj["seed"])
     if "reasoning_effort" in obj and obj["reasoning_effort"] is not None:
         params["reasoning_effort"] = obj["reasoning_effort"]
+    invocation_parameters = v1.PromptOpenAIInvocationParameters(type="openai", openai=params)
     ans = v1.PromptVersionData(
         model_provider="OPENAI",
         model_name=obj["model"],
         template=template,
         template_type="CHAT",
         template_format=template_format,
-        invocation_parameters=v1.PromptOpenAIInvocationParameters(type="openai", openai=params),
+        invocation_parameters=invocation_parameters,
     )
     tool_kwargs: _ToolKwargs = {}
     if "tools" in obj:
@@ -191,7 +193,7 @@ def _to_model_kwargs(
                 ans["tool_choice"] = tool_kwargs["tool_choice"]
     if "response_format" in obj:
         response_format = obj["response_format"]
-        if response_format["type"] == "response-format-json-schema":
+        if response_format["type"] == "json_schema":
             ans["response_format"] = _ResponseFormatConversion.to_openai(response_format)
         elif TYPE_CHECKING:
             assert_never(response_format)
@@ -225,9 +227,9 @@ class _ToolKwargsConversion:
         if not obj:
             return ans
         tools: list[ChatCompletionToolParam] = []
-        for ft in obj["tools"]:
-            if ft["type"] == "function-tool":
-                tools.append(_FunctionToolConversion.to_openai(ft))
+        for tool in obj["tools"]:
+            if tool["type"] == "function":
+                tools.append(_FunctionToolConversion.to_openai(tool))
         if not tools:
             return ans
         ans["tools"] = tools
@@ -245,10 +247,10 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptFunctionTool] = []
-        for tp in obj["tools"]:
-            if tp["type"] == "function":
-                tools.append(_FunctionToolConversion.from_openai(tp))
+        tools: list[v1.PromptToolFunction] = []
+        for tool in obj["tools"]:
+            if tool["type"] == "function":
+                tools.append(_FunctionToolConversion.from_openai(tool))
         if not tools:
             return None
         ans = v1.PromptTools(type="tools", tools=tools)
@@ -271,11 +273,11 @@ def _to_tool_choice(
 ) -> ChatCompletionToolChoiceOptionParam:
     if obj["type"] == "none":
         return "none"
-    if obj["type"] == "zero-or-more":
+    if obj["type"] == "zero_or_more":
         return "auto"
-    if obj["type"] == "one-or-more":
+    if obj["type"] == "one_or_more":
         return "required"
-    if obj["type"] == "specific-function-tool":
+    if obj["type"] == "specific_function":
         choice_tool: ChatCompletionNamedToolChoiceParam = {
             "type": "function",
             "function": {"name": obj["function_name"]},
@@ -293,20 +295,20 @@ def _from_tool_choice(
     v1.PromptToolChoiceSpecificFunctionTool,
 ]:
     if obj == "none":
-        choice_none: v1.PromptToolChoiceNone = {"type": "none"}
+        choice_none = v1.PromptToolChoiceNone(type="none")
         return choice_none
     if obj == "auto":
-        choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero-or-more"}
+        choice_zero_or_more = v1.PromptToolChoiceZeroOrMore(type="zero_or_more")
         return choice_zero_or_more
     if obj == "required":
-        choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one-or-more"}
+        choice_one_or_more = v1.PromptToolChoiceOneOrMore(type="one_or_more")
         return choice_one_or_more
     if obj["type"] == "function":
         function: Function = obj["function"]
-        choice_function_tool: v1.PromptToolChoiceSpecificFunctionTool = {
-            "type": "specific-function-tool",
-            "function_name": function["name"],
-        }
+        choice_function_tool = v1.PromptToolChoiceSpecificFunctionTool(
+            type="specific_function",
+            function_name=function["name"],
+        )
         return choice_function_tool
     assert_never(obj["type"])
 
@@ -314,39 +316,33 @@ def _from_tool_choice(
 class _FunctionToolConversion:
     @staticmethod
     def to_openai(
-        obj: v1.PromptFunctionTool,
+        obj: v1.PromptToolFunction,
     ) -> ChatCompletionToolParam:
-        definition: FunctionDefinition = {"name": obj["name"]}
-        if "description" in obj:
-            definition["description"] = obj["description"]
-        if "schema" in obj:
-            definition["parameters"] = dict(obj["schema"]["json"])
-        if "extra_parameters" in obj:
-            extra_parameters = obj["extra_parameters"]
-            if "strict" in extra_parameters and (
-                isinstance(v := extra_parameters["strict"], bool) or v is None
-            ):
-                definition["strict"] = v
-        ans: ChatCompletionToolParam = {"type": "function", "function": definition}
+        definition = obj["function"]
+        function: FunctionDefinition = {"name": definition["name"]}
+        if "description" in definition and isinstance(definition["description"], str):
+            function["description"] = definition["description"]
+        if "parameters" in definition and isinstance(definition["parameters"], Mapping):
+            function["parameters"] = dict(definition["parameters"])
+        if "strict" in definition and isinstance(definition["strict"], bool):
+            function["strict"] = definition["strict"]
+        ans: ChatCompletionToolParam = {"type": "function", "function": function}
         return ans
 
     @staticmethod
     def from_openai(
         obj: ChatCompletionToolParam,
-    ) -> v1.PromptFunctionTool:
+    ) -> v1.PromptToolFunction:
         definition: FunctionDefinition = obj["function"]
         name = definition["name"]
-        function = v1.PromptFunctionTool(type="function-tool", name=name)
-        if "description" in definition:
+        function = v1.PromptToolFunctionDefinition(name=name)
+        if "description" in definition and isinstance(definition["description"], str):
             function["description"] = definition["description"]
-        if "parameters" in definition:
-            function["schema"] = v1.JSONSchemaDraft7ObjectSchema(
-                type="json-schema-draft-7-object-schema",
-                json=definition["parameters"],
-            )
-        if "strict" in definition:
-            function["extra_parameters"] = {"strict": definition["strict"]}
-        return function
+        if "parameters" in definition and isinstance(definition["parameters"], Mapping):
+            function["parameters"] = dict(definition["parameters"])
+        if "strict" in definition and isinstance(definition["strict"], bool):
+            function["strict"] = definition["strict"]
+        return v1.PromptToolFunction(type="function", function=function)
 
 
 class _ResponseFormatConversion:
@@ -354,55 +350,47 @@ class _ResponseFormatConversion:
     def to_openai(
         obj: v1.PromptResponseFormatJSONSchema,
     ) -> ResponseFormat:
+        definition: v1.PromptResponseFormatJSONSchemaDefinition = obj["json_schema"]
         json_schema: JSONSchema = {
-            "name": obj["name"],
+            "name": definition["name"],
         }
-        schema = obj["schema"]
-        if schema["type"] == "json-schema-draft-7-object-schema":
-            json_schema["schema"] = dict(schema["json"])
-        elif TYPE_CHECKING:
-            assert_never(schema["type"])
-        if "description" in obj:
-            json_schema["description"] = obj["description"]
-        if "extra_parameters" in obj:
-            extra_parameters = obj["extra_parameters"]
-            if "strict" in extra_parameters and (
-                isinstance(v := extra_parameters["strict"], bool) or v is None
-            ):
-                json_schema["strict"] = v
-        ans: ResponseFormatJSONSchema = {
+        if "schema" in definition and isinstance(definition["schema"], Mapping):
+            json_schema["schema"] = dict(definition["schema"])
+        if "description" in definition and isinstance(definition["description"], str):
+            json_schema["description"] = str(definition["description"])
+        if "strict" in definition and isinstance(definition["strict"], bool):
+            json_schema["strict"] = bool(definition["strict"])
+        response_format_json_schema: ResponseFormatJSONSchema = {
             "type": "json_schema",
             "json_schema": json_schema,
         }
-        return ans
+        return response_format_json_schema
 
     @staticmethod
     def from_openai(
         obj: ResponseFormat,
     ) -> v1.PromptResponseFormatJSONSchema:
         if obj["type"] == "json_schema":
-            json_schema: JSONSchema = obj["json_schema"]
-            extra_parameters: dict[str, Any] = {}
-            if "strict" in json_schema:
-                extra_parameters["strict"] = json_schema["strict"]
-            ans = v1.PromptResponseFormatJSONSchema(
-                type="response-format-json-schema",
-                extra_parameters=extra_parameters,
-                name=json_schema["name"],
-                schema=v1.JSONSchemaDraft7ObjectSchema(
-                    type="json-schema-draft-7-object-schema",
-                    json=json_schema["schema"] if "schema" in json_schema else {},
-                ),
+            definition: JSONSchema = obj["json_schema"]
+            json_schema = v1.PromptResponseFormatJSONSchemaDefinition(
+                name=definition["name"],
             )
-            if "description" in json_schema:
-                ans["description"] = json_schema["description"]
-            return ans
-        elif obj["type"] == "text":
+            if "schema" in definition and isinstance(definition["schema"], Mapping):
+                json_schema["schema"] = dict(definition["schema"])
+            if "description" in definition and isinstance(definition["description"], str):
+                json_schema["description"] = str(definition["description"])
+            if "strict" in definition and isinstance(definition["strict"], bool):
+                json_schema["strict"] = bool(definition["strict"])
+            response_format_json_schema = v1.PromptResponseFormatJSONSchema(
+                type="json_schema",
+                json_schema=json_schema,
+            )
+            return response_format_json_schema
+        if obj["type"] == "text":
             raise NotImplementedError
-        elif obj["type"] == "json_object":
+        if obj["type"] == "json_object":
             raise NotImplementedError
-        else:
-            assert_never(obj)
+        assert_never(obj)
 
 
 class _MessageConversion:
@@ -418,7 +406,7 @@ class _MessageConversion:
         elif obj["role"] == "system":
             yield from _SystemMessageConversion.to_openai(obj, variables, formatter)
         elif obj["role"] == "developer":
-            raise NotImplementedError
+            yield from _DeveloperMessageConversion.to_openai(obj, variables, formatter)
         elif obj["role"] == "assistant" or obj["role"] == "model" or obj["role"] == "ai":
             yield from _AssistantMessageConversion.to_openai(obj, variables, formatter)
         elif obj["role"] == "tool":
@@ -438,7 +426,7 @@ class _MessageConversion:
         if obj["role"] == "system":
             return _SystemMessageConversion.from_openai(obj)
         if obj["role"] == "developer":
-            raise NotImplementedError
+            return _DeveloperMessageConversion.from_openai(obj)
         if obj["role"] == "assistant":
             return _AssistantMessageConversion.from_openai(obj)
         if obj["role"] == "tool":
@@ -522,6 +510,47 @@ class _SystemMessageConversion:
         return v1.PromptMessage(role=role, content=content)
 
 
+class _DeveloperMessageConversion:
+    @staticmethod
+    def to_openai(
+        obj: v1.PromptMessage,
+        variables: Mapping[str, str],
+        formatter: TemplateFormatter,
+        /,
+    ) -> Iterator[ChatCompletionDeveloperMessageParam]:
+        if isinstance(obj["content"], str):
+            yield {
+                "role": "developer",
+                "content": formatter.format(obj["content"], variables=variables),
+            }
+            return
+        content = list(
+            _ContentPartsConversion.to_openai(obj["content"], variables, formatter, text_only=True)
+        )
+        if len(content) == 1 and content[0]["type"] == "text":
+            yield {
+                "role": "developer",
+                "content": content[0]["text"],
+            }
+            return
+        yield {
+            "role": "developer",
+            "content": content,
+        }
+
+    @staticmethod
+    def from_openai(
+        obj: ChatCompletionDeveloperMessageParam,
+        /,
+        *,
+        role: Literal["developer"] = "developer",
+    ) -> v1.PromptMessage:
+        if isinstance(obj["content"], str):
+            return v1.PromptMessage(role=role, content=obj["content"])
+        content = list(_ContentPartsConversion.from_openai(obj["content"]))
+        return v1.PromptMessage(role=role, content=content)
+
+
 class _AssistantMessageConversion:
     @staticmethod
     def to_openai(
@@ -540,25 +569,21 @@ class _AssistantMessageConversion:
             return
         for part in obj["content"]:
             if part["type"] == "tool_call":
-                if content:
-                    yield _assistant_msg(content)
-                    content.clear()
                 tool_calls.append(
                     _ToolCallContentPartConversion.to_openai(part, variables, formatter)
                 )
-                continue
-            elif tool_calls:
-                yield {"role": "assistant", "tool_calls": tool_calls}
-                tool_calls.clear()
-            if part["type"] == "text":
+            elif part["type"] == "text":
                 content.append(_TextContentPartConversion.to_openai(part, variables, formatter))
             elif part["type"] == "tool_result":
                 continue
             elif TYPE_CHECKING:
                 assert_never(part)
         if content:
-            yield _assistant_msg(content)
-        if tool_calls:
+            ans = _assistant_msg(content)
+            if tool_calls:
+                ans["tool_calls"] = tool_calls
+            yield ans
+        elif tool_calls:
             yield {"role": "assistant", "tool_calls": tool_calls}
 
     @staticmethod

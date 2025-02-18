@@ -4,28 +4,13 @@ import json
 from enum import Enum
 from random import randint, random
 from secrets import token_hex
-from typing import Any, Iterable, Mapping, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Optional, Union, cast
 
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
 from openai.lib._parsing import type_to_response_format_param
 from openai.lib._tools import pydantic_function_tool
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionContentPartParam,
-    ChatCompletionContentPartTextParam,
-    ChatCompletionMessageToolCallParam,
-    ChatCompletionNamedToolChoiceParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionToolParam,
-    ChatCompletionUserMessageParam,
-)
-from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
-from openai.types.chat.chat_completion_message_tool_call_param import Function
-from openai.types.chat.completion_create_params import CompletionCreateParamsBase, ResponseFormat
-from openai.types.shared_params import FunctionDefinition
 from pydantic import BaseModel, create_model
 
 from phoenix.client.__generated__ import v1
@@ -42,6 +27,24 @@ from phoenix.client.helpers.sdk.openai.chat import (
 )
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
 
+if TYPE_CHECKING:
+    from openai.types.chat import (
+        ChatCompletionAssistantMessageParam,
+        ChatCompletionContentPartParam,
+        ChatCompletionContentPartTextParam,
+        ChatCompletionDeveloperMessageParam,
+        ChatCompletionMessageToolCallParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionToolMessageParam,
+        ChatCompletionToolParam,
+        ChatCompletionUserMessageParam,
+    )
+    from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
+    from openai.types.chat.completion_create_params import (
+        CompletionCreateParamsBase,
+        ResponseFormat,
+    )
+
 fake = Faker()
 
 
@@ -56,10 +59,10 @@ def _str() -> str:
 def _user_msg(
     content: Union[str, Iterable[ChatCompletionContentPartParam]],
 ) -> ChatCompletionUserMessageParam:
-    return ChatCompletionUserMessageParam(
-        role="user",
-        content=content,
-    )
+    return {
+        "role": "user",
+        "content": content,
+    }
 
 
 def _assistant_msg(
@@ -67,73 +70,84 @@ def _assistant_msg(
     tool_calls: Iterable[ChatCompletionMessageToolCallParam] = (),
 ) -> ChatCompletionAssistantMessageParam:
     if not tool_calls:
-        return ChatCompletionAssistantMessageParam(
-            role="assistant",
-            content=content,
-        )
+        return {
+            "role": "assistant",
+            "content": content,
+        }
     if content is None:
-        return ChatCompletionAssistantMessageParam(
-            role="assistant",
-            tool_calls=tool_calls,
-        )
-    return ChatCompletionAssistantMessageParam(
-        role="assistant",
-        content=content,
-        tool_calls=tool_calls,
-    )
+        return {
+            "role": "assistant",
+            "tool_calls": tool_calls,
+        }
+    return {
+        "role": "assistant",
+        "content": content,
+        "tool_calls": tool_calls,
+    }
 
 
 def _tool_msg(
     content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
 ) -> ChatCompletionToolMessageParam:
-    return ChatCompletionToolMessageParam(
-        role="tool",
-        content=content,
-        tool_call_id=_str(),
-    )
+    return {
+        "role": "tool",
+        "content": content,
+        "tool_call_id": _str(),
+    }
 
 
 def _system_msg(
     content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
 ) -> ChatCompletionSystemMessageParam:
-    return ChatCompletionSystemMessageParam(
-        role="system",
-        content=content,
-    )
+    return {
+        "role": "system",
+        "content": content,
+    }
+
+
+def _developer_msg(
+    content: Union[str, Iterable[ChatCompletionContentPartTextParam]],
+) -> ChatCompletionDeveloperMessageParam:
+    return {
+        "role": "developer",
+        "content": content,
+    }
 
 
 def _text() -> ChatCompletionContentPartTextParam:
-    return ChatCompletionContentPartTextParam(
-        type="text",
-        text=_str(),
-    )
+    return {
+        "type": "text",
+        "text": _str(),
+    }
 
 
 def _tool_call() -> ChatCompletionMessageToolCallParam:
-    return ChatCompletionMessageToolCallParam(
-        id=_str(),
-        type="function",
-        function=Function(name=_str(), arguments=json.dumps(_dict())),
-    )
+    return {
+        "id": _str(),
+        "type": "function",
+        "function": {"name": _str(), "arguments": json.dumps(_dict())},
+    }
 
 
 def _tool(name: Optional[str] = None) -> ChatCompletionToolParam:
-    return ChatCompletionToolParam(
-        type="function",
-        function=FunctionDefinition(
-            name=name or _str(),
-            description=_str(),
-            parameters={
+    strict = fake.pybool()
+    return {
+        "type": "function",
+        "function": {
+            "name": name or _str(),
+            "description": _str(),
+            "parameters": {
                 "type": "object",
                 "properties": {
                     "x": {"type": "int", "description": _str()},
                     "y": {"type": "string", "description": _str()},
                 },
                 "required": ["x", "y"],
-                "additionalProperties": False,
+                "additionalProperties": strict or fake.pybool(),
             },
-        ),
-    )
+            "strict": strict,
+        },
+    }
 
 
 class TestChatCompletionUserMessageParam:
@@ -162,6 +176,19 @@ class TestChatCompletionSystemMessageParam:
         assert not DeepDiff([obj], list(_MessageConversion.to_openai(x, {}, NO_OP_FORMATTER)))
 
 
+class TestChatCompletionDeveloperMessageParam:
+    @pytest.mark.parametrize(
+        "obj",
+        [
+            _developer_msg(_str()),
+            _developer_msg([_text(), _text()]),
+        ],
+    )
+    def test_round_trip(self, obj: ChatCompletionSystemMessageParam) -> None:
+        x: v1.PromptMessage = _MessageConversion.from_openai(obj)
+        assert not DeepDiff([obj], list(_MessageConversion.to_openai(x, {}, NO_OP_FORMATTER)))
+
+
 class TestChatCompletionAssistantMessageParam:
     @pytest.mark.parametrize(
         "obj",
@@ -169,6 +196,8 @@ class TestChatCompletionAssistantMessageParam:
             _assistant_msg(_str()),
             _assistant_msg([_text(), _text()]),
             _assistant_msg(None, [_tool_call(), _tool_call()]),
+            _assistant_msg(_str(), [_tool_call(), _tool_call()]),
+            _assistant_msg([_text(), _text()], [_tool_call(), _tool_call()]),
         ],
     )
     def test_round_trip(self, obj: ChatCompletionAssistantMessageParam) -> None:
@@ -226,9 +255,9 @@ class _GetPopulation(BaseModel):
     year: Optional[int] = None
 
 
-_TOOLS = [
+_TOOLS: list[ChatCompletionToolParam] = [
     cast(
-        ChatCompletionToolParam,
+        "ChatCompletionToolParam",
         json.loads(json.dumps(pydantic_function_tool(t))),
     )
     for t in cast(Iterable[type[BaseModel]], [_GetWeather, _GetPopulation])
@@ -277,7 +306,7 @@ class TestResponseFormatJSONSchemaConversion:
         ],
     )
     def test_round_trip(self, type_: type[BaseModel]) -> None:
-        obj = cast(ResponseFormat, type_to_response_format_param(type_))
+        obj = cast("ResponseFormat", type_to_response_format_param(type_))
         x: v1.PromptResponseFormatJSONSchema = _ResponseFormatConversion.from_openai(obj)
         new_obj = _ResponseFormatConversion.to_openai(x)
         assert not DeepDiff(obj, new_obj)
@@ -320,17 +349,17 @@ class TestToolKwargsConversion:
             },
             {
                 "tools": [_tool(), _tool("xyz")],
-                "tool_choice": ChatCompletionNamedToolChoiceParam(
-                    type="function",
-                    function={"name": "xyz"},
-                ),
+                "tool_choice": {
+                    "type": "function",
+                    "function": {"name": "xyz"},
+                },
             },
             {
                 "tools": [_tool(), _tool("xyz")],
-                "tool_choice": ChatCompletionNamedToolChoiceParam(
-                    type="function",
-                    function={"name": "xyz"},
-                ),
+                "tool_choice": {
+                    "type": "function",
+                    "function": {"name": "xyz"},
+                },
                 "parallel_tool_calls": False,
             },
         ],
@@ -345,9 +374,9 @@ class TestCompletionCreateParamsBase:
     @pytest.mark.parametrize(
         "obj",
         [
-            CompletionCreateParamsBase(
-                model=token_hex(8),
-                messages=[
+            {
+                "model": token_hex(8),
+                "messages": [
                     {
                         "role": "system",
                         "content": "You will be provided with statements, and your task is"
@@ -355,13 +384,13 @@ class TestCompletionCreateParamsBase:
                     },
                     {"role": "user", "content": "{{ statement }}"},
                 ],
-                temperature=random(),
-                max_completion_tokens=randint(1, 256),
-                top_p=random(),
-            ),
-            CompletionCreateParamsBase(
-                model=token_hex(8),
-                messages=[
+                "temperature": random(),
+                "max_completion_tokens": randint(1, 256),
+                "top_p": random(),
+            },
+            {
+                "model": token_hex(8),
+                "messages": [
                     {
                         "role": "system",
                         "content": "You are a UI generator. Convert the user input into a UI.",
@@ -371,36 +400,36 @@ class TestCompletionCreateParamsBase:
                         "content": "Make a form for {{ feature }}.",
                     },
                 ],
-                response_format=cast(
-                    ResponseFormat,
+                "response_format": cast(
+                    "ResponseFormat",
                     type_to_response_format_param(
                         create_model("Response", ui=(_UI, ...)),
                     ),
                 ),
-                temperature=random(),
-                max_completion_tokens=randint(1, 256),
-                top_p=random(),
-            ),
-            CompletionCreateParamsBase(
-                model=token_hex(8),
-                messages=[
+                "temperature": random(),
+                "max_completion_tokens": randint(1, 256),
+                "top_p": random(),
+            },
+            {
+                "model": token_hex(8),
+                "messages": [
                     {
                         "role": "user",
                         "content": "What is the latest population estimate for {{ location }}?",
                     }
                 ],
-                tools=_TOOLS,
-                tool_choice="required",
-                temperature=random(),
-                max_completion_tokens=randint(1, 256),
-                top_p=random(),
-            ),
+                "tools": _TOOLS,
+                "tool_choice": "required",
+                "temperature": random(),
+                "max_completion_tokens": randint(1, 256),
+                "top_p": random(),
+            },
         ],
     )
     def test_round_trip(self, obj: CompletionCreateParamsBase) -> None:
         pv: v1.PromptVersionData = create_prompt_version_from_openai(obj)
         messages, kwargs = to_chat_messages_and_kwargs(pv, formatter=NO_OP_FORMATTER)
-        new_obj = CompletionCreateParamsBase(messages=messages, **kwargs)  # type: ignore[typeddict-item]
+        new_obj: CompletionCreateParamsBase = {"messages": messages, **kwargs}  # type: ignore[typeddict-item]
         assert not DeepDiff(obj, new_obj)
 
 

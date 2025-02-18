@@ -1,7 +1,6 @@
 from typing import Any
 
 import pytest
-from pydantic import ValidationError
 
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -516,94 +515,6 @@ def test_valid_openai_tool_schemas_can_be_normalized_and_denormalized_without_da
     [
         pytest.param(
             {
-                "type": "function",
-                "function": {
-                    "name": "pick_tshirt_size",
-                    "description": "Call this if the user specifies which size t-shirt they want",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "size": {
-                                "type": "invalid_type",
-                                "enum": ["s", "m", "l"],
-                                "description": "The size of the t-shirt that the user would like to order",  # noqa: E501
-                            }
-                        },
-                        "required": ["size"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="invalid-data-type",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "select_color",
-                    "description": "Select a color from the available options",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "color": {
-                                "type": "string",
-                                "enum": [
-                                    "red",
-                                    "blue",
-                                    "red",  # duplicate enum value
-                                ],
-                                "description": "The color to select",
-                            }
-                        },
-                        "required": ["color"],
-                        "additionalProperties": False,
-                    },
-                },
-            },
-            id="duplicate-enum-values",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "set_temperature",
-                    "description": "Set temperature with invalid schema",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
-                        "required": "name",
-                    },
-                },
-            },
-            id="invalid-schema-ref",
-        ),
-        pytest.param(
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_status",
-                    "description": "Get system status",
-                    "parameters": {
-                        "type": "string",
-                    },
-                },
-            },
-            id="non-object-parameters",
-        ),
-    ],
-)
-def test_invalid_openai_tool_schemas_raise_validation_error_when_normalized(
-    tool_schema: dict[str, Any],
-) -> None:
-    with pytest.raises(ValidationError):
-        normalize_tools([tool_schema], ModelProvider.OPENAI)
-
-
-@pytest.mark.parametrize(
-    "tool_schema",
-    [
-        pytest.param(
-            {
                 "name": "get_weather",
                 "description": "Get the current weather in a given location",
                 "input_schema": {
@@ -697,7 +608,6 @@ def test_invalid_openai_tool_schemas_raise_validation_error_when_normalized(
                     "type": "object",
                     "properties": {"location": {"type": "string"}},
                 },
-                "cache_control": {"type": "ephemeral"},
             },
             id="get-weather-function-cache-control-ephemeral",
         ),
@@ -708,7 +618,6 @@ def test_invalid_openai_tool_schemas_raise_validation_error_when_normalized(
                     "type": "object",
                     "properties": {"location": {"type": "string"}},
                 },
-                "cache_control": None,
             },
             id="get-weather-function-cache-control-none",
         ),
