@@ -466,7 +466,30 @@ class _ToolResultContentPartConversion:
             "type": "tool_result",
             "tool_use_id": id_,
         }
-        param["content"] = _str_tool_result(obj["tool_result"])
+        if isinstance(obj["tool_result"], str):
+            param["content"] = obj["tool_result"]
+        elif isinstance(obj["tool_result"], Sequence):
+            content: list[TextBlockParam] = []
+            for result in obj["tool_result"]:
+                if isinstance(result, dict):
+                    if (
+                        "type" in result
+                        and result["type"] == "text"
+                        and "text" in result
+                        and isinstance(result["text"], str)
+                        and set(result.keys()) == {"type", "text"}  # pyright: ignore[reportUnknownArgumentType]
+                    ):
+                        text = str(result["text"])
+                    else:
+                        text = json.dumps(result)
+                else:
+                    text = str(result)
+                content.append({"type": "text", "text": text})
+            param["content"] = content
+        elif isinstance(obj["tool_result"], Mapping):
+            param["content"] = json.dumps(obj["tool_result"])
+        elif obj["tool_result"] is not None:
+            param["content"] = str(obj["tool_result"])
         return param
 
     @staticmethod
@@ -479,7 +502,12 @@ class _ToolResultContentPartConversion:
             tool_result=None,
         )
         if "content" in obj:
-            ans["tool_result"] = _str_tool_result(obj["content"])
+            if isinstance(obj["content"], str):
+                ans["tool_result"] = obj["content"]
+            elif isinstance(obj["content"], Iterable):
+                ans["tool_result"] = list(obj["content"])
+            elif TYPE_CHECKING:
+                assert_never(obj["content"])
         return ans
 
 
@@ -606,11 +634,3 @@ class _RoleConversion:
         if TYPE_CHECKING:
             assert_never(obj["role"])
         return obj["role"]
-
-
-def _str_tool_result(
-    obj: Any,
-) -> str:
-    if isinstance(obj, (dict, list)):
-        return json.dumps(obj)
-    return str(obj)
