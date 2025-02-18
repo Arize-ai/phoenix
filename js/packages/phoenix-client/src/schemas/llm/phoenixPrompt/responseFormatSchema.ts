@@ -8,14 +8,13 @@ import { PromptResponseFormat } from "../../../types/prompts";
 export const phoenixResponseFormatSchema =
   schemaMatches<PromptResponseFormat>()(
     z.object({
-      type: z.literal("response-format-json-schema"),
-      name: z.string(),
-      description: z.string().optional(),
-      schema: z.object({
-        type: z.literal("json-schema-draft-7-object-schema"),
-        json: z.record(z.unknown()),
+      type: z.literal("json_schema"),
+      json_schema: z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        schema: z.record(z.unknown()).optional(),
+        strict: z.boolean().optional(),
       }),
-      extra_parameters: z.record(z.unknown()),
     })
   );
 

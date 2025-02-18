@@ -29,17 +29,17 @@ class AnthropicToolChoiceConversion:
         ],
         disable_parallel_tool_use: Optional[bool] = None,
     ) -> ToolChoiceParam:
-        if obj.type == "zero-or-more":
+        if obj.type == "zero_or_more":
             choice_auto: ToolChoiceAutoParam = {"type": "auto"}
             if disable_parallel_tool_use is not None:
                 choice_auto["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_auto
-        if obj.type == "one-or-more":
+        if obj.type == "one_or_more":
             choice_any: ToolChoiceAnyParam = {"type": "any"}
             if disable_parallel_tool_use is not None:
                 choice_any["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_any
-        if obj.type == "specific-function-tool":
+        if obj.type == "specific_function":
             choice_tool: ToolChoiceToolParam = {"type": "tool", "name": obj.function_name}
             if disable_parallel_tool_use is not None:
                 choice_tool["disable_parallel_tool_use"] = disable_parallel_tool_use
@@ -67,20 +67,20 @@ class AnthropicToolChoiceConversion:
             disable_parallel_tool_use = (
                 obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
             )
-            choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero-or-more")
+            choice_zero_or_more = PromptToolChoiceZeroOrMore(type="zero_or_more")
             return choice_zero_or_more, disable_parallel_tool_use
         if obj["type"] == "any":
             disable_parallel_tool_use = (
                 obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
             )
-            choice_one_or_more = PromptToolChoiceOneOrMore(type="one-or-more")
+            choice_one_or_more = PromptToolChoiceOneOrMore(type="one_or_more")
             return choice_one_or_more, disable_parallel_tool_use
         if obj["type"] == "tool":
             disable_parallel_tool_use = (
                 obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
             )
             choice_function_tool = PromptToolChoiceSpecificFunctionTool(
-                type="specific-function-tool",
+                type="specific_function",
                 function_name=obj["name"],
             )
             return choice_function_tool, disable_parallel_tool_use

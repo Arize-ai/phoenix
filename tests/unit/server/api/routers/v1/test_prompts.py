@@ -3,13 +3,14 @@ from __future__ import annotations
 import string
 from enum import Enum
 from secrets import token_hex
-from typing import Any, Optional, cast
+from typing import Any, Optional
 from urllib.parse import quote_plus
 
 import httpx
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
+from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, create_model
 from strawberry.relay import GlobalID
@@ -17,19 +18,16 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.jsonschema import (
-    JSONSchemaDraft7ObjectSchema,
-    JSONSchemaDraft7ObjectSchemaContent,
-)
 from phoenix.server.api.helpers.prompts.models import (
     PromptChatTemplate,
-    PromptFunctionTool,
     PromptMessage,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
+    PromptResponseFormatJSONSchemaDefinition,
     PromptTemplateFormat,
     PromptTemplateType,
+    PromptToolFunction,
     PromptTools,
     TextContentPart,
     ToolCallContentPart,
@@ -218,28 +216,19 @@ class TestPrompts:
                         tools=PromptTools(
                             type="tools",
                             tools=[
-                                PromptFunctionTool(
-                                    type="function-tool",
-                                    name=token_hex(8),
-                                    schema=JSONSchemaDraft7ObjectSchema(
-                                        type="json-schema-draft-7-object-schema",
-                                        json=cast(
-                                            JSONSchemaDraft7ObjectSchemaContent,
-                                            to_strict_json_schema(_GetWeather),
-                                        ),
-                                    ),
+                                PromptToolFunction.model_validate(
+                                    pydantic_function_tool(
+                                        _GetWeather, name=token_hex(8), description=token_hex(8)
+                                    )
                                 )
                             ],
                         ),
                         response_format=PromptResponseFormatJSONSchema(
-                            type="response-format-json-schema",
-                            name=token_hex(8),
-                            extra_parameters=fake.pydict(value_types=[str, int, float, bool]),
-                            schema=JSONSchemaDraft7ObjectSchema(
-                                type="json-schema-draft-7-object-schema",
-                                json=cast(
-                                    JSONSchemaDraft7ObjectSchemaContent,
-                                    to_strict_json_schema(create_model("Response", ui=(_UI, ...))),
+                            type="json_schema",
+                            json_schema=PromptResponseFormatJSONSchemaDefinition(
+                                name=token_hex(8),
+                                schema=to_strict_json_schema(
+                                    create_model("Response", ui=(_UI, ...))
                                 ),
                             ),
                         ),

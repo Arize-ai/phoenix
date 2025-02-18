@@ -144,7 +144,7 @@ class _ToolKwargsConversion:
             return ans
         function_declarations: list[content_types.FunctionDeclaration] = []
         for t in obj["tools"]:
-            if t["type"] == "function-tool":
+            if t["type"] == "function":
                 function_declarations.append(_FunctionDeclarationConversion.to_google(t))
         from google.generativeai.types import content_types
 
@@ -163,7 +163,7 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj:
             return None
-        tools: list[v1.PromptFunctionTool] = []
+        tools: list[v1.PromptToolFunction] = []
         if "tools" in obj:
             for tool in obj["tools"]:
                 for fd in tool.function_declarations:
@@ -194,13 +194,13 @@ class _ToolConfigConversion:
         if obj["type"] == "none":
             ans.function_calling_config.mode = content_types.FunctionCallingMode.NONE
             return ans
-        if obj["type"] == "zero-or-more":
+        if obj["type"] == "zero_or_more":
             ans.function_calling_config.mode = content_types.FunctionCallingMode.AUTO
             return ans
-        if obj["type"] == "one-or-more":
+        if obj["type"] == "one_or_more":
             ans.function_calling_config.mode = content_types.FunctionCallingMode.ANY
             return ans
-        if obj["type"] == "specific-function-tool":
+        if obj["type"] == "specific_function":
             ans.function_calling_config.mode = content_types.FunctionCallingMode.ANY
             ans.function_calling_config.allowed_function_names = [obj["function_name"]]
             return ans
@@ -223,14 +223,14 @@ class _ToolConfigConversion:
             choice_none: v1.PromptToolChoiceNone = {"type": "none"}
             return choice_none
         if fcc.mode is content_types.FunctionCallingMode.AUTO:
-            choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero-or-more"}
+            choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero_or_more"}
             return choice_zero_or_more
         if fcc.mode is content_types.FunctionCallingMode.ANY:
             if not fcc.allowed_function_names:
-                choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one-or-more"}
+                choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one_or_more"}
                 return choice_one_or_more
             choice_specific_function_tool: v1.PromptToolChoiceSpecificFunctionTool = {
-                "type": "specific-function-tool",
+                "type": "specific_function",
                 "function_name": fcc.allowed_function_names[0],
             }
             return choice_specific_function_tool
@@ -240,27 +240,27 @@ class _ToolConfigConversion:
 class _FunctionDeclarationConversion:
     @staticmethod
     def to_google(
-        obj: v1.PromptFunctionTool,
+        obj: v1.PromptToolFunction,
     ) -> content_types.FunctionDeclaration:
         from google.generativeai.types import content_types
 
+        function = obj["function"]
         return content_types.FunctionDeclaration(
-            name=obj["name"],
-            description=obj["description"] if "description" in obj else "",
-            parameters=dict(obj["schema"]["json"]) if "schema" in obj else None,
+            name=function["name"],
+            description=function["description"] if "description" in function else "",
+            parameters=dict(function["parameters"]) if "parameters" in function else None,
         )
 
     @staticmethod
     def from_google(
         obj: Union[content_types.FunctionDeclaration, protos.FunctionDeclaration],
-    ) -> v1.PromptFunctionTool:
-        return v1.PromptFunctionTool(
-            type="function-tool",
-            name=obj.name,
-            description=obj.description,
-            schema=v1.JSONSchemaDraft7ObjectSchema(
-                type="json-schema-draft-7-object-schema",
-                json=_SchemaConversion.from_google(obj.parameters),
+    ) -> v1.PromptToolFunction:
+        return v1.PromptToolFunction(
+            type="function",
+            function=v1.PromptToolFunctionDefinition(
+                name=obj.name,
+                description=obj.description,
+                parameters=_SchemaConversion.from_google(obj.parameters),
             ),
         )
 

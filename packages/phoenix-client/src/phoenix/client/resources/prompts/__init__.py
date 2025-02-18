@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, cast
 from urllib.parse import quote_plus
 
@@ -5,6 +6,8 @@ import httpx
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.prompts import PromptVersion
+
+logger = logging.getLogger(__name__)
 
 
 class Prompts:

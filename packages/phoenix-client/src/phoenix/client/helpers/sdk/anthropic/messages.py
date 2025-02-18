@@ -28,7 +28,6 @@ if TYPE_CHECKING:
         ContentBlock,
         DocumentBlockParam,
         ImageBlockParam,
-        MessageCreateParams,
         MessageParam,
         ModelParam,
         TextBlock,
@@ -42,6 +41,7 @@ if TYPE_CHECKING:
         ToolUseBlock,
         ToolUseBlockParam,
     )
+    from anthropic.types.message_create_params import MessageCreateParamsBase
 
     _BlockParam: TypeAlias = Union[
         TextBlockParam,
@@ -85,13 +85,55 @@ __all__ = [
 
 
 def create_prompt_version_from_anthropic(
-    obj: MessageCreateParams,
+    obj: MessageCreateParamsBase,
     /,
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
 ) -> v1.PromptVersionData:
-    raise NotImplementedError
+    invocation_parameters = v1.PromptAnthropicInvocationParameters(
+        type="anthropic",
+        anthropic=v1.PromptAnthropicInvocationParametersContent(
+            max_tokens=obj["max_tokens"],
+        ),
+    )
+    if "temperature" in obj:
+        invocation_parameters["anthropic"]["temperature"] = obj["temperature"]
+    if "top_p" in obj:
+        invocation_parameters["anthropic"]["top_p"] = obj["top_p"]
+    if "stop_sequences" in obj:
+        invocation_parameters["anthropic"]["stop_sequences"] = obj["stop_sequences"]
+    messages: list[v1.PromptMessage] = []
+    if "system" in obj:
+        system = (
+            obj["system"]
+            if isinstance(obj["system"], str)
+            else list(map(_TextContentPartConversion.from_anthropic, obj["system"]))
+        )
+        messages.append(v1.PromptMessage(role="system", content=system))
+    messages.extend(map(_MessageConversion.from_anthropic, obj["messages"]))
+    template: v1.PromptChatTemplate = {
+        "type": "chat",
+        "messages": messages,
+    }
+    ans = v1.PromptVersionData(
+        model_provider="ANTHROPIC",
+        model_name=obj["model"],
+        template=template,
+        template_type="CHAT",
+        template_format=template_format,
+        invocation_parameters=invocation_parameters,
+    )
+    tool_kwargs: _ToolKwargs = {}
+    if "tools" in obj:
+        tool_kwargs["tools"] = list(obj["tools"])
+    if "tool_choice" in obj:
+        tool_kwargs["tool_choice"] = obj["tool_choice"]
+    if (tools := _ToolKwargsConversion.from_anthropic(tool_kwargs)) is not None:
+        ans["tools"] = tools
+    if description:
+        ans["description"] = description
+    return ans
 
 
 def to_chat_messages_and_kwargs(
@@ -191,7 +233,7 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptFunctionTool] = list(_ToolConversion.from_anthropic(obj["tools"]))
+        tools: list[v1.PromptToolFunction] = list(_ToolConversion.from_anthropic(obj["tools"]))
         if not tools:
             return None
         ans = v1.PromptTools(
@@ -217,17 +259,17 @@ class _ToolChoiceConversion:
         ],
         disable_parallel_tool_use: Optional[bool] = None,
     ) -> ToolChoiceParam:
-        if obj["type"] == "zero-or-more":
+        if obj["type"] == "zero_or_more":
             choice_auto: ToolChoiceAutoParam = {"type": "auto"}
             if disable_parallel_tool_use is not None:
                 choice_auto["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_auto
-        if obj["type"] == "one-or-more":
+        if obj["type"] == "one_or_more":
             choice_any: ToolChoiceAnyParam = {"type": "any"}
             if disable_parallel_tool_use is not None:
                 choice_any["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_any
-        if obj["type"] == "specific-function-tool":
+        if obj["type"] == "specific_function":
             choice_tool: ToolChoiceToolParam = {"type": "tool", "name": obj["function_name"]}
             if disable_parallel_tool_use is not None:
                 choice_tool["disable_parallel_tool_use"] = disable_parallel_tool_use
@@ -249,20 +291,20 @@ class _ToolChoiceConversion:
             disable_parallel_tool_use = (
                 obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
             )
-            choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero-or-more"}
+            choice_zero_or_more: v1.PromptToolChoiceZeroOrMore = {"type": "zero_or_more"}
             return choice_zero_or_more, disable_parallel_tool_use
         if obj["type"] == "any":
             disable_parallel_tool_use = (
                 obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
             )
-            choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one-or-more"}
+            choice_one_or_more: v1.PromptToolChoiceOneOrMore = {"type": "one_or_more"}
             return choice_one_or_more, disable_parallel_tool_use
         if obj["type"] == "tool":
             disable_parallel_tool_use = (
                 obj["disable_parallel_tool_use"] if "disable_parallel_tool_use" in obj else None
             )
             choice_function_tool: v1.PromptToolChoiceSpecificFunctionTool = {
-                "type": "specific-function-tool",
+                "type": "specific_function",
                 "function_name": obj["name"],
             }
             return choice_function_tool, disable_parallel_tool_use
@@ -272,35 +314,34 @@ class _ToolChoiceConversion:
 class _ToolConversion:
     @staticmethod
     def to_anthropic(
-        obj: Iterable[v1.PromptFunctionTool],
+        obj: Iterable[v1.PromptToolFunction],
     ) -> Iterator[ToolParam]:
-        for ft in obj:
-            input_schema: dict[str, Any] = dict(ft["schema"]["json"]) if "schema" in ft else {}
+        for tool in obj:
+            function = tool["function"]
+            input_schema: dict[str, Any] = (
+                dict(function["parameters"]) if "parameters" in function else {}
+            )
             param: ToolParam = {
-                "name": ft["name"],
+                "name": function["name"],
                 "input_schema": input_schema,
             }
-            if "description" in ft:
-                param["description"] = ft["description"]
+            if "description" in function:
+                param["description"] = function["description"]
             yield param
 
     @staticmethod
     def from_anthropic(
         obj: Iterable[ToolParam],
-    ) -> Iterator[v1.PromptFunctionTool]:
-        for tp in obj:
-            function = v1.PromptFunctionTool(
-                type="function-tool",
-                name=tp["name"],
+    ) -> Iterator[v1.PromptToolFunction]:
+        for tool in obj:
+            function = v1.PromptToolFunctionDefinition(
+                name=tool["name"],
             )
-            if "description" in tp:
-                function["description"] = tp["description"]
-            if "input_schema" in tp:
-                function["schema"] = v1.JSONSchemaDraft7ObjectSchema(
-                    type="json-schema-draft-7-object-schema",
-                    json=tp["input_schema"],
-                )
-            yield function
+            if "description" in tool:
+                function["description"] = tool["description"]
+            if "input_schema" in tool:
+                function["parameters"] = tool["input_schema"]
+            yield v1.PromptToolFunction(type="function", function=function)
 
 
 class _MessageConversion:

@@ -1345,7 +1345,7 @@ class ChatCompletionInput(BaseModel):
     messages: list[ChatCompletionMessageInput]
     model: GenerativeModelInput
     promptName: Optional[str] = None
-    template: Optional[TemplateOptions] = None
+    template: Optional[PromptTemplateOptions] = None
     tools: Optional[list[dict[str, Any]]] = None
 
 
@@ -1729,6 +1729,12 @@ class PromptMessageInput(BaseModel):
     role: str
 
 
+class PromptTemplateOptions(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    format: Literal["F_STRING", "MUSTACHE", "NONE"]
+    variables: dict[str, Any]
+
+
 class ResponseFormatInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     definition: dict[str, Any]
@@ -1770,12 +1776,6 @@ class SpanSort(BaseModel):
     ] = None
     dir: Literal["asc", "desc"]
     evalResultKey: Optional[EvalResultKey] = None
-
-
-class TemplateOptions(BaseModel):
-    model_config = ConfigDict(frozen=True)
-    language: Literal["F_STRING", "MUSTACHE", "NONE"]
-    variables: dict[str, Any]
 
 
 class TextContentValueInput(BaseModel):
