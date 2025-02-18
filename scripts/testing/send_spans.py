@@ -26,6 +26,7 @@ from opentelemetry.util import types
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
+from phoenix.otel import register
 from phoenix.trace import Evaluations
 
 logging.basicConfig(level=logging.INFO)
@@ -268,6 +269,7 @@ def run_test(request_rate: int = 10, test_duration: int = 60):
     - request_rate: Number of requests per second.
     - test_duration: Duration of the test in seconds.
     """
+    register()
     tracer = _get_tracer()
     eval_queue = SimpleQueue()
     end_time = time.time() + test_duration
