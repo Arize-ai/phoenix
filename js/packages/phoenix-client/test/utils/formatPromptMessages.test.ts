@@ -115,6 +115,28 @@ describe("formatPromptMessages", () => {
         text: "Hello World, use {{{escaped}}} World",
       });
     });
+
+    it("should ignore whitespace in variable names", () => {
+      const messages: PromptChatMessage[] = [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Hello {{ name }}! {{name}} is a good name!",
+            },
+          ],
+        },
+      ];
+
+      const formatted = formatPromptMessages("MUSTACHE", messages, {
+        name: "World",
+      });
+      expect(formatted?.[0]?.content?.[0]).toEqual({
+        type: "text",
+        text: "Hello World! World is a good name!",
+      });
+    });
   });
 
   describe("F_STRING format", () => {
@@ -204,6 +226,25 @@ describe("formatPromptMessages", () => {
       expect(formatted?.[0]?.content?.[0]).toEqual({
         type: "text",
         text: "Hello World, use {{escaped}} World",
+      });
+    });
+
+    it("should ignore whitespace in variable names", () => {
+      const messages: PromptChatMessage[] = [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Hello { name }! {name} is a good name!" },
+          ],
+        },
+      ];
+
+      const formatted = formatPromptMessages("F_STRING", messages, {
+        name: "World",
+      });
+      expect(formatted?.[0]?.content?.[0]).toEqual({
+        type: "text",
+        text: "Hello World! World is a good name!",
       });
     });
   });
