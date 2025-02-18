@@ -624,7 +624,7 @@ def get_env_project_name() -> str:
 
 
 def get_env_database_connection_str() -> str:
-    phoenix_url = os.getenv("ENV_PHOENIX_SQL_DATABASE_URL")
+    phoenix_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
 
     if phoenix_url:
         parsed = urlparse(phoenix_url)
