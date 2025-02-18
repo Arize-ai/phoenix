@@ -656,22 +656,26 @@ def get_env_database_connection_str() -> str:
     # try to build the connection string entirely from PostgreSQL environment variables.
     pg_user = os.getenv("POSTGRES_USER")
     pg_password = os.getenv("POSTGRES_PASS")
-    pg_host = os.getenv("POSTGRES_HOST", "localhost")
+    pg_host = os.getenv("POSTGRES_HOST")
     pg_port = os.getenv("POSTGRES_PORT")
     pg_db = os.getenv("POSTGRES_DB")
 
-    if ":" in pg_host:
-        pg_host, pg_port = pg_host.split(":")
+    if pg_host and ":" in pg_host:
+        pg_host, parsed_port = pg_host.split(":")
+        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
 
     if pg_host == "localhost" and not pg_port:
         pg_port = "5432"
 
-    if pg_user and pg_password and pg_db:
+    if pg_host and pg_user and pg_password:
         encoded_password = quote_plus(pg_password)
+        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
         if pg_port:
-            return f"postgresql://{pg_user}:{encoded_password}@{pg_host}:{pg_port}/{pg_db}"
-        else:
-            return f"postgresql://{pg_user}:{encoded_password}@{pg_host}/{pg_db}"
+            connection_str = f"{connection_str}:{pg_port}"
+        if pg_db:
+            connection_str = f"{connection_str}/{pg_db}"
+
+        return connection_str
 
     working_dir = get_working_dir()
     return f"sqlite:///{working_dir}/phoenix.db"
