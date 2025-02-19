@@ -28,7 +28,6 @@ def initialize_agent(phoenix_key, project_name, openai_key, user_session_id, vec
     agent_tracer = initialize_instrumentor(project_name)
     initialize_agent_llm("gpt-4o-mini")
     tool_model = initialize_tool_llm("gpt-4o-mini")
-    # vector_source_web_url = "https://lilianweng.github.io/posts/2023-06-23-agent/"
     initialize_vector_store(vector_source_web_url)
     copilot_agent = construct_agent()
     return (
