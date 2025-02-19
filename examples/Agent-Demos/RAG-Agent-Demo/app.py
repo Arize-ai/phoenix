@@ -9,7 +9,6 @@ from openinference.instrumentation import using_session
 from opentelemetry.trace import Status, StatusCode
 from rag import initialize_vector_store
 
-
 load_dotenv()
 
 SYSTEM_MESSAGE_FOR_AGENT_WORKFLOW = """
