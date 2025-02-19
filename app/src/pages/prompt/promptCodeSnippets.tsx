@@ -157,7 +157,7 @@ const openAIParams = toSDK({
   sdk: "openai",
   // Apply the prompt template variables
   variables: {
-    key: "value,
+    key: "value",
   },
 });
 
@@ -235,7 +235,7 @@ const anthropicParams = toSDK({
   sdk: "anthropic",
   // Apply the prompt template variables
   variables: {
-    key: "value,
+    key: "value",
   },
 });
 
