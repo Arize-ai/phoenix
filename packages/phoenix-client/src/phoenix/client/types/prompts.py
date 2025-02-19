@@ -18,7 +18,7 @@ from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.anthropic.messages import (
-    AnthropicModelKwargs,
+    AnthropicMessageModelKwargs,
     create_prompt_version_from_anthropic,
 )
 from phoenix.client.helpers.sdk.anthropic.messages import (
@@ -32,7 +32,7 @@ from phoenix.client.helpers.sdk.google_generativeai.generate_content import (
     to_chat_messages_and_kwargs as to_messages_google,
 )
 from phoenix.client.helpers.sdk.openai.chat import (
-    OpenAIModelKwargs,
+    OpenAIChatCompletionModelKwargs,
     create_prompt_version_from_openai,
 )
 from phoenix.client.helpers.sdk.openai.chat import (
@@ -47,23 +47,7 @@ if TYPE_CHECKING:
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
 
-@dataclass
 class PromptVersion:
-    template: v1.PromptChatTemplate
-    model_name: str
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
-    template_format: Literal["F_STRING", "MUSTACHE", "NONE"]
-    invocation_parameters: Union[
-        v1.PromptOpenAIInvocationParameters,
-        v1.PromptAzureOpenAIInvocationParameters,
-        v1.PromptAnthropicInvocationParameters,
-        v1.PromptGeminiInvocationParameters,
-    ]
-    tools: Optional[v1.PromptTools] = None
-    response_format: Optional[v1.PromptResponseFormatJSONSchema] = None
-    description: Optional[str] = None
-    id: Optional[str] = None
-
     def __init__(
         self,
         prompt: Sequence[v1.PromptMessage],
@@ -74,39 +58,74 @@ class PromptVersion:
         model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
-        self.template = v1.PromptChatTemplate(messages=prompt, type="chat")
-        self.template_type: Literal["CHAT"] = "CHAT"
-        self.model_name = model_name
-        self.model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = (
+        """
+        Initializes a PromptVersion for syncing and template application
+
+        Args:
+            prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
+            model_name (str): The name of the model to use for the prompt.
+            description (Optional[str]): A description of the prompt. Defaults to None.
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]): The provider
+                of the model to use for the prompt. Defaults to "OPENAI".
+            template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
+                to use for the prompt. Defaults to "MUSTACHE".
+        """
+        self._template = v1.PromptChatTemplate(messages=prompt, type="chat")
+        self._template_type: Literal["CHAT"] = "CHAT"
+        self._model_name = model_name
+        self._model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = (
             model_provider
         )
-        self.template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
-        self.description = description
+        self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
+        self._description = description
+        self._invocation_parameters: Union[
+            v1.PromptOpenAIInvocationParameters,
+            v1.PromptAzureOpenAIInvocationParameters,
+            v1.PromptAnthropicInvocationParameters,
+            v1.PromptGeminiInvocationParameters,
+        ]
         if model_provider == "OPENAI":
-            self.invocation_parameters = v1.PromptOpenAIInvocationParameters(
+            self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
                 type="openai",
                 openai=v1.PromptOpenAIInvocationParametersContent(),
             )
         elif model_provider == "AZURE_OPENAI":
-            self.invocation_parameters = v1.PromptAzureOpenAIInvocationParameters(
+            self._invocation_parameters = v1.PromptAzureOpenAIInvocationParameters(
                 type="azure_openai",
                 azure_openai=v1.PromptAzureOpenAIInvocationParametersContent(),
             )
         elif model_provider == "ANTHROPIC":
-            self.invocation_parameters = v1.PromptAnthropicInvocationParameters(
+            self._invocation_parameters = v1.PromptAnthropicInvocationParameters(
                 type="anthropic",
                 anthropic=v1.PromptAnthropicInvocationParametersContent(
                     max_tokens=1000,
                 ),
             )
         elif model_provider == "GEMINI":
-            self.invocation_parameters = v1.PromptGeminiInvocationParameters(
+            self._invocation_parameters = v1.PromptGeminiInvocationParameters(
                 type="gemini",
                 gemini=v1.PromptGeminiInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
-        self.id: Optional[str] = None
+        self._tools: Optional[v1.PromptTools] = None
+        self._response_format: Optional[v1.PromptResponseFormatJSONSchema] = None
+        self._id: Optional[str] = None
+
+    def __dir__(self) -> list[str]:
+        return [
+            "id",
+            "format",
+            "from_openai",
+            "from_anthropic",
+        ]
+
+    @property
+    def id(self) -> Optional[str]:
+        """
+        Prompt Version ID if stored in the Phoenix backend
+        """
+        return self._id
 
     def format(
         self,
@@ -114,9 +133,9 @@ class PromptVersion:
         variables: Mapping[str, str] = MappingProxyType({}),
         formatter: Optional[TemplateFormatter] = None,
         sdk: Optional[SDK] = None,
-    ) -> FormattedPrompt:
-        sdk = sdk or _to_sdk(self.model_provider)
-        obj = self.dumps()
+    ) -> _FormattedPrompt:
+        sdk = sdk or _to_sdk(self._model_provider)
+        obj = self._dumps()
         if sdk == "openai":
             return OpenAIPrompt(
                 *to_messages_openai(
@@ -144,7 +163,7 @@ class PromptVersion:
         assert_never(sdk)
 
     @classmethod
-    def loads(
+    def _loads(
         cls,
         obj: Union[v1.PromptVersionData, v1.PromptVersion],
     ) -> Self:
@@ -157,33 +176,33 @@ class PromptVersion:
             model_provider=obj["model_provider"],
             template_format=obj["template_format"],
         )
-        ans.invocation_parameters = obj["invocation_parameters"]
+        ans._invocation_parameters = obj["invocation_parameters"]
         if "tools" in obj:
-            ans.tools = obj["tools"]
+            ans._tools = obj["tools"]
         if "response_format" in obj:
-            ans.response_format = obj["response_format"]
+            ans._response_format = obj["response_format"]
         if "id" in obj:
-            ans.id = obj["id"]  # type: ignore[typeddict-item]
+            ans._id = obj["id"]  # type: ignore[typeddict-item]
         return ans
 
-    def dumps(
+    def _dumps(
         self,
     ) -> v1.PromptVersionData:
-        assert self.template["type"] == "chat"
+        assert self._template["type"] == "chat"
         ans = v1.PromptVersionData(
-            model_provider=self.model_provider,
-            model_name=self.model_name,
-            template=self.template,
-            template_type=self.template_type,
-            template_format=self.template_format,
-            invocation_parameters=self.invocation_parameters,
+            model_provider=self._model_provider,
+            model_name=self._model_name,
+            template=self._template,
+            template_type=self._template_type,
+            template_format=self._template_format,
+            invocation_parameters=self._invocation_parameters,
         )
-        if self.tools is not None:
-            ans["tools"] = self.tools
-        if self.response_format is not None:
-            ans["response_format"] = self.response_format
-        if self.description is not None:
-            ans["description"] = self.description
+        if self._tools is not None:
+            ans["tools"] = self._tools
+        if self._response_format is not None:
+            ans["response_format"] = self._response_format
+        if self._description is not None:
+            ans["description"] = self._description
         return ans
 
     @classmethod
@@ -195,7 +214,7 @@ class PromptVersion:
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
     ) -> Self:
-        return cls.loads(
+        return cls._loads(
             create_prompt_version_from_openai(
                 obj,
                 description=description,
@@ -212,7 +231,7 @@ class PromptVersion:
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
     ) -> Self:
-        return cls.loads(
+        return cls._loads(
             create_prompt_version_from_anthropic(
                 obj,
                 description=description,
@@ -229,7 +248,7 @@ class PromptVersion:
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
     ) -> Self:
-        return cls.loads(
+        return cls._loads(
             create_prompt_version_from_google(
                 obj,
                 description=description,
@@ -239,7 +258,7 @@ class PromptVersion:
 
 
 @dataclass(frozen=True)
-class FormattedPrompt(ABC, abc.Mapping[str, Any]):
+class _FormattedPrompt(ABC, abc.Mapping[str, Any]):
     messages: Sequence[Any]
     kwargs: Mapping[str, Any]
 
@@ -257,19 +276,38 @@ class FormattedPrompt(ABC, abc.Mapping[str, Any]):
 
 
 @dataclass(frozen=True)
-class OpenAIPrompt(FormattedPrompt):
+class OpenAIPrompt(_FormattedPrompt):
+    """
+    Represents a formatted prompt for OpenAI chat completion models.
+
+    Attributes:
+        messages (Sequence[ChatCompletionMessageParam]): A sequence of chat completion message
+            parameters.
+        kwargs (OpenAIChatCompletionModelKwargs): Keyword arguments specific to OpenAI chat
+            completion model invocation.
+    """
+
     messages: Sequence[ChatCompletionMessageParam]
-    kwargs: OpenAIModelKwargs
+    kwargs: OpenAIChatCompletionModelKwargs
 
 
 @dataclass(frozen=True)
-class AnthropicPrompt(FormattedPrompt):
+class AnthropicPrompt(_FormattedPrompt):
+    """
+    Represents a formatted prompt for Anthropic message models.
+
+    Attributes:
+        messages (Sequence[MessageParam]): A sequence of message parameters.
+        kwargs (AnthropicMessageModelKwargs): Keyword arguments specific to Anthropic message model
+            invocation.
+    """
+
     messages: Sequence[MessageParam]
-    kwargs: AnthropicModelKwargs
+    kwargs: AnthropicMessageModelKwargs
 
 
 @dataclass(frozen=True)
-class GoogleGenerativeaiPrompt(FormattedPrompt):
+class GoogleGenerativeaiPrompt(_FormattedPrompt):
     messages: Sequence[protos.Content]
     kwargs: GoogleModelKwargs
 

@@ -21,10 +21,24 @@ class Prompts:
         prompt_identifier: Optional[str] = None,
         tag: Optional[str] = None,
     ) -> PromptVersion:
+        """
+        Retrieves a specific version of a prompt based on the provided identifiers.
+
+        Args:
+            prompt_version_id (Optional[str]): The unique identifier for the prompt version.
+            prompt_identifier (Optional[str]): The unique identifier for the prompt.
+            tag (Optional[str]): An optional tag to filter the prompt version.
+
+        Returns:
+            PromptVersion: The retrieved prompt version data.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+        """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
         response.raise_for_status()
-        return PromptVersion.loads(cast(v1.GetPromptResponseBody, response.json())["data"])
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     def create(
         self,
@@ -46,16 +60,16 @@ class Prompts:
                 If prompt already exists, this value is ignored by the server.
 
         Returns:
-            v1.PromptVersion: The created prompt version data.
+            PromptVersion: The created prompt version data.
         """
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
-        json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version.dumps())
+        json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
-        return PromptVersion.loads(cast(v1.CreatePromptResponseBody, response.json())["data"])
+        return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
 
 class AsyncPrompts:
@@ -69,10 +83,24 @@ class AsyncPrompts:
         prompt_identifier: Optional[str] = None,
         tag: Optional[str] = None,
     ) -> PromptVersion:
+        """
+        Retrieves a specific version of a prompt based on the provided identifiers.
+
+        Args:
+            prompt_version_id (Optional[str]): The unique identifier for the prompt version.
+            prompt_identifier (Optional[str]): The unique identifier for the prompt.
+            tag (Optional[str]): An optional tag to filter the prompt version.
+
+        Returns:
+            PromptVersion: The retrieved prompt version data.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+        """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
         response.raise_for_status()
-        return PromptVersion.loads(cast(v1.GetPromptResponseBody, response.json())["data"])
+        return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     async def create(
         self,
@@ -94,16 +122,16 @@ class AsyncPrompts:
                 If prompt already exists, this value is ignored by the server.
 
         Returns:
-            v1.PromptVersion: The created prompt version data.
+            PromptVersion: The created prompt version data.
         """
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
         if prompt_description:
             prompt["description"] = prompt_description
-        json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version.dumps())
+        json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
-        return PromptVersion.loads(cast(v1.CreatePromptResponseBody, response.json())["data"])
+        return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
 
 def _url(
