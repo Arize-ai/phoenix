@@ -178,8 +178,9 @@ class ChatCompletionMutationMixin:
 
             username: Optional[str] = None
             if get_env_enable_auth() and (user := info.context.user):
+                users_dataloader = info.context.data_loaders.users
                 user_id = user.identity
-                db_user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
+                db_user = await users_dataloader.load(user_id)
                 if db_user:
                     username = db_user.username
 
