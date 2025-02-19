@@ -50,7 +50,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.subscriptions import (
-    _default_playground_experiment_description,
     _default_playground_experiment_name,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
