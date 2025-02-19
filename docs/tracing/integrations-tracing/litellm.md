@@ -15,7 +15,7 @@ Any calls made to the following functions will be automatically captured by this
 ## Launch Phoenix
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 **Sign up for Phoenix:**
 
 Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)

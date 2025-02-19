@@ -25,7 +25,7 @@ Add the following environment variable to the `.env` file
 PHOENIX_API_KEY="YOUR_PHOENIX_KEY_HERE"
 ```
 
-Note: This LangFlow integration is for [hosted Phoenix](https://app.phoenix.arize.com/login/sign-up)
+Note: This LangFlow integration is for [Phoenix](https://app.phoenix.arize.com/login/sign-up)[ Cloud](https://app.phoenix.arize.com/login/sign-up)
 
 ## Start Docker Desktop
 
