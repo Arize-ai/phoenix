@@ -856,7 +856,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.GEMINI,
+    provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
         "gemini-2.0-flash-exp",
@@ -866,7 +866,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         "gemini-1.0-pro",
     ],
 )
-class GeminiStreamingClient(PlaygroundStreamingClient):
+class GoogleStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
@@ -882,7 +882,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             or os.environ.get("GEMINI_API_KEY")
             or os.environ.get("GOOGLE_API_KEY")
         ):
-            raise BadRequest("An API key is required for Gemini models")
+            raise BadRequest("An API key is required for Google models")
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
@@ -945,7 +945,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import google.generativeai as google_genai
 
-        gemini_message_history, current_message, system_prompt = self._build_gemini_messages(
+        google_message_history, current_message, system_prompt = self._build_google_messages(
             messages
         )
 
@@ -954,17 +954,17 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             model_args["system_instruction"] = system_prompt
         client = google_genai.GenerativeModel(**model_args)
 
-        gemini_config = google_genai.GenerationConfig(
+        google_config = google_genai.GenerationConfig(
             **invocation_parameters,
         )
-        gemini_params = {
+        google_params = {
             "content": current_message,
-            "generation_config": gemini_config,
+            "generation_config": google_config,
             "stream": True,
         }
 
-        chat = client.start_chat(history=gemini_message_history)
-        stream = await chat.send_message_async(**gemini_params)
+        chat = client.start_chat(history=google_message_history)
+        stream = await chat.send_message_async(**google_params)
         async for event in stream:
             self._attributes.update(
                 {
@@ -975,29 +975,29 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             )
             yield TextChunk(content=event.text)
 
-    def _build_gemini_messages(
+    def _build_google_messages(
         self,
         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
     ) -> tuple[list["ContentType"], str, str]:
-        gemini_message_history: list["ContentType"] = []
+        google_message_history: list["ContentType"] = []
         system_prompts = []
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
-                gemini_message_history.append({"role": "user", "parts": content})
+                google_message_history.append({"role": "user", "parts": content})
             elif role == ChatCompletionMessageRole.AI:
-                gemini_message_history.append({"role": "model", "parts": content})
+                google_message_history.append({"role": "model", "parts": content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
                 raise NotImplementedError
             else:
                 assert_never(role)
-        if gemini_message_history:
-            prompt = gemini_message_history.pop()["parts"]
+        if google_message_history:
+            prompt = google_message_history.pop()["parts"]
         else:
             prompt = ""
 
-        return gemini_message_history, prompt, "\n".join(system_prompts)
+        return google_message_history, prompt, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:
