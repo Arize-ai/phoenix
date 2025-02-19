@@ -142,6 +142,4 @@ def web_search(user_query: str) -> str:
             return "No relevant web search results were found for the given query."
 
     except Exception as e:
-        # logger.exception(e)
-        # Handle exceptions and return an error message
         return f"An error occurred during the web search: {str(e)}"
