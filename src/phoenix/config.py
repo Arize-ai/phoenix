@@ -627,30 +627,6 @@ def get_env_database_connection_str() -> str:
     phoenix_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
 
     if phoenix_url:
-        parsed = urlparse(phoenix_url)
-        # If a postgres connection string is provided without credentials,
-        # attempt to insert them from the PostgreSQL environment variables
-        # https://hub.docker.com/_/postgres
-        if phoenix_url.startswith("postgres") and not parsed.username:
-            pg_user = os.getenv("POSTGRES_USER")
-            pg_password = os.getenv("POSTGRES_PASS")
-            pg_db = os.getenv("POSTGRES_DB") or (
-                parsed.path.lstrip("/") if parsed.path.lstrip("/") else None
-            )
-            pg_port = os.getenv("POSTGRES_PORT") or parsed.port
-
-            if pg_user and pg_password:
-                encoded_password = quote_plus(pg_password)
-
-                netloc = f"{pg_user}:{encoded_password}@{parsed.hostname}"
-                if pg_port:
-                    netloc += f":{pg_port}"
-                new_parsed = parsed._replace(netloc=netloc)
-
-                if pg_db:
-                    new_parsed = new_parsed._replace(path=f"/{pg_db}")
-
-                return urlunparse(new_parsed)
         return phoenix_url
 
     # try to build the connection string entirely from PostgreSQL environment variables.
@@ -663,9 +639,6 @@ def get_env_database_connection_str() -> str:
     if pg_host and ":" in pg_host:
         pg_host, parsed_port = pg_host.split(":")
         pg_port = pg_port or parsed_port  # use the explicitly set port if provided
-
-    if pg_host == "localhost" and not pg_port:
-        pg_port = "5432"
 
     if pg_host and pg_user and pg_password:
         encoded_password = quote_plus(pg_password)
