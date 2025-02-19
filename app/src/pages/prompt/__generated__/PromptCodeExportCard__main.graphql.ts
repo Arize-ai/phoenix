@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9947923a9677809b7b47ffd6ba27b70e>>
+ * @generated SignedSource<<f465e6543c9093ba9091cd8b71e31da8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type PromptTemplateType = "CHAT" | "STRING";
 import { FragmentRefs } from "relay-runtime";
 export type PromptCodeExportCard__main$data = {
+  readonly id: string;
   readonly invocationParameters: any | null;
   readonly modelName: string;
   readonly modelProvider: ModelProvider;
@@ -101,6 +102,13 @@ return {
   "metadata": null,
   "name": "PromptCodeExportCard__main",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "id",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -322,6 +330,6 @@ return {
 };
 })();
 
-(node as any).hash = "f109600f56fdc122adef37a44500f450";
+(node as any).hash = "3fa95713c234bb0cfa4c36e8e4f9cea0";
 
 export default node;

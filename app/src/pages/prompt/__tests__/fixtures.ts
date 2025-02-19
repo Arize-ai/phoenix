@@ -3,6 +3,7 @@ import type { PromptCodeExportCard__main$data as PromptVersion } from "../__gene
 export type FixturePromptVersion = Omit<PromptVersion, " $fragmentType">;
 
 export const BASE_MOCK_PROMPT_VERSION = {
+  id: "fake-version-id",
   modelProvider: "OPENAI",
   modelName: "gpt-4",
   templateType: "CHAT",
