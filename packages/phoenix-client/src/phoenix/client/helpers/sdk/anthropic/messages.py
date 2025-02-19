@@ -208,7 +208,7 @@ class _InvocationParametersConversion:
             v1.PromptOpenAIInvocationParameters,
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
-            v1.PromptGeminiInvocationParameters,
+            v1.PromptGoogleInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -243,15 +243,15 @@ class _InvocationParametersConversion:
                 ans["temperature"] = azure_params["temperature"]
             if "top_p" in azure_params:
                 ans["top_p"] = azure_params["top_p"]
-        elif obj["type"] == "gemini":
-            gemini_params: v1.PromptGeminiInvocationParametersContent
-            gemini_params = obj["gemini"]
-            if "max_output_tokens" in gemini_params:
-                ans["max_tokens"] = gemini_params["max_output_tokens"]
-            if "temperature" in gemini_params:
-                ans["temperature"] = gemini_params["temperature"]
-            if "top_p" in gemini_params:
-                ans["top_p"] = gemini_params["top_p"]
+        elif obj["type"] == "google":
+            google_params: v1.PromptGoogleInvocationParametersContent
+            google_params = obj["google"]
+            if "max_output_tokens" in google_params:
+                ans["max_tokens"] = google_params["max_output_tokens"]
+            if "temperature" in google_params:
+                ans["temperature"] = google_params["temperature"]
+            if "top_p" in google_params:
+                ans["top_p"] = google_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans

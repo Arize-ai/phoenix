@@ -327,7 +327,7 @@ def _create_chat_prompt(
     /,
     *,
     messages: Sequence[PromptMessageInput] = (),
-    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"] = "OPENAI",
+    model_provider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"] = "OPENAI",
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
     tools: Sequence[ToolDefinitionInput] = (),
@@ -902,7 +902,7 @@ class TestClient:
     )
     def test_round_trip(
         self,
-        model_providers: str,  # using a string because using list fails in CI (but works locally)
+        model_providers: str,
         convert: Callable[..., PromptVersion],
         expected: dict[str, Any],
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"],

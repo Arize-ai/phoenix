@@ -60,8 +60,8 @@ export const findToolChoiceType = (
         return choice.type;
       }
       return choice;
-    case "GEMINI":
-      // TODO(apowell): #5348 Add Gemini tool choice schema
+    case "GOOGLE":
+      // TODO(apowell): #5348 Add Google tool choice schema
       return "auto";
     default:
       assertUnreachable(provider);

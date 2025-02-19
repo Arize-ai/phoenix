@@ -196,7 +196,7 @@ type ProviderToToolCallMap = {
   AZURE_OPENAI: OpenAIToolCall;
   ANTHROPIC: AnthropicToolCall;
   // Use generic JSON type for unknown tool formats / new providers
-  GEMINI: JSONLiteral;
+  GOOGLE: JSONLiteral;
 };
 
 /**
@@ -242,7 +242,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
       return openAIToolCallToAnthropic.parse(
         toolCall
       ) as ProviderToToolCallMap[T];
-    case "GEMINI":
+    case "GOOGLE":
       return toolCall as ProviderToToolCallMap[T];
     default:
       assertUnreachable(targetProvider);

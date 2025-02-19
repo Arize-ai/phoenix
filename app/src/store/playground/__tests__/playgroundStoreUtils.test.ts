@@ -159,11 +159,11 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
-    // TODO(apowell): #5348 Add Gemini tool tests
-    GEMINI: [
+    // TODO(apowell): #5348 Add Google tool tests
+    GOOGLE: [
       [
-        "return tools as they are for gemini",
-        "GEMINI",
+        "return tools as they are for google",
+        "GOOGLE",
         [{ test: "test" }],
         [{ test: "test" }],
       ],
@@ -458,11 +458,11 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ id: 1, definition: { test: "test" } }],
       ],
     ],
-    // TODO(apowell): #5348 Add Gemini tool tests
-    GEMINI: [
+    // TODO(apowell): #5348 Add Google tool tests
+    GOOGLE: [
       [
-        "return tools as they are for gemini",
-        "GEMINI",
+        "return tools as they are for google",
+        "GOOGLE",
         [{ id: 1, definition: { test: "test" } }],
         [{ id: 1, definition: { test: "test" } }],
       ],

@@ -123,7 +123,7 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     reasoning_effort: NotRequired[Literal["low", "medium", "high"]]
 
 
-class PromptGeminiInvocationParametersContent(TypedDict):
+class PromptGoogleInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_output_tokens: NotRequired[int]
     stop_sequences: NotRequired[Sequence[str]]
@@ -242,9 +242,9 @@ class PromptAzureOpenAIInvocationParameters(TypedDict):
     azure_openai: PromptAzureOpenAIInvocationParametersContent
 
 
-class PromptGeminiInvocationParameters(TypedDict):
-    type: Literal["gemini"]
-    gemini: PromptGeminiInvocationParametersContent
+class PromptGoogleInvocationParameters(TypedDict):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
 
 
 class PromptOpenAIInvocationParameters(TypedDict):
@@ -307,7 +307,7 @@ class PromptChatTemplate(TypedDict):
 
 
 class PromptVersionData(TypedDict):
-    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]
+    model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"]
     model_name: str
     template: Union[PromptChatTemplate, PromptStringTemplate]
     template_type: Literal["STR", "CHAT"]
@@ -316,7 +316,7 @@ class PromptVersionData(TypedDict):
         PromptOpenAIInvocationParameters,
         PromptAzureOpenAIInvocationParameters,
         PromptAnthropicInvocationParameters,
-        PromptGeminiInvocationParameters,
+        PromptGoogleInvocationParameters,
     ]
     description: NotRequired[str]
     tools: NotRequired[PromptTools]
