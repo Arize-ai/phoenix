@@ -9,7 +9,6 @@ from openinference.instrumentation import using_session
 from opentelemetry.trace import Status, StatusCode
 from rag import initialize_vector_store
 
-# from tools import initialize_tool_llm
 
 load_dotenv()
 
