@@ -68,35 +68,6 @@
   * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 
-## 🧠 Evaluation
-
-* [Overview: Evals](evaluation/llm-evals.md)
-* [Quickstart: Evals](evaluation/evals.md)
-* [Concepts: Evals](evaluation/concepts-evals/README.md)
-  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
-  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
-  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
-  * [Evaluators](evaluation/concepts-evals/evaluation.md)
-  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
-* [How to: Evals](evaluation/how-to-evals/README.md)
-  * [Use Phoenix Evaluators](evaluation/how-to-evals/running-pre-tested-evals/README.md)
-    * [Hallucinations](evaluation/how-to-evals/running-pre-tested-evals/hallucinations.md)
-    * [Q\&A on Retrieved Data](evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
-    * [Retrieval (RAG) Relevance](evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
-    * [Summarization](evaluation/how-to-evals/running-pre-tested-evals/summarization-eval.md)
-    * [Code Generation](evaluation/how-to-evals/running-pre-tested-evals/code-generation-eval.md)
-    * [Toxicity](evaluation/how-to-evals/running-pre-tested-evals/toxicity.md)
-    * [AI vs Human (Groundtruth)](evaluation/how-to-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
-    * [Reference (citation) Link](evaluation/how-to-evals/running-pre-tested-evals/reference-link-evals.md)
-    * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
-    * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
-    * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
-    * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
-  * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
-  * [Online Evals](evaluation/how-to-evals/online-evals.md)
-  * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
-  * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
-
 ## 📃 Prompt Engineering
 
 * [Overview: Prompts](prompt-engineering/overview-prompts.md)
@@ -130,6 +101,35 @@
   * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
   * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
   * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
+
+## 🧠 Evaluation
+
+* [Overview: Evals](evaluation/llm-evals.md)
+* [Quickstart: Evals](evaluation/evals.md)
+* [Concepts: Evals](evaluation/concepts-evals/README.md)
+  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
+  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
+  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
+  * [Evaluators](evaluation/concepts-evals/evaluation.md)
+  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
+* [How to: Evals](evaluation/how-to-evals/README.md)
+  * [Use Phoenix Evaluators](evaluation/how-to-evals/running-pre-tested-evals/README.md)
+    * [Hallucinations](evaluation/how-to-evals/running-pre-tested-evals/hallucinations.md)
+    * [Q\&A on Retrieved Data](evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
+    * [Retrieval (RAG) Relevance](evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
+    * [Summarization](evaluation/how-to-evals/running-pre-tested-evals/summarization-eval.md)
+    * [Code Generation](evaluation/how-to-evals/running-pre-tested-evals/code-generation-eval.md)
+    * [Toxicity](evaluation/how-to-evals/running-pre-tested-evals/toxicity.md)
+    * [AI vs Human (Groundtruth)](evaluation/how-to-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
+    * [Reference (citation) Link](evaluation/how-to-evals/running-pre-tested-evals/reference-link-evals.md)
+    * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
+    * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
+    * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
+  * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
+  * [Online Evals](evaluation/how-to-evals/online-evals.md)
+  * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
+  * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
 
 ## 🔎 Retrieval
 
