@@ -41,7 +41,8 @@ from phoenix.client.helpers.sdk.openai.chat import (
 from phoenix.client.utils.template_formatters import TemplateFormatter
 
 if TYPE_CHECKING:
-    from anthropic.types import MessageCreateParams, MessageParam
+    from anthropic.types import MessageParam
+    from anthropic.types.message_create_params import MessageCreateParamsBase
     from google.generativeai import protos
     from openai.types.chat import ChatCompletionMessageParam
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
@@ -213,29 +214,33 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
     ) -> Self:
         return cls._loads(
             create_prompt_version_from_openai(
                 obj,
                 description=description,
                 template_format=template_format,
+                model_provider=model_provider,
             )
         )
 
     @classmethod
     def from_anthropic(
         cls,
-        obj: MessageCreateParams,
+        obj: MessageCreateParamsBase,
         /,
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
     ) -> Self:
         return cls._loads(
             create_prompt_version_from_anthropic(
                 obj,
                 description=description,
                 template_format=template_format,
+                model_provider=model_provider,
             )
         )
 
@@ -247,12 +252,14 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
+        model_provider: Literal["GEMINI"] = "GEMINI",
     ) -> Self:
         return cls._loads(
             create_prompt_version_from_google(
                 obj,
                 description=description,
                 template_format=template_format,
+                model_provider=model_provider,
             )
         )
 
