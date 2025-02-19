@@ -260,8 +260,21 @@ def getenv(key: str) -> Optional[str]: ...
 def getenv(key: str, default: str) -> str: ...
 def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
     """
-    Parses a string environment variable, returning `default` if the variable is not set.
-    Strip the value of leading and trailing whitespaces assuming those are inadvertent.
+    Retrieves the value of an environment variable.
+
+    Parameters
+    ----------
+    key : str
+        The name of the environment variable.
+    default : Optional[str], optional
+        The default value to return if the environment variable is not set, by default None.
+
+    Returns
+    -------
+    Optional[str]
+        The value of the environment variable, or `default` if the variable is not set.
+        Leading and trailing whitespaces are stripped from the value, assuming they were
+        inadvertently added.
     """
     if (value := os.getenv(key)) is None:
         return default
