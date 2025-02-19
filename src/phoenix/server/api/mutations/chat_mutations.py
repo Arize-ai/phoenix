@@ -191,9 +191,7 @@ class ChatCompletionMutationMixin:
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description
-                or _default_playground_experiment_description(
-                    dataset_name=dataset.name, username=username
-                ),
+                or _default_playground_experiment_description(username=username),
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,

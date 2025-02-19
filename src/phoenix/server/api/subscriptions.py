@@ -199,9 +199,7 @@ class Subscription:
         )
         async with info.context.db() as session:
             if (
-                dataset := await session.scalar(
-                    select(models.Dataset).where(models.Dataset.id == dataset_id)
-                )
+                await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
                 raise NotFound(f"Could not find dataset with ID {dataset_id}")
             if version_id is None:
@@ -286,9 +284,7 @@ class Subscription:
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description
-                or _default_playground_experiment_description(
-                    dataset_name=dataset.name, username=username
-                ),
+                or _default_playground_experiment_description(username=username),
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
@@ -586,13 +582,10 @@ def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> st
     return "playground-experiment"
 
 
-def _default_playground_experiment_description(
-    dataset_name: str, username: Optional[str] = None
-) -> str:
-    description = f'Playground experiment using dataset "{dataset_name}"'
+def _default_playground_experiment_description(username: Optional[str] = None) -> Optional[str]:
     if username:
-        description += f" run by {username}"
-    return description
+        return f"Run by {username}"
+    return None
 
 
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
