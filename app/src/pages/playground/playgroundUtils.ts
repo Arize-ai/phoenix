@@ -1148,7 +1148,7 @@ export const getChatCompletionOverDatasetInput = ({
  * @returns a normalized json string
  */
 export function normalizeMessageContent(content?: unknown): string {
-  if (content == null || content === "") {
+  if (content === "" || typeof content === "undefined") {
     return "{}";
   }
 
@@ -1168,15 +1168,20 @@ export function normalizeMessageContent(content?: unknown): string {
         // Stringify the result to ensure consistent formatting
         return JSON.stringify(secondParse, null, 2);
       }
-      // For regular strings, return as-is
-      return content;
-    } catch (e) {
-      // If parsing fails, return the original content
+    } catch {
+      // If parsing fails, fall through
+    }
+    // If the content is a valid non-string top level json value, return it as-is
+    // https://datatracker.ietf.org/doc/html/rfc7159#section-3
+    // 0-9 { [ null false true
+    // a regex that matches possible top level json values, besides strings
+    const nonStringStart = /^\s*[0-9{[]|true|false|null/.test(content);
+    if (nonStringStart) {
       return content;
     }
   }
 
-  // For non-string content, stringify it with pretty printing
+  // For any content that doesn't match the json spec for a top level value, stringify it with pretty printing
   return JSON.stringify(content, null, 2);
 }
 
