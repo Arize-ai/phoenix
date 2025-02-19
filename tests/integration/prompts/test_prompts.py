@@ -379,7 +379,7 @@ class TestClient:
         [
             pytest.param(
                 PromptVersion.from_openai,
-                ["OPENAI", "AZURE_OPENAI"],
+                ("OPENAI", "AZURE_OPENAI"),
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -396,7 +396,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_openai,
-                ["OPENAI", "AZURE_OPENAI"],
+                ("OPENAI", "AZURE_OPENAI"),
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -425,7 +425,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_openai,
-                ["OPENAI", "AZURE_OPENAI"],
+                ("OPENAI", "AZURE_OPENAI"),
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -446,7 +446,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_openai,
-                ["OPENAI", "AZURE_OPENAI"],
+                ("OPENAI", "AZURE_OPENAI"),
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -489,7 +489,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_openai,
-                ["OPENAI", "AZURE_OPENAI"],
+                ("OPENAI", "AZURE_OPENAI"),
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -537,7 +537,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_openai,
-                ["OPENAI", "AZURE_OPENAI"],
+                ("OPENAI", "AZURE_OPENAI"),
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -588,7 +588,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
-                ["ANTHROPIC"],
+                ("ANTHROPIC",),
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -604,7 +604,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
-                ["ANTHROPIC"],
+                ("ANTHROPIC",),
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -629,7 +629,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
-                ["ANTHROPIC"],
+                ("ANTHROPIC",),
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -649,7 +649,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
-                ["ANTHROPIC"],
+                ("ANTHROPIC",),
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -690,7 +690,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
-                ["ANTHROPIC"],
+                ("ANTHROPIC",),
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -750,7 +750,7 @@ class TestClient:
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
-                ["ANTHROPIC"],
+                ("ANTHROPIC",),
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -821,8 +821,8 @@ class TestClient:
     def test_round_trip(
         self,
         convert: Callable[..., PromptVersion],
-        model_providers: list[Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]],
-        expected: Any,
+        model_providers: tuple[Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"], ...],
+        expected: dict[str, Any],
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
