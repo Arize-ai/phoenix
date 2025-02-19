@@ -301,7 +301,7 @@ async def create_prompt(
     if request_body.version.template_type != "CHAT":
         raise HTTPException(
             HTTP_422_UNPROCESSABLE_ENTITY,
-            "CHAT template type is not supported for prompts",
+            "Only CHAT template type is supported for prompts",
         )
     prompt = request_body.prompt
     try:
