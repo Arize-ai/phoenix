@@ -488,6 +488,7 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
             if not base_url:
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
+        api_key = api_key.strip()
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         super().__init__(client=client, model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
@@ -662,6 +663,7 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
         if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
+        api_key = api_key.strip()
         client = AsyncAzureOpenAI(
             api_key=api_key,
             azure_endpoint=endpoint,
@@ -699,6 +701,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
         if not (api_key := api_key or os.environ.get("ANTHROPIC_API_KEY")):
             raise BadRequest("An API key is required for Anthropic models")
+        api_key = api_key.strip()
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -883,6 +886,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             or os.environ.get("GOOGLE_API_KEY")
         ):
             raise BadRequest("An API key is required for Gemini models")
+        api_key = api_key.strip()
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
