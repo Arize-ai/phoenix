@@ -820,8 +820,8 @@ class TestClient:
     )
     def test_round_trip(
         self,
-        model_providers: list[Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]],
         convert: Callable[..., PromptVersion],
+        model_providers: list[Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]],
         expected: Any,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
         _get_user: _GetUser,
