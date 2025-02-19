@@ -1148,7 +1148,7 @@ export const getChatCompletionOverDatasetInput = ({
  * @returns a normalized json string
  */
 export function normalizeMessageContent(content?: unknown): string {
-  if (content === "") {
+  if (content === "" || typeof content === "undefined") {
     return "{}";
   }
 

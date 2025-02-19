@@ -225,8 +225,7 @@ function MessageEditor({
     );
   }
   if (message.role === "tool") {
-    let toolMessageContent = message.content || "";
-    toolMessageContent = normalizeMessageContent(toolMessageContent);
+    const toolMessageContent = normalizeMessageContent(message.content);
     return (
       <Form
         onSubmit={(e) => {
