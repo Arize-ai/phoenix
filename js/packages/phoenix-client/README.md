@@ -179,4 +179,4 @@ Compatibility Table:
 
 | Phoenix Client Version | Phoenix Server Version |
 | ---------------------- | ---------------------- |
-| ^0.0.0                 | ^8.0.0                 |
+| ^1.0.0                 | ^8.0.0                 |
