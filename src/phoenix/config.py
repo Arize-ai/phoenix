@@ -630,11 +630,11 @@ def get_env_database_connection_str() -> str:
         return phoenix_url
 
     # try to build the connection string entirely from PostgreSQL environment variables.
-    pg_user = os.getenv("POSTGRES_USER")
-    pg_password = os.getenv("POSTGRES_PASS")
-    pg_host = os.getenv("POSTGRES_HOST")
-    pg_port = os.getenv("POSTGRES_PORT")
-    pg_db = os.getenv("POSTGRES_DB")
+    pg_user = os.getenv("PHOENIX_POSTGRES_USER")
+    pg_password = os.getenv("PHOENIX_POSTGRES_PASSWORD")
+    pg_host = os.getenv("PHOENIX_POSTGRES_HOST")
+    pg_port = os.getenv("PHOENIX_POSTGRES_PORT")
+    pg_db = os.getenv("PHOENIX_POSTGRES_DB")
 
     if pg_host and ":" in pg_host:
         pg_host, parsed_port = pg_host.split(":")
