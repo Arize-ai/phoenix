@@ -1,10 +1,10 @@
-import os
 from enum import Enum
 from typing import Any, ClassVar, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
 
+from phoenix.config import getenv
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -72,7 +72,7 @@ class GenerativeProvider:
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
     async def api_key_set(self) -> bool:
-        return os.environ.get(self.model_provider_to_api_key_env_var_map[self.key]) is not None
+        return getenv(self.model_provider_to_api_key_env_var_map[self.key]) is not None
 
     @classmethod
     def _infer_model_provider_from_model_name(
