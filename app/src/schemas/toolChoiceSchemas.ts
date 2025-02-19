@@ -120,8 +120,8 @@ type ProviderToToolChoiceMap = {
   OPENAI: OpenaiToolChoice;
   AZURE_OPENAI: OpenaiToolChoice;
   ANTHROPIC: AnthropicToolChoice;
-  // TODO(apowell): #5348 Add Gemini tool choice schema
-  GEMINI: OpenaiToolChoice;
+  // TODO(apowell): #5348 Add Google tool choice schema
+  GOOGLE: OpenaiToolChoice;
 };
 
 /**
@@ -167,8 +167,8 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
       return openAIToolChoiceToAnthropicToolChoice.parse(
         toolChoice
       ) as ProviderToToolChoiceMap[T];
-    // TODO(apowell): #5348 Add Gemini tool choice
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool choice
+    case "GOOGLE":
       return toolChoice as ProviderToToolChoiceMap[T];
     default:
       assertUnreachable(targetProvider);

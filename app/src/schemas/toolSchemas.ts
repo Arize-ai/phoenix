@@ -228,7 +228,7 @@ type ProviderToToolDefinitionMap = {
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
   // Use generic JSON type for unknown tool formats / new providers
-  GEMINI: JSONLiteral;
+  GOOGLE: JSONLiteral;
 };
 
 /**
@@ -270,8 +270,8 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAnthropic.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
-    // TODO(apowell): #5348 Add Gemini tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
+    case "GOOGLE":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     default:
       assertUnreachable(targetProvider);

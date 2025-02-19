@@ -1044,7 +1044,7 @@ enum GenerativeProviderKey {
   OPENAI
   ANTHROPIC
   AZURE_OPENAI
-  GEMINI
+  GOOGLE
 }
 
 """
@@ -1206,7 +1206,7 @@ enum ModelProvider {
   OPENAI
   AZURE_OPENAI
   ANTHROPIC
-  GEMINI
+  GOOGLE
 }
 
 input ModelsInput {

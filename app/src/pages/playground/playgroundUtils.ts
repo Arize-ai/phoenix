@@ -166,8 +166,8 @@ export function processAttributeToolCalls({
             input: toolCallArgs,
           } satisfies AnthropicToolCall;
         }
-        // TODO(apowell): #5348 Add Gemini tool call
-        case "GEMINI":
+        // TODO(apowell): #5348 Add Google tool call
+        case "GOOGLE":
           return {
             id: tool_call.id ?? "",
             function: {
@@ -327,7 +327,7 @@ export function openInferenceModelProviderToPhoenixModelProvider(
     case "anthropic":
       return "ANTHROPIC";
     case "google":
-      return "GEMINI";
+      return "GOOGLE";
     case "azure":
       return "AZURE_OPENAI";
     default:
@@ -879,8 +879,8 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
       };
-    // TODO(apowell): #5348 Add Gemini tool definition
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool definition
+    case "GOOGLE":
       return {
         id: generateToolId(),
         definition: createOpenAIToolDefinition(toolNumber),
@@ -904,8 +904,8 @@ export const createToolCallForProvider = (
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
-    // TODO(apowell): #5348 Add Gemini tool call
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool call
+    case "GOOGLE":
       return createOpenAIToolCall();
     default:
       assertUnreachable(provider);

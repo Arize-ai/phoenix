@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7dea4bbe59f87c1395b187d2f6e4a084>>
+ * @generated SignedSource<<c42d51ab04d755ff36dc7b7b70fa3cc2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
+export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type CreateChatPromptVersionInput = {
   promptId: string;

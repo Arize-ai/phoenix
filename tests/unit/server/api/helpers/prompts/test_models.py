@@ -659,8 +659,8 @@ async def test_openai_response_format_are_round_tripped_without_data_loss(
                 "top_p": 0.92,
                 "top_k": 40,
             },
-            ModelProvider.GEMINI,
-            id="gemini-parameters",
+            ModelProvider.GOOGLE,
+            id="google-parameters",
         ),
     ],
 )

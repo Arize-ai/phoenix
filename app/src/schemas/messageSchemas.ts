@@ -337,7 +337,7 @@ type MessageWithProvider =
       validatedMessage: AnthropicMessage;
     }
   | {
-      provider: Extract<ModelProvider, "GEMINI">;
+      provider: Extract<ModelProvider, "GOOGLE">;
       validatedMessage: JSONLiteral;
     }
   | { provider: "UNKNOWN"; validatedMessage: null };
@@ -384,8 +384,8 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
       return message as ProviderToMessageMap[T];
     case "ANTHROPIC":
       return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
-    case "GEMINI":
-      // TODO: Add Gemini message support
+    case "GOOGLE":
+      // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
     default:
       return assertUnreachable(targetProvider);
@@ -409,7 +409,7 @@ type ProviderToMessageMap = {
   AZURE_OPENAI: OpenAIMessage;
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
-  GEMINI: JSONLiteral;
+  GOOGLE: JSONLiteral;
 };
 
 /**

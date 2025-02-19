@@ -24,7 +24,7 @@ export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   OPENAI: "OPENAI_API_KEY",
   ANTHROPIC: "ANTHROPIC_API_KEY",
   AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
-  GEMINI: "GEMINI_API_KEY",
+  GOOGLE: "GEMINI_API_KEY",
 };
 
 export function PlaygroundCredentialsDropdown() {

@@ -7,7 +7,7 @@ export type PromptModelProvider =
   | "OPENAI"
   | "AZURE_OPENAI"
   | "ANTHROPIC"
-  | "GEMINI";
+  | "GOOGLE";
 
 /**
  * Supported prompt provider SDKs
@@ -102,10 +102,10 @@ export type AnthropicInvocationParameters =
   components["schemas"]["PromptAnthropicInvocationParametersContent"];
 
 /**
- * The invocation parameters for a prompt version for Gemini.
+ * The invocation parameters for a prompt version for Google.
  */
-export type GeminiInvocationParameters =
-  components["schemas"]["PromptGeminiInvocationParametersContent"];
+export type GoogleInvocationParameters =
+  components["schemas"]["PromptGoogleInvocationParametersContent"];
 
 /**
  * The format of the prompt template message(s).

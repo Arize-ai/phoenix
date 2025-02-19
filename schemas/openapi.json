@@ -2189,7 +2189,7 @@
           "OPENAI",
           "AZURE_OPENAI",
           "ANTHROPIC",
-          "GEMINI"
+          "GOOGLE"
         ],
         "title": "ModelProvider"
       },
@@ -2396,26 +2396,26 @@
         ],
         "title": "PromptData"
       },
-      "PromptGeminiInvocationParameters": {
+      "PromptGoogleInvocationParameters": {
         "properties": {
           "type": {
             "type": "string",
-            "const": "gemini",
+            "const": "google",
             "title": "Type"
           },
-          "gemini": {
-            "$ref": "#/components/schemas/PromptGeminiInvocationParametersContent"
+          "google": {
+            "$ref": "#/components/schemas/PromptGoogleInvocationParametersContent"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "type",
-          "gemini"
+          "google"
         ],
-        "title": "PromptGeminiInvocationParameters"
+        "title": "PromptGoogleInvocationParameters"
       },
-      "PromptGeminiInvocationParametersContent": {
+      "PromptGoogleInvocationParametersContent": {
         "properties": {
           "temperature": {
             "type": "number",
@@ -2451,7 +2451,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "PromptGeminiInvocationParametersContent"
+        "title": "PromptGoogleInvocationParametersContent"
       },
       "PromptMessage": {
         "properties": {
@@ -2881,7 +2881,7 @@
                 "$ref": "#/components/schemas/PromptAnthropicInvocationParameters"
               },
               {
-                "$ref": "#/components/schemas/PromptGeminiInvocationParameters"
+                "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -2890,7 +2890,7 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
-                "gemini": "#/components/schemas/PromptGeminiInvocationParameters",
+                "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
               }
             }
@@ -2999,7 +2999,7 @@
                 "$ref": "#/components/schemas/PromptAnthropicInvocationParameters"
               },
               {
-                "$ref": "#/components/schemas/PromptGeminiInvocationParameters"
+                "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
               }
             ],
             "title": "Invocation Parameters",
@@ -3008,7 +3008,7 @@
               "mapping": {
                 "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
                 "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
-                "gemini": "#/components/schemas/PromptGeminiInvocationParameters",
+                "google": "#/components/schemas/PromptGoogleInvocationParameters",
                 "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
               }
             }
