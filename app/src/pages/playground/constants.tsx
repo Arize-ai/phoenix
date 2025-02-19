@@ -39,7 +39,7 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   AZURE_OPENAI: [],
   ANTHROPIC: ["claude"],
   OPENAI: ["gpt", "o1"],
-  GEMINI: ["gemini"],
+  GOOGLE: ["gemini"],
 };
 
 export const TOOL_CHOICE_PARAM_CANONICAL_NAME: Extract<

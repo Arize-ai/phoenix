@@ -23,7 +23,7 @@ export function EditSpanAnnotationsButton({
     <>
       <Button
         size={size}
-        icon={<Icon svg={<Icons.EditOutline />} />}
+        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
         onPress={() =>
           setDialog(
             <EditSpanAnnotationsDialog

@@ -14,15 +14,25 @@ import { css } from "@emotion/react";
 import {
   Dialog,
   DialogContainer,
-  Item,
-  Picker,
-  TextField,
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Button,
+  ComboBox,
+  ComboBoxItem,
+  Flex,
+  Icon,
+  Icons,
+  Input,
+  Label,
+  Text,
+  TextField,
+} from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import {
   AZURE_OPENAI_API_VERSIONS,
   ModelProviders,
@@ -30,7 +40,10 @@ import {
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { PlaygroundInstance } from "@phoenix/store";
+import {
+  PlaygroundInstance,
+  PlaygroundNormalizedInstance,
+} from "@phoenix/store";
 
 import { ModelConfigButtonDialogQuery } from "./__generated__/ModelConfigButtonDialogQuery.graphql";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
@@ -67,7 +80,7 @@ function OpenAiModelConfigFormField({
   instance,
   container,
 }: {
-  instance: PlaygroundInstance;
+  instance: PlaygroundNormalizedInstance;
   container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
@@ -112,7 +125,6 @@ function OpenAiModelConfigFormField({
         container={container ?? undefined}
       />
       <TextField
-        label="Base URL"
         defaultValue={instance.model.baseUrl ?? ""}
         onChange={(value) => {
           updateModelConfig({
@@ -120,7 +132,10 @@ function OpenAiModelConfigFormField({
             value,
           });
         }}
-      />
+      >
+        <Label>Base URL</Label>
+        <Input placeholder="e.x. https://my-llm.com/v1" />
+      </TextField>
     </>
   );
 }
@@ -128,7 +143,7 @@ function OpenAiModelConfigFormField({
 function AzureOpenAiModelConfigFormField({
   instance,
 }: {
-  instance: PlaygroundInstance;
+  instance: PlaygroundNormalizedInstance;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -164,14 +179,15 @@ function AzureOpenAiModelConfigFormField({
   return (
     <>
       <TextField
-        label="Deployment Name"
         defaultValue={instance.model.modelName ?? ""}
         onChange={(value) => {
           debouncedUpdateModelName(value);
         }}
-      />
+      >
+        <Label>Deployment Name</Label>
+        <Input placeholder="e.x. azure-openai-deployment-name" />
+      </TextField>
       <TextField
-        label="Endpoint"
         defaultValue={instance.model.endpoint ?? ""}
         onChange={(value) => {
           updateModelConfig({
@@ -179,12 +195,24 @@ function AzureOpenAiModelConfigFormField({
             value,
           });
         }}
-      />
-      <Picker
+      >
+        <Label>Endpoint</Label>
+        <Input placeholder="e.x. https://my.openai.azure.com" />
+      </TextField>
+      <ComboBox
+        size="L"
         label="API Version"
-        defaultSelectedKey={instance.model.apiVersion ?? undefined}
+        data-testid="azure-api-version-combobox"
+        selectedKey={instance.model.apiVersion ?? undefined}
         aria-label="api version picker"
         placeholder="Select an AzureOpenAI API Version"
+        inputValue={instance.model.apiVersion ?? ""}
+        onInputChange={(value) => {
+          updateModelConfig({
+            configKey: "apiVersion",
+            value,
+          });
+        }}
         onSelectionChange={(key) => {
           if (typeof key === "string") {
             updateModelConfig({
@@ -193,11 +221,14 @@ function AzureOpenAiModelConfigFormField({
             });
           }
         }}
+        allowsCustomValue
       >
         {AZURE_OPENAI_API_VERSIONS.map((version) => (
-          <Item key={version}>{version}</Item>
+          <ComboBoxItem key={version} textValue={version} id={version}>
+            {version}
+          </ComboBoxItem>
         ))}
-      </Picker>
+      </ComboBox>
     </>
   );
 }
@@ -235,19 +266,17 @@ export function ModelConfigButton(props: ModelConfigButtonProps) {
             setDialog(<ModelConfigDialog {...props} />);
           });
         }}
+        leadingVisual={
+          <GenerativeProviderIcon
+            provider={instance.model.provider}
+            height={16}
+          />
+        }
       >
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Text weight="heavy">{ModelProviders[instance.model.provider]}</Text>
-          <div
-            css={css`
-              max-width: ${MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}px;
-              text-overflow: ellipsis;
-              overflow: hidden;
-              white-space: nowrap;
-            `}
-          >
+        <Flex direction="row" gap="size-100" alignItems="center" height="100%">
+          <Truncate maxWidth={MODEL_CONFIG_NAME_BUTTON_MAX_WIDTH}>
             <Text>{instance.model.modelName || "--"}</Text>
-          </div>
+          </Truncate>
           {!requiredInvocationParametersConfigured ? (
             <TooltipTrigger delay={0} offset={5}>
               <span>
@@ -320,7 +349,7 @@ function ModelConfigDialog(props: ModelConfigDialogProps) {
             size="S"
             variant="default"
             onPress={onSaveConfig}
-            icon={<Icon svg={<Icons.SaveOutline />} />}
+            leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
           >
             Save as Default
           </Button>

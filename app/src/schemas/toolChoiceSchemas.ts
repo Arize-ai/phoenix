@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { assertUnreachable, schemaForType } from "@phoenix/typeUtils";
+import { assertUnreachable, isObject, schemaForType } from "@phoenix/typeUtils";
 
 /**
  * OpenAI's tool choice schema
@@ -26,11 +26,21 @@ export type OpenaiToolChoice = z.infer<typeof openAIToolChoiceSchema>;
  *
  * @see https://docs.anthropic.com/en/api/messages
  */
-export const anthropicToolChoiceSchema = z.object({
-  type: z.union([z.literal("auto"), z.literal("any"), z.literal("tool")]),
-  disable_parallel_tool_use: z.boolean().optional(),
-  name: z.string().optional(),
-});
+export const anthropicToolChoiceSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("auto"),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("any"),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("tool"),
+    name: z.string(),
+    disable_parallel_tool_use: z.boolean().optional(),
+  }),
+]);
 
 export type AnthropicToolChoice = z.infer<typeof anthropicToolChoiceSchema>;
 
@@ -55,13 +65,18 @@ export const anthropicToolChoiceToOpenaiToolChoice =
 
 export const openAIToolChoiceToAnthropicToolChoice =
   openAIToolChoiceSchema.transform((openAI): AnthropicToolChoice => {
-    if (typeof openAI === "string") {
-      return { type: "auto" };
+    if (isObject(openAI)) {
+      return { type: "tool", name: openAI.function.name };
     }
-    return {
-      type: "tool",
-      name: openAI.function.name,
-    };
+    switch (openAI) {
+      case "none":
+      case "auto":
+        return { type: "auto" };
+      case "required":
+        return { type: "any" };
+      default:
+        assertUnreachable(openAI);
+    }
   });
 
 export const llmProviderToolChoiceSchema = z.union([
@@ -105,8 +120,8 @@ type ProviderToToolChoiceMap = {
   OPENAI: OpenaiToolChoice;
   AZURE_OPENAI: OpenaiToolChoice;
   ANTHROPIC: AnthropicToolChoice;
-  // TODO(apowell): #5348 Add Gemini tool choice schema
-  GEMINI: OpenaiToolChoice;
+  // TODO(apowell): #5348 Add Google tool choice schema
+  GOOGLE: OpenaiToolChoice;
 };
 
 /**
@@ -152,8 +167,8 @@ export const fromOpenAIToolChoice = <T extends ModelProvider>({
       return openAIToolChoiceToAnthropicToolChoice.parse(
         toolChoice
       ) as ProviderToToolChoiceMap[T];
-    // TODO(apowell): #5348 Add Gemini tool choice
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool choice
+    case "GOOGLE":
       return toolChoice as ProviderToToolChoiceMap[T];
     default:
       assertUnreachable(targetProvider);
@@ -178,4 +193,34 @@ export const safelyConvertToolChoiceToProvider = <T extends ModelProvider>({
   } catch (e) {
     return null;
   }
+};
+
+export const makeOpenAIToolChoice = (
+  toolChoice: OpenaiToolChoice
+): OpenaiToolChoice => {
+  return toolChoice;
+};
+
+export const makeAnthropicToolChoice = (
+  toolChoice: AnthropicToolChoice
+): AnthropicToolChoice => {
+  return toolChoice;
+};
+
+export const findToolChoiceName = (toolChoice: unknown): string | null => {
+  if (isObject(toolChoice)) {
+    if (
+      "function" in toolChoice &&
+      isObject(toolChoice.function) &&
+      "name" in toolChoice.function &&
+      typeof toolChoice.function.name === "string"
+    ) {
+      return toolChoice.function.name;
+    }
+    if ("name" in toolChoice && typeof toolChoice.name === "string") {
+      return toolChoice.name;
+    }
+    return null;
+  }
+  return null;
 };

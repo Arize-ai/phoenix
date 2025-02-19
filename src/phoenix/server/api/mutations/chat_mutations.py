@@ -41,14 +41,15 @@ from phoenix.server.api.helpers.playground_spans import (
     llm_model_name,
     llm_span_kind,
     llm_tools,
+    prompt_metadata,
 )
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
 )
-from phoenix.server.api.input_types.TemplateOptions import TemplateOptions
+from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.subscriptions import (
-    _default_playground_experiment_description,
     _default_playground_experiment_name,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -60,7 +61,6 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
@@ -178,9 +178,9 @@ class ChatCompletionMutationMixin:
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _default_playground_experiment_name(),
-                description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
+                name=input.experiment_name
+                or _default_playground_experiment_name(input.prompt_name),
+                description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
@@ -203,10 +203,11 @@ class ChatCompletionMutationMixin:
                             messages=input.messages,
                             tools=input.tools,
                             invocation_parameters=input.invocation_parameters,
-                            template=TemplateOptions(
-                                language=input.template_language,
+                            template=PromptTemplateOptions(
+                                format=input.template_format,
                                 variables=revision.input,
                             ),
+                            prompt_name=input.prompt_name,
                         ),
                     )
                     for revision in batch
@@ -300,6 +301,7 @@ class ChatCompletionMutationMixin:
         input: ChatCompletionInput,
     ) -> ChatCompletionMutationPayload:
         attributes: dict[str, Any] = {}
+        attributes.update(dict(prompt_metadata(input.prompt_name)))
 
         messages = [
             (
@@ -453,12 +455,12 @@ class ChatCompletionMutationMixin:
 
 def _formatted_messages(
     messages: Iterable[ChatCompletionMessage],
-    template_options: TemplateOptions,
+    template_options: PromptTemplateOptions,
 ) -> Iterator[ChatCompletionMessage]:
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_language=template_options.language)
+    template_formatter = _template_formatter(template_format=template_options.format)
     (
         roles,
         templates,
@@ -473,17 +475,17 @@ def _formatted_messages(
     return formatted_messages
 
 
-def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
+def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
     """
-    Instantiates the appropriate template formatter for the template language.
+    Instantiates the appropriate template formatter for the template format.
     """
-    if template_language is TemplateLanguage.MUSTACHE:
+    if template_format is PromptTemplateFormat.MUSTACHE:
         return MustacheTemplateFormatter()
-    if template_language is TemplateLanguage.F_STRING:
+    if template_format is PromptTemplateFormat.F_STRING:
         return FStringTemplateFormatter()
-    if template_language is TemplateLanguage.NONE:
+    if template_format is PromptTemplateFormat.NONE:
         return NoOpFormatter()
-    assert_never(template_language)
+    assert_never(template_format)
 
 
 def _output_value_and_mime_type(

@@ -1,3 +1,5 @@
+directive @oneOf on INPUT_OBJECT
+
 input AddExamplesToDatasetInput {
   datasetId: GlobalID!
   examples: [DatasetExampleInput!]!
@@ -107,7 +109,8 @@ input ChatCompletionInput {
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
-  template: TemplateOptions
+  template: PromptTemplateOptions
+  promptName: Identifier = null
 }
 
 input ChatCompletionMessageInput {
@@ -151,12 +154,13 @@ input ChatCompletionOverDatasetInput {
   invocationParameters: [InvocationParameterInput!]! = []
   tools: [JSON!]
   apiKey: String = null
-  templateLanguage: TemplateLanguage!
+  templateFormat: PromptTemplateFormat! = MUSTACHE
   datasetId: GlobalID!
   datasetVersionId: GlobalID = null
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
+  promptName: Identifier = null
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
@@ -197,11 +201,28 @@ type ChatCompletionToolCall {
   function: ChatCompletionFunctionCall!
 }
 
+input ChatPromptVersionInput {
+  description: String = null
+  templateFormat: PromptTemplateFormat!
+  template: PromptChatTemplateInput!
+  invocationParameters: JSON! = {}
+  tools: [ToolDefinitionInput!]! = []
+  responseFormat: ResponseFormatInput = null
+  modelProvider: ModelProvider!
+  modelName: String!
+}
+
 input ClearProjectInput {
   id: GlobalID!
 
   """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
+}
+
+input ClonePromptInput {
+  name: Identifier!
+  description: String = null
+  promptId: GlobalID!
 }
 
 type Cluster {
@@ -233,16 +254,41 @@ input ClusterInput {
   id: ID
 }
 
+union ContentPart = TextContentPart | ToolCallContentPart | ToolResultContentPart
+
+input ContentPartInput @oneOf {
+  text: TextContentValueInput
+  toolCall: ToolCallContentValueInput
+  toolResult: ToolResultContentValueInput
+}
+
 input CreateApiKeyInput {
   name: String!
   description: String
   expiresAt: DateTime
 }
 
+input CreateChatPromptInput {
+  name: Identifier!
+  description: String = null
+  promptVersion: ChatPromptVersionInput!
+}
+
+input CreateChatPromptVersionInput {
+  promptId: GlobalID!
+  promptVersion: ChatPromptVersionInput!
+  tags: [SetPromptVersionTagInput!] = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
+}
+
+input CreatePromptLabelInput {
+  name: Identifier!
+  description: String = null
 }
 
 input CreateSpanAnnotationInput {
@@ -490,6 +536,22 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
+}
+
+input DeletePromptInput {
+  promptId: GlobalID!
+}
+
+input DeletePromptLabelInput {
+  promptLabelId: GlobalID!
+}
+
+type DeletePromptMutationPayload {
+  query: Query!
+}
+
+input DeletePromptVersionTagInput {
+  promptVersionTagId: GlobalID!
 }
 
 input DeleteUsersInput {
@@ -982,7 +1044,7 @@ enum GenerativeProviderKey {
   OPENAI
   ANTHROPIC
   AZURE_OPENAI
-  GEMINI
+  GOOGLE
 }
 
 """
@@ -1004,6 +1066,8 @@ input Granularity {
   """
   samplingIntervalMinutes: Int!
 }
+
+scalar Identifier
 
 type Inferences {
   """The start bookend of the data"""
@@ -1138,6 +1202,13 @@ type Model {
   ): PerformanceTimeSeries!
 }
 
+enum ModelProvider {
+  OPENAI
+  AZURE_OPENAI
+  ANTHROPIC
+  GOOGLE
+}
+
 input ModelsInput {
   providerKey: GenerativeProviderKey
   modelName: String = null
@@ -1168,6 +1239,18 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
+  createChatPrompt(input: CreateChatPromptInput!): Prompt!
+  createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
+  deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
+  clonePrompt(input: ClonePromptInput!): Prompt!
+  patchPrompt(input: PatchPromptInput!): Prompt!
+  deletePromptVersionTag(input: DeletePromptVersionTagInput!): PromptVersionTagMutationPayload!
+  setPromptVersionTag(input: SetPromptVersionTagInput!): PromptVersionTagMutationPayload!
+  createPromptLabel(input: CreatePromptLabelInput!): PromptLabelMutationPayload!
+  patchPromptLabel(input: PatchPromptLabelInput!): PromptLabelMutationPayload!
+  deletePromptLabel(input: DeletePromptLabelInput!): PromptLabelMutationPayload!
+  setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
+  unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
@@ -1233,6 +1316,17 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
+}
+
+input PatchPromptInput {
+  promptId: GlobalID!
+  description: String!
+}
+
+input PatchPromptLabelInput {
+  promptLabelId: GlobalID!
+  name: Identifier = null
+  description: String = null
 }
 
 input PatchUserInput {
@@ -1376,12 +1470,177 @@ input ProjectSessionSort {
   dir: SortDir!
 }
 
+type Prompt implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  sourcePromptId: GlobalID
+  name: Identifier!
+  description: String
+  createdAt: DateTime!
+  version(versionId: GlobalID = null): PromptVersion!
+  versionTags: [PromptVersionTag!]!
+  promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
+  sourcePrompt: Prompt
+}
+
+type PromptChatTemplate {
+  messages: [PromptMessage!]!
+}
+
+input PromptChatTemplateInput {
+  messages: [PromptMessageInput!]!
+}
+
+"""A connection to a list of items."""
+type PromptConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Prompt!
+}
+
+type PromptLabel implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: Identifier!
+  description: String
+  prompts: [Prompt!]!
+}
+
+"""A connection to a list of items."""
+type PromptLabelConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptLabelEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptLabelEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptLabel!
+}
+
+type PromptLabelMutationPayload {
+  promptLabel: PromptLabel
+  query: Query!
+}
+
+type PromptMessage {
+  role: PromptMessageRole!
+  content: [ContentPart!]!
+}
+
+input PromptMessageInput {
+  role: String!
+  content: [ContentPartInput!]!
+}
+
+enum PromptMessageRole {
+  USER
+  SYSTEM
+  AI
+  TOOL
+}
+
 type PromptResponse {
   """The prompt submitted to the LLM"""
   prompt: String
 
   """The response generated by the LLM"""
   response: String
+}
+
+type PromptStringTemplate {
+  template: String!
+}
+
+union PromptTemplate = PromptStringTemplate | PromptChatTemplate
+
+enum PromptTemplateFormat {
+  MUSTACHE
+  F_STRING
+  NONE
+}
+
+input PromptTemplateOptions {
+  variables: JSON!
+  format: PromptTemplateFormat!
+}
+
+enum PromptTemplateType {
+  STRING
+  CHAT
+}
+
+type PromptVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  description: String
+  templateType: PromptTemplateType!
+  templateFormat: PromptTemplateFormat!
+  template: PromptTemplate!
+  invocationParameters: JSON
+  tools: [ToolDefinition!]!
+  responseFormat: ResponseFormat
+  modelName: String!
+  modelProvider: ModelProvider!
+  metadata: JSON!
+  createdAt: DateTime!
+  tags: [PromptVersionTag!]!
+  user: User
+  previousVersion: PromptVersion
+
+  """
+  Sequence number (1-based) of prompt versions belonging to the same prompt
+  """
+  sequenceNumber: Int!
+}
+
+"""A connection to a list of items."""
+type PromptVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [PromptVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type PromptVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: PromptVersion!
+}
+
+type PromptVersionTag implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  promptVersionId: GlobalID!
+  name: Identifier!
+  description: String
+}
+
+type PromptVersionTagMutationPayload {
+  promptVersionTag: PromptVersionTag
+  prompt: Prompt!
+  query: Query!
 }
 
 type Query {
@@ -1402,6 +1661,8 @@ type Query {
   model: Model!
   node(id: GlobalID!): Node!
   viewer: User
+  prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
+  promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
@@ -1422,6 +1683,14 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+}
+
+type ResponseFormat {
+  definition: JSON!
+}
+
+input ResponseFormatInput {
+  definition: JSON!
 }
 
 type Retrieval {
@@ -1455,6 +1724,17 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+input SetPromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
+}
+
+input SetPromptVersionTagInput {
+  promptVersionId: GlobalID!
+  name: Identifier!
+  description: String = null
 }
 
 enum SortDir {
@@ -1704,20 +1984,21 @@ type SystemApiKey implements ApiKey & Node {
   id: GlobalID!
 }
 
-enum TemplateLanguage {
-  NONE
-  MUSTACHE
-  F_STRING
-}
-
-input TemplateOptions {
-  variables: JSON!
-  language: TemplateLanguage!
-}
-
 type TextChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   content: String!
+}
+
+type TextContentPart {
+  text: TextContentValue!
+}
+
+type TextContentValue {
+  text: String!
+}
+
+input TextContentValueInput {
+  text: String!
 }
 
 input TimeRange {
@@ -1747,6 +2028,53 @@ type ToolCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   id: String!
   function: FunctionCallChunk!
+}
+
+type ToolCallContentPart {
+  toolCall: ToolCallContentValue!
+}
+
+type ToolCallContentValue {
+  toolCallId: String!
+  toolCall: ToolCallFunction!
+}
+
+input ToolCallContentValueInput {
+  toolCallId: String!
+  toolCall: ToolCallFunctionInput!
+}
+
+type ToolCallFunction {
+  name: String!
+  arguments: String!
+}
+
+input ToolCallFunctionInput {
+  type: String = "function"
+  name: String!
+  arguments: String!
+}
+
+type ToolDefinition {
+  definition: JSON!
+}
+
+input ToolDefinitionInput {
+  definition: JSON!
+}
+
+type ToolResultContentPart {
+  toolResult: ToolResultContentValue!
+}
+
+type ToolResultContentValue {
+  toolCallId: String!
+  result: JSON!
+}
+
+input ToolResultContentValueInput {
+  toolCallId: String!
+  result: JSON!
 }
 
 type Trace implements Node {
@@ -1828,6 +2156,11 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+input UnsetPromptLabelInput {
+  promptId: GlobalID!
+  promptLabelId: GlobalID!
 }
 
 type User implements Node {

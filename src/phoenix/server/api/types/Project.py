@@ -5,7 +5,7 @@ from typing import Any, ClassVar, Optional
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, desc, distinct, func, or_, select
+from sqlalchemy import desc, distinct, func, or_, select
 from sqlalchemy.orm import contains_eager
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
@@ -190,12 +190,10 @@ class Project(Node):
             .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
         )
         if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= models.Span.start_time)
+            if time_range.end:
+                stmt = stmt.where(models.Span.start_time < time_range.end)
         if root_spans_only:
             # A root span is any span whose parent span is missing in the
             # database, even if its `parent_span_id` may not be NULL.

@@ -47,8 +47,8 @@ export const convertInstanceToolsToProvider = ({
           definition,
         };
       }
-      // TODO(apowell): #5348 Add Gemini tool definition
-      case "GEMINI":
+      // TODO(apowell): #5348 Add Google tool definition
+      case "GOOGLE":
         return tool;
       default:
         assertUnreachable(provider);
@@ -86,8 +86,8 @@ export const convertMessageToolCallsToProvider = ({
             })
           : toolCall;
       }
-      // TODO(apowell): #5348 Add Gemini tool call
-      case "GEMINI":
+      // TODO(apowell): #5348 Add Google tool call
+      case "GOOGLE":
         return toolCall;
       default:
         assertUnreachable(provider);

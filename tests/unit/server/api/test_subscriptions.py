@@ -947,7 +947,7 @@ class TestChatCompletionOverDatasetSubscription:
                         "content": "What country is {city} in? Answer in one word, no punctuation.",
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1219,12 +1219,11 @@ class TestChatCompletionOverDatasetSubscription:
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
         assert experiment.pop("name") == "playground-experiment"
-        assert isinstance(experiment_description := experiment.pop("description"), str)
-        assert "dataset-name" in experiment_description
         assert experiment.pop("projectName") == "playground"
         assert experiment.pop("metadata") == {}
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
+        experiment.pop("description")
         assert created_at == updated_at
         runs = {run["run"]["id"]: run["run"] for run in experiment.pop("runs")["edges"]}
         assert len(runs) == 3
@@ -1320,7 +1319,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ),
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}

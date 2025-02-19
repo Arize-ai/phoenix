@@ -105,7 +105,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             <Button
               variant="danger"
               size="S"
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     isDeletingExamples ? (

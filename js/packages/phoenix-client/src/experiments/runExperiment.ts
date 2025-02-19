@@ -12,33 +12,51 @@ import type {
 import { promisifyResult } from "../utils/promisifyResult";
 import invariant from "tiny-invariant";
 import { pluralize } from "../utils/pluralize";
+import { ClientFn } from "../types/core";
+import { getDatasetLike } from "../utils/getDatasetLike";
+import { type Logger } from "../types/logger";
 
-export type Logger = {
-  info: (message: string) => void;
-  error: (message: string) => void;
-  log: (message: string) => void;
-};
-
-export type RunExperimentParams = {
+export type RunExperimentParams = ClientFn & {
   /**
    * An optional name for the experiment.
    * Defaults to the dataset name + a timestamp
    */
   experimentName?: string;
-  client?: PhoenixClient;
+  /**
+   * The dataset to run the experiment on
+   */
   dataset: Dataset | string | Example[];
+  /**
+   * The task to run
+   */
   task: ExperimentTask;
+  /**
+   * The evaluators to use
+   */
   evaluators?: Evaluator[];
+  /**
+   * The number of repetitions to run
+   */
   repetitions?: number;
   /**
    * The project under which the experiment task traces are recorded
    */
   projectName?: string;
+  /**
+   * The logger to use
+   */
   logger?: Logger;
+  /**
+   * Whether to record the experiment results
+   */
+  record?: boolean;
 };
 
 /**
  * Run an experiment.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export async function runExperiment({
   experimentName: _experimentName,
@@ -49,9 +67,10 @@ export async function runExperiment({
   repetitions = 1,
   projectName = "default",
   logger = console,
+  record = true,
 }: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
-  const dataset = await getDataset({ dataset: _dataset, client });
+  const dataset = await getDatasetLike({ dataset: _dataset, client });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const experimentName =
@@ -68,6 +87,12 @@ export async function runExperiment({
     repetitions,
     projectName,
   };
+
+  if (!record) {
+    logger.info(
+      `🔧 Running experiment in readonly mode. Results will not be recorded.`
+    );
+  }
 
   logger.info(
     `🧪 Starting experiment "${experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
@@ -160,7 +185,10 @@ function runTask({
     try {
       const taskOutput = await promisifyResult(task(example));
       // TODO: why doesn't run output type match task output type?
-      thisRun.output = JSON.stringify(taskOutput);
+      thisRun.output =
+        typeof taskOutput === "string"
+          ? taskOutput
+          : JSON.stringify(taskOutput);
     } catch (error) {
       thisRun.error = error instanceof Error ? error.message : "Unknown error";
     }
@@ -170,6 +198,12 @@ function runTask({
   return Promise.all(dataset.examples.map(run));
 }
 
+/**
+ * Evaluate an experiment.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
+ */
 export async function evaluateExperiment({
   experiment,
   evaluators,
@@ -189,7 +223,10 @@ export async function evaluateExperiment({
   logger: Logger;
 }): Promise<RanExperiment> {
   const client = _client ?? createClient();
-  const dataset = await getDataset({ dataset: experiment.datasetId, client });
+  const dataset = await getDatasetLike({
+    dataset: experiment.datasetId,
+    client,
+  });
   invariant(dataset, `Dataset "${experiment.datasetId}" not found`);
   invariant(
     dataset.examples.length > 0,
@@ -248,6 +285,9 @@ export async function evaluateExperiment({
 
 /**
  * Run an evaluator against a run.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 async function runEvaluator({
   evaluator,
@@ -293,49 +333,10 @@ async function runEvaluator({
 }
 
 /**
- * Return a dataset object from the input.
- *
- * If the input is a string, assume it is a dataset id and fetch the dataset from the client.
- * If the input is an array of examples, create a new dataset from the examples then return it.
- * If the input is a dataset, return it as is.
- *
- * @param dataset - The dataset to get.
- * @returns The dataset.
- */
-async function getDataset({
-  dataset,
-  client,
-}: {
-  dataset: Dataset | string | Example[];
-  client: PhoenixClient;
-}): Promise<Dataset> {
-  if (typeof dataset === "string") {
-    const datasetResponse = await client
-      .GET(`/v1/datasets/{id}`, { params: { path: { id: dataset } } })
-      .then((d) => d.data?.data);
-    invariant(datasetResponse, `Dataset ${dataset} not found`);
-    const examples = await client
-      .GET(`/v1/datasets/{id}/examples`, { params: { path: { id: dataset } } })
-      .then((e) => e.data?.data);
-    invariant(examples, `Examples for dataset ${dataset} not found`);
-    const datasetWithExamples: Dataset = {
-      ...datasetResponse,
-      examples: examples.examples.map((example) => ({
-        ...example,
-        updatedAt: new Date(example.updated_at),
-      })),
-      versionId: examples.version_id,
-    };
-    return datasetWithExamples;
-  }
-  if (Array.isArray(dataset)) {
-    throw new Error("TODO: implement dataset creation from examples");
-  }
-  return dataset;
-}
-
-/**
  * Wrap an evaluator function in an object with a name property.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  *
  * @param name - The name of the evaluator.
  * @param evaluate - The evaluator function.

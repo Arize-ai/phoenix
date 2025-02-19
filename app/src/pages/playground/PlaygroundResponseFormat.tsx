@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Card } from "@arizeai/components";
@@ -7,7 +7,6 @@ import {
   Button,
   CopyToClipboardButton,
   Disclosure,
-  DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
   Flex,
@@ -33,6 +32,11 @@ import { PlaygroundInstanceProps } from "./types";
  */
 const RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT = 400;
 
+/**
+ * This component is uncontrolled once the initial value is provided.
+ * To reset the value in response to external changes, the parent must
+ * provide a new key prop.
+ */
 export function PlaygroundResponseFormat({
   playgroundInstanceId,
 }: PlaygroundInstanceProps) {
@@ -56,13 +60,16 @@ export function PlaygroundResponseFormat({
       p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
   );
 
-  const [responseFormatDefinition, setResponseFormatDefinition] = useState(
+  const [initialResponseFormatDefinition] = useState(
     JSON.stringify(responseFormat?.valueJson ?? {}, null, 2)
   );
 
+  const currentValueRef = useRef(initialResponseFormatDefinition);
+
   const onChange = useCallback(
     (value: string) => {
-      setResponseFormatDefinition(value);
+      // track the current value of the editor, even when it is invalid
+      currentValueRef.current = value;
       const { json: format } = safelyParseJSON(value);
       if (format == null) {
         return;
@@ -88,50 +95,48 @@ export function PlaygroundResponseFormat({
   );
 
   return (
-    <DisclosureGroup defaultExpandedKeys={["response-format"]}>
-      <Disclosure id="response-format">
-        <DisclosureTrigger arrowPosition="start">
-          Output Schema
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <View padding="size-200">
-            <Card
-              variant="compact"
-              title="Schema"
-              bodyStyle={{ padding: 0 }}
-              extra={
-                <Flex direction="row" gap="size-100">
-                  <CopyToClipboardButton text={responseFormatDefinition} />
-                  <Button
-                    aria-label="Delete Output Schema"
-                    icon={<Icon svg={<Icons.TrashOutline />} />}
-                    size="S"
-                    onPress={() => {
-                      deleteInvocationParameterInput({
-                        instanceId: playgroundInstanceId,
-                        invocationParameterInputInvocationName:
-                          RESPONSE_FORMAT_PARAM_NAME,
-                      });
-                    }}
-                  />
-                </Flex>
+    <Disclosure id="response-format">
+      <DisclosureTrigger arrowPosition="start">
+        Response Format
+      </DisclosureTrigger>
+      <DisclosurePanel>
+        <View padding="size-200">
+          <Card
+            variant="compact"
+            title="Schema"
+            bodyStyle={{ padding: 0 }}
+            extra={
+              <Flex direction="row" gap="size-100">
+                <CopyToClipboardButton text={currentValueRef} />
+                <Button
+                  aria-label="Delete Response Format"
+                  leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                  size="S"
+                  onPress={() => {
+                    deleteInvocationParameterInput({
+                      instanceId: playgroundInstanceId,
+                      invocationParameterInputInvocationName:
+                        RESPONSE_FORMAT_PARAM_NAME,
+                    });
+                  }}
+                />
+              </Flex>
+            }
+          >
+            <LazyEditorWrapper
+              preInitializationMinHeight={
+                RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
               }
             >
-              <LazyEditorWrapper
-                preInitializationMinHeight={
-                  RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT
-                }
-              >
-                <JSONEditor
-                  value={responseFormatDefinition}
-                  onChange={onChange}
-                  jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
-                />
-              </LazyEditorWrapper>
-            </Card>
-          </View>
-        </DisclosurePanel>
-      </Disclosure>
-    </DisclosureGroup>
+              <JSONEditor
+                value={initialResponseFormatDefinition}
+                onChange={onChange}
+                jsonSchema={openAIResponseFormatJSONSchema as JSONSchema7}
+              />
+            </LazyEditorWrapper>
+          </Card>
+        </View>
+      </DisclosurePanel>
+    </Disclosure>
   );
 }

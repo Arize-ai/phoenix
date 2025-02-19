@@ -211,6 +211,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/prompts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get all prompts */
+        get: operations["getPrompts"];
+        put?: never;
+        /** Create a prompt version */
+        post: operations["postPromptVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompts/{prompt_identifier}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all prompt versions for a given prompt */
+        get: operations["listPromptVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompt_versions/{prompt_version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get prompt by prompt version ID */
+        get: operations["getPromptVersionByPromptVersionId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get prompt by tag name */
+        get: operations["getPromptVersionByTagName"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/prompts/{prompt_identifier}/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the latest prompt version */
+        get: operations["getPromptVersionLatest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -244,7 +330,7 @@ export interface components {
              * Metadata
              * @description Metadata for the experiment
              */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
             /**
              * Version Id
              * @description ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)
@@ -261,6 +347,15 @@ export interface components {
         CreateExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
         };
+        /** CreatePromptRequestBody */
+        CreatePromptRequestBody: {
+            prompt: components["schemas"]["PromptData"];
+            version: components["schemas"]["PromptVersionData"];
+        };
+        /** CreatePromptResponseBody */
+        CreatePromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
         /** Dataset */
         Dataset: {
             /** Id */
@@ -270,7 +365,7 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Created At
              * Format: date-time
@@ -287,11 +382,11 @@ export interface components {
             /** Id */
             id: string;
             /** Input */
-            input: Record<string, never>;
+            input: Record<string, unknown>;
             /** Output */
-            output: Record<string, never>;
+            output: Record<string, unknown>;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Updated At
              * Format: date-time
@@ -305,7 +400,7 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Created At
              * Format: date-time
@@ -321,7 +416,7 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Created At
              * Format: date-time
@@ -361,7 +456,7 @@ export interface components {
              * Metadata
              * @description Metadata of the experiment
              */
-            metadata: Record<string, never>;
+            metadata: Record<string, unknown>;
             /**
              * Project Name
              * @description The name of the project associated with the experiment
@@ -388,11 +483,27 @@ export interface components {
         GetExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
         };
+        /** GetPromptResponseBody */
+        GetPromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
+        /** GetPromptVersionsResponseBody */
+        GetPromptVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["PromptVersion"][];
+        };
+        /** GetPromptsResponseBody */
+        GetPromptsResponseBody: {
+            /** Data */
+            data: components["schemas"]["Prompt"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** Identifier */
+        Identifier: string;
         /** InsertedSpanAnnotation */
         InsertedSpanAnnotation: {
             /**
@@ -433,6 +544,297 @@ export interface components {
             /** Data */
             data: components["schemas"]["Experiment"][];
         };
+        /**
+         * ModelProvider
+         * @enum {string}
+         */
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        /** Prompt */
+        Prompt: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Prompt Id */
+            source_prompt_id?: string | null;
+            /** Id */
+            id: string;
+        };
+        /** PromptAnthropicInvocationParameters */
+        PromptAnthropicInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "anthropic";
+            anthropic: components["schemas"]["PromptAnthropicInvocationParametersContent"];
+        };
+        /** PromptAnthropicInvocationParametersContent */
+        PromptAnthropicInvocationParametersContent: {
+            /** Max Tokens */
+            max_tokens: number;
+            /** Temperature */
+            temperature?: number;
+            /** Top P */
+            top_p?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
+        };
+        /** PromptAzureOpenAIInvocationParameters */
+        PromptAzureOpenAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "azure_openai";
+            azure_openai: components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
+        };
+        /** PromptAzureOpenAIInvocationParametersContent */
+        PromptAzureOpenAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
+        /** PromptChatTemplate */
+        PromptChatTemplate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "chat";
+            /** Messages */
+            messages: components["schemas"]["PromptMessage"][];
+        };
+        /** PromptData */
+        PromptData: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Prompt Id */
+            source_prompt_id?: string | null;
+        };
+        /** PromptGoogleInvocationParameters */
+        PromptGoogleInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "google";
+            google: components["schemas"]["PromptGoogleInvocationParametersContent"];
+        };
+        /** PromptGoogleInvocationParametersContent */
+        PromptGoogleInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Output Tokens */
+            max_output_tokens?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Top K */
+            top_k?: number;
+        };
+        /** PromptMessage */
+        PromptMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
+            /** Content */
+            content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+        };
+        /** PromptOpenAIInvocationParameters */
+        PromptOpenAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "openai";
+            openai: components["schemas"]["PromptOpenAIInvocationParametersContent"];
+        };
+        /** PromptOpenAIInvocationParametersContent */
+        PromptOpenAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
+        /** PromptResponseFormatJSONSchema */
+        PromptResponseFormatJSONSchema: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "json_schema";
+            json_schema: components["schemas"]["PromptResponseFormatJSONSchemaDefinition"];
+        };
+        /** PromptResponseFormatJSONSchemaDefinition */
+        PromptResponseFormatJSONSchemaDefinition: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Schema */
+            schema?: Record<string, unknown>;
+            /** Strict */
+            strict?: boolean;
+        };
+        /** PromptStringTemplate */
+        PromptStringTemplate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "string";
+            /** Template */
+            template: string;
+        };
+        /**
+         * PromptTemplateFormat
+         * @enum {string}
+         */
+        PromptTemplateFormat: "MUSTACHE" | "F_STRING" | "NONE";
+        /**
+         * PromptTemplateType
+         * @enum {string}
+         */
+        PromptTemplateType: "STR" | "CHAT";
+        /** PromptToolChoiceNone */
+        PromptToolChoiceNone: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "none";
+        };
+        /** PromptToolChoiceOneOrMore */
+        PromptToolChoiceOneOrMore: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "one_or_more";
+        };
+        /** PromptToolChoiceSpecificFunctionTool */
+        PromptToolChoiceSpecificFunctionTool: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "specific_function";
+            /** Function Name */
+            function_name: string;
+        };
+        /** PromptToolChoiceZeroOrMore */
+        PromptToolChoiceZeroOrMore: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zero_or_more";
+        };
+        /** PromptToolFunction */
+        PromptToolFunction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "function";
+            function: components["schemas"]["PromptToolFunctionDefinition"];
+        };
+        /** PromptToolFunctionDefinition */
+        PromptToolFunctionDefinition: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Parameters */
+            parameters?: Record<string, unknown>;
+            /** Strict */
+            strict?: boolean;
+        };
+        /** PromptTools */
+        PromptTools: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "tools";
+            /** Tools */
+            tools: components["schemas"]["PromptToolFunction"][];
+            /** Tool Choice */
+            tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
+            /** Disable Parallel Tool Calls */
+            disable_parallel_tool_calls?: boolean;
+        };
+        /** PromptVersion */
+        PromptVersion: {
+            /** Description */
+            description?: string | null;
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /** Template */
+            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
+            template_type: components["schemas"]["PromptTemplateType"];
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** Invocation Parameters */
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            tools?: components["schemas"]["PromptTools"] | null;
+            /** Response Format */
+            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /** Id */
+            id: string;
+        };
+        /** PromptVersionData */
+        PromptVersionData: {
+            /** Description */
+            description?: string | null;
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /** Template */
+            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
+            template_type: components["schemas"]["PromptTemplateType"];
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** Invocation Parameters */
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            tools?: components["schemas"]["PromptTools"] | null;
+            /** Response Format */
+            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+        };
         /** SpanAnnotation */
         SpanAnnotation: {
             /**
@@ -457,7 +859,7 @@ export interface components {
              * Metadata
              * @description Metadata for the annotation
              */
-            metadata?: Record<string, never> | null;
+            metadata?: Record<string, unknown> | null;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
@@ -476,6 +878,52 @@ export interface components {
              * @description Explanation of the annotation result
              */
             explanation?: string | null;
+        };
+        /** TextContentPart */
+        TextContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+            /** Text */
+            text: string;
+        };
+        /** ToolCallContentPart */
+        ToolCallContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tool_call";
+            /** Tool Call Id */
+            tool_call_id: string;
+            /** Tool Call */
+            tool_call: components["schemas"]["ToolCallFunction"];
+        };
+        /** ToolCallFunction */
+        ToolCallFunction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "function";
+            /** Name */
+            name: string;
+            /** Arguments */
+            arguments: string;
+        };
+        /** ToolResultContentPart */
+        ToolResultContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tool_result";
+            /** Tool Call Id */
+            tool_call_id: string;
+            /** Tool Result */
+            tool_result: boolean | number | string | Record<string, unknown> | unknown[] | null;
         };
         /** UploadDatasetData */
         UploadDatasetData: {
@@ -710,9 +1158,9 @@ export interface operations {
                     action?: "create" | "append";
                     name: string;
                     description?: string;
-                    inputs: Record<string, never>[];
-                    outputs?: Record<string, never>[];
-                    metadata?: Record<string, never>[];
+                    inputs: Record<string, unknown>[];
+                    outputs?: Record<string, unknown>[];
+                    metadata?: Record<string, unknown>[];
                 };
                 "multipart/form-data": {
                     /** @enum {string} */
@@ -1232,6 +1680,289 @@ export interface operations {
             };
             /** @description Unsupported content type, only gzipped protobuf and pandas-arrow are supported */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPrompts: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded prompt ID) */
+                cursor?: string | null;
+                /** @description The max number of prompts to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    postPromptVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatePromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listPromptVersions: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded promptVersion ID) */
+                cursor?: string | null;
+                /** @description The max number of prompt versions to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptVersionsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPromptVersionByPromptVersionId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the prompt version. */
+                prompt_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPromptVersionByTagName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+                /** @description The tag of the prompt version */
+                tag_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPromptVersionLatest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

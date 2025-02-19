@@ -1,0 +1,181 @@
+import { createClient } from "../client";
+import { ClientFn } from "../types/core";
+import {
+  PromptData,
+  PromptVersionData,
+  PromptVersion,
+  OpenAIInvocationParameters,
+  AzureOpenAIInvocationParameters,
+  AnthropicInvocationParameters,
+  GoogleInvocationParameters,
+  PromptChatMessage,
+} from "../types/prompts";
+import { assertUnreachable } from "../utils/assertUnreachable";
+
+/**
+ * Parameters to crate a prompt
+ */
+export interface CreatePromptParams extends ClientFn, PromptData {
+  /**
+   * The name of the promt
+   */
+  name: string;
+  /**
+   * The description of the prompt
+   */
+  description?: string;
+  /**
+   * The prompt version to push onto the history of the prompt
+   */
+  version: PromptVersionData;
+}
+
+/**
+ * Create a prompt and store it in Phoenix
+ * If a prompt with the same name exists, a new version of the prompt will be appended to the history
+ */
+export async function createPrompt({
+  client: _client,
+  version,
+  ...promptParams
+}: CreatePromptParams): Promise<PromptVersion> {
+  const client = _client ?? createClient();
+  const response = await client.POST("/v1/prompts", {
+    body: {
+      prompt: promptParams,
+      version: version,
+    },
+  });
+  const createdPromptVersion = response.data?.data;
+  if (!createdPromptVersion) {
+    throw new Error("Failed to create prompt");
+  }
+  return createdPromptVersion;
+}
+
+interface PromptVersionInputBase {
+  description?: string;
+  modelName: PromptVersionData["model_name"];
+  /**
+   * The template for the prompt version.
+   * Currently only chat is supported.
+   */
+  template: PromptChatMessage[];
+  /**
+   * The format of the template.
+   * @default "MUSTACHE"
+   */
+  templateFormat?: PromptVersionData["template_format"];
+}
+
+interface OpenAIPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "OPENAI";
+  invocationParameters?: OpenAIInvocationParameters;
+}
+
+interface AzureOpenAIPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "AZURE_OPENAI";
+  invocationParameters?: AzureOpenAIInvocationParameters;
+}
+
+interface AnthropicPromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "ANTHROPIC";
+  /**
+   * The invocation parameters for the prompt version.
+   * For Anthropic, the invocation parameters are required since max_tokens is required.
+   */
+  invocationParameters: AnthropicInvocationParameters;
+}
+
+interface GooglePromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "GOOGLE";
+  invocationParameters?: GoogleInvocationParameters;
+}
+
+type PromptVersionInput =
+  | OpenAIPromptVersionInput
+  | AzureOpenAIPromptVersionInput
+  | AnthropicPromptVersionInput
+  | GooglePromptVersionInput;
+
+/**
+ * A helper function to construct a prompt version declaratively
+ */
+export function promptVersion(params: PromptVersionInput): PromptVersionData {
+  const {
+    description = "",
+    modelProvider: model_provider,
+    modelName: model_name,
+    template: templateMessages,
+    templateFormat: template_format = "MUSTACHE",
+    invocationParameters: invocation_parameters,
+  } = params;
+  switch (model_provider) {
+    case "OPENAI":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "openai",
+          openai: invocation_parameters ?? {},
+        },
+      };
+    case "AZURE_OPENAI":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "azure_openai",
+          azure_openai: invocation_parameters ?? {},
+        },
+      };
+    case "ANTHROPIC":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "anthropic",
+          anthropic: invocation_parameters,
+        },
+      };
+    case "GOOGLE":
+      return {
+        description,
+        model_provider,
+        model_name,
+        template_type: "CHAT",
+        template_format,
+        template: {
+          type: "chat",
+          messages: templateMessages,
+        },
+        invocation_parameters: {
+          type: "google",
+          google: invocation_parameters ?? {},
+        },
+      };
+    default:
+      assertUnreachable(model_provider);
+  }
+}

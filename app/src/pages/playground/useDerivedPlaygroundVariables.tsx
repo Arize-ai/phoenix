@@ -2,7 +2,10 @@ import { useMemo } from "react";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
-import { getVariablesMapFromInstances } from "./playgroundUtils";
+import {
+  denormalizePlaygroundInstance,
+  getVariablesMapFromInstances,
+} from "./playgroundUtils";
 
 /**
  * Get the variable values and keys from all instances in the playground
@@ -13,16 +16,22 @@ import { getVariablesMapFromInstances } from "./playgroundUtils";
 export const useDerivedPlaygroundVariables = () => {
   const input = usePlaygroundContext((state) => state.input);
   const instances = usePlaygroundContext((state) => state.instances);
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
+  const allInstanceMessages = usePlaygroundContext(
+    (state) => state.allInstanceMessages
   );
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const enrichedInstances = useMemo(() => {
+    return instances.map((instance) =>
+      denormalizePlaygroundInstance(instance, allInstanceMessages)
+    );
+  }, [instances, allInstanceMessages]);
   const { variableKeys, variablesMap } = useMemo(() => {
     return getVariablesMapFromInstances({
-      instances,
-      templateLanguage,
+      instances: enrichedInstances,
+      templateFormat,
       input,
     });
-  }, [input, instances, templateLanguage]);
+  }, [input, enrichedInstances, templateFormat]);
 
   return { variableKeys, variablesMap };
 };

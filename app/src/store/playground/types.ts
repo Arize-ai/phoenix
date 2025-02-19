@@ -1,10 +1,14 @@
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { z } from "zod";
+
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { InvocationParameterInput } from "@phoenix/pages/playground/__generated__/PlaygroundOutputSubscription.graphql";
 import { InvocationParameter } from "@phoenix/pages/playground/InvocationParametersFormFields";
+import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
+import { LlmProviderToolDefinition } from "@phoenix/schemas";
 import {
-  LlmProviderToolCall,
-  LlmProviderToolDefinition,
-} from "@phoenix/schemas";
+  AnthropicToolChoice,
+  OpenaiToolChoice,
+} from "@phoenix/schemas/toolChoiceSchemas";
 
 import { ModelConfigByProvider } from "../preferencesStore";
 export type GenAIOperationType = "chat" | "text_completion";
@@ -28,14 +32,7 @@ export type GenAIOperationType = "chat" | "text_completion";
  * }
  * ```
  */
-export type ChatMessage = {
-  id: number;
-  role: ChatMessageRole;
-  // Tool call messages may not have content
-  content?: string;
-  toolCalls?: LlmProviderToolCall[];
-  toolCallId?: string;
-};
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
 /**
  * A template for a chat completion playground
@@ -85,6 +82,21 @@ export type Tool = {
   definition: LlmProviderToolDefinition;
 };
 
+export type PlaygroundInstancePrompt = {
+  /**
+   * The relay global id of the prompt
+   */
+  id: string;
+  /**
+   * The name (Identifier) of the prompt
+   */
+  name: string;
+  /**
+   * The version of the prompt. Assumes latest version if not provided.
+   */
+  version?: string;
+};
+
 /**
  * A single instance of the playground that has
  * - a template
@@ -102,7 +114,7 @@ export interface PlaygroundInstance {
    * How the LLM should choose the tool to use
    * @default "auto"
    */
-  toolChoice?: ToolChoice;
+  toolChoice?: OpenaiToolChoice | AnthropicToolChoice;
   model: ModelConfig;
   output?: ChatMessage[] | string;
   spanId: string | null;
@@ -111,6 +123,14 @@ export interface PlaygroundInstance {
    * The id of the experiment associated with the last playground run on the instance if any
    */
   experimentId?: string | null;
+  /**
+   * Details about the prompt hub prompt associated with the instance, if any
+   */
+  prompt?: PlaygroundInstancePrompt | null;
+  /**
+   * Whether the instance has been modified since the instance was created
+   */
+  dirty: boolean;
 }
 
 /**
@@ -120,7 +140,12 @@ interface PlaygroundInstanceActionParams {
   playgroundInstanceId: number;
 }
 
-export interface AddMessageParams extends PlaygroundInstanceActionParams {}
+export interface AddMessageParams extends PlaygroundInstanceActionParams {
+  /**
+   * If not provided, a default empty message will be added
+   */
+  messages?: ChatMessage[];
+}
 
 export interface PlaygroundProps {
   /**
@@ -138,12 +163,11 @@ export interface PlaygroundProps {
    * Defaults to a single instance until a second instance is added
    */
   instances: Array<PlaygroundInstance>;
-
   /**
-   * The current template language for all instances
+   * The current template format for all instances
    * @default "mustache"
    */
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
   /**
    * Whether or not to use streaming
    * @default true
@@ -155,7 +179,39 @@ export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   modelConfigByProvider: ModelConfigByProvider;
 };
 
-export interface PlaygroundState extends PlaygroundProps {
+/**
+ * A chat completion template, with normalized message ids
+ *
+ * The chat template only contains references to message ids, which are normalized to be unique
+ * and stored elsewhere in the state
+ */
+export type PlaygroundNormalizedChatTemplate = Omit<
+  PlaygroundChatTemplate,
+  "messages"
+> & {
+  messageIds: number[];
+};
+
+/**
+ * A playground instance, with normalized chat completion template messages
+ */
+export type PlaygroundNormalizedInstance = Omit<
+  PlaygroundInstance,
+  "template"
+> & {
+  template: PlaygroundTextCompletionTemplate | PlaygroundNormalizedChatTemplate;
+};
+
+export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
+  instances: Array<PlaygroundNormalizedInstance>;
+
+  /**
+   * A map of message id to message
+   *
+   * message ids must be globally unique across all instances
+   */
+  allInstanceMessages: Record<number, ChatMessage>;
+
   /**
    * Setter for the invocation mode
    * @param operationType
@@ -185,11 +241,30 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   addMessage: (params: AddMessageParams) => void;
   /**
+   * Update a message in a playground instance
+   */
+  updateMessage: (params: {
+    instanceId: number;
+    messageId: number;
+    patch: Partial<ChatMessage>;
+  }) => void;
+  /**
+   * Delete a message from a playground instance
+   */
+  deleteMessage: (params: { instanceId: number; messageId: number }) => void;
+
+  /**
    * Update an instance of the playground
    */
   updateInstance: (params: {
     instanceId: number;
-    patch: Partial<PlaygroundInstance>;
+    patch: Partial<PlaygroundNormalizedInstance>;
+    /**
+     * Should this update mark the instance as dirty?
+     *
+     * null means the dirty state should not be changed
+     */
+    dirty: boolean | null;
   }) => void;
   /**
    * Update the invocation parameters for a model
@@ -218,6 +293,7 @@ export interface PlaygroundState extends PlaygroundProps {
   updateModelSupportedInvocationParameters: (params: {
     instanceId: number;
     supportedInvocationParameters: InvocationParameter[];
+    modelConfigByProvider: ModelConfigByProvider;
   }) => void;
   /**
    * Update an instances model provider, transforming various aspects about the instance to fit the new provider if possible
@@ -251,9 +327,9 @@ export interface PlaygroundState extends PlaygroundProps {
    */
   markPlaygroundInstanceComplete: (instanceId: number) => void;
   /**
-   * Set the template language for all instances
+   * Set the template form  at for all instances
    */
-  setTemplateLanguage: (templateLanguage: TemplateLanguage) => void;
+  setTemplateFormat: (templateFormat: TemplateFormat) => void;
   /**
    * Set the value of a variable in the input
    */
@@ -262,4 +338,8 @@ export interface PlaygroundState extends PlaygroundProps {
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
+  /**
+   * Set the dirty state of an instance
+   */
+  setDirty: (instanceId: number, dirty: boolean) => void;
 }
