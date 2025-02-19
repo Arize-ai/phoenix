@@ -4,7 +4,6 @@ import asyncio
 import importlib.util
 import inspect
 import json
-import os
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -22,6 +21,7 @@ from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import getenv
 from phoenix.evals.models.rate_limiters import (
     AsyncCallable,
     GenericType,
@@ -483,12 +483,11 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     ) -> None:
         from openai import AsyncOpenAI
 
-        base_url = model.base_url or os.environ.get("OPENAI_BASE_URL")
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+        base_url = model.base_url or getenv("OPENAI_BASE_URL")
+        if not (api_key := api_key or getenv("OPENAI_API_KEY")):
             if not base_url:
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
-        api_key = api_key.strip()
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         super().__init__(client=client, model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
@@ -657,13 +656,12 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     ):
         from openai import AsyncAzureOpenAI
 
-        if not (api_key := api_key or os.environ.get("AZURE_OPENAI_API_KEY")):
+        if not (api_key := api_key or getenv("AZURE_OPENAI_API_KEY")):
             raise BadRequest("An Azure API key is required for Azure OpenAI models")
-        if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
+        if not (endpoint := model.endpoint or getenv("AZURE_OPENAI_ENDPOINT")):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
+        if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
-        api_key = api_key.strip()
         client = AsyncAzureOpenAI(
             api_key=api_key,
             azure_endpoint=endpoint,
@@ -699,9 +697,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
-        if not (api_key := api_key or os.environ.get("ANTHROPIC_API_KEY")):
+        if not (api_key := api_key or getenv("ANTHROPIC_API_KEY")):
             raise BadRequest("An API key is required for Anthropic models")
-        api_key = api_key.strip()
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
@@ -880,13 +877,8 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
-        if not (
-            api_key := api_key
-            or os.environ.get("GEMINI_API_KEY")
-            or os.environ.get("GOOGLE_API_KEY")
-        ):
+        if not (api_key := api_key or getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")):
             raise BadRequest("An API key is required for Gemini models")
-        api_key = api_key.strip()
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
 
