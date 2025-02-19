@@ -20,9 +20,13 @@ import {
   PythonBlock,
   TypeScriptBlock,
 } from "@phoenix/components/code";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { PromptCodeExportCard__main$key } from "./__generated__/PromptCodeExportCard__main.graphql";
-import { mapPromptToSnippet } from "./promptCodeSnippets";
+import {
+  mapPromptToClientSnippet,
+  mapPromptToSDKSnippet,
+} from "./promptCodeSnippets";
 
 export function PromptCodeExportCard({
   promptVersion,
@@ -33,6 +37,7 @@ export function PromptCodeExportCard({
   const data = useFragment<PromptCodeExportCard__main$key>(
     graphql`
       fragment PromptCodeExportCard__main on PromptVersion {
+        id
         invocationParameters
         modelName
         modelProvider
@@ -84,23 +89,13 @@ export function PromptCodeExportCard({
     `,
     promptVersion
   );
-  const snippet = useMemo(
-    () => mapPromptToSnippet({ promptVersion: data, language }),
+  const sdkSnippet = useMemo(
+    () => mapPromptToSDKSnippet({ promptVersion: data, language }),
     [data, language]
   );
-  if (!snippet) {
-    return (
-      <Card title="Code" variant="compact" bodyStyle={{ padding: 0 }}>
-        <View padding="size-100">
-          <Flex justifyContent="center" alignItems="center">
-            <Text color="text-300">
-              No code snippet available for this prompt
-            </Text>
-          </Flex>
-        </View>
-      </Card>
-    );
-  }
+  const clientSnippet = useMemo(() => {
+    return mapPromptToClientSnippet({ promptVersion: data, language });
+  }, [data, language]);
   return (
     <Card
       title="Code"
@@ -109,24 +104,86 @@ export function PromptCodeExportCard({
       extra={
         <Flex gap="size-100" alignItems="center">
           <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
-          <CopyToClipboardButton text={snippet} />
         </Flex>
       }
     >
-      <DisclosureGroup defaultExpandedKeys={["snippet"]}>
-        <Disclosure id="snippet">
-          <DisclosureTrigger>Code</DisclosureTrigger>
+      <DisclosureGroup defaultExpandedKeys={["sdk-inline", "client"]}>
+        <Disclosure id="sdk-inline">
+          <DisclosureTrigger arrowPosition="start">
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              gap="size-100"
+              width="100%"
+            >
+              <Text>SDK Inline</Text>
+              {sdkSnippet ? <CopyToClipboardButton text={sdkSnippet} /> : null}
+            </Flex>
+          </DisclosureTrigger>
           <DisclosurePanel>
             <View padding="size-100">
-              {language === "Python" ? (
-                <PythonBlock value={snippet} />
-              ) : language === "TypeScript" ? (
-                <TypeScriptBlock value={snippet} />
+              {sdkSnippet == null ? (
+                <View width="100%" padding="size-200">
+                  <Text color="text-300">
+                    No code snippet available for this prompt
+                  </Text>
+                </View>
+              ) : (
+                <CodeBlock language={language} value={sdkSnippet} />
+              )}
+            </View>
+          </DisclosurePanel>
+        </Disclosure>
+        <Disclosure id="client">
+          <DisclosureTrigger arrowPosition="start">
+            <Flex
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+              gap="size-100"
+            >
+              <Text>Using the Client</Text>
+              {clientSnippet ? (
+                <CopyToClipboardButton text={clientSnippet} />
               ) : null}
+            </Flex>
+          </DisclosureTrigger>
+          <DisclosurePanel>
+            <View padding="size-100">
+              {clientSnippet == null ? (
+                <View width="100%" padding="size-200">
+                  <Text color="text-300">
+                    No client code snippet available for this prompt
+                  </Text>
+                </View>
+              ) : (
+                <CodeBlock language={language} value={clientSnippet} />
+              )}
             </View>
           </DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>
     </Card>
   );
+}
+
+function CodeBlock({
+  language,
+  value,
+}: {
+  language: CodeLanguage;
+  value: string;
+}) {
+  switch (language) {
+    case "Python":
+      return <PythonBlock value={value} basicSetup={{ lineNumbers: true }} />;
+    case "TypeScript":
+      return (
+        <TypeScriptBlock value={value} basicSetup={{ lineNumbers: true }} />
+      );
+    default:
+      assertUnreachable(language);
+  }
 }
