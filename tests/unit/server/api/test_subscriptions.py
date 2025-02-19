@@ -1223,6 +1223,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert experiment.pop("metadata") == {}
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
+        experiment.pop("description")
         assert created_at == updated_at
         runs = {run["run"]["id"]: run["run"] for run in experiment.pop("runs")["edges"]}
         assert len(runs) == 3
