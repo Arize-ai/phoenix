@@ -198,7 +198,7 @@ class Subscription:
         )
         async with info.context.db() as session:
             if (
-                dataset := await session.scalar(
+                await session.scalar(
                     select(models.Dataset).where(models.Dataset.id == dataset_id)
                 )
             ) is None:
@@ -276,8 +276,7 @@ class Subscription:
                 dataset_version_id=resolved_version_id,
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
-                description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
+                description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
@@ -570,13 +569,10 @@ def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormat
 
 
 def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> str:
+    name = "playground-experiment"
     if prompt_name:
-        return f"prompt:{prompt_name}-playground-experiment"
-    return "playground-experiment"
-
-
-def _default_playground_experiment_description(dataset_name: str) -> str:
-    return f'Playground experiment for dataset "{dataset_name}"'
+        name = f"{name} prompt:{prompt_name}"
+    return name
 
 
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
