@@ -59,7 +59,7 @@ class PromptVersion:
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
         """
-        Initializes a new instance of the PromptVersion class.
+        Initializes a PromptVersion for syncing and template application
 
         Args:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
