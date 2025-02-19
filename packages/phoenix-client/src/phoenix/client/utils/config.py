@@ -1,5 +1,7 @@
 import os
-from typing import Optional
+from typing import Optional, overload
+
+import httpx
 
 from phoenix.client.constants import (
     ENV_PHOENIX_API_KEY,
@@ -15,11 +17,11 @@ from phoenix.client.utils.parse_env_headers import parse_env_headers
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
-    return os.environ.get(ENV_PHOENIX_API_KEY)
+    return getenv(ENV_PHOENIX_API_KEY)
 
 
 def get_env_port() -> int:
-    if not (port := os.getenv(ENV_PHOENIX_PORT)):
+    if not (port := getenv(ENV_PHOENIX_PORT)):
         return PORT
     if port.isnumeric():
         return int(port)
@@ -30,11 +32,11 @@ def get_env_port() -> int:
 
 
 def get_env_host() -> str:
-    return os.getenv(ENV_PHOENIX_HOST) or HOST
+    return getenv(ENV_PHOENIX_HOST) or HOST
 
 
 def get_env_host_root_path() -> str:
-    if (host_root_path := os.getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
         return ""
     if not host_root_path.startswith("/"):
         raise ValueError(
@@ -50,7 +52,7 @@ def get_env_host_root_path() -> str:
 
 
 def get_env_client_headers() -> dict[str, str]:
-    headers = parse_env_headers(os.getenv(ENV_PHOENIX_CLIENT_HEADERS))
+    headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
     if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
         k.lower() for k in headers
     ]:
@@ -59,12 +61,39 @@ def get_env_client_headers() -> dict[str, str]:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
 
 
-def get_base_url() -> str:
-    host = get_env_host()
+def get_base_url() -> httpx.URL:
+    host: str = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
-    return base_url if base_url.endswith("/") else base_url + "/"
+    base_url: str = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+    return httpx.URL(base_url)
+
+
+@overload
+def getenv(key: str) -> Optional[str]: ...
+@overload
+def getenv(key: str, default: str) -> str: ...
+def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
+    """
+    Retrieves the value of an environment variable.
+
+    Parameters
+    ----------
+        key : str
+            The name of the environment variable.
+        default : Optional[str], optional
+            The default value to return if the environment variable is not set, by default None.
+
+    Returns
+    -------
+    Optional[str]
+        The value of the environment variable, or `default` if the variable is not set.
+        Leading and trailing whitespaces are stripped from the value, assuming they were
+        inadvertently added.
+    """
+    if (value := os.getenv(key)) is None:
+        return default
+    return value.strip()

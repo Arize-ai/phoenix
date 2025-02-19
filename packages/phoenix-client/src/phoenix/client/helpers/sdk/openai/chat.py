@@ -66,7 +66,7 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[ChatCompletionToolParam]
 
 
-class OpenAIModelKwargs(_ToolKwargs, TypedDict, total=False):
+class OpenAIChatCompletionModelKwargs(_ToolKwargs, TypedDict, total=False):
     model: Required[str]
     frequency_penalty: float
     max_completion_tokens: int
@@ -151,7 +151,7 @@ def to_chat_messages_and_kwargs(
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-) -> tuple[list[ChatCompletionMessageParam], OpenAIModelKwargs]:
+) -> tuple[list[ChatCompletionMessageParam], OpenAIChatCompletionModelKwargs]:
     return (
         list(_to_chat_completion_messages(obj, variables, formatter)),
         _to_model_kwargs(obj),
@@ -160,13 +160,13 @@ def to_chat_messages_and_kwargs(
 
 def _to_model_kwargs(
     obj: v1.PromptVersionData,
-) -> OpenAIModelKwargs:
+) -> OpenAIChatCompletionModelKwargs:
     parameters: v1.PromptOpenAIInvocationParametersContent = (
         obj["invocation_parameters"]["openai"]
         if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "openai"
         else {}
     )
-    ans: OpenAIModelKwargs = {
+    ans: OpenAIChatCompletionModelKwargs = {
         "model": obj["model_name"],
     }
     if "max_tokens" in parameters:
