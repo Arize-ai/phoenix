@@ -391,7 +391,7 @@ def get_env_smtp_password() -> str:
 
 
 def get_env_smtp_mail_from() -> str:
-    return getenv(ENV_PHOENIX_SMTP_MAIL_FROM, "noreply@arize.com")
+    return getenv(ENV_PHOENIX_SMTP_MAIL_FROM) or "noreply@arize.com"
 
 
 def get_env_smtp_hostname() -> str:
