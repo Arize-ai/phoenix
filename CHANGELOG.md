@@ -1,6 +1,6 @@
 # Changelog
 
-## [7.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.3...arize-phoenix-v7.13.0) (2025-02-19)
+## [8.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.3...arize-phoenix-v8.0.0) (2025-02-19)
 
 
 ### Features
