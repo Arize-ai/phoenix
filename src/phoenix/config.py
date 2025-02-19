@@ -162,8 +162,8 @@ ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS = "PHOENIX_GRPC_INTERCEPTOR_PATHS"
 
 def server_instrumentation_is_enabled() -> bool:
     return bool(
-        os.getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
-    ) or bool(os.getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT))
+        getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
+    ) or bool(getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT))
 
 
 def _get_temp_path() -> Path:
@@ -192,7 +192,7 @@ def get_working_dir() -> Path:
     """
     Get the working directory for saving, loading, and exporting datasets.
     """
-    working_dir_str = os.getenv(ENV_PHOENIX_WORKING_DIR)
+    working_dir_str = getenv(ENV_PHOENIX_WORKING_DIR)
     if working_dir_str is not None:
         return Path(working_dir_str)
     # Fall back to ~/.phoenix if PHOENIX_WORKING_DIR is not set
@@ -207,7 +207,7 @@ def _bool_val(env_var: str, default: Optional[bool] = None) -> Optional[bool]:
     """
     Parses a boolean environment variable, returning `default` if the variable is not set.
     """
-    if (value := os.environ.get(env_var)) is None:
+    if (value := getenv(env_var)) is None:
         return default
     assert (lower := value.lower()) in (
         "true",
@@ -224,7 +224,7 @@ def _float_val(env_var: str, default: Optional[float] = None) -> Optional[float]
     """
     Parses a numeric environment variable, returning `default` if the variable is not set.
     """
-    if (value := os.environ.get(env_var)) is None:
+    if (value := getenv(env_var)) is None:
         return default
     try:
         return float(value)
@@ -243,7 +243,7 @@ def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
     """
     Parses a numeric environment variable, returning `default` if the variable is not set.
     """
-    if (value := os.environ.get(env_var)) is None:
+    if (value := getenv(env_var)) is None:
         return default
     try:
         return int(value)
@@ -252,6 +252,33 @@ def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
             f"Invalid value for environment variable {env_var}: {value}. "
             f"Value must be an integer."
         )
+
+
+@overload
+def getenv(key: str) -> Optional[str]: ...
+@overload
+def getenv(key: str, default: str) -> str: ...
+def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
+    """
+    Retrieves the value of an environment variable.
+
+    Parameters
+    ----------
+    key : str
+        The name of the environment variable.
+    default : Optional[str], optional
+        The default value to return if the environment variable is not set, by default None.
+
+    Returns
+    -------
+    Optional[str]
+        The value of the environment variable, or `default` if the variable is not set.
+        Leading and trailing whitespaces are stripped from the value, assuming they were
+        inadvertently added.
+    """
+    if (value := os.getenv(key)) is None:
+        return default
+    return value.strip()
 
 
 def get_env_enable_auth() -> bool:
@@ -273,7 +300,7 @@ def get_env_phoenix_secret() -> Optional[str]:
     Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
-    phoenix_secret = os.environ.get(ENV_PHOENIX_SECRET)
+    phoenix_secret = getenv(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
         return None
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
@@ -285,7 +312,7 @@ def get_env_phoenix_secret() -> Optional[str]:
 def get_env_default_admin_initial_password() -> str:
     from phoenix.auth import DEFAULT_ADMIN_PASSWORD
 
-    return os.environ.get(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
+    return getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
 
 
 def get_env_phoenix_use_secure_cookies() -> bool:
@@ -293,7 +320,7 @@ def get_env_phoenix_use_secure_cookies() -> bool:
 
 
 def get_env_phoenix_api_key() -> Optional[str]:
-    return os.environ.get(ENV_PHOENIX_API_KEY)
+    return getenv(ENV_PHOENIX_API_KEY)
 
 
 def get_env_auth_settings() -> tuple[bool, Optional[str]]:
@@ -354,7 +381,7 @@ def get_env_refresh_token_expiry() -> timedelta:
 
 def get_env_csrf_trusted_origins() -> list[str]:
     origins: list[str] = []
-    if not (csrf_trusted_origins := os.getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
+    if not (csrf_trusted_origins := getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
     for origin in csrf_trusted_origins.split(","):
         if not origin:
@@ -369,19 +396,19 @@ def get_env_csrf_trusted_origins() -> list[str]:
 
 
 def get_env_smtp_username() -> str:
-    return os.getenv(ENV_PHOENIX_SMTP_USERNAME) or ""
+    return getenv(ENV_PHOENIX_SMTP_USERNAME, "")
 
 
 def get_env_smtp_password() -> str:
-    return os.getenv(ENV_PHOENIX_SMTP_PASSWORD) or ""
+    return getenv(ENV_PHOENIX_SMTP_PASSWORD, "")
 
 
 def get_env_smtp_mail_from() -> str:
-    return os.getenv(ENV_PHOENIX_SMTP_MAIL_FROM) or "noreply@arize.com"
+    return getenv(ENV_PHOENIX_SMTP_MAIL_FROM) or "noreply@arize.com"
 
 
 def get_env_smtp_hostname() -> str:
-    return os.getenv(ENV_PHOENIX_SMTP_HOSTNAME) or ""
+    return getenv(ENV_PHOENIX_SMTP_HOSTNAME, "")
 
 
 def get_env_smtp_port() -> int:
@@ -410,16 +437,14 @@ class OAuth2ClientConfig:
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
         idp_name_upper = idp_name.upper()
         if not (
-            client_id := os.getenv(
-                client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID"
-            )
+            client_id := getenv(client_id_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_ID")
         ):
             raise ValueError(
                 f"A client id must be set for the {idp_name} OAuth2 IDP "
                 f"via the {client_id_env_var} environment variable"
             )
         if not (
-            client_secret := os.getenv(
+            client_secret := getenv(
                 client_secret_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_CLIENT_SECRET"
             )
         ):
@@ -429,7 +454,7 @@ class OAuth2ClientConfig:
             )
         if not (
             oidc_config_url := (
-                os.getenv(
+                getenv(
                     oidc_config_url_env_var := f"PHOENIX_OAUTH2_{idp_name_upper}_OIDC_CONFIG_URL",
                 )
             )
@@ -447,7 +472,7 @@ class OAuth2ClientConfig:
             )
         return cls(
             idp_name=idp_name,
-            idp_display_name=os.getenv(
+            idp_display_name=getenv(
                 f"PHOENIX_OAUTH2_{idp_name_upper}_DISPLAY_NAME",
                 _get_default_idp_display_name(idp_name),
             ),
@@ -541,7 +566,7 @@ def get_exported_files(directory: Path) -> list[Path]:
 
 
 def get_env_port() -> int:
-    if not (port := os.getenv(ENV_PHOENIX_PORT)):
+    if not (port := getenv(ENV_PHOENIX_PORT)):
         return PORT
     if port.isnumeric():
         return int(port)
@@ -560,7 +585,7 @@ def get_env_port() -> int:
 
 
 def get_env_grpc_port() -> int:
-    if not (port := os.getenv(ENV_PHOENIX_GRPC_PORT)):
+    if not (port := getenv(ENV_PHOENIX_GRPC_PORT)):
         return GRPC_PORT
     if port.isnumeric():
         return int(port)
@@ -571,11 +596,11 @@ def get_env_grpc_port() -> int:
 
 
 def get_env_host() -> str:
-    return os.getenv(ENV_PHOENIX_HOST) or HOST
+    return getenv(ENV_PHOENIX_HOST) or HOST
 
 
 def get_env_host_root_path() -> str:
-    if (host_root_path := os.getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
         return HOST_ROOT_PATH
     if not host_root_path.startswith("/"):
         raise ValueError(
@@ -591,15 +616,15 @@ def get_env_host_root_path() -> str:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
+    return getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
 
 
 def get_env_project_name() -> str:
-    return os.getenv(ENV_PHOENIX_PROJECT_NAME) or DEFAULT_PROJECT_NAME
+    return getenv(ENV_PHOENIX_PROJECT_NAME, DEFAULT_PROJECT_NAME)
 
 
 def get_env_database_connection_str() -> str:
-    env_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
+    env_url = getenv(ENV_PHOENIX_SQL_DATABASE_URL)
     if env_url is None:
         working_dir = get_working_dir()
         return f"sqlite:///{working_dir}/phoenix.db"
@@ -609,11 +634,11 @@ def get_env_database_connection_str() -> str:
 def get_env_database_schema() -> Optional[str]:
     if get_env_database_connection_str().startswith("sqlite"):
         return None
-    return os.getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
+    return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
 
 
 def get_env_enable_prometheus() -> bool:
-    if (enable_promotheus := os.getenv(ENV_PHOENIX_ENABLE_PROMETHEUS)) is None or (
+    if (enable_promotheus := getenv(ENV_PHOENIX_ENABLE_PROMETHEUS)) is None or (
         enable_promotheus_lower := enable_promotheus.lower()
     ) == "false":
         return False
@@ -626,7 +651,7 @@ def get_env_enable_prometheus() -> bool:
 
 
 def get_env_client_headers() -> dict[str, str]:
-    headers = parse_env_headers(os.getenv(ENV_PHOENIX_CLIENT_HEADERS))
+    headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
     if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
         k.lower() for k in headers
     ]:
@@ -661,7 +686,7 @@ class LoggingMode(Enum):
 
 
 def get_env_logging_mode() -> LoggingMode:
-    if (logging_mode := os.getenv(ENV_LOGGING_MODE)) is None:
+    if (logging_mode := getenv(ENV_LOGGING_MODE)) is None:
         return LoggingMode.DEFAULT
     try:
         return LoggingMode(logging_mode.lower().strip())
@@ -688,7 +713,7 @@ def get_env_db_logging_level() -> int:
 
 
 def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
-    env_value = os.getenv(ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS, "")
+    env_value = getenv(ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS, "")
     paths = []
     for entry in env_value.split(","):
         entry = entry.strip()
@@ -703,7 +728,7 @@ def get_env_fastapi_middleware_paths() -> list[tuple[str, str]]:
 
 
 def get_env_gql_extension_paths() -> list[tuple[str, str]]:
-    env_value = os.getenv(ENV_PHOENIX_GQL_EXTENSION_PATHS, "")
+    env_value = getenv(ENV_PHOENIX_GQL_EXTENSION_PATHS, "")
     paths = []
     for entry in env_value.split(","):
         entry = entry.strip()
@@ -718,7 +743,7 @@ def get_env_gql_extension_paths() -> list[tuple[str, str]]:
 
 
 def get_env_grpc_interceptor_paths() -> list[tuple[str, str]]:
-    env_value = os.getenv(ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS, "")
+    env_value = getenv(ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS, "")
     paths = []
     for entry in env_value.split(","):
         entry = entry.strip()
@@ -733,7 +758,7 @@ def get_env_grpc_interceptor_paths() -> list[tuple[str, str]]:
 
 
 def _get_logging_level(env_var: str, default_level: int) -> int:
-    logging_level = os.getenv(env_var)
+    logging_level = getenv(env_var)
     if not logging_level:
         return default_level
 
@@ -753,7 +778,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
 
 
 def get_env_log_migrations() -> bool:
-    log_migrations = os.getenv(ENV_LOG_MIGRATIONS)
+    log_migrations = getenv(ENV_LOG_MIGRATIONS)
     # Default to True
     if log_migrations is None:
         return True
