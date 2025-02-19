@@ -123,7 +123,7 @@ class PromptVersion:
     @property
     def id(self) -> Optional[str]:
         """
-        Prompt Version ID
+        Prompt Version ID if stored in the Phoenix backend
         """
         return self._id
 
