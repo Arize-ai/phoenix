@@ -40,5 +40,5 @@ This folder contains examples for building a Retrieval-Augmented Generation (RAG
 ## Notes
 
 * All the Key's must be inputted from the UI application.
-* RAG will beloaded with default url in the UI, You can update the url and initialize the project with your own data source.
+* RAG will be loaded with default url in the UI, You can update the url and initialize the project with your own data source.
 * This application will support the HTML based sources. 
