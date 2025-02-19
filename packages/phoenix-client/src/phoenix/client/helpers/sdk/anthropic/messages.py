@@ -66,13 +66,21 @@ class _ToolKwargs(TypedDict, total=False):
     tool_choice: ToolChoiceParam
 
 
-class AnthropicMessageModelKwargs(_ToolKwargs, TypedDict, total=False):
+class _InvocationParameters(TypedDict, total=False):
     max_tokens: Required[int]
-    model: Required[ModelParam]
     stop_sequences: list[str]
-    system: Union[str, list[TextBlockParam]]
     temperature: float
     top_p: float
+
+
+class AnthropicMessageModelKwargs(
+    _InvocationParameters,
+    _ToolKwargs,
+    TypedDict,
+    total=False,
+):
+    model: Required[ModelParam]
+    system: Union[str, list[TextBlockParam]]
 
 
 logger = logging.getLogger(__name__)
@@ -90,19 +98,12 @@ def create_prompt_version_from_anthropic(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+    model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
 ) -> v1.PromptVersionData:
-    invocation_parameters = v1.PromptAnthropicInvocationParameters(
-        type="anthropic",
-        anthropic=v1.PromptAnthropicInvocationParametersContent(
-            max_tokens=obj["max_tokens"],
-        ),
+    invocation_parameters = _InvocationParametersConversion.from_anthropic(
+        obj,
+        model_provider=model_provider,
     )
-    if "temperature" in obj:
-        invocation_parameters["anthropic"]["temperature"] = obj["temperature"]
-    if "top_p" in obj:
-        invocation_parameters["anthropic"]["top_p"] = obj["top_p"]
-    if "stop_sequences" in obj:
-        invocation_parameters["anthropic"]["stop_sequences"] = obj["stop_sequences"]
     messages: list[v1.PromptMessage] = []
     if "system" in obj:
         system = (
@@ -117,7 +118,7 @@ def create_prompt_version_from_anthropic(
         "messages": messages,
     }
     ans = v1.PromptVersionData(
-        model_provider="ANTHROPIC",
+        model_provider=model_provider,
         model_name=obj["model"],
         template=template,
         template_type="CHAT",
@@ -174,27 +175,23 @@ def to_chat_messages_and_kwargs(
     return messages, kwargs
 
 
+_DEFAULT_MAX_TOKENS = 100
+
+
 class _ModelKwargsConversion:
     @staticmethod
     def to_anthropic(
         obj: v1.PromptVersionData,
     ) -> AnthropicMessageModelKwargs:
-        parameters: v1.PromptAnthropicInvocationParametersContent = (
-            obj["invocation_parameters"]["anthropic"]
+        parameters: _InvocationParameters = (
+            _InvocationParametersConversion.to_anthropic(obj["invocation_parameters"])
             if "invocation_parameters" in obj
-            and obj["invocation_parameters"]["type"] == "anthropic"
-            else {"max_tokens": 100}
+            else _InvocationParameters(max_tokens=_DEFAULT_MAX_TOKENS)
         )
         ans: AnthropicMessageModelKwargs = {
-            "max_tokens": parameters["max_tokens"],
             "model": obj["model_name"],
+            **parameters,  # type: ignore[typeddict-item]
         }
-        if "stop_sequences" in parameters:
-            ans["stop_sequences"] = list(parameters["stop_sequences"])
-        if "temperature" in parameters:
-            ans["temperature"] = parameters["temperature"]
-        if "top_p" in parameters:
-            ans["top_p"] = parameters["top_p"]
         if "tools" in obj:
             tool_kwargs = _ToolKwargsConversion.to_anthropic(obj["tools"])
             if "tools" in tool_kwargs:
@@ -202,6 +199,83 @@ class _ModelKwargsConversion:
                 if "tool_choice" in tool_kwargs:
                     ans["tool_choice"] = tool_kwargs["tool_choice"]
         return ans
+
+
+class _InvocationParametersConversion:
+    @staticmethod
+    def to_anthropic(
+        obj: Union[
+            v1.PromptOpenAIInvocationParameters,
+            v1.PromptAzureOpenAIInvocationParameters,
+            v1.PromptAnthropicInvocationParameters,
+            v1.PromptGeminiInvocationParameters,
+        ],
+    ) -> _InvocationParameters:
+        ans: _InvocationParameters = _InvocationParameters(
+            max_tokens=_DEFAULT_MAX_TOKENS,
+        )
+        if obj["type"] == "anthropic":
+            anthropic_params: v1.PromptAnthropicInvocationParametersContent
+            anthropic_params = obj["anthropic"]
+            if "max_tokens" in anthropic_params:
+                ans["max_tokens"] = anthropic_params["max_tokens"]
+            if "temperature" in anthropic_params:
+                ans["temperature"] = anthropic_params["temperature"]
+            if "top_p" in anthropic_params:
+                ans["top_p"] = anthropic_params["top_p"]
+            if "stop_sequences" in anthropic_params:
+                ans["stop_sequences"] = list(anthropic_params["stop_sequences"])
+        elif obj["type"] == "openai":
+            openai_params: v1.PromptOpenAIInvocationParametersContent
+            openai_params = obj["openai"]
+            if "max_tokens" in openai_params:
+                ans["max_tokens"] = openai_params["max_tokens"]
+            if "temperature" in openai_params:
+                ans["temperature"] = openai_params["temperature"]
+            if "top_p" in openai_params:
+                ans["top_p"] = openai_params["top_p"]
+        elif obj["type"] == "azure_openai":
+            azure_params: v1.PromptAzureOpenAIInvocationParametersContent
+            azure_params = obj["azure_openai"]
+            if "max_tokens" in azure_params:
+                ans["max_tokens"] = azure_params["max_tokens"]
+            if "temperature" in azure_params:
+                ans["temperature"] = azure_params["temperature"]
+            if "top_p" in azure_params:
+                ans["top_p"] = azure_params["top_p"]
+        elif obj["type"] == "gemini":
+            gemini_params: v1.PromptGeminiInvocationParametersContent
+            gemini_params = obj["gemini"]
+            if "max_output_tokens" in gemini_params:
+                ans["max_tokens"] = gemini_params["max_output_tokens"]
+            if "temperature" in gemini_params:
+                ans["temperature"] = gemini_params["temperature"]
+            if "top_p" in gemini_params:
+                ans["top_p"] = gemini_params["top_p"]
+        elif TYPE_CHECKING:
+            assert_never(obj["type"])
+        return ans
+
+    @staticmethod
+    def from_anthropic(
+        obj: MessageCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
+    ) -> v1.PromptAnthropicInvocationParameters:
+        content = v1.PromptAnthropicInvocationParametersContent(
+            max_tokens=obj["max_tokens"],
+        )
+        if "temperature" in obj:
+            content["temperature"] = obj["temperature"]
+        if "top_p" in obj:
+            content["top_p"] = obj["top_p"]
+        if "stop_sequences" in obj:
+            content["stop_sequences"] = list(obj["stop_sequences"])
+        return v1.PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=content,
+        )
 
 
 class _ToolKwargsConversion:
