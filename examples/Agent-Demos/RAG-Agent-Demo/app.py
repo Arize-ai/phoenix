@@ -93,7 +93,6 @@ with gr.Blocks() as demo:
     history = gr.State({})  # State to maintain the message history as a list of tuples
     session_id = gr.State(str(uuid.uuid4()))
     chat_history = gr.State([])
-    # web_url = 'https://lilianweng.github.io/posts/2023-06-23-agent/'
     gr.Markdown("## Chat with RAG Agent 🔥")
 
     with gr.Row():
