@@ -198,9 +198,7 @@ class Subscription:
         )
         async with info.context.db() as session:
             if (
-                await session.scalar(
-                    select(models.Dataset).where(models.Dataset.id == dataset_id)
-                )
+                await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
                 raise NotFound(f"Could not find dataset with ID {dataset_id}")
             if version_id is None:
