@@ -50,7 +50,6 @@ from phoenix.server.api.input_types.ChatCompletionInput import (
 )
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.subscriptions import (
-    _default_playground_experiment_description,
     _default_playground_experiment_name,
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
@@ -181,8 +180,7 @@ class ChatCompletionMutationMixin:
                 dataset_version_id=resolved_version_id,
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
-                description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
+                description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
