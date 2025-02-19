@@ -66,17 +66,26 @@ class _ToolKwargs(TypedDict, total=False):
     tools: list[ChatCompletionToolParam]
 
 
-class OpenAIChatCompletionModelKwargs(_ToolKwargs, TypedDict, total=False):
-    model: Required[str]
+class _InvocationParameters(TypedDict, total=False):
     frequency_penalty: float
     max_completion_tokens: int
     presence_penalty: float
     reasoning_effort: ChatCompletionReasoningEffort
-    response_format: ResponseFormat
     seed: int
     stop: list[str]
     temperature: float
+    top_logprobs: int
     top_p: float
+
+
+class OpenAIChatCompletionModelKwargs(
+    _InvocationParameters,
+    _ToolKwargs,
+    TypedDict,
+    total=False,
+):
+    model: Required[str]
+    response_format: ResponseFormat
 
 
 _ContentPart: TypeAlias = Union[
@@ -99,30 +108,19 @@ def create_prompt_version_from_openai(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
+    model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
 ) -> v1.PromptVersionData:
     messages: list[ChatCompletionMessageParam] = list(obj["messages"])
     template = v1.PromptChatTemplate(
         type="chat",
         messages=[_MessageConversion.from_openai(m) for m in messages],
     )
-    params = v1.PromptOpenAIInvocationParametersContent()
-    if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
-        params["max_tokens"] = int(obj["max_completion_tokens"])
-    if "temperature" in obj and obj["temperature"] is not None:
-        params["temperature"] = float(obj["temperature"])
-    if "top_p" in obj and obj["top_p"] is not None:
-        params["top_p"] = float(obj["top_p"])
-    if "presence_penalty" in obj and obj["presence_penalty"] is not None:
-        params["presence_penalty"] = float(obj["presence_penalty"])
-    if "frequency_penalty" in obj and obj["frequency_penalty"] is not None:
-        params["frequency_penalty"] = float(obj["frequency_penalty"])
-    if "seed" in obj and obj["seed"] is not None:
-        params["seed"] = int(obj["seed"])
-    if "reasoning_effort" in obj and obj["reasoning_effort"] is not None:
-        params["reasoning_effort"] = obj["reasoning_effort"]
-    invocation_parameters = v1.PromptOpenAIInvocationParameters(type="openai", openai=params)
+    invocation_parameters = _InvocationParametersConversion.from_openai(
+        obj,
+        model_provider=model_provider,
+    )
     ans = v1.PromptVersionData(
-        model_provider="OPENAI",
+        model_provider=model_provider,
         model_name=obj["model"],
         template=template,
         template_type="CHAT",
@@ -161,46 +159,15 @@ def to_chat_messages_and_kwargs(
 def _to_model_kwargs(
     obj: v1.PromptVersionData,
 ) -> OpenAIChatCompletionModelKwargs:
+    invocation_parameters: _InvocationParameters = (
+        _InvocationParametersConversion.to_openai(obj["invocation_parameters"])
+        if "invocation_parameters" in obj
+        else {}
+    )
     ans: OpenAIChatCompletionModelKwargs = {
         "model": obj["model_name"],
+        **invocation_parameters,  # type: ignore[typeddict-item]
     }
-    if "invocation_parameters" in obj:
-        if obj["invocation_parameters"]["type"] == "openai":
-            openai_parameters = obj["invocation_parameters"]["openai"]
-            if "max_tokens" in openai_parameters:
-                ans["max_completion_tokens"] = openai_parameters["max_tokens"]
-            if "temperature" in openai_parameters:
-                ans["temperature"] = openai_parameters["temperature"]
-            if "top_p" in openai_parameters:
-                ans["top_p"] = openai_parameters["top_p"]
-            if "presence_penalty" in openai_parameters:
-                ans["presence_penalty"] = openai_parameters["presence_penalty"]
-            if "frequency_penalty" in openai_parameters:
-                ans["frequency_penalty"] = openai_parameters["frequency_penalty"]
-            if "seed" in openai_parameters:
-                ans["seed"] = openai_parameters["seed"]
-            if "reasoning_effort" in openai_parameters:
-                v = openai_parameters["reasoning_effort"]
-                if v in ("low", "medium", "high"):
-                    ans["reasoning_effort"] = v
-        elif obj["invocation_parameters"]["type"] == "azure_openai":
-            azure_openai_parameters = obj["invocation_parameters"]["azure_openai"]
-            if "max_tokens" in azure_openai_parameters:
-                ans["max_completion_tokens"] = azure_openai_parameters["max_tokens"]
-            if "temperature" in azure_openai_parameters:
-                ans["temperature"] = azure_openai_parameters["temperature"]
-            if "top_p" in azure_openai_parameters:
-                ans["top_p"] = azure_openai_parameters["top_p"]
-            if "presence_penalty" in azure_openai_parameters:
-                ans["presence_penalty"] = azure_openai_parameters["presence_penalty"]
-            if "frequency_penalty" in azure_openai_parameters:
-                ans["frequency_penalty"] = azure_openai_parameters["frequency_penalty"]
-            if "seed" in azure_openai_parameters:
-                ans["seed"] = azure_openai_parameters["seed"]
-            if "reasoning_effort" in azure_openai_parameters:
-                v = azure_openai_parameters["reasoning_effort"]
-                if v in ("low", "medium", "high"):
-                    ans["reasoning_effort"] = v
     if "tools" in obj:
         tool_kwargs = _ToolKwargsConversion.to_openai(obj["tools"])
         if "tools" in tool_kwargs:
@@ -214,6 +181,151 @@ def _to_model_kwargs(
         elif TYPE_CHECKING:
             assert_never(response_format)
     return ans
+
+
+class _InvocationParametersConversion:
+    @staticmethod
+    def to_openai(
+        obj: Union[
+            v1.PromptOpenAIInvocationParameters,
+            v1.PromptAzureOpenAIInvocationParameters,
+            v1.PromptAnthropicInvocationParameters,
+            v1.PromptGeminiInvocationParameters,
+        ],
+    ) -> _InvocationParameters:
+        ans: _InvocationParameters = {}
+        if obj["type"] == "openai":
+            openai_params: v1.PromptOpenAIInvocationParametersContent
+            openai_params = obj["openai"]
+            if "max_tokens" in openai_params:
+                ans["max_completion_tokens"] = openai_params["max_tokens"]
+            if "temperature" in openai_params:
+                ans["temperature"] = openai_params["temperature"]
+            if "top_p" in openai_params:
+                ans["top_p"] = openai_params["top_p"]
+            if "presence_penalty" in openai_params:
+                ans["presence_penalty"] = openai_params["presence_penalty"]
+            if "frequency_penalty" in openai_params:
+                ans["frequency_penalty"] = openai_params["frequency_penalty"]
+            if "seed" in openai_params:
+                ans["seed"] = openai_params["seed"]
+            if "reasoning_effort" in openai_params:
+                ans["reasoning_effort"] = openai_params["reasoning_effort"]
+        elif obj["type"] == "azure_openai":
+            azure_params: v1.PromptAzureOpenAIInvocationParametersContent
+            azure_params = obj["azure_openai"]
+            if "max_tokens" in azure_params:
+                ans["max_completion_tokens"] = azure_params["max_tokens"]
+            if "temperature" in azure_params:
+                ans["temperature"] = azure_params["temperature"]
+            if "top_p" in azure_params:
+                ans["top_p"] = azure_params["top_p"]
+            if "presence_penalty" in azure_params:
+                ans["presence_penalty"] = azure_params["presence_penalty"]
+            if "frequency_penalty" in azure_params:
+                ans["frequency_penalty"] = azure_params["frequency_penalty"]
+            if "seed" in azure_params:
+                ans["seed"] = azure_params["seed"]
+            if "reasoning_effort" in azure_params:
+                ans["reasoning_effort"] = azure_params["reasoning_effort"]
+        elif obj["type"] == "anthropic":
+            anthropic_params: v1.PromptAnthropicInvocationParametersContent
+            anthropic_params = obj["anthropic"]
+            if "max_tokens" in anthropic_params:
+                ans["max_completion_tokens"] = anthropic_params["max_tokens"]
+            if "temperature" in anthropic_params:
+                ans["temperature"] = anthropic_params["temperature"]
+            if "top_p" in anthropic_params:
+                ans["top_p"] = anthropic_params["top_p"]
+            if "stop_sequences" in anthropic_params:
+                ans["stop"] = list(anthropic_params["stop_sequences"])
+        elif obj["type"] == "gemini":
+            gemini_params: v1.PromptGeminiInvocationParametersContent
+            gemini_params = obj["gemini"]
+            if "max_output_tokens" in gemini_params:
+                ans["max_completion_tokens"] = gemini_params["max_output_tokens"]
+            if "temperature" in gemini_params:
+                ans["temperature"] = gemini_params["temperature"]
+            if "top_p" in gemini_params:
+                ans["top_p"] = gemini_params["top_p"]
+            if "top_k" in gemini_params:
+                ans["top_logprobs"] = gemini_params["top_k"]
+            if "presence_penalty" in gemini_params:
+                ans["presence_penalty"] = gemini_params["presence_penalty"]
+            if "frequency_penalty" in gemini_params:
+                ans["frequency_penalty"] = gemini_params["frequency_penalty"]
+            if "stop_sequences" in gemini_params:
+                ans["stop"] = list(gemini_params["stop_sequences"])
+        elif TYPE_CHECKING:
+            assert_never(obj["type"])
+        return ans
+
+    @overload
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["OPENAI"] = "OPENAI",
+    ) -> v1.PromptOpenAIInvocationParameters: ...
+
+    @overload
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["AZURE_OPENAI"],
+    ) -> v1.PromptAzureOpenAIInvocationParameters: ...
+
+    @staticmethod
+    def from_openai(
+        obj: CompletionCreateParamsBase,
+        /,
+        *,
+        model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
+    ) -> Union[
+        v1.PromptOpenAIInvocationParameters,
+        v1.PromptAzureOpenAIInvocationParameters,
+    ]:
+        content: Union[
+            v1.PromptOpenAIInvocationParametersContent,
+            v1.PromptAzureOpenAIInvocationParametersContent,
+        ]
+        if model_provider == "OPENAI":
+            content = v1.PromptOpenAIInvocationParametersContent()
+        elif model_provider == "AZURE_OPENAI":
+            content = v1.PromptAzureOpenAIInvocationParametersContent()
+        else:
+            assert_never(model_provider)
+        if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
+            content["max_tokens"] = obj["max_completion_tokens"]
+        if "temperature" in obj and obj["temperature"] is not None:
+            content["temperature"] = obj["temperature"]
+        if "top_p" in obj and obj["top_p"] is not None:
+            content["top_p"] = obj["top_p"]
+        if "presence_penalty" in obj and obj["presence_penalty"] is not None:
+            content["presence_penalty"] = obj["presence_penalty"]
+        if "frequency_penalty" in obj and obj["frequency_penalty"] is not None:
+            content["frequency_penalty"] = obj["frequency_penalty"]
+        if "seed" in obj and obj["seed"] is not None:
+            content["seed"] = obj["seed"]
+        if "reasoning_effort" in obj:
+            v = obj["reasoning_effort"]
+            if v in ("low", "medium", "high"):
+                content["reasoning_effort"] = v
+        if model_provider == "OPENAI":
+            return v1.PromptOpenAIInvocationParameters(
+                type="openai",
+                openai=content,
+            )
+        elif model_provider == "AZURE_OPENAI":
+            return v1.PromptAzureOpenAIInvocationParameters(
+                type="azure_openai",
+                azure_openai=content,
+            )
+        else:
+            assert_never(model_provider)
 
 
 def _to_chat_completion_messages(

@@ -375,10 +375,10 @@ class TestClient:
         ["F_STRING", "MUSTACHE", "NONE"],
     )
     @pytest.mark.parametrize(
-        "model_provider,convert,params",
+        "model_providers,convert,expected",
         [
             pytest.param(
-                "OPENAI",
+                ["OPENAI", "AZURE_OPENAI"],
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -395,7 +395,7 @@ class TestClient:
                 id="openai-system-message-string",
             ),
             pytest.param(
-                "OPENAI",
+                ["OPENAI", "AZURE_OPENAI"],
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -424,7 +424,7 @@ class TestClient:
                 id="openai-system-message-list",
             ),
             pytest.param(
-                "OPENAI",
+                ["OPENAI", "AZURE_OPENAI"],
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -445,7 +445,7 @@ class TestClient:
                 id="openai-tools",
             ),
             pytest.param(
-                "OPENAI",
+                ["OPENAI", "AZURE_OPENAI"],
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -488,7 +488,7 @@ class TestClient:
                 id="openai-function-calling",
             ),
             pytest.param(
-                "OPENAI",
+                ["OPENAI", "AZURE_OPENAI"],
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -536,7 +536,7 @@ class TestClient:
                 id="openai-tool-message-string",
             ),
             pytest.param(
-                "OPENAI",
+                ["OPENAI", "AZURE_OPENAI"],
                 PromptVersion.from_openai,
                 CompletionCreateParamsBase(
                     model=token_hex(8),
@@ -587,7 +587,7 @@ class TestClient:
                 id="openai-tool-message-list",
             ),
             pytest.param(
-                "ANTHROPIC",
+                ["ANTHROPIC"],
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
@@ -603,7 +603,7 @@ class TestClient:
                 id="anthropic-system-message-string",
             ),
             pytest.param(
-                "ANTHROPIC",
+                ["ANTHROPIC"],
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
@@ -628,7 +628,7 @@ class TestClient:
                 id="anthropic-system-message-list",
             ),
             pytest.param(
-                "ANTHROPIC",
+                ["ANTHROPIC"],
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
@@ -648,7 +648,7 @@ class TestClient:
                 id="anthropic-tools",
             ),
             pytest.param(
-                "ANTHROPIC",
+                ["ANTHROPIC"],
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
@@ -689,7 +689,7 @@ class TestClient:
                 id="anthropic-tool-use",
             ),
             pytest.param(
-                "ANTHROPIC",
+                ["ANTHROPIC"],
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
@@ -749,7 +749,7 @@ class TestClient:
                 id="anthropic-tool-result-string",
             ),
             pytest.param(
-                "ANTHROPIC",
+                ["ANTHROPIC"],
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
@@ -820,9 +820,9 @@ class TestClient:
     )
     def test_round_trip(
         self,
-        model_provider: Literal["OPENAI", "ANTHROPIC", "GEMINI"],
-        convert: Callable[..., Any],
-        params: Mapping[str, Any],
+        model_providers: list[Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]],
+        convert: Callable[..., PromptVersion],
+        expected: Any,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"],
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
@@ -832,11 +832,19 @@ class TestClient:
         prompt_identifier = token_hex(16)
         from phoenix.client import Client
 
-        Client().prompts.create(
-            name=prompt_identifier,
-            version=convert(params, template_format=template_format),
-        )
-        prompt = Client().prompts.get(prompt_identifier=prompt_identifier)
-        assert prompt._model_provider == model_provider
-        assert prompt._template_format == template_format
-        assert not DeepDiff(params, {**prompt.format(formatter=NO_OP_FORMATTER)})
+        client = Client()
+        for model_provider in model_providers:
+            version: PromptVersion = convert(
+                expected,
+                template_format=template_format,
+                model_provider=model_provider,
+            )
+            client.prompts.create(
+                name=prompt_identifier,
+                version=version,
+            )
+            prompt = client.prompts.get(prompt_identifier=prompt_identifier)
+            assert prompt._model_provider == model_provider
+            assert prompt._template_format == template_format
+            params = prompt.format(formatter=NO_OP_FORMATTER)
+            assert not DeepDiff(expected, {**params})
