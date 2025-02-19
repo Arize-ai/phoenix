@@ -1534,24 +1534,36 @@ describe("mergeInvocationParametersWithDefaults", () => {
 });
 
 describe("normalizeMessageContent", () => {
-  it("should return the content as a string", () => {
+  it("should return unknown json content as a string", () => {
     const content = "Hello, world!";
-    expect(normalizeMessageContent(content)).toBe(content);
+    expect(normalizeMessageContent(content)).toBe('"Hello, world!"');
   });
 
-  it("should return the content as a stringified JSON with pretty printing", () => {
+  it("should return the content as a stringified JSON with pretty printing if it is an object", () => {
     const content = { foo: "bar" };
     expect(normalizeMessageContent(content)).toBe(
       JSON.stringify(content, null, 2)
     );
   });
 
-  it("should return the content as a string if it is not a string or object", () => {
+  it("should return the content as a string if it is a number", () => {
     const content = 123;
     expect(normalizeMessageContent(content)).toBe("123");
   });
 
-  it("should return arrays as a stringified JSON", () => {
+  it("should return the content as a string if it is a boolean", () => {
+    const content = true;
+    expect(normalizeMessageContent(content)).toBe("true");
+    const content2 = false;
+    expect(normalizeMessageContent(content2)).toBe("false");
+  });
+
+  it("should return the content as a string if it is null", () => {
+    const content = null;
+    expect(normalizeMessageContent(content)).toBe("null");
+  });
+
+  it("should return the content as a string if it is an array", () => {
     const content = [1, "2", 3, { foo: "bar" }];
     expect(normalizeMessageContent(content)).toBe(
       `[
