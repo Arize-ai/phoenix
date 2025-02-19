@@ -298,6 +298,11 @@ async def create_prompt(
     request: Request,
     request_body: CreatePromptRequestBody,
 ) -> CreatePromptResponseBody:
+    if request_body.version.template_type != "CHAT":
+        raise HTTPException(
+            HTTP_422_UNPROCESSABLE_ENTITY,
+            "CHAT template type is not supported for prompts",
+        )
     prompt = request_body.prompt
     try:
         name = Identifier.model_validate(prompt.name)
