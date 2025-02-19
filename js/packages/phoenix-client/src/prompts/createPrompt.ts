@@ -7,7 +7,7 @@ import {
   OpenAIInvocationParameters,
   AzureOpenAIInvocationParameters,
   AnthropicInvocationParameters,
-  GeminiInvocationParameters,
+  GoogleInvocationParameters,
   PromptChatMessage,
 } from "../types/prompts";
 import { assertUnreachable } from "../utils/assertUnreachable";
@@ -87,16 +87,16 @@ interface AnthropicPromptVersionInput extends PromptVersionInputBase {
   invocationParameters: AnthropicInvocationParameters;
 }
 
-interface GeminiPromptVersionInput extends PromptVersionInputBase {
-  modelProvider: "GEMINI";
-  invocationParameters?: GeminiInvocationParameters;
+interface GooglePromptVersionInput extends PromptVersionInputBase {
+  modelProvider: "GOOGLE";
+  invocationParameters?: GoogleInvocationParameters;
 }
 
 type PromptVersionInput =
   | OpenAIPromptVersionInput
   | AzureOpenAIPromptVersionInput
   | AnthropicPromptVersionInput
-  | GeminiPromptVersionInput;
+  | GooglePromptVersionInput;
 
 /**
  * A helper function to construct a prompt version declaratively
@@ -159,7 +159,7 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
           anthropic: invocation_parameters,
         },
       };
-    case "GEMINI":
+    case "GOOGLE":
       return {
         description,
         model_provider,
@@ -171,8 +171,8 @@ export function promptVersion(params: PromptVersionInput): PromptVersionData {
           messages: templateMessages,
         },
         invocation_parameters: {
-          type: "gemini",
-          gemini: invocation_parameters ?? {},
+          type: "google",
+          google: invocation_parameters ?? {},
         },
       };
     default:

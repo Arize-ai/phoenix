@@ -548,7 +548,7 @@ export interface components {
          * ModelProvider
          * @enum {string}
          */
-        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GEMINI";
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
         /** Prompt */
         Prompt: {
             name: components["schemas"]["Identifier"];
@@ -626,17 +626,17 @@ export interface components {
             /** Source Prompt Id */
             source_prompt_id?: string | null;
         };
-        /** PromptGeminiInvocationParameters */
-        PromptGeminiInvocationParameters: {
+        /** PromptGoogleInvocationParameters */
+        PromptGoogleInvocationParameters: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "gemini";
-            gemini: components["schemas"]["PromptGeminiInvocationParametersContent"];
+            type: "google";
+            google: components["schemas"]["PromptGoogleInvocationParametersContent"];
         };
-        /** PromptGeminiInvocationParametersContent */
-        PromptGeminiInvocationParametersContent: {
+        /** PromptGoogleInvocationParametersContent */
+        PromptGoogleInvocationParametersContent: {
             /** Temperature */
             temperature?: number;
             /** Max Output Tokens */
@@ -811,7 +811,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGeminiInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
@@ -830,7 +830,7 @@ export interface components {
             template_type: components["schemas"]["PromptTemplateType"];
             template_format: components["schemas"]["PromptTemplateFormat"];
             /** Invocation Parameters */
-            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGeminiInvocationParameters"];
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
