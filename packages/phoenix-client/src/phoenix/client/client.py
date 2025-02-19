@@ -1,52 +1,98 @@
-from typing import Any, Mapping, Optional
+from __future__ import annotations
+
+from typing import Mapping, Optional
 
 import httpx
 
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
-from phoenix.client.utils.config import (
-    get_base_url,
-    get_env_client_headers,
-)
+from phoenix.client.utils.config import get_base_url, get_env_client_headers
 
 
 class Client:
     def __init__(
         self,
         *,
-        endpoint: Optional[str] = None,
-        warn_if_server_not_running: bool = True,
-        headers: Optional[Mapping[str, str]] = None,
-        api_key: Optional[str] = None,
-        http_client: Optional[httpx.Client] = None,
-        **kwargs: Any,
+        base_url: str | httpx.URL | None = None,
+        api_key: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        http_client: httpx.Client | None = None,
     ):
+        """
+        Initializes a Client instance.
+
+        Args:
+            base_url (Optional[str]): The base URL for the API endpoint. If not provided, it will
+                be read from the environment variables or fall back to http://localhost:6006/.
+            api_key (Optional[str]): The API key for authentication. If provided, it will be
+                included in the Authorization header as a bearer token. Defaults to None.
+            headers (Optional[Mapping[str, str]]): Additional headers to be included in the HTTP.
+                Defaults to None. This is ignored if http_client is provided. Additional headers
+                may be added from the environment variables, but won't override specified values.
+            http_client (Optional[httpx.Client]): An instance of httpx.Client to be used for
+                making HTTP requests. If not provided, a new instance will be created. Defaults
+                to None.
+        """
         if http_client is None:
-            base_url = endpoint or get_base_url()
+            base_url = base_url or get_base_url()
             http_client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
             )
-        self.prompts = Prompts(http_client)
+        self._prompts = Prompts(http_client)
+
+    @property
+    def prompts(self) -> Prompts:
+        """
+        Returns an instance of the Prompts class for interacting with prompt-related API endpoints.
+
+        Returns:
+            Prompts: An instance of the Prompts class.
+        """
+        return self._prompts
 
 
 class AsyncClient:
     def __init__(
         self,
         *,
-        endpoint: Optional[str] = None,
-        warn_if_server_not_running: bool = True,
-        headers: Optional[Mapping[str, str]] = None,
-        api_key: Optional[str] = None,
-        http_client: Optional[httpx.AsyncClient] = None,
-        **kwargs: Any,
+        base_url: str | httpx.URL | None = None,
+        api_key: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        http_client: httpx.AsyncClient | None = None,
     ):
+        """
+        Initializes an Asynchronous Client instance.
+
+        Args:
+            base_url (Optional[str]): The base URL for the API endpoint. If not provided, it will
+                be read from the environment variables or fall back to http://localhost:6006/.
+            api_key (Optional[str]): The API key for authentication. If provided, it will be
+                included in the Authorization header as a bearer token. Defaults to None.
+            headers (Optional[Mapping[str, str]]): Additional headers to be included in the HTTP.
+                Defaults to None. This is ignored if http_client is provided. Additional headers
+                may be added from the environment variables, but won't override specified values.
+            http_client (Optional[httpx.AsyncClient]): An instance of httpx.AsyncClient to be used
+                for making HTTP requests. If not provided, a new instance will be created. Defaults
+                to None.
+        """
         if http_client is None:
-            base_url = endpoint or get_base_url()
+            base_url = base_url or get_base_url()
             http_client = httpx.AsyncClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
             )
-        self.prompts = AsyncPrompts(http_client)
+        self._prompts = AsyncPrompts(http_client)
+
+    @property
+    def prompts(self) -> AsyncPrompts:
+        """
+        Returns an instance of the Asynchronous Prompts class for interacting with prompt-related
+        API endpoints.
+
+        Returns:
+            AsyncPrompts: An instance of the Prompts class.
+        """
+        return self._prompts
 
 
 def _update_headers(

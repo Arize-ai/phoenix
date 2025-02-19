@@ -66,7 +66,7 @@ class _ToolKwargs(TypedDict, total=False):
     tool_choice: ToolChoiceParam
 
 
-class AnthropicModelKwargs(_ToolKwargs, TypedDict, total=False):
+class AnthropicMessageModelKwargs(_ToolKwargs, TypedDict, total=False):
     max_tokens: Required[int]
     model: Required[ModelParam]
     stop_sequences: list[str]
@@ -142,7 +142,7 @@ def to_chat_messages_and_kwargs(
     *,
     variables: Mapping[str, str] = MappingProxyType({}),
     formatter: Optional[TemplateFormatter] = None,
-) -> tuple[list[MessageParam], AnthropicModelKwargs]:
+) -> tuple[list[MessageParam], AnthropicMessageModelKwargs]:
     formatter = formatter or to_formatter(obj)
     assert formatter is not None
     template = obj["template"]
@@ -165,7 +165,7 @@ def to_chat_messages_and_kwargs(
         raise NotImplementedError
     else:
         assert_never(template)
-    kwargs: AnthropicModelKwargs = _ModelKwargsConversion.to_anthropic(obj)
+    kwargs: AnthropicMessageModelKwargs = _ModelKwargsConversion.to_anthropic(obj)
     if system_messages:
         if len(system_messages) == 1:
             kwargs["system"] = system_messages[0]
@@ -178,14 +178,14 @@ class _ModelKwargsConversion:
     @staticmethod
     def to_anthropic(
         obj: v1.PromptVersionData,
-    ) -> AnthropicModelKwargs:
+    ) -> AnthropicMessageModelKwargs:
         parameters: v1.PromptAnthropicInvocationParametersContent = (
             obj["invocation_parameters"]["anthropic"]
             if "invocation_parameters" in obj
             and obj["invocation_parameters"]["type"] == "anthropic"
             else {"max_tokens": 100}
         )
-        ans: AnthropicModelKwargs = {
+        ans: AnthropicMessageModelKwargs = {
             "max_tokens": parameters["max_tokens"],
             "model": obj["model_name"],
         }
