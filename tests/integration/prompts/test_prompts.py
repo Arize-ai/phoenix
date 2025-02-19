@@ -288,6 +288,24 @@ class TestResponseFormat:
         _can_recreate_via_client(prompt)
 
 
+class TestUserId:
+    QUERY = "query($versionId:GlobalID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
+
+    def test_client(self, _get_user: _GetUser, monkeypatch: pytest.MonkeyPatch) -> None:
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        prompt = px.Client().prompts.create(
+            name=token_hex(8),
+            version=PromptVersion.from_openai(
+                CompletionCreateParamsBase(
+                    model=token_hex(8), messages=[{"role": "user", "content": "hello"}]
+                )
+            ),
+        )
+        response, _ = u.gql(query=self.QUERY, variables={"versionId": prompt.id})
+        assert u.gid == response["data"]["node"]["user"]["id"]
+
+
 def _can_recreate_via_client(version: PromptVersion) -> None:
     new_name = token_hex(8)
     a = px.Client().prompts.create(name=new_name, version=version)
