@@ -272,7 +272,7 @@ class Subscription:
                 )
 
             username: Optional[str] = None
-            if user := info.context.user and get_env_enable_auth():
+            if get_env_enable_auth() and (user := info.context.user):
                 user_id = user.identity
                 db_user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
                 if db_user:
