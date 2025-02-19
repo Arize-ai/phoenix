@@ -161,30 +161,46 @@ def to_chat_messages_and_kwargs(
 def _to_model_kwargs(
     obj: v1.PromptVersionData,
 ) -> OpenAIChatCompletionModelKwargs:
-    parameters: v1.PromptOpenAIInvocationParametersContent = (
-        obj["invocation_parameters"]["openai"]
-        if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "openai"
-        else {}
-    )
     ans: OpenAIChatCompletionModelKwargs = {
         "model": obj["model_name"],
     }
-    if "max_tokens" in parameters:
-        ans["max_completion_tokens"] = parameters["max_tokens"]
-    if "temperature" in parameters:
-        ans["temperature"] = parameters["temperature"]
-    if "top_p" in parameters:
-        ans["top_p"] = parameters["top_p"]
-    if "presence_penalty" in parameters:
-        ans["presence_penalty"] = parameters["presence_penalty"]
-    if "frequency_penalty" in parameters:
-        ans["frequency_penalty"] = parameters["frequency_penalty"]
-    if "seed" in parameters:
-        ans["seed"] = parameters["seed"]
-    if "reasoning_effort" in parameters:
-        v = parameters["reasoning_effort"]
-        if v in ("low", "medium", "high"):
-            ans["reasoning_effort"] = v
+    if "invocation_parameters" in obj:
+        if obj["invocation_parameters"]["type"] == "openai":
+            openai_parameters = obj["invocation_parameters"]["openai"]
+            if "max_tokens" in openai_parameters:
+                ans["max_completion_tokens"] = openai_parameters["max_tokens"]
+            if "temperature" in openai_parameters:
+                ans["temperature"] = openai_parameters["temperature"]
+            if "top_p" in openai_parameters:
+                ans["top_p"] = openai_parameters["top_p"]
+            if "presence_penalty" in openai_parameters:
+                ans["presence_penalty"] = openai_parameters["presence_penalty"]
+            if "frequency_penalty" in openai_parameters:
+                ans["frequency_penalty"] = openai_parameters["frequency_penalty"]
+            if "seed" in openai_parameters:
+                ans["seed"] = openai_parameters["seed"]
+            if "reasoning_effort" in openai_parameters:
+                v = openai_parameters["reasoning_effort"]
+                if v in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = v
+        elif obj["invocation_parameters"]["type"] == "azure_openai":
+            azure_openai_parameters = obj["invocation_parameters"]["azure_openai"]
+            if "max_tokens" in azure_openai_parameters:
+                ans["max_completion_tokens"] = azure_openai_parameters["max_tokens"]
+            if "temperature" in azure_openai_parameters:
+                ans["temperature"] = azure_openai_parameters["temperature"]
+            if "top_p" in azure_openai_parameters:
+                ans["top_p"] = azure_openai_parameters["top_p"]
+            if "presence_penalty" in azure_openai_parameters:
+                ans["presence_penalty"] = azure_openai_parameters["presence_penalty"]
+            if "frequency_penalty" in azure_openai_parameters:
+                ans["frequency_penalty"] = azure_openai_parameters["frequency_penalty"]
+            if "seed" in azure_openai_parameters:
+                ans["seed"] = azure_openai_parameters["seed"]
+            if "reasoning_effort" in azure_openai_parameters:
+                v = azure_openai_parameters["reasoning_effort"]
+                if v in ("low", "medium", "high"):
+                    ans["reasoning_effort"] = v
     if "tools" in obj:
         tool_kwargs = _ToolKwargsConversion.to_openai(obj["tools"])
         if "tools" in tool_kwargs:
