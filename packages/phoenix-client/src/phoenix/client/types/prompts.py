@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from openai.types.chat.completion_create_params import CompletionCreateParamsBase
 
 
-@dataclass
 class PromptVersion:
     def __init__(
         self,
@@ -112,6 +111,14 @@ class PromptVersion:
         self._tools: Optional[v1.PromptTools] = None
         self._response_format: Optional[v1.PromptResponseFormatJSONSchema] = None
         self._id: Optional[str] = None
+
+    def __dir__(self) -> list[str]:
+        return [
+            "id",
+            "format",
+            "from_openai",
+            "from_anthropic",
+        ]
 
     @property
     def id(self) -> Optional[str]:
