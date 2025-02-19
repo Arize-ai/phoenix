@@ -886,7 +886,7 @@ class PromptVersion(Node):
     invocationParameters: Optional[dict[str, Any]] = None
     metadata: dict[str, Any]
     modelName: str
-    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
+    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"]
     previousVersion: Optional[PromptVersion] = None
     responseFormat: Optional[ResponseFormat] = None
     sequenceNumber: int = Field(...)
@@ -1378,7 +1378,7 @@ class ChatPromptVersionInput(BaseModel):
     description: Optional[str] = None
     invocationParameters: dict[str, Any]
     modelName: str
-    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
+    modelProvider: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"]
     responseFormat: Optional[ResponseFormatInput] = None
     template: PromptChatTemplateInput
     templateFormat: Literal["F_STRING", "MUSTACHE", "NONE"]
