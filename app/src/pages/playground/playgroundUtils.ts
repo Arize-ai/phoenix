@@ -1175,7 +1175,7 @@ export function normalizeMessageContent(content?: unknown): string {
     // https://datatracker.ietf.org/doc/html/rfc7159#section-3
     // 0-9 { [ null false true
     // a regex that matches possible top level json values, besides strings
-    const nonStringStart = /^\s*[0-9{[\]false true null]/.test(content);
+    const nonStringStart = /^\s*[0-9{[]|true|false|null/.test(content);
     if (nonStringStart) {
       return content;
     }
