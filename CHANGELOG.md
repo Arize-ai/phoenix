@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.12.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.2...arize-phoenix-v7.12.3) (2025-02-19)
+
+
+### Bug Fixes
+
+* strip leading and trailing whitespace characters from values of string environment variables ([#6445](https://github.com/Arize-ai/phoenix/issues/6445)) ([90837e3](https://github.com/Arize-ai/phoenix/commit/90837e37a09da8bb293e1dd35453b1579e105607))
+
 ## [7.12.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.1...arize-phoenix-v7.12.2) (2025-02-13)
 
 
