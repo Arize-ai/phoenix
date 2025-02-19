@@ -56,7 +56,7 @@ class PromptVersion:
         *,
         model_name: str,
         description: Optional[str] = None,
-        model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = "OPENAI",
+        model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"] = "OPENAI",
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
     ) -> None:
         """
@@ -66,7 +66,7 @@ class PromptVersion:
             prompt (Sequence[v1.PromptMessage]): A sequence of prompt messages.
             model_name (str): The name of the model to use for the prompt.
             description (Optional[str]): A description of the prompt. Defaults to None.
-            model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"]): The provider
+            model_provider (Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"]): The provider
                 of the model to use for the prompt. Defaults to "OPENAI".
             template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
                 to use for the prompt. Defaults to "MUSTACHE".
@@ -74,7 +74,7 @@ class PromptVersion:
         self._template = v1.PromptChatTemplate(messages=prompt, type="chat")
         self._template_type: Literal["CHAT"] = "CHAT"
         self._model_name = model_name
-        self._model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GEMINI"] = (
+        self._model_provider: Literal["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"] = (
             model_provider
         )
         self._template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = template_format
@@ -83,7 +83,7 @@ class PromptVersion:
             v1.PromptOpenAIInvocationParameters,
             v1.PromptAzureOpenAIInvocationParameters,
             v1.PromptAnthropicInvocationParameters,
-            v1.PromptGeminiInvocationParameters,
+            v1.PromptGoogleInvocationParameters,
         ]
         if model_provider == "OPENAI":
             self._invocation_parameters = v1.PromptOpenAIInvocationParameters(
@@ -102,10 +102,10 @@ class PromptVersion:
                     max_tokens=1000,
                 ),
             )
-        elif model_provider == "GEMINI":
-            self._invocation_parameters = v1.PromptGeminiInvocationParameters(
-                type="gemini",
-                gemini=v1.PromptGeminiInvocationParametersContent(),
+        elif model_provider == "GOOGLE":
+            self._invocation_parameters = v1.PromptGoogleInvocationParameters(
+                type="google",
+                google=v1.PromptGoogleInvocationParametersContent(),
             )
         else:
             assert_never(model_provider)
@@ -331,7 +331,7 @@ def _to_sdk(
         "OPENAI",
         "AZURE_OPENAI",
         "ANTHROPIC",
-        "GEMINI",
+        "GOOGLE",
     ],
 ) -> SDK:
     if model_provider == "OPENAI":
@@ -340,6 +340,6 @@ def _to_sdk(
         return "openai"
     if model_provider == "ANTHROPIC":
         return "anthropic"
-    if model_provider == "GEMINI":
+    if model_provider == "GOOGLE":
         return "google_generativeai"
     assert_never(model_provider)

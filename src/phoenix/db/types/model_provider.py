@@ -5,4 +5,4 @@ class ModelProvider(Enum):
     OPENAI = "OPENAI"
     AZURE_OPENAI = "AZURE_OPENAI"
     ANTHROPIC = "ANTHROPIC"
-    GEMINI = "GEMINI"
+    GOOGLE = "GOOGLE"

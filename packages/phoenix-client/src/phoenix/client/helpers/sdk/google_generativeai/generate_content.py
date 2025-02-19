@@ -106,9 +106,9 @@ def _to_model_kwargs(
     obj: v1.PromptVersionData,
     /,
 ) -> GoogleModelKwargs:
-    invocation_parameters: v1.PromptGeminiInvocationParametersContent = (
-        obj["invocation_parameters"]["gemini"]
-        if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "gemini"
+    invocation_parameters: v1.PromptGoogleInvocationParametersContent = (
+        obj["invocation_parameters"]["google"]
+        if "invocation_parameters" in obj and obj["invocation_parameters"]["type"] == "google"
         else {}
     )
     temperature = invocation_parameters.get("temperature")

@@ -381,7 +381,7 @@ class PromptAnthropicInvocationParameters(PromptModel):
     anthropic: PromptAnthropicInvocationParametersContent
 
 
-class PromptGeminiInvocationParametersContent(PromptModel):
+class PromptGoogleInvocationParametersContent(PromptModel):
     temperature: float = UNDEFINED
     max_output_tokens: int = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
@@ -391,9 +391,9 @@ class PromptGeminiInvocationParametersContent(PromptModel):
     top_k: int = UNDEFINED
 
 
-class PromptGeminiInvocationParameters(PromptModel):
-    type: Literal["gemini"]
-    gemini: PromptGeminiInvocationParametersContent
+class PromptGoogleInvocationParameters(PromptModel):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
 
 
 PromptInvocationParameters: TypeAlias = Annotated[
@@ -401,7 +401,7 @@ PromptInvocationParameters: TypeAlias = Annotated[
         PromptOpenAIInvocationParameters,
         PromptAzureOpenAIInvocationParameters,
         PromptAnthropicInvocationParameters,
-        PromptGeminiInvocationParameters,
+        PromptGoogleInvocationParameters,
     ],
     Field(..., discriminator="type"),
 ]
@@ -416,8 +416,8 @@ def get_raw_invocation_parameters(
         return invocation_parameters.azure_openai.model_dump()
     if isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
         return invocation_parameters.anthropic.model_dump()
-    if isinstance(invocation_parameters, PromptGeminiInvocationParameters):
-        return invocation_parameters.gemini.model_dump()
+    if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
+        return invocation_parameters.google.model_dump()
     assert_never(invocation_parameters)
 
 
@@ -430,7 +430,7 @@ def is_prompt_invocation_parameters(
             PromptOpenAIInvocationParameters,
             PromptAzureOpenAIInvocationParameters,
             PromptAnthropicInvocationParameters,
-            PromptGeminiInvocationParameters,
+            PromptGoogleInvocationParameters,
         ),
     )
 
@@ -462,10 +462,10 @@ def validate_invocation_parameters(
                 invocation_parameters
             ),
         )
-    elif model_provider is ModelProvider.GEMINI:
-        return PromptGeminiInvocationParameters(
-            type="gemini",
-            gemini=PromptGeminiInvocationParametersContent.model_validate(invocation_parameters),
+    elif model_provider is ModelProvider.GOOGLE:
+        return PromptGoogleInvocationParameters(
+            type="google",
+            google=PromptGoogleInvocationParametersContent.model_validate(invocation_parameters),
         )
     assert_never(model_provider)
 
