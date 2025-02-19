@@ -22,9 +22,9 @@ class Client:
 
         Args:
             base_url (Optional[str]): The base URL for the API endpoint. If not provided, it will
-                be read from the environment variables or fall back to a default value.
+                be read from the environment variables or fall back to http://localhost:6006/.
             api_key (Optional[str]): The API key for authentication. If provided, it will be
-                included in the Authorization header. Defaults to None.
+                included in the Authorization header as a bearer token. Defaults to None.
             headers (Optional[Mapping[str, str]]): Additional headers to be included in the HTTP.
                 Defaults to None. This is ignored if http_client is provided. Additional headers
                 may be added from the environment variables, but won't override specified values.
@@ -65,9 +65,9 @@ class AsyncClient:
 
         Args:
             base_url (Optional[str]): The base URL for the API endpoint. If not provided, it will
-                be read from the environment variables or fall back to a default value.
+                be read from the environment variables or fall back to http://localhost:6006/.
             api_key (Optional[str]): The API key for authentication. If provided, it will be
-                included in the Authorization header. Defaults to None.
+                included in the Authorization header as a bearer token. Defaults to None.
             headers (Optional[Mapping[str, str]]): Additional headers to be included in the HTTP.
                 Defaults to None. This is ignored if http_client is provided. Additional headers
                 may be added from the environment variables, but won't override specified values.

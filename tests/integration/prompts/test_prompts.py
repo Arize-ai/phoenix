@@ -1,3 +1,4 @@
+# pyright: reportPrivateUsage=false
 from __future__ import annotations
 
 import json
@@ -310,15 +311,15 @@ def _can_recreate_via_client(version: PromptVersion) -> None:
     new_name = token_hex(8)
     a = px.Client().prompts.create(name=new_name, version=version)
     assert version.id != a.id
-    expected = version._dumps()  # pyright: ignore[reportPrivateUsage]
-    assert not DeepDiff(expected, a._dumps())  # pyright: ignore[reportPrivateUsage]
+    expected = version._dumps()
+    assert not DeepDiff(expected, a._dumps())
     b = px.Client().prompts.get(prompt_identifier=new_name)
     assert a.id == b.id
-    assert not DeepDiff(expected, b._dumps())  # pyright: ignore[reportPrivateUsage]
+    assert not DeepDiff(expected, b._dumps())
     same_name = new_name
     c = px.Client().prompts.create(name=same_name, version=version)
     assert a.id != c.id
-    assert not DeepDiff(expected, c._dumps())  # pyright: ignore[reportPrivateUsage]
+    assert not DeepDiff(expected, c._dumps())
 
 
 def _create_chat_prompt(
@@ -836,6 +837,6 @@ class TestClient:
             version=convert(params, template_format=template_format),
         )
         prompt = Client().prompts.get(prompt_identifier=prompt_identifier)
-        assert prompt._model_provider == model_provider  # pyright: ignore[reportPrivateUsage]
-        assert prompt._template_format == template_format  # pyright: ignore[reportPrivateUsage]
+        assert prompt._model_provider == model_provider
+        assert prompt._template_format == template_format
         assert not DeepDiff(params, {**prompt.format(formatter=NO_OP_FORMATTER)})
