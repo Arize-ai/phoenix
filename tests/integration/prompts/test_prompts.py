@@ -375,10 +375,11 @@ class TestClient:
         ["F_STRING", "MUSTACHE", "NONE"],
     )
     @pytest.mark.parametrize(
-        "convert,expected,model_providers",
+        "convert,model_providers,expected",
         [
             pytest.param(
                 PromptVersion.from_openai,
+                ["OPENAI", "AZURE_OPENAI"],
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -391,11 +392,11 @@ class TestClient:
                         {"role": "user", "content": "Write a poem about {topic}."},
                     ],
                 ),
-                ["OPENAI", "AZURE_OPENAI"],
                 id="openai-system-message-string",
             ),
             pytest.param(
                 PromptVersion.from_openai,
+                ["OPENAI", "AZURE_OPENAI"],
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -420,11 +421,11 @@ class TestClient:
                         },
                     ],
                 ),
-                ["OPENAI", "AZURE_OPENAI"],
                 id="openai-system-message-list",
             ),
             pytest.param(
                 PromptVersion.from_openai,
+                ["OPENAI", "AZURE_OPENAI"],
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -441,11 +442,11 @@ class TestClient:
                     tools=_OPENAI_TOOLS,
                     tool_choice="required",
                 ),
-                ["OPENAI", "AZURE_OPENAI"],
                 id="openai-tools",
             ),
             pytest.param(
                 PromptVersion.from_openai,
+                ["OPENAI", "AZURE_OPENAI"],
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -484,11 +485,11 @@ class TestClient:
                     tools=_OPENAI_TOOLS,
                     tool_choice="required",
                 ),
-                ["OPENAI", "AZURE_OPENAI"],
                 id="openai-function-calling",
             ),
             pytest.param(
                 PromptVersion.from_openai,
+                ["OPENAI", "AZURE_OPENAI"],
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -532,11 +533,11 @@ class TestClient:
                     tools=_OPENAI_TOOLS,
                     tool_choice="required",
                 ),
-                ["OPENAI", "AZURE_OPENAI"],
                 id="openai-tool-message-string",
             ),
             pytest.param(
                 PromptVersion.from_openai,
+                ["OPENAI", "AZURE_OPENAI"],
                 CompletionCreateParamsBase(
                     model=token_hex(8),
                     temperature=random(),
@@ -583,11 +584,11 @@ class TestClient:
                     tools=_OPENAI_TOOLS,
                     tool_choice="required",
                 ),
-                ["OPENAI", "AZURE_OPENAI"],
                 id="openai-tool-message-list",
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
+                ["ANTHROPIC"],
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -599,11 +600,11 @@ class TestClient:
                         {"role": "user", "content": "Write a haiku about {topic}."},
                     ],
                 ),
-                ["ANTHROPIC"],
                 id="anthropic-system-message-string",
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
+                ["ANTHROPIC"],
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -624,11 +625,11 @@ class TestClient:
                         },
                     ],
                 ),
-                ["ANTHROPIC"],
                 id="anthropic-system-message-list",
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
+                ["ANTHROPIC"],
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -644,11 +645,11 @@ class TestClient:
                     tools=_ANTHROPIC_TOOLS,
                     tool_choice={"type": "any"},
                 ),
-                ["ANTHROPIC"],
                 id="anthropic-tools",
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
+                ["ANTHROPIC"],
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -685,11 +686,11 @@ class TestClient:
                     tools=_ANTHROPIC_TOOLS,
                     tool_choice={"type": "any"},
                 ),
-                ["ANTHROPIC"],
                 id="anthropic-tool-use",
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
+                ["ANTHROPIC"],
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -745,11 +746,11 @@ class TestClient:
                     tools=_ANTHROPIC_TOOLS,
                     tool_choice={"type": "any"},
                 ),
-                ["ANTHROPIC"],
                 id="anthropic-tool-result-string",
             ),
             pytest.param(
                 PromptVersion.from_anthropic,
+                ["ANTHROPIC"],
                 MessageCreateParamsBase(
                     model=token_hex(8),
                     max_tokens=1024,
@@ -813,7 +814,6 @@ class TestClient:
                     tools=_ANTHROPIC_TOOLS,
                     tool_choice={"type": "any"},
                 ),
-                ["ANTHROPIC"],
                 id="anthropic-tool-result-list",
             ),
         ],
