@@ -916,6 +916,7 @@ def create_app(
             ),
             name="static",
         )
+    app.state.authentication_enabled = authentication_enabled
     app.state.read_only = read_only
     app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry
