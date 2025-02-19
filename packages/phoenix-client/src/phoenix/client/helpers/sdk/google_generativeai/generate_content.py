@@ -63,7 +63,7 @@ def create_prompt_version_from_google(
     *,
     description: Optional[str] = None,
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
-    model_provider: Literal["GEMINI"] = "GEMINI",
+    model_provider: Literal["GOOGLE"] = "GOOGLE",
 ) -> v1.PromptVersionData:
     raise NotImplementedError
 

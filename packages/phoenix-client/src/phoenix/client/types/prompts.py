@@ -252,7 +252,7 @@ class PromptVersion:
         *,
         template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "MUSTACHE",
         description: Optional[str] = None,
-        model_provider: Literal["GEMINI"] = "GEMINI",
+        model_provider: Literal["GOOGLE"] = "GOOGLE",
     ) -> Self:
         return cls._loads(
             create_prompt_version_from_google(

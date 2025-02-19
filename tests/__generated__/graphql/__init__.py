@@ -593,7 +593,7 @@ class Functionality(BaseModel):
 class GenerativeModel(BaseModel):
     model_config = ConfigDict(frozen=True)
     name: str
-    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
+    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"]
 
 
 class GenerativeProvider(BaseModel):
@@ -602,7 +602,7 @@ class GenerativeProvider(BaseModel):
     apiKeySet: bool = Field(...)
     dependencies: list[str]
     dependenciesInstalled: bool
-    key: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
+    key: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"]
     name: str
 
 
@@ -1601,7 +1601,7 @@ class GenerativeModelInput(BaseModel):
     baseUrl: Optional[str] = None
     endpoint: Optional[str] = None
     name: str
-    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]
+    providerKey: Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"]
 
 
 class Granularity(BaseModel):
@@ -1650,7 +1650,7 @@ class InvocationParameterInput(BaseModel):
 class ModelsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     modelName: Optional[str] = None
-    providerKey: Optional[Literal["ANTHROPIC", "AZURE_OPENAI", "GEMINI", "OPENAI"]] = None
+    providerKey: Optional[Literal["ANTHROPIC", "AZURE_OPENAI", "GOOGLE", "OPENAI"]] = None
 
 
 class PatchAnnotationInput(BaseModel):
