@@ -30,14 +30,18 @@ const jsonSchemaPropertiesSchema = z
 export const jsonSchemaZodSchema = z
   .object({
     type: z.literal("object"),
-    properties: z.record(
-      z.union([
-        jsonSchemaPropertiesSchema,
-        z
-          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
-          .describe("A list of possible parameter names to their definitions"),
-      ])
-    ),
+    properties: z
+      .record(
+        z.union([
+          jsonSchemaPropertiesSchema,
+          z
+            .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+            .describe(
+              "A list of possible parameter names to their definitions"
+            ),
+        ])
+      )
+      .optional(),
     required: z
       .array(z.string())
       .optional()
