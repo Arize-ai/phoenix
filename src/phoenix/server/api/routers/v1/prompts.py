@@ -26,6 +26,7 @@ from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_resp
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
 from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
+from phoenix.server.bearer_auth import PhoenixUser
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +307,9 @@ async def create_prompt(
             "Invalid name identifier for prompt: " + e.errors()[0]["msg"],
         )
     version = request_body.version
+    user_id: Optional[int] = (
+        int(user.identity) if isinstance(user := request.user, PhoenixUser) else None
+    )
     async with request.app.state.db() as session:
         if not (prompt_id := await session.scalar(select(models.Prompt.id).filter_by(name=name))):
             prompt_orm = models.Prompt(
@@ -316,6 +320,7 @@ async def create_prompt(
             await session.flush()
             prompt_id = prompt_orm.id
         version_orm = models.PromptVersion(
+            user_id=user_id,
             prompt_id=prompt_id,
             description=version.description,
             model_provider=version.model_provider,
