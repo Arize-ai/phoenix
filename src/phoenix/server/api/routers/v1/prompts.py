@@ -307,9 +307,10 @@ async def create_prompt(
             "Invalid name identifier for prompt: " + e.errors()[0]["msg"],
         )
     version = request_body.version
-    user_id: Optional[int] = (
-        int(user.identity) if isinstance(user := request.user, PhoenixUser) else None
-    )
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        user_id = int(user.identity)
     async with request.app.state.db() as session:
         if not (prompt_id := await session.scalar(select(models.Prompt.id).filter_by(name=name))):
             prompt_orm = models.Prompt(
