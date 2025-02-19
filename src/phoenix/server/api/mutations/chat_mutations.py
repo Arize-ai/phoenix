@@ -22,6 +22,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
+from phoenix.config import get_env_enable_auth
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import get_dataset_example_revisions
@@ -174,6 +175,15 @@ class ChatCompletionMutationMixin:
                     )
                 )
             ]
+
+            username: Optional[str] = None
+            if get_env_enable_auth() and (user := info.context.user):
+                users_dataloader = info.context.data_loaders.users
+                user_id = user.identity
+                db_user = await users_dataloader.load(user_id)
+                if db_user:
+                    username = db_user.username
+
             if not revisions:
                 raise NotFound("No examples found for the given dataset and version")
             experiment = models.Experiment(
@@ -182,7 +192,7 @@ class ChatCompletionMutationMixin:
                 name=input.experiment_name
                 or _default_playground_experiment_name(input.prompt_name),
                 description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
+                or _default_playground_experiment_description(username=username),
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
