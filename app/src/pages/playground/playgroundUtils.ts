@@ -1182,9 +1182,7 @@ export function normalizeMessageContent(content?: unknown): string {
   }
 
   // For any content that doesn't match the json spec for a top level value, stringify it with pretty printing
-  const out = JSON.stringify(content, null, 2);
-
-  return out;
+  return JSON.stringify(content, null, 2);
 }
 
 export function areRequiredInvocationParametersConfigured(
