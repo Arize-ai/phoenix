@@ -1,6 +1,6 @@
 # Overview: Prompts
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3_prompt.gif" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif" alt=""><figcaption><p>Use the playground to engineer the optimal prompt for your task</p></figcaption></figure>
 
 Prompt management you to create, store, and modify prompts for interacting with LLMs. By managing prompts systematically, you can improve reuse, consistency, and experiment with variations across different models and inputs.
 

@@ -18,7 +18,7 @@ You can use the  `.env.example` as a template to create the `.env` file
 
 <figure><img src="../../.gitbook/assets/image (7).png" alt=""><figcaption></figcaption></figure>
 
-Add the following environment variable to the `.env` files
+Add the following environment variable to the `.env` file
 
 ```
 # Arize Phoenix Env Variables
@@ -49,7 +49,7 @@ In this example, we'll use Simple Agent for this tutorial&#x20;
 
 <figure><img src="../../.gitbook/assets/image (4).png" alt=""><figcaption></figcaption></figure>
 
-Add your OpenAI Key to the Agent component
+Add your OpenAI Key to the Agent component in LangFlow
 
 <figure><img src="../../.gitbook/assets/image (5).png" alt=""><figcaption><p>Add your OpenAI Key</p></figcaption></figure>
 
