@@ -4,13 +4,33 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
+## 02.19.2025: Prompts 📃
+
+**Available in Phoenix 8.0+**
+
+<figure><img src="../.gitbook/assets/Screenshot 2025-02-19 at 9.56.34 PM.png" alt=""><figcaption></figcaption></figure>
+
+Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications!&#x20;
+
+Here are some more highlights from this release:&#x20;
+
+* Native prompt, tool, parameter, and response format normalization for OpenAI, Anthropic, Azure Open AI, Google AI Studio.
+* Prompt metadata propagation on Playground spans and experiment metadata on Playground dataset runs.
+* Playground Hotkeys and major performance optimizations in the template editors.
+* A new TypeScript client for syncing prompts with your JavaScript runtime, including native support for OpenAI, Anthropic, and the Vercel AI SDK.
+* A new Python client for syncing templates and applying them to AI SDKs like OpenAI, Anthropic, and others.
+
+Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
+
 ## 01.18.2025: Automatic & Manual Span Tracing ⚙️
 
-**Available in Phoenix 7.9**
+**Available in Phoenix 7.9+**
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 3.38.41 PM.png" alt=""><figcaption></figcaption></figure>
 
-You can now use the tracer object in two main ways:
+In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
+
+You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are:
 
 * Using the **decorator** `@tracer.chain` traces the entire function automatically as a Span in Phoenix. The input, output, and status attributes are set based on the function's parameters and return value.
 * Using the tracer in a `with` clause allows you to trace specific code blocks within a function. You manually define the Span name, input, output, and status.
@@ -19,7 +39,7 @@ Check out the [docs](https://docs.arize.com/phoenix/tracing/how-to-tracing/instr
 
 ## 12.09.2024: **Sessions** 💬
 
-**Available in Phoenix 7.0**
+**Available in Phoenix 7.0+**
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 10.01.21 AM.png" alt=""><figcaption></figcaption></figure>
 
@@ -45,7 +65,7 @@ Sessions make it easier to visual multi-turn exchanges with your chatbot or agen
 
 ## 11.18.2024: Prompt Playground 🛝
 
-**Available in Phoenix 5.0**
+**Available in Phoenix 6.0+**
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 3.03.42 PM.png" alt=""><figcaption></figcaption></figure>
 
@@ -90,7 +110,7 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 
 ## 09.26.2024: Authentication & RBAC 🔐
 
-**Available in Phoenix 5.0**
+**Available in Phoenix 5.0+**
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 3.03.13 PM.png" alt="" width="563"><figcaption></figcaption></figure>
 
@@ -107,7 +127,7 @@ For all the details on authentication, view our [docs](https://docs.arize.com/ph
 
 ## 07.18.2024: Guardrails AI Integrations💂&#x20;
 
-**Available in Phoenix 4.11.0**
+**Available in Phoenix 4.11.0+**
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.52.32 PM.png" alt="" width="563"><figcaption></figcaption></figure>
 
@@ -131,7 +151,7 @@ Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.ari
 
 ## 07.03.2024: Datasets & Experiments 🧪
 
-**Available in Phoenix 4.6**
+**Available in Phoenix 4.6+**
 
 
 
@@ -150,7 +170,7 @@ For more details, check out our full [walkthrough](https://www.youtube.com/watch
 
 ## 07.02.2024: Function Call Evaluations ⚒️
 
-**Available in Phoenix 4.6**
+**Available in Phoenix 4.6+**
 
 
 
