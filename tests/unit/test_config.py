@@ -1,5 +1,6 @@
-import pytest
 from urllib.parse import quote_plus
+
+import pytest
 
 from phoenix.config import get_env_postgres_connection_str
 
