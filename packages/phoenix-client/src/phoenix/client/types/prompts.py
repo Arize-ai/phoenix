@@ -49,6 +49,10 @@ if TYPE_CHECKING:
 
 
 class PromptVersion:
+    """
+    Represents a version of a prompt for different model providers.
+    """
+
     def __init__(
         self,
         prompt: Sequence[v1.PromptMessage],
@@ -135,6 +139,19 @@ class PromptVersion:
         formatter: Optional[TemplateFormatter] = None,
         sdk: Optional[SDK] = None,
     ) -> _FormattedPrompt:
+        """
+        Formats the prompt for a specific SDK.
+
+        Args:
+            variables (Mapping[str, str]): A mapping of variable names to values to use in the
+                prompt. Defaults to an empty mapping.
+            formatter (Optional[TemplateFormatter]): A custom template formatter to use for the
+                prompt. Defaults to None.
+            sdk (Optional[SDK]): The SDK to format the prompt for. Defaults to None.
+
+        Returns:
+            The formatted prompt.
+        """
         sdk = sdk or _to_sdk(self._model_provider)
         obj = self._dumps()
         if sdk == "openai":
@@ -216,6 +233,20 @@ class PromptVersion:
         description: Optional[str] = None,
         model_provider: Literal["OPENAI", "AZURE_OPENAI"] = "OPENAI",
     ) -> Self:
+        """
+        Creates a prompt version from an OpenAI chat completion model.
+
+        Args:
+            obj (CompletionCreateParamsBase): The completion create parameters.
+            template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
+                to use for the prompt. Defaults to "MUSTACHE".
+            description (Optional[str]): A description of the prompt. Defaults to None.
+            model_provider (Literal["OPENAI", "AZURE_OPENAI"]): The provider of the model to use
+                for the prompt. Defaults to "OPENAI".
+
+        Returns:
+            PromptVersion: The prompt version.
+        """
         return cls._loads(
             create_prompt_version_from_openai(
                 obj,
@@ -235,6 +266,20 @@ class PromptVersion:
         description: Optional[str] = None,
         model_provider: Literal["ANTHROPIC"] = "ANTHROPIC",
     ) -> Self:
+        """
+        Creates a prompt version from an Anthropic message model.
+
+        Args:
+            obj (MessageCreateParamsBase): The message create parameters.
+            template_format (Literal["F_STRING", "MUSTACHE", "NONE"]): The format of the template
+                to use for the prompt. Defaults to "MUSTACHE".
+            description (Optional[str]): A description of the prompt. Defaults to None.
+            model_provider (Literal["ANTHROPIC"]): The provider of the model to use for the prompt.
+                Defaults to "ANTHROPIC".
+
+        Returns:
+            PromptVersion: The prompt version.
+        """
         return cls._loads(
             create_prompt_version_from_anthropic(
                 obj,
