@@ -62,7 +62,7 @@ class PromptVersionData(V1RoutesBaseModel):
                 return self
         else:
             assert_never(self.template_type)
-        raise ValueError("Template type does not match")
+        raise ValueError("Template type does not match template")
 
 
 class PromptVersion(PromptVersionData):

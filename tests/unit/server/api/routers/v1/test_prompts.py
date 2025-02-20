@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import string
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from enum import Enum
 from secrets import token_hex
 from typing import Any, Optional, Union
@@ -60,7 +60,7 @@ class TestPromptVersionData:
         template_type: PromptTemplateType,
         template: Union[PromptChatTemplate, PromptStringTemplate],
     ) -> None:
-        expectation = pytest.raises(ValidationError)
+        expectation: AbstractContextManager[Any] = pytest.raises(ValidationError)
         if template_type == PromptTemplateType.CHAT:
             if template.type == "chat":
                 expectation = nullcontext()
