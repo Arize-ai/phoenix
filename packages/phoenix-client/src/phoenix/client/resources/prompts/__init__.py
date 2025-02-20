@@ -15,6 +15,11 @@ class Prompts:
     Provides methods for interacting with prompt resources.
 
     This class allows you to retrieve and create prompt versions.
+
+    Example:
+        Basic usage:
+            >>> from phoenix.client import Client
+            >>> Client().prompts.get(prompt_identifier="my-prompt")
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -40,6 +45,11 @@ class Prompts:
 
         Raises:
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+
+        Example:
+            Basic usage:
+                >>> from phoenix.client import Client
+                >>> Client().prompts.get(prompt_identifier="my-prompt")
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
@@ -83,6 +93,11 @@ class AsyncPrompts:
     Provides asynchronous methods for interacting with prompt resources.
 
     This class allows you to retrieve and create prompt versions.
+
+    Example:
+        Basic usage:
+            >>> from phoenix.client import AsyncClient
+            >>> await AsyncClient().prompts.get(prompt_identifier="my-prompt")
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -108,6 +123,11 @@ class AsyncPrompts:
 
         Raises:
             httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+
+        Example:
+            Basic usage:
+                >>> from phoenix.client import AsyncClient
+                >>> await AsyncClient().prompts.get(prompt_identifier="my-prompt")
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
