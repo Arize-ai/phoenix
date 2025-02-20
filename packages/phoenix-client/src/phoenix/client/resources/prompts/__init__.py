@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 class Prompts:
+    """
+    Provides methods for interacting with prompt resources.
+
+    This class allows you to retrieve and create prompt versions.
+    """
+
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
@@ -73,6 +79,12 @@ class Prompts:
 
 
 class AsyncPrompts:
+    """
+    Provides asynchronous methods for interacting with prompt resources.
+
+    This class allows you to retrieve and create prompt versions.
+    """
+
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
