@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.0.1...arize-phoenix-v8.1.0) (2025-02-20)
+
+
+### Features
+
+* Allow configuration of postgres username/password/db/host using standard env vars ([#6422](https://github.com/Arize-ai/phoenix/issues/6422)) ([b8641bc](https://github.com/Arize-ai/phoenix/commit/b8641bc3e6b815b2d2f4b311ab482b3b07710201))
+
+
+### Bug Fixes
+
+* remove jsonschema dependency ([#6473](https://github.com/Arize-ai/phoenix/issues/6473)) ([bd77b99](https://github.com/Arize-ai/phoenix/commit/bd77b99df63bcb86a18415620ced709c7558fb8c))
+
 ## [8.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.0.0...arize-phoenix-v8.0.1) (2025-02-20)
 
 
