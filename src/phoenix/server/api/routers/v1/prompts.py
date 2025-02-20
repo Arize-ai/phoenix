@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Self, Union
+from typing import Any, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import ValidationError, model_validator
@@ -8,7 +8,7 @@ from sqlalchemy.sql import Select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
