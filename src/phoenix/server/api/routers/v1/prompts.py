@@ -2,13 +2,13 @@ import logging
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import ValidationError
+from pydantic import ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.sql import Select
 from starlette.requests import Request
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -51,6 +51,18 @@ class PromptVersionData(V1RoutesBaseModel):
     invocation_parameters: PromptInvocationParameters
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
+
+    @model_validator(mode="after")
+    def check_template_type_match(self) -> Self:
+        if self.template_type is PromptTemplateType.CHAT:
+            if self.template.type == "chat":
+                return self
+        elif self.template_type is PromptTemplateType.STRING:
+            if self.template.type == "string":
+                return self
+        else:
+            assert_never(self.template_type)
+        raise ValueError("Template type does not match template")
 
 
 class PromptVersion(PromptVersionData):
