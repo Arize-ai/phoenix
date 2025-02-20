@@ -1,9 +1,10 @@
+import pytest
 from urllib.parse import quote_plus
 
 from phoenix.config import get_env_postgres_connection_str
 
 
-def test_missing_required_vars(monkeypatch):
+def test_missing_required_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PHOENIX_POSTGRES_USER", raising=False)
     monkeypatch.delenv("PHOENIX_POSTGRES_PASSWORD", raising=False)
     monkeypatch.delenv("PHOENIX_POSTGRES_HOST", raising=False)
@@ -16,7 +17,7 @@ def test_missing_required_vars(monkeypatch):
     assert get_env_postgres_connection_str() is None
 
 
-def test_basic_connection_string(monkeypatch):
+def test_basic_connection_string(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
     monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
     monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
@@ -27,7 +28,7 @@ def test_basic_connection_string(monkeypatch):
     assert get_env_postgres_connection_str() == expected
 
 
-def test_with_port_from_env(monkeypatch):
+def test_with_port_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
     monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
     monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
@@ -38,7 +39,7 @@ def test_with_port_from_env(monkeypatch):
     assert get_env_postgres_connection_str() == expected
 
 
-def test_with_port_in_host(monkeypatch):
+def test_with_port_in_host(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
     monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
     # Host includes a port, and no explicit port is set.
@@ -50,7 +51,7 @@ def test_with_port_in_host(monkeypatch):
     assert get_env_postgres_connection_str() == expected
 
 
-def test_overrides_port_in_host(monkeypatch):
+def test_overrides_port_in_host(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
     monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
     monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
@@ -61,7 +62,7 @@ def test_overrides_port_in_host(monkeypatch):
     assert get_env_postgres_connection_str() == expected
 
 
-def test_with_db(monkeypatch):
+def test_with_db(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
     monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pass")
     monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost")
@@ -72,7 +73,7 @@ def test_with_db(monkeypatch):
     assert get_env_postgres_connection_str() == expected
 
 
-def test_with_all_params_and_special_chars(monkeypatch):
+def test_with_all_params_and_special_chars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_POSTGRES_USER", "user")
     monkeypatch.setenv("PHOENIX_POSTGRES_PASSWORD", "pa ss")
     monkeypatch.setenv("PHOENIX_POSTGRES_HOST", "localhost:5432")
