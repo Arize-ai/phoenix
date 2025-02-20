@@ -48,13 +48,11 @@ Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai
 
 {% tabs %}
 {% tab title="Prompt Engineering" %}
-### [Prompt Engineering](prompt-engineering/overview-prompts.md)
-
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_playground.mp4" %}
 Phoenix Prompt Playground
 {% endembed %}
 
-Phoenix offers tools to streamline your prompt engineering workflow.
+Phoenix offers tools to [streamline your prompt engineering](prompt-engineering/overview-prompts.md) workflow.
 
 * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md) - Create, store, modify, and deploy prompts for interacting with LLMs
 * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
@@ -63,25 +61,21 @@ Phoenix offers tools to streamline your prompt engineering workflow.
 {% endtab %}
 
 {% tab title="Tracing" %}
-### [Tracing](tracing/llm-traces/)
-
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
 Tracing in Phoenix
 {% endembed %}
 
-Tracing is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
+[Tracing](tracing/llm-traces/) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
 
 Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](tracing/integrations-tracing/llamaindex.md), [LangChain](tracing/integrations-tracing/langchain.md),[ DSPy](tracing/integrations-tracing/dspy.md)), SDKs ([OpenAI](tracing/integrations-tracing/openai.md), [Bedrock](tracing/integrations-tracing/bedrock.md), [Mistral](tracing/integrations-tracing/mistralai.md), [Vertex](tracing/integrations-tracing/vertexai.md)), and Languages. ([Python](tracing/how-to-tracing/setup-tracing-python.md), [Javascript](tracing/how-to-tracing/javascript.md), etc.)
 {% endtab %}
 
 {% tab title="Evaluation" %}
-### [Evaluation](evaluation/llm-evals.md)
-
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" %}
 Evals in the Phoenix UI
 {% endembed %}
 
-Phoenix is built to help you evaluate your application and understand their true performance. To accomplish this, Phoenix includes:
+Phoenix is built to help you [evaluate your application](evaluation/llm-evals.md) and understand their true performance. To accomplish this, Phoenix includes:
 
 * A standalone library to [run LLM-based evaluations](evaluation/how-to-evals/running-pre-tested-evals/) on your own datasets. This can be used either with the Phoenix library, or independently over your own data.
 * [Direct integration of LLM-based and code-based evaluators](evaluation/how-to-evals/evaluating-phoenix-traces.md) into the Phoenix dashboard. Phoenix is built to be agnostic, and so these evals can be generated using Phoenix's library, or an external library like [Ragas](https://docs.ragas.io/), [Deepeval](https://github.com/confident-ai/deepeval), or [Cleanlab](https://cleanlab.ai/).
@@ -89,13 +83,11 @@ Phoenix is built to help you evaluate your application and understand their true
 {% endtab %}
 
 {% tab title="Datasets & Experiments" %}
-### [Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
-
 {% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.mp4" %}
 Experiments in Phoenix
 {% endembed %}
 
-Phoenix Datasets & Experiments let you test different versions of your application, store relevant traces for evaluation and analysis, and build robust evaluations into your development process.
+[Phoenix Datasets & Experiments](datasets-and-experiments/overview-datasets.md) let you test different versions of your application, store relevant traces for evaluation and analysis, and build robust evaluations into your development process.
 
 * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md) to test and compare different iterations of your application
 * [Collect relevant traces into a Dataset](datasets-and-experiments/how-to-datasets/), or directly upload Datasets from code / CSV
