@@ -22,6 +22,7 @@ import { OpenAIResponseFormat } from "./openai/responseFormatSchema";
 import { AnthropicToolDefinition } from "./anthropic/toolSchemas";
 import { PhoenixToolDefinition } from "./phoenixPrompt/toolSchemas";
 import { PhoenixContentPart } from "./phoenixPrompt/messagePartSchemas";
+import { VercelAIToolDefinition } from "./vercel/toolSchemas";
 
 export type PromptSDKFormat = PromptProviderSDKs | null;
 
@@ -118,7 +119,7 @@ export type ToolDefinitionWithProvider =
     }
   | {
       provider: Extract<PromptSDKFormat, "VERCEL_AI">;
-      validatedToolDefinition: null;
+      validatedToolDefinition: VercelAIToolDefinition;
     }
   | { provider: null; validatedToolDefinition: null };
 
