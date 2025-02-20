@@ -8,7 +8,7 @@ from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
 from typing import Optional, cast, overload
-from urllib.parse import quote_plus, urlparse, urlunparse
+from urllib.parse import quote_plus, urlparse
 
 from phoenix.utilities.logging import log_a_list
 
@@ -624,12 +624,17 @@ def get_env_project_name() -> str:
 
 
 def get_env_database_connection_str() -> str:
-    phoenix_url = os.getenv(ENV_PHOENIX_SQL_DATABASE_URL)
-
-    if phoenix_url:
+    if phoenix_url := os.getenv(ENV_PHOENIX_SQL_DATABASE_URL):
         return phoenix_url
 
-    # try to build the connection string entirely from PostgreSQL environment variables.
+    if postgres_url := get_env_postgres_connection_str():
+        return postgres_url
+
+    working_dir = get_working_dir()
+    return f"sqlite:///{working_dir}/phoenix.db"
+
+
+def get_env_postgres_connection_str() -> Optional[str]:
     pg_user = os.getenv("PHOENIX_POSTGRES_USER")
     pg_password = os.getenv("PHOENIX_POSTGRES_PASSWORD")
     pg_host = os.getenv("PHOENIX_POSTGRES_HOST")
@@ -649,9 +654,7 @@ def get_env_database_connection_str() -> str:
             connection_str = f"{connection_str}/{pg_db}"
 
         return connection_str
-
-    working_dir = get_working_dir()
-    return f"sqlite:///{working_dir}/phoenix.db"
+    return None
 
 
 def get_env_database_schema() -> Optional[str]:
