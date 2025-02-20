@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useMatch, useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -62,6 +62,8 @@ const PAGE_SIZE = 50;
 
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
+  // Determine if the table is active based on the current path
+  const isTableActive = !!useMatch("/projects/:projectId");
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
@@ -370,17 +372,19 @@ export function SpansTable(props: SpansTableProps) {
     const sort = sorting[0];
 
     startTransition(() => {
-      refetch(
-        {
-          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
-          after: null,
-          first: PAGE_SIZE,
-          filterCondition,
-        },
-        { fetchPolicy: "store-and-network" }
-      );
+      if (isTableActive) {
+        refetch(
+          {
+            sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
+            after: null,
+            first: PAGE_SIZE,
+            filterCondition,
+          },
+          { fetchPolicy: "store-and-network" }
+        );
+      }
     });
-  }, [sorting, refetch, filterCondition, fetchKey]);
+  }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
