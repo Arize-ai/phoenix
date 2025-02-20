@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.0.0...arize-phoenix-v8.0.1) (2025-02-20)
+
+
+### Bug Fixes
+
+* also reject on template_type ([#6468](https://github.com/Arize-ai/phoenix/issues/6468)) ([02a9668](https://github.com/Arize-ai/phoenix/commit/02a966838b824a0845b54ed72b5c19a916d1c7fb))
+
+
+### Documentation
+
+* Update README.md ([ab40e23](https://github.com/Arize-ai/phoenix/commit/ab40e238cc095781089dae8b562fa025384878a7))
+
 ## [8.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v7.12.3...arize-phoenix-v8.0.0) (2025-02-19)
 
 
