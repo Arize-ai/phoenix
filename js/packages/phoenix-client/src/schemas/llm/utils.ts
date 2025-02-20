@@ -26,6 +26,7 @@ import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
 import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
 import { phoenixContentPartSchema } from "./phoenixPrompt/messagePartSchemas";
+import { vercelAIToolDefinitionSchema } from "./vercel/toolSchemas";
 
 export const makeSDKConverters = <
   MessageSchema extends ZodTypeAny,
@@ -207,6 +208,11 @@ export const detectToolDefinitionProvider = (
     phoenixToolDefinitionSchema.safeParse(toolDefinition);
   if (phoenixSuccess) {
     return { provider: "PHOENIX", validatedToolDefinition: phoenixData };
+  }
+  const { success: vercelSuccess, data: vercelData } =
+    vercelAIToolDefinitionSchema.safeParse(toolDefinition);
+  if (vercelSuccess) {
+    return { provider: "VERCEL_AI", validatedToolDefinition: vercelData };
   }
   return { provider: null, validatedToolDefinition: null };
 };

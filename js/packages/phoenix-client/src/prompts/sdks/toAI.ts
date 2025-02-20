@@ -2,6 +2,7 @@ import invariant from "tiny-invariant";
 import {
   safelyConvertMessageToProvider,
   safelyConvertToolChoiceToProvider,
+  safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import { Variables, toSDKParamsBase } from "./types";
@@ -10,7 +11,6 @@ import {
   type generateText,
   type ToolSet,
   type Tool,
-  jsonSchema,
 } from "ai";
 import { VercelAIToolChoice } from "../../schemas/llm/vercel/toolChoiceSchemas";
 
@@ -69,11 +69,12 @@ export const toAI = <V extends Variables>({
       if (!tool.function.parameters) {
         return acc;
       }
-      acc[tool.function.name] = {
-        type: "function",
-        parameters: jsonSchema(tool.function.parameters),
-        description: tool.function.description,
-      } satisfies Tool;
+      const vercelAIToolDefinition = safelyConvertToolDefinitionToProvider({
+        toolDefinition: tool,
+        targetProvider: "VERCEL_AI",
+      });
+      invariant(vercelAIToolDefinition, "Tool definition is not valid");
+      acc[tool.function.name] = vercelAIToolDefinition satisfies Tool;
       return acc;
     }, {} as ToolSet);
     const hasTools = Object.keys(tools ?? {}).length > 0;

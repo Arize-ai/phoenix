@@ -378,7 +378,9 @@ export const toOpenAIToolDefinition = (
         validatedToolDefinition
       );
     case "VERCEL_AI":
-      return null;
+      return SDKProviderConverterMap.VERCEL_AI.toolDefinitions.toOpenAI.parse(
+        validatedToolDefinition
+      );
     case null:
       return null;
     default:
@@ -415,7 +417,9 @@ export const fromOpenAIToolDefinition = <
         toolDefinition
       );
     case "VERCEL_AI":
-      return null;
+      return SDKProviderConverterMap.VERCEL_AI.toolDefinitions.fromOpenAI.parse(
+        toolDefinition
+      );
     default:
       assertUnreachable(targetProvider);
   }

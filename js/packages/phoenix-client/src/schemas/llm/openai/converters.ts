@@ -28,6 +28,7 @@ import { isObject } from "../../../utils/isObject";
 import { VercelAIToolChoice } from "../vercel/toolChoiceSchemas";
 import { openAIToolDefinitionSchema } from "./toolSchemas";
 import { AnthropicToolDefinition } from "../anthropic/toolSchemas";
+import { VercelAIToolDefinition } from "../vercel/toolSchemas";
 
 export const openAIChatPartToAnthropic = openaiChatPartSchema.transform(
   (openai) => {
@@ -379,5 +380,21 @@ export const openAIToolDefinitionToAnthropic =
       name: openai.function.name,
       description: openai.function.description ?? openai.function.name,
       input_schema: openai.function.parameters,
+    })
+  );
+
+/**
+ * Parse incoming object as an OpenAI tool definition and immediately convert to Vercel AI format
+ */
+export const openAIToolDefinitionToVercelAI =
+  openAIToolDefinitionSchema.transform(
+    (openai): VercelAIToolDefinition => ({
+      type: "function",
+      description: openai.function.description,
+      parameters: {
+        _type: undefined,
+        jsonSchema: openai.function.parameters,
+        validate: undefined,
+      },
     })
   );
