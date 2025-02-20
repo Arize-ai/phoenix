@@ -10,9 +10,7 @@ description: The latest releases from the Phoenix team.
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-19 at 9.56.34 PM.png" alt=""><figcaption></figcaption></figure>
 
-Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications!&#x20;
-
-Here are some more highlights from this release:&#x20;
+Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications!  These are some more highlights from this release:&#x20;
 
 * Native prompt, tool, parameter, and response format normalization for OpenAI, Anthropic, Azure Open AI, Google AI Studio.
 * Prompt metadata propagation on Playground spans and experiment metadata on Playground dataset runs.
