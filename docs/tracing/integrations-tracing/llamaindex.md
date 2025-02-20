@@ -21,7 +21,7 @@ We recommend using `llama_index >= 0.11.0`
 Phoenix supports LlamaIndex's latest [instrumentation](https://docs.llamaindex.ai/en/stable/module_guides/observability/instrumentation/) paradigm. This paradigm requires LlamaIndex >= 0.10.43. For legacy support, see below.
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 **Sign up for Phoenix:**
 
 Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login) or [https://llamatrace.com](https://llamatrace.com)

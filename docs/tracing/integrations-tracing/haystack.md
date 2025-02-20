@@ -11,7 +11,7 @@ Phoenix provides auto-instrumentation for [Haystack](https://haystack.deepset.ai
 ## Launch Phoenix
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 **Sign up for Phoenix:**
 
 Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
