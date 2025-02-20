@@ -16,6 +16,7 @@ import {
   openAIToolChoiceToAnthropic,
   openAIToolChoiceToVercelAI,
   openAIToolDefinitionToAnthropic,
+  openAIToolDefinitionToVercelAI,
 } from "./openai/converters";
 import {
   phoenixResponseFormatToOpenAI,
@@ -150,7 +151,7 @@ export const SDKProviderConverterMap = {
     },
     toolDefinitions: {
       toOpenAI: openAIToolDefinitionSchema,
-      fromOpenAI: z.unknown(),
+      fromOpenAI: openAIToolDefinitionToVercelAI,
     },
   }),
 } satisfies Record<PromptProviderSDKs, unknown>;
