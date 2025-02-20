@@ -8,7 +8,7 @@ from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
 from typing import Optional, cast, overload
-from urllib.parse import urlparse
+from urllib.parse import quote_plus, urlparse
 
 from phoenix.utilities.logging import log_a_list
 
@@ -624,11 +624,37 @@ def get_env_project_name() -> str:
 
 
 def get_env_database_connection_str() -> str:
-    env_url = getenv(ENV_PHOENIX_SQL_DATABASE_URL)
-    if env_url is None:
-        working_dir = get_working_dir()
-        return f"sqlite:///{working_dir}/phoenix.db"
-    return env_url
+    if phoenix_url := os.getenv(ENV_PHOENIX_SQL_DATABASE_URL):
+        return phoenix_url
+
+    if postgres_url := get_env_postgres_connection_str():
+        return postgres_url
+
+    working_dir = get_working_dir()
+    return f"sqlite:///{working_dir}/phoenix.db"
+
+
+def get_env_postgres_connection_str() -> Optional[str]:
+    pg_user = os.getenv("PHOENIX_POSTGRES_USER")
+    pg_password = os.getenv("PHOENIX_POSTGRES_PASSWORD")
+    pg_host = os.getenv("PHOENIX_POSTGRES_HOST")
+    pg_port = os.getenv("PHOENIX_POSTGRES_PORT")
+    pg_db = os.getenv("PHOENIX_POSTGRES_DB")
+
+    if pg_host and ":" in pg_host:
+        pg_host, parsed_port = pg_host.split(":")
+        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
+
+    if pg_host and pg_user and pg_password:
+        encoded_password = quote_plus(pg_password)
+        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+        if pg_port:
+            connection_str = f"{connection_str}:{pg_port}"
+        if pg_db:
+            connection_str = f"{connection_str}/{pg_db}"
+
+        return connection_str
+    return None
 
 
 def get_env_database_schema() -> Optional[str]:
