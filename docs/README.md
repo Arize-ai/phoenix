@@ -50,7 +50,9 @@ Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai
 {% tab title="Prompt Engineering" %}
 ### [Prompt Engineering](prompt-engineering/overview-prompts.md)
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif" alt=""><figcaption><p>Phoenix's Prompt Playground</p></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_playground.mp4" %}
+Phoenix Prompt Playground
+{% endembed %}
 
 Phoenix offers tools to streamline your prompt engineering workflow.
 
