@@ -98,6 +98,7 @@
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
 * [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
+  * [Prompt Optimization](datasets-and-experiments/use-cases-datasets/prompt-optimization.md)
   * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
   * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
   * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
