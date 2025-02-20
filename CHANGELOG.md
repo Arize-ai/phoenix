@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.1.0...arize-phoenix-v8.2.0) (2025-02-20)
+
+
+### Features
+
+* **performance:** don't fetch new traces when the traces slideover is visible ([#6482](https://github.com/Arize-ai/phoenix/issues/6482)) ([21ca64b](https://github.com/Arize-ai/phoenix/commit/21ca64be24c3b069478e714d0d6a1936e54aa761))
+
 ## [8.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.0.1...arize-phoenix-v8.1.0) (2025-02-20)
 
 
