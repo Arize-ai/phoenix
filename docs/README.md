@@ -63,7 +63,9 @@ Phoenix offers tools to streamline your prompt engineering workflow.
 {% tab title="Tracing" %}
 ### [Tracing](tracing/llm-traces/)
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.gif" alt=""><figcaption><p>Tracing in Phoenix</p></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.mp4" %}
+Tracing in Phoenix
+{% endembed %}
 
 Tracing is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
 
@@ -73,7 +75,9 @@ Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first
 {% tab title="Evaluation" %}
 ### [Evaluation](evaluation/llm-evals.md)
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals-docs.gif" alt=""><figcaption><p>Evals in the Phoenix UI</p></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals.mp4" %}
+Evals in the Phoenix UI
+{% endembed %}
 
 Phoenix is built to help you evaluate your application and understand their true performance. To accomplish this, Phoenix includes:
 
@@ -85,7 +89,9 @@ Phoenix is built to help you evaluate your application and understand their true
 {% tab title="Datasets & Experiments" %}
 ### [Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.gif" alt=""><figcaption><p>Experiments in Phoenix</p></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.mp4" %}
+Experiments in Phoenix
+{% endembed %}
 
 Phoenix Datasets & Experiments let you test different versions of your application, store relevant traces for evaluation and analysis, and build robust evaluations into your development process.
 
