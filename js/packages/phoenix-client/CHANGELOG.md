@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 1.0.1
+
+### Patch Changes
+
+- 2ffeb64: fix: Remove runtime dependency on `ai` package
+
 ## 1.0.0
 
 ### Major Changes
