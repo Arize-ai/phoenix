@@ -58,7 +58,6 @@ dependencies = [
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
   "websockets",
-  "jsonschema>=4.0.0,<=4.23.0", # the upper bound is to keep us off the bleeding edge in case there's a regression since this controls what gets written to the database
   "arize-phoenix-client",
 ]
 dynamic = ["version"]
