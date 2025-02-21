@@ -11,7 +11,7 @@
 ### Bug Fixes
 
 * handle nan in annotation score for graphql ([#6506](https://github.com/Arize-ai/phoenix/issues/6506)) ([663ba4e](https://github.com/Arize-ai/phoenix/commit/663ba4e014e1966858dd1e75441c9704633d6846))
-* **perf:** add graphql dataloaders for all fields in Span(Node) ([#6490](https://github.com/Arize-ai/phoenix/issues/6490)) ([d96162a](https://github.com/Arize-ai/phoenix/commit/d96162a3c43e82a6abb1d6c87ad0687121efd9bc))
+* **performance:** add graphql dataloaders for all fields in Span(Node) ([#6490](https://github.com/Arize-ai/phoenix/issues/6490)) ([d96162a](https://github.com/Arize-ai/phoenix/commit/d96162a3c43e82a6abb1d6c87ad0687121efd9bc))
 
 ## [8.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.0.1...arize-phoenix-v8.1.0) (2025-02-20)
 
