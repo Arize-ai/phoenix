@@ -172,8 +172,8 @@ async def test_span_fields(
     spans = [e["node"] for e in data["node"]["spans"]["edges"]]
     assert len(spans) == len(db_spans)
     for span in spans:
-        id_ = from_global_id_with_expected_type(GlobalID.from_id(span["id"]), Span.__name__)
-        db_span = db_spans[id_]
+        span_rowid = from_global_id_with_expected_type(GlobalID.from_id(span["id"]), Span.__name__)
+        db_span = db_spans[span_rowid]
         assert span["id"] == str(GlobalID(Span.__name__, str(db_span.id)))
         assert span["name"] == db_span.name
         assert span["statusCode"] == db_span.status_code
@@ -244,9 +244,9 @@ def _get_descendants(spans: Mapping[int, models.Span]) -> dict[int, set[int]]:
     for span in spans.values():
         child_span = span
         while parent_id := child_span.parent_id:
-            id_ = ids[parent_id]
-            descendants[id_].add(span.id)
-            child_span = spans[id_]
+            parent_span_rowid = ids[parent_id]
+            descendants[parent_span_rowid].add(span.id)
+            child_span = spans[parent_span_rowid]
     return descendants
 
 
@@ -271,8 +271,8 @@ async def _span_data(
             await session.flush()
             traces[trace.id] = trace
             trace_spans: list[models.Span] = []
-            for _ in range(100):
-                attributes: dict[str, Any] = {}
+            for _ in range(50):
+                attributes: dict[str, Any] = fake.pydict(allowed_types=(str, int, float, bool))
                 if random() < 0.5:
                     attributes["llm"] = {
                         "token_count": {
@@ -312,12 +312,13 @@ async def _span_data(
                         )
                 events = []
                 if random() < 0.5:
-                    event = {
-                        "name": token_hex(8),
-                        "timestamp": fake.past_datetime(tzinfo=timezone.utc),
-                        "attributes": fake.pydict(allowed_types=(str, int, float, bool)),
-                    }
-                    events.append(event)
+                    for _ in range(randint(1, 10)):
+                        event = {
+                            "name": token_hex(8),
+                            "timestamp": fake.past_datetime(tzinfo=timezone.utc),
+                            "attributes": fake.pydict(allowed_types=(str, int, float, bool)),
+                        }
+                        events.append(event)
                 cumulative_llm_token_count_prompt = randint(1, 1000)
                 cumulative_llm_token_count_completion = randint(1, 1000)
                 cumulative_error_count = randint(0, 1)

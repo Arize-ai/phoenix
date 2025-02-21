@@ -483,7 +483,7 @@ class Query:
                 span = await session.scalar(span_stmt)
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
-            return Span(id_attr=span.id, db_span=span)
+            return Span(span_rowid=span.id, db_span=span)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:

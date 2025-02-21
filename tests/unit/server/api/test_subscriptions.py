@@ -156,9 +156,6 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check attributes
@@ -168,6 +165,7 @@ class TestChatCompletionSubscription:
         assert not span.pop("statusMessage")
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
@@ -290,9 +288,6 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check attributes
@@ -302,6 +297,7 @@ class TestChatCompletionSubscription:
         assert span.pop("statusMessage") == status_message
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
@@ -435,9 +431,6 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check attributes
@@ -447,6 +440,7 @@ class TestChatCompletionSubscription:
         assert not span.pop("statusMessage")
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
@@ -590,9 +584,6 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check attributes
@@ -602,6 +593,7 @@ class TestChatCompletionSubscription:
         assert not span.pop("statusMessage")
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
@@ -743,9 +735,6 @@ class TestChatCompletionSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check attributes
@@ -755,6 +744,7 @@ class TestChatCompletionSubscription:
         assert not span.pop("statusMessage")
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
@@ -1052,9 +1042,6 @@ class TestChatCompletionOverDatasetSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check example 1 span attributes
@@ -1064,6 +1051,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert not span.pop("statusMessage")
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")
@@ -1141,9 +1129,6 @@ class TestChatCompletionOverDatasetSubscription:
             subscription_span.pop("attributes")
         )
         attributes = dict(flatten(json.loads(attributes)))
-        # SQLite has a rounding issue where the latency
-        # calculation can be off by up to a millisecond.
-        assert abs(span.pop("latencyMs") - subscription_span.pop("latencyMs")) < 1
         assert span == subscription_span
 
         # check example 2 span attributes
@@ -1153,6 +1138,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert not span.pop("statusMessage")
         assert span.pop("startTime")
         assert span.pop("endTime")
+        assert isinstance(span.pop("latencyMs"), float)
         assert span.pop("parentId") is None
         assert span.pop("spanKind") == "llm"
         assert (context := span.pop("context")).pop("spanId")

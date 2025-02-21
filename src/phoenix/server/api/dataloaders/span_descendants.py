@@ -8,8 +8,10 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-Key: TypeAlias = int
-Result: TypeAlias = list[int]
+SpanRowId: TypeAlias = int
+
+Key: TypeAlias = SpanRowId
+Result: TypeAlias = list[SpanRowId]
 
 
 class SpanDescendantsDataLoader(DataLoader[Key, Result]):
@@ -55,7 +57,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             .join(descendant_ids, models.Span.id == descendant_ids.c.id)
             .order_by(descendant_ids.c[root_rowid_label])
         )
-        results: dict[int, Result] = {key: [] for key in keys}
+        results: dict[Key, Result] = {key: [] for key in keys}
         async with self._db() as session:
             data = await session.stream(stmt)
             async for key, group in groupby(data, key=lambda d: d[0]):

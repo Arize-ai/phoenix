@@ -232,15 +232,15 @@ class Project(Node):
         async with info.context.db() as session:
             span_records = await session.stream(stmt)
             async for span_record in islice(span_records, first):
-                id_: int = span_record[0]
-                cursor = Cursor(rowid=id_)
+                span_rowid: int = span_record[0]
+                cursor = Cursor(rowid=span_rowid)
                 if sort_config:
                     assert len(span_record) > 1
                     cursor.sort_column = CursorSortColumn(
                         type=sort_config.column_data_type,
                         value=span_record[1],
                     )
-                cursors_and_nodes.append((cursor, Span(id_attr=id_)))
+                cursors_and_nodes.append((cursor, Span(span_rowid=span_rowid)))
             has_next_page = True
             try:
                 await span_records.__anext__()

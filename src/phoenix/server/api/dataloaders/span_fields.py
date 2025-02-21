@@ -14,25 +14,25 @@ Key: TypeAlias = tuple[SpanRowId, QueryableAttribute[Any]]
 Result: TypeAlias = Any
 
 
+_ResultColumnPosition: TypeAlias = int
+_AttrStrIdentifier: TypeAlias = str
+
+
 class SpanFieldsDataLoader(DataLoader[Key, Result]):
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Union[Result, ValueError]]:
-        result: dict[tuple[SpanRowId, str], Result] = {}
+        result: dict[tuple[SpanRowId, _AttrStrIdentifier], Result] = {}
         stmt, attr_strs = _get_stmt(keys)
         async with self._db() as session:
             data = await session.stream(stmt)
             async for row in data:
-                pk: SpanRowId = row[0]  # models.Span's primary key
+                span_rowid: SpanRowId = row[0]  # models.Span's primary key
                 for i, v in enumerate(row[1:]):
-                    result[pk, attr_strs[i]] = v
-        return [result.get((pk, str(attr))) for pk, attr in keys]
-
-
-_ResultColumnPosition: TypeAlias = int
-_AttrStrIdentifier: TypeAlias = str
+                    result[span_rowid, attr_strs[i]] = v
+        return [result.get((span_rowid, str(attr))) for span_rowid, attr in keys]
 
 
 def _get_stmt(
@@ -42,7 +42,8 @@ def _get_stmt(
     dict[_ResultColumnPosition, _AttrStrIdentifier],
 ]:
     """
-    Generate a SQLAlchemy Select statement and a mapping of attribute identifiers.
+    Generate a SQLAlchemy Select statement and a mapping of attribute identifiers (from their
+    column positions in the query result starting at the second column).
 
     This function constructs a SQLAlchemy Select statement to query the `Span` model
     based on the provided keys. It also creates a mapping of attribute identifiers
@@ -61,7 +62,7 @@ def _get_stmt(
                 result to the attribute's string identifier.
     """
     span_rowids: set[SpanRowId] = set()
-    attrs: dict[str, QueryableAttribute[Any]] = {}
+    attrs: dict[_AttrStrIdentifier, QueryableAttribute[Any]] = {}
     joins = set()
     for span_rowid, attr in keys:
         span_rowids.add(span_rowid)

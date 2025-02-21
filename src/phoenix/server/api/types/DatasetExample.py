@@ -52,7 +52,7 @@ class DatasetExample(Node):
         info: Info[Context, None],
     ) -> Optional[Span]:
         return (
-            Span(id_attr=span.id, db_span=span)
+            Span(span_rowid=span.id, db_span=span)
             if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
             else None
         )

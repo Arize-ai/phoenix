@@ -62,16 +62,16 @@ from phoenix.server.api.helpers.prompts.models import (
 )
 from phoenix.trace.attributes import get_attribute_value
 
-INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
-INPUT_VALUE = SpanAttributes.INPUT_VALUE
-LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
-LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
-METADATA = SpanAttributes.METADATA
-OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
-RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS
-RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
+INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
+METADATA = SpanAttributes.METADATA.split(".")
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
 
 
 class AuthMethod(Enum):
@@ -434,7 +434,7 @@ class Span(Base):
     @input_value.inplace.expression
     @classmethod
     def _input_value_expression(cls) -> ColumnElement[Any]:
-        return cls.attributes[INPUT_VALUE.split(".")]
+        return cls.attributes[INPUT_VALUE]
 
     @hybrid_property
     def input_value_first_101_chars(self) -> Any:
@@ -447,8 +447,8 @@ class Span(Base):
     def _input_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
         return case(
             (
-                cls.attributes[INPUT_VALUE.split(".")] != sql.null(),
-                func.substr(cls.attributes[INPUT_VALUE.split(".")].as_string(), 1, 101),
+                cls.attributes[INPUT_VALUE] != sql.null(),
+                func.substr(cls.attributes[INPUT_VALUE].as_string(), 1, 101),
             ),
         )
 
@@ -459,7 +459,7 @@ class Span(Base):
     @input_mime_type.inplace.expression
     @classmethod
     def _input_mime_type_expression(cls) -> ColumnElement[Any]:
-        return cls.attributes[INPUT_MIME_TYPE.split(".")]
+        return cls.attributes[INPUT_MIME_TYPE]
 
     @hybrid_property
     def output_value(self) -> Any:
@@ -468,7 +468,7 @@ class Span(Base):
     @output_value.inplace.expression
     @classmethod
     def _output_value_expression(cls) -> ColumnElement[Any]:
-        return cls.attributes[OUTPUT_VALUE.split(".")]
+        return cls.attributes[OUTPUT_VALUE]
 
     @hybrid_property
     def output_value_first_101_chars(self) -> Any:
@@ -481,8 +481,8 @@ class Span(Base):
     def _output_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
         return case(
             (
-                cls.attributes[OUTPUT_VALUE.split(".")] != sql.null(),
-                func.substr(cls.attributes[OUTPUT_VALUE.split(".")].as_string(), 1, 101),
+                cls.attributes[OUTPUT_VALUE] != sql.null(),
+                func.substr(cls.attributes[OUTPUT_VALUE].as_string(), 1, 101),
             ),
         )
 
@@ -493,7 +493,7 @@ class Span(Base):
     @output_mime_type.inplace.expression
     @classmethod
     def _output_mime_type_expression(cls) -> ColumnElement[Any]:
-        return cls.attributes[OUTPUT_MIME_TYPE.split(".")]
+        return cls.attributes[OUTPUT_MIME_TYPE]
 
     @hybrid_property
     def metadata_(self) -> Any:
@@ -502,7 +502,7 @@ class Span(Base):
     @metadata_.inplace.expression
     @classmethod
     def _metadata_expression(cls) -> ColumnElement[Any]:
-        return cls.attributes[METADATA.split(".")]
+        return cls.attributes[METADATA]
 
     @hybrid_property
     def num_documents(self) -> int:
@@ -533,9 +533,7 @@ class Span(Base):
     @llm_token_count_total.inplace.expression
     @classmethod
     def _llm_token_count_total_expression(cls) -> ColumnElement[int]:
-        return coalesce(cls.attributes[LLM_TOKEN_COUNT_PROMPT.split(".")].as_float(), 0) + coalesce(
-            cls.attributes[LLM_TOKEN_COUNT_COMPLETION.split(".")].as_float(), 0
-        )
+        return coalesce(cls.llm_token_count_prompt, 0) + coalesce(cls.llm_token_count_completion, 0)
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
@@ -605,9 +603,9 @@ def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
         func.json_array_length if isinstance(compiler, SQLiteCompiler) else func.jsonb_array_length
     )
     attributes, span_kind = list(element.clauses)
-    retrieval_docs = attributes[RETRIEVAL_DOCUMENTS.split(".")]
+    retrieval_docs = attributes[RETRIEVAL_DOCUMENTS]
     num_retrieval_docs = coalesce(array_length(retrieval_docs), 0)
-    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS.split(".")]
+    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS]
     num_reranker_docs = coalesce(array_length(reranker_docs), 0)
     return compiler.process(
         sql.case(
@@ -992,7 +990,7 @@ class User(Base):
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
     @hybrid_property
-    def auth_method(self) -> Any:
+    def auth_method(self) -> Optional[str]:
         if self.password_hash is not None:
             return AuthMethod.LOCAL.value
         elif self.oauth2_client_id is not None:

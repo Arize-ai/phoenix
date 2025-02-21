@@ -116,7 +116,7 @@ def has_mapping(sequence: Iterable[Any]) -> bool:
 
 def get_attribute_value(
     attributes: Optional[Mapping[str, Any]],
-    key: str,
+    key: Union[str, Sequence[str]],
     separator: str = ".",
 ) -> Optional[Any]:
     """
@@ -129,7 +129,12 @@ def get_attribute_value(
     """
     if not (attributes and isinstance(attributes, dict)):
         return None
-    sub_keys = key.split(separator)
+    sub_keys: list[str] = []
+    if isinstance(key, str):
+        sub_keys.extend(key.split(separator))
+    else:
+        for k in key:
+            sub_keys.extend(k.split(separator))
     for sub_key in sub_keys[:-1]:
         attributes = attributes.get(sub_key)
         if not (attributes and isinstance(attributes, dict)):
