@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, select
-from sqlalchemy.orm import contains_eager
 from strawberry import UNSET, Private, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -20,7 +19,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
 if TYPE_CHECKING:
@@ -84,10 +83,10 @@ class Trace(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[Span]:
-        span = await info.context.data_loaders.trace_root_spans.load(self.id_attr)
-        if span is None:
+        id_ = await info.context.data_loaders.trace_root_spans.load(self.id_attr)
+        if id_ is None:
             return None
-        return to_gql_span(span)
+        return Span(id_attr=id_)
 
     @strawberry.field
     async def spans(
@@ -105,18 +104,17 @@ class Trace(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         stmt = (
-            select(models.Span)
+            select(models.Span.id)
             .join(models.Trace)
             .where(models.Trace.id == self.id_attr)
-            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
             # Sort descending because the root span tends to show up later
             # in the ingestion process.
             .order_by(desc(models.Span.id))
             .limit(first)
         )
         async with info.context.db() as session:
-            spans = await session.stream_scalars(stmt)
-            data = [to_gql_span(span) async for span in spans]
+            ids = await session.stream_scalars(stmt)
+            data = [Span(id_attr=id_) async for id_ in ids]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Annotations associated with the trace.")  # type: ignore

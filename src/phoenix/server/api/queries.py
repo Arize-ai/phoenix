@@ -64,7 +64,7 @@ from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
@@ -483,7 +483,7 @@ class Query:
                 span = await session.scalar(span_stmt)
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
-            return to_gql_span(span)
+            return Span(id_attr=span.id, db_span=span)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:

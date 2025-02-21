@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional, Sized, TypedDict
 
+import sqlalchemy.sql as sql
+from openinference.semconv.trace import RerankerAttributes, SpanAttributes
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -12,6 +14,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     MetaData,
     Null,
     String,
@@ -25,6 +28,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.sqlite.base import SQLiteCompiler
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -36,6 +40,8 @@ from sqlalchemy.orm import (
     relationship,
 )
 from sqlalchemy.sql import expression
+from sqlalchemy.sql.compiler import SQLCompiler
+from sqlalchemy.sql.functions import coalesce
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
@@ -54,6 +60,18 @@ from phoenix.server.api.helpers.prompts.models import (
     is_prompt_invocation_parameters,
     is_prompt_template,
 )
+from phoenix.trace.attributes import get_attribute_value
+
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
+METADATA = SpanAttributes.METADATA
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS
 
 
 class AuthMethod(Enum):
@@ -341,13 +359,11 @@ class Trace(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_ms_expression(cls) -> ColumnElement[float]:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
 
     project: Mapped["Project"] = relationship(
@@ -404,24 +420,122 @@ class Span(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
-        return (self.end_time - self.start_time).total_seconds() * 1000
+        return round((self.end_time - self.start_time).total_seconds() * 1000, 1)
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_ms_expression(cls) -> ColumnElement[float]:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
+
+    @hybrid_property
+    def input_value(self) -> Any:
+        return get_attribute_value(self.attributes, INPUT_VALUE)
+
+    @input_value.inplace.expression
+    @classmethod
+    def _input_value_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[INPUT_VALUE.split(".")]
+
+    @hybrid_property
+    def input_value_first_101_chars(self) -> Any:
+        if (v := get_attribute_value(self.attributes, INPUT_VALUE)) is None:
+            return None
+        return str(v)[:101]
+
+    @input_value_first_101_chars.inplace.expression
+    @classmethod
+    def _input_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+        return case(
+            (
+                cls.attributes[INPUT_VALUE.split(".")] != sql.null(),
+                func.substr(cls.attributes[INPUT_VALUE.split(".")].as_string(), 1, 101),
+            ),
+        )
+
+    @hybrid_property
+    def input_mime_type(self) -> Any:
+        return get_attribute_value(self.attributes, INPUT_MIME_TYPE)
+
+    @input_mime_type.inplace.expression
+    @classmethod
+    def _input_mime_type_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[INPUT_MIME_TYPE.split(".")]
+
+    @hybrid_property
+    def output_value(self) -> Any:
+        return get_attribute_value(self.attributes, OUTPUT_VALUE)
+
+    @output_value.inplace.expression
+    @classmethod
+    def _output_value_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[OUTPUT_VALUE.split(".")]
+
+    @hybrid_property
+    def output_value_first_101_chars(self) -> Any:
+        if (v := get_attribute_value(self.attributes, OUTPUT_VALUE)) is None:
+            return None
+        return str(v)[:101]
+
+    @output_value_first_101_chars.inplace.expression
+    @classmethod
+    def _output_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+        return case(
+            (
+                cls.attributes[OUTPUT_VALUE.split(".")] != sql.null(),
+                func.substr(cls.attributes[OUTPUT_VALUE.split(".")].as_string(), 1, 101),
+            ),
+        )
+
+    @hybrid_property
+    def output_mime_type(self) -> Any:
+        return get_attribute_value(self.attributes, OUTPUT_MIME_TYPE)
+
+    @output_mime_type.inplace.expression
+    @classmethod
+    def _output_mime_type_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[OUTPUT_MIME_TYPE.split(".")]
+
+    @hybrid_property
+    def metadata_(self) -> Any:
+        return get_attribute_value(self.attributes, METADATA)
+
+    @metadata_.inplace.expression
+    @classmethod
+    def _metadata_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[METADATA.split(".")]
+
+    @hybrid_property
+    def num_documents(self) -> int:
+        if self.span_kind.upper() == "RERANKER":
+            reranker_documents = get_attribute_value(self.attributes, RERANKER_OUTPUT_DOCUMENTS)
+            return len(reranker_documents) if isinstance(reranker_documents, Sized) else 0
+        retrieval_documents = get_attribute_value(self.attributes, RETRIEVAL_DOCUMENTS)
+        return len(retrieval_documents) if isinstance(retrieval_documents, Sized) else 0
+
+    @num_documents.inplace.expression
+    @classmethod
+    def _num_documents_expression(cls) -> ColumnElement[int]:
+        return NumDocuments(cls.attributes, cls.span_kind)
 
     @hybrid_property
     def cumulative_llm_token_count_total(self) -> int:
         return self.cumulative_llm_token_count_prompt + self.cumulative_llm_token_count_completion
 
+    @cumulative_llm_token_count_total.inplace.expression
+    @classmethod
+    def _cumulative_llm_token_count_total_expression(cls) -> ColumnElement[int]:
+        return cls.cumulative_llm_token_count_prompt + cls.cumulative_llm_token_count_completion
+
     @hybrid_property
-    def llm_token_count_total(self) -> Optional[int]:
-        if self.llm_token_count_prompt is None and self.llm_token_count_completion is None:
-            return None
+    def llm_token_count_total(self) -> int:
         return (self.llm_token_count_prompt or 0) + (self.llm_token_count_completion or 0)
+
+    @llm_token_count_total.inplace.expression
+    @classmethod
+    def _llm_token_count_total_expression(cls) -> ColumnElement[int]:
+        return coalesce(cls.attributes[LLM_TOKEN_COUNT_PROMPT.split(".")].as_float(), 0) + coalesce(
+            cls.attributes[LLM_TOKEN_COUNT_COMPLETION.split(".")].as_float(), 0
+        )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
@@ -472,6 +586,33 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
         # postgresql is correct because it matches the value computed by Python.
         func.round(
             (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000, 1
+        ),
+        **kw,
+    )
+
+
+class NumDocuments(expression.FunctionElement[int]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    inherit_cache = True
+    type = Integer()
+    name = "num_documents"
+
+
+@compiles(NumDocuments)
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    array_length = (
+        func.json_array_length if isinstance(compiler, SQLiteCompiler) else func.jsonb_array_length
+    )
+    attributes, span_kind = list(element.clauses)
+    retrieval_docs = attributes[RETRIEVAL_DOCUMENTS.split(".")]
+    num_retrieval_docs = coalesce(array_length(retrieval_docs), 0)
+    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS]
+    num_reranker_docs = coalesce(array_length(reranker_docs), 0)
+    return compiler.process(
+        sql.case(
+            (func.upper(span_kind) == "RERANKER", num_reranker_docs),
+            else_=num_retrieval_docs,
         ),
         **kw,
     )
@@ -763,13 +904,11 @@ class ExperimentRun(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_expression(cls) -> ColumnElement[float]:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
 
     trace: Mapped["Trace"] = relationship(
@@ -853,7 +992,7 @@ class User(Base):
     api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
 
     @hybrid_property
-    def auth_method(self) -> Optional[str]:
+    def auth_method(self) -> Any:
         if self.password_hash is not None:
             return AuthMethod.LOCAL.value
         elif self.oauth2_client_id is not None:

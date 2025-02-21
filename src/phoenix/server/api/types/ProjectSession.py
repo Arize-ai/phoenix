@@ -57,7 +57,7 @@ class ProjectSession(Node):
             return None
         return SpanIOValue(
             mime_type=MimeType(record.mime_type.value),
-            value=record.value,
+            cached_value=record.value,
         )
 
     @strawberry.field
@@ -70,7 +70,7 @@ class ProjectSession(Node):
             return None
         return SpanIOValue(
             mime_type=MimeType(record.mime_type.value),
-            value=record.value,
+            cached_value=record.value,
         )
 
     @strawberry.field

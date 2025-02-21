@@ -60,7 +60,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.trace.attributes import unflatten
 from phoenix.trace.schemas import SpanException
@@ -91,6 +91,7 @@ class ChatCompletionToolCall:
 
 @strawberry.type
 class ChatCompletionMutationPayload:
+    db_span: strawberry.Private[models.Span]
     content: Optional[str]
     tool_calls: List[ChatCompletionToolCall]
     span: Span
@@ -188,7 +189,7 @@ class ChatCompletionMutationMixin:
             session.add(experiment)
             await session.flush()
 
-        results = []
+        results: list[Union[ChatCompletionMutationPayload, BaseException]] = []
         batch_size = 3
         start_time = datetime.now(timezone.utc)
         for batch in _get_batches(revisions, batch_size):
@@ -234,19 +235,19 @@ class ChatCompletionMutationMixin:
                     error=str(result),
                 )
             else:
-                db_span = result.span.db_span
+                db_span: models.Span = result.db_span
                 experiment_run = models.ExperimentRun(
                     experiment_id=experiment.id,
                     dataset_example_id=revision.dataset_example_id,
-                    trace_id=str(result.span.context.trace_id),
+                    trace_id=db_span.trace.trace_id,
                     output=models.ExperimentRunOutput(
                         task_output=get_dataset_example_output(db_span),
                     ),
                     prompt_token_count=db_span.cumulative_llm_token_count_prompt,
                     completion_token_count=db_span.cumulative_llm_token_count_completion,
                     repetition_number=1,
-                    start_time=result.span.start_time,
-                    end_time=result.span.end_time,
+                    start_time=db_span.start_time,
+                    end_time=db_span.end_time,
                     error=str(result.error_message) if result.error_message else None,
                 )
             experiment_runs.append(experiment_run)
@@ -433,12 +434,13 @@ class ChatCompletionMutationMixin:
             session.add(span)
             await session.flush()
 
-        gql_span = to_gql_span(span)
+        gql_span = Span(id_attr=span.id, db_span=span)
 
         info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))
 
         if status_code is StatusCode.ERROR:
             return ChatCompletionMutationPayload(
+                db_span=span,
                 content=None,
                 tool_calls=[],
                 span=gql_span,
@@ -446,6 +448,7 @@ class ChatCompletionMutationMixin:
             )
         else:
             return ChatCompletionMutationPayload(
+                db_span=span,
                 content=text_content if text_content else None,
                 tool_calls=list(tool_calls.values()),
                 span=gql_span,
