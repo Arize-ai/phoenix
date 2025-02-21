@@ -51,3 +51,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Release docs
+      # Run pnpm run docs in js/packages/phoenix-client
+      # Deploy the static files in js/packages/phoenix-client/docs to github pages
