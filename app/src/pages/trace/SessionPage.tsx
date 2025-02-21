@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate, useParams } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
-import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
+import { ErrorBoundary } from "@phoenix/components";
 
 import { sessionLoaderQuery$data } from "./__generated__/sessionLoaderQuery.graphql";
 import { SessionDetails } from "./SessionDetails";
