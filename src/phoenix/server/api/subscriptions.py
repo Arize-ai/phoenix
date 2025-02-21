@@ -59,7 +59,7 @@ from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.types.Span import to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -165,7 +165,7 @@ class Subscription:
             session.add(db_span)
             await session.flush()
         info.context.event_queue.put(SpanInsertEvent(ids=(playground_project_id,)))
-        yield ChatCompletionSubscriptionResult(span=to_gql_span(db_span))
+        yield ChatCompletionSubscriptionResult(span=Span(id_attr=db_span.id, db_span=db_span))
 
     @strawberry.subscription(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def chat_completion_over_dataset(
@@ -457,7 +457,7 @@ async def _chat_completion_result_payloads(
         await session.flush()
     for example_id, span, run in results:
         yield ChatCompletionSubscriptionResult(
-            span=to_gql_span(span) if span else None,
+            span=Span(id_attr=span.id, db_span=span) if span else None,
             experiment_run=to_gql_experiment_run(run),
             dataset_example_id=example_id,
         )

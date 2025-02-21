@@ -38,8 +38,10 @@ from phoenix.server.api.dataloaders import (
     SessionTokenUsagesDataLoader,
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
+    SpanByIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
+    SpanFieldsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
@@ -83,8 +85,10 @@ class DataLoaders:
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
+    span_by_id: SpanByIdDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
+    span_fields: SpanFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader

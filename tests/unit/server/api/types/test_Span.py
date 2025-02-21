@@ -1,14 +1,25 @@
-from datetime import datetime
+import json
+from collections import defaultdict
+from datetime import datetime, timezone
+from random import choice, randint, random
+from secrets import token_hex
+from typing import Any, Mapping, Optional
 
 import pytest
+from faker import Faker
+from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.attributes import get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
+
+fake = Faker()
 
 
 async def test_project_resolver_returns_correct_project(
@@ -93,6 +104,255 @@ async def test_querying_spans_not_contained_in_datasets(
     assert (data := response.data) is not None
     actual_contained_in_dataset = data["span"]["containedInDataset"]
     assert actual_contained_in_dataset is False
+
+
+async def test_span_fields(
+    gql_client: AsyncGraphQLClient,
+    _span_data: tuple[models.Project, Mapping[int, models.Trace], Mapping[int, models.Span]],
+) -> None:
+    query = """
+      query ($projectId: GlobalID!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(first: 1000) {
+              edges {
+                node {
+                  id
+                  name
+                  statusCode
+                  statusMessage
+                  startTime
+                  endTime
+                  latencyMs
+                  parentId
+                  spanKind
+                  context {
+                    spanId
+                    traceId
+                  }
+                  attributes
+                  tokenCountTotal
+                  tokenCountPrompt
+                  tokenCountCompletion
+                  cumulativeTokenCountTotal
+                  cumulativeTokenCountPrompt
+                  cumulativeTokenCountCompletion
+                  propagatedStatusCode
+                  input {
+                    mimeType
+                    value
+                  }
+                  output {
+                    mimeType
+                    value
+                  }
+                  events {
+                    name
+                    message
+                    timestamp
+                  }
+                  metadata
+                  numDocuments
+                  descendants {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+    db_project, db_traces, db_spans = _span_data
+    db_descendent_ids = _get_descendants(db_spans)
+    project_id = str(GlobalID(Project.__name__, str(db_project.id)))
+    response = await gql_client.execute(query=query, variables={"projectId": project_id})
+    assert not response.errors
+    assert (data := response.data) is not None
+    spans = [e["node"] for e in data["node"]["spans"]["edges"]]
+    assert len(spans) == len(db_spans)
+    for span in spans:
+        id_ = from_global_id_with_expected_type(GlobalID.from_id(span["id"]), Span.__name__)
+        db_span = db_spans[id_]
+        assert span["id"] == str(GlobalID(Span.__name__, str(db_span.id)))
+        assert span["name"] == db_span.name
+        assert span["statusCode"] == db_span.status_code
+        assert span["statusMessage"] == db_span.status_message
+        assert span["startTime"] == db_span.start_time.isoformat()
+        assert span["endTime"] == db_span.end_time.isoformat()
+        assert span["parentId"] == db_span.parent_id
+        assert span["spanKind"] == db_span.span_kind.lower()
+        assert span["context"]["spanId"] == db_span.span_id
+        assert span["context"]["traceId"] == db_traces[db_span.trace_rowid].trace_id
+        assert isinstance(span["attributes"], str) and span["attributes"]
+        assert json.loads(span["attributes"]) == db_span.attributes
+        assert span["tokenCountPrompt"] == db_span.llm_token_count_prompt
+        assert span["tokenCountCompletion"] == db_span.llm_token_count_completion
+        assert span["tokenCountTotal"] == (db_span.llm_token_count_completion or 0) + (
+            db_span.llm_token_count_prompt or 0
+        )
+        assert span["cumulativeTokenCountPrompt"] == (
+            db_span.cumulative_llm_token_count_prompt or 0
+        )
+        assert span["cumulativeTokenCountCompletion"] == (
+            db_span.cumulative_llm_token_count_completion or 0
+        )
+        assert span["cumulativeTokenCountTotal"] == (
+            db_span.cumulative_llm_token_count_completion or 0
+        ) + (db_span.cumulative_llm_token_count_prompt or 0)
+        assert span["propagatedStatusCode"] == "ERROR" if db_span.cumulative_error_count else "OK"
+        if db_span.input_value:
+            assert span["input"]["value"] == db_span.input_value
+            if db_span.input_mime_type:
+                assert span["input"]["mimeType"] in db_span.input_mime_type
+            else:
+                assert span["input"]["mimeType"] == "text"
+        else:
+            assert not span["input"]
+        if db_span.output_value:
+            assert span["output"]["value"] == db_span.output_value
+            if db_span.output_mime_type:
+                assert span["output"]["mimeType"] in db_span.output_mime_type
+            else:
+                assert span["output"]["mimeType"] == "text"
+        else:
+            assert not span["output"]
+        if db_span.events:
+            for event, db_event in zip(span["events"], db_span.events):
+                assert event["name"] == db_event["name"]
+                assert event["timestamp"] == db_event["timestamp"].isoformat()
+        else:
+            assert not span["events"]
+        if db_span.metadata_:
+            assert isinstance(span["metadata"], str) and span["metadata"]
+            assert json.loads(span["metadata"]) == db_span.metadata_
+        else:
+            assert not span["metadata"]
+        assert span["numDocuments"] == db_span.num_documents
+        if descendants := db_descendent_ids.get(db_span.id):
+            assert span["descendants"]
+            assert {d["id"] for d in span["descendants"]} == {
+                str(GlobalID(Span.__name__, str(id_))) for id_ in descendants
+            }
+        else:
+            assert not span["descendants"]
+
+
+def _get_descendants(spans: Mapping[int, models.Span]) -> dict[int, set[int]]:
+    ids: Mapping[str, int] = {span.span_id: id_ for id_, span in spans.items()}
+    descendants: defaultdict[int, set[int]] = defaultdict(set)
+    for span in spans.values():
+        child_span = span
+        while parent_id := child_span.parent_id:
+            id_ = ids[parent_id]
+            descendants[id_].add(span.id)
+            child_span = spans[id_]
+    return descendants
+
+
+@pytest.fixture
+async def _span_data(
+    db: DbSessionFactory,
+) -> tuple[models.Project, dict[int, models.Trace], dict[int, models.Span]]:
+    traces: dict[int, models.Trace] = {}
+    spans: dict[int, models.Span] = {}
+    async with db() as session:
+        project = models.Project(name=token_hex(8))
+        session.add(project)
+        await session.flush()
+        for _ in range(5):
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project.id,
+                start_time=fake.past_datetime(tzinfo=timezone.utc),
+                end_time=fake.future_datetime(tzinfo=timezone.utc),
+            )
+            session.add(trace)
+            await session.flush()
+            traces[trace.id] = trace
+            trace_spans: list[models.Span] = []
+            for _ in range(100):
+                attributes: dict[str, Any] = {}
+                if random() < 0.5:
+                    attributes["llm"] = {
+                        "token_count": {
+                            "prompt": randint(1, 1000),
+                            "completion": randint(1, 1000),
+                        }
+                    }
+                if random() < 0.5:
+                    attributes["input"] = {
+                        "value": json.dumps(fake.pydict(allowed_types=(str, int, float, bool))),
+                    }
+                    if random() < 0.5:
+                        attributes["input"]["mime_type"] = choice(
+                            list(OpenInferenceMimeTypeValues)
+                        ).value
+                if random() < 0.5:
+                    attributes["output"] = {
+                        "value": json.dumps(fake.pydict(allowed_types=(str, int, float, bool))),
+                    }
+                    if random() < 0.5:
+                        attributes["output"]["mime_type"] = choice(
+                            list(OpenInferenceMimeTypeValues)
+                        ).value
+                if random() < 0.5:
+                    attributes["metadata"] = fake.pydict(allowed_types=(str, int, float, bool))
+                if random() < 0.5:
+                    attributes["retrieval"] = {"documents": []}
+                    for _ in range(randint(1, 10)):
+                        attributes["retrieval"]["documents"].append(
+                            {
+                                "document": {
+                                    "id": token_hex(8),
+                                    "score": random(),
+                                    "content": token_hex(8),
+                                }
+                            }
+                        )
+                events = []
+                if random() < 0.5:
+                    event = {
+                        "name": token_hex(8),
+                        "timestamp": fake.past_datetime(tzinfo=timezone.utc),
+                        "attributes": fake.pydict(allowed_types=(str, int, float, bool)),
+                    }
+                    events.append(event)
+                cumulative_llm_token_count_prompt = randint(1, 1000)
+                cumulative_llm_token_count_completion = randint(1, 1000)
+                cumulative_error_count = randint(0, 1)
+                start_time = fake.past_datetime(tzinfo=timezone.utc)
+                end_time = fake.future_datetime(tzinfo=timezone.utc)
+                parent_id: Optional[str] = None
+                if trace_spans and random() < 0.5:
+                    parent_id = choice(trace_spans).span_id
+                span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=parent_id,
+                    name=token_hex(8),
+                    span_kind=choice(list(OpenInferenceSpanKindValues)).value,
+                    start_time=start_time,
+                    end_time=end_time,
+                    attributes=attributes,
+                    events=events,
+                    status_code=choice(["OK", "ERROR", "UNSET"]),
+                    status_message=token_hex(8),
+                    cumulative_error_count=cumulative_error_count,
+                    cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
+                    cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+                    llm_token_count_prompt=get_attribute_value(
+                        attributes, "llm.token_count.prompt"
+                    ),
+                    llm_token_count_completion=get_attribute_value(
+                        attributes, "llm.token_count.completion"
+                    ),
+                )
+                session.add(span)
+                await session.flush()
+                spans[span.id] = span
+                trace_spans.append(span)
+    return project, traces, spans
 
 
 @pytest.fixture
