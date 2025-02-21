@@ -3,7 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from random import choice, randint, random
 from secrets import token_hex
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, TypeAlias
 
 import pytest
 from faker import Faker
@@ -18,6 +18,10 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
+
+_TraceRowId: TypeAlias = int
+_SpanRowId: TypeAlias = int
+_SpanId: TypeAlias = str
 
 fake = Faker()
 
@@ -238,13 +242,15 @@ async def test_span_fields(
             assert not span["descendants"]
 
 
-def _get_descendants(spans: Mapping[int, models.Span]) -> dict[int, set[int]]:
-    ids: Mapping[str, int] = {span.span_id: id_ for id_, span in spans.items()}
-    descendants: defaultdict[int, set[int]] = defaultdict(set)
+def _get_descendants(spans: Mapping[_SpanRowId, models.Span]) -> dict[_SpanRowId, set[_SpanRowId]]:
+    span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
+        span.span_id: span_rowid for span_rowid, span in spans.items()
+    }
+    descendants: defaultdict[_SpanRowId, set[_SpanRowId]] = defaultdict(set)
     for span in spans.values():
         child_span = span
         while parent_id := child_span.parent_id:
-            parent_span_rowid = ids[parent_id]
+            parent_span_rowid = span_id_to_rowids[parent_id]
             descendants[parent_span_rowid].add(span.id)
             child_span = spans[parent_span_rowid]
     return descendants
@@ -253,9 +259,9 @@ def _get_descendants(spans: Mapping[int, models.Span]) -> dict[int, set[int]]:
 @pytest.fixture
 async def _span_data(
     db: DbSessionFactory,
-) -> tuple[models.Project, dict[int, models.Trace], dict[int, models.Span]]:
-    traces: dict[int, models.Trace] = {}
-    spans: dict[int, models.Span] = {}
+) -> tuple[models.Project, dict[_TraceRowId, models.Trace], dict[_SpanRowId, models.Span]]:
+    traces: dict[_TraceRowId, models.Trace] = {}
+    spans: dict[_SpanRowId, models.Span] = {}
     async with db() as session:
         project = models.Project(name=token_hex(8))
         session.add(project)
