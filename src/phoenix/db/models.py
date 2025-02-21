@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, Sized, TypedDict
+from typing import Any, Optional, Sequence, TypedDict
 
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
@@ -508,9 +508,9 @@ class Span(Base):
     def num_documents(self) -> int:
         if self.span_kind.upper() == "RERANKER":
             reranker_documents = get_attribute_value(self.attributes, RERANKER_OUTPUT_DOCUMENTS)
-            return len(reranker_documents) if isinstance(reranker_documents, Sized) else 0
+            return len(reranker_documents) if isinstance(reranker_documents, Sequence) else 0
         retrieval_documents = get_attribute_value(self.attributes, RETRIEVAL_DOCUMENTS)
-        return len(retrieval_documents) if isinstance(retrieval_documents, Sized) else 0
+        return len(retrieval_documents) if isinstance(retrieval_documents, Sequence) else 0
 
     @num_documents.inplace.expression
     @classmethod
@@ -607,7 +607,7 @@ def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
     attributes, span_kind = list(element.clauses)
     retrieval_docs = attributes[RETRIEVAL_DOCUMENTS.split(".")]
     num_retrieval_docs = coalesce(array_length(retrieval_docs), 0)
-    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS]
+    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS.split(".")]
     num_reranker_docs = coalesce(array_length(reranker_docs), 0)
     return compiler.process(
         sql.case(

@@ -106,7 +106,7 @@ class SpanAsExampleRevision(ExampleRevision): ...
 @strawberry.type
 class Span(Node):
     id_attr: NodeID[int]
-    db_span: strawberry.Private[Optional[models.Span]] = UNSET
+    db_span: strawberry.Private[models.Span] = UNSET
 
     def __post_init__(self) -> None:
         if self.db_span and self.id_attr != self.db_span.id:
@@ -247,7 +247,9 @@ class Span(Node):
             )
         return json.dumps(_hide_embedding_vectors(value), cls=_JSONEncoder)
 
-    @strawberry.field(description="Metadata as a JSON string")  # type: ignore
+    @strawberry.field(
+        description="Metadata as a JSON string",
+    )  # type: ignore
     async def metadata(
         self,
         info: Info[Context, None],
@@ -331,7 +333,7 @@ class Span(Node):
         if not input_value_first_101_chars:
             return None
         return SpanIOValue(
-            id_=self.id_attr,
+            span_rowid=self.id_attr,
             attr=models.Span.input_value,
             truncated_value=truncate_value(input_value_first_101_chars),
             mime_type=MimeType(mime_type),
@@ -360,7 +362,7 @@ class Span(Node):
         if not output_value_first_101_chars:
             return None
         return SpanIOValue(
-            id_=self.id_attr,
+            span_rowid=self.id_attr,
             attr=models.Span.output_value,
             truncated_value=truncate_value(output_value_first_101_chars),
             mime_type=MimeType(mime_type),

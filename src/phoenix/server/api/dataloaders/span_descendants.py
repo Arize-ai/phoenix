@@ -58,6 +58,6 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         results: dict[int, Result] = {key: [] for key in keys}
         async with self._db() as session:
             data = await session.stream(stmt)
-            async for id_, group in groupby(data, key=lambda d: d[0]):
-                results[id_].extend(id_ for _, id_ in group)
+            async for key, group in groupby(data, key=lambda d: d[0]):
+                results[key].extend(id_ for _, id_ in group)
         return [results[key].copy() for key in keys]
