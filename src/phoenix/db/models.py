@@ -533,7 +533,10 @@ class Span(Base):
     @llm_token_count_total.inplace.expression
     @classmethod
     def _llm_token_count_total_expression(cls) -> ColumnElement[int]:
-        return coalesce(cls.llm_token_count_prompt, 0) + coalesce(cls.llm_token_count_completion, 0)
+        return coalesce(
+            coalesce(cls.llm_token_count_prompt, 0) + coalesce(cls.llm_token_count_completion, 0),
+            0,
+        )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
