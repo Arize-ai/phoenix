@@ -67,7 +67,7 @@ jobs:
           file: ./Dockerfile
           push: true
           sbom: true
-          provenance: mode=max
+          provenance: mode=min
           tags: |
             ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
             ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
