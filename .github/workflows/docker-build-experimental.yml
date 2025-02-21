@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - span-query-optimization
+      - xander/docker-debug
 
 jobs:
   push_to_registry:
