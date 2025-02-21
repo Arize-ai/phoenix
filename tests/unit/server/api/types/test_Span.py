@@ -3,13 +3,14 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from random import choice, randint, random
 from secrets import token_hex
-from typing import Any, Mapping, Optional, TypeAlias
+from typing import Any, Mapping, Optional
 
 import pytest
 from faker import Faker
 from openinference.semconv.trace import OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues
 from sqlalchemy import insert
 from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -168,7 +169,7 @@ async def test_span_fields(
       }
     """
     db_project, db_traces, db_spans = _span_data
-    db_descendent_ids = _get_descendants(db_spans)
+    db_descendent_ids = _get_descendant_rowids(db_spans)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
     response = await gql_client.execute(query=query, variables={"projectId": project_id})
     assert not response.errors
@@ -242,18 +243,20 @@ async def test_span_fields(
             assert not span["descendants"]
 
 
-def _get_descendants(spans: Mapping[_SpanRowId, models.Span]) -> dict[_SpanRowId, set[_SpanRowId]]:
+def _get_descendant_rowids(
+    spans: Mapping[_SpanRowId, models.Span],
+) -> dict[_SpanRowId, set[_SpanRowId]]:
     span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
         span.span_id: span_rowid for span_rowid, span in spans.items()
     }
-    descendants: defaultdict[_SpanRowId, set[_SpanRowId]] = defaultdict(set)
+    descendant_rowids: defaultdict[_SpanRowId, set[_SpanRowId]] = defaultdict(set)
     for span in spans.values():
         child_span = span
         while parent_id := child_span.parent_id:
             parent_span_rowid = span_id_to_rowids[parent_id]
-            descendants[parent_span_rowid].add(span.id)
+            descendant_rowids[parent_span_rowid].add(span.id)
             child_span = spans[parent_span_rowid]
-    return descendants
+    return descendant_rowids
 
 
 @pytest.fixture
