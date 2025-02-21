@@ -40,7 +40,6 @@
     "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json && rimraf dist/test dist/examples",
     "type:check": "tsc --noEmit",
     "test": "vitest --typecheck",
-    "_predocs": "pnpm run build",
     "docs": "typedoc",
     "docs:preview": "pnpx http-server ./docs -p 8080 -o"
   },
