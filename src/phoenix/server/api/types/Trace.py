@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, select
-from sqlalchemy.orm import contains_eager
 from strawberry import UNSET, Private, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
@@ -20,17 +20,20 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectSession import ProjectSession
 
+ProjectRowId: TypeAlias = int
+TraceRowId: TypeAlias = int
+
 
 @strawberry.type
 class Trace(Node):
-    id_attr: NodeID[int]
-    project_rowid: Private[int]
+    trace_rowid: NodeID[TraceRowId]
+    project_rowid: Private[ProjectRowId]
     project_session_rowid: Private[Optional[int]]
     trace_id: str
     start_time: datetime
@@ -45,7 +48,7 @@ class Trace(Node):
             latency = await session.scalar(
                 select(
                     models.Trace.latency_ms,
-                ).where(models.Trace.id == self.id_attr)
+                ).where(models.Trace.id == self.trace_rowid)
             )
         return latency
 
@@ -84,10 +87,10 @@ class Trace(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[Span]:
-        span = await info.context.data_loaders.trace_root_spans.load(self.id_attr)
-        if span is None:
+        span_rowid = await info.context.data_loaders.trace_root_spans.load(self.trace_rowid)
+        if span_rowid is None:
             return None
-        return to_gql_span(span)
+        return Span(span_rowid=span_rowid)
 
     @strawberry.field
     async def spans(
@@ -105,18 +108,17 @@ class Trace(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         stmt = (
-            select(models.Span)
+            select(models.Span.id)
             .join(models.Trace)
-            .where(models.Trace.id == self.id_attr)
-            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
+            .where(models.Trace.id == self.trace_rowid)
             # Sort descending because the root span tends to show up later
             # in the ingestion process.
             .order_by(desc(models.Span.id))
             .limit(first)
         )
         async with info.context.db() as session:
-            spans = await session.stream_scalars(stmt)
-            data = [to_gql_span(span) async for span in spans]
+            span_rowids = await session.stream_scalars(stmt)
+            data = [Span(span_rowid=span_rowid) async for span_rowid in span_rowids]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Annotations associated with the trace.")  # type: ignore
@@ -126,7 +128,7 @@ class Trace(Node):
         sort: Optional[TraceAnnotationSort] = None,
     ) -> list[TraceAnnotation]:
         async with info.context.db() as session:
-            stmt = select(models.TraceAnnotation).filter_by(span_rowid=self.id_attr)
+            stmt = select(models.TraceAnnotation).filter_by(span_rowid=self.trace_rowid)
             if sort:
                 sort_col = getattr(models.TraceAnnotation, sort.col.value)
                 if sort.dir is SortDir.desc:
@@ -141,7 +143,7 @@ class Trace(Node):
 
 def to_gql_trace(trace: models.Trace) -> Trace:
     return Trace(
-        id_attr=trace.id,
+        trace_rowid=trace.id,
         project_rowid=trace.project_rowid,
         project_session_rowid=trace.project_session_rowid,
         trace_id=trace.trace_id,

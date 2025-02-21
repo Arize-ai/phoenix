@@ -19,7 +19,7 @@ from phoenix.server.api.types.pagination import (
     CursorString,
     connection_from_list,
 )
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 
 
 @strawberry.type
@@ -52,7 +52,7 @@ class DatasetExample(Node):
         info: Info[Context, None],
     ) -> Optional[Span]:
         return (
-            to_gql_span(span)
+            Span(span_rowid=span.id, db_span=span)
             if (span := await info.context.data_loaders.dataset_example_spans.load(self.id_attr))
             else None
         )
