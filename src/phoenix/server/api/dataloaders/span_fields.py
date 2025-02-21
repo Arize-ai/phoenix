@@ -25,7 +25,7 @@ class SpanFieldsDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             data = await session.stream(stmt)
             async for row in data:
-                pk: SpanRowId = row[0]
+                pk: SpanRowId = row[0]  # models.Span's primary key
                 for i, v in enumerate(row[1:]):
                     result[pk, attr_strs[i]] = v
         return [result.get((pk, str(attr))) for pk, attr in keys]
