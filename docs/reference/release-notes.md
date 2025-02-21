@@ -4,11 +4,11 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
-## 02.19.2025: Prompts 📃
+02.19.2025: Prompts 📃
 
 **Available in Phoenix 8.0+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-19 at 9.56.34 PM.png" alt=""><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-prompts.png)
 
 Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications!  These are some more highlights from this release:&#x20;
 
@@ -24,7 +24,7 @@ Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prom
 
 **Available in Phoenix 7.9+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 3.38.41 PM.png" alt=""><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-tracing.png)
 
 In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
 
@@ -39,7 +39,7 @@ Check out the [docs](https://docs.arize.com/phoenix/tracing/how-to-tracing/instr
 
 **Available in Phoenix 7.0+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 10.01.21 AM.png" alt=""><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-sessions.png)
 
 Sessions allow you to group multiple responses into a single thread. Each response is still captured as a single trace, but each trace is linked together and presented in a combined view.&#x20;
 
@@ -65,7 +65,7 @@ Sessions make it easier to visual multi-turn exchanges with your chatbot or agen
 
 **Available in Phoenix 6.0+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 3.03.42 PM.png" alt=""><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-playground.png)
 
 Prompt Playground is now available in the Phoenix platform! This new release allows you to test the effects of different prompts, tools, and structured output formats to see which performs best.&#x20;
 
@@ -110,7 +110,7 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 
 **Available in Phoenix 5.0+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 3.03.13 PM.png" alt="" width="563"><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-login-page.png)
 
 We've added Authentication and Rules-based Access Controls to Phoenix. This was a long-requested feature set, and we're excited for the new uses of Phoenix this will unlock!&#x20;
 
@@ -127,7 +127,7 @@ For all the details on authentication, view our [docs](https://docs.arize.com/ph
 
 **Available in Phoenix 4.11.0+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.52.32 PM.png" alt="" width="563"><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-guardrails.png)
 
 Our integration with Guardrails AI allows you to capture traces on guard usage and create datasets based on these traces. This integration is designed to enhance the safety and reliability of your LLM applications, ensuring they adhere to predefined rules and guidelines.
 
@@ -137,7 +137,7 @@ Check out the [Cookbook ](https://colab.research.google.com/drive/1NDn5jzsW5k0Ur
 
 **Phoenix is now available for deployment as a fully hosted service.**&#x20;
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.59.46 PM.png" alt=""><figcaption></figcaption></figure>
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-llamatrace.png)
 
 In addition to our existing notebook, CLI, and self-hosted deployment options, we’re excited to announce that Phoenix is now available as a [fully hosted service](https://arize.com/resource/introducing-hosted-phoenix-llamatrace/).
 
@@ -150,8 +150,6 @@ Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.ari
 ## 07.03.2024: Datasets & Experiments 🧪
 
 **Available in Phoenix 4.6+**
-
-
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.34.07 PM.png" alt=""><figcaption></figcaption></figure>
 
@@ -169,8 +167,6 @@ For more details, check out our full [walkthrough](https://www.youtube.com/watch
 ## 07.02.2024: Function Call Evaluations ⚒️
 
 **Available in Phoenix 4.6+**
-
-
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.45.33 PM.png" alt=""><figcaption></figcaption></figure>
 
