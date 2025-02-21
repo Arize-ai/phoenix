@@ -172,7 +172,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -304,7 +304,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -447,7 +447,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -600,7 +600,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -751,7 +751,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -1058,7 +1058,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -1145,7 +1145,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
