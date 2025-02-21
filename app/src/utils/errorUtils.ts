@@ -9,13 +9,13 @@ const isErrorWithMessage = (error: unknown): error is { message: string } => {
 /**
  * Regex to match an error message in a Relay mutation error.
  * See example below where "Actual Error Message" is the error message.
- * Matches the string after the first occurrence of "message": " and before the next occurrence of " with double or single quotes.
+ * Matches the string after the first occurrence of "message": " and before the next occurrence of " with double quotes.
  * @example
  * ```
  * "Error fetching GraphQL query 'MutationName' with variables '{'input':{'var1': 'test'}': [{'message':'Actual Error Message','locations':[{'line':4,'column':3}],'path':['responsePath']}]"
  * ```*
  */
-const mutationErrorRegex = /['"']message['"']:\s*['"']([^'"']+)['"']/g;
+const mutationErrorRegex = /["]message["]:\s*["]([^""]+)["]/g;
 /**
  * Extracts the error messages from a Relay mutation error.
  * A relay mutation error contains a message property which is a large string with various information.

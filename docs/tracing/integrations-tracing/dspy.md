@@ -31,12 +31,12 @@ from phoenix.otel import register
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="https://app.phoenix.arize.com/v1/traces",
-)
+) 
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -211,10 +211,10 @@ if __name__ == "__main__":
 
 Now that you have tracing setup, all predictions will be streamed to your running Phoenix for observability and evaluation.
 
-![Traces and spans from an instrumented DSPy custom module.](https://storage.googleapis.com/arize-phoenix-assets/assets/docs/notebooks/dspy-tracing-tutorial/dspy\_spans\_and\_traces.gif)
+![Traces and spans from an instrumented DSPy custom module.](https://storage.googleapis.com/arize-phoenix-assets/assets/docs/notebooks/dspy-tracing-tutorial/dspy_spans_and_traces.gif)
 
 ## Resources
 
-* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/dspy\_tracing\_tutorial.ipynb)
+* [Example notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/dspy_tracing_tutorial.ipynb)
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-dspy)
 * [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/examples/dspy-rag-fastapi)

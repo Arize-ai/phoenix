@@ -4,7 +4,6 @@ import asyncio
 import importlib.util
 import inspect
 import json
-import os
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -22,6 +21,7 @@ from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import getenv
 from phoenix.evals.models.rate_limiters import (
     AsyncCallable,
     GenericType,
@@ -483,8 +483,8 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     ) -> None:
         from openai import AsyncOpenAI
 
-        base_url = model.base_url or os.environ.get("OPENAI_BASE_URL")
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
+        base_url = model.base_url or getenv("OPENAI_BASE_URL")
+        if not (api_key := api_key or getenv("OPENAI_API_KEY")):
             if not base_url:
                 raise BadRequest("An API key is required for OpenAI models")
             api_key = "sk-fake-api-key"
@@ -656,11 +656,11 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     ):
         from openai import AsyncAzureOpenAI
 
-        if not (api_key := api_key or os.environ.get("AZURE_OPENAI_API_KEY")):
+        if not (api_key := api_key or getenv("AZURE_OPENAI_API_KEY")):
             raise BadRequest("An Azure API key is required for Azure OpenAI models")
-        if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
+        if not (endpoint := model.endpoint or getenv("AZURE_OPENAI_ENDPOINT")):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
+        if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
         client = AsyncAzureOpenAI(
             api_key=api_key,
@@ -697,7 +697,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
-        if not (api_key := api_key or os.environ.get("ANTHROPIC_API_KEY")):
+        if not (api_key := api_key or getenv("ANTHROPIC_API_KEY")):
             raise BadRequest("An API key is required for Anthropic models")
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
@@ -856,7 +856,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.GEMINI,
+    provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
         "gemini-2.0-flash-exp",
@@ -866,7 +866,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         "gemini-1.0-pro",
     ],
 )
-class GeminiStreamingClient(PlaygroundStreamingClient):
+class GoogleStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
@@ -877,11 +877,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
-        if not (
-            api_key := api_key
-            or os.environ.get("GEMINI_API_KEY")
-            or os.environ.get("GOOGLE_API_KEY")
-        ):
+        if not (api_key := api_key or getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")):
             raise BadRequest("An API key is required for Gemini models")
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
@@ -945,7 +941,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import google.generativeai as google_genai
 
-        gemini_message_history, current_message, system_prompt = self._build_gemini_messages(
+        google_message_history, current_message, system_prompt = self._build_google_messages(
             messages
         )
 
@@ -954,17 +950,17 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             model_args["system_instruction"] = system_prompt
         client = google_genai.GenerativeModel(**model_args)
 
-        gemini_config = google_genai.GenerationConfig(
+        google_config = google_genai.GenerationConfig(
             **invocation_parameters,
         )
-        gemini_params = {
+        google_params = {
             "content": current_message,
-            "generation_config": gemini_config,
+            "generation_config": google_config,
             "stream": True,
         }
 
-        chat = client.start_chat(history=gemini_message_history)
-        stream = await chat.send_message_async(**gemini_params)
+        chat = client.start_chat(history=google_message_history)
+        stream = await chat.send_message_async(**google_params)
         async for event in stream:
             self._attributes.update(
                 {
@@ -975,29 +971,29 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             )
             yield TextChunk(content=event.text)
 
-    def _build_gemini_messages(
+    def _build_google_messages(
         self,
         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
     ) -> tuple[list["ContentType"], str, str]:
-        gemini_message_history: list["ContentType"] = []
+        google_message_history: list["ContentType"] = []
         system_prompts = []
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
-                gemini_message_history.append({"role": "user", "parts": content})
+                google_message_history.append({"role": "user", "parts": content})
             elif role == ChatCompletionMessageRole.AI:
-                gemini_message_history.append({"role": "model", "parts": content})
+                google_message_history.append({"role": "model", "parts": content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
                 raise NotImplementedError
             else:
                 assert_never(role)
-        if gemini_message_history:
-            prompt = gemini_message_history.pop()["parts"]
+        if google_message_history:
+            prompt = google_message_history.pop()["parts"]
         else:
             prompt = ""
 
-        return gemini_message_history, prompt, "\n".join(system_prompts)
+        return google_message_history, prompt, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:

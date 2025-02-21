@@ -17,17 +17,17 @@ const AzureSVG = ({ height }: { height: number }) => (
     <path d="M22 12.508h-9.492V22H22v-9.492z" fill="#FFB900"></path>
   </svg>
 );
-const GeminiSVG = ({ height }: { height: number }) => (
+const GoogleSVG = ({ height }: { height: number }) => (
   <svg
     viewBox="0 0 24 24"
     width={height}
     height={height}
     xmlns="http://www.w3.org/2000/svg"
   >
-    <title>Gemini</title>
+    <title>Google</title>
     <defs>
       <linearGradient
-        id="lobe-icons-gemini-fill"
+        id="lobe-icons-google-fill"
         x1="0%"
         x2="68.73%"
         y1="100%"
@@ -40,7 +40,7 @@ const GeminiSVG = ({ height }: { height: number }) => (
     </defs>
     <path
       d="M12 24A14.304 14.304 0 000 12 14.304 14.304 0 0012 0a14.305 14.305 0 0012 12 14.305 14.305 0 00-12 12"
-      fill="url(#lobe-icons-gemini-fill)"
+      fill="url(#lobe-icons-google-fill)"
       fillRule="nonzero"
     ></path>
   </svg>
@@ -79,7 +79,7 @@ const PROVIDER_ICONS: Record<
   ({ height }: { height: number }) => React.ReactNode
 > = {
   AZURE_OPENAI: AzureSVG,
-  GEMINI: GeminiSVG,
+  GOOGLE: GoogleSVG,
   OPENAI: OpenAISVG,
   ANTHROPIC: AnthropicSVG,
 };

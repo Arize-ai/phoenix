@@ -10,14 +10,14 @@ Phoenix gives you the ability to annotate traces with feedback from two sources:
 
 Human feedback allows you to understand how your users are experiencing your application and helps draw attention to problematic traces. Phoenix makes it easy to collect feedback for traces and view it in the context of the trace, as well as filter all your traces based on the feedback annotations you send. Before anything else, you want to know if your users or customers are happy with your product. This can be as straightforward as adding :thumbsup: :thumbsdown: buttons to your application, and logging the result as annotations.
 
-For more information on how to wire up your application to collect feedback from your users, see [capture-feedback.md](../how-to-tracing/capture-feedback.md "mention")
+For more information on how to wire up your application to collect feedback from your users, see [capture-feedback.md](../how-to-interact-with-traces/capture-feedback.md "mention")
 
 ### Evaluations from LLMs
 
 When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's [evals library](../../evaluation/llm-evals.md) as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
 
 * [evals.md](../../evaluation/evals.md "mention") to generate evaluation results
-* [llm-evaluations.md](../how-to-tracing/llm-evaluations.md "mention") to add evaluation results to spans
+* [llm-evaluations.md](../how-to-interact-with-traces/llm-evaluations.md "mention") to add evaluation results to spans
 
 ### Human Annotations
 

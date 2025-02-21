@@ -31,12 +31,12 @@ from phoenix.otel import register
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="https://app.phoenix.arize.com/v1/traces",
-)
+) 
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -171,5 +171,5 @@ The individual prompt and responses are captured directly through OpenAI calls. 
 
 ## Resources:
 
-* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/autogen\_tutorial.ipynb)
+* [Example notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/autogen_tutorial.ipynb)
 

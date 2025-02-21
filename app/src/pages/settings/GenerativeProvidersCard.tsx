@@ -108,7 +108,7 @@ export function GenerativeProvidersCard({
             >
               <Button
                 size="S"
-                icon={<Icon svg={<Icons.EditOutline />} />}
+                leadingVisual={<Icon svg={<Icons.EditOutline />} />}
                 onPress={() => {
                   setSelectedProvider(row.original);
                 }}

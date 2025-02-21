@@ -1,10 +1,10 @@
-import os
 from enum import Enum
 from typing import Any, ClassVar, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
 
+from phoenix.config import getenv
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -13,7 +13,7 @@ class GenerativeProviderKey(Enum):
     OPENAI = "OpenAI"
     ANTHROPIC = "Anthropic"
     AZURE_OPENAI = "Azure OpenAI"
-    GEMINI = "Google AI Studio"
+    GOOGLE = "Google AI Studio"
 
 
 @strawberry.type
@@ -25,21 +25,21 @@ class GenerativeProvider:
         GenerativeProviderKey.AZURE_OPENAI: [],
         GenerativeProviderKey.ANTHROPIC: ["claude"],
         GenerativeProviderKey.OPENAI: ["gpt", "o1"],
-        GenerativeProviderKey.GEMINI: ["gemini"],
+        GenerativeProviderKey.GOOGLE: ["gemini"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
         OpenInferenceLLMProviderValues.OPENAI.value: GenerativeProviderKey.OPENAI,
         OpenInferenceLLMProviderValues.ANTHROPIC.value: GenerativeProviderKey.ANTHROPIC,
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
-        OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GEMINI,
+        OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
     }
 
     model_provider_to_api_key_env_var_map: ClassVar[dict[GenerativeProviderKey, str]] = {
         GenerativeProviderKey.AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
         GenerativeProviderKey.ANTHROPIC: "ANTHROPIC_API_KEY",
         GenerativeProviderKey.OPENAI: "OPENAI_API_KEY",
-        GenerativeProviderKey.GEMINI: "GEMINI_API_KEY",
+        GenerativeProviderKey.GOOGLE: "GEMINI_API_KEY",
     }
 
     @strawberry.field
@@ -72,7 +72,7 @@ class GenerativeProvider:
 
     @strawberry.field(description="Whether the credentials are set on the server for the provider")  # type: ignore
     async def api_key_set(self) -> bool:
-        return os.environ.get(self.model_provider_to_api_key_env_var_map[self.key]) is not None
+        return getenv(self.model_provider_to_api_key_env_var_map[self.key]) is not None
 
     @classmethod
     def _infer_model_provider_from_model_name(

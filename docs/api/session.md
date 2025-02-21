@@ -23,15 +23,15 @@ Launches and returns a new Phoenix session in a python notebook.
 
 All parameters are optional and `launch_app()` launches a Phoenix session with no data and is always ready to receive trace data your LLM applications in real time. See [LLM Traces](../tracing/llm-traces/) for more.
 
-`launch_app` can accept one or two [Inferences](inference-and-schema.md#phoenix.inferences) instances as arguments. If the app is launched with a single dataset, Phoenix provides model performance and data quality metrics, but not drift metrics. If the app is launched with two sets of inferences, Phoenix provides drift metrics in addition to model performance and data quality metrics. When two sets of inferences are provided, the reference inference collection serves as a baseline against which to compare the primary inference collection. Common examples of primary and reference inferences include production vs. training or challenger vs. champion.
+`launch_app` can accept one or two [Inferences](../inferences/inference-and-schema.md#phoenix.inferences) instances as arguments. If the app is launched with a single dataset, Phoenix provides model performance and data quality metrics, but not drift metrics. If the app is launched with two sets of inferences, Phoenix provides drift metrics in addition to model performance and data quality metrics. When two sets of inferences are provided, the reference inference collection serves as a baseline against which to compare the primary inference collection. Common examples of primary and reference inferences include production vs. training or challenger vs. champion.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/session/session.py)**]**
 
 ### Parameters
 
-* **primary** (Optional\[[Inferences](inference-and-schema.md#phoenix.inferences)]): The dataset that is of primary interest as the subject of investigation or evaluation.
-* **reference** (Optional\[[Inferences](inference-and-schema.md#phoenix.inferences)]): If provided, the reference dataset serves as a baseline against which to compare the primary dataset.
-* **corpus** (Optional\[[Inferences](inference-and-schema.md#phoenix.inferences)]): If provided, the corpus dataset represents the corpus data from which documents are retrieved in an Retrieval-Augmented Generation (RAG) use case. See [Corpus Data](../inferences/how-to-inferences/define-your-schema/corpus-data.md) for more on how to import this data, and [Retrieval (RAG)](../inferences/how-to-inferences/define-your-schema/retrieval-rag.md) for more bout the use case.
+* **primary** (Optional\[[Inferences](../inferences/inference-and-schema.md#phoenix.inferences)]): The dataset that is of primary interest as the subject of investigation or evaluation.
+* **reference** (Optional\[[Inferences](../inferences/inference-and-schema.md#phoenix.inferences)]): If provided, the reference dataset serves as a baseline against which to compare the primary dataset.
+* **corpus** (Optional\[[Inferences](../inferences/inference-and-schema.md#phoenix.inferences)]): If provided, the corpus dataset represents the corpus data from which documents are retrieved in an Retrieval-Augmented Generation (RAG) use case. See [Corpus Data](../inferences/how-to-inferences/define-your-schema/corpus-data.md) for more on how to import this data, and [Retrieval (RAG)](../inferences/how-to-inferences/define-your-schema/retrieval-rag.md) for more bout the use case.
 * **trace** (Optional\[TraceDataset]): If provided, a trace dataset containing spans. Phoenix can be started with or without a dataset and will always be able to receive traces in real time from your LLM application. See [LLM Traces](../tracing/llm-traces/) for more.
 * **host** (Optional\[str]): The host on which the server runs. It can also be set using environment variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`. Most users don't need to worry this parameter.
 * **port** (Optional\[int]): The port on which the server listens. It can also be set using environment variable `PHOENIX_PORT`, otherwise it defaults to `6006`. This parameter is useful if `6006` is already occupied by a separate application.
@@ -51,13 +51,13 @@ Launch Phoenix as a collector of [LLM Traces](../tracing/llm-traces/) generated 
 session = px.launch_app()
 ```
 
-Launch Phoenix with primary and reference inferences `prim_inf_` and `ref_inf_`, both instances of [Inferences](inference-and-schema.md#phoenix.inferences), with
+Launch Phoenix with primary and reference inferences `prim_inf_` and `ref_inf_`, both instances of [Inferences](../inferences/inference-and-schema.md#phoenix.inferences), with
 
 ```python
 session = px.launch_app(prim_inf_, ref_inf_)
 ```
 
-Alternatively, launch Phoenix with a single dataset `inf`, an instance of [Inferences](inference-and-schema.md#phoenix.inferences), with
+Alternatively, launch Phoenix with a single dataset `inf`, an instance of [Inferences](../inferences/inference-and-schema.md#phoenix.inferences), with
 
 ```python
 session = px.launch_app(inf)
@@ -107,7 +107,7 @@ The Phoenix server will continue running in the background until it is explicitl
 
 ### Usage
 
-Suppose you previously launched a Phoenix session with [launch\_app](session.md#phoenix.launch\_app). You can close the running session with
+Suppose you previously launched a Phoenix session with [launch\_app](session.md#phoenix.launch_app). You can close the running session with
 
 ```python
 px.close_app()
@@ -147,16 +147,16 @@ session = px.active_session()
 ### Usage
 
 {% hint style="warning" %}
-Phoenix users should not instantiate their own phoenix.Session instances. They interact with this API only when an instance of the class is returned by [launch\_app](session.md#phoenix.launch\_app) or [active\_session](session.md#phoenix.active\_session).
+Phoenix users should not instantiate their own phoenix.Session instances. They interact with this API only when an instance of the class is returned by [launch\_app](session.md#phoenix.launch_app) or [active\_session](session.md#phoenix.active_session).
 {% endhint %}
 
-Launch Phoenix with primary and reference inferences `prim_inf` and `ref_inf`, both instances of [phoenix.Dataset](inference-and-schema.md#phoenix.inferences), with
+Launch Phoenix with primary and reference inferences `prim_inf` and `ref_inf`, both instances of [phoenix.Dataset](../inferences/inference-and-schema.md#phoenix.inferences), with
 
 ```python
 session = px.launch_app(prim_inf, ref_inf)
 ```
 
-Alternatively, launch Phoenix with a single dataset `ds`, an instance of [phoenix.Dataset](inference-and-schema.md#phoenix.inferences), with
+Alternatively, launch Phoenix with a single dataset `ds`, an instance of [phoenix.Dataset](../inferences/inference-and-schema.md#phoenix.inferences), with
 
 ```python
 session = px.launch_app(inf)

@@ -1191,6 +1191,417 @@
           }
         }
       }
+    },
+    "/v1/prompts": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get all prompts",
+        "operationId": "getPrompts",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded prompt ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded prompt ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of prompts to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of prompts to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Create a prompt version",
+        "operationId": "postPromptVersion",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompts/{prompt_identifier}/versions": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "List all prompt versions for a given prompt",
+        "operationId": "listPromptVersions",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded promptVersion ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded promptVersion ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of prompt versions to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of prompt versions to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptVersionsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompt_versions/{prompt_version_id}": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get prompt by prompt version ID",
+        "operationId": "getPromptVersionByPromptVersionId",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get prompt by tag name",
+        "operationId": "getPromptVersionByTagName",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          },
+          {
+            "name": "tag_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The tag of the prompt version",
+              "title": "Tag Name"
+            },
+            "description": "The tag of the prompt version"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompts/{prompt_identifier}/latest": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get the latest prompt version",
+        "operationId": "getPromptVersionLatest",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1299,6 +1710,34 @@
           "data"
         ],
         "title": "CreateExperimentResponseBody"
+      },
+      "CreatePromptRequestBody": {
+        "properties": {
+          "prompt": {
+            "$ref": "#/components/schemas/PromptData"
+          },
+          "version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "version"
+        ],
+        "title": "CreatePromptRequestBody"
+      },
+      "CreatePromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptResponseBody"
       },
       "Dataset": {
         "properties": {
@@ -1558,6 +1997,50 @@
         ],
         "title": "GetExperimentResponseBody"
       },
+      "GetPromptResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetPromptResponseBody"
+      },
+      "GetPromptVersionsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PromptVersion"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetPromptVersionsResponseBody"
+      },
+      "GetPromptsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Prompt"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetPromptsResponseBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1570,6 +2053,11 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Identifier": {
+        "type": "string",
+        "pattern": "^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$",
+        "title": "Identifier"
       },
       "InsertedSpanAnnotation": {
         "properties": {
@@ -1695,6 +2183,879 @@
         ],
         "title": "ListExperimentsResponseBody"
       },
+      "ModelProvider": {
+        "type": "string",
+        "enum": [
+          "OPENAI",
+          "AZURE_OPENAI",
+          "ANTHROPIC",
+          "GOOGLE"
+        ],
+        "title": "ModelProvider"
+      },
+      "Prompt": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source_prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Prompt Id"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id"
+        ],
+        "title": "Prompt"
+      },
+      "PromptAnthropicInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "anthropic",
+            "title": "Type"
+          },
+          "anthropic": {
+            "$ref": "#/components/schemas/PromptAnthropicInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "anthropic"
+        ],
+        "title": "PromptAnthropicInvocationParameters"
+      },
+      "PromptAnthropicInvocationParametersContent": {
+        "properties": {
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "max_tokens"
+        ],
+        "title": "PromptAnthropicInvocationParametersContent"
+      },
+      "PromptAzureOpenAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "azure_openai",
+            "title": "Type"
+          },
+          "azure_openai": {
+            "$ref": "#/components/schemas/PromptAzureOpenAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "azure_openai"
+        ],
+        "title": "PromptAzureOpenAIInvocationParameters"
+      },
+      "PromptAzureOpenAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAzureOpenAIInvocationParametersContent"
+      },
+      "PromptChatTemplate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "chat",
+            "title": "Type"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/PromptMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "messages"
+        ],
+        "title": "PromptChatTemplate"
+      },
+      "PromptData": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source_prompt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Prompt Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptData"
+      },
+      "PromptGoogleInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "google",
+            "title": "Type"
+          },
+          "google": {
+            "$ref": "#/components/schemas/PromptGoogleInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "google"
+        ],
+        "title": "PromptGoogleInvocationParameters"
+      },
+      "PromptGoogleInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_output_tokens": {
+            "type": "integer",
+            "title": "Max Output Tokens"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "top_k": {
+            "type": "integer",
+            "title": "Top K"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptGoogleInvocationParametersContent"
+      },
+      "PromptMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "model",
+              "ai",
+              "tool",
+              "system",
+              "developer"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/TextContentPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ToolCallContentPart"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ToolResultContentPart"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "text": "#/components/schemas/TextContentPart",
+                      "tool_call": "#/components/schemas/ToolCallContentPart",
+                      "tool_result": "#/components/schemas/ToolResultContentPart"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              }
+            ],
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "PromptMessage"
+      },
+      "PromptOpenAIInvocationParameters": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "openai",
+            "title": "Type"
+          },
+          "openai": {
+            "$ref": "#/components/schemas/PromptOpenAIInvocationParametersContent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "openai"
+        ],
+        "title": "PromptOpenAIInvocationParameters"
+      },
+      "PromptOpenAIInvocationParametersContent": {
+        "properties": {
+          "temperature": {
+            "type": "number",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "title": "Max Tokens"
+          },
+          "frequency_penalty": {
+            "type": "number",
+            "title": "Frequency Penalty"
+          },
+          "presence_penalty": {
+            "type": "number",
+            "title": "Presence Penalty"
+          },
+          "top_p": {
+            "type": "number",
+            "title": "Top P"
+          },
+          "seed": {
+            "type": "integer",
+            "title": "Seed"
+          },
+          "reasoning_effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Reasoning Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptOpenAIInvocationParametersContent"
+      },
+      "PromptResponseFormatJSONSchema": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "json_schema",
+            "title": "Type"
+          },
+          "json_schema": {
+            "$ref": "#/components/schemas/PromptResponseFormatJSONSchemaDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "json_schema"
+        ],
+        "title": "PromptResponseFormatJSONSchema"
+      },
+      "PromptResponseFormatJSONSchemaDefinition": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "schema": {
+            "type": "object",
+            "title": "Schema"
+          },
+          "strict": {
+            "type": "boolean",
+            "title": "Strict"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptResponseFormatJSONSchemaDefinition"
+      },
+      "PromptStringTemplate": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "string",
+            "title": "Type"
+          },
+          "template": {
+            "type": "string",
+            "title": "Template"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "template"
+        ],
+        "title": "PromptStringTemplate"
+      },
+      "PromptTemplateFormat": {
+        "type": "string",
+        "enum": [
+          "MUSTACHE",
+          "F_STRING",
+          "NONE"
+        ],
+        "title": "PromptTemplateFormat"
+      },
+      "PromptTemplateType": {
+        "type": "string",
+        "enum": [
+          "STR",
+          "CHAT"
+        ],
+        "title": "PromptTemplateType"
+      },
+      "PromptToolChoiceNone": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "none",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptToolChoiceNone"
+      },
+      "PromptToolChoiceOneOrMore": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "one_or_more",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptToolChoiceOneOrMore"
+      },
+      "PromptToolChoiceSpecificFunctionTool": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "specific_function",
+            "title": "Type"
+          },
+          "function_name": {
+            "type": "string",
+            "title": "Function Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "function_name"
+        ],
+        "title": "PromptToolChoiceSpecificFunctionTool"
+      },
+      "PromptToolChoiceZeroOrMore": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "zero_or_more",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptToolChoiceZeroOrMore"
+      },
+      "PromptToolFunction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type"
+          },
+          "function": {
+            "$ref": "#/components/schemas/PromptToolFunctionDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "function"
+        ],
+        "title": "PromptToolFunction"
+      },
+      "PromptToolFunctionDefinition": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "parameters": {
+            "type": "object",
+            "title": "Parameters"
+          },
+          "strict": {
+            "type": "boolean",
+            "title": "Strict"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptToolFunctionDefinition"
+      },
+      "PromptTools": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tools",
+            "title": "Type"
+          },
+          "tools": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PromptToolFunction"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "function": "#/components/schemas/PromptToolFunction"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Tools"
+          },
+          "tool_choice": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptToolChoiceNone"
+              },
+              {
+                "$ref": "#/components/schemas/PromptToolChoiceZeroOrMore"
+              },
+              {
+                "$ref": "#/components/schemas/PromptToolChoiceOneOrMore"
+              },
+              {
+                "$ref": "#/components/schemas/PromptToolChoiceSpecificFunctionTool"
+              }
+            ],
+            "title": "Tool Choice",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "none": "#/components/schemas/PromptToolChoiceNone",
+                "one_or_more": "#/components/schemas/PromptToolChoiceOneOrMore",
+                "specific_function": "#/components/schemas/PromptToolChoiceSpecificFunctionTool",
+                "zero_or_more": "#/components/schemas/PromptToolChoiceZeroOrMore"
+              }
+            }
+          },
+          "disable_parallel_tool_calls": {
+            "type": "boolean",
+            "title": "Disable Parallel Tool Calls"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "tools"
+        ],
+        "title": "PromptTools"
+      },
+      "PromptVersion": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "model_provider": {
+            "$ref": "#/components/schemas/ModelProvider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "template": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptChatTemplate"
+              },
+              {
+                "$ref": "#/components/schemas/PromptStringTemplate"
+              }
+            ],
+            "title": "Template",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "chat": "#/components/schemas/PromptChatTemplate",
+                "string": "#/components/schemas/PromptStringTemplate"
+              }
+            }
+          },
+          "template_type": {
+            "$ref": "#/components/schemas/PromptTemplateType"
+          },
+          "template_format": {
+            "$ref": "#/components/schemas/PromptTemplateFormat"
+          },
+          "invocation_parameters": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAzureOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              }
+            ],
+            "title": "Invocation Parameters",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "google": "#/components/schemas/PromptGoogleInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+              }
+            }
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptTools"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "json_schema": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_provider",
+          "model_name",
+          "template",
+          "template_type",
+          "template_format",
+          "invocation_parameters",
+          "id"
+        ],
+        "title": "PromptVersion"
+      },
+      "PromptVersionData": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "model_provider": {
+            "$ref": "#/components/schemas/ModelProvider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "template": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptChatTemplate"
+              },
+              {
+                "$ref": "#/components/schemas/PromptStringTemplate"
+              }
+            ],
+            "title": "Template",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "chat": "#/components/schemas/PromptChatTemplate",
+                "string": "#/components/schemas/PromptStringTemplate"
+              }
+            }
+          },
+          "template_type": {
+            "$ref": "#/components/schemas/PromptTemplateType"
+          },
+          "template_format": {
+            "$ref": "#/components/schemas/PromptTemplateFormat"
+          },
+          "invocation_parameters": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAzureOpenAIInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicInvocationParameters"
+              },
+              {
+                "$ref": "#/components/schemas/PromptGoogleInvocationParameters"
+              }
+            ],
+            "title": "Invocation Parameters",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "anthropic": "#/components/schemas/PromptAnthropicInvocationParameters",
+                "azure_openai": "#/components/schemas/PromptAzureOpenAIInvocationParameters",
+                "google": "#/components/schemas/PromptGoogleInvocationParameters",
+                "openai": "#/components/schemas/PromptOpenAIInvocationParameters"
+              }
+            }
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PromptTools"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "json_schema": "#/components/schemas/PromptResponseFormatJSONSchema"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_provider",
+          "model_name",
+          "template",
+          "template_type",
+          "template_format",
+          "invocation_parameters"
+        ],
+        "title": "PromptVersionData"
+      },
       "SpanAnnotation": {
         "properties": {
           "span_id": {
@@ -1789,6 +3150,134 @@
         },
         "type": "object",
         "title": "SpanAnnotationResult"
+      },
+      "TextContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "text"
+        ],
+        "title": "TextContentPart"
+      },
+      "ToolCallContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool_call",
+            "title": "Type"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id"
+          },
+          "tool_call": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ToolCallFunction"
+              }
+            ],
+            "title": "Tool Call",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "function": "#/components/schemas/ToolCallFunction"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "tool_call_id",
+          "tool_call"
+        ],
+        "title": "ToolCallContentPart"
+      },
+      "ToolCallFunction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "function",
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCallFunction"
+      },
+      "ToolResultContentPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "tool_result",
+            "title": "Type"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id"
+          },
+          "tool_result": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Result"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "tool_call_id",
+          "tool_result"
+        ],
+        "title": "ToolResultContentPart"
       },
       "UploadDatasetData": {
         "properties": {

@@ -1,12 +1,15 @@
 import React from "react";
+import { useLoaderData } from "react-router";
 
 import { Flex, View } from "@phoenix/components";
 
+import { resetPasswordLoaderQuery$data } from "./__generated__/resetPasswordLoaderQuery.graphql";
 import { AuthLayout } from "./AuthLayout";
 import { PhoenixLogo } from "./PhoenixLogo";
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
 export function ResetPasswordPage() {
+  const data = useLoaderData() as resetPasswordLoaderQuery$data;
   return (
     <AuthLayout>
       <Flex direction="column" gap="size-200" alignItems="center">
@@ -14,7 +17,7 @@ export function ResetPasswordPage() {
           <PhoenixLogo />
         </View>
       </Flex>
-      <ResetPasswordForm />
+      <ResetPasswordForm query={data} />
     </AuthLayout>
   );
 }

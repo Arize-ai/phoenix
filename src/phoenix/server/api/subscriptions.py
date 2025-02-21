@@ -41,6 +41,7 @@ from phoenix.server.api.helpers.playground_spans import (
     get_db_trace,
     streaming_llm_span,
 )
+from phoenix.server.api.helpers.prompts.models import PromptTemplateFormat
 from phoenix.server.api.input_types.ChatCompletionInput import (
     ChatCompletionInput,
     ChatCompletionOverDatasetInput,
@@ -59,7 +60,6 @@ from phoenix.server.api.types.Experiment import to_gql_experiment
 from phoenix.server.api.types.ExperimentRun import to_gql_experiment_run
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import to_gql_span
-from phoenix.server.api.types.TemplateLanguage import TemplateLanguage
 from phoenix.server.dml_event import SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.template_formatters import (
@@ -124,7 +124,7 @@ class Subscription:
             messages = list(
                 _formatted_messages(
                     messages=messages,
-                    template_language=template_options.language,
+                    template_format=template_options.format,
                     template_variables=template_options.variables,
                 )
             )
@@ -198,9 +198,7 @@ class Subscription:
         )
         async with info.context.db() as session:
             if (
-                dataset := await session.scalar(
-                    select(models.Dataset).where(models.Dataset.id == dataset_id)
-                )
+                await session.scalar(select(models.Dataset).where(models.Dataset.id == dataset_id))
             ) is None:
                 raise NotFound(f"Could not find dataset with ID {dataset_id}")
             if version_id is None:
@@ -274,9 +272,9 @@ class Subscription:
             experiment = models.Experiment(
                 dataset_id=from_global_id_with_expected_type(input.dataset_id, Dataset.__name__),
                 dataset_version_id=resolved_version_id,
-                name=input.experiment_name or _default_playground_experiment_name(),
-                description=input.experiment_description
-                or _default_playground_experiment_description(dataset_name=dataset.name),
+                name=input.experiment_name
+                or _default_playground_experiment_name(input.prompt_name),
+                description=input.experiment_description,
                 repetitions=1,
                 metadata_=input.experiment_metadata or dict(),
                 project_name=PLAYGROUND_PROJECT_NAME,
@@ -394,7 +392,7 @@ async def _stream_chat_completion_over_dataset_example(
         messages = list(
             _formatted_messages(
                 messages=messages,
-                template_language=input.template_language,
+                template_format=input.template_format,
                 template_variables=revision.input,
             )
         )
@@ -472,7 +470,7 @@ def _is_result_payloads_stream(
     Checks if the given generator was instantiated from
     `_chat_completion_result_payloads`
     """
-    return stream.ag_code == _chat_completion_result_payloads.__code__
+    return stream.ag_code == _chat_completion_result_payloads.__code__  # type: ignore
 
 
 def _create_task_with_timeout(
@@ -534,13 +532,13 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
 def _formatted_messages(
     *,
     messages: Iterable[ChatCompletionMessage],
-    template_language: TemplateLanguage,
+    template_format: PromptTemplateFormat,
     template_variables: Mapping[str, Any],
 ) -> Iterator[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]]:
     """
     Formats the messages using the given template options.
     """
-    template_formatter = _template_formatter(template_language=template_language)
+    template_formatter = _template_formatter(template_format=template_format)
     (
         roles,
         templates,
@@ -555,25 +553,24 @@ def _formatted_messages(
     return formatted_messages
 
 
-def _template_formatter(template_language: TemplateLanguage) -> TemplateFormatter:
+def _template_formatter(template_format: PromptTemplateFormat) -> TemplateFormatter:
     """
-    Instantiates the appropriate template formatter for the template language.
+    Instantiates the appropriate template formatter for the template format
     """
-    if template_language is TemplateLanguage.MUSTACHE:
+    if template_format is PromptTemplateFormat.MUSTACHE:
         return MustacheTemplateFormatter()
-    if template_language is TemplateLanguage.F_STRING:
+    if template_format is PromptTemplateFormat.F_STRING:
         return FStringTemplateFormatter()
-    if template_language is TemplateLanguage.NONE:
+    if template_format is PromptTemplateFormat.NONE:
         return NoOpFormatter()
-    assert_never(template_language)
+    assert_never(template_format)
 
 
-def _default_playground_experiment_name() -> str:
-    return "playground-experiment"
-
-
-def _default_playground_experiment_description(dataset_name: str) -> str:
-    return f'Playground experiment for dataset "{dataset_name}"'
+def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> str:
+    name = "playground-experiment"
+    if prompt_name:
+        name = f"{name} prompt:{prompt_name}"
+    return name
 
 
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES

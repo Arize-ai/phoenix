@@ -4,11 +4,11 @@
 
 ## Getting Started
 
-Prompt playground can be accessed from the left navbar of Phoenix. Start by entering your API key for whichever model provider you'd like to use.
+Prompt playground can be accessed from the left navbar of Phoenix. Start by entering your API key for whichever model provider you'd like to use. (see [configure-ai-providers.md](how-to-prompts/configure-ai-providers.md "mention") for details).
 
 <figure><img src="../.gitbook/assets/Screenshot 2024-12-09 at 10.42.07 AM.png" alt=""><figcaption><p>Enter your model provider API key</p></figcaption></figure>
 
-From here, you can directly prompt your model by modifying either the system or user prompt, and pressing the Run button on the top right.
+From here, you can directly prompt your model by modifying either the system or user prompt, and pressing the Run button on the top right.&#x20;
 
 ## Basic Example Use Case
 

@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useMatch, useNavigate } from "react-router";
 import {
   ColumnDef,
   ExpandedState,
@@ -100,6 +100,8 @@ export function TracesTable(props: TracesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
+  // Determine if the table is active based on the current path
+  const isTableActive = !!useMatch("/projects/:projectId");
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -480,22 +482,24 @@ export function TracesTable(props: TracesTableProps) {
   ];
 
   useEffect(() => {
-    //if the sorting changes, we need to reset the pagination
-    const sort = sorting[0];
-    startTransition(() => {
-      refetch(
-        {
-          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
-          after: null,
-          first: PAGE_SIZE,
-          filterCondition: filterCondition,
-        },
-        {
-          fetchPolicy: "store-and-network",
-        }
-      );
-    });
-  }, [sorting, refetch, filterCondition, fetchKey]);
+    if (isTableActive) {
+      //if the sorting changes, we need to reset the pagination
+      const sort = sorting[0];
+      startTransition(() => {
+        refetch(
+          {
+            sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
+            after: null,
+            first: PAGE_SIZE,
+            filterCondition: filterCondition,
+          },
+          {
+            fetchPolicy: "store-and-network",
+          }
+        );
+      });
+    }
+  }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {

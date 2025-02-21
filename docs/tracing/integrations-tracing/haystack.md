@@ -31,12 +31,12 @@ from phoenix.otel import register
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 # configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  endpoint="https://app.phoenix.arize.com/v1/traces",
-)
+) 
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -158,7 +158,7 @@ HaystackInstrumentor().instrument(tracer_provider=tracer_provider)
 {% hint style="info" %}
 Phoenix's auto-instrumentor collects any traces from **Haystack Pipelines**. If you are using Haystack but not using Pipelines, you won't see traces appearing in Phoenix automatically.
 
-If you don't want to use Haystack pipelines but still want tracing in Phoenix, you can use[manual-instrumentation](../how-to-tracing/manual-instrumentation/ "mention")instead of this auto-instrumentor.
+If you don't want to use Haystack pipelines but still want tracing in Phoenix, you can use [instrument-python.md](../how-to-tracing/instrument-python.md "mention") instead of this auto-instrumentor.
 {% endhint %}
 
 From here, you can set up your Haystack app as normal:
@@ -196,6 +196,6 @@ Now that you have tracing setup, all invocations of pipelines will be streamed t
 
 ## Resources:
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack/examples/qa\_rag\_pipeline.py)
+* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack/examples/qa_rag_pipeline.py)
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-haystack)
 * [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-haystack/examples)

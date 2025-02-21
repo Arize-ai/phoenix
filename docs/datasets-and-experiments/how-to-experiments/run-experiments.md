@@ -131,7 +131,8 @@ def execute_query(query):
 def text2sql(question):
     results = error = None
     try:
-        results = execute_query(generate_query(question))
+        query = generate_query(question)
+        results = execute_query(query)
     except duckdb.Error as e:
         error = str(e)
     return {"query": query, "results": results, "error": error}

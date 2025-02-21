@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
+import { createClient } from "@arizeai/phoenix-client";
 import {
   asEvaluator,
-  createClient,
   runExperiment,
   type RunExperimentParams,
-} from "@arizeai/phoenix-client";
+} from "@arizeai/phoenix-client/experiments";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
 import { Factuality, Humor } from "autoevals";
 import dotenv from "dotenv";

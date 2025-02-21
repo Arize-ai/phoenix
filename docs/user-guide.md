@@ -34,7 +34,7 @@ Prompt engineering is critical changes how a model behaves. While there are othe
 
 Instrument prompt and prompt variable collection to associate iterations of your app with the performance measured through evals and experiments. Phoenix tracks prompt templates, variables, and versions during execution to help you identify improvements and degradations.
 
-* [instrumenting-prompt-templates-and-prompt-variables.md](tracing/how-to-tracing/customize-spans/instrumenting-prompt-templates-and-prompt-variables.md "mention")
+* [instrumenting-prompt-templates-and-prompt-variables.md](tracing/how-to-tracing/instrumenting-prompt-templates-and-prompt-variables.md "mention")
 
 ### Search & Retrieval Embeddings Visualizer
 

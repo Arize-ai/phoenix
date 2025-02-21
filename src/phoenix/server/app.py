@@ -86,6 +86,7 @@ from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
+    PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -611,6 +612,7 @@ def create_graphql_router(
                         else None
                     ),
                 ),
+                prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
@@ -914,6 +916,7 @@ def create_app(
             ),
             name="static",
         )
+    app.state.authentication_enabled = authentication_enabled
     app.state.read_only = read_only
     app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry

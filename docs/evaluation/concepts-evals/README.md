@@ -8,7 +8,7 @@ description: How to leverage Evals to validate and monitor your application
 
 ## [Eval Data Types](evaluation-types.md)
 
-## [Evals With Explanations](./#evals-with-explanations)
+## [Evals With Explanations](evals-with-explanations.md)
 
 ## [Evaluators](evaluation.md)
 

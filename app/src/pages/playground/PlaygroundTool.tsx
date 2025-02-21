@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Card } from "@arizeai/components";
@@ -20,6 +26,7 @@ import {
   llmProviderToolDefinitionSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
+import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
@@ -32,12 +39,20 @@ import { PlaygroundInstanceProps } from "./types";
  */
 const TOOL_EDITOR_PRE_INIT_HEIGHT = 400;
 
+/**
+ * A tool editor that is used to edit the definition of a tool.
+ *
+ * This is a mostly un-controlled editor that re-mounts when the tool definition changes externally.
+ * This is necessary because controlled react-codemirror editors incessantly remount and reset
+ * cursor position when value is updated.
+ */
 export function PlaygroundTool({
   playgroundInstanceId,
   toolId,
 }: PlaygroundInstanceProps & {
   toolId: Tool["id"];
 }) {
+  const [version, setVersion] = useState(0);
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
 
   const instance = usePlaygroundContext((state) =>
@@ -56,9 +71,12 @@ export function PlaygroundTool({
     throw new Error(`Tool ${toolId} not found`);
   }
 
-  const [editorValue, setEditorValue] = useState(
+  const [initialEditorValue, setEditorValue] = useState(
     JSON.stringify(tool.definition, null, 2)
   );
+
+  // track the current value of the editor, even when it is invalid
+  const currentValueRef = useRef(initialEditorValue);
 
   const [lastValidDefinition, setLastValidDefinition] = useState(
     tool.definition
@@ -71,12 +89,17 @@ export function PlaygroundTool({
     ) {
       setLastValidDefinition(tool.definition);
       setEditorValue(JSON.stringify(tool.definition, null, 2));
+      setVersion((prev) => prev + 1);
     }
   }, [tool.definition, lastValidDefinition]);
 
   const onChange = useCallback(
     (value: string) => {
-      setEditorValue(value);
+      // track the current value of the editor, even when it is invalid
+      currentValueRef.current = value;
+      // note that we do not update initialEditorValue here, we only want to update it when
+      // we are okay with the editor state resetting, which is basically only when the provider
+      // changes
       const { json: definition } = safelyParseJSON(value);
       if (definition == null) {
         return;
@@ -90,6 +113,8 @@ export function PlaygroundTool({
         return;
       }
 
+      // @todo: Reconsider this approach, as it may lead to a situation where the editor
+      // reflects one definition while what gets saved is another (the last valid one).
       setLastValidDefinition(definition);
 
       updateInstance({
@@ -104,6 +129,7 @@ export function PlaygroundTool({
               : t
           ),
         },
+        dirty: true,
       });
     },
     [instanceTools, playgroundInstanceId, tool.id, updateInstance]
@@ -120,7 +146,7 @@ export function PlaygroundTool({
         return openAIToolDefinitionJSONSchema as JSONSchema7;
       case "ANTHROPIC":
         return anthropicToolDefinitionJSONSchema as JSONSchema7;
-      case "GEMINI":
+      case "GOOGLE":
         return null;
     }
   }, [instance.model.provider]);
@@ -140,18 +166,17 @@ export function PlaygroundTool({
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={editorValue} />
+          <CopyToClipboardButton text={currentValueRef} />
           <Button
             aria-label="Delete tool"
-            icon={<Icon svg={<Icons.TrashOutline />} />}
+            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
             size="S"
             onPress={() => {
               const newTools = instanceTools.filter((t) => t.id !== tool.id);
-              const toolName = getToolName(tool);
               const deletingToolChoice =
                 typeof instance.toolChoice === "object" &&
                 toolName != null &&
-                instance.toolChoice.function.name === getToolName(tool);
+                findToolChoiceName(instance.toolChoice) === toolName;
 
               let toolChoice = instance.toolChoice;
               if (newTools.length === 0) {
@@ -165,6 +190,7 @@ export function PlaygroundTool({
                   tools: newTools,
                   toolChoice,
                 },
+                dirty: true,
               });
             }}
           />
@@ -175,7 +201,10 @@ export function PlaygroundTool({
         preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
       >
         <JSONEditor
-          value={editorValue}
+          // force remount of the editor when the tool definition changes externally
+          // usually when switching between providers
+          key={version}
+          value={initialEditorValue}
           onChange={onChange}
           jsonSchema={toolDefinitionJSONSchema}
         />

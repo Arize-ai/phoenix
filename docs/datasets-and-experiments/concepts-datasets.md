@@ -37,7 +37,7 @@ If your application is going well, you will likely get a lot of usage. How can y
 
 **Synthetic Data**
 
-Once you have a few examples, you can try to artificially generate examples to get a lot of datapoints quickly. It's generally advised to have a few good handcrafted examples before this step, as the synthetic data will often resemble the source examples in some way.&#x20;
+Once you have a few examples, you can try to artificially generate examples to get a lot of datapoints quickly. It's generally advised to have a few good handcrafted examples before this step, as the synthetic data will often resemble the source examples in some way.
 
 ## Dataset Contents
 
@@ -64,13 +64,11 @@ Answer:
 
 Your dataset might look like:
 
-| Input                                                                                                                                                                      | Output                                                                                                                                                   |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <p>{</p><p>    "query": "What is Paul Graham known for?",</p><p>    "context": "Paul Graham is an investor, entrepreneur, and computer scientist known for..."</p><p>}</p> | <p>{</p><p>  "answer": "Paul Graham is known for co-founding Y Combinator, for his writing, and for his work on the Lisp programming language."<br>}</p> |
+| Input                                                                                                                                                              | Output                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <p>{</p><p>"query": "What is Paul Graham known for?",</p><p>"context": "Paul Graham is an investor, entrepreneur, and computer scientist known for..."</p><p>}</p> | <p>{</p><p>"answer": "Paul Graham is known for co-founding Y Combinator, for his writing, and for his work on the Lisp programming language."<br>}</p> |
 {% endtab %}
 {% endtabs %}
-
-
 
 **LLM inputs and outputs:**
 
@@ -78,12 +76,10 @@ Your dataset might look like:
 * The "inputs" dictionary contains a single "input" key mapped to the prompt string.
 * The "outputs" dictionary contains a single "output" key mapped to the corresponding response string.
 
-| Input                                                                              | Output                                    |
-| ---------------------------------------------------------------------------------- | ----------------------------------------- |
-| <p>{ </p><p>"input":  "do you have to have two license plates in ontario"<br>}</p> | <p>{</p><p>  "output": "true"</p><p>}</p> |
-| <p>{ </p><p>"input":  "are black beans the same as turtle beans"<br>}</p>          | <p>{<br>  "output": "true"<br>}</p>       |
-
-
+| Input                                                                            | Output                                  |
+| -------------------------------------------------------------------------------- | --------------------------------------- |
+| <p>{</p><p>"input": "do you have to have two license plates in ontario"<br>}</p> | <p>{</p><p>"output": "true"</p><p>}</p> |
+| <p>{</p><p>"input": "are black beans the same as turtle beans"<br>}</p>          | <p>{<br>"output": "true"<br>}</p>       |
 
 **Messages or chat:**
 
@@ -92,11 +88,24 @@ Your dataset might look like:
 * The "outputs" dictionary contains a "messages" key mapped to a list of serialized chat messages.
 * This type of data is useful for evaluating conversational AI systems or chatbots.
 
+| Input                                                                                     | Output                                                                                              |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| <p>{<br>"messages": [{ "role": "system", "content": "You are an expert SQL..."}]<br>}</p> | <p>{<br>"messages": [{ "role": "assistant", "content": "select * from users"}]<br>}</p>             |
+| <p>{<br>"messages": [{ "role": "system", "content": "You are a helpful..."}]<br>}</p>     | <p>{<br>"messages": [{ "role": "assistant", "content": "I don't know the answer to that"}]<br>}</p> |
+
+## Types of Datasets
+
+Depending on the type of contents of a given dataset, you might consider the dataset be a certain type.&#x20;
+
+### Golden Dataset
+
+A dataset that contains the **inputs** and the ideal "golden" **output** is often times is referred to as a **Golden Dataset.** These datasets are hand-labeled dataset and are used in evaluating the performance of LLMs or prompt templates. T.A golden dataset could look something like
+
+| Input                                   | Output |
+| --------------------------------------- | ------ |
+| Paris is the capital of France          | True   |
+| Canada borders the United States        | True   |
+| The native language of Japan is English | False  |
 
 
-| Input                                                                                       | Output                                                                                                |
-| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| <p>{<br>  "messages": [{ "role": "system", "content": "You are an expert SQL..."}]<br>}</p> | <p>{<br>  "messages": [{ "role": "assistant", "content": "select * from users"}]<br>}</p>             |
-| <p>{<br>  "messages": [{ "role": "system", "content": "You are a helpful..."}]<br>}</p>     | <p>{<br>  "messages": [{ "role": "assistant", "content": "I don't know the answer to that"}]<br>}</p> |
 
-\

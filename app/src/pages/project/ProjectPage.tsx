@@ -14,7 +14,7 @@ import { TabPane, Tabs } from "@arizeai/components";
 import { Flex, Loading } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
-  useLastNTimeRange,
+  useTimeRange,
 } from "@phoenix/components/datetime";
 
 import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
@@ -58,7 +58,7 @@ const mainCSS = css`
 
 export function ProjectPage() {
   const { projectId } = useParams();
-  const { timeRange } = useLastNTimeRange();
+  const { timeRange } = useTimeRange();
   return (
     <Suspense fallback={<Loading />}>
       <ProjectPageContent
@@ -90,12 +90,12 @@ export function ProjectPageContent({
   timeRange,
 }: {
   projectId: string;
-  timeRange: TimeRange;
+  timeRange: OpenTimeRange;
 }) {
   const timeRangeVariable = useMemo(() => {
     return {
-      start: timeRange.start.toISOString(),
-      end: timeRange.end.toISOString(),
+      start: timeRange?.start?.toISOString(),
+      end: timeRange?.end?.toISOString(),
     };
   }, [timeRange]);
 
