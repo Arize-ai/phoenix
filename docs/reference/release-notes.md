@@ -174,4 +174,4 @@ We are introducing a new built-in function call evaluator that scores the functi
 
 This evaluator checks for issues arising from function routing, parameter extraction, and function generation.
 
-Check out a [full walkthrough of the evaluato](https://www.youtube.com/watch?v=Rsu-UZ1ZVZU)r.
+Check out a [full walkthrough of the evaluator](https://www.youtube.com/watch?v=Rsu-UZ1ZVZU).
