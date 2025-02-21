@@ -326,7 +326,7 @@ async def _span_data(
                 end_time = fake.future_datetime(tzinfo=timezone.utc)
                 parent_id: Optional[str] = None
                 if trace_spans and random() < 0.5:
-                    parent_id = choice(trace_spans).span_id
+                    parent_id = choice(trace_spans[len(trace_spans) // 2 :]).span_id
                 span = models.Span(
                     trace_rowid=trace.id,
                     span_id=token_hex(8),

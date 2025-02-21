@@ -1,4 +1,5 @@
 from secrets import token_hex
+from typing import Iterable
 
 from aioitertools.itertools import groupby
 from sqlalchemy import select
@@ -19,7 +20,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: list[Key]) -> list[Result]:
+    async def _load_fn(self, keys: Iterable[Key]) -> list[Result]:
         root_ids = (
             select(
                 models.Span.span_id,
@@ -61,5 +62,5 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         async with self._db() as session:
             data = await session.stream(stmt)
             async for key, group in groupby(data, key=lambda d: d[0]):
-                results[key].extend(id_ for _, id_ in group)
+                results[key].extend(span_rowid for _, span_rowid in group)
         return [results[key].copy() for key in keys]

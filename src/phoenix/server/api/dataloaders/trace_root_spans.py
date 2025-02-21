@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Iterable, Optional
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -7,8 +7,11 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-Key: TypeAlias = int
-Result: TypeAlias = Optional[int]
+TraceRowId: TypeAlias = int
+SpanRowId: TypeAlias = int
+
+Key: TypeAlias = TraceRowId
+Result: TypeAlias = Optional[SpanRowId]
 
 
 class TraceRootSpansDataLoader(DataLoader[Key, Result]):
@@ -16,7 +19,7 @@ class TraceRootSpansDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: List[Key]) -> List[Result]:
+    async def _load_fn(self, keys: Iterable[Key]) -> list[Result]:
         stmt = (
             select(models.Trace.id, models.Span.id)
             .join(models.Trace)

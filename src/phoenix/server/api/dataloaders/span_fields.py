@@ -23,15 +23,15 @@ class SpanFieldsDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: list[Key]) -> list[Union[Result, ValueError]]:
+    async def _load_fn(self, keys: Iterable[Key]) -> list[Union[Result, ValueError]]:
         result: dict[tuple[SpanRowId, _AttrStrIdentifier], Result] = {}
         stmt, attr_strs = _get_stmt(keys)
         async with self._db() as session:
             data = await session.stream(stmt)
             async for row in data:
                 span_rowid: SpanRowId = row[0]  # models.Span's primary key
-                for i, v in enumerate(row[1:]):
-                    result[span_rowid, attr_strs[i]] = v
+                for i, value in enumerate(row[1:]):
+                    result[span_rowid, attr_strs[i]] = value
         return [result.get((span_rowid, str(attr))) for span_rowid, attr in keys]
 
 

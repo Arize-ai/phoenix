@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Iterable, Union
 
 from sqlalchemy import select
 from strawberry.dataloader import DataLoader
@@ -7,7 +7,9 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-Key: TypeAlias = int
+SpanRowId: TypeAlias = int
+
+Key: TypeAlias = SpanRowId
 Result: TypeAlias = models.Span
 
 
@@ -16,11 +18,12 @@ class SpanByIdDataLoader(DataLoader[Key, Result]):
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
-    async def _load_fn(self, keys: list[Key]) -> list[Union[Result, ValueError]]:
-        ids = list(set(keys))
+    async def _load_fn(self, keys: Iterable[Key]) -> list[Union[Result, ValueError]]:
+        span_rowids = list(set(keys))
         spans: dict[Key, Result] = {}
+        stmt = select(models.Span).where(models.Span.id.in_(span_rowids))
         async with self._db() as session:
-            data = await session.stream_scalars(select(models.Span).where(models.Span.id.in_(ids)))
-            async for Span in data:
-                spans[Span.id] = Span
-        return [spans.get(id_, ValueError("Invalid primary key for span")) for id_ in keys]
+            data = await session.stream_scalars(stmt)
+            async for span in data:
+                spans[span.id] = span
+        return [spans.get(span_rowid, ValueError("Invalid span row id")) for span_rowid in keys]
