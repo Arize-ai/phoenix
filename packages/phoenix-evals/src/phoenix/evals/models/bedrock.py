@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from dataclasses import dataclass, field
 from functools import partial
@@ -158,9 +157,7 @@ class BedrockModel(BaseModel):
         messages = [
             {
                 "role": "user",
-                "content": [
-                    { "text": prompt_str } 
-                ],
+                "content": [{"text": prompt_str}],
             }
         ]
 
@@ -175,9 +172,7 @@ class BedrockModel(BaseModel):
         # Add any extra parameters that aren't part of the Converse inferenceConfig parameter
         additional_model_request_fields = {}
         if self.top_k != 256:  # Only add if different from default
-            additional_model_request_fields["inferenceConfig"] = {
-                "topK": self.top_k
-            }
+            additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
 
         # Add any remaining extra parameters
         additional_model_request_fields.update(self.extra_parameters)
@@ -194,7 +189,6 @@ class BedrockModel(BaseModel):
             converse_input_params["additionalModelRequestFields"] = additional_model_request_fields
 
         return converse_input_params
-
 
     def _parse_output(self, response: Any) -> Any:
         return response.get("output").get("message").get("content")[0]["text"]
