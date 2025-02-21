@@ -13,9 +13,15 @@ import { promisifyResult } from "../utils/promisifyResult";
 import invariant from "tiny-invariant";
 import { pluralize } from "../utils/pluralize";
 import { ClientFn } from "../types/core";
-import { getDatasetLike } from "../utils/getDatasetLike";
+import { getDatasetBySelector } from "../utils/getDatasetBySelector";
 import { type Logger } from "../types/logger";
 
+/**
+ * Parameters for running an experiment.
+ *
+ * @experimental This feature is not complete, and will change in the future.
+ * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
+ */
 export type RunExperimentParams = ClientFn & {
   /**
    * An optional name for the experiment.
@@ -70,7 +76,7 @@ export async function runExperiment({
   record = true,
 }: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
-  const dataset = await getDatasetLike({ dataset: _dataset, client });
+  const dataset = await getDatasetBySelector({ dataset: _dataset, client });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
   const experimentName =
@@ -223,7 +229,7 @@ export async function evaluateExperiment({
   logger: Logger;
 }): Promise<RanExperiment> {
   const client = _client ?? createClient();
-  const dataset = await getDatasetLike({
+  const dataset = await getDatasetBySelector({
     dataset: experiment.datasetId,
     client,
   });

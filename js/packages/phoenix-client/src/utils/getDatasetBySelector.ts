@@ -8,6 +8,9 @@ import { Dataset } from "../types/datasets";
  * Parameters for the getDatasetLike function
  */
 export type GetDatasetLikeParams = {
+  /**
+   * The dataset to get. Can be in the form of a dataset id, an array of examples, or a dataset object.
+   */
   dataset: Dataset | string | Example[];
   client: PhoenixClient;
 };
@@ -19,10 +22,10 @@ export type GetDatasetLikeParams = {
  * If the input is an array of examples, create a new dataset from the examples then return it.
  * If the input is a dataset, return it as is.
  *
- * @param dataset - The dataset to get.
+ * @param params - The parameters to get a dataset.
  * @returns The dataset.
  */
-export async function getDatasetLike({
+export async function getDatasetBySelector({
   dataset,
   client,
 }: GetDatasetLikeParams): Promise<Dataset | null> {
