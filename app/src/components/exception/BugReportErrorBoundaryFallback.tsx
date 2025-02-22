@@ -1,7 +1,10 @@
 import React from "react";
-import { ExternalLink, View, Flex } from "@phoenix/components";
-import { EmptyGraphic } from "@arizeai/components";
 import { css } from "@emotion/react";
+
+import { EmptyGraphic } from "@arizeai/components";
+
+import { ExternalLink, Flex, View } from "@phoenix/components";
+
 import { ErrorBoundaryFallbackProps } from "./types";
 
 export function BugReportErrorBoundaryFallback({
