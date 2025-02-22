@@ -57,6 +57,7 @@ export function TraceTree(props: TraceTreeProps) {
             flex-direction: column;
             width: 100%;
             overflow: auto;
+            flex: none;
           `}
           data-testid="trace-tree"
         >
