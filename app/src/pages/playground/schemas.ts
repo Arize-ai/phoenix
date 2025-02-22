@@ -8,13 +8,15 @@ import {
   ToolAttributePostfixes,
 } from "@arizeai/openinference-semantic-conventions";
 
-import { llmProviderToolDefinitionSchema } from "@phoenix/schemas";
+import {
+  jsonSchemaZodSchema,
+  llmProviderToolDefinitionSchema,
+} from "@phoenix/schemas";
 import {
   JSONLiteral,
   jsonLiteralSchema,
 } from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
-import { ChatMessage } from "@phoenix/store";
 import {
   isObject,
   isStringKeyedObject,
@@ -100,16 +102,14 @@ export const chatMessageRolesSchema = schemaForType<ChatMessageRole>()(
   z.enum(["user", "ai", "system", "tool"])
 );
 
-const chatMessageSchema = schemaForType<ChatMessage>()(
-  z.object({
-    id: z.number(),
-    role: chatMessageRolesSchema,
-    // Tool call messages may not have content
-    content: z.string().optional(),
-    toolCallId: z.string().optional(),
-    toolCalls: z.array(llmProviderToolCallSchema).optional(),
-  })
-);
+export const chatMessageSchema = z.object({
+  id: z.number(),
+  role: chatMessageRolesSchema,
+  // Tool call messages may not have content
+  content: z.string().optional(),
+  toolCallId: z.string().optional(),
+  toolCalls: z.array(llmProviderToolCallSchema).optional(),
+});
 
 /**
  * The zod schema for ChatMessages
@@ -196,6 +196,13 @@ export const modelConfigWithResponseFormatSchema = z.object({
   }),
 });
 
+export const urlSchema = z.object({
+  url: z.object({
+    full: z.string(),
+    path: z.string().optional(),
+  }),
+});
+
 /**
  *  The zod schema for llm.tools.{i}.tool.json_schema attribute
  *  This will be a json string parsed into an object
@@ -260,7 +267,9 @@ export const openAIResponseFormatSchema = z.lazy(() =>
     type: z.literal("json_schema"),
     json_schema: z.object({
       name: z.string().describe("The name of the schema"),
-      schema: jsonLiteralSchema.describe("The schema itself in JSON format"),
+      schema: jsonSchemaZodSchema.describe(
+        "The schema itself in JSON schema format"
+      ),
       strict: z.literal(true).describe("The schema must be strict"),
     }),
   })

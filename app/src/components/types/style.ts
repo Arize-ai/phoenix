@@ -1,3 +1,5 @@
+import { SerializedStyles } from "@emotion/react";
+
 export type ColorValue =
   | "grey-50"
   | "grey-75"
@@ -584,3 +586,14 @@ export type TextColorValue =
   | "text-300"
   | "inherit"
   | ColorValue;
+
+/**
+ * Makes a component stylable with emotion in addition to the component's styles.
+ * To be used sparingly when a component needs to be styled for very specific use cases.
+ */
+export interface StylableProps {
+  /**
+   * Take an emotion css prop to be merged after the component's styles.
+   */
+  css?: SerializedStyles;
+}

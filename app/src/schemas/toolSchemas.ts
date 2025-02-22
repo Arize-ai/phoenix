@@ -1,7 +1,7 @@
 import { z } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 
 import { JSONLiteral, jsonLiteralSchema } from "./jsonLiteralSchema";
 
@@ -27,17 +27,21 @@ const jsonSchemaPropertiesSchema = z
   .passthrough()
   .describe("A map of parameter names to their definitions");
 
-const jsonSchemaZodSchema = z
+export const jsonSchemaZodSchema = z
   .object({
     type: z.literal("object"),
-    properties: z.record(
-      z.union([
-        jsonSchemaPropertiesSchema,
-        z
-          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
-          .describe("A list of possible parameter names to their definitions"),
-      ])
-    ),
+    properties: z
+      .record(
+        z.union([
+          jsonSchemaPropertiesSchema,
+          z
+            .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+            .describe(
+              "A list of possible parameter names to their definitions"
+            ),
+        ])
+      )
+      .optional(),
     required: z
       .array(z.string())
       .optional()
@@ -224,7 +228,7 @@ type ProviderToToolDefinitionMap = {
   AZURE_OPENAI: OpenAIToolDefinition;
   ANTHROPIC: AnthropicToolDefinition;
   // Use generic JSON type for unknown tool formats / new providers
-  GEMINI: JSONLiteral;
+  GOOGLE: JSONLiteral;
 };
 
 /**
@@ -266,8 +270,8 @@ export const fromOpenAIToolDefinition = <T extends ModelProvider>({
       return openAIToolToAnthropic.parse(
         toolDefinition
       ) as ProviderToToolDefinitionMap[T];
-    // TODO(apowell): #5348 Add Gemini tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool calls schema - https://github.com/Arize-ai/phoenix/issues/5348
+    case "GOOGLE":
       return toolDefinition as ProviderToToolDefinitionMap[T];
     default:
       assertUnreachable(targetProvider);
@@ -322,3 +326,50 @@ export function createAnthropicToolDefinition(
     },
   };
 }
+
+export const findToolDefinitionName = (toolDefinition: unknown) => {
+  const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
+  if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
+    return null;
+  }
+
+  if (
+    "function" in parsed.data &&
+    isObject(parsed.data.function) &&
+    "name" in parsed.data.function &&
+    typeof parsed.data.function.name === "string"
+  ) {
+    return parsed.data.function.name;
+  }
+
+  if ("name" in parsed.data && typeof parsed.data.name === "string") {
+    return parsed.data.name;
+  }
+
+  return null;
+};
+
+export const findToolDefinitionDescription = (toolDefinition: unknown) => {
+  const parsed = llmProviderToolDefinitionSchema.safeParse(toolDefinition);
+  if (!parsed.success || parsed.data === null || !isObject(parsed.data)) {
+    return null;
+  }
+
+  if (
+    "function" in parsed.data &&
+    isObject(parsed.data.function) &&
+    "description" in parsed.data.function &&
+    typeof parsed.data.function.description === "string"
+  ) {
+    return parsed.data.function.description;
+  }
+
+  if (
+    "description" in parsed.data &&
+    typeof parsed.data.description === "string"
+  ) {
+    return parsed.data.description;
+  }
+
+  return null;
+};

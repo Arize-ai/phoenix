@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3c3e5613d07e6a73c7ddf91f8e0a22e0>>
+ * @generated SignedSource<<599c28803e2323fc686f3182858c25c3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,8 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type DimensionDriftBreakdownSegmentBarChartQuery$variables = {
   dimensionId: string;

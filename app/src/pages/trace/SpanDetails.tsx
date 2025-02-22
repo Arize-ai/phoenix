@@ -46,6 +46,7 @@ import {
 import {
   Button,
   CopyToClipboardButton,
+  ErrorBoundary,
   ExternalLink,
   Flex,
   Heading,
@@ -55,7 +56,6 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
-import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,
@@ -248,7 +248,7 @@ export function SpanDetails({
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <Button
               variant="default"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               isDisabled={span.spanKind !== "llm"}
               onPress={() => {
                 navigate(`/playground/spans/${span.id}`);
@@ -272,7 +272,7 @@ export function SpanDetails({
                 onPress={() => {
                   setShowSpanAside(!showSpanAside);
                 }}
-                icon={
+                leadingVisual={
                   <Icon
                     svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
                   />
@@ -383,7 +383,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
     <>
       <Button
         variant="default"
-        icon={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={onAddSpanToDataset}
       >
         Add to Dataset
@@ -605,7 +605,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const hasOutputMessages = outputMessages.length > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
-    Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+    Object.keys(safelyParseJSON(invocation_parameters_str).json || {}).length >
+    0;
   const hasPromptTemplateObject = promptTemplateObject != null;
 
   return (
@@ -1323,6 +1324,10 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
+                const parsedArguments = safelyParseJSON(
+                  toolCall?.function?.arguments as string
+                );
+
                 return (
                   <pre
                     key={idx}
@@ -1332,13 +1337,9 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     `}
                   >
                     {toolCall?.function?.name as string}(
-                    {typeof toolCall?.function?.arguments === "string"
-                      ? JSON.stringify(
-                          JSON.parse(toolCall?.function?.arguments as string),
-                          null,
-                          2
-                        )
-                      : ""}
+                    {parsedArguments.json
+                      ? JSON.stringify(parsedArguments.json, null, 2)
+                      : `${toolCall?.function?.arguments}`}
                     )
                   </pre>
                 );

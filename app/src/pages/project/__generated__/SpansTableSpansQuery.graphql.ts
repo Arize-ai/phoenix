@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5de075dee8997548a38c100251fdf9ee>>
+ * @generated SignedSource<<c2d6f8f0203928059959749eaba12dac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,8 +23,8 @@ export type EvalResultKey = {
   name: string;
 };
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type SpansTableSpansQuery$variables = {
   after?: string | null;

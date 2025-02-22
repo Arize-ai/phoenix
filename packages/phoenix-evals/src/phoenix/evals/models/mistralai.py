@@ -40,6 +40,7 @@ class MistralAIModel(BaseModel):
         initial_rate_limit (int, optional): The initial internal rate limit in allowed requests
             per second for making LLM calls. This limit adjusts dynamically based on rate
             limit errors. Defaults to 5.
+        timeout (int, optional): The timeout for completion requests in seconds. Defaults to 120.
 
     Example:
         .. code-block:: python
@@ -59,6 +60,7 @@ class MistralAIModel(BaseModel):
     api_key: Optional[str] = os.getenv("MISTRAL_API_KEY")
     safe_prompt: bool = False
     initial_rate_limit: int = 5
+    timeout: int = 120
 
     def __post_init__(self) -> None:
         self._init_client()
@@ -177,5 +179,7 @@ class MistralAIModel(BaseModel):
             if part.content_type == PromptPartContentType.TEXT:
                 messages.append({"role": "user", "content": part.content})
             else:
-                raise ValueError(f"Unsupported content type: {part.content_type}")
+                raise ValueError(
+                    f"Unsupported content type for {MistralAIModel.__name__}: {part.content_type}"
+                )
         return messages

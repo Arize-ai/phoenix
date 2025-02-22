@@ -1,18 +1,28 @@
 import React from "react";
 
-import {
-  FileTextOutline,
-  Radio,
-  RadioGroup,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { FileTextOutline, Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
+
+const markdownDisplayModes: MarkdownDisplayMode[] = ["text", "markdown"];
+
+/**
+ * TypeGuard for the markdown mode
+ */
+function isMarkdownDisplayMode(m: unknown): m is MarkdownDisplayMode {
+  return (
+    typeof m === "string" &&
+    markdownDisplayModes.includes(m as MarkdownDisplayMode)
+  );
+}
 
 export function MarkdownModeRadioGroup({
   mode,
@@ -22,31 +32,34 @@ export function MarkdownModeRadioGroup({
   onModeChange: (newMode: MarkdownDisplayMode) => void;
 }) {
   return (
-    <RadioGroup
-      size="compact"
-      variant="inline-button"
-      value={mode}
-      onChange={(value) => {
-        onModeChange(value as MarkdownDisplayMode);
+    <ToggleButtonGroup
+      aria-label="Markdown Mode"
+      selectedKeys={[mode]}
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const mode = v.keys().next().value;
+        if (isMarkdownDisplayMode(mode)) {
+          onModeChange(mode);
+        } else {
+          throw new Error(`Unknown markdown mode: ${mode}`);
+        }
       }}
     >
-      <Radio label="text" value="text">
-        <TooltipTrigger placement="top" delay={1000} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<Icons.TextOutline />} />
-          </TriggerWrap>
-          <Tooltip>Text</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-      <Radio label="markdown" value="markdown">
-        <TooltipTrigger placement="top" delay={1000} offset={10}>
-          <TriggerWrap>
-            <Icon svg={<FileTextOutline />} />
-          </TriggerWrap>
-          <Tooltip>Markdown</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-    </RadioGroup>
+      <TooltipTrigger placement="top" delay={1000} offset={10}>
+        <ToggleButton aria-label="text" id="text">
+          <Icon svg={<Icons.TextOutline />} />
+        </ToggleButton>
+        <Tooltip>Text</Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger placement="top" delay={1000} offset={10}>
+        <ToggleButton aria-label="markdown" id="markdown">
+          <Icon svg={<FileTextOutline />} />
+        </ToggleButton>
+        <Tooltip>Markdown</Tooltip>
+      </TooltipTrigger>
+    </ToggleButtonGroup>
   );
 }
 

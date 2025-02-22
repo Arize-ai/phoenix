@@ -1,7 +1,8 @@
 import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
 
-import { getTemplateLanguageUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
+import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
@@ -11,21 +12,25 @@ import {
   createOpenAIToolDefinition,
   detectToolDefinitionProvider,
 } from "@phoenix/schemas";
+import { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import {
+  AnthropicToolCall,
   createAnthropicToolCall,
   createOpenAIToolCall,
   LlmProviderToolCall,
+  OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import { safelyConvertToolChoiceToProvider } from "@phoenix/schemas/toolChoiceSchemas";
 import {
   ChatMessage,
-  createPlaygroundInstance,
+  createNormalizedPlaygroundInstance,
   CredentialsState,
   generateMessageId,
   generateToolId,
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
+  PlaygroundNormalizedInstance,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store";
@@ -35,8 +40,6 @@ import {
   Mutable,
 } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
-
-import { TemplateLanguages } from "../../components/templateEditor/constants";
 
 import { ChatCompletionOverDatasetInput } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
@@ -77,6 +80,7 @@ import {
   modelConfigWithResponseFormatSchema,
   outputSchema,
   promptTemplateSchema,
+  urlSchema,
 } from "./schemas";
 import { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
@@ -95,7 +99,8 @@ export function isChatMessageRole(role: unknown): role is ChatMessageRole {
  *
  * NB: Only exported for testing
  */
-export function getChatRole(role: string): ChatMessageRole {
+export function getChatRole(_role: string): ChatMessageRole {
+  const role = _role.toLowerCase();
   if (isChatMessageRole(role)) {
     return role;
   }
@@ -147,28 +152,29 @@ export function processAttributeToolCalls({
         case "AZURE_OPENAI":
           return {
             id: tool_call.id ?? "",
+            type: "function" as const,
             function: {
               name: tool_call.function?.name ?? "",
               arguments: toolCallArgs,
             },
-          };
+          } satisfies OpenAIToolCall;
         case "ANTHROPIC": {
           return {
             id: tool_call.id ?? "",
             type: "tool_use" as const,
             name: tool_call.function?.name ?? "",
             input: toolCallArgs,
-          };
+          } satisfies AnthropicToolCall;
         }
-        // TODO(apowell): #5348 Add Gemini tool call
-        case "GEMINI":
+        // TODO(apowell): #5348 Add Google tool call
+        case "GOOGLE":
           return {
             id: tool_call.id ?? "",
             function: {
               name: tool_call.function?.name ?? "",
               arguments: toolCallArgs,
             },
-          };
+          } as JSONLiteral;
         default:
           assertUnreachable(provider);
       }
@@ -321,7 +327,7 @@ export function openInferenceModelProviderToPhoenixModelProvider(
     case "anthropic":
       return "ANTHROPIC";
     case "google":
-      return "GEMINI";
+      return "GOOGLE";
     case "azure":
       return "AZURE_OPENAI";
     default:
@@ -364,8 +370,12 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     const provider =
       openInferenceModelProviderToPhoenixModelProvider(data.llm.provider) ||
       getModelProviderFromModelName(data.llm.model_name);
+    const urlInfo = getUrlInfoFromAttributes(parsedAttributes);
     return {
       modelConfig: {
+        ...Object.fromEntries(
+          Object.entries(urlInfo).filter(([_, value]) => value !== null)
+        ),
         modelName: data.llm.model_name,
         provider,
         invocationParameters: [],
@@ -375,6 +385,39 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
+}
+
+export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
+  baseUrl: string | null;
+  endpoint: string | null;
+  apiVersion: string | null;
+} {
+  const { success, data } = urlSchema.safeParse(parsedAttributes);
+  if (success) {
+    try {
+      const url = new URL(data.url.full);
+      let baseUrl = url;
+      if (data.url.path) {
+        try {
+          baseUrl = new URL(data.url.full.split(data.url.path)[0]);
+        } catch (_) {
+          // If the split URL is invalid, we will just use the full URL
+        }
+      }
+      return {
+        baseUrl: `${baseUrl.origin}${baseUrl.pathname}`,
+        endpoint: url.origin,
+        apiVersion: url.searchParams.get("api-version") || null,
+      };
+    } catch (_) {
+      // If the URL is invalid, we will just return null for all values
+    }
+  }
+  return {
+    baseUrl: null,
+    apiVersion: null,
+    endpoint: null,
+  };
 }
 
 /**
@@ -515,7 +558,14 @@ export function transformSpanAttributesToPlaygroundInstance(
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
 } {
-  const basePlaygroundInstance = createPlaygroundInstance();
+  const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+  const basePlaygroundInstance: PlaygroundInstance = {
+    ...instance,
+    template: {
+      __type: "chat",
+      messages: Object.values(instanceMessages),
+    },
+  };
   const { json: parsedAttributes, parseError } = safelyParseJSON(
     span.attributes
   );
@@ -621,17 +671,17 @@ export const isChatMessages = (
 
 export const extractVariablesFromInstance = ({
   instance,
-  templateLanguage,
+  templateFormat,
 }: {
   instance: PlaygroundInstance;
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
 }) => {
-  if (templateLanguage == TemplateLanguages.NONE) {
+  if (templateFormat == TemplateFormats.NONE) {
     return [];
   }
   const variables = new Set<string>();
   const instanceType = instance.template.__type;
-  const utils = getTemplateLanguageUtils(templateLanguage);
+  const utils = getTemplateFormatUtils(templateFormat);
   // this double nested loop should be okay since we don't expect more than 4 instances
   // and a handful of messages per instance
   switch (instanceType) {
@@ -667,18 +717,18 @@ export const extractVariablesFromInstance = ({
 
 export const extractVariablesFromInstances = ({
   instances,
-  templateLanguage,
+  templateFormat,
 }: {
   instances: PlaygroundInstance[];
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
 }) => {
-  if (templateLanguage == TemplateLanguages.NONE) {
+  if (templateFormat == TemplateFormats.NONE) {
     return [];
   }
   return Array.from(
     new Set(
       instances.flatMap((instance) =>
-        extractVariablesFromInstance({ instance, templateLanguage })
+        extractVariablesFromInstance({ instance, templateFormat })
       )
     )
   );
@@ -686,19 +736,19 @@ export const extractVariablesFromInstances = ({
 
 export const getVariablesMapFromInstances = ({
   instances,
-  templateLanguage,
+  templateFormat,
   input,
 }: {
   instances: PlaygroundInstance[];
-  templateLanguage: TemplateLanguage;
+  templateFormat: TemplateFormat;
   input: PlaygroundInput;
 }) => {
-  if (templateLanguage == TemplateLanguages.NONE) {
+  if (templateFormat == TemplateFormats.NONE) {
     return { variablesMap: {}, variableKeys: [] };
   }
   const variableKeys = extractVariablesFromInstances({
     instances,
-    templateLanguage,
+    templateFormat,
   });
 
   const variableValueCache = input.variablesValueCache ?? {};
@@ -829,8 +879,8 @@ export const createToolForProvider = ({
         id: generateToolId(),
         definition: createAnthropicToolDefinition(toolNumber),
       };
-    // TODO(apowell): #5348 Add Gemini tool definition
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool definition
+    case "GOOGLE":
       return {
         id: generateToolId(),
         definition: createOpenAIToolDefinition(toolNumber),
@@ -854,8 +904,8 @@ export const createToolCallForProvider = (
       return createOpenAIToolCall();
     case "ANTHROPIC":
       return createAnthropicToolCall();
-    // TODO(apowell): #5348 Add Gemini tool call
-    case "GEMINI":
+    // TODO(apowell): #5348 Add Google tool call
+    case "GOOGLE":
       return createOpenAIToolCall();
     default:
       assertUnreachable(provider);
@@ -906,7 +956,7 @@ const getBaseChatCompletionInput = ({
   credentials: CredentialsState;
 }) => {
   // We pull directly from the store in this function so that it always has up to date values at the time of calling
-  const { instances } = playgroundStore.getState();
+  const { instances, allInstanceMessages } = playgroundStore.getState();
   const instance = instances.find((instance) => {
     return instance.id === instanceId;
   });
@@ -917,6 +967,12 @@ const getBaseChatCompletionInput = ({
   if (instance.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
   }
+
+  const instanceMessages = instance.template.messageIds
+    .map((messageId) => {
+      return allInstanceMessages[messageId];
+    })
+    .filter((message) => message != null);
 
   const supportedInvocationParameters =
     instance.model.supportedInvocationParameters;
@@ -968,10 +1024,11 @@ const getBaseChatCompletionInput = ({
       : {};
 
   return {
-    messages: instance.template.messages.map(toGqlChatCompletionMessage),
+    messages: instanceMessages.map(toGqlChatCompletionMessage),
     model: {
       providerKey: instance.model.provider,
       name: instance.model.modelName || "",
+      baseUrl: instance.model.baseUrl,
       ...azureModelParams,
     },
     invocationParameters: invocationParameters,
@@ -979,7 +1036,35 @@ const getBaseChatCompletionInput = ({
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
     apiKey: credentials[instance.model.provider] || null,
-  } as const;
+    promptName: instance.prompt?.name,
+  } satisfies Partial<ChatCompletionInput>;
+};
+
+/**
+ * Denormalize a playground instance with the actual messages
+ *
+ * A playground instance differs from a playground normalized instance in that it contains the actual messages
+ * and not just the messageIds. This function will replace the messageIds with the actual messages.
+ */
+export const denormalizePlaygroundInstance = (
+  instance: PlaygroundNormalizedInstance,
+  allInstanceMessages: Record<number, ChatMessage>
+): PlaygroundInstance => {
+  if (instance.template.__type === "chat") {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { messageIds: _, ...rest } = instance.template;
+    return {
+      ...instance,
+      template: {
+        ...rest,
+        messages: instance.template.messageIds.map(
+          (messageId) => allInstanceMessages[messageId]
+        ),
+      },
+    } satisfies PlaygroundInstance;
+  }
+  // it cannot be a normalized instance if it is not a chat template
+  return instance as PlaygroundInstance;
 };
 
 /**
@@ -1000,19 +1085,29 @@ export const getChatCompletionInput = ({
     credentials,
   });
 
-  const { instances, templateLanguage, input } = playgroundStore.getState();
+  const {
+    instances,
+    templateFormat,
+    input,
+    allInstanceMessages: instanceMessages,
+  } = playgroundStore.getState();
+
+  // convert playgroundStateInstances to playgroundInstances
+  const playgroundInstances = instances.map((instance) => {
+    return denormalizePlaygroundInstance(instance, instanceMessages);
+  });
 
   const { variablesMap } = getVariablesMapFromInstances({
-    instances,
+    instances: playgroundInstances,
     input,
-    templateLanguage,
+    templateFormat,
   });
 
   return {
     ...baseChatCompletionVariables,
     template: {
       variables: variablesMap,
-      language: templateLanguage,
+      format: templateFormat,
     },
   };
 };
@@ -1039,7 +1134,7 @@ export const getChatCompletionOverDatasetInput = ({
 
   return {
     ...baseChatCompletionVariables,
-    templateLanguage: playgroundStore.getState().templateLanguage,
+    templateFormat: playgroundStore.getState().templateFormat,
     datasetId,
   };
 };
@@ -1052,15 +1147,42 @@ export const getChatCompletionOverDatasetInput = ({
  * @param content - the content to normalize
  * @returns a normalized json string
  */
-export function normalizeMessageAttributeValue(
-  content?: string | null | Record<string, unknown>
-): string {
-  if (content == null || content === "") {
+export function normalizeMessageContent(content?: unknown): string {
+  if (content === "" || typeof content === "undefined") {
     return "{}";
   }
-  return typeof content === "string"
-    ? content
-    : JSON.stringify(content, null, 2);
+
+  if (typeof content === "string") {
+    const isDoubleStringified =
+      content.startsWith('"{') ||
+      content.startsWith('"[') ||
+      content.startsWith('"\\"');
+    try {
+      // If it's a double-stringified value, parse it twice
+      if (isDoubleStringified) {
+        // First parse removes the outer quotes and unescapes the inner content
+        const firstParse = JSON.parse(content);
+        // Second parse converts the string representation to actual JSON
+        const secondParse =
+          typeof firstParse === "string" ? JSON.parse(firstParse) : firstParse;
+        // Stringify the result to ensure consistent formatting
+        return JSON.stringify(secondParse, null, 2);
+      }
+    } catch {
+      // If parsing fails, fall through
+    }
+    // If the content is a valid non-string top level json value, return it as-is
+    // https://datatracker.ietf.org/doc/html/rfc7159#section-3
+    // 0-9 { [ null false true
+    // a regex that matches possible top level json values, besides strings
+    const nonStringStart = /^\s*[0-9{[]|true|false|null/.test(content);
+    if (nonStringStart) {
+      return content;
+    }
+  }
+
+  // For any content that doesn't match the json spec for a top level value, stringify it with pretty printing
+  return JSON.stringify(content, null, 2);
 }
 
 export function areRequiredInvocationParametersConfigured(
@@ -1104,13 +1226,10 @@ export function mergeInvocationParametersWithDefaults(
 ) {
   // Convert the current invocation parameters to a map for quick lookup
   const currentInvocationParametersMap = new Map(
-    invocationParameters.map((param) => [
-      param.canonicalName || param.invocationName,
-      param,
-    ])
+    invocationParameters.map((param) => [param.invocationName, param])
   );
   supportedInvocationParameters.forEach((param) => {
-    const paramKeyName = param.canonicalName || param.invocationName;
+    const paramKeyName = param.invocationName;
     // Extract the default value for the invocation parameter definition
     // And the key name that should be used in the invocation parameter input if we need to make a new one
     const defaultValue = getInvocationParamDefaultValue(param);

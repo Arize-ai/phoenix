@@ -12,14 +12,15 @@ import {
   Variables,
 } from "relay-runtime";
 
-import { authFetch } from "@phoenix/authFetch";
+import { authFetch, refreshTokens } from "@phoenix/authFetch";
 import { BASE_URL, WS_BASE_URL } from "@phoenix/config";
 
 import { isObject } from "./typeUtils";
 
 const graphQLPath = BASE_URL + "/graphql";
 
-const graphQLFetch = window.Config.authenticationEnabled ? authFetch : fetch;
+const isAuthenticationEnabled = window.Config.authenticationEnabled;
+const graphQLFetch = isAuthenticationEnabled ? authFetch : fetch;
 
 /**
  * Create an observable that fetches JSON from the given input and returns an error if
@@ -106,6 +107,19 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
 
 const wsClient = createClient({
   url: `${WS_BASE_URL}/graphql`,
+  shouldRetry: (errorOrCloseEvent) => {
+    if (
+      isAuthenticationEnabled &&
+      errorOrCloseEvent instanceof Event &&
+      errorOrCloseEvent.type === "error"
+    ) {
+      // It's fair to say that an error is due to the expired access token
+      // So we'll refresh the tokens and retry the connection until the max retries is exhausted
+      refreshTokens();
+      return true;
+    }
+    return false;
+  },
 });
 
 const subscribe: SubscribeFunction = (

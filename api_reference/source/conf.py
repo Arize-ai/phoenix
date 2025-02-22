@@ -16,6 +16,7 @@ import phoenix
 # Path setup for autodoc
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(BASE_DIR, "src", "phoenix"))
+sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-client", "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-evals", "src", "phoenix"))
 sys.path.insert(0, os.path.join(BASE_DIR, "packages", "phoenix-otel", "src", "phoenix"))
 

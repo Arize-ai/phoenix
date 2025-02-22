@@ -46,7 +46,7 @@ export function DeleteAPIKeyButton({
       <Button
         variant="danger"
         size="S"
-        icon={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
         aria-label="Delete System Key"
         onPress={onDelete}
       />

@@ -1,4 +1,4 @@
-import { TemplateLanguage } from "@phoenix/components/templateEditor/types";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import { LlmProviderToolDefinition } from "@phoenix/schemas";
 import { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
@@ -37,6 +37,7 @@ import {
   getToolsFromAttributes,
   getVariablesMapFromInstances,
   mergeInvocationParametersWithDefaults,
+  normalizeMessageContent,
   processAttributeToolCalls,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
@@ -46,6 +47,7 @@ import {
   basePlaygroundSpan,
   expectedAnthropicToolCall,
   expectedTestOpenAIToolCall,
+  expectedUnknownToolCall,
   spanAttributesWithInputMessages,
   SpanTool,
   SpanToolCall,
@@ -68,6 +70,7 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   tools: [],
   toolChoice: "auto",
   spanId: null,
+  dirty: false,
   template: {
     __type: "chat",
     messages: [],
@@ -86,6 +89,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   tools: [],
   toolChoice: "auto",
   spanId: "fake-id",
+  dirty: false,
   template: {
     __type: "chat",
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
@@ -698,8 +702,8 @@ describe("processAttributeToolCalls", () => {
       testSpanToolCall,
       expectedTestOpenAIToolCall,
     ],
-    // TODO(apowell): #5348 Add Gemini tool tests
-    GEMINI: ["GEMINI", testSpanToolCall, expectedTestOpenAIToolCall],
+    // TODO(apowell): #5348 Add Google tool tests
+    GOOGLE: ["GOOGLE", testSpanToolCall, expectedUnknownToolCall],
   };
   test.for(Object.values(ProviderToToolCallTestMap))(
     "should return %s tools, if they are valid",
@@ -890,6 +894,99 @@ describe("getModelConfigFromAttributes", () => {
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
   });
+
+  it("should return a baseUrl if the attributes contain url.full", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+      url: {
+        full: "https://api.openai.com/v1/chat/completions",
+      },
+    };
+    const { modelConfig, parsingErrors } =
+      getBaseModelConfigFromAttributes(parsedAttributes);
+    expect({
+      modelConfig: {
+        ...modelConfig,
+      },
+      parsingErrors,
+    }).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+        baseUrl: "https://api.openai.com/v1/chat/completions",
+        endpoint: "https://api.openai.com",
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return baseUrl as url.full minus url.path if the attributes contain url.full and url.path", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+      url: {
+        full: "https://api.openai.com/v1/chat/completions?api-version=2020-05-03",
+        path: "chat/completions",
+      },
+    };
+    const { modelConfig, parsingErrors } =
+      getBaseModelConfigFromAttributes(parsedAttributes);
+    expect({
+      modelConfig: {
+        ...modelConfig,
+      },
+      parsingErrors,
+    }).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+        baseUrl: "https://api.openai.com/v1/",
+        endpoint: "https://api.openai.com",
+        apiVersion: "2020-05-03",
+      },
+      parsingErrors: [],
+    });
+  });
+
+  it("should return apiVersion if url.full contains api-version in params", () => {
+    const parsedAttributes = {
+      llm: {
+        model_name: "gpt-3.5-turbo",
+        invocation_parameters: 100,
+      },
+      url: {
+        full: "https://api.openai.com/v1/chat/completions?api-version=2020-05-03",
+      },
+    };
+    const { modelConfig, parsingErrors } =
+      getBaseModelConfigFromAttributes(parsedAttributes);
+    expect({
+      modelConfig: {
+        ...modelConfig,
+      },
+      parsingErrors,
+    }).toEqual({
+      modelConfig: {
+        modelName: "gpt-3.5-turbo",
+        provider: "OPENAI",
+        invocationParameters: [],
+        supportedInvocationParameters: [],
+        baseUrl: "https://api.openai.com/v1/chat/completions",
+        endpoint: "https://api.openai.com",
+        apiVersion: "2020-05-03",
+      },
+      parsingErrors: [],
+    });
+  });
 });
 
 describe("extractVariablesFromInstances", () => {
@@ -906,9 +1003,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name"]);
   });
 
@@ -922,9 +1019,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name"]);
   });
 
@@ -948,9 +1045,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name", "age"]);
   });
 
@@ -974,9 +1071,9 @@ describe("extractVariablesFromInstances", () => {
         },
       },
     ];
-    const templateLanguage: TemplateLanguage = "F_STRING";
+    const templateFormat = TemplateFormats.FString;
     expect(
-      extractVariablesFromInstances({ instances, templateLanguage })
+      extractVariablesFromInstances({ instances, templateFormat })
     ).toEqual(["name", "age"]);
   });
 });
@@ -994,6 +1091,7 @@ describe("getVariablesMapFromInstances", () => {
     tools: [],
     toolChoice: "auto",
     spanId: null,
+    dirty: false,
     template: {
       __type: "chat",
       messages: [],
@@ -1013,11 +1111,11 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     const input: PlaygroundInput = { variablesValueCache: { name: "John" } };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John" },
       variableKeys: ["name"],
@@ -1034,11 +1132,11 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     const input: PlaygroundInput = { variablesValueCache: { name: "John" } };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John" },
       variableKeys: ["name"],
@@ -1065,13 +1163,13 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage = "MUSTACHE";
+    const templateFormat = TemplateFormats.Mustache;
     const input: PlaygroundInput = {
       variablesValueCache: { name: "John", age: "30" },
     };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],
@@ -1098,13 +1196,13 @@ describe("getVariablesMapFromInstances", () => {
         },
       },
     ];
-    const templateLanguage: TemplateLanguage = "F_STRING";
+    const templateFormat = TemplateFormats.FString;
     const input: PlaygroundInput = {
       variablesValueCache: { name: "John", age: "30" },
     };
 
     expect(
-      getVariablesMapFromInstances({ instances, templateLanguage, input })
+      getVariablesMapFromInstances({ instances, templateFormat, input })
     ).toEqual({
       variablesMap: { name: "John", age: "30" },
       variableKeys: ["name", "age"],
@@ -1135,8 +1233,8 @@ describe("getToolsFromAttributes", () => {
       testSpanOpenAITool,
       testSpanOpenAIToolJsonSchema,
     ],
-    // TODO(apowell): #5348 Add Gemini tool tests
-    GEMINI: ["GEMINI", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
+    // TODO(apowell): #5348 Add Google tool tests
+    GOOGLE: ["GOOGLE", testSpanOpenAITool, testSpanOpenAIToolJsonSchema],
   };
 
   test.for(Object.values(ProviderToToolTestMap))(
@@ -1411,7 +1509,7 @@ describe("mergeInvocationParametersWithDefaults", () => {
         invocationInputField: "value_int",
       },
       {
-        invocationName: "random seed",
+        invocationName: "seed",
         canonicalName: "RANDOM_SEED",
         required: true,
         intDefaultValue: 1000,
@@ -1432,5 +1530,75 @@ describe("mergeInvocationParametersWithDefaults", () => {
       },
       { invocationName: "seed", canonicalName: "RANDOM_SEED", valueInt: 2 },
     ]);
+  });
+});
+
+describe("normalizeMessageContent", () => {
+  it("should return unknown json content as a string", () => {
+    const content = "Hello, world!";
+    expect(normalizeMessageContent(content)).toBe('"Hello, world!"');
+    const content2 = ".123";
+    expect(normalizeMessageContent(content2)).toBe('".123"');
+    const content3 = "True";
+    expect(normalizeMessageContent(content3)).toBe('"True"');
+    const content4 = "False";
+    expect(normalizeMessageContent(content4)).toBe('"False"');
+    const content5 = "Null";
+    expect(normalizeMessageContent(content5)).toBe('"Null"');
+    const content6 = "a";
+    expect(normalizeMessageContent(content6)).toBe('"a"');
+    const content7 = "u";
+    expect(normalizeMessageContent(content7)).toBe('"u"');
+  });
+
+  it("should return the content as a stringified JSON with pretty printing if it is an object", () => {
+    const content = { foo: "bar" };
+    expect(normalizeMessageContent(content)).toBe(
+      JSON.stringify(content, null, 2)
+    );
+  });
+
+  it("should return the content as a string if it is a number", () => {
+    const content = 123;
+    expect(normalizeMessageContent(content)).toBe("123");
+    const content2 = 123.456;
+    expect(normalizeMessageContent(content2)).toBe("123.456");
+    const content3 = -123.456;
+    expect(normalizeMessageContent(content3)).toBe("-123.456");
+    const content4 = 0;
+    expect(normalizeMessageContent(content4)).toBe("0");
+    const content6 = 0.5;
+    expect(normalizeMessageContent(content6)).toBe("0.5");
+  });
+
+  it("should return the content as a string if it is a boolean", () => {
+    const content = true;
+    expect(normalizeMessageContent(content)).toBe("true");
+    const content2 = false;
+    expect(normalizeMessageContent(content2)).toBe("false");
+  });
+
+  it("should return the content as a string if it is null", () => {
+    const content = null;
+    expect(normalizeMessageContent(content)).toBe("null");
+  });
+
+  it("should return the content as a string if it is an array", () => {
+    const content = [1, "2", 3, { foo: "bar" }];
+    expect(normalizeMessageContent(content)).toBe(
+      `[
+  1,
+  "2",
+  3,
+  {
+    "foo": "bar"
+  }
+]`
+    );
+  });
+
+  it("should handle double quoted strings", () => {
+    const content = `"\\"Hello, world!\\""`;
+    expect(normalizeMessageContent(content)).toBe(`"Hello, world!"`);
   });
 });

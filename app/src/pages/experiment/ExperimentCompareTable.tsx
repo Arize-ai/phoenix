@@ -258,7 +258,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                   <Button
                     size="S"
                     aria-label="View example details"
-                    icon={<Icon svg={<Icons.ExpandOutline />} />}
+                    leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                     onPress={() => {
                       startTransition(() => {
                         setDialog(
@@ -352,7 +352,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 className="trace-button"
                 size="S"
                 aria-label="View run trace"
-                icon={<Icon svg={<Icons.Trace />} />}
+                leadingVisual={<Icon svg={<Icons.Trace />} />}
                 onPress={() => {
                   startTransition(() => {
                     setDialog(
@@ -377,7 +377,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 className="expand-button"
                 size="S"
                 aria-label="View example run details"
-                icon={<Icon svg={<Icons.ExpandOutline />} />}
+                leadingVisual={<Icon svg={<Icons.ExpandOutline />} />}
                 onPress={() => {
                   startTransition(() => {
                     setDialog(
@@ -412,7 +412,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   }, [experimentIds, experimentInfoById, datasetId, displayFullText]);
 
   const columns = useMemo(() => {
-    return [...baseColumns, ...experimentColumns, { id: "tail", minSize: 500 }];
+    return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
   const table = useReactTable<TableRow>({
@@ -536,6 +536,7 @@ function TableBody<T>({ table }: { table: Table<T> }) {
                 key={cell.id}
                 style={{
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                  wordBreak: "break-all",
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -771,7 +772,7 @@ function SelectedExampleDialog({
       }
     >
       <PanelGroup direction="vertical" autoSaveId="example-compare-panel-group">
-        <Panel defaultSize={100}>
+        <Panel defaultSize={35}>
           <div
             css={css`
               overflow-y: auto;
@@ -829,7 +830,7 @@ function SelectedExampleDialog({
           </div>
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
-        <Panel defaultSize={200}>
+        <Panel defaultSize={65}>
           <Flex direction="column" height="100%">
             <View
               paddingStart="size-200"

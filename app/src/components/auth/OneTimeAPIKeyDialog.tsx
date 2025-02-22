@@ -1,9 +1,18 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Alert, Dialog, TextField } from "@arizeai/components";
+import { Alert, Dialog } from "@arizeai/components";
 
-import { ExternalLink, Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  ExternalLink,
+  Flex,
+  Heading,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { CodeWrap, PythonBlockWithCopy } from "@phoenix/components/code";
 import { CopyToClipboardButton } from "@phoenix/components/CopyToClipboardButton";
 
@@ -27,8 +36,11 @@ export function OneTimeAPIKeyDialog(props: { jwt: string }) {
       >
         <View padding="size-200">
           <Flex direction="row" gap="size-100" alignItems="end">
-            <TextField label="API Key" isReadOnly value={jwt} minWidth="100%" />
-            <CopyToClipboardButton text={jwt} />
+            <TextField isReadOnly value={jwt}>
+              <Label>API Key</Label>
+              <Input />
+            </TextField>
+            <CopyToClipboardButton text={jwt} size="M" />
           </Flex>
         </View>
         <View padding="size-200" borderTopColor="light" borderTopWidth="thin">

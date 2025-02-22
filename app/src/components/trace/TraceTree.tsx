@@ -57,6 +57,7 @@ export function TraceTree(props: TraceTreeProps) {
             flex-direction: column;
             width: 100%;
             overflow: auto;
+            flex: none;
           `}
           data-testid="trace-tree"
         >
@@ -94,7 +95,7 @@ function TraceTreeToolbar() {
               onPress={() => {
                 setIsCollapsed(!isCollapsed);
               }}
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     isCollapsed ? (
@@ -125,7 +126,7 @@ function TraceTreeToolbar() {
               onPress={() => {
                 setShowMetricsInTraceTree(!showMetricsInTraceTree);
               }}
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     showMetricsInTraceTree ? (
@@ -224,7 +225,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             {statusCode === "ERROR" ? (
               <SpanStatusCodeIcon statusCode="ERROR" />
             ) : null}
-            {typeof tokenCountTotal === "number" && showMetricsInTraceTree ? (
+            {typeof tokenCountTotal === "number" &&
+            tokenCountTotal > 0 &&
+            showMetricsInTraceTree ? (
               <TokenCount
                 tokenCountTotal={tokenCountTotal}
                 tokenCountPrompt={tokenCountPrompt ?? 0}

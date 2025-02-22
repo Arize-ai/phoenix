@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<23b1d95400eb05227f7edd4c2bde7d75>>
+ * @generated SignedSource<<f847d6fdcb27a693ae4648db9e5cf877>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,16 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest, GraphQLSubscription } from 'relay-runtime';
-export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
+export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionInput = {
   apiKey?: string | null;
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
-  template?: TemplateOptions | null;
+  promptName?: string | null;
+  template?: PromptTemplateOptions | null;
   tools?: ReadonlyArray<any> | null;
 };
 export type ChatCompletionMessageInput = {
@@ -29,6 +30,7 @@ export type ChatCompletionMessageInput = {
 };
 export type GenerativeModelInput = {
   apiVersion?: string | null;
+  baseUrl?: string | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;
@@ -44,8 +46,8 @@ export type InvocationParameterInput = {
   valueString?: string | null;
   valueStringList?: ReadonlyArray<string> | null;
 };
-export type TemplateOptions = {
-  language: TemplateLanguage;
+export type PromptTemplateOptions = {
+  format: PromptTemplateFormat;
   variables: any;
 };
 export type PlaygroundOutputSubscription$variables = {

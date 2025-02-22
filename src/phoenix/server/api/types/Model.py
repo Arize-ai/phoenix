@@ -167,7 +167,7 @@ class Model:
             inferences_role = InferencesRole.primary
         model = info.context.model
         inferences = model[inferences_role.value]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             inferences,
             time_range,
         )
@@ -175,7 +175,7 @@ class Model:
         data = get_timeseries_data(
             inferences,
             metric_instance,
-            time_range,
+            resolved_time_range,
             granularity,
         )
         return data[0].value if len(data) else None
@@ -205,7 +205,7 @@ class Model:
             inferences_role = InferencesRole.primary
         model = info.context.model
         inferences = model[inferences_role.value]
-        time_range, granularity = ensure_timeseries_parameters(
+        resolved_time_range, granularity = ensure_timeseries_parameters(
             inferences,
             time_range,
             granularity,
@@ -215,7 +215,7 @@ class Model:
             data=get_timeseries_data(
                 inferences,
                 metric_instance,
-                time_range,
+                resolved_time_range,
                 granularity,
             )
         )

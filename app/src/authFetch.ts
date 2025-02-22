@@ -42,7 +42,7 @@ export async function authFetch(
 
 let refreshPromise: Promise<Response> | null = null;
 
-async function refreshTokens(): Promise<Response> {
+export async function refreshTokens(): Promise<Response> {
   if (refreshPromise) {
     // There is already a refresh request in progress, so we should wait for it
     return refreshPromise;

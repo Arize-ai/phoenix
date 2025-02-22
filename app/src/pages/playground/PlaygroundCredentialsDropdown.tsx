@@ -5,18 +5,26 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  Form,
-  TextField,
 } from "@arizeai/components";
 
-import { Flex, Heading, Text, View } from "@phoenix/components";
+import {
+  ExternalLink,
+  Flex,
+  Form,
+  Heading,
+  Input,
+  Label,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 export const ProviderToCredentialNameMap: Record<ModelProvider, string> = {
   OPENAI: "OPENAI_API_KEY",
   ANTHROPIC: "ANTHROPIC_API_KEY",
   AZURE_OPENAI: "AZURE_OPENAI_API_KEY",
-  GEMINI: "GEMINI_API_KEY",
+  GOOGLE: "GEMINI_API_KEY",
 };
 
 export function PlaygroundCredentialsDropdown() {
@@ -60,28 +68,47 @@ export function PlaygroundCredentialsDropdown() {
               <Heading level={2} weight="heavy">
                 API Keys
               </Heading>
-              <Text color="text-700">
-                API keys are stored in your browser and used to communicate with
-                their respective API&apos;s.
-              </Text>
+              <View paddingY="size-50">
+                <Text color="text-700" size="XS">
+                  API keys are stored in your browser and used to communicate
+                  with their respective API&apos;s.
+                </Text>
+              </View>
               <Flex direction="column" gap="size-100">
                 {currentProviders.map((provider) => {
                   const credentialName = ProviderToCredentialNameMap[provider];
                   return (
                     <TextField
+                      size="S"
                       key={provider}
-                      label={credentialName}
                       type="password"
                       isRequired
                       onChange={(value) => {
                         setCredential({ provider, value });
                       }}
                       value={credentials[provider]}
-                      description={`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
-                    />
+                    >
+                      <Label>{credentialName}</Label>
+                      <Input />
+                      <Text slot="description">
+                        {`Alternatively, you can set the "${credentialName}" environment variable on the phoenix server.`}
+                      </Text>
+                    </TextField>
                   );
                 })}
               </Flex>
+              <View paddingTop="size-100">
+                <Flex
+                  direction="row"
+                  gap="size-100"
+                  width="100%"
+                  justifyContent="end"
+                >
+                  <ExternalLink href="/settings">
+                    View all AI provider configurations
+                  </ExternalLink>
+                </Flex>
+              </View>
             </Form>
           </View>
         </DropdownMenu>

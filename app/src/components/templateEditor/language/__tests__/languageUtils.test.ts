@@ -38,6 +38,10 @@ can you help with this json?
         input: `{"name": "{{{name}}}"}`,
         expected: ["{name}"],
       },
+      {
+        input: `{"name": "{{  name  }}"}`,
+        expected: ["name"],
+      },
     ] as const;
     tests.forEach(({ input, expected }) => {
       expect(
@@ -128,6 +132,11 @@ can you help with this json?
         input: `{"name": "\\{{name}}", "age": "{{age\\}}"}`,
         variables: { name: "John", age: 30 },
         expected: `{"name": "{{name}}", "age": "{{age\\}}"}`,
+      },
+      {
+        input: `{"name": "{{  name  }}"}`,
+        variables: { name: "John" },
+        expected: `{"name": "John"}`,
       },
     ] as const;
     tests.forEach(({ input, variables, expected }) => {

@@ -104,6 +104,7 @@ class AsyncExecutor(Executor):
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
         termination_signal: signal.Signals = signal.SIGINT,
+        timeout: Optional[int] = None,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
@@ -113,6 +114,7 @@ class AsyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.base_priority = 0
         self.termination_signal = termination_signal
+        self.timeout: int = timeout or 120
 
     async def producer(
         self,
@@ -165,7 +167,7 @@ class AsyncExecutor(Executor):
                 termination_event_watcher = asyncio.create_task(termination_event.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_event_watcher],
-                    timeout=120,
+                    timeout=self.timeout,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
@@ -390,6 +392,7 @@ def get_executor_on_sync_context(
     max_retries: int = 10,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
+    timeout: Optional[int] = None,
 ) -> Executor:
     if threading.current_thread() is not threading.main_thread():
         # run evals synchronously if not in the main thread
@@ -425,6 +428,7 @@ def get_executor_on_sync_context(
                 max_retries=max_retries,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
+                timeout=timeout,
             )
         else:
             logger.warning(
@@ -447,6 +451,7 @@ def get_executor_on_sync_context(
             max_retries=max_retries,
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
+            timeout=timeout,
         )
 
 

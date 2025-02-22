@@ -33,8 +33,7 @@ dependencies = [
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
-  "wrapt<1.17; sys_platform == 'darwin' and platform_machine == 'x86_64'",
-  "wrapt>=1.17; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "wrapt>=1.17.2",
   "protobuf>=3.20.2, <6.0",
   "grpcio",
   "grpc-interceptor",
@@ -56,9 +55,10 @@ dependencies = [
   "arize-phoenix-evals>=0.13.1",
   "arize-phoenix-otel>=0.5.1",
   "fastapi",
-  "pydantic>=1.0,!=2.0.*,<3", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
+  "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
   "websockets",
+  "arize-phoenix-client",
 ]
 dynamic = ["version"]
 
@@ -93,7 +93,7 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.10.3",
   "langchain>=0.0.334",
-  "litellm>=1.0.3",
+  "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
   "google-cloud-aiplatform>=1.3",
   "anthropic",
   "prometheus_client",
@@ -102,6 +102,7 @@ dev = [
   "portpicker",
   "uvloop; platform_system != 'Windows'",
   "grpc-interceptor[testing]",
+  "types-jsonschema",
 ]
 embeddings = [
   "fast-hdbscan>=0.2.0",
@@ -122,7 +123,7 @@ pg = [
   "psycopg[binary,pool]",
 ]
 container = [
-  "anthropic",
+  "anthropic>=0.45.2",
   "google-generativeai",
   "prometheus-client",
   "openai>=1.0.0",

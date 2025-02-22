@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4449f536fd67cef6ef795076d531dde3>>
+ * @generated SignedSource<<a8ee9b24685b4c6e5dad1055f6e1779a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,8 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type Granularity = {
   evaluationWindowMinutes: number;

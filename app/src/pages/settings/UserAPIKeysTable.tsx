@@ -14,6 +14,7 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { UserAPIKeysTableFragment$key } from "./__generated__/UserAPIKeysTableFragment.graphql";
 import { UserAPIKeysTableQuery } from "./__generated__/UserAPIKeysTableQuery.graphql";
@@ -80,9 +81,10 @@ export function UserAPIKeysTable({
           });
         },
         onError: (error) => {
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
           notifyError({
             title: "Error deleting user key",
-            message: error.message,
+            message: formattedError?.[0] ?? error.message,
           });
         },
       });

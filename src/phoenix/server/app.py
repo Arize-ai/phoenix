@@ -86,6 +86,7 @@ from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     ProjectByNameDataLoader,
+    PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -93,8 +94,10 @@ from phoenix.server.api.dataloaders import (
     SessionTokenUsagesDataLoader,
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
+    SpanByIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
+    SpanFieldsDataLoader,
     SpanProjectsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
@@ -611,6 +614,7 @@ def create_graphql_router(
                         else None
                     ),
                 ),
+                prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
@@ -622,6 +626,8 @@ def create_graphql_router(
                 session_token_usages=SessionTokenUsagesDataLoader(db),
                 session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
                 span_annotations=SpanAnnotationsDataLoader(db),
+                span_fields=SpanFieldsDataLoader(db),
+                span_by_id=SpanByIdDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),
@@ -914,6 +920,7 @@ def create_app(
             ),
             name="static",
         )
+    app.state.authentication_enabled = authentication_enabled
     app.state.read_only = read_only
     app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry

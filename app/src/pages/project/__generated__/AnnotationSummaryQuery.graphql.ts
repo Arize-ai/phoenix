@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<35ab69200dbdc374e3698d70d0ef556f>>
+ * @generated SignedSource<<4ee877ffe33fa44f1fa5548e8d0a3fdd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TimeRange = {
-  end: string;
-  start: string;
+  end?: string | null;
+  start?: string | null;
 };
 export type AnnotationSummaryQuery$variables = {
   annotationName: string;

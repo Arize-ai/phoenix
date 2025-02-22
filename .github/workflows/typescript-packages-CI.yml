@@ -2,10 +2,11 @@ name: Typescript Packages CI
 
 on:
   push:
-    branches: [main, js]
+    branches: [main, prompts]
   pull_request:
     paths:
       - "js/**"
+      - "schemas/**"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -23,17 +24,19 @@ jobs:
       - name: Set up Nodejs
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: lts/*
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.0
+          version: 10.2.0
       - name: Install Dependencies
         working-directory: ./js
         run: pnpm install --frozen-lockfile -r
       - name: Build
         working-directory: ./js
-        run: pnpm run -r build
+        run: |
+          pnpm run -r build
+          git diff --exit-code
       - name: Test
         working-directory: ./js
         run: pnpm run -r test

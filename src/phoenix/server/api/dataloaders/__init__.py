@@ -18,6 +18,7 @@ from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .session_io import SessionIODataLoader
 from .session_num_traces import SessionNumTracesDataLoader
@@ -25,8 +26,10 @@ from .session_num_traces_with_error import SessionNumTracesWithErrorDataLoader
 from .session_token_usages import SessionTokenUsagesDataLoader
 from .session_trace_latency_ms_quantile import SessionTraceLatencyMsQuantileDataLoader
 from .span_annotations import SpanAnnotationsDataLoader
+from .span_by_id import SpanByIdDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
+from .span_fields import SpanFieldsDataLoader
 from .span_projects import SpanProjectsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
@@ -50,12 +53,15 @@ __all__ = [
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
+    "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SessionIODataLoader",
     "SessionNumTracesDataLoader",
     "SessionNumTracesWithErrorDataLoader",
     "SessionTokenUsagesDataLoader",
     "SessionTraceLatencyMsQuantileDataLoader",
+    "SpanFieldsDataLoader",
+    "SpanByIdDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",

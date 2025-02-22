@@ -1,4 +1,5 @@
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
 from string import Formatter
@@ -31,7 +32,8 @@ class DotKeyFormatter(Formatter):
 
 class PromptPartContentType(str, Enum):
     TEXT = "text"
-    AUDIO_URL = "audio_url"
+    AUDIO = "audio"
+    IMAGE = "image"
 
 
 @dataclass
@@ -40,6 +42,7 @@ class PromptPart:
     content: str
 
 
+# TODO: ask about rename to PromptTemplatePart
 @dataclass
 class PromptPartTemplate:
     content_type: PromptPartContentType
@@ -57,6 +60,9 @@ class MultimodalPrompt:
         )
 
     def to_text_only_prompt(self) -> str:
+        if any(part.content_type != PromptPartContentType.TEXT for part in self.parts):
+            raise ValueError("This model does not support multimodal prompts")
+
         return "\n\n".join(
             [part.content for part in self.parts if part.content_type == PromptPartContentType.TEXT]
         )
@@ -89,9 +95,11 @@ class PromptTemplate:
         prompt = self.prompt(options)
         prompt_messages = []
         for template_message in prompt:
+            prompt_message = template_message.template
+
             if self._start_delim == "{" and self._end_delim == "}":
                 self.formatter = DotKeyFormatter()
-                prompt_message = self.formatter.format(template_message.template, **variable_values)
+                prompt_message = self.formatter.format(prompt_message, **variable_values)
             else:
                 for variable_name in self.variables:
                     prompt_message = prompt_message.replace(
@@ -148,6 +156,9 @@ class ClassificationTemplate(PromptTemplate):
         for _template in [self.template, self.explanation_template]:
             if _template:
                 self.variables.extend(self._parse_variables(template=_template))
+            # remove duplicates while preserving order
+            self.variables = list(OrderedDict.fromkeys(self.variables))
+
         self._scores = scores
 
     def __repr__(self) -> str:

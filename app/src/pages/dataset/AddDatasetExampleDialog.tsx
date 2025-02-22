@@ -3,10 +3,22 @@ import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Alert, Card, CardProps, Dialog, TextArea } from "@arizeai/components";
+import { Alert, Card, CardProps, Dialog } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Icon,
+  Icons,
+  Label,
+  Text,
+  TextArea,
+  TextField,
+  View,
+} from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
 
 import { AddDatasetExampleDialogMutation } from "./__generated__/AddDatasetExampleDialogMutation.graphql";
@@ -94,7 +106,8 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
           onCompleted();
         },
         onError: (error) => {
-          setSubmitError(error.message);
+          const formattedError = getErrorMessagesFromRelayMutationError(error);
+          setSubmitError(formattedError?.[0] ?? error.message);
         },
       });
     },
@@ -198,16 +211,23 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
                   field: { onChange, onBlur, value },
                   fieldState: { invalid, error },
                 }) => (
-                  <TextArea
-                    label="Version Description"
+                  <TextField
                     value={value}
                     onChange={onChange}
                     onBlur={onBlur}
-                    errorMessage={error?.message}
-                    validationState={invalid ? "invalid" : "valid"}
-                    placeholder="A description of the changes made. Will be displayed in the version history."
-                    height={100}
-                  />
+                    isInvalid={invalid}
+                  >
+                    <Label>Version Description</Label>
+                    <TextArea />
+                    {error ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">
+                        A description of the changes made. Will be displayed in
+                        the version history.
+                      </Text>
+                    )}
+                  </TextField>
                 )}
               />
             </Flex>
@@ -220,7 +240,9 @@ export function AddDatasetExampleDialog(props: AddDatasetExampleDialogProps) {
             variant="primary"
             size="S"
             isDisabled={!isValid || isCommitting}
-            icon={isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null}
+            leadingVisual={
+              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
+            }
             onPress={() => handleSubmit(onSubmit)()}
           >
             {isCommitting ? "Adding Example..." : "Add Example"}

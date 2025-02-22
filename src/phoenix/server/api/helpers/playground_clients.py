@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 import asyncio
 import importlib.util
 import inspect
 import json
-import os
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable, Iterator
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Hashable, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Hashable, Mapping, MutableMapping, Optional, Union
 
+import wrapt
 from openinference.instrumentation import safe_json_dumps
 from openinference.semconv.trace import (
     OpenInferenceLLMProviderValues,
@@ -19,6 +21,7 @@ from strawberry import UNSET
 from strawberry.scalars import JSON as JSONScalarType
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import getenv
 from phoenix.evals.models.rate_limiters import (
     AsyncCallable,
     GenericType,
@@ -37,6 +40,7 @@ from phoenix.server.api.input_types.InvocationParameters import (
     InvocationParameter,
     InvocationParameterInput,
     JSONInvocationParameter,
+    StringInvocationParameter,
     StringListInvocationParameter,
     extract_parameter,
     validate_invocation_parameters,
@@ -50,11 +54,13 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 
 if TYPE_CHECKING:
+    import httpx
     from anthropic.types import MessageParam, TextBlockParam, ToolResultBlockParam
     from google.generativeai.types import ContentType
     from openai import AsyncAzureOpenAI, AsyncOpenAI
     from openai.types import CompletionUsage
     from openai.types.chat import ChatCompletionMessageParam, ChatCompletionMessageToolCallParam
+    from opentelemetry.util.types import AttributeValue
 
 SetSpanAttributesFn: TypeAlias = Callable[[Mapping[str, Any]], None]
 ChatCompletionChunk: TypeAlias = Union[TextChunk, ToolCallChunk]
@@ -168,7 +174,7 @@ class PlaygroundStreamingClient(ABC):
         model: GenerativeModelInput,
         api_key: Optional[str] = None,
     ) -> None:
-        self._attributes: dict[str, Any] = dict()
+        self._attributes: dict[str, AttributeValue] = dict()
 
     @classmethod
     @abstractmethod
@@ -245,6 +251,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         self.client = client
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, OpenAIRateLimitError)
+        self.client._client = _HttpxClient(self.client._client, self._attributes)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -466,7 +473,6 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-1106",
-        "gpt-3.5-turbo-instruct",
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
@@ -477,11 +483,12 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
     ) -> None:
         from openai import AsyncOpenAI
 
-        # todo: check if custom base url is set before raising error to allow
-        # for custom endpoints that don't require an API key
-        if not (api_key := api_key or os.environ.get("OPENAI_API_KEY")):
-            raise BadRequest("An API key is required for OpenAI models")
-        client = AsyncOpenAI(api_key=api_key)
+        base_url = model.base_url or getenv("OPENAI_BASE_URL")
+        if not (api_key := api_key or getenv("OPENAI_API_KEY")):
+            if not base_url:
+                raise BadRequest("An API key is required for OpenAI models")
+            api_key = "sk-fake-api-key"
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         super().__init__(client=client, model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.OPENAI.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
@@ -496,12 +503,19 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
         "o1-mini-2024-09-12",
         "o1-preview",
         "o1-preview-2024-09-12",
+        "o3-mini",
+        "o3-mini-2025-01-31",
     ],
 )
-class OpenAIO1StreamingClient(OpenAIStreamingClient):
+class OpenAIReasoningStreamingClient(OpenAIStreamingClient):
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
+            StringInvocationParameter(
+                invocation_name="reasoning_effort",
+                label="Reasoning Effort",
+                canonical_name=CanonicalParameterName.REASONING_EFFORT,
+            ),
             IntInvocationParameter(
                 invocation_name="max_completion_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
@@ -524,6 +538,49 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
             ),
         ]
 
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        from openai import NOT_GIVEN
+
+        # Convert standard messages to OpenAI messages
+        openai_messages = []
+        for message in messages:
+            openai_message = self.to_openai_chat_completion_param(*message)
+            if openai_message is not None:
+                openai_messages.append(openai_message)
+
+        throttled_create = self.rate_limiter._alimit(self.client.chat.completions.create)
+        response = await throttled_create(
+            messages=openai_messages,
+            model=self.model_name,
+            stream=False,
+            tools=tools or NOT_GIVEN,
+            **invocation_parameters,
+        )
+
+        if response.usage is not None:
+            self._attributes.update(dict(self._llm_token_counts(response.usage)))
+
+        choice = response.choices[0]
+        if choice.message.content:
+            yield TextChunk(content=choice.message.content)
+
+        if choice.message.tool_calls:
+            for tool_call in choice.message.tool_calls:
+                yield ToolCallChunk(
+                    id=tool_call.id,
+                    function=FunctionCallChunk(
+                        name=tool_call.function.name,
+                        arguments=tool_call.function.arguments,
+                    ),
+                )
+
     def to_openai_chat_completion_param(
         self,
         role: ChatCompletionMessageRole,
@@ -533,6 +590,7 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
     ) -> Optional["ChatCompletionMessageParam"]:
         from openai.types.chat import (
             ChatCompletionAssistantMessageParam,
+            ChatCompletionDeveloperMessageParam,
             ChatCompletionToolMessageParam,
             ChatCompletionUserMessageParam,
         )
@@ -545,7 +603,12 @@ class OpenAIO1StreamingClient(OpenAIStreamingClient):
                 }
             )
         if role is ChatCompletionMessageRole.SYSTEM:
-            return None  # System messages are not supported for o1 models
+            return ChatCompletionDeveloperMessageParam(
+                {
+                    "content": content,
+                    "role": "developer",
+                }
+            )
         if role is ChatCompletionMessageRole.AI:
             if tool_calls is None:
                 return ChatCompletionAssistantMessageParam(
@@ -593,11 +656,11 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     ):
         from openai import AsyncAzureOpenAI
 
-        if not (api_key := api_key or os.environ.get("AZURE_OPENAI_API_KEY")):
+        if not (api_key := api_key or getenv("AZURE_OPENAI_API_KEY")):
             raise BadRequest("An Azure API key is required for Azure OpenAI models")
-        if not (endpoint := model.endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")):
+        if not (endpoint := model.endpoint or getenv("AZURE_OPENAI_ENDPOINT")):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
-        if not (api_version := model.api_version or os.environ.get("OPENAI_API_VERSION")):
+        if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
         client = AsyncAzureOpenAI(
             api_key=api_key,
@@ -634,11 +697,12 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.ANTHROPIC.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.ANTHROPIC.value
-        if not (api_key := api_key or os.environ.get("ANTHROPIC_API_KEY")):
+        if not (api_key := api_key or getenv("ANTHROPIC_API_KEY")):
             raise BadRequest("An API key is required for Anthropic models")
         self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model_name = model.name
         self.rate_limiter = PlaygroundRateLimiter(model.provider_key, anthropic.RateLimitError)
+        self.client._client = _HttpxClient(self.client._client, self._attributes)
 
     @classmethod
     def dependencies(cls) -> list[Dependency]:
@@ -740,6 +804,8 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     pass
                 elif isinstance(event, anthropic_streaming.InputJsonEvent):
                     raise NotImplementedError
+                elif isinstance(event, anthropic_streaming._types.CitationEvent):
+                    raise NotImplementedError
                 else:
                     assert_never(event)
 
@@ -790,7 +856,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
 
 @register_llm_client(
-    provider_key=GenerativeProviderKey.GEMINI,
+    provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
         "gemini-2.0-flash-exp",
@@ -800,7 +866,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         "gemini-1.0-pro",
     ],
 )
-class GeminiStreamingClient(PlaygroundStreamingClient):
+class GoogleStreamingClient(PlaygroundStreamingClient):
     def __init__(
         self,
         model: GenerativeModelInput,
@@ -811,11 +877,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
         super().__init__(model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.GOOGLE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.VERTEXAI.value
-        if not (
-            api_key := api_key
-            or os.environ.get("GEMINI_API_KEY")
-            or os.environ.get("GOOGLE_API_KEY")
-        ):
+        if not (api_key := api_key or getenv("GEMINI_API_KEY") or getenv("GOOGLE_API_KEY")):
             raise BadRequest("An API key is required for Gemini models")
         google_genai.configure(api_key=api_key)
         self.model_name = model.name
@@ -879,7 +941,7 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import google.generativeai as google_genai
 
-        gemini_message_history, current_message, system_prompt = self._build_gemini_messages(
+        google_message_history, current_message, system_prompt = self._build_google_messages(
             messages
         )
 
@@ -888,17 +950,17 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             model_args["system_instruction"] = system_prompt
         client = google_genai.GenerativeModel(**model_args)
 
-        gemini_config = google_genai.GenerationConfig(
+        google_config = google_genai.GenerationConfig(
             **invocation_parameters,
         )
-        gemini_params = {
+        google_params = {
             "content": current_message,
-            "generation_config": gemini_config,
+            "generation_config": google_config,
             "stream": True,
         }
 
-        chat = client.start_chat(history=gemini_message_history)
-        stream = await chat.send_message_async(**gemini_params)
+        chat = client.start_chat(history=google_message_history)
+        stream = await chat.send_message_async(**google_params)
         async for event in stream:
             self._attributes.update(
                 {
@@ -909,29 +971,29 @@ class GeminiStreamingClient(PlaygroundStreamingClient):
             )
             yield TextChunk(content=event.text)
 
-    def _build_gemini_messages(
+    def _build_google_messages(
         self,
         messages: list[tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[str]]]],
     ) -> tuple[list["ContentType"], str, str]:
-        gemini_message_history: list["ContentType"] = []
+        google_message_history: list["ContentType"] = []
         system_prompts = []
         for role, content, _tool_call_id, _tool_calls in messages:
             if role == ChatCompletionMessageRole.USER:
-                gemini_message_history.append({"role": "user", "parts": content})
+                google_message_history.append({"role": "user", "parts": content})
             elif role == ChatCompletionMessageRole.AI:
-                gemini_message_history.append({"role": "model", "parts": content})
+                google_message_history.append({"role": "model", "parts": content})
             elif role == ChatCompletionMessageRole.SYSTEM:
                 system_prompts.append(content)
             elif role == ChatCompletionMessageRole.TOOL:
                 raise NotImplementedError
             else:
                 assert_never(role)
-        if gemini_message_history:
-            prompt = gemini_message_history.pop()["parts"]
+        if google_message_history:
+            prompt = google_message_history.pop()["parts"]
         else:
             prompt = ""
 
-        return gemini_message_history, prompt, "\n".join(system_prompts)
+        return google_message_history, prompt, "\n".join(system_prompts)
 
 
 def initialize_playground_clients() -> None:
@@ -946,3 +1008,15 @@ LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+
+
+class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
+    def __init__(self, wrapped: httpx.AsyncClient, attributes: MutableMapping[str, Any]):
+        super().__init__(wrapped)
+        self._self_attributes = attributes
+
+    async def send(self, request: httpx.Request, **kwargs: Any) -> Any:
+        self._self_attributes["url.full"] = str(request.url)
+        self._self_attributes["url.path"] = request.url.path.removeprefix(self.base_url.path)
+        response = await self.__wrapped__.send(request, **kwargs)
+        return response

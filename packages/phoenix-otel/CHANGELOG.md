@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.7.1...arize-phoenix-otel-v0.8.0) (2025-02-18)
+
+
+### Features
+
+* enable one-line instrumentation with phoenix.otel.register ([#6407](https://github.com/Arize-ai/phoenix/issues/6407)) ([ad95335](https://github.com/Arize-ai/phoenix/commit/ad953357d7f33b3d8e1955fe88375e85c66ebe4d))
+
+
+### Documentation
+
+* otel README.md python blocks ([3d28d2c](https://github.com/Arize-ai/phoenix/commit/3d28d2c04d04df5eaa65c86a3e07c28b482f4e29))
+
+## [0.7.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.7.0...arize-phoenix-otel-v0.7.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* use openinference tracer provider in phoenix.otel.register ([#6140](https://github.com/Arize-ai/phoenix/issues/6140)) ([2ec414f](https://github.com/Arize-ai/phoenix/commit/2ec414f16b08817b36c5cad8861165fa7323a76a))
+
+## [0.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.6.1...arize-phoenix-otel-v0.7.0) (2025-01-22)
+
+
+### Features
+
+* `phoenix.otel` infers GRPC port from env ([#6017](https://github.com/Arize-ai/phoenix/issues/6017)) ([4e036e7](https://github.com/Arize-ai/phoenix/commit/4e036e735cf6abda2352b73d28ed3b095724f04c))
+* Explicit OTEL protocol override ([#6067](https://github.com/Arize-ai/phoenix/issues/6067)) ([04264a0](https://github.com/Arize-ai/phoenix/commit/04264a04b18759c71bb106fc15a8f81e78122e68))
+
+
+### Bug Fixes
+
+* Handle default protocol ([#6146](https://github.com/Arize-ai/phoenix/issues/6146)) ([ee3d061](https://github.com/Arize-ai/phoenix/commit/ee3d0615d6551f8b834af4d8efdccfd118b40da2))
+
+
+### Documentation
+
+* update sessions (GITBOOK-940) ([88dc135](https://github.com/Arize-ai/phoenix/commit/88dc135f99b03697387df0140533a0808454a88e))
+
 ## [0.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.6.0...arize-phoenix-otel-v0.6.1) (2024-10-17)
 
 

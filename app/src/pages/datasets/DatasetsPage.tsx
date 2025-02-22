@@ -7,6 +7,7 @@ import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
 import { Flex, Heading, Icon, Icons, Loading, View } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { DatasetFromCSVForm } from "./DatasetFromCSVForm";
@@ -91,9 +92,11 @@ function CreateDatasetActionMenu({
             onDatasetCreated();
           }}
           onDatasetCreateError={(error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
             notifyError({
               title: "Dataset creation failed",
-              message: error.message,
+              message: formattedError?.[0] ?? error.message,
             });
           }}
         />
@@ -119,9 +122,11 @@ function CreateDatasetActionMenu({
             onDatasetCreated();
           }}
           onDatasetCreateError={(error) => {
+            const formattedError =
+              getErrorMessagesFromRelayMutationError(error);
             notifyError({
               title: "Dataset creation failed",
-              message: error.message,
+              message: formattedError?.[0] ?? error.message,
             });
           }}
         />

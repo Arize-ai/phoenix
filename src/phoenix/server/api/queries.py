@@ -14,22 +14,12 @@ from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
 from phoenix.db import enums, models
-from phoenix.db.models import (
-    DatasetExample as OrmExample,
-)
-from phoenix.db.models import (
-    DatasetExampleRevision as OrmRevision,
-)
-from phoenix.db.models import (
-    DatasetVersion as OrmVersion,
-)
-from phoenix.db.models import (
-    Experiment as OrmExperiment,
-)
+from phoenix.db.models import DatasetExample as OrmExample
+from phoenix.db.models import DatasetExampleRevision as OrmRevision
+from phoenix.db.models import DatasetVersion as OrmVersion
+from phoenix.db.models import Experiment as OrmExperiment
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
-from phoenix.db.models import (
-    Trace as OrmTrace,
-)
+from phoenix.db.models import Trace as OrmTrace
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -43,14 +33,9 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import (
-    InputCoordinate2D,
-    InputCoordinate3D,
-)
+from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
-from phoenix.server.api.input_types.InvocationParameters import (
-    InvocationParameter,
-)
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -68,22 +53,18 @@ from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, 
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
-from phoenix.server.api.types.GenerativeProvider import (
-    GenerativeProvider,
-    GenerativeProviderKey,
-)
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import to_gql_trace
 from phoenix.server.api.types.User import User, to_gql_user
@@ -502,7 +483,7 @@ class Query:
                 span = await session.scalar(span_stmt)
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
-            return to_gql_span(span)
+            return Span(span_rowid=span.id, db_span=span)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
@@ -587,6 +568,31 @@ class Query:
                 ):
                     raise NotFound(f"Unknown user: {id}")
             return to_gql_project_session(project_session)
+        elif type_name == Prompt.__name__:
+            async with info.context.db() as session:
+                if orm_prompt := await session.scalar(
+                    select(models.Prompt).where(models.Prompt.id == node_id)
+                ):
+                    return to_gql_prompt_from_orm(orm_prompt)
+                else:
+                    raise NotFound(f"Unknown prompt: {id}")
+        elif type_name == PromptVersion.__name__:
+            async with info.context.db() as session:
+                if orm_prompt_version := await session.scalar(
+                    select(models.PromptVersion).where(models.PromptVersion.id == node_id)
+                ):
+                    return to_gql_prompt_version(orm_prompt_version)
+                else:
+                    raise NotFound(f"Unknown prompt version: {id}")
+        elif type_name == PromptLabel.__name__:
+            async with info.context.db() as session:
+                if not (
+                    prompt_label := await session.scalar(
+                        select(models.PromptLabel).where(models.PromptLabel.id == node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown prompt label: {id}")
+            return to_gql_prompt_label(prompt_label)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -608,6 +614,53 @@ class Query:
             ) is None:
                 return None
         return to_gql_user(user)
+
+    @strawberry.field
+    async def prompts(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Prompt]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.Prompt)
+        async with info.context.db() as session:
+            orm_prompts = await session.stream_scalars(stmt)
+            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
+
+    @strawberry.field
+    async def prompt_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[PromptLabel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            prompt_labels = await session.stream_scalars(select(models.PromptLabel))
+            data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
 
     @strawberry.field
     def clusters(

@@ -5,6 +5,7 @@ import { Card, DialogContainer } from "@arizeai/components";
 
 import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { UsersCardQuery } from "./__generated__/UsersCardQuery.graphql";
 import { NewUserDialog } from "./NewUserDialog";
@@ -52,16 +53,18 @@ export function UsersCard() {
                   setFetchKey((prev) => prev + 1);
                 }}
                 onNewUserCreationError={(error) => {
+                  const formattedError =
+                    getErrorMessagesFromRelayMutationError(error);
                   notifyError({
                     title: "Error adding user",
-                    message: error.message,
+                    message: formattedError?.[0] ?? error.message,
                   });
                 }}
               />
             );
           }}
           size="S"
-          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         >
           Add User
         </Button>

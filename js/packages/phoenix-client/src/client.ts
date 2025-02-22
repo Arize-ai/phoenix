@@ -13,6 +13,9 @@ type pathsV1 = oapiPathsV1;
 type componentsV1 = oapiComponentsV1;
 type operationsV1 = oapiOperationsV1;
 
+/**
+ * Generated openapi types for the Phoenix client
+ */
 export type Types = {
   V1: {
     paths: pathsV1;
@@ -46,8 +49,9 @@ export const getMergedOptions = ({
 /**
  * Create a Phoenix client.
  *
- * @param configuration - The configuration to use for the client.
- * @param configuration.options - The options to use for the client's OpenAPI Fetch wrapper.
+ * @param config - The configuration to use for the client.
+ * @param config.options - The options to use for the client's OpenAPI Fetch wrapper.
+ * @param config.getEnvironmentOptions - The function to use to get the environment options.
  * @returns The Phoenix client.
  */
 export const createClient = (
@@ -60,4 +64,7 @@ export const createClient = (
   return createOpenApiClient<pathsV1>(mergedOptions);
 };
 
+/**
+ * The type of the Phoenix client
+ */
 export type PhoenixClient = ReturnType<typeof createClient>;

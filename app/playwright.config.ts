@@ -48,6 +48,9 @@ projects.push({
  */
 export default defineConfig({
   globalSetup: require.resolve("./global-setup"),
+  timeout: process.env.CI ? 60000 : 30000,
+  // Limit the number of workers on CI, use default locally
+  workers: process.env.CI ? 2 : undefined,
   testDir: "./tests",
   /* Run tests in files in parallel */
   fullyParallel: true,

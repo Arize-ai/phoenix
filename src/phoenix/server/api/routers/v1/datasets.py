@@ -48,7 +48,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetInsertEvent
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -919,20 +919,23 @@ def _get_content_csv(examples: list[models.DatasetExampleRevision]) -> bytes:
 def _get_content_jsonl_openai_ft(examples: list[models.DatasetExampleRevision]) -> bytes:
     records = io.BytesIO()
     for ex in examples:
-        records.write(
-            (
-                json.dumps(
-                    {
-                        "messages": (
-                            ims if isinstance(ims := ex.input.get("messages"), list) else []
-                        )
-                        + (oms if isinstance(oms := ex.output.get("messages"), list) else [])
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            ).encode()
-        )
+        input_messages = ex.input.get("messages", [])
+        if not isinstance(input_messages, list):
+            input_messages = []
+        output_messages = ex.output.get("messages", [])
+        if not isinstance(output_messages, list):
+            output_messages = []
+
+        record_dict = {
+            "messages": input_messages + output_messages,
+        }
+
+        tools = ex.input.get("tools", [])
+        if tools:
+            record_dict["tools"] = tools
+
+        records.write((json.dumps(record_dict, ensure_ascii=False) + "\n").encode())
+
     records.seek(0)
     return records.read()
 

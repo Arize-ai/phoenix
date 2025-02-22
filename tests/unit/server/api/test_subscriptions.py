@@ -8,6 +8,7 @@ from openinference.semconv.trace import (
     OpenInferenceSpanKindValues,
     SpanAttributes,
 )
+from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest
 
@@ -171,7 +172,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -230,6 +231,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_openai_emits_expected_payloads_and_records_expected_span_on_error(
@@ -301,7 +304,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -351,6 +354,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_openai_tool_call_response_emits_expected_payloads_and_records_expected_span(
@@ -442,7 +447,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -505,6 +510,8 @@ class TestChatCompletionSubscription:
         assert llm_tools == [{"tool": {"json_schema": json.dumps(get_current_weather_tool_schema)}}]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_openai_tool_call_messages_emits_expected_payloads_and_records_expected_span(
@@ -593,7 +600,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -670,6 +677,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert not attributes
 
     async def test_anthropic_text_response_emits_expected_payloads_and_records_expected_span(
@@ -742,7 +751,7 @@ class TestChatCompletionSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -802,6 +811,8 @@ class TestChatCompletionSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "anthropic"
         assert attributes.pop(LLM_SYSTEM) == "anthropic"
+        assert attributes.pop(URL_FULL) == "https://api.anthropic.com/v1/messages"
+        assert attributes.pop(URL_PATH) == "v1/messages"
         assert not attributes
 
 
@@ -936,7 +947,7 @@ class TestChatCompletionOverDatasetSubscription:
                         "content": "What country is {city} in? Answer in one word, no punctuation.",
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}
@@ -1047,7 +1058,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -1100,6 +1111,8 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert attributes.pop(PROMPT_TEMPLATE_VARIABLES) == json.dumps({"city": "Paris"})
         assert not attributes
 
@@ -1132,7 +1145,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert context.pop("traceId")
         assert not context
         assert span.pop("metadata") is None
-        assert span.pop("numDocuments") is None
+        assert span.pop("numDocuments") == 0
         assert isinstance(token_count_total := span.pop("tokenCountTotal"), int)
         assert isinstance(token_count_prompt := span.pop("tokenCountPrompt"), int)
         assert isinstance(token_count_completion := span.pop("tokenCountCompletion"), int)
@@ -1185,6 +1198,8 @@ class TestChatCompletionOverDatasetSubscription:
         ]
         assert attributes.pop(LLM_PROVIDER) == "openai"
         assert attributes.pop(LLM_SYSTEM) == "openai"
+        assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
+        assert attributes.pop(URL_PATH) == "chat/completions"
         assert attributes.pop(PROMPT_TEMPLATE_VARIABLES) == json.dumps({"city": "Tokyo"})
         assert not attributes
 
@@ -1204,16 +1219,11 @@ class TestChatCompletionOverDatasetSubscription:
         type_name, _ = from_global_id(GlobalID.from_id(experiment_id))
         assert type_name == Experiment.__name__
         assert experiment.pop("name") == "playground-experiment"
-        assert isinstance(experiment_description := experiment.pop("description"), str)
-        assert "dataset-name" in experiment_description
-        assert experiment.pop("metadata") == {
-            "dataset_name": "dataset-name",
-            "dataset_id": str(dataset_id),
-            "dataset_version_id": str(version_id),
-        }
         assert experiment.pop("projectName") == "playground"
+        assert experiment.pop("metadata") == {}
         assert isinstance(created_at := experiment.pop("createdAt"), str)
         assert isinstance(updated_at := experiment.pop("updatedAt"), str)
+        experiment.pop("description")
         assert created_at == updated_at
         runs = {run["run"]["id"]: run["run"] for run in experiment.pop("runs")["edges"]}
         assert len(runs) == 3
@@ -1309,7 +1319,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ),
                     }
                 ],
-                "templateLanguage": "F_STRING",
+                "templateFormat": "F_STRING",
             }
         }
         payloads: dict[Optional[str], list[Any]] = {}

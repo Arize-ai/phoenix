@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 
-from phoenix.config import get_env_client_headers, get_env_phoenix_api_key
+from phoenix.config import get_env_client_headers
 
 PHOENIX_SERVER_VERSION_HEADER = "x-phoenix-server-version"
 
@@ -18,14 +18,20 @@ class VersionedClient(httpx.Client):
 
         super().__init__(*args, **kwargs)
 
-        if env_headers := get_env_client_headers():
-            self.headers.update(env_headers)
-        if "authorization" not in [k.lower() for k in self.headers]:
-            if api_key := get_env_phoenix_api_key():
-                self.headers["Authorization"] = f"Bearer {api_key}"
+        # Preserve headers set via instantiation, since
+        # they were explicitly entered by the user.
+        for k, v in get_env_client_headers().items():
+            if k not in self.headers:
+                self.headers[k] = v
 
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except BaseException:
+            pass
 
     def _check_version(self, response: httpx.Response) -> None:
         server_version = response.headers.get(PHOENIX_SERVER_VERSION_HEADER)
@@ -82,11 +88,11 @@ class VersionedAsyncClient(httpx.AsyncClient):
 
         super().__init__(*args, **kwargs)
 
-        if env_headers := get_env_client_headers():
-            self.headers.update(env_headers)
-        if "authorization" not in [k.lower() for k in self.headers]:
-            if api_key := get_env_phoenix_api_key():
-                self.headers["Authorization"] = f"Bearer {api_key}"
+        # Preserve headers set via instantiation, since
+        # they were explicitly entered by the user.
+        for k, v in get_env_client_headers().items():
+            if k not in self.headers:
+                self.headers[k] = v
 
         self._client_phoenix_version = phoenix_version
         self._warned_on_minor_version_mismatch = False

@@ -184,7 +184,7 @@ function CanvasInfo() {
       <TriggerWrap>
         <Button
           size="S"
-          icon={<Icon svg={<Icons.InfoOutline />} />}
+          leadingVisual={<Icon svg={<Icons.InfoOutline />} />}
           aria-label="Information bout the point-cloud display"
         />
       </TriggerWrap>

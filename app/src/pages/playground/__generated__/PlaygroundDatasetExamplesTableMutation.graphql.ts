@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fb8767ca8940fd71d617146eb52b1292>>
+ * @generated SignedSource<<d3af724a62845c67dced9d80ddfd77bd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Mutation } from 'relay-runtime';
-export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
+export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type ChatCompletionMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
-export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GEMINI" | "OPENAI";
-export type TemplateLanguage = "F_STRING" | "MUSTACHE" | "NONE";
+export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
+export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type ChatCompletionOverDatasetInput = {
   apiKey?: string | null;
   datasetId: string;
@@ -23,7 +23,8 @@ export type ChatCompletionOverDatasetInput = {
   invocationParameters?: ReadonlyArray<InvocationParameterInput>;
   messages: ReadonlyArray<ChatCompletionMessageInput>;
   model: GenerativeModelInput;
-  templateLanguage: TemplateLanguage;
+  promptName?: string | null;
+  templateFormat?: PromptTemplateFormat;
   tools?: ReadonlyArray<any> | null;
 };
 export type ChatCompletionMessageInput = {
@@ -34,6 +35,7 @@ export type ChatCompletionMessageInput = {
 };
 export type GenerativeModelInput = {
   apiVersion?: string | null;
+  baseUrl?: string | null;
   endpoint?: string | null;
   name: string;
   providerKey: GenerativeProviderKey;

@@ -7,6 +7,7 @@ import { DialogContainer } from "@arizeai/components";
 import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 interface SelectedExample {
   id: string;
@@ -57,9 +58,10 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
         refreshLatestVersion();
       },
       onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
         notifyError({
           title: "An error occurred",
-          message: `Failed to delete examples: ${error.message}`,
+          message: `Failed to delete examples: ${formattedError?.[0] ?? error.message}`,
         });
       },
     });
@@ -103,7 +105,7 @@ export function ExampleSelectionToolbar(props: ExampleSelectionToolbarProps) {
             <Button
               variant="danger"
               size="S"
-              icon={
+              leadingVisual={
                 <Icon
                   svg={
                     isDeletingExamples ? (

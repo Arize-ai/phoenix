@@ -5,8 +5,7 @@ from typing import Any, ClassVar, Optional
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, desc, distinct, func, or_, select
-from sqlalchemy.orm import contains_eager
+from sqlalchemy import desc, distinct, func, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET
@@ -33,7 +32,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.Trace import Trace, to_gql_trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
@@ -184,18 +183,15 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
         stmt = (
-            select(models.Span)
+            select(models.Span.id)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id_attr)
-            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
         )
         if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= models.Span.start_time)
+            if time_range.end:
+                stmt = stmt.where(models.Span.start_time < time_range.end)
         if root_spans_only:
             # A root span is any span whose parent span is missing in the
             # database, even if its `parent_span_id` may not be NULL.
@@ -234,21 +230,21 @@ class Project(Node):
         stmt = stmt.order_by(cursor_rowid_column)
         cursors_and_nodes = []
         async with info.context.db() as session:
-            span_records = await session.execute(stmt)
+            span_records = await session.stream(stmt)
             async for span_record in islice(span_records, first):
-                span = span_record[0]
-                cursor = Cursor(rowid=span.id)
+                span_rowid: int = span_record[0]
+                cursor = Cursor(rowid=span_rowid)
                 if sort_config:
                     assert len(span_record) > 1
                     cursor.sort_column = CursorSortColumn(
                         type=sort_config.column_data_type,
                         value=span_record[1],
                     )
-                cursors_and_nodes.append((cursor, to_gql_span(span)))
+                cursors_and_nodes.append((cursor, Span(span_rowid=span_rowid)))
             has_next_page = True
             try:
-                next(span_records)
-            except StopIteration:
+                await span_records.__anext__()
+            except StopAsyncIteration:
                 has_next_page = False
 
         return connection_from_cursors_and_nodes(

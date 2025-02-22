@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.20.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.2...arize-phoenix-evals-v0.20.3) (2025-02-13)
+
+
+### Bug Fixes
+
+* o1-preview does not support developer role ([#6370](https://github.com/Arize-ai/phoenix/issues/6370)) ([9ea8651](https://github.com/Arize-ai/phoenix/commit/9ea8651b7734898a8b3050b335a759657ea18712))
+
+## [0.20.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.1...arize-phoenix-evals-v0.20.2) (2025-02-06)
+
+
+### Bug Fixes
+
+* Use max completion tokens and tool calling check ([#6287](https://github.com/Arize-ai/phoenix/issues/6287)) ([e5e5294](https://github.com/Arize-ai/phoenix/commit/e5e5294b2b2b2f725ee673520a71cdca0457936d))
+
+## [0.20.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.0...arize-phoenix-evals-v0.20.1) (2025-02-06)
+
+
+### Bug Fixes
+
+* Update parameter filtering logic ([#6285](https://github.com/Arize-ai/phoenix/issues/6285)) ([0f552e6](https://github.com/Arize-ai/phoenix/commit/0f552e6aec08f918408d82a248788e21bac8803d))
+
+## [0.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.19.0...arize-phoenix-evals-v0.20.0) (2025-02-05)
+
+
+### Features
+
+* Enable overriding executor timeouts per model ([#6206](https://github.com/Arize-ai/phoenix/issues/6206)) ([23fb2b0](https://github.com/Arize-ai/phoenix/commit/23fb2b03e2aa8cf3f0940b857cd2ca3f7dfd71b7))
+* Support OpenAI reasoning models that don't use the "system" role ([#6239](https://github.com/Arize-ai/phoenix/issues/6239)) ([84f9d8e](https://github.com/Arize-ai/phoenix/commit/84f9d8e96846a496aafa1c360932268cba935d3c))
+
+
+### Bug Fixes
+
+* local variable 'prompt_message' referenced before assignment ([#6102](https://github.com/Arize-ai/phoenix/issues/6102)) ([10b1535](https://github.com/Arize-ai/phoenix/commit/10b1535dc7c9c5016d2b7c30574fa7e771601992))
+
+## [0.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.1...arize-phoenix-evals-v0.19.0) (2025-01-16)
+
+
+### Features
+
+* Audio evals & data processor for llm_classify() ([#5616](https://github.com/Arize-ai/phoenix/issues/5616)) ([0eda8ce](https://github.com/Arize-ai/phoenix/commit/0eda8ce9d1443d679734fe76cd6481f9a352e59b))
+
 ## [0.18.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.18.0...arize-phoenix-evals-v0.18.1) (2025-01-07)
 
 
