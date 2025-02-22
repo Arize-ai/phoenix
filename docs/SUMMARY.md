@@ -29,6 +29,7 @@
   * [LlamaIndex Workflows](tracing/integrations-tracing/llamaindex-1.md)
   * [LangChain](tracing/integrations-tracing/langchain.md)
   * [LangGraph](tracing/integrations-tracing/langgraph.md)
+  * [LiteLLM](tracing/integrations-tracing/litellm.md)
   * [Haystack](tracing/integrations-tracing/haystack.md)
   * [Anthropic](tracing/integrations-tracing/anthropic.md)
   * [VertexAI](tracing/integrations-tracing/vertexai.md)
@@ -38,7 +39,6 @@
   * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [CrewAI](tracing/integrations-tracing/crewai.md)
-  * [LiteLLM](tracing/integrations-tracing/litellm.md)
   * [DSPy](tracing/integrations-tracing/dspy.md)
   * [Guardrails AI](tracing/integrations-tracing/guardrails-ai.md)
   * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
@@ -46,6 +46,7 @@
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
   * [LangChain.js](tracing/integrations-tracing/langchain.js.md)
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
+  * [LangFlow](tracing/integrations-tracing/langflow.md)
 * [How-to: Tracing (Manual)](tracing/how-to-tracing/README.md)
   * [Setup Tracing: Python](tracing/how-to-tracing/setup-tracing-python.md)
   * [Instrument: Python](tracing/how-to-tracing/instrument-python.md)
@@ -66,6 +67,41 @@
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
   * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
+
+## 📃 Prompt Engineering
+
+* [Overview: Prompts](prompt-engineering/overview-prompts.md)
+  * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
+  * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)
+  * [Span Replay](prompt-engineering/overview-prompts/span-replay.md)
+  * [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md)
+* [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
+* [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
+  * [Configure AI Providers](prompt-engineering/how-to-prompts/configure-ai-providers.md)
+  * [Using the Playground](prompt-engineering/how-to-prompts/using-the-playground.md)
+  * [Create a prompt](prompt-engineering/how-to-prompts/create-a-prompt.md)
+  * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
+  * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
+  * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
+* [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
+* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
+
+## 🗄️ Datasets & Experiments
+
+* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
+* [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
+* [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
+  * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
+  * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
+* [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
+  * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
+  * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
+* [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
+  * [Prompt Optimization](datasets-and-experiments/use-cases-datasets/prompt-optimization.md)
+  * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
+  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
+  * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
 
 ## 🧠 Evaluation
 
@@ -95,40 +131,6 @@
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Evaluating Phoenix Traces](evaluation/how-to-evals/evaluating-phoenix-traces.md)
   * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
-
-## 📃 Prompt Engineering
-
-* [Overview: Prompts](prompt-engineering/overview-prompts.md)
-  * [Prompt Management](prompt-engineering/overview-prompts/prompt-management.md)
-  * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)
-  * [Span Replay](prompt-engineering/overview-prompts/span-replay.md)
-  * [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md)
-* [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
-* [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
-  * [Configure AI Providers](prompt-engineering/how-to-prompts/configure-ai-providers.md)
-  * [Create a prompt](prompt-engineering/how-to-prompts/create-a-prompt.md)
-  * [Test a prompt](prompt-engineering/how-to-prompts/test-a-prompt.md)
-  * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
-  * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
-  * [Using the Playground](prompt-engineering/how-to-prompts/using-the-playground.md)
-* [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
-* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
-
-## 🗄️ Datasets & Experiments
-
-* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
-* [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
-* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
-* [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
-  * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
-  * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
-* [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
-  * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
-  * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
-* [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
-  * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
-  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
-  * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
 
 ## 🔎 Retrieval
 
@@ -173,6 +175,7 @@
 * [OpenInference](reference/open-inference.md)
 * [Resources](reference/resources.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
+* [Release Notes](reference/release-notes.md)
 
 ***
 

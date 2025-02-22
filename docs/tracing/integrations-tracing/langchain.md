@@ -9,7 +9,7 @@ Phoenix has first-class support for [LangChain](https://langchain.com/) applicat
 ## Launch Phoenix
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 **Sign up for Phoenix:**
 
 Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)

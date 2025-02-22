@@ -15,9 +15,9 @@
 2. For each retrieved document, is the document relevant to answer the user query?
 {% endhint %}
 
-Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama\_index](https://github.com/run-llama/llama\_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.
+Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama\_index](https://github.com/run-llama/llama_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.
 
-<figure><img src="../../.gitbook/assets/image (11).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (11) (1).png" alt=""><figcaption></figcaption></figure>
 
 ## How to Evaluate Retrieval Systems
 
@@ -37,7 +37,7 @@ There are varying degrees of how we can evaluate retrieval systems.
 
 Visualize the chain of the traces and spans for a Q\&A chatbot use case. You can click into specific spans.
 
-<figure><img src="../../.gitbook/assets/image (12).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (12) (1).png" alt=""><figcaption></figcaption></figure>
 
 When clicking into the retrieval span, you can see the relevance score for each document. This can surface irrelevant context.
 
@@ -70,7 +70,7 @@ By setting the "primary" dataset as the user queries, and the "corpus" dataset a
 ### Troubleshooting Tip:
 
 {% hint style="success" %}
-Found a problematic cluster you want to dig into, but don't want to manually sift through all of the prompts and responses? **Ask chatGPT to help you understand the make up of the cluster.** [**Try out the colab here**](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/find\_cluster\_export\_and\_explore\_with\_gpt.ipynb#scrollTo=Ss2n6JJyLQBm)**.**
+Found a problematic cluster you want to dig into, but don't want to manually sift through all of the prompts and responses? **Ask chatGPT to help you understand the make up of the cluster.** [**Try out the colab here**](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/find_cluster_export_and_explore_with_gpt.ipynb#scrollTo=Ss2n6JJyLQBm)**.**
 {% endhint %}
 
 _Looking for code to get started? Go to our_ [_Quickstart guide for Search and Retrieval_](../quickstart-retrieval.md)_._

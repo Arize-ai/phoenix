@@ -17,7 +17,7 @@ Phoenix provides auto-instrumentation, allowing you to track and visualize every
 We have several code samples below on different ways to integrate with smolagents, based on how you want to use Phoenix.
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 **Sign up for Phoenix:**
 
 Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
