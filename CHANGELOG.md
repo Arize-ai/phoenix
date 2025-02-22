@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.2.0...arize-phoenix-v8.2.1) (2025-02-22)
+
+
+### Bug Fixes
+
+* suppress token icons in trace tree when count is zero ([#6511](https://github.com/Arize-ai/phoenix/issues/6511)) ([0ccbdd7](https://github.com/Arize-ai/phoenix/commit/0ccbdd75d4653fe2ede1bcfb76a8800f3492bfe1))
+* wrap annotation summaries in an error boundary ([#6510](https://github.com/Arize-ai/phoenix/issues/6510)) ([e21f665](https://github.com/Arize-ai/phoenix/commit/e21f665afb526f8e90062a5a4bcbc17fe0e264e8))
+
 ## [8.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.1.0...arize-phoenix-v8.2.0) (2025-02-21)
 
 
