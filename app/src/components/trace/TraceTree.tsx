@@ -224,7 +224,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             {statusCode === "ERROR" ? (
               <SpanStatusCodeIcon statusCode="ERROR" />
             ) : null}
-            {typeof tokenCountTotal === "number" && showMetricsInTraceTree ? (
+            {typeof tokenCountTotal === "number" &&
+            tokenCountTotal > 0 &&
+            showMetricsInTraceTree ? (
               <TokenCount
                 tokenCountTotal={tokenCountTotal}
                 tokenCountPrompt={tokenCountPrompt ?? 0}
