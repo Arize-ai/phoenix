@@ -46,6 +46,7 @@ import {
 import {
   Button,
   CopyToClipboardButton,
+  ErrorBoundary,
   ExternalLink,
   Flex,
   Heading,
@@ -55,7 +56,6 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
-import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,
