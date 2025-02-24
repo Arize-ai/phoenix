@@ -740,9 +740,9 @@ class _RoleConversion:
 
 
 def _get_tool_params(
-    tool: Iterable[ToolUnionParam],
+    tools: Iterable[ToolUnionParam],
 ) -> Iterator[ToolParam]:
-    for t in tool:
-        if "type" in t:
+    for tool in tools:
+        if "type" in tool:
             continue
-        yield t
+        yield tool
