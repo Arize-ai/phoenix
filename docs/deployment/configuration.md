@@ -30,11 +30,16 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_SQL\_DATABASE\_URL:** The SQL database URL to use when logging traces and evals. if you plan on using SQLite, it's advised to to use a persistent volume and simply point the `PHOENIX_WORKING_DIR` to that volume. If URL is not specified, by default Phoenix starts with a file-based SQLite database in a temporary folder, the location of which will be shown at startup. Phoenix also supports PostgresSQL as shown below:
   * PostgreSQL, e.g. `postgresql://@host/dbname?user=user&password=password` or `postgresql://user:password@host/dbname`
   * SQLite, e.g. `sqlite:///path/to/database.db`
-* **PHOENIX\_POSTGRES\_HOST:** As an alternative to **PHOENIX\_SQL\_DATABASE\_URL,** it's possible to provide a host URL to a PostgreSQL server along with the login credentials as separate environment variables
-* **PHOENIX\_POSTGRES\_PORT:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the PostgreSQL port
-* **PHOENIX\_POSTGRES\_USER:** Used with **PHOENIX\_POSTGRES\_HOST** to specify a user
-* **PHOENIX\_POSTGRES\_PASSWORD:** Used with **PHOENIX\_POSTGRES\_HOST** to specify a password, this will be URL encoded prior to constructing the connection string
-* **PHOENIX\_POSTGRES\_DB:** Used with **PHOENIX\_POSTGRES\_HOST** to specify a DB to connect to
+* **PHOENIX\_POSTGRES\_HOST:** As an alternative to setting **PHOENIX\_SQL\_DATABASE\_URL**, you can set the following environment variables to connect to a PostgreSQL database:
+  * PHOENIX\_POSTGRES\_HOST
+  * PHOENIX\_POSTGRES\_PORT
+  * PHOENIX\_POSTGRES\_USER
+  * PHOENIX\_POSTGRES\_PASSWORD
+  * PHOENIX\_POSTGRES\_DB
+* **PHOENIX\_POSTGRES\_PORT:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the port to use for the PostgreSQL database.
+* **PHOENIX\_POSTGRES\_USER:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the user to use for the PostgreSQL database.
+* **PHOENIX\_POSTGRES\_PASSWORD:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the password to use for the PostgreSQL database.
+* **PHOENIX\_POSTGRES\_DB:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the database to use for the PostgreSQL database.
 * **PHOENIX\_SQL\_DATABASE\_SCHEMA:** An optional string specifying the PostgreSQL [schema](https://www.postgresql.org/docs/current/ddl-schemas.html) for the database tables. Similar to folders, schemas help organize tables outside the default `public` schema. If the specified schema does not exist, it will be created. This option is ignored when using SQLite.
 * **PHOENIX\_ENABLE\_PROMETHEUS:** Whether to enable Prometheus metrics at port 9090. Defaults to false.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
