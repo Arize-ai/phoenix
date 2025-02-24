@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.2.1...arize-phoenix-v8.2.2) (2025-02-24)
+
+
+### Bug Fixes
+
+* don't flex the trace tree toolbar ([#6513](https://github.com/Arize-ai/phoenix/issues/6513)) ([c557af5](https://github.com/Arize-ai/phoenix/commit/c557af5733eabf0b0c5088087b9c856c63489ff7))
+* **graphql:** return None for null input output values on spans  ([#6537](https://github.com/Arize-ai/phoenix/issues/6537)) ([1b735c0](https://github.com/Arize-ai/phoenix/commit/1b735c0993f76d39686206106f77f5e1c7d0165e))
+
 ## [8.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.2.0...arize-phoenix-v8.2.1) (2025-02-22)
 
 
