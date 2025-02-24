@@ -95,7 +95,7 @@ dev = [
   "langchain>=0.0.334",
   "litellm>=1.0.3,<1.57.5", # windows compatibility broken on 1.57.5 (https://github.com/BerriAI/litellm/issues/7677)
   "google-cloud-aiplatform>=1.3",
-  "anthropic",
+  "anthropic>=0.47.0",
   "prometheus_client",
   "asgi-lifespan",
   "Faker>=30.1.0",
@@ -123,7 +123,7 @@ pg = [
   "psycopg[binary,pool]",
 ]
 container = [
-  "anthropic>=0.45.2",
+  "anthropic>=0.47.0",
   "google-generativeai",
   "prometheus-client",
   "openai>=1.0.0",
