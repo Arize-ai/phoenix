@@ -304,7 +304,7 @@ class _InvocationParametersConversion:
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
-            content["max_tokens"] = obj["max_completion_tokens"]
+            content["max_completion_tokens"] = obj["max_completion_tokens"]
         if "max_tokens" in obj and obj["max_tokens"] is not None:
             content["max_tokens"] = obj["max_tokens"]
         if "temperature" in obj and obj["temperature"] is not None:
