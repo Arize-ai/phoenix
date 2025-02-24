@@ -13,10 +13,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -28,6 +24,7 @@ import {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { SpanDetails } from "./SpanDetails";
+import { TraceHeaderSpanAnnotations } from "./TraceHeaderSpanAnnotations";
 
 export const SELECTED_SPAN_NODE_ID_URL_PARAM = "selectedSpanNodeId";
 
@@ -88,13 +85,6 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
-                    spanAnnotations {
-                      id
-                      name
-                      label
-                      score
-                      annotatorKind
-                    }
                   }
                 }
               }
@@ -200,11 +190,9 @@ function TraceHeader({
   sessionId?: string | null;
 }) {
   const { projectId } = useParams();
-  const { statusCode, spanAnnotations } = rootSpan ?? {
+  const { statusCode } = rootSpan ?? {
     statusCode: "UNSET",
-    spanAnnotations: [],
   };
-  const hasAnnotations = spanAnnotations.length > 0;
   const statusColor = useSpanStatusCodeColor(statusCode);
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
@@ -234,28 +222,7 @@ function TraceHeader({
             )}
           </Text>
         </Flex>
-        {hasAnnotations ? (
-          <Flex direction="column" gap="size-50">
-            <Text elementType="h3" size="M" color="text-700">
-              Feedback
-            </Text>
-            <Flex direction="row" gap="size-50">
-              {spanAnnotations.map((annotation) => {
-                return (
-                  <AnnotationTooltip
-                    key={annotation.name}
-                    annotation={annotation}
-                  >
-                    <AnnotationLabel
-                      annotation={annotation}
-                      annotationDisplayPreference="label"
-                    />
-                  </AnnotationTooltip>
-                );
-              })}
-            </Flex>
-          </Flex>
-        ) : null}
+        {rootSpan ? TraceHeaderSpanAnnotations(rootSpan.id) : null}
         {sessionId && (
           <span
             css={css`
