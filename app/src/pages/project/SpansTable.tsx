@@ -297,10 +297,9 @@ export function SpansTable(props: SpansTableProps) {
       enableSorting: false,
       cell: ({ getValue, row }) => {
         const span = row.original;
+        const { traceId } = span.trace;
         return (
-          <Link
-            to={`traces/${span.trace.traceId}?selectedSpanNodeId=${span.id}`}
-          >
+          <Link to={`traces/${traceId}?selectedSpanNodeId=${span.id}`}>
             {getValue() as string}
           </Link>
         );
