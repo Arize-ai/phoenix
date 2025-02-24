@@ -69,6 +69,7 @@ class _ToolKwargs(TypedDict, total=False):
 class _InvocationParameters(TypedDict, total=False):
     frequency_penalty: float
     max_completion_tokens: int
+    max_tokens: int
     presence_penalty: float
     reasoning_effort: ChatCompletionReasoningEffort
     seed: int
@@ -197,8 +198,10 @@ class _InvocationParametersConversion:
         if obj["type"] == "openai":
             openai_params: v1.PromptOpenAIInvocationParametersContent
             openai_params = obj["openai"]
+            if "max_completion_tokens" in openai_params:
+                ans["max_completion_tokens"] = openai_params["max_completion_tokens"]
             if "max_tokens" in openai_params:
-                ans["max_completion_tokens"] = openai_params["max_tokens"]
+                ans["max_tokens"] = openai_params["max_tokens"]
             if "temperature" in openai_params:
                 ans["temperature"] = openai_params["temperature"]
             if "top_p" in openai_params:
@@ -214,8 +217,10 @@ class _InvocationParametersConversion:
         elif obj["type"] == "azure_openai":
             azure_params: v1.PromptAzureOpenAIInvocationParametersContent
             azure_params = obj["azure_openai"]
+            if "max_completion_tokens" in azure_params:
+                ans["max_completion_tokens"] = azure_params["max_completion_tokens"]
             if "max_tokens" in azure_params:
-                ans["max_completion_tokens"] = azure_params["max_tokens"]
+                ans["max_tokens"] = azure_params["max_tokens"]
             if "temperature" in azure_params:
                 ans["temperature"] = azure_params["temperature"]
             if "top_p" in azure_params:
@@ -299,7 +304,9 @@ class _InvocationParametersConversion:
         else:
             assert_never(model_provider)
         if "max_completion_tokens" in obj and obj["max_completion_tokens"] is not None:
-            content["max_tokens"] = obj["max_completion_tokens"]
+            content["max_completion_tokens"] = obj["max_completion_tokens"]
+        if "max_tokens" in obj and obj["max_tokens"] is not None:
+            content["max_tokens"] = obj["max_tokens"]
         if "temperature" in obj and obj["temperature"] is not None:
             content["temperature"] = obj["temperature"]
         if "top_p" in obj and obj["top_p"] is not None:

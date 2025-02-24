@@ -424,6 +424,42 @@ class TestCompletionCreateParamsBase:
                 "max_completion_tokens": randint(1, 256),
                 "top_p": random(),
             },
+            {
+                "model": token_hex(8),
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a UI generator. Convert the user input into a UI.",
+                    },
+                    {
+                        "role": "user",
+                        "content": "Make a form for {{ feature }}.",
+                    },
+                ],
+                "response_format": cast(
+                    "ResponseFormat",
+                    type_to_response_format_param(
+                        create_model("Response", ui=(_UI, ...)),
+                    ),
+                ),
+                "temperature": random(),
+                "max_tokens": randint(1, 256),
+                "top_p": random(),
+            },
+            {
+                "model": token_hex(8),
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "What is the latest population estimate for {{ location }}?",
+                    }
+                ],
+                "tools": _TOOLS,
+                "tool_choice": "required",
+                "temperature": random(),
+                "max_tokens": randint(1, 256),
+                "top_p": random(),
+            },
         ],
     )
     def test_round_trip(self, obj: CompletionCreateParamsBase) -> None:

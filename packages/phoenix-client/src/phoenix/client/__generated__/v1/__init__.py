@@ -116,6 +116,7 @@ class PromptAnthropicInvocationParametersContent(TypedDict):
 class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
     frequency_penalty: NotRequired[float]
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
@@ -136,6 +137,7 @@ class PromptGoogleInvocationParametersContent(TypedDict):
 class PromptOpenAIInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
+    max_completion_tokens: NotRequired[int]
     frequency_penalty: NotRequired[float]
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
