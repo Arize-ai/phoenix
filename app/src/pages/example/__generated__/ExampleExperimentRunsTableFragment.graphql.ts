@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7f686e63ad3a443d2925f6f2ffe5ec31>>
+ * @generated SignedSource<<2db81e952831e734d868727446ded62a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type ExampleExperimentRunsTableFragment$data = {
               readonly name: string;
               readonly score: number | null;
               readonly trace: {
+                readonly id: string;
                 readonly projectId: string;
                 readonly traceId: string;
               } | null;
@@ -37,6 +38,7 @@ export type ExampleExperimentRunsTableFragment$data = {
         readonly output: any | null;
         readonly startTime: string;
         readonly trace: {
+          readonly id: string;
           readonly projectId: string;
           readonly traceId: string;
         } | null;
@@ -72,6 +74,7 @@ v2 = {
   "name": "trace",
   "plural": false,
   "selections": [
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -323,6 +326,6 @@ return {
 };
 })();
 
-(node as any).hash = "6ca0f938b309407e8c184a1c13d1c52d";
+(node as any).hash = "73457524533365ed047cb575ee6c93ab";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2375fe2b65f4a1d5a4b96a0b7520746e>>
+ * @generated SignedSource<<0d76b38c193e00b96e9bb3b16136529f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,14 +23,11 @@ export type TraceDetailsQuery$data = {
       readonly spans: {
         readonly edges: ReadonlyArray<{
           readonly span: {
-            readonly context: {
-              readonly spanId: string;
-              readonly traceId: string;
-            };
             readonly id: string;
             readonly latencyMs: number | null;
             readonly name: string;
             readonly parentId: string | null;
+            readonly spanId: string;
             readonly spanKind: SpanKind;
             readonly startTime: string;
             readonly statusCode: SpanStatusCode;
@@ -138,26 +135,8 @@ v5 = {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "SpanContext",
-                      "kind": "LinkedField",
-                      "name": "context",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "spanId",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "traceId",
-                          "storageKey": null
-                        }
-                      ],
+                      "kind": "ScalarField",
+                      "name": "spanId",
                       "storageKey": null
                     },
                     {
@@ -296,16 +275,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "547a527e4bcf301a74b603387ad7b823",
+    "cacheID": "ac9147f8bf0ef8c809d19877e0ee5f2c",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              context {\n                spanId\n                traceId\n              }\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1aa17f0691d4e8d6020d9d252ca3bfd6";
+(node as any).hash = "aedd511ed255adab3a80dde8956a01c4";
 
 export default node;

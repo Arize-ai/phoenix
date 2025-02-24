@@ -8,35 +8,36 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-SpanRowId: TypeAlias = int
+RowId: TypeAlias = int
 
-Key: TypeAlias = tuple[SpanRowId, QueryableAttribute[Any]]
+Key: TypeAlias = tuple[RowId, QueryableAttribute[Any]]
 Result: TypeAlias = Any
-
 
 _ResultColumnPosition: TypeAlias = int
 _AttrStrIdentifier: TypeAlias = str
 
 
-class SpanFieldsDataLoader(DataLoader[Key, Result]):
-    def __init__(self, db: DbSessionFactory) -> None:
+class TableFieldsDataLoader(DataLoader[Key, Result]):
+    def __init__(self, db: DbSessionFactory, table: type[models.Base]) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
+        self._table = table
 
     async def _load_fn(self, keys: Iterable[Key]) -> list[Union[Result, ValueError]]:
-        result: dict[tuple[SpanRowId, _AttrStrIdentifier], Result] = {}
-        stmt, attr_strs = _get_stmt(keys)
+        result: dict[tuple[RowId, _AttrStrIdentifier], Result] = {}
+        stmt, attr_strs = _get_stmt(keys, self._table)
         async with self._db() as session:
             data = await session.stream(stmt)
             async for row in data:
-                span_rowid: SpanRowId = row[0]  # models.Span's primary key
+                rowid: RowId = row[0]  # models.Span's primary key
                 for i, value in enumerate(row[1:]):
-                    result[span_rowid, attr_strs[i]] = value
-        return [result.get((span_rowid, str(attr))) for span_rowid, attr in keys]
+                    result[rowid, attr_strs[i]] = value
+        return [result.get((rowid, str(attr))) for rowid, attr in keys]
 
 
 def _get_stmt(
-    keys: Iterable[Key],
+    keys: Iterable[tuple[RowId, QueryableAttribute[Any]]],
+    table: type[models.Base],
 ) -> tuple[
     Select[Any],
     dict[_ResultColumnPosition, _AttrStrIdentifier],
@@ -52,7 +53,8 @@ def _get_stmt(
 
     Args:
         keys (list[Key]): A list of tuples, where each tuple contains an integer ID, i.e. the
-            primary key of models.Span, and a QueryableAttribute.
+            primary key of table, and a QueryableAttribute.
+        table (models.Base): The table to query.
 
     Returns:
         tuple: A tuple containing:
@@ -61,16 +63,16 @@ def _get_stmt(
                 at the second column (because the first column is the span's primary key)--in the
                 result to the attribute's string identifier.
     """
-    span_rowids: set[SpanRowId] = set()
+    rowids: set[RowId] = set()
     attrs: dict[_AttrStrIdentifier, QueryableAttribute[Any]] = {}
     joins = set()
-    for span_rowid, attr in keys:
-        span_rowids.add(span_rowid)
+    for rowid, attr in keys:
+        rowids.add(rowid)
         attrs[str(attr)] = attr
-        if (entity := attr.parent.entity) is not models.Span:
+        if (entity := attr.parent.entity) is not table:
             joins.add(entity)
-    stmt = select(models.Span.id).where(models.Span.id.in_(span_rowids))
-    for table in joins:
-        stmt = stmt.join(table)
+    stmt = select(table.id).where(table.id.in_(rowids))
+    for other_table in joins:
+        stmt = stmt.join(other_table)
     identifiers, columns = zip(*attrs.items())
     return stmt.add_columns(*columns), dict(enumerate(identifiers))

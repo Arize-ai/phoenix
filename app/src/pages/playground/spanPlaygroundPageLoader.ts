@@ -34,8 +34,9 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
               id
               name
             }
-            context {
-              spanId
+            spanId
+            trace {
+              id
               traceId
             }
             attributes

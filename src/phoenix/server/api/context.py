@@ -41,8 +41,8 @@ from phoenix.server.api.dataloaders import (
     SpanByIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
-    SpanFieldsDataLoader,
     SpanProjectsDataLoader,
+    TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRootSpansDataLoader,
@@ -76,6 +76,7 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    project_fields: TableFieldsDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
     session_first_inputs: SessionIODataLoader
@@ -88,10 +89,11 @@ class DataLoaders:
     span_by_id: SpanByIdDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
-    span_fields: SpanFieldsDataLoader
+    span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
+    trace_fields: TableFieldsDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     project_by_name: ProjectByNameDataLoader
     users: UsersDataLoader

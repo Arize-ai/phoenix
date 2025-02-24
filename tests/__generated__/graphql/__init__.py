@@ -990,6 +990,7 @@ class Span(Node):
     project: Project = Field(...)
     propagatedStatusCode: Literal["ERROR", "OK", "UNSET"] = Field(...)
     spanAnnotations: list[SpanAnnotation] = Field(...)
+    spanId: str
     spanKind: Literal[
         "agent",
         "chain",
@@ -1008,6 +1009,7 @@ class Span(Node):
     tokenCountCompletion: Optional[int] = None
     tokenCountPrompt: Optional[int] = None
     tokenCountTotal: Optional[int] = None
+    trace: Trace
 
 
 class SpanAnnotation(Annotation, Node):
@@ -1213,6 +1215,7 @@ class Trace(Node):
     endTime: str
     id: str = Field(...)
     latencyMs: Optional[float] = None
+    project: Project
     projectId: str
     projectSessionId: Optional[str] = None
     rootSpan: Optional[Span] = None

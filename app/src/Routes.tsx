@@ -195,7 +195,7 @@ const router = createBrowserRouter(
               handle={{
                 crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
                   if (data.span.__typename === "Span") {
-                    return `span ${data.span.context.spanId}`;
+                    return `span ${data.span.spanId}`;
                   }
                   return "span unknown";
                 },

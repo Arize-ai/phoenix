@@ -1755,6 +1755,8 @@ type Span implements Node {
   """the parent span ID. If null, it is a root span"""
   parentId: ID
   spanKind: SpanKind!
+  spanId: ID!
+  trace: Trace!
   context: SpanContext!
 
   """Span attributes as a JSON string"""
@@ -2080,10 +2082,11 @@ input ToolResultContentValueInput {
 type Trace implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  traceId: String!
+  traceId: ID!
   startTime: DateTime!
   endTime: DateTime!
   latencyMs: Float
+  project: Project!
   projectId: GlobalID!
   projectSessionId: GlobalID
   session: ProjectSession

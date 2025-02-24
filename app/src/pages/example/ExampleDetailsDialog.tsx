@@ -44,11 +44,12 @@ export function ExampleDetailsDialog({
             }
             span {
               id
-              context {
-                traceId
-              }
-              project {
+              trace {
                 id
+                traceId
+                project {
+                  id
+                }
               }
             }
           }
@@ -74,8 +75,8 @@ export function ExampleDetailsDialog({
     }
     return {
       id: sourceSpan.id,
-      traceId: sourceSpan.context.traceId,
-      projectId: sourceSpan.project.id,
+      traceId: sourceSpan.trace.traceId,
+      projectId: sourceSpan.trace.project.id,
     };
   }, [data]);
   const { input, output, metadata } = revision;

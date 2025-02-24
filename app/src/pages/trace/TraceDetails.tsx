@@ -41,7 +41,7 @@ function findRootSpan(spansList: Span[]): Span | null {
   const rootSpan = spansList.find((span) => span.parentId == null);
   if (rootSpan) return rootSpan;
   // Otherwise we need to find all spans whose parent span is not in our collection.
-  const spanIds = new Set(spansList.map((span) => span.context.spanId));
+  const spanIds = new Set(spansList.map((span) => span.spanId));
   const rootSpans = spansList.filter(
     (span) => span.parentId != null && !spanIds.has(span.parentId)
   );
@@ -72,10 +72,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                 edges {
                   span: node {
                     id
-                    context {
-                      spanId
-                      traceId
-                    }
+                    spanId
                     name
                     spanKind
                     statusCode: propagatedStatusCode

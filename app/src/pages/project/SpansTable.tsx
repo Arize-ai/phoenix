@@ -106,8 +106,9 @@ export function SpansTable(props: SpansTableProps) {
                 tokenCountTotal
                 tokenCountPrompt
                 tokenCountCompletion
-                context {
-                  spanId
+                spanId
+                trace {
+                  id
                   traceId
                 }
                 input {
@@ -296,9 +297,10 @@ export function SpansTable(props: SpansTableProps) {
       enableSorting: false,
       cell: ({ getValue, row }) => {
         const span = row.original;
-        const { traceId } = span.context;
         return (
-          <Link to={`traces/${traceId}?selectedSpanNodeId=${span.id}`}>
+          <Link
+            to={`traces/${span.trace.traceId}?selectedSpanNodeId=${span.id}`}
+          >
             {getValue() as string}
           </Link>
         );
@@ -504,7 +506,7 @@ export function SpansTable(props: SpansTableProps) {
                     key={row.id}
                     onClick={() =>
                       navigate(
-                        `traces/${row.original.context.traceId}?selectedSpanNodeId=${row.original.id}`
+                        `traces/${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
                       )
                     }
                   >

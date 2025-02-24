@@ -91,9 +91,10 @@ type RootSpanProps = {
 };
 
 function RootSpanDetails({
+  traceId,
   rootSpan,
   index,
-}: RootSpanProps & { index: number }) {
+}: RootSpanProps & { traceId: string; index: number }) {
   const startDate = useMemo(() => {
     return new Date(rootSpan.startTime);
   }, [rootSpan.startTime]);
@@ -113,7 +114,7 @@ function RootSpanDetails({
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace #{index + 1}</Text>
             <Link
-              to={`/projects/${rootSpan.project.id}/traces/${rootSpan.context.traceId}?selectedSpanNodeId=${rootSpan.id}`}
+              to={`/projects/${rootSpan.project.id}/traces/${traceId}?selectedSpanNodeId=${rootSpan.id}`}
             >
               <Flex alignItems={"center"}>
                 View Trace
@@ -203,19 +204,23 @@ export function SessionDetailsTraceList({
   const sessionRootSpans = useMemo(() => {
     const edges = traces?.edges || [];
     return edges
-      .map(({ trace }) => trace.rootSpan)
+      .map(({ trace }) => trace)
       .filter(
-        (rootSpan): rootSpan is NonNullable<typeof rootSpan> => rootSpan != null
+        (
+          trace
+        ): trace is typeof trace & {
+          rootSpan: NonNullable<typeof trace.rootSpan>;
+        } => trace.rootSpan !== null
       );
   }, [traces]);
 
   return (
     <View height={"100%"} flex={"1 1 auto"} overflow={"auto"}>
-      {sessionRootSpans.map((rootSpan, index) => (
+      {sessionRootSpans.map(({ id, rootSpan }, index) => (
         <View
           borderBottomColor={"dark"}
           borderBottomWidth={"thin"}
-          key={rootSpan.context.spanId}
+          key={rootSpan.spanId}
         >
           <Flex direction={"row"}>
             <View
@@ -227,7 +232,7 @@ export function SessionDetailsTraceList({
               <RootSpanInputOutput rootSpan={rootSpan} />
             </View>
             <View width={350} padding="size-200" flex="none">
-              <RootSpanDetails rootSpan={rootSpan} index={index} />
+              <RootSpanDetails traceId={id} rootSpan={rootSpan} index={index} />
             </View>
           </Flex>
         </View>
