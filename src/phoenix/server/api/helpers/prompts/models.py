@@ -348,6 +348,7 @@ class AnthropicToolDefinition(PromptModel):
 class PromptOpenAIInvocationParametersContent(PromptModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
+    max_completion_tokens: int = UNDEFINED
     frequency_penalty: float = UNDEFINED
     presence_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
