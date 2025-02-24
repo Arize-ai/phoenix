@@ -7,6 +7,9 @@ import { createClient } from "../client";
  * Parameters for the getPromptBySelector function
  */
 export type GetPromptBySelectorParams = ClientFn & {
+  /**
+   * The prompt to get. Can be in the form of a prompt id, a prompt version id, a prompt name, or a prompt name + tag.
+   */
   prompt: PromptSelector;
 };
 
@@ -17,6 +20,9 @@ export type GetPromptBySelectorParams = ClientFn & {
  * if the input is a prompt version id, fetch that prompt version.
  * if the input is a prompt tag and name, fetch the prompt version that has that tag and name.
  * if the input is a prompt name, fetch the latest prompt version from the client.
+ *
+ * @param params - The parameters to get a prompt.
+ * @returns The nearest prompt version that matches the selector, or null if it does not exist.
  */
 export async function getPromptBySelector({
   client: _client,

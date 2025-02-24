@@ -1,10 +1,10 @@
 import { createClient } from "../client";
 import { ClientFn } from "../types/core";
 import { PromptSelector, PromptVersion } from "../types/prompts";
-import { getPromptBySelector } from "../utils/getPromptVersionLike";
+import { getPromptBySelector } from "../utils/getPromptBySelector";
 
 /**
- * Parameters for the getPrompt function
+ * Parameters for getting a prompt from Phoenix.
  */
 export interface GetPromptParams extends ClientFn {
   /**
@@ -15,6 +15,9 @@ export interface GetPromptParams extends ClientFn {
 
 /**
  * Get a prompt from the Phoenix API.
+ *
+ * @param params - The parameters to get a prompt.
+ * @returns The prompt version, or null if it does not exist.
  */
 export async function getPrompt({
   client: _client,
