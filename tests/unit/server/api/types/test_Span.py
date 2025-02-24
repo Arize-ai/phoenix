@@ -409,9 +409,10 @@ async def _span_data(
                     ),
                 )
                 session.add(span)
-                await session.flush()
-                spans[span.id] = span
                 trace_spans.append(span)
+            await session.flush()
+            for span in trace_spans:
+                spans[span.id] = span
     return project, traces, spans
 
 
