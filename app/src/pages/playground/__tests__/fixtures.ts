@@ -11,14 +11,14 @@ import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 export const basePlaygroundSpan: PlaygroundSpan = {
   __typename: "Span",
-  id: "fake-id",
-  spanId: "test",
+  id: "fake-span-global-id",
+  spanId: "fake-span-id",
   trace: {
-    id: "test",
-    traceId: "test",
+    id: "fake-trace-global-id",
+    traceId: "fake-trace-id",
   },
   project: {
-    id: "test",
+    id: "fake-project-global-id",
     name: "test",
   },
   attributes: "",
