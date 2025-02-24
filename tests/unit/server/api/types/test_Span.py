@@ -16,6 +16,7 @@ from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import get_attribute_value
 from tests.unit.graphql import AsyncGraphQLClient
@@ -116,66 +117,115 @@ async def test_span_fields(
     _span_data: tuple[models.Project, Mapping[int, models.Trace], Mapping[int, models.Span]],
 ) -> None:
     query = """
-      query ($projectId: GlobalID!) {
-        node(id: $projectId) {
-          ... on Project {
+      query SpanBySpanNodeId($id: GlobalID!) {
+        node(id: $id) {
+          ... on Span {
+            ...SpanFragment
+          }
+        }
+      }
+      query SpansByTraceNodeId($traceId: GlobalID!) {
+        node(id: $traceId) {
+          ... on Trace {
             spans(first: 1000) {
               edges {
                 node {
-                  id
-                  name
-                  statusCode
-                  statusMessage
-                  startTime
-                  endTime
-                  latencyMs
-                  parentId
-                  spanKind
-                  context {
-                    spanId
-                    traceId
-                  }
-                  attributes
-                  tokenCountTotal
-                  tokenCountPrompt
-                  tokenCountCompletion
-                  cumulativeTokenCountTotal
-                  cumulativeTokenCountPrompt
-                  cumulativeTokenCountCompletion
-                  propagatedStatusCode
-                  input {
-                    mimeType
-                    value
-                  }
-                  output {
-                    mimeType
-                    value
-                  }
-                  events {
-                    name
-                    message
-                    timestamp
-                  }
-                  metadata
-                  numDocuments
-                  descendants {
-                    id
-                  }
+                  ...SpanFragment
                 }
               }
             }
           }
         }
       }
+      query SpansByProjectNodeId($projectId: GlobalID!) {
+        node(id: $projectId) {
+          ... on Project {
+            spans(first: 1000) {
+              edges {
+                node {
+                  ...SpanFragment
+                }
+              }
+            }
+          }
+        }
+      }
+      fragment SpanFragment on Span {
+        id
+        name
+        statusCode
+        statusMessage
+        startTime
+        endTime
+        latencyMs
+        parentId
+        spanKind
+        context {
+          spanId
+          traceId
+        }
+        attributes
+        tokenCountTotal
+        tokenCountPrompt
+        tokenCountCompletion
+        cumulativeTokenCountTotal
+        cumulativeTokenCountPrompt
+        cumulativeTokenCountCompletion
+        propagatedStatusCode
+        input {
+          mimeType
+          value
+        }
+        output {
+          mimeType
+          value
+        }
+        events {
+          name
+          message
+          timestamp
+        }
+        metadata
+        numDocuments
+        descendants {
+          id
+        }
+      }
     """
     db_project, db_traces, db_spans = _span_data
     db_descendent_ids = _get_descendant_rowids(db_spans)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
-    response = await gql_client.execute(query=query, variables={"projectId": project_id})
+    response = await gql_client.execute(
+        query=query,
+        variables={"projectId": project_id},
+        operation_name="SpansByProjectNodeId",
+    )
     assert not response.errors
     assert (data := response.data) is not None
     spans = [e["node"] for e in data["node"]["spans"]["edges"]]
     assert len(spans) == len(db_spans)
+    for db_trace in db_traces.values():
+        trace_gid = str(GlobalID(Trace.__name__, str(db_trace.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"traceId": trace_gid},
+            operation_name="SpansByTraceNodeId",
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        spans.extend(e["node"] for e in data["node"]["spans"]["edges"])
+    assert len(spans) == len(db_spans) * 2
+    for db_span in db_spans.values():
+        id_ = str(GlobalID(Span.__name__, str(db_span.id)))
+        response = await gql_client.execute(
+            query=query,
+            variables={"id": id_},
+            operation_name="SpanBySpanNodeId",
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        spans.append(data["node"])
+    assert len(spans) == len(db_spans) * 3
     for span in spans:
         span_rowid = from_global_id_with_expected_type(GlobalID.from_id(span["id"]), Span.__name__)
         db_span = db_spans[span_rowid]
@@ -280,7 +330,7 @@ async def _span_data(
             await session.flush()
             traces[trace.id] = trace
             trace_spans: list[models.Span] = []
-            for _ in range(50):
+            for _ in range(25):
                 attributes: dict[str, Any] = fake.pydict(allowed_types=(str, int, float, bool))
                 if random() < 0.5:
                     attributes["llm"] = {
