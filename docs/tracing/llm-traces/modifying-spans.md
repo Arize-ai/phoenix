@@ -1,6 +1,6 @@
-# Filtering Spans
+# Modifying Spans
 
-Sometimes while instrumenting your application, you may want to filter out certain spans from being sent to Phoenix. For example, you may want to filter out spans that are that contain sensitive information or contain redundant information.
+Sometimes while instrumenting your application, you may want to filter out or modify certain spans from being sent to Phoenix. For example, you may want to filter out spans that are that contain sensitive information or contain redundant information.
 
 To do this, you can use a custom `SpanProcessor` and attach it to the OpenTelemetry `TracerProvider`.
 
@@ -40,5 +40,7 @@ tracer_provider.add_span_processor(
 ```
 
 In this example, we're filtering out any spans that have the name "secret\_span" by bypassing the `on_start` and `on_end` hooks of the inherited `BatchSpanProcessor`.
+
+Notice that this logic can be extended to modify a span and redact sensitive information if preserving the span is preferred.
 {% endtab %}
 {% endtabs %}

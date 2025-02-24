@@ -14,7 +14,7 @@ _Follow our tutorial in a notebook with our Langchain and LlamaIndex integration
 
 ## Logging Retrievals to Phoenix (as Inferences)
 
-<figure><img src="../.gitbook/assets/image (27).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="broken-reference" alt=""><figcaption></figcaption></figure>
 
 #### Step 1: Logging Knowledge Base
 

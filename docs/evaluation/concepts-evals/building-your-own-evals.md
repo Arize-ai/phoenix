@@ -4,7 +4,7 @@
 
 The LLM Evals library is designed to support the building of any custom Eval templates.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-04 at 10.06.26 PM.png" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
+<figure><img src="broken-reference" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
 
 ## Steps to Building Your Own Eval
 

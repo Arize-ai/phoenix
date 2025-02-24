@@ -21,7 +21,7 @@
   * [Traces](tracing/llm-traces/what-are-traces.md)
   * [How Tracing Works](tracing/llm-traces/how-does-tracing-work.md)
   * [Annotating Traces](tracing/llm-traces/how-to-annotate-traces.md)
-  * [Filtering Spans](tracing/llm-traces/filtering-spans.md)
+  * [Modifying Spans](tracing/llm-traces/modifying-spans.md)
   * [FAQs: Tracing](tracing/llm-traces/faqs-tracing.md)
 * [Quickstart: Tracing](tracing/llm-traces-1.md)
 * [Tracing Integrations (Auto)](tracing/integrations-tracing/README.md)
