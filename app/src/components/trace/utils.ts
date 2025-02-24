@@ -42,5 +42,10 @@ export function createSpanTree<TSpan extends ISpanItem>(
         new Date(b.span.startTime).valueOf()
     );
   }
+  rootSpans.sort(
+    (a, b) =>
+      new Date(a.span.startTime).valueOf() -
+      new Date(b.span.startTime).valueOf()
+  );
   return rootSpans;
 }
