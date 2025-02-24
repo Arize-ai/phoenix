@@ -8,13 +8,6 @@
 * Add max_completion_tokens to openai param validation ([#6550](https://github.com/Arize-ai/phoenix/issues/6550)) ([c99ee6f](https://github.com/Arize-ai/phoenix/commit/c99ee6fe69bc0ebde8d0fe018044f796142fcdc9))
 * **client:** update python client sdk helper for anthropic 0.47 ([#6551](https://github.com/Arize-ai/phoenix/issues/6551)) ([4abbd0d](https://github.com/Arize-ai/phoenix/commit/4abbd0dbe941009245d06a95329426e34df90ed9))
 
-
-### Documentation
-
-* No subject (GITBOOK-1038) ([812ea2c](https://github.com/Arize-ai/phoenix/commit/812ea2caaee1889741bb893995fb89b4653430d7))
-* No subject (GITBOOK-1040) ([1d31ae8](https://github.com/Arize-ai/phoenix/commit/1d31ae8de6c924f9ecd0d3c77f77fef033320c86))
-* No subject (GITBOOK-1045) ([0aa0301](https://github.com/Arize-ai/phoenix/commit/0aa03011bda53faad35267facc73047e4be35142))
-
 ## [1.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.0.0...arize-phoenix-client-v1.0.1) (2025-02-19)
 
 
