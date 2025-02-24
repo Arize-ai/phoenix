@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import logging
 from types import MappingProxyType
@@ -14,6 +15,7 @@ from typing import (
     Sequence,
     TypedDict,
     Union,
+    cast,
     overload,
 )
 
@@ -21,6 +23,13 @@ from typing_extensions import Required, TypeAlias, assert_never
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.utils.template_formatters import TemplateFormatter, to_formatter
+
+try:
+    _anthropic_version = cast(
+        tuple[int, int], tuple(map(int, importlib.metadata.version("anthropic").split(".")[:2]))
+    )
+except importlib.metadata.PackageNotFoundError:
+    _anthropic_version = (0, 0)
 
 if TYPE_CHECKING:
     from anthropic._client import Anthropic
@@ -30,14 +39,17 @@ if TYPE_CHECKING:
         ImageBlockParam,
         MessageParam,
         ModelParam,
+        RedactedThinkingBlockParam,
         TextBlock,
         TextBlockParam,
+        ThinkingBlockParam,
         ToolChoiceAnyParam,
         ToolChoiceAutoParam,
         ToolChoiceParam,
         ToolChoiceToolParam,
         ToolParam,
         ToolResultBlockParam,
+        ToolUnionParam,
         ToolUseBlock,
         ToolUseBlockParam,
     )
@@ -48,6 +60,8 @@ if TYPE_CHECKING:
         ImageBlockParam,
         ToolUseBlockParam,
         ToolResultBlockParam,
+        ThinkingBlockParam,
+        RedactedThinkingBlockParam,
         DocumentBlockParam,
     ]
     _ContentPart: TypeAlias = Union[
@@ -127,7 +141,7 @@ def create_prompt_version_from_anthropic(
     )
     tool_kwargs: _ToolKwargs = {}
     if "tools" in obj:
-        tool_kwargs["tools"] = list(obj["tools"])
+        tool_kwargs["tools"] = list(_get_tool_params(obj["tools"]))
     if "tool_choice" in obj:
         tool_kwargs["tool_choice"] = obj["tool_choice"]
     if (tools := _ToolKwargsConversion.from_anthropic(tool_kwargs)) is not None:
@@ -653,6 +667,10 @@ class _ContentConversion:
                     content.append(_ToolResultContentPartConversion.from_anthropic(block))
                 elif block["type"] == "document":
                     raise NotImplementedError
+                elif block["type"] == "thinking":
+                    raise NotImplementedError
+                elif block["type"] == "redacted_thinking":
+                    raise NotImplementedError
                 else:
                     assert_never(block["type"])
             else:
@@ -660,10 +678,21 @@ class _ContentConversion:
 
                 if isinstance(block, TextBlock):
                     content.append(_TextContentPartConversion.from_anthropic_block(block))
-                elif isinstance(block, ToolUseBlock):
+                    continue
+                if isinstance(block, ToolUseBlock):
                     content.append(_ToolCallContentPartConversion.from_anthropic_block(block))
-                else:
-                    assert_never(block)
+                    continue
+                if _anthropic_version < (0, 47):
+                    continue
+                from anthropic.types import ThinkingBlock
+
+                if isinstance(block, ThinkingBlock):
+                    raise NotImplementedError
+                from anthropic.types import RedactedThinkingBlock
+
+                if isinstance(block, RedactedThinkingBlock):
+                    raise NotImplementedError
+                assert_never(block)
         return content
 
 
@@ -708,3 +737,12 @@ class _RoleConversion:
         if TYPE_CHECKING:
             assert_never(obj["role"])
         return obj["role"]
+
+
+def _get_tool_params(
+    tools: Iterable[ToolUnionParam],
+) -> Iterator[ToolParam]:
+    for tool in tools:
+        if "type" in tool:
+            continue
+        yield tool
