@@ -54,6 +54,33 @@ Phoenix supports two types of database URLs:
 Note that if you plan on using SQLite, it's advised to to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
 """
+ENV_PHOENIX_POSTGRES_HOST = "PHOENIX_POSTGRES_HOST"
+"""
+As an alternative to setting PHOENIX_SQL_DATABASE_URL, you can set the following
+environment variables to connect to a PostgreSQL database:
+- PHOENIX_POSTGRES_HOST
+- PHOENIX_POSTGRES_PORT
+- PHOENIX_POSTGRES_USER
+- PHOENIX_POSTGRES_PASSWORD
+- PHOENIX_POSTGRES_DB
+"""
+ENV_PHOENIX_POSTGRES_PORT = "PHOENIX_POSTGRES_PORT"
+"""
+Used with PHOENIX_POSTGRES_HOST to specify the port to use for the PostgreSQL database.
+"""
+ENV_PHOENIX_POSTGRES_USER = "PHOENIX_POSTGRES_USER"
+"""
+Used with PHOENIX_POSTGRES_HOST to specify the user to use for the PostgreSQL database (required).
+"""
+ENV_PHOENIX_POSTGRES_PASSWORD = "PHOENIX_POSTGRES_PASSWORD"
+"""
+Used with PHOENIX_POSTGRES_HOST to specify the password to use for the PostgreSQL database
+(required).
+"""
+ENV_PHOENIX_POSTGRES_DB = "PHOENIX_POSTGRES_DB"
+"""
+Used with PHOENIX_POSTGRES_HOST to specify the database to use for the PostgreSQL database.
+"""
 ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 """
 The schema to use for the PostgresSQL database. (This is ignored for SQLite.)
@@ -635,11 +662,11 @@ def get_env_database_connection_str() -> str:
 
 
 def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv("PHOENIX_POSTGRES_USER")
-    pg_password = os.getenv("PHOENIX_POSTGRES_PASSWORD")
-    pg_host = os.getenv("PHOENIX_POSTGRES_HOST")
-    pg_port = os.getenv("PHOENIX_POSTGRES_PORT")
-    pg_db = os.getenv("PHOENIX_POSTGRES_DB")
+    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
+    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
+    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
+    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
 
     if pg_host and ":" in pg_host:
         pg_host, parsed_port = pg_host.split(":")
