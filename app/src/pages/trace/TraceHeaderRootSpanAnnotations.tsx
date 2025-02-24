@@ -7,12 +7,12 @@ import {
   AnnotationTooltip,
 } from "../../components/annotation";
 
-import { TraceHeaderSpanAnnotationsQuery } from "./__generated__/TraceHeaderSpanAnnotationsQuery.graphql";
+import { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeaderRootSpanAnnotationsQuery.graphql";
 
 export function TraceHeaderRootSpanAnnotations(id: string) {
-  const data = useLazyLoadQuery<TraceHeaderSpanAnnotationsQuery>(
+  const data = useLazyLoadQuery<TraceHeaderRootSpanAnnotationsQuery>(
     graphql`
-      query TraceHeaderSpanAnnotationsQuery($id: GlobalID!) {
+      query TraceHeaderRootSpanAnnotationsQuery($id: GlobalID!) {
         span: node(id: $id) {
           ... on Span {
             spanAnnotations {

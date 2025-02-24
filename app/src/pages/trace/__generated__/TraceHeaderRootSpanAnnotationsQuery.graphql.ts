@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2f9f2fe9c8c4ba9bdeaa9a356d239dc>>
+ * @generated SignedSource<<ca1aeb7a5b9718ea39c48fa1999c08f1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,10 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
-export type TraceHeaderSpanAnnotationsQuery$variables = {
+export type TraceHeaderRootSpanAnnotationsQuery$variables = {
   id: string;
 };
-export type TraceHeaderSpanAnnotationsQuery$data = {
+export type TraceHeaderRootSpanAnnotationsQuery$data = {
   readonly span: {
     readonly spanAnnotations?: ReadonlyArray<{
       readonly annotatorKind: AnnotatorKind;
@@ -23,9 +23,9 @@ export type TraceHeaderSpanAnnotationsQuery$data = {
     }>;
   };
 };
-export type TraceHeaderSpanAnnotationsQuery = {
-  response: TraceHeaderSpanAnnotationsQuery$data;
-  variables: TraceHeaderSpanAnnotationsQuery$variables;
+export type TraceHeaderRootSpanAnnotationsQuery = {
+  response: TraceHeaderRootSpanAnnotationsQuery$data;
+  variables: TraceHeaderRootSpanAnnotationsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -94,7 +94,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "TraceHeaderSpanAnnotationsQuery",
+    "name": "TraceHeaderRootSpanAnnotationsQuery",
     "selections": [
       {
         "alias": "span",
@@ -116,7 +116,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "TraceHeaderSpanAnnotationsQuery",
+    "name": "TraceHeaderRootSpanAnnotationsQuery",
     "selections": [
       {
         "alias": "span",
@@ -151,16 +151,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b17f749bdfb73964303a8be363b697a0",
+    "cacheID": "72a83342701c8636f9f95241c5f879e6",
     "id": null,
     "metadata": {},
-    "name": "TraceHeaderSpanAnnotationsQuery",
+    "name": "TraceHeaderRootSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderSpanAnnotationsQuery(\n  $id: GlobalID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $id: GlobalID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "130635555db91fc98aaae9598692e23f";
+(node as any).hash = "6c3505c6379d4b0066df22d2599c1c0f";
 
 export default node;
