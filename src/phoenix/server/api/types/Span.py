@@ -319,8 +319,11 @@ class Span(Node):
         info: Info[Context, None],
     ) -> Optional[SpanIOValue]:
         if self.db_span:
-            mime_type = self.db_span.input_mime_type
             input_value = self.db_span.input_value
+            if input_value is None or input_value == "":
+                return None
+            input_value = str(input_value)
+            mime_type = self.db_span.input_mime_type
             return SpanIOValue(
                 cached_value=input_value,
                 mime_type=MimeType(mime_type),
@@ -348,8 +351,11 @@ class Span(Node):
         info: Info[Context, None],
     ) -> Optional[SpanIOValue]:
         if self.db_span:
-            mime_type = self.db_span.output_mime_type
             output_value = self.db_span.output_value
+            if output_value is None or output_value == "":
+                return None
+            output_value = str(output_value)
+            mime_type = self.db_span.output_mime_type
             return SpanIOValue(
                 cached_value=output_value,
                 mime_type=MimeType(mime_type),
