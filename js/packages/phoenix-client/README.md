@@ -1,5 +1,8 @@
 # @arizeai/phoenix-client
 
+![](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client
+)
+
 This package provides a client for the [Arize Phoenix](https://github.com/Arize-ai/phoenix) API. It is still under active development and is subject to change.
 
 ## Installation
