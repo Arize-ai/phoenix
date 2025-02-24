@@ -8,7 +8,7 @@ However, these retrieval systems can still hallucinate or provide answers that a
 2. Are the documents that the system retrieves irrelevant? Do we have the right documents to answer the question?
 3. Does the response match the provided documents?
 
-<figure><img src="../.gitbook/assets/image (26).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="broken-reference" alt=""><figcaption></figcaption></figure>
 
 Phoenix supports retrievals troubleshooting and evaluation on both traces and inferences, but inferences are currently required to visualize your retrievals using a UMAP. See below on the differences.
 

@@ -22,7 +22,7 @@ To access the Phoenix app, you can either sign up for a free Phoenix Cloud accou
 To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix. The `register` utility from the `phoenix.otel` module streamlines this process.
 
 ```bash
-pip install arize-phoenix
+!pip install arize-phoenix-otel
 ```
 
 Connect your application to your cloud instance using:
