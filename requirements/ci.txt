@@ -6,5 +6,5 @@ uvloop; platform_system != 'Windows'
 pydantic>=1.0,!=2.0.*,<3
 pyright[nodejs]==1.1.394
 deepdiff==8.2.0
-anthropic==0.45.2
+anthropic==0.47.0
 openai==1.62.0

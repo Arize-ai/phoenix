@@ -13,6 +13,9 @@ sdist
 # Server static files
 /src/phoenix/server/static/*
 
+# Docgen
+/js/**/docs
+
 # Data files
 *.csv
 !tests/**/fixtures/*.csv

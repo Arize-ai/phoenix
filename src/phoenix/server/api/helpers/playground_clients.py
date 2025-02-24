@@ -806,6 +806,10 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                     raise NotImplementedError
                 elif isinstance(event, anthropic_streaming._types.CitationEvent):
                     raise NotImplementedError
+                elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                    raise NotImplementedError
+                elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                    raise NotImplementedError
                 else:
                     assert_never(event)
 

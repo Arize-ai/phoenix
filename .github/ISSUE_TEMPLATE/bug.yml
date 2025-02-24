@@ -1,0 +1,88 @@
+name: Bug report
+description: Help us improve Phoenix by reporting a bug
+title: "[BUG]: "
+labels: ["bug", "triage"]
+projects: ["Arize-ai/42"]
+body:
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Where do you use Phoenix
+      options:
+        - Local (self-hosted)
+        - Phoenix Cloud (app.phoenix.arize.com)
+        - Container (self-hosted)
+        - Notebook (Jupyter, Colab, etc)
+      default: 0
+  - type: input
+    id: version
+    attributes:
+      label: What version of Phoenix are you using?
+      placeholder: e.g. 8.0.0, Cloud
+      description: You may be able to find this by running "pip show arize-phoenix"
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: What operating system are you seeing the problem on?
+      placeholder: e.g. macOS, Windows, Linux, Cloud
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: What version of Python are you running Phoenix with?
+      placeholder: e.g. 3.13, Cloud
+    validations:
+      required: true
+  - type: input
+    id: instrumentation-runtime
+    attributes:
+      label: What version of Python or Node are you using instrumentation with?
+      placeholder: e.g. Python 3.13, Node v23
+      description: (If applicable)
+  - type: textarea
+    id: instrumentation
+    attributes:
+      label: What instrumentation are you using?
+      placeholder: |
+        # Python
+        arize-phoenix-otel==0.8.0
+        openinference-instrumentation-openai==0.1.21
+        --- or ---
+        // JavaScript
+        "@arizeai/openinference-instrumentation-openai": "^2.0.0",
+      description: (If applicable) Include package names, versions
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you saw
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What did you expect to happen?
+      placeholder: Tell us what you want to see
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: How can we reproduce the bug?
+      description: Please include any code samples, screenshots, videos, or steps to reproduce the bug.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: additional-information
+    attributes:
+      label: Additional information
+      description: Please include any additional information that can help us with your issue.
