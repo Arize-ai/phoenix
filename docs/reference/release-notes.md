@@ -4,7 +4,7 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
-02.19.2025: Prompts 📃
+## 02.19.2025: Prompts 📃
 
 **Available in Phoenix 8.0+**
 
