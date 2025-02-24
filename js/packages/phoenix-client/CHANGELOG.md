@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 1.0.2
+
+### Patch Changes
+
+- c99ee6f: Update type definitions to include max_completion_tokens openai parameter
+
 ## 1.0.1
 
 ### Patch Changes
