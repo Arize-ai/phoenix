@@ -386,6 +386,7 @@ class TestClient:
                     top_p=random(),
                     presence_penalty=random(),
                     frequency_penalty=random(),
+                    max_tokens=randint(1, 256),
                     seed=randint(24, 42),
                     messages=[
                         {"role": "system", "content": "You are {role}."},
@@ -403,6 +404,7 @@ class TestClient:
                     top_p=random(),
                     presence_penalty=random(),
                     frequency_penalty=random(),
+                    max_completion_tokens=randint(1, 256),
                     seed=randint(24, 42),
                     messages=[
                         {
