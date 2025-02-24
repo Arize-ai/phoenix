@@ -93,7 +93,7 @@ class ProjectSession(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
     ) -> Connection[Annotated["Trace", lazy(".Trace")]]:
-        from phoenix.server.api.types.Trace import to_gql_trace
+        from phoenix.server.api.types.Trace import Trace
 
         args = ConnectionArgs(
             first=first,
@@ -109,7 +109,7 @@ class ProjectSession(Node):
         )
         async with info.context.db() as session:
             traces = await session.stream_scalars(stmt)
-            data = [to_gql_trace(trace) async for trace in traces]
+            data = [Trace(trace_rowid=trace.id, db_trace=trace) async for trace in traces]
         return connection_from_list(data=data, args=args)
 
     @strawberry.field

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d68580c3529a74e2f4819c3532ed0d3>>
+ * @generated SignedSource<<14b5fa90d02d085ee1ce8150de32df83>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,10 +19,6 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly context: {
-          readonly spanId: string;
-          readonly traceId: string;
-        };
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
           readonly hit: number | null;
@@ -45,12 +41,17 @@ export type SpansTable_spans$data = {
           readonly name: string;
           readonly score: number | null;
         }>;
+        readonly spanId: string;
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly tokenCountCompletion: number | null;
         readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
+        readonly trace: {
+          readonly id: string;
+          readonly traceId: string;
+        };
       };
     }>;
   };
@@ -259,18 +260,19 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanContext",
+                  "kind": "ScalarField",
+                  "name": "spanId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Trace",
                   "kind": "LinkedField",
-                  "name": "context",
+                  "name": "trace",
                   "plural": false,
                   "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "spanId",
-                      "storageKey": null
-                    },
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -439,6 +441,6 @@ return {
 };
 })();
 
-(node as any).hash = "4827989f55b1c0bd269253b6bc977439";
+(node as any).hash = "deeaa622bee39be6881a6a5b56883d10";
 
 export default node;

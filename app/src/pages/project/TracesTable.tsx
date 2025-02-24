@@ -146,8 +146,9 @@ export function TracesTable(props: TracesTableProps) {
                 output {
                   value: truncatedValue
                 }
-                context {
-                  spanId
+                spanId
+                trace {
+                  id
                   traceId
                 }
                 spanAnnotations {
@@ -180,8 +181,9 @@ export function TracesTable(props: TracesTableProps) {
                   output {
                     value: truncatedValue
                   }
-                  context {
-                    spanId
+                  spanId
+                  trace {
+                    id
                     traceId
                   }
                   spanAnnotations {
@@ -406,7 +408,7 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "name",
       enableSorting: false,
       cell: ({ getValue, row }) => {
-        const { traceId } = row.original.context;
+        const { traceId } = row.original.trace;
         return (
           <Link to={`traces/${traceId}?selectedSpanNodeId=${row.original.id}`}>
             {getValue() as string}
@@ -626,7 +628,7 @@ export function TracesTable(props: TracesTableProps) {
                   <tr
                     key={row.id}
                     onClick={() =>
-                      navigate(`traces/${row.original.context.traceId}`)
+                      navigate(`traces/${row.original.trace.traceId}`)
                     }
                   >
                     {row.getVisibleCells().map((cell) => {

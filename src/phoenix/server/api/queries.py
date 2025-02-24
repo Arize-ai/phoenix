@@ -66,7 +66,7 @@ from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.Trace import to_gql_trace
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
@@ -236,10 +236,8 @@ class Query:
             projects = await session.stream_scalars(stmt)
             data = [
                 Project(
-                    id_attr=project.id,
-                    name=project.name,
-                    gradient_start_color=project.gradient_start_color,
-                    gradient_end_color=project.gradient_end_color,
+                    project_rowid=project.id,
+                    db_project=project,
                 )
                 async for project in projects
             ]
@@ -448,21 +446,14 @@ class Query:
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
-            project_stmt = select(
-                models.Project.id,
-                models.Project.name,
-                models.Project.gradient_start_color,
-                models.Project.gradient_end_color,
-            ).where(models.Project.id == node_id)
+            project_stmt = select(models.Project).filter_by(id=node_id)
             async with info.context.db() as session:
-                project = (await session.execute(project_stmt)).first()
+                project = await session.scalar(project_stmt)
             if project is None:
                 raise NotFound(f"Unknown project: {id}")
             return Project(
-                id_attr=project.id,
-                name=project.name,
-                gradient_start_color=project.gradient_start_color,
-                gradient_end_color=project.gradient_end_color,
+                project_rowid=project.id,
+                db_project=project,
             )
         elif type_name == "Trace":
             trace_stmt = select(models.Trace).filter_by(id=node_id)
@@ -470,7 +461,7 @@ class Query:
                 trace = await session.scalar(trace_stmt)
             if trace is None:
                 raise NotFound(f"Unknown trace: {id}")
-            return to_gql_trace(trace)
+            return Trace(trace_rowid=trace.id, db_trace=trace)
         elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)

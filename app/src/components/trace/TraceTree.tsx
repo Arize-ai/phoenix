@@ -263,7 +263,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             const nexSibling = childNodes[index + 1];
             return (
               <li
-                key={leafNode.span.context.spanId}
+                key={leafNode.span.spanId}
                 css={css`
                   position: relative;
                 `}

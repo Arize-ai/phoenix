@@ -37,6 +37,7 @@ from phoenix.trace.attributes import get_attribute_value
 
 if TYPE_CHECKING:
     from phoenix.server.api.types.Project import Project
+    from phoenix.server.api.types.Trace import Trace
 
 
 @strawberry.enum
@@ -215,6 +216,34 @@ class Span(Node):
                 (self.span_rowid, models.Span.span_kind),
             )
         return SpanKind(value)
+
+    @strawberry.field
+    async def span_id(
+        self,
+        info: Info[Context, None],
+    ) -> ID:
+        if self.db_span:
+            span_id = self.db_span.span_id
+        else:
+            span_id = await info.context.data_loaders.span_fields.load(
+                (self.span_rowid, models.Span.span_id),
+            )
+        return ID(span_id)
+
+    @strawberry.field
+    async def trace(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["Trace", strawberry.lazy(".Trace")]:
+        if self.db_span:
+            trace_rowid = self.db_span.trace_rowid
+        else:
+            trace_rowid = await info.context.data_loaders.span_fields.load(
+                (self.span_rowid, models.Span.trace_rowid),
+            )
+        from phoenix.server.api.types.Trace import Trace
+
+        return Trace(trace_rowid=trace_rowid)
 
     @strawberry.field
     async def context(
@@ -561,11 +590,11 @@ class Span(Node):
     ) -> Annotated[
         "Project", strawberry.lazy("phoenix.server.api.types.Project")
     ]:  # use lazy types to avoid circular import: https://strawberry.rocks/docs/types/lazy
-        from phoenix.server.api.types.Project import to_gql_project
+        from phoenix.server.api.types.Project import Project
 
         span_id = self.span_rowid
         project = await info.context.data_loaders.span_projects.load(span_id)
-        return to_gql_project(project)
+        return Project(project_rowid=project.id, db_project=project)
 
     @strawberry.field(description="Indicates if the span is contained in any dataset")  # type: ignore
     async def contained_in_dataset(

@@ -79,6 +79,7 @@ export function ExampleExperimentRunsTable({
               error
               output
               trace {
+                id
                 traceId
                 projectId
               }
@@ -92,6 +93,7 @@ export function ExampleExperimentRunsTable({
                     explanation
                     annotatorKind
                     trace {
+                      id
                       traceId
                       projectId
                     }

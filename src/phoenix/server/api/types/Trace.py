@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, select
-from strawberry import UNSET, Private, lazy
+from strawberry import ID, UNSET, Private, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
@@ -24,6 +24,7 @@ from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.Project import Project
     from phoenix.server.api.types.ProjectSession import ProjectSession
 
 ProjectRowId: TypeAlias = int
@@ -33,49 +34,127 @@ TraceRowId: TypeAlias = int
 @strawberry.type
 class Trace(Node):
     trace_rowid: NodeID[TraceRowId]
-    project_rowid: Private[ProjectRowId]
-    project_session_rowid: Private[Optional[int]]
-    trace_id: str
-    start_time: datetime
-    end_time: datetime
+    db_trace: Private[models.Trace] = UNSET
+
+    def __post_init__(self) -> None:
+        if self.db_trace and self.trace_rowid != self.db_trace.id:
+            raise ValueError("Trace ID mismatch")
+
+    @strawberry.field
+    async def trace_id(
+        self,
+        info: Info[Context, None],
+    ) -> ID:
+        if self.db_trace:
+            trace_id = self.db_trace.trace_id
+        else:
+            trace_id = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.trace_id),
+            )
+        return ID(trace_id)
+
+    @strawberry.field
+    async def start_time(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_trace:
+            start_time = self.db_trace.start_time
+        else:
+            start_time = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.start_time),
+            )
+        return start_time
+
+    @strawberry.field
+    async def end_time(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_trace:
+            end_time = self.db_trace.end_time
+        else:
+            end_time = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.end_time),
+            )
+        return end_time
 
     @strawberry.field
     async def latency_ms(
         self,
         info: Info[Context, None],
     ) -> Optional[float]:
-        async with info.context.db() as session:
-            latency = await session.scalar(
-                select(
-                    models.Trace.latency_ms,
-                ).where(models.Trace.id == self.trace_rowid)
+        if self.db_trace:
+            latency_ms = self.db_trace.latency_ms
+        else:
+            latency_ms = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.latency_ms),
             )
-        return latency
+        return latency_ms
 
     @strawberry.field
-    async def project_id(self) -> GlobalID:
+    async def project(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated["Project", strawberry.lazy(".Project")]:
+        if self.db_trace:
+            project_rowid = self.db_trace.project_rowid
+        else:
+            project_rowid = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.project_rowid),
+            )
         from phoenix.server.api.types.Project import Project
 
-        return GlobalID(type_name=Project.__name__, node_id=str(self.project_rowid))
+        return Project(project_rowid=project_rowid)
 
     @strawberry.field
-    async def project_session_id(self) -> Optional[GlobalID]:
-        if self.project_session_rowid is None:
+    async def project_id(
+        self,
+        info: Info[Context, None],
+    ) -> GlobalID:
+        if self.db_trace:
+            project_rowid = self.db_trace.project_rowid
+        else:
+            project_rowid = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.project_rowid),
+            )
+        from phoenix.server.api.types.Project import Project
+
+        return GlobalID(type_name=Project.__name__, node_id=str(project_rowid))
+
+    @strawberry.field
+    async def project_session_id(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[GlobalID]:
+        if self.db_trace:
+            project_session_rowid = self.db_trace.project_session_rowid
+        else:
+            project_session_rowid = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.project_session_rowid),
+            )
+        if project_session_rowid is None:
             return None
         from phoenix.server.api.types.ProjectSession import ProjectSession
 
-        return GlobalID(type_name=ProjectSession.__name__, node_id=str(self.project_session_rowid))
+        return GlobalID(type_name=ProjectSession.__name__, node_id=str(project_session_rowid))
 
     @strawberry.field
     async def session(
         self,
         info: Info[Context, None],
     ) -> Union[Annotated["ProjectSession", lazy(".ProjectSession")], None]:
-        if self.project_session_rowid is None:
+        if self.db_trace:
+            project_session_rowid = self.db_trace.project_session_rowid
+        else:
+            project_session_rowid = await info.context.data_loaders.trace_fields.load(
+                (self.trace_rowid, models.Trace.project_session_rowid),
+            )
+        if project_session_rowid is None:
             return None
         from phoenix.server.api.types.ProjectSession import to_gql_project_session
 
-        stmt = select(models.ProjectSession).filter_by(id=self.project_session_rowid)
+        stmt = select(models.ProjectSession).filter_by(id=project_session_rowid)
         async with info.context.db() as session:
             project_session = await session.scalar(stmt)
         if project_session is None:
@@ -139,17 +218,6 @@ class Trace(Node):
                 stmt = stmt.order_by(models.TraceAnnotation.created_at.desc())
             annotations = await session.scalars(stmt)
         return [to_gql_trace_annotation(annotation) for annotation in annotations]
-
-
-def to_gql_trace(trace: models.Trace) -> Trace:
-    return Trace(
-        trace_rowid=trace.id,
-        project_rowid=trace.project_rowid,
-        project_session_rowid=trace.project_session_rowid,
-        trace_id=trace.trace_id,
-        start_time=trace.start_time,
-        end_time=trace.end_time,
-    )
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

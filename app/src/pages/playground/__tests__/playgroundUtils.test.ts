@@ -88,7 +88,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   },
   tools: [],
   toolChoice: "auto",
-  spanId: "fake-id",
+  spanId: "fake-span-global-id",
   dirty: false,
   template: {
     __type: "chat",

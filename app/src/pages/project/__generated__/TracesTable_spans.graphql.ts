@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b93ecf824bd8052c6a49b98a7e646d5>>
+ * @generated SignedSource<<bd5a1e4b376973d9a1eb2e22b3f31368>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,18 +19,10 @@ export type TracesTable_spans$data = {
   readonly rootSpans: {
     readonly edges: ReadonlyArray<{
       readonly rootSpan: {
-        readonly context: {
-          readonly spanId: string;
-          readonly traceId: string;
-        };
         readonly cumulativeTokenCountCompletion: number | null;
         readonly cumulativeTokenCountPrompt: number | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: ReadonlyArray<{
-          readonly context: {
-            readonly spanId: string;
-            readonly traceId: string;
-          };
           readonly cumulativeTokenCountCompletion: number | null;
           readonly cumulativeTokenCountPrompt: number | null;
           readonly cumulativeTokenCountTotal: number | null;
@@ -57,9 +49,14 @@ export type TracesTable_spans$data = {
             readonly name: string;
             readonly score: number | null;
           }>;
+          readonly spanId: string;
           readonly spanKind: SpanKind;
           readonly startTime: string;
           readonly statusCode: SpanStatusCode;
+          readonly trace: {
+            readonly id: string;
+            readonly traceId: string;
+          };
         }>;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
@@ -85,9 +82,14 @@ export type TracesTable_spans$data = {
           readonly name: string;
           readonly score: number | null;
         }>;
+        readonly spanId: string;
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
+        readonly trace: {
+          readonly id: string;
+          readonly traceId: string;
+        };
       };
     }>;
   };
@@ -186,18 +188,19 @@ v10 = {
 v11 = {
   "alias": null,
   "args": null,
-  "concreteType": "SpanContext",
+  "kind": "ScalarField",
+  "name": "spanId",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Trace",
   "kind": "LinkedField",
-  "name": "context",
+  "name": "trace",
   "plural": false,
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanId",
-      "storageKey": null
-    },
+    (v2/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -208,7 +211,7 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -242,7 +245,7 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -433,6 +436,7 @@ return {
                 (v11/*: any*/),
                 (v12/*: any*/),
                 (v13/*: any*/),
+                (v14/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -473,7 +477,8 @@ return {
                     (v10/*: any*/),
                     (v11/*: any*/),
                     (v12/*: any*/),
-                    (v13/*: any*/)
+                    (v13/*: any*/),
+                    (v14/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -543,6 +548,6 @@ return {
 };
 })();
 
-(node as any).hash = "7a8017aa7d5eebddd6255365f3372f64";
+(node as any).hash = "a5d9a86c8ac224ed20cdc90bc5442673";
 
 export default node;

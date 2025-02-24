@@ -29,8 +29,8 @@ from .span_annotations import SpanAnnotationsDataLoader
 from .span_by_id import SpanByIdDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
-from .span_fields import SpanFieldsDataLoader
 from .span_projects import SpanProjectsDataLoader
+from .table_fields import TableFieldsDataLoader
 from .token_counts import TokenCountCache, TokenCountDataLoader
 from .trace_by_trace_ids import TraceByTraceIdsDataLoader
 from .trace_root_spans import TraceRootSpansDataLoader
@@ -60,11 +60,11 @@ __all__ = [
     "SessionNumTracesWithErrorDataLoader",
     "SessionTokenUsagesDataLoader",
     "SessionTraceLatencyMsQuantileDataLoader",
-    "SpanFieldsDataLoader",
     "SpanByIdDataLoader",
     "SpanDatasetExamplesDataLoader",
     "SpanDescendantsDataLoader",
     "SpanProjectsDataLoader",
+    "TableFieldsDataLoader",
     "TokenCountDataLoader",
     "TraceByTraceIdsDataLoader",
     "TraceRootSpansDataLoader",

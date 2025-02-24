@@ -20,12 +20,13 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
         span: node(id: $spanId) {
           id
           ... on Span {
-            project {
+            spanId
+            trace {
               id
-            }
-            context {
               traceId
-              spanId
+              project {
+                id
+              }
             }
             tokenCountCompletion
             tokenCountPrompt
@@ -35,16 +36,15 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
         }
       }
     `,
-    { spanId }
+    { spanId },
+    {
+      fetchPolicy: "store-and-network",
+    }
   );
-
-  if (!data.span || !data.span.project || !data.span.context) {
+  if (!data.span || !data.span.trace || !data.span.trace.project) {
     return null;
   }
-  const {
-    project,
-    context: { traceId },
-  } = data.span;
+  const { trace } = data.span;
 
   return (
     <View
@@ -72,7 +72,7 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
               setDialog(
                 <EditSpanAnnotationsDialog
                   spanNodeId={spanId}
-                  projectId={project.id}
+                  projectId={trace.project.id}
                 />
               )
             }
@@ -87,8 +87,8 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
                 setDialog(
                   <Suspense>
                     <PlaygroundRunTraceDetailsDialog
-                      traceId={traceId}
-                      projectId={project.id}
+                      traceId={trace.traceId}
+                      projectId={trace.project.id}
                       title={`Playground Trace`}
                     />
                   </Suspense>

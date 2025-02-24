@@ -85,6 +85,7 @@ export function SessionDetails(props: SessionDetailsProps) {
             traces {
               edges {
                 trace: node {
+                  id
                   rootSpan {
                     id
                     attributes
@@ -111,10 +112,7 @@ export function SessionDetails(props: SessionDetailsProps) {
                       explanation
                       annotatorKind
                     }
-                    context {
-                      traceId
-                      spanId
-                    }
+                    spanId
                   }
                 }
               }

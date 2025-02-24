@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4c7c216148975760c831ae3e50a4ef2>>
+ * @generated SignedSource<<5e0128a28d50d4f5d5a600eedb9cb402>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -241,18 +241,19 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "concreteType": "SpanContext",
+                            "kind": "ScalarField",
+                            "name": "spanId",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "Trace",
                             "kind": "LinkedField",
-                            "name": "context",
+                            "name": "trace",
                             "plural": false,
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "spanId",
-                                "storageKey": null
-                              },
+                              (v3/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -431,12 +432,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "09e4f18ba3f2a63560f542088a4329ff",
+    "cacheID": "743b171d2b7b85cd12227046045fa018",
     "id": null,
     "metadata": {},
     "name": "ProjectPageSpansQuery",
     "operationKind": "query",
-    "text": "query ProjectPageSpansQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SpansTable_spans\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  spans(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageSpansQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SpansTable_spans\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  spans(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        spanId\n        trace {\n          id\n          traceId\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
