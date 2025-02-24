@@ -1,5 +1,20 @@
 # Changelog
 
+## [8.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.2.2...arize-phoenix-v8.3.0) (2025-02-24)
+
+
+### Features
+
+* **client:** typedoc docs gen for phoenix-client ([#6504](https://github.com/Arize-ai/phoenix/issues/6504)) ([14a2730](https://github.com/Arize-ai/phoenix/commit/14a27305d72e152742c81a1cf31cbe87e56e350d))
+
+
+### Bug Fixes
+
+* Add max_completion_tokens to openai param validation ([#6550](https://github.com/Arize-ai/phoenix/issues/6550)) ([c99ee6f](https://github.com/Arize-ai/phoenix/commit/c99ee6fe69bc0ebde8d0fe018044f796142fcdc9))
+* remove unused span annotations in span details query ([#6544](https://github.com/Arize-ai/phoenix/issues/6544)) ([f097568](https://github.com/Arize-ai/phoenix/commit/f097568b06adb645e2bb5fec446cc3374397f867))
+* sort root spans in trace details ([#6548](https://github.com/Arize-ai/phoenix/issues/6548)) ([ffcfc2c](https://github.com/Arize-ai/phoenix/commit/ffcfc2c59c9551adbb55fb5649cba8f38156c222))
+* update playground for anthropic 0.47 ([#6553](https://github.com/Arize-ai/phoenix/issues/6553)) ([bc63e28](https://github.com/Arize-ai/phoenix/commit/bc63e28bf5153b7c593db4a1650da970557c48a3))
+
 ## [8.2.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.2.1...arize-phoenix-v8.2.2) (2025-02-24)
 
 
