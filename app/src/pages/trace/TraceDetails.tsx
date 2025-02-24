@@ -24,7 +24,7 @@ import {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { SpanDetails } from "./SpanDetails";
-import { TraceHeaderSpanAnnotations } from "./TraceHeaderSpanAnnotations";
+import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 
 export const SELECTED_SPAN_NODE_ID_URL_PARAM = "selectedSpanNodeId";
 
@@ -222,7 +222,7 @@ function TraceHeader({
             )}
           </Text>
         </Flex>
-        {rootSpan ? TraceHeaderSpanAnnotations(rootSpan.id) : null}
+        {rootSpan ? TraceHeaderRootSpanAnnotations(rootSpan.id) : null}
         {sessionId && (
           <span
             css={css`

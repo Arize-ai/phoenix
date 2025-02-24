@@ -9,7 +9,7 @@ import {
 
 import { TraceHeaderSpanAnnotationsQuery } from "./__generated__/TraceHeaderSpanAnnotationsQuery.graphql";
 
-export function TraceHeaderSpanAnnotations(id: string) {
+export function TraceHeaderRootSpanAnnotations(id: string) {
   const data = useLazyLoadQuery<TraceHeaderSpanAnnotationsQuery>(
     graphql`
       query TraceHeaderSpanAnnotationsQuery($id: GlobalID!) {
@@ -30,8 +30,9 @@ export function TraceHeaderSpanAnnotations(id: string) {
       fetchPolicy: "store-and-network",
     }
   );
-  const spanAnnotations = data.span.spanAnnotations;
-  return spanAnnotations ? (
+  const spanAnnotations = data.span.spanAnnotations ?? [];
+  const hasAnnotations = spanAnnotations.length > 0;
+  return hasAnnotations ? (
     <Flex direction="column" gap="size-50">
       <Text elementType="h3" size="M" color="text-700">
         Feedback
