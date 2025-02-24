@@ -1,5 +1,5 @@
 {
-  "name": "ArizeAI Phoenix Client",
+  "name": "@arizeai/phoenix-client",
   // We have to manually keep this in sync with the entry points in the package.json
   // Other projects seem to use one large entry point, but we have a lot of small ones
   // The jury is out on which is better
