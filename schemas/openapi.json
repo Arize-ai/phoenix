@@ -2309,6 +2309,10 @@
             "type": "integer",
             "title": "Max Tokens"
           },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
+          },
           "frequency_penalty": {
             "type": "number",
             "title": "Frequency Penalty"
@@ -2538,6 +2542,10 @@
           "max_tokens": {
             "type": "integer",
             "title": "Max Tokens"
+          },
+          "max_completion_tokens": {
+            "type": "integer",
+            "title": "Max Completion Tokens"
           },
           "frequency_penalty": {
             "type": "number",

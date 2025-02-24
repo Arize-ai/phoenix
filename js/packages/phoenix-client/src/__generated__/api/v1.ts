@@ -594,6 +594,8 @@ export interface components {
             temperature?: number;
             /** Max Tokens */
             max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
             /** Frequency Penalty */
             frequency_penalty?: number;
             /** Presence Penalty */
@@ -677,6 +679,8 @@ export interface components {
             temperature?: number;
             /** Max Tokens */
             max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
             /** Frequency Penalty */
             frequency_penalty?: number;
             /** Presence Penalty */
