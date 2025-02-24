@@ -13,11 +13,11 @@ import {
 import { assertUnreachable } from "../utils/assertUnreachable";
 
 /**
- * Parameters to crate a prompt
+ * Parameters to create a prompt
  */
 export interface CreatePromptParams extends ClientFn, PromptData {
   /**
-   * The name of the promt
+   * The name of the prompt
    */
   name: string;
   /**
@@ -31,8 +31,12 @@ export interface CreatePromptParams extends ClientFn, PromptData {
 }
 
 /**
- * Create a prompt and store it in Phoenix
- * If a prompt with the same name exists, a new version of the prompt will be appended to the history
+ * Create a prompt and store it in Phoenix.
+ *
+ * If a prompt with the same name exists, a new version of the prompt will be appended to the history.
+ *
+ * @param params - The parameters to create a prompt.
+ * @returns The created prompt version.
  */
 export async function createPrompt({
   client: _client,
@@ -54,7 +58,13 @@ export async function createPrompt({
 }
 
 interface PromptVersionInputBase {
+  /**
+   * The description of the prompt version.
+   */
   description?: string;
+  /**
+   * The name of the model to use for the prompt version.
+   */
   modelName: PromptVersionData["model_name"];
   /**
    * The template for the prompt version.
@@ -99,7 +109,12 @@ type PromptVersionInput =
   | GooglePromptVersionInput;
 
 /**
- * A helper function to construct a prompt version declaratively
+ * A helper function to construct a prompt version declaratively.
+ *
+ * The output of this function can be used to create a prompt version in Phoenix.
+ *
+ * @param params - The parameters to create a prompt version.
+ * @returns Structured prompt version data, not yet persisted to Phoenix.
  */
 export function promptVersion(params: PromptVersionInput): PromptVersionData {
   const {

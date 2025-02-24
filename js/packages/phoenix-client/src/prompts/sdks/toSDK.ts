@@ -64,12 +64,23 @@ type ToSDKParams<T extends SupportedSDK, V extends Variables = Variables> = {
 /**
  * Convert a Phoenix prompt to a specific SDK's parameters
  *
- * @example
+ * @example quickstart
  * ```ts
+ * // Get a prompt from Phoenix, use it via openai sdk
  * const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
  * const openaiParams = toSDK({ sdk: "openai", prompt });
  * const response = await openai.chat.completions.create(openaiParams);
  * ```
+ *
+ * @example type safety
+ * ```ts
+ * // Enforce variable types via Generic argument
+ * const prompt = await getPrompt({ prompt: { name: "my-prompt" } });
+ * const openaiParams = toSDK<"openai", { name: string }>({ sdk: "openai", prompt, variables: { name: "John" } });
+ * ```
+ *
+ * @param params - The parameters to convert a prompt to an SDK's parameters
+ * @returns The SDK's parameters
  */
 export const toSDK = <T extends SupportedSDK, V extends Variables = Variables>({
   sdk: _sdk,
