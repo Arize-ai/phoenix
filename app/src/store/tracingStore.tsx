@@ -1,6 +1,8 @@
 import { create, StateCreator } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+import { ProjectTab } from "@phoenix/pages/project/constants";
+
 type VisibilityState = Record<string, boolean>;
 export interface TracingProps {
   /**
@@ -33,12 +35,12 @@ const makeTracingStoreKey = ({
   tableId,
 }: {
   projectId: string;
-  tableId: string;
+  tableId: ProjectTab;
 }) => `arize-phoenix-tracing-${projectId}-${tableId}`;
 
 export type CreateTracingStoreProps = {
   projectId: string;
-  tableId: string;
+  tableId: ProjectTab;
 } & Partial<TracingProps>;
 
 export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
