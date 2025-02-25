@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Iterable, Optional, Union, cast
+from typing import Iterable, Iterator, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -798,8 +798,8 @@ class Query:
             stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
             async with info.context.db() as session:
                 stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
-            return _consolidate_sqlite_db_table_stats(stats)
-        if info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
+            stats = _consolidate_sqlite_db_table_stats(stats)
+        elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
             stmt = text(f"""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
                 FROM pg_class as c
@@ -809,15 +809,14 @@ class Query:
             """)
             async with info.context.db() as session:
                 stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
-            return [
-                DbTableStats(table_name=table_name, bytes=bytes_) for table_name, bytes_ in stats
-            ]
-        assert_never(info.context.db.dialect)
+        else:
+            assert_never(info.context.db.dialect)
+        return [DbTableStats(table_name=table_name, bytes=bytes_) for table_name, bytes_ in stats]
 
 
 def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
-) -> list[DbTableStats]:
+) -> Iterator[tuple[str, int]]:
     """
     Consolidate SQLite database stats by combining indexes with their respective tables.
     """
@@ -835,10 +834,7 @@ def _consolidate_sqlite_db_table_stats(
             if parent := _longest_matching_prefix(name[len(flag) :], aggregate.keys()):
                 aggregate[parent] += bytes_
             break
-    return [
-        DbTableStats(table_name=table_name, bytes=bytes_)
-        for table_name, bytes_ in aggregate.items()
-    ]
+    yield from aggregate.items()
 
 
 def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
