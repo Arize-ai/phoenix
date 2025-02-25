@@ -14,7 +14,6 @@ from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
@@ -103,37 +102,133 @@ def _get_stmt(
     *annotation_names: Param,
 ) -> Select[Any]:
     kind, project_rowid, (start_time, end_time), filter_condition = segment
-    stmt = select()
+
     if kind == "span":
         msa = models.SpanAnnotation
-        name_column, label_column, score_column = msa.name, msa.label, msa.score
+        # Define columns.
+        name_column = msa.name
+        label_column = msa.label
+        score_column = msa.score
+        span_id_column = models.Span.id.label("span_id")
         time_column = models.Span.start_time
-        stmt = stmt.join(models.Span).join_from(models.Span, models.Trace)
-        if filter_condition:
-            sf = SpanFilter(filter_condition)
-            stmt = sf(stmt)
+
+        base_stmt = (
+            select(
+                span_id_column,
+                name_column,
+                label_column,
+                func.count().label("record_count"),
+                func.count(label_column).label("label_count"),
+                func.count(score_column).label("score_count"),
+                func.sum(score_column).label("score_sum"),
+            )
+            .join(models.Span)
+            .join_from(models.Span, models.Trace)
+            .where(models.Trace.project_rowid == project_rowid)
+            .where(or_(score_column.is_not(None), label_column.is_not(None)))
+            .where(name_column.in_(annotation_names))
+        )
+        if start_time:
+            base_stmt = base_stmt.where(start_time <= time_column)
+        if end_time:
+            base_stmt = base_stmt.where(time_column < end_time)
+        base_stmt = base_stmt.group_by(span_id_column, name_column, label_column)
+        base_stmt = base_stmt.order_by(name_column, label_column)
+
+        # Compute per-span label fraction:
+        # For each (span, name, label) group, calculate:
+        #   label_fraction = label_count / sum(label_count) OVER (PARTITION BY span_id, name)
+        per_span_stmt = select(
+            base_stmt.c.span_id,
+            base_stmt.c.name,
+            base_stmt.c.label,
+            base_stmt.c.record_count,
+            base_stmt.c.label_count,
+            base_stmt.c.score_count,
+            base_stmt.c.score_sum,
+            (
+                base_stmt.c.label_count
+                * 1.0
+                / func.sum(base_stmt.c.label_count).over(
+                    partition_by=[base_stmt.c.span_id, base_stmt.c.name]
+                )
+            ).label("label_fraction"),
+        ).subquery()
+
+        final_stmt = (
+            select(
+                per_span_stmt.c.name,
+                per_span_stmt.c.label,
+                func.avg(per_span_stmt.c.label_fraction).label("avg_label_fraction"),
+                func.sum(per_span_stmt.c.record_count).label("record_count"),
+                func.sum(per_span_stmt.c.score_count).label("score_count"),
+                func.sum(per_span_stmt.c.score_sum).label("score_sum"),
+            )
+            .group_by(per_span_stmt.c.name, per_span_stmt.c.label)
+            .order_by(per_span_stmt.c.name, per_span_stmt.c.label)
+        )
+        return final_stmt
+
     elif kind == "trace":
         mta = models.TraceAnnotation
-        name_column, label_column, score_column = mta.name, mta.label, mta.score
+        name_column = mta.name
+        label_column = mta.label
+        score_column = mta.score
+        trace_id_column = models.Trace.id.label("trace_id")
         time_column = models.Trace.start_time
-        stmt = stmt.join(models.Trace)
+
+        base_stmt = (
+            select(
+                trace_id_column,
+                name_column,
+                label_column,
+                func.count().label("record_count"),
+                func.count(label_column).label("label_count"),
+                func.count(score_column).label("score_count"),
+                func.sum(score_column).label("score_sum"),
+            )
+            .join(models.Trace)
+            .where(models.Trace.project_rowid == project_rowid)
+            .where(or_(score_column.is_not(None), label_column.is_not(None)))
+            .where(name_column.in_(annotation_names))
+        )
+        if start_time:
+            base_stmt = base_stmt.where(start_time <= time_column)
+        if end_time:
+            base_stmt = base_stmt.where(time_column < end_time)
+        base_stmt = base_stmt.group_by(trace_id_column, name_column, label_column)
+        base_stmt = base_stmt.order_by(name_column, label_column)
+
+        per_trace_stmt = select(
+            base_stmt.c.trace_id,
+            base_stmt.c.name,
+            base_stmt.c.label,
+            base_stmt.c.record_count,
+            base_stmt.c.label_count,
+            base_stmt.c.score_count,
+            base_stmt.c.score_sum,
+            (
+                base_stmt.c.label_count
+                * 1.0
+                / func.sum(base_stmt.c.label_count).over(
+                    partition_by=[base_stmt.c.trace_id, base_stmt.c.name]
+                )
+            ).label("label_fraction"),
+        ).subquery()
+
+        final_stmt = (
+            select(
+                per_trace_stmt.c.name,
+                per_trace_stmt.c.label,
+                func.avg(per_trace_stmt.c.label_fraction).label("avg_label_fraction"),
+                func.sum(per_trace_stmt.c.record_count).label("record_count"),
+                func.sum(per_trace_stmt.c.score_count).label("score_count"),
+                func.sum(per_trace_stmt.c.score_sum).label("score_sum"),
+            )
+            .group_by(per_trace_stmt.c.name, per_trace_stmt.c.label)
+            .order_by(per_trace_stmt.c.name, per_trace_stmt.c.label)
+        )
+        return final_stmt
+
     else:
         assert_never(kind)
-    stmt = stmt.add_columns(
-        name_column,
-        label_column,
-        func.count().label("record_count"),
-        func.count(label_column).label("label_count"),
-        func.count(score_column).label("score_count"),
-        func.sum(score_column).label("score_sum"),
-    )
-    stmt = stmt.group_by(name_column, label_column)
-    stmt = stmt.order_by(name_column, label_column)
-    stmt = stmt.where(models.Trace.project_rowid == project_rowid)
-    stmt = stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
-    stmt = stmt.where(name_column.in_(annotation_names))
-    if start_time:
-        stmt = stmt.where(start_time <= time_column)
-    if end_time:
-        stmt = stmt.where(time_column < end_time)
-    return stmt

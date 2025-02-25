@@ -27,17 +27,13 @@ class AnnotationSummary:
 
     @strawberry.field
     def label_fractions(self) -> list[LabelFraction]:
-        if not (n := self.df.label_count.sum()):
-            return []
         return [
             LabelFraction(
-                label=cast(str, row.label),
-                fraction=row.label_count / n,
+                label=row.label,
+                fraction=row.avg_label_fraction,
             )
-            for row in self.df.loc[
-                self.df.label.notna(),
-                ["label", "label_count"],
-            ].itertuples()
+            for row in self.df.itertuples()
+            if row.label is not None
         ]
 
     @strawberry.field
