@@ -578,7 +578,6 @@ def create_graphql_router(
             event_queue=event_queue,
             data_loaders=DataLoaders(
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
-                num_child_spans=NumChildSpansDataLoader(db),
                 dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
                 dataset_example_spans=DatasetExampleSpansDataLoader(db),
                 document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
@@ -616,6 +615,7 @@ def create_graphql_router(
                         else None
                     ),
                 ),
+                num_child_spans=NumChildSpansDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
