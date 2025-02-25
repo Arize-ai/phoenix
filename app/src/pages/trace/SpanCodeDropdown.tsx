@@ -47,14 +47,14 @@ export function SpanCodeDropdown(props: SpanCodeDropdownProps) {
           <View padding="size-200">
             <Flex direction="column" gap="size-100">
               <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField value={spanId} isReadOnly size="L">
+                <TextField value={spanId} isReadOnly size="M">
                   <Label>Span ID</Label>
                   <Input />
                 </TextField>
                 <CopyToClipboardButton text={spanId} size="M" />
               </Flex>
               <Flex direction="row" gap="size-100" alignItems="end">
-                <TextField value={traceId} isReadOnly size="L">
+                <TextField value={traceId} isReadOnly size="M">
                   <Label>Trace ID</Label>
                   <Input />
                 </TextField>
