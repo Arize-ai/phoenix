@@ -102,7 +102,7 @@ export function TracesTable(props: TracesTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
   // Determine if the table is active based on the current path
-  const isTableActive = !!useMatch("/projects/:projectId");
+  const isTableActive = !!useMatch("/projects/:projectId/traces");
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -411,7 +411,7 @@ export function TracesTable(props: TracesTableProps) {
       cell: ({ getValue, row }) => {
         const { traceId } = row.original.trace;
         return (
-          <Link to={`traces/${traceId}?selectedSpanNodeId=${row.original.id}`}>
+          <Link to={`${traceId}?selectedSpanNodeId=${row.original.id}`}>
             {getValue() as string}
           </Link>
         );
@@ -633,9 +633,7 @@ export function TracesTable(props: TracesTableProps) {
                 return (
                   <tr
                     key={row.id}
-                    onClick={() =>
-                      navigate(`traces/${row.original.trace.traceId}`)
-                    }
+                    onClick={() => navigate(`${row.original.trace.traceId}`)}
                   >
                     {row.getVisibleCells().map((cell) => {
                       return (

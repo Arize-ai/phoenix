@@ -1,20 +1,21 @@
 import React from "react";
-import { Outlet, useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 
-import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 
-export function TracingRoot() {
+export function TracingRoot({ children }: React.PropsWithChildren) {
   const { projectId } = useParams();
   if (!projectId) {
     throw new Error("projectId is required");
   }
+  // extract the path segment after the projectId, no matter how many segments there are
+  const pathSegments = useLocation().pathname.split("/").slice(1);
+  // find the first path segment after projectId
+  const tableId = pathSegments.slice(pathSegments.indexOf(projectId) + 1)[0];
+
   return (
-    // TODO: push selected tab state to the url, use for tableId instead of hardcoding to "trace"
-    <TracingProvider projectId={projectId} tableId={"trace"}>
-      <StreamStateProvider>
-        <Outlet />
-      </StreamStateProvider>
+    <TracingProvider projectId={projectId} tableId={tableId}>
+      {children}
     </TracingProvider>
   );
 }

@@ -300,7 +300,7 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`traces/${traceId}?selectedSpanNodeId=${span.id}`}>
+          <Link to={`${traceId}?selectedSpanNodeId=${span.id}`}>
             {getValue() as string}
           </Link>
         );
@@ -510,7 +510,7 @@ export function SpansTable(props: SpansTableProps) {
                     key={row.id}
                     onClick={() =>
                       navigate(
-                        `traces/${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
+                        `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
                       )
                     }
                   >

@@ -319,9 +319,7 @@ export function SessionsTable(props: SessionsTableProps) {
                 return (
                   <tr
                     key={row.id}
-                    onClick={() =>
-                      navigate(`sessions/${encodeURIComponent(row.id)}`)
-                    }
+                    onClick={() => navigate(`${encodeURIComponent(row.id)}`)}
                   >
                     {row.getVisibleCells().map((cell) => {
                       return (
