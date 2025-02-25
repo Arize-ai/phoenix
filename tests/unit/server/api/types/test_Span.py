@@ -187,6 +187,7 @@ async def test_span_fields(
         }
         metadata
         numDocuments
+        numChildSpans
         descendants {
           id
         }
@@ -194,6 +195,7 @@ async def test_span_fields(
     """
     db_project, db_traces, db_spans = _span_data
     db_descendent_ids = _get_descendant_rowids(db_spans)
+    db_num_child_spans = _get_num_child_spans(db_spans)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
     response = await gql_client.execute(
         query=query,
@@ -284,6 +286,10 @@ async def test_span_fields(
         else:
             assert not span["metadata"]
         assert span["numDocuments"] == db_span.num_documents
+        if num_child_spans := db_num_child_spans.get(span_rowid, 0):
+            assert span["numChildSpans"] == num_child_spans
+        else:
+            assert not span["numChildSpans"]
         if descendants := db_descendent_ids.get(db_span.id):
             assert span["descendants"]
             assert {d["id"] for d in span["descendants"]} == {
@@ -291,6 +297,21 @@ async def test_span_fields(
             }
         else:
             assert not span["descendants"]
+
+
+def _get_num_child_spans(
+    spans: Mapping[_SpanRowId, models.Span],
+) -> dict[_SpanRowId, int]:
+    span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
+        span.span_id: span_rowid for span_rowid, span in spans.items()
+    }
+    child_span_count: defaultdict[_SpanRowId, int] = defaultdict(int)
+    for span in spans.values():
+        if not span.parent_id:
+            continue
+        if (parent_rowid := span_id_to_rowids.get(span.parent_id)) is not None:
+            child_span_count[parent_rowid] += 1
+    return child_span_count
 
 
 def _get_descendant_rowids(

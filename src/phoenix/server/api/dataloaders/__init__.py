@@ -17,6 +17,7 @@ from .experiment_run_counts import ExperimentRunCountsDataLoader
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
+from .num_child_spans import NumChildSpansDataLoader
 from .project_by_name import ProjectByNameDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
@@ -39,6 +40,7 @@ from .users import UsersDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
+    "NumChildSpansDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",

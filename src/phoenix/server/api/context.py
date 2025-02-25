@@ -29,6 +29,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    NumChildSpansDataLoader,
     ProjectByNameDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
@@ -63,6 +64,7 @@ from phoenix.server.types import (
 @dataclass
 class DataLoaders:
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
+    num_child_spans: NumChildSpansDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
