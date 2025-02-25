@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, Sequence, TypedDict
+from typing import Any, Iterable, Optional, Sequence, TypedDict, cast
 
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
@@ -39,7 +39,7 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import expression
+from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.functions import coalesce
 
@@ -72,6 +72,60 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
 RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
+
+
+class SubValues(Values, roles.CompoundElementRole):
+    """
+    Adapted from the following recipe:
+    https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+    """
+
+    inherit_cache = True
+
+    @property
+    def _all_selected_columns(self) -> Iterable[ColumnElement[Any]]:
+        return self.columns
+
+
+@compiles(SubValues, "sqlite")
+def render_subvalues_w_union(elem: SubValues, compiler: compiler.SQLCompiler, **kw: Any) -> str:
+    """
+    Adapted from the following recipe:
+    https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+    """
+    # omit rendering parenthesis, columns, "AS name", etc.
+    kw.pop("asfrom", None)
+    return cast(str, compiler.visit_values(elem, **kw))  # type: ignore[no-untyped-call]
+
+
+@compiles(Values, "sqlite")
+def render_values_w_union(
+    elem: Values,
+    compiler: compiler.SQLCompiler,
+    from_linter: Optional[compiler.FromLinter] = None,
+    **kw: Any,
+) -> str:
+    """
+    Adapted from the following recipe:
+    https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+    """
+    first: tuple[Any, ...]
+    rest: list[tuple[Any, ...]]
+    first, *rest = [e for chunk in elem._data for e in chunk]
+    stmt = select(*(literal(val).label(col.key) for col, val in zip(elem.columns, first)))
+    if rest:
+        cols = [column(c.key, c.type) for c in elem.columns]
+        stmt = union_all(stmt, SubValues(*cols).data(rest))  # type: ignore[assignment]
+    subquery = stmt.subquery(elem.name)
+    if from_linter:
+        # replace all occurrences of elem with subquery so the from linter
+        # can eliminate the values object from its cartesian product check.
+        edges = set(from_linter.edges)
+        from_linter.edges.clear()
+        from_linter.edges.update(
+            tuple(subquery if node == elem else node for node in edge) for edge in edges
+        )
+    return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
 class AuthMethod(Enum):

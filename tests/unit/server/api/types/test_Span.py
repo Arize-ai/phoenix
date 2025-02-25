@@ -187,13 +187,17 @@ async def test_span_fields(
         }
         metadata
         numDocuments
-        descendants {
-          id
+        descendants(maxDepth: 3) {
+          edges {
+            node {
+              id
+            }
+          }
         }
       }
     """
     db_project, db_traces, db_spans = _span_data
-    db_descendent_ids = _get_descendant_rowids(db_spans)
+    db_descendent_ids = _get_descendant_rowids(db_spans, 3)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
     response = await gql_client.execute(
         query=query,
@@ -286,15 +290,16 @@ async def test_span_fields(
         assert span["numDocuments"] == db_span.num_documents
         if descendants := db_descendent_ids.get(db_span.id):
             assert span["descendants"]
-            assert {d["id"] for d in span["descendants"]} == {
+            assert {e["node"]["id"] for e in span["descendants"]["edges"]} == {
                 str(GlobalID(Span.__name__, str(id_))) for id_ in descendants
             }
         else:
-            assert not span["descendants"]
+            assert not span["descendants"]["edges"]
 
 
 def _get_descendant_rowids(
     spans: Mapping[_SpanRowId, models.Span],
+    max_depth: int = 2,
 ) -> dict[_SpanRowId, set[_SpanRowId]]:
     span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
         span.span_id: span_rowid for span_rowid, span in spans.items()
@@ -302,10 +307,12 @@ def _get_descendant_rowids(
     descendant_rowids: defaultdict[_SpanRowId, set[_SpanRowId]] = defaultdict(set)
     for span in spans.values():
         child_span = span
-        while parent_id := child_span.parent_id:
+        level = max_depth
+        while level and (parent_id := child_span.parent_id):
             parent_span_rowid = span_id_to_rowids[parent_id]
             descendant_rowids[parent_span_rowid].add(span.id)
             child_span = spans[parent_span_rowid]
+            level -= 1
     return descendant_rowids
 
 
