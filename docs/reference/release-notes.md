@@ -20,6 +20,22 @@ Phoenix prompt management will now let you create, modify, tag, and version cont
 
 Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
 
+## 02.18.2025: One-Line Instrumentation
+
+**Available in Phoenix 8.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/trace_details_view.png" %}
+
+Phoenix has made it even simpler to get started with tracing by introducing one-line auto-instrumentation. By using `register(auto_instrument=True)`, you can enable automatic instrumentation in your application, which will set up instrumentors based on your installed packages.
+
+```
+from phoenix.otel import register
+
+register(auto_instrument=True)
+```
+
+For more details, you can check the [docs](../tracing/llm-traces-1.md) and explore further tracing options.&#x20;
+
 ## 01.18.2025: Automatic & Manual Span Tracing ⚙️
 
 **Available in Phoenix 7.9+**
