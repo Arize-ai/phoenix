@@ -491,13 +491,6 @@ export function TracesTable(props: TracesTableProps) {
       return;
     }
     if (isTableActive) {
-      console.dir({
-        tableContainerRef,
-        filterCondition,
-        fetchKey,
-        sorting,
-        refetch,
-      });
       //if the sorting changes, we need to reset the pagination
       const sort = sorting[0];
       startTransition(() => {
