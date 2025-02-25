@@ -305,13 +305,13 @@ def _get_num_child_spans(
     span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
         span.span_id: span_rowid for span_rowid, span in spans.items()
     }
-    child_span_count: defaultdict[_SpanRowId, int] = defaultdict(int)
+    ans: defaultdict[_SpanRowId, int] = defaultdict(int)
     for span in spans.values():
         if not span.parent_id:
             continue
         if (parent_rowid := span_id_to_rowids.get(span.parent_id)) is not None:
-            child_span_count[parent_rowid] += 1
-    return child_span_count
+            ans[parent_rowid] += 1
+    return ans
 
 
 def _get_descendant_rowids(
