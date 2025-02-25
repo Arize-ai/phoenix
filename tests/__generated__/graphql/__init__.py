@@ -310,6 +310,12 @@ class DatasetVersionEdge(BaseModel):
     node: DatasetVersion = Field(...)
 
 
+class DbTableStats(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    numBytes: int
+    tableName: str
+
+
 class DeleteApiKeyMutationPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     apiKeyId: str

@@ -1,19 +1,21 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional, Union
+from typing import Iterable, Iterator, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, distinct, func, select, text
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Annotated, TypeAlias
+from typing_extensions import Annotated, TypeAlias, assert_never
 
+from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, getenv
 from phoenix.db import enums, models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import DatasetExample as OrmExample
 from phoenix.db.models import DatasetExampleRevision as OrmRevision
 from phoenix.db.models import DatasetVersion as OrmVersion
@@ -79,6 +81,12 @@ initialize_playground_clients()
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
     model_name: Optional[str] = None
+
+
+@strawberry.type
+class DbTableStats:
+    table_name: str
+    num_bytes: int
 
 
 @strawberry.type
@@ -780,3 +788,64 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field
+    async def db_table_stats(
+        self,
+        info: Info[Context, None],
+    ) -> list[DbTableStats]:
+        if info.context.db.dialect is SupportedSQLDialect.SQLITE:
+            stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
+            async with info.context.db() as session:
+                stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+            stats = _consolidate_sqlite_db_table_stats(stats)
+        elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
+            stmt = text(f"""\
+                SELECT c.relname, pg_total_relation_size(c.oid)
+                FROM pg_class as c
+                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
+                WHERE c.relkind = 'r'
+                AND n.nspname = '{getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"}';
+            """)
+            async with info.context.db() as session:
+                stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+        else:
+            assert_never(info.context.db.dialect)
+        return [
+            DbTableStats(table_name=table_name, num_bytes=num_bytes)
+            for table_name, num_bytes in stats
+        ]
+
+
+def _consolidate_sqlite_db_table_stats(
+    stats: Iterable[tuple[str, int]],
+) -> Iterator[tuple[str, int]]:
+    """
+    Consolidate SQLite database stats by combining indexes with their respective tables.
+    """
+    aggregate: dict[str, int] = {}
+    for name, num_bytes in stats:
+        # Skip internal SQLite tables and indexes.
+        if name.startswith("ix_") or name.startswith("sqlite_"):
+            continue
+        aggregate[name] = num_bytes
+    for name, num_bytes in stats:
+        # Combine indexes with their respective tables.
+        for flag in ["sqlite_autoindex_", "ix_"]:
+            if not name.startswith(flag):
+                continue
+            if parent := _longest_matching_prefix(name[len(flag) :], aggregate.keys()):
+                aggregate[parent] += num_bytes
+            break
+    yield from aggregate.items()
+
+
+def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
+    """
+    Return the longest prefix of s that matches any of the given prefixes.
+    """
+    longest = ""
+    for prefix in prefixes:
+        if s.startswith(prefix) and len(prefix) > len(longest):
+            longest = prefix
+    return longest

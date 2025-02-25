@@ -511,6 +511,11 @@ input DatasetVersionSort {
 """Date with time (isoformat)"""
 scalar DateTime
 
+type DbTableStats {
+  tableName: String!
+  numBytes: Int!
+}
+
 input DeleteAnnotationsInput {
   annotationIds: [GlobalID!]!
 }
@@ -1683,6 +1688,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+  dbTableStats: [DbTableStats!]!
 }
 
 type ResponseFormat {
