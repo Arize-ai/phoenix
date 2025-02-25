@@ -1,5 +1,5 @@
 import { create, StateCreator } from "zustand";
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 
 type VisibilityState = Record<string, boolean>;
 export interface TracingProps {
@@ -28,7 +28,20 @@ export interface TracingState extends TracingProps {
   ) => void;
 }
 
-export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
+const makeTracingStoreKey = ({
+  projectId,
+  tableId,
+}: {
+  projectId: string;
+  tableId: string;
+}) => `arize-phoenix-tracing-${projectId}-${tableId}`;
+
+export type CreateTracingStoreProps = {
+  projectId: string;
+  tableId: string;
+} & Partial<TracingProps>;
+
+export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
   const tracingStore: StateCreator<TracingState> = (set) => ({
     ...initialProps,
     columnVisibility: {
@@ -42,7 +55,11 @@ export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
       set({ annotationColumnVisibility });
     },
   });
-  return create<TracingState>()(devtools(tracingStore));
+  return create<TracingState>()(
+    persist(devtools(tracingStore), {
+      name: makeTracingStoreKey(initialProps),
+    })
+  );
 };
 
 export type TracingStore = ReturnType<typeof createTracingStore>;
