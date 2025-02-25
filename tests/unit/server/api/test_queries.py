@@ -7,7 +7,6 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.models import Base
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -181,7 +180,9 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     response = await gql_client.execute(query=query)
     assert not response.errors
     assert (data := response.data) is not None
-    assert set(s["tableName"] for s in data["dbTableStats"]) == set(Base.metadata.tables.keys())
+    assert set(s["tableName"] for s in data["dbTableStats"]) == set(
+        models.Base.metadata.tables.keys()
+    )
 
 
 @pytest.fixture
