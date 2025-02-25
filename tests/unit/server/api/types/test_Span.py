@@ -307,9 +307,9 @@ def _get_num_child_spans(
     }
     ans: defaultdict[_SpanRowId, int] = defaultdict(int)
     for span in spans.values():
-        if not span.parent_id:
+        if not (parent_id := span.parent_id):
             continue
-        if (parent_rowid := span_id_to_rowids.get(span.parent_id)) is not None:
+        if (parent_rowid := span_id_to_rowids.get(parent_id)) is not None:
             ans[parent_rowid] += 1
     return ans
 
