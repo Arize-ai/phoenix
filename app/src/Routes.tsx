@@ -131,7 +131,6 @@ const router = createBrowserRouter(
             <Route
               path=":projectId"
               loader={projectLoader}
-              shouldRevalidate={() => false}
               handle={{
                 crumb: (data: projectLoaderQuery$data) => data.project.name,
               }}
