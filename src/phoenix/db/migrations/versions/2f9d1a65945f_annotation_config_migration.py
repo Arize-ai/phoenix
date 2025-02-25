@@ -18,12 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_constraint(
-        "uq_span_annotations_name_span_rowid", "span_annotations", type_="unique"
-    )
-    op.drop_constraint(
-        "uq_trace_annotations_name_trace_rowid", "trace_annotations", type_="unique"
-    )
+    op.drop_constraint("uq_span_annotations_name_span_rowid", "span_annotations", type_="unique")
+    op.drop_constraint("uq_trace_annotations_name_trace_rowid", "trace_annotations", type_="unique")
     op.drop_constraint(
         "uq_document_annotations_name_span_rowid_document_position",
         "document_annotations",
