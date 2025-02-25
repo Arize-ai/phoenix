@@ -20,7 +20,7 @@ Phoenix prompt management will now let you create, modify, tag, and version cont
 
 Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
 
-## 02.18.2025: One-Line Instrumentation
+## 02.18.2025: One-Line Instrumentation⚡️
 
 **Available in Phoenix 8.0+**
 
