@@ -40,7 +40,7 @@ class TraceAnnotationQueueInserter(
         TraceAnnotationDmlEvent,
     ],
     table=models.TraceAnnotation,
-    _unique_by=(),
+    unique_by=(),
 ):
     async def _events(
         self,
