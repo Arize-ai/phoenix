@@ -8,7 +8,7 @@ Phoenix is an open-source observability library designed for experimentation, ev
 \
 Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
 
-## Install Phoenix
+## Install
 
 {% tabs %}
 {% tab title="pip" %}
@@ -44,7 +44,7 @@ The Phoenix server can be run as a [#container](./#container "mention")and be in
 
 Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. If you are looking to deploy phoenix as a service rather than a library, see [deployment](deployment/ "mention")
 
-## What you can do in Phoenix
+## Features
 
 {% tabs %}
 {% tab title="Prompt Engineering" %}
