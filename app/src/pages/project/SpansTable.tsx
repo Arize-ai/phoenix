@@ -63,7 +63,7 @@ const PAGE_SIZE = 50;
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   // Determine if the table is active based on the current path
-  const isTableActive = !!useMatch("/projects/:projectId");
+  const isTableActive = !!useMatch("/projects/:projectId/spans");
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);

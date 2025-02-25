@@ -67,7 +67,12 @@ export function ProjectPage() {
   );
 }
 
-const TAB_INDEX_MAP: Record<string, number> = {
+const TABS = ["traces", "spans", "sessions"] as const;
+const isTab = (tab: string): tab is (typeof TABS)[number] => {
+  return TABS.includes(tab as (typeof TABS)[number]);
+};
+
+const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   traces: 0,
   spans: 1,
   sessions: 2,
@@ -114,7 +119,7 @@ export function ProjectPageContent({
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
-  const tabIndex = TAB_INDEX_MAP[tab] ?? 0;
+  const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
     if (tabIndex === 0) {
       disposeSpansQuery();
@@ -185,7 +190,7 @@ export function ProjectPageContent({
             tracesQueryReference: tracesQueryReference ?? null,
           }}
         >
-          <Tabs onChange={onTabChange} index={TAB_INDEX_MAP?.[tab] ?? 0}>
+          <Tabs onChange={onTabChange} index={tabIndex}>
             <TabPane name="Traces">
               <Outlet />
             </TabPane>

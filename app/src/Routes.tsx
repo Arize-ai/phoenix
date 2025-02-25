@@ -7,10 +7,6 @@ import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embed
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
-import { ProjectIndexPage } from "./pages/project/ProjectIndexPage";
-import { ProjectSessionsPage } from "./pages/project/ProjectSessionsPage";
-import { ProjectSpansPage } from "./pages/project/ProjectSpansPage";
-import { ProjectTracesPage } from "./pages/project/ProjectTracesPage";
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
@@ -49,10 +45,14 @@ import {
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
+  ProjectIndexPage,
   projectLoader,
   ProjectPage,
+  ProjectSessionsPage,
   ProjectsPage,
+  ProjectSpansPage,
   ProjectsRoot,
+  ProjectTracesPage,
   PromptConfigPage,
   promptLoader,
   promptsLoader,

@@ -12,7 +12,7 @@ export function TracingRoot({ children }: React.PropsWithChildren) {
   const { tab } = useProjectRootPath();
 
   return (
-    <TracingProvider projectId={projectId} tableId={tab}>
+    <TracingProvider projectId={projectId} tableId={tab || "table"}>
       {children}
     </TracingProvider>
   );
