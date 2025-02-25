@@ -133,7 +133,7 @@ Add your OpenAI API key as an environment variable:
 export OPENAI_API_KEY=[your_key_here]
 ```
 
-Initialize the OpenAIInstrumentor before your application code:
+Use the register function to connect your application to Phoenix:
 
 ```python
 from phoenix.otel import register

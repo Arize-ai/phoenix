@@ -20,21 +20,15 @@ Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](ht
 pip install arize-phoenix-otel
 ```
 
-**Connect your application to your cloud instance:**
+**Set your Phoenix endpoint and API Key:**
 
 ```python
 import os
-from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-) 
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -56,15 +50,12 @@ For details on customizing a local terminal deployment, see [Terminal Setup](htt
 pip install arize-phoenix-otel
 ```
 
-**Connect your application to your instance using:**
+**Set your Phoenix endpoint:**
 
 ```python
-from phoenix.otel import register
+import os
 
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006/v1/traces",
-)
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
 See [deploying-phoenix.md](../../deployment/deploying-phoenix.md "mention") for more details
@@ -91,15 +82,12 @@ This will expose the Phoenix on `localhost:6006`
 pip install arize-phoenix-otel
 ```
 
-**Connect your application to your instance using:**
+**Set your Phoenix endpoint:**
 
 ```python
-from phoenix.otel import register
+import os
 
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006/v1/traces",
-)
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
 For more info on using Phoenix with Docker, see [#docker](prompt-flow.md#docker "mention")
@@ -117,16 +105,6 @@ pip install arize-phoenix
 ```python
 import phoenix as px
 px.launch_app()
-```
-
-**Connect your notebook to Phoenix:**
-
-```python
-from phoenix.otel import register
-
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-)
 ```
 
 {% hint style="info" %}
@@ -150,7 +128,7 @@ import os
 from opentelemetry.sdk.environment_variables import OTEL_EXPORTER_OTLP_ENDPOINT
 from promptflow.tracing._start_trace import setup_exporter_from_environ
 
-endpoint = f"http://127.0.0.1:6006/v1/traces" # replace with your Phoenix endpoint if self-hosting
+endpoint = f"{os.environ["PHOENIX_COLLECTOR_ENDPOINT]}/v1/traces" # replace with your Phoenix endpoint if self-hosting
 os.environ[OTEL_EXPORTER_OTLP_ENDPOINT] = endpoint
 setup_exporter_from_environ()
 ```
