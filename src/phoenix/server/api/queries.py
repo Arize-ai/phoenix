@@ -821,7 +821,7 @@ def _consolidate_sqlite_db_table_stats(
     """
     Consolidate SQLite database stats by combining indexes with their respective tables.
     """
-    aggregate: dict[str, int] = defaultdict(int)
+    aggregate: dict[str, int] = {}
     for name, bytes_ in stats:
         # Skip internal SQLite tables and indexes.
         if name.startswith("ix_") or name.startswith("sqlite_"):
