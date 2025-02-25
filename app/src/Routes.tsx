@@ -45,10 +45,14 @@ import {
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
+  ProjectIndexPage,
   projectLoader,
   ProjectPage,
+  ProjectSessionsPage,
   ProjectsPage,
+  ProjectSpansPage,
   ProjectsRoot,
+  ProjectTracesPage,
   PromptConfigPage,
   promptLoader,
   promptsLoader,
@@ -62,7 +66,6 @@ import {
   spanPlaygroundPageLoader,
   SupportPage,
   TracePage,
-  TracingRoot,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -126,20 +129,26 @@ const router = createBrowserRouter(
             <Route index element={<ProjectsPage />} />
             <Route
               path=":projectId"
-              element={<TracingRoot />}
               loader={projectLoader}
               handle={{
                 crumb: (data: projectLoaderQuery$data) => data.project.name,
               }}
             >
-              <Route index element={<ProjectPage />} />
+              <Route index element={<ProjectIndexPage />} />
               <Route element={<ProjectPage />}>
-                <Route path="traces/:traceId" element={<TracePage />} />
-                <Route
-                  path="sessions/:sessionId"
-                  element={<SessionPage />}
-                  loader={sessionLoader}
-                />
+                <Route path="traces" element={<ProjectTracesPage />}>
+                  <Route path=":traceId" element={<TracePage />} />
+                </Route>
+                <Route path="spans" element={<ProjectSpansPage />}>
+                  <Route path=":traceId" element={<TracePage />} />
+                </Route>
+                <Route path="sessions" element={<ProjectSessionsPage />}>
+                  <Route
+                    path=":sessionId"
+                    element={<SessionPage />}
+                    loader={sessionLoader}
+                  />
+                </Route>
               </Route>
             </Route>
           </Route>

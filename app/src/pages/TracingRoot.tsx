@@ -1,15 +1,23 @@
 import React from "react";
-import { Outlet } from "react-router";
+import { useParams } from "react-router";
 
-import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
+import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { isProjectTab } from "@phoenix/pages/project/constants";
+export function TracingRoot({ children }: React.PropsWithChildren) {
+  const { projectId } = useParams();
 
-export function TracingRoot() {
+  if (!projectId) {
+    throw new Error("projectId is required");
+  }
+  const { tab } = useProjectRootPath();
+  if (!isProjectTab(tab)) {
+    throw new Error(`Invalid tab: ${tab}`);
+  }
+
   return (
-    <TracingProvider>
-      <StreamStateProvider>
-        <Outlet />
-      </StreamStateProvider>
+    <TracingProvider projectId={projectId} tableId={tab || "table"}>
+      {children}
     </TracingProvider>
   );
 }
