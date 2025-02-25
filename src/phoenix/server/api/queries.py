@@ -86,7 +86,7 @@ class ModelsInput:
 @strawberry.type
 class DbTableStats:
     table_name: str
-    bytes: int
+    num_bytes: int
 
 
 @strawberry.type
@@ -811,7 +811,10 @@ class Query:
                 stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
         else:
             assert_never(info.context.db.dialect)
-        return [DbTableStats(table_name=table_name, bytes=bytes_) for table_name, bytes_ in stats]
+        return [
+            DbTableStats(table_name=table_name, num_bytes=num_bytes)
+            for table_name, num_bytes in stats
+        ]
 
 
 def _consolidate_sqlite_db_table_stats(
@@ -821,18 +824,18 @@ def _consolidate_sqlite_db_table_stats(
     Consolidate SQLite database stats by combining indexes with their respective tables.
     """
     aggregate: dict[str, int] = {}
-    for name, bytes_ in stats:
+    for name, num_bytes in stats:
         # Skip internal SQLite tables and indexes.
         if name.startswith("ix_") or name.startswith("sqlite_"):
             continue
-        aggregate[name] = bytes_
-    for name, bytes_ in stats:
+        aggregate[name] = num_bytes
+    for name, num_bytes in stats:
         # Combine indexes with their respective tables.
         for flag in ["sqlite_autoindex_", "ix_"]:
             if not name.startswith(flag):
                 continue
             if parent := _longest_matching_prefix(name[len(flag) :], aggregate.keys()):
-                aggregate[parent] += bytes_
+                aggregate[parent] += num_bytes
             break
     yield from aggregate.items()
 

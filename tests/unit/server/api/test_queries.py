@@ -173,7 +173,7 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
       query {
         dbTableStats {
           tableName
-          bytes
+          numBytes
         }
       }
     """
