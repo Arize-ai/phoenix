@@ -40,7 +40,6 @@ from .users import UsersDataLoader
 
 __all__ = [
     "CacheForDataLoaders",
-    "NumChildSpansDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
@@ -55,6 +54,7 @@ __all__ = [
     "ExperimentSequenceNumberDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",
+    "NumChildSpansDataLoader",
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SessionIODataLoader",

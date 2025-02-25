@@ -286,7 +286,7 @@ async def test_span_fields(
         else:
             assert not span["metadata"]
         assert span["numDocuments"] == db_span.num_documents
-        if num_child_spans := db_num_child_spans.get(span_rowid, 0):
+        if num_child_spans := db_num_child_spans.get(span_rowid):
             assert span["numChildSpans"] == num_child_spans
         else:
             assert not span["numChildSpans"]
