@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useMemo } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -15,11 +15,13 @@ import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
 import { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
-import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
+import { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
+import { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import {
   ProjectPageQueriesSessionsQuery,
   ProjectPageQueriesSpansQuery,
+  ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { StreamToggle } from "./StreamToggle";
@@ -86,7 +88,7 @@ export function ProjectPageContent({
   }, [timeRange]);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
-  const data = useLazyLoadQuery<ProjectPageQuery>(
+  const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: GlobalID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
@@ -104,48 +106,66 @@ export function ProjectPageContent({
       fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
     }
   );
+  const [tracesQueryReference, loadTracesQuery, disposeTracesQuery] =
+    useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
   const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
+  const tabIndex = TAB_INDEX_MAP[tab] ?? 0;
+  useEffect(() => {
+    if (tabIndex === 0) {
+      disposeSpansQuery();
+      disposeSessionsQuery();
+      loadTracesQuery({
+        id: projectId as string,
+        timeRange: timeRangeVariable,
+      });
+    } else if (tabIndex === 1) {
+      disposeSessionsQuery();
+      disposeTracesQuery();
+      loadSpansQuery({
+        id: projectId as string,
+        timeRange: timeRangeVariable,
+      });
+    } else if (tabIndex === 2) {
+      disposeSpansQuery();
+      disposeTracesQuery();
+      loadSessionsQuery({
+        id: projectId as string,
+        timeRange: timeRangeVariable,
+      });
+    }
+  }, [
+    loadTracesQuery,
+    projectId,
+    timeRangeVariable,
+    tabIndex,
+    disposeSpansQuery,
+    disposeSessionsQuery,
+    disposeTracesQuery,
+    loadSpansQuery,
+    loadSessionsQuery,
+  ]);
+
   const onTabChange = useCallback(
     (index: number) => {
       if (index === 1) {
-        disposeSessionsQuery();
-        loadSpansQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
-        });
         // navigate to the spans tab
         navigate(`${rootPath}/spans`);
       } else if (index === 2) {
-        disposeSpansQuery();
-        loadSessionsQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
-        });
         // navigate to the sessions tab
         navigate(`${rootPath}/sessions`);
       } else {
-        disposeSpansQuery();
-        disposeSessionsQuery();
         // navigate to the traces tab
         navigate(`${rootPath}/traces`);
       }
     },
-    [
-      disposeSpansQuery,
-      loadSpansQuery,
-      disposeSessionsQuery,
-      loadSessionsQuery,
-      navigate,
-      rootPath,
-      timeRangeVariable,
-      projectId,
-    ]
+    [navigate, rootPath]
   );
+
   return (
     <StreamStateProvider>
       <main css={mainCSS}>
@@ -162,6 +182,7 @@ export function ProjectPageContent({
           value={{
             spansQueryReference: spansQueryReference ?? null,
             sessionsQueryReference: sessionsQueryReference ?? null,
+            tracesQueryReference: tracesQueryReference ?? null,
           }}
         >
           <Tabs onChange={onTabChange} index={TAB_INDEX_MAP?.[tab] ?? 0}>
