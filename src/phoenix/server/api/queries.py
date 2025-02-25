@@ -794,12 +794,12 @@ class Query:
         self,
         info: Info[Context, None],
     ) -> list[DbTableStats]:
-        if info.context.db.dialect == SupportedSQLDialect.SQLITE:
+        if info.context.db.dialect is SupportedSQLDialect.SQLITE:
             stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
             async with info.context.db() as session:
                 stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
-                return _consolidate_sqlite_db_stats(stats)
-        if info.context.db.dialect == SupportedSQLDialect.POSTGRESQL:
+            return _consolidate_sqlite_db_table_stats(stats)
+        if info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
             stmt = text(f"""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
                 FROM pg_class as c
@@ -809,14 +809,13 @@ class Query:
             """)
             async with info.context.db() as session:
                 stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
-                return [
-                    DbTableStats(table_name=table_name, bytes=bytes_)
-                    for table_name, bytes_ in stats
-                ]
+            return [
+                DbTableStats(table_name=table_name, bytes=bytes_) for table_name, bytes_ in stats
+            ]
         assert_never(info.context.db.dialect)
 
 
-def _consolidate_sqlite_db_stats(
+def _consolidate_sqlite_db_table_stats(
     stats: Iterable[tuple[str, int]],
 ) -> list[DbTableStats]:
     """
@@ -842,7 +841,7 @@ def _consolidate_sqlite_db_stats(
     ]
 
 
-def _longest_matching_prefix(s: str, prefixes: Iterable[str]):
+def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
     """
     Return the longest prefix of s that matches any of the given prefixes.
     """
