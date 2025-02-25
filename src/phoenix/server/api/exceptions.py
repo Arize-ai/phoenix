@@ -45,5 +45,4 @@ def _should_mask_error(error: GraphQLError) -> bool:
     """
     Masks unexpected errors raised from GraphQL resolvers.
     """
-    return False
     return not isinstance(error.original_error, CustomGraphQLError)
