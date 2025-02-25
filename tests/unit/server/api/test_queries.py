@@ -180,9 +180,7 @@ async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
     response = await gql_client.execute(query=query)
     assert not response.errors
     assert (data := response.data) is not None
-    assert set(s["tableName"] for s in data["dbTableStats"]) == set(
-        models.Base.metadata.tables.keys()
-    )
+    assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
 
 
 @pytest.fixture
