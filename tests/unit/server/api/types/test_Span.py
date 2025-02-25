@@ -299,7 +299,7 @@ async def test_span_fields(
 
 def _get_descendant_rowids(
     spans: Mapping[_SpanRowId, models.Span],
-    max_depth: int = 2,
+    max_depth: Optional[int] = None,
 ) -> dict[_SpanRowId, set[_SpanRowId]]:
     span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
         span.span_id: span_rowid for span_rowid, span in spans.items()
@@ -307,7 +307,7 @@ def _get_descendant_rowids(
     descendant_rowids: defaultdict[_SpanRowId, set[_SpanRowId]] = defaultdict(set)
     for span in spans.values():
         child_span = span
-        level = max_depth
+        level = max_depth or -1
         while level and (parent_id := child_span.parent_id):
             parent_span_rowid = span_id_to_rowids[parent_id]
             descendant_rowids[parent_span_rowid].add(span.id)

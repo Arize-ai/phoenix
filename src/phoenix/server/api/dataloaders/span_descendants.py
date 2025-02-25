@@ -11,9 +11,9 @@ from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
 SpanRowId: TypeAlias = int
-Depth: TypeAlias = int
+MaxDepth: TypeAlias = int
 
-Key: TypeAlias = tuple[SpanRowId, Optional[Depth]]
+Key: TypeAlias = tuple[SpanRowId, Optional[MaxDepth]]
 Result: TypeAlias = list[SpanRowId]
 
 
@@ -28,7 +28,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         max_depth_label = f"max_depth_{token_hex(2)}"
         level_label = f"level_{token_hex(2)}"
 
-        # Create a values expression with span_ids and their max_depths (which can be None)
+        # Create a values expression with Span.id and respective max_depth (which can be None)
         id_depth = (
             sa.values(
                 sa.Column("id", sa.Integer),
