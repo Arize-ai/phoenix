@@ -82,28 +82,22 @@ By default, notebook instances do not have persistent storage, so your traces wi
 To collect traces from your application, you must configure an OpenTelemetry TracerProvider to send traces to Phoenix. The `register` utility from the `phoenix.otel` module streamlines this process.
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 If `arize-phoenix` is not installed in your python environment, you can use `arize-phoenix-otel` to quickly connect to your phoenix instance.
 
 ```bash
 pip install arize-phoenix-otel
 ```
 
-Connect your application to your cloud instance using:
+Set your Phoenix endpoint and API key.
 
 ```python
 import os
-from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-) 
 ```
 {% endtab %}
 
@@ -114,16 +108,12 @@ If `arize-phoenix` is not installed in your python environment, you can use `ari
 pip install arize-phoenix-otel
 ```
 
-Connect your application to your instance using:
+Set your Phoenix endpoint:
 
 ```python
-from phoenix.otel import register
+import os
 
-# defaults to endpoint="http://localhost:4317"
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:4317",  # Sends traces using gRPC
-)  
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
 
 {% hint style="info" %}
@@ -134,17 +124,7 @@ See [Setup Tracing: Python](https://docs.arize.com/phoenix/tracing/how-to-tracin
 {% endtab %}
 
 {% tab title="Notebook" %}
-Connect your notebook to Phoenix:
-
-```python
-from phoenix.otel import register
-
-# defaults to endpoint="http://localhost:4317"
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:4317",  # Sends traces using gRPC
-) 
-```
+Phoenix's default register call below will automatically connect to a local notebook instance of Phoenix.
 {% endtab %}
 {% endtabs %}
 
@@ -161,7 +141,13 @@ pip install -q openinference-instrumentation-openai openai
 Initialize auto-instrumentation before your application code:
 
 ```python
-register(auto_instrument=True)
+from phoenix.otel import register
+
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed dependencies
+)
 ```
 
 ## Use OpenAI as normal
