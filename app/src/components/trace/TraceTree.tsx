@@ -57,7 +57,6 @@ export function TraceTree(props: TraceTreeProps) {
             flex-direction: column;
             width: 100%;
             overflow: auto;
-            flex: none;
           `}
           data-testid="trace-tree"
         >
@@ -84,7 +83,12 @@ function TraceTreeToolbar() {
   );
   const { isCollapsed, setIsCollapsed } = useTraceTree();
   return (
-    <View borderBottomWidth="thin" borderColor="dark" padding="size-100">
+    <View
+      borderBottomWidth="thin"
+      borderColor="dark"
+      padding="size-100"
+      flex="none"
+    >
       <Flex direction="row" justifyContent="end" flex="none" gap="size-100">
         <TooltipTrigger offset={5}>
           <TriggerWrap>
