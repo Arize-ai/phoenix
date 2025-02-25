@@ -85,7 +85,8 @@
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
-* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
+* [Use Cases: Prompts](prompt-engineering/use-cases-prompts/README.md)
+  * [Prompt Optimization](prompt-engineering/use-cases-prompts/prompt-optimization.md)
 
 ## 🗄️ Datasets & Experiments
 
