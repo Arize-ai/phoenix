@@ -66,6 +66,7 @@ export function SpansTable(props: SpansTableProps) {
   const isTableActive = !!useMatch("/projects/:projectId");
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
@@ -369,11 +370,15 @@ export function SpansTable(props: SpansTableProps) {
   ];
 
   useEffect(() => {
-    //if the sorting changes, we need to reset the pagination
-    const sort = sorting[0];
-
-    startTransition(() => {
-      if (isTableActive) {
+    // Skip the first render. It's been loaded by the parent
+    if (isFirstRender.current === true) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (isTableActive) {
+      //if the sorting changes, we need to reset the pagination
+      startTransition(() => {
+        const sort = sorting[0];
         refetch(
           {
             sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
@@ -383,8 +388,8 @@ export function SpansTable(props: SpansTableProps) {
           },
           { fetchPolicy: "store-and-network" }
         );
-      }
-    });
+      });
+    }
   }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {

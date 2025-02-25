@@ -96,6 +96,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
@@ -484,6 +485,11 @@ export function TracesTable(props: TracesTableProps) {
   ];
 
   useEffect(() => {
+    if (isFirstRender.current === true) {
+      // Skip the first render. The data is already fetched by the parent
+      isFirstRender.current = false;
+      return;
+    }
     if (isTableActive) {
       //if the sorting changes, we need to reset the pagination
       const sort = sorting[0];
