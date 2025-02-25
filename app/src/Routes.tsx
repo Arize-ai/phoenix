@@ -2,16 +2,15 @@ import React from "react";
 import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
-import { ProjectIndexPage } from "@phoenix/pages/project/ProjectIndexPage";
-import { ProjectSessionsPage } from "@phoenix/pages/project/ProjectSessionsPage";
-import { ProjectSpansPage } from "@phoenix/pages/project/ProjectSpansPage";
-import { ProjectTracesPage } from "@phoenix/pages/project/ProjectTracesPage";
-
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { ProjectIndexPage } from "./pages/project/ProjectIndexPage";
+import { ProjectSessionsPage } from "./pages/project/ProjectSessionsPage";
+import { ProjectSpansPage } from "./pages/project/ProjectSpansPage";
+import { ProjectTracesPage } from "./pages/project/ProjectTracesPage";
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
