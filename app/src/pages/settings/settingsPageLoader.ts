@@ -10,6 +10,7 @@ export async function settingsPageLoader() {
     graphql`
       query settingsPageLoaderQuery {
         ...GenerativeProvidersCard_data
+        ...DBUsagePieChart_data
       }
     `,
     {}
