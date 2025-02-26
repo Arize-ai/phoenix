@@ -177,7 +177,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
   const childNodes = node.children;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { isCollapsed: treeIsCollapsed } = useTraceTree();
-  const hasChildren = childNodes.length > 0;
+  const hasChildren = node.span.numChildSpans > 0;
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );

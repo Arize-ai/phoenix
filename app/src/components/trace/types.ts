@@ -13,6 +13,7 @@ export interface ISpanItem {
   tokenCountTotal?: number | null;
   tokenCountPrompt?: number | null;
   tokenCountCompletion?: number | null;
+  numChildSpans: number;
   [otherKeys: string]: unknown;
 }
 

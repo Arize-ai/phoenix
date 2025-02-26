@@ -141,6 +141,7 @@ export function TracesTable(props: TracesTableProps) {
                 cumulativeTokenCountPrompt
                 cumulativeTokenCountCompletion
                 parentId
+                numChildSpans
                 input {
                   value: truncatedValue
                 }
@@ -173,6 +174,7 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
+                  numChildSpans
                   cumulativeTokenCountTotal: tokenCountTotal
                   cumulativeTokenCountPrompt: tokenCountPrompt
                   cumulativeTokenCountCompletion: tokenCountCompletion

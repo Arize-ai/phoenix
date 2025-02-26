@@ -82,6 +82,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
+                    numChildSpans
                   }
                 }
               }

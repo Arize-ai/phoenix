@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d76b38c193e00b96e9bb3b16136529f>>
+ * @generated SignedSource<<6292be6f779005151427b3896f1f8388>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,7 @@ export type TraceDetailsQuery$data = {
             readonly id: string;
             readonly latencyMs: number | null;
             readonly name: string;
+            readonly numChildSpans: number;
             readonly parentId: string | null;
             readonly spanId: string;
             readonly spanKind: SpanKind;
@@ -195,6 +196,13 @@ v5 = {
                       "kind": "ScalarField",
                       "name": "tokenCountCompletion",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "numChildSpans",
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -275,16 +283,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ac9147f8bf0ef8c809d19877e0ee5f2c",
+    "cacheID": "a889fa3551b20efa949c1771da859435",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              numChildSpans\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aedd511ed255adab3a80dde8956a01c4";
+(node as any).hash = "1b5c6caffd2fe9d078d42f175e04bc05";
 
 export default node;

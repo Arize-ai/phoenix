@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bd5a1e4b376973d9a1eb2e22b3f31368>>
+ * @generated SignedSource<<cfdf1797d08031c72d268fa1367359f4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,6 +38,7 @@ export type TracesTable_spans$data = {
           } | null;
           readonly latencyMs: number | null;
           readonly name: string;
+          readonly numChildSpans: number;
           readonly output: {
             readonly value: string;
           } | null;
@@ -71,6 +72,7 @@ export type TracesTable_spans$data = {
         readonly latencyMs: number | null;
         readonly metadata: string | null;
         readonly name: string;
+        readonly numChildSpans: number;
         readonly output: {
           readonly value: string;
         } | null;
@@ -156,7 +158,14 @@ v7 = {
   "name": "parentId",
   "storageKey": null
 },
-v8 = [
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numChildSpans",
+  "storageKey": null
+},
+v9 = [
   {
     "alias": "value",
     "args": null,
@@ -165,34 +174,34 @@ v8 = [
     "storageKey": null
   }
 ],
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v8/*: any*/),
+  "selections": (v9/*: any*/),
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v8/*: any*/),
+  "selections": (v9/*: any*/),
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanId",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -211,7 +220,7 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -245,7 +254,7 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -431,12 +440,13 @@ return {
                   "storageKey": null
                 },
                 (v7/*: any*/),
-                (v9/*: any*/),
+                (v8/*: any*/),
                 (v10/*: any*/),
                 (v11/*: any*/),
                 (v12/*: any*/),
                 (v13/*: any*/),
                 (v14/*: any*/),
+                (v15/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -452,6 +462,7 @@ return {
                     (v5/*: any*/),
                     (v6/*: any*/),
                     (v7/*: any*/),
+                    (v8/*: any*/),
                     {
                       "alias": "cumulativeTokenCountTotal",
                       "args": null,
@@ -473,12 +484,12 @@ return {
                       "name": "tokenCountCompletion",
                       "storageKey": null
                     },
-                    (v9/*: any*/),
                     (v10/*: any*/),
                     (v11/*: any*/),
                     (v12/*: any*/),
                     (v13/*: any*/),
-                    (v14/*: any*/)
+                    (v14/*: any*/),
+                    (v15/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -548,6 +559,6 @@ return {
 };
 })();
 
-(node as any).hash = "a5d9a86c8ac224ed20cdc90bc5442673";
+(node as any).hash = "0e9d63fc2c1a227bb05605ee0868162d";
 
 export default node;
