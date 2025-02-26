@@ -188,6 +188,13 @@ async def test_span_fields(
         metadata
         numDocuments
         numChildSpans
+        childSpans(first: 1000) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
         descendants {
           id
         }
@@ -196,6 +203,7 @@ async def test_span_fields(
     db_project, db_traces, db_spans = _span_data
     db_descendent_ids = _get_descendant_rowids(db_spans)
     db_num_child_spans = _get_num_child_spans(db_spans)
+    db_child_span_rowids = _get_child_span_rowids(db_spans)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
     response = await gql_client.execute(
         query=query,
@@ -290,6 +298,13 @@ async def test_span_fields(
             assert span["numChildSpans"] == num_child_spans
         else:
             assert not span["numChildSpans"]
+        if child_span_rowids := db_child_span_rowids.get(db_span.id):
+            assert span["childSpans"]["edges"]
+            assert {e["node"]["id"] for e in span["childSpans"]["edges"]} == {
+                str(GlobalID(Span.__name__, str(id_))) for id_ in child_span_rowids
+            }
+        else:
+            assert not span["childSpans"]["edges"]
         if descendants := db_descendent_ids.get(db_span.id):
             assert span["descendants"]
             assert {d["id"] for d in span["descendants"]} == {
@@ -311,6 +326,21 @@ def _get_num_child_spans(
             continue
         if (parent_rowid := span_id_to_rowids.get(parent_id)) is not None:
             ans[parent_rowid] += 1
+    return ans
+
+
+def _get_child_span_rowids(
+    spans: Mapping[_SpanRowId, models.Span],
+) -> dict[_SpanRowId, set[_SpanRowId]]:
+    span_id_to_rowids: Mapping[_SpanId, _SpanRowId] = {
+        span.span_id: span_rowid for span_rowid, span in spans.items()
+    }
+    ans: defaultdict[_SpanRowId, set[_SpanRowId]] = defaultdict(set)
+    for span in spans.values():
+        if not (parent_id := span.parent_id):
+            continue
+        if (parent_rowid := span_id_to_rowids.get(parent_id)) is not None:
+            ans[parent_rowid].add(span.id)
     return ans
 
 

@@ -9,7 +9,7 @@ import numpy as np
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
@@ -30,6 +30,7 @@ from phoenix.server.api.types.Evaluation import DocumentEvaluation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.MimeType import MimeType
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
@@ -540,6 +541,25 @@ class Span(Node):
     @strawberry.field
     async def num_child_spans(self, info: Info[Context, None]) -> int:
         return await info.context.data_loaders.num_child_spans.load(self.span_rowid)
+
+    @strawberry.field
+    async def child_spans(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection["Span"]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        span_rowids = await info.context.data_loaders.child_spans.load(self.span_rowid)
+        data = [Span(span_rowid=span_rowid) for span_rowid in sorted(span_rowids)]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",

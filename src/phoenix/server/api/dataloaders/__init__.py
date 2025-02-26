@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
+from .child_spans import ChildSpansDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
 from .document_evaluation_summaries import (
@@ -41,6 +42,7 @@ from .users import UsersDataLoader
 __all__ = [
     "CacheForDataLoaders",
     "AverageExperimentRunLatencyDataLoader",
+    "ChildSpansDataLoader",
     "DatasetExampleRevisionsDataLoader",
     "DatasetExampleSpansDataLoader",
     "DocumentEvaluationSummaryDataLoader",

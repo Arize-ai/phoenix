@@ -1811,6 +1811,7 @@ type Span implements Node {
   """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
   documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!
   numChildSpans: Int!
+  childSpans(first: Int = 100, last: Int, after: String, before: String): SpanConnection!
 
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!

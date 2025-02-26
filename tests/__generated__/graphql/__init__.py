@@ -964,6 +964,7 @@ class Span(Node):
     model_config = ConfigDict(frozen=True)
     asExampleRevision: SpanAsExampleRevision = Field(...)
     attributes: str = Field(...)
+    childSpans: SpanConnection
     containedInDataset: bool = Field(...)
     context: SpanContext
     cumulativeTokenCountCompletion: Optional[int] = Field(default=None)
