@@ -11,6 +11,10 @@ interface TokenProps
     SizingProps {
   children?: React.ReactNode;
   /**
+   * Leading visual element
+   */
+  leadingVisual?: React.ReactNode;
+  /**
    * Whether the token is disabled
    */
   isDisabled?: boolean;
@@ -101,6 +105,23 @@ const tokenBaseCSS = css`
   }
 `;
 
+function TokenLeadingVisual({ children }: React.PropsWithChildren) {
+  return (
+    <span
+      css={css`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--ac-global-dimension-static-size-200);
+        height: var(--ac-global-dimension-static-size-200);
+        margin-right: var(--ac-global-dimension-static-size-50);
+      `}
+    >
+      {children}
+    </span>
+  );
+}
+
 /**
  * A token is a pill or tag-like component that can display a string of text with optional interactions.
  * It can take one of four forms:
@@ -118,9 +139,18 @@ function Token({
   onRemove,
   size = "M",
   style,
+  leadingVisual,
   ...rest
 }: TokenProps): JSX.Element {
   const { theme } = useTheme();
+
+  /**
+   * Leading visual is only displayed for non-small tokens
+   */
+  const wrappedLeadingVisual =
+    leadingVisual && size !== "S" ? (
+      <TokenLeadingVisual>{leadingVisual}</TokenLeadingVisual>
+    ) : null;
 
   const renderContent = () => {
     if (onPress && onRemove) {
@@ -132,6 +162,7 @@ function Token({
             }}
             disabled={isDisabled}
           >
+            {wrappedLeadingVisual}
             {children}
           </button>
           <button
@@ -155,6 +186,7 @@ function Token({
           }}
           disabled={isDisabled}
         >
+          {wrappedLeadingVisual}
           {children}
         </button>
       );
@@ -163,7 +195,10 @@ function Token({
     if (onRemove) {
       return (
         <>
-          <span>{children}</span>
+          <span>
+            {wrappedLeadingVisual}
+            {children}
+          </span>
           <button
             onClick={() => {
               onRemove();
@@ -177,7 +212,12 @@ function Token({
       );
     }
 
-    return children;
+    return (
+      <>
+        {wrappedLeadingVisual}
+        {children}
+      </>
+    );
   };
 
   return (

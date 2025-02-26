@@ -93,20 +93,20 @@ export const FullInteractive: Meta<typeof Token> = {
   argTypes: {},
 };
 
-const WithIconTemplate: StoryFn<TokenProps> = (args) => (
+const WithLeadingVisualTemplate: StoryFn<TokenProps> = (args) => (
   <Card
-    title="Token with Icon"
+    title="Token with Leading Visual"
     bodyStyle={{ width: "600px" }}
     variant="compact"
   >
-    <Token {...args}>
-      <Icon svg={<Icons.Info />} /> With Icon
+    <Token {...args} leadingVisual={<Icon svg={<Icons.Info />} />}>
+      With Leading Visual
     </Token>
   </Card>
 );
 
-export const WithIcon: Meta<typeof Token> = {
-  render: WithIconTemplate,
+export const WithLeadingVisual: Meta<typeof Token> = {
+  render: WithLeadingVisualTemplate,
   args: {
     isDisabled: false,
     onPress: () => alert("Token clicked!"),
