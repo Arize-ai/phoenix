@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional
 import pandas as pd
 from aioitertools.itertools import groupby
 from cachetools import LFUCache, TTLCache
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 from strawberry.dataloader import AbstractCache, DataLoader
 from typing_extensions import TypeAlias, assert_never
 
@@ -104,131 +104,144 @@ def _get_stmt(
     kind, project_rowid, (start_time, end_time), filter_condition = segment
 
     if kind == "span":
-        msa = models.SpanAnnotation
-        # Define columns.
-        name_column = msa.name
-        label_column = msa.label
-        score_column = msa.score
-        span_id_column = models.Span.id.label("span_id")
-        time_column = models.Span.start_time
-
-        base_stmt = (
-            select(
-                span_id_column,
-                name_column,
-                label_column,
-                func.count().label("record_count"),
-                func.count(label_column).label("label_count"),
-                func.count(score_column).label("score_count"),
-                func.sum(score_column).label("score_sum"),
-            )
-            .join(models.Span)
-            .join_from(models.Span, models.Trace)
-            .where(models.Trace.project_rowid == project_rowid)
-            .where(or_(score_column.is_not(None), label_column.is_not(None)))
-            .where(name_column.in_(annotation_names))
-        )
-        if start_time:
-            base_stmt = base_stmt.where(start_time <= time_column)
-        if end_time:
-            base_stmt = base_stmt.where(time_column < end_time)
-        base_stmt = base_stmt.group_by(span_id_column, name_column, label_column)
-        base_stmt = base_stmt.order_by(name_column, label_column)
-
-        # Compute per-span label fraction:
-        # For each (span, name, label) group, calculate:
-        #   label_fraction = label_count / sum(label_count) OVER (PARTITION BY span_id, name)
-        per_span_stmt = select(
-            base_stmt.c.span_id,
-            base_stmt.c.name,
-            base_stmt.c.label,
-            base_stmt.c.record_count,
-            base_stmt.c.label_count,
-            base_stmt.c.score_count,
-            base_stmt.c.score_sum,
-            (
-                base_stmt.c.label_count
-                * 1.0
-                / func.sum(base_stmt.c.label_count).over(
-                    partition_by=[base_stmt.c.span_id, base_stmt.c.name]
-                )
-            ).label("label_fraction"),
-        ).subquery()
-
-        final_stmt = (
-            select(
-                per_span_stmt.c.name,
-                per_span_stmt.c.label,
-                func.avg(per_span_stmt.c.label_fraction).label("avg_label_fraction"),
-                func.sum(per_span_stmt.c.record_count).label("record_count"),
-                func.sum(per_span_stmt.c.score_count).label("score_count"),
-                func.sum(per_span_stmt.c.score_sum).label("score_sum"),
-            )
-            .group_by(per_span_stmt.c.name, per_span_stmt.c.label)
-            .order_by(per_span_stmt.c.name, per_span_stmt.c.label)
-        )
-        return final_stmt
-
+        annotation_model = models.SpanAnnotation
+        entity_model = models.Span
+        entity_join_model = models.Trace
+        entity_id_column = models.Span.id.label("entity_id")
     elif kind == "trace":
-        mta = models.TraceAnnotation
-        name_column = mta.name
-        label_column = mta.label
-        score_column = mta.score
-        trace_id_column = models.Trace.id.label("trace_id")
-        time_column = models.Trace.start_time
-
-        base_stmt = (
-            select(
-                trace_id_column,
-                name_column,
-                label_column,
-                func.count().label("record_count"),
-                func.count(label_column).label("label_count"),
-                func.count(score_column).label("score_count"),
-                func.sum(score_column).label("score_sum"),
-            )
-            .join(models.Trace)
-            .where(models.Trace.project_rowid == project_rowid)
-            .where(or_(score_column.is_not(None), label_column.is_not(None)))
-            .where(name_column.in_(annotation_names))
-        )
-        if start_time:
-            base_stmt = base_stmt.where(start_time <= time_column)
-        if end_time:
-            base_stmt = base_stmt.where(time_column < end_time)
-        base_stmt = base_stmt.group_by(trace_id_column, name_column, label_column)
-        base_stmt = base_stmt.order_by(name_column, label_column)
-
-        per_trace_stmt = select(
-            base_stmt.c.trace_id,
-            base_stmt.c.name,
-            base_stmt.c.label,
-            base_stmt.c.record_count,
-            base_stmt.c.label_count,
-            base_stmt.c.score_count,
-            base_stmt.c.score_sum,
-            (
-                base_stmt.c.label_count
-                * 1.0
-                / func.sum(base_stmt.c.label_count).over(
-                    partition_by=[base_stmt.c.trace_id, base_stmt.c.name]
-                )
-            ).label("label_fraction"),
-        ).subquery()
-
-        final_stmt = (
-            select(
-                per_trace_stmt.c.name,
-                per_trace_stmt.c.label,
-                func.avg(per_trace_stmt.c.label_fraction).label("avg_label_fraction"),
-                func.sum(per_trace_stmt.c.record_count).label("record_count"),
-                func.sum(per_trace_stmt.c.score_count).label("score_count"),
-                func.sum(per_trace_stmt.c.score_sum).label("score_sum"),
-            )
-            .group_by(per_trace_stmt.c.name, per_trace_stmt.c.label)
-            .order_by(per_trace_stmt.c.name, per_trace_stmt.c.label)
-        )
-        return final_stmt
-
+        annotation_model = models.TraceAnnotation
+        entity_model = models.Trace
+        entity_join_model = None  # No additional join needed for trace
+        entity_id_column = models.Trace.id.label("entity_id")
     else:
         assert_never(kind)
+
+    name_column = annotation_model.name
+    label_column = annotation_model.label
+    score_column = annotation_model.score
+    time_column = entity_model.start_time
+
+    base_stmt = select(
+        entity_id_column,
+        name_column,
+        label_column,
+        func.count().label("record_count"),
+        func.count(label_column).label("label_count"),
+        func.count(score_column).label("score_count"),
+        func.sum(score_column).label("score_sum"),
+    )
+
+    if kind == "span":
+        base_stmt = base_stmt.join(entity_model).join_from(entity_model, entity_join_model)
+        base_stmt = base_stmt.where(models.Trace.project_rowid == project_rowid)
+    elif kind == "trace":
+        base_stmt = base_stmt.join(entity_model)
+        base_stmt = base_stmt.where(entity_model.project_rowid == project_rowid)
+    else:
+        assert_never(kind)
+
+    base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
+    base_stmt = base_stmt.where(name_column.in_(annotation_names))
+
+    if start_time:
+        base_stmt = base_stmt.where(start_time <= time_column)
+    if end_time:
+        base_stmt = base_stmt.where(time_column < end_time)
+
+    base_stmt = base_stmt.group_by(entity_id_column, name_column, label_column)
+
+    base_subquery = base_stmt.subquery()
+
+    # Get total annotation count per entity and name
+    total_counts = (
+        select(
+            base_subquery.c.entity_id,
+            base_subquery.c.name,
+            func.sum(base_subquery.c.label_count).label("total_label_count"),
+        )
+        .group_by(base_subquery.c.entity_id, base_subquery.c.name)
+        .subquery()
+    )
+
+    # Get all distinct entity+name combinations in the dataset
+    entity_name_pairs = (
+        select(base_subquery.c.entity_id, base_subquery.c.name)
+        .group_by(base_subquery.c.entity_id, base_subquery.c.name)
+        .subquery()
+    )
+
+    # Get all distinct labels used for each annotation name
+    all_labels = (
+        select(base_subquery.c.name, base_subquery.c.label)
+        .group_by(base_subquery.c.name, base_subquery.c.label)
+        .subquery()
+    )
+
+    # Create a cartesian product of all entity+name pairs with all possible labels
+    # This ensures we account for missing labels in some entities
+    entity_name_label_combos = (
+        select(entity_name_pairs.c.entity_id, entity_name_pairs.c.name, all_labels.c.label)
+        .join(all_labels, entity_name_pairs.c.name == all_labels.c.name)
+        .subquery()
+    )
+
+    # Left join with the actual data to get counts (or 0 for missing labels)
+    complete_data = (
+        select(
+            entity_name_label_combos.c.entity_id,
+            entity_name_label_combos.c.name,
+            entity_name_label_combos.c.label,
+            func.coalesce(base_subquery.c.label_count, 0).label("label_count"),
+            func.coalesce(base_subquery.c.record_count, 0).label("record_count"),
+            func.coalesce(base_subquery.c.score_count, 0).label("score_count"),
+            func.coalesce(base_subquery.c.score_sum, 0).label("score_sum"),
+        )
+        .outerjoin(
+            base_subquery,
+            and_(
+                entity_name_label_combos.c.entity_id == base_subquery.c.entity_id,
+                entity_name_label_combos.c.name == base_subquery.c.name,
+                entity_name_label_combos.c.label == base_subquery.c.label,
+            ),
+        )
+        .subquery()
+    )
+
+    # Join with total counts to calculate fractions
+    fractions = (
+        select(
+            complete_data.c.entity_id,
+            complete_data.c.name,
+            complete_data.c.label,
+            complete_data.c.record_count,
+            complete_data.c.label_count,
+            complete_data.c.score_count,
+            complete_data.c.score_sum,
+            (complete_data.c.label_count * 1.0 / total_counts.c.total_label_count).label(
+                "label_fraction"
+            ),
+        )
+        .join(
+            total_counts,
+            and_(
+                complete_data.c.entity_id == total_counts.c.entity_id,
+                complete_data.c.name == total_counts.c.name,
+            ),
+        )
+        .subquery()
+    )
+
+    final_stmt = (
+        select(
+            fractions.c.name,
+            fractions.c.label,
+            func.avg(fractions.c.label_fraction).label("avg_label_fraction"),
+            func.sum(fractions.c.record_count).label("record_count"),
+            func.sum(fractions.c.score_count).label("score_count"),
+            func.sum(fractions.c.score_sum).label("score_sum"),
+        )
+        .group_by(fractions.c.name, fractions.c.label)
+        .order_by(fractions.c.name, fractions.c.label)
+    )
+
+    return final_stmt
