@@ -174,4 +174,6 @@ results = llm_classify(
     provide_explanation=True,  # Enable explanations
 )
 
+# Note: The `llm_classify` function now uses the `converse` API for model interaction.
 ```
+
