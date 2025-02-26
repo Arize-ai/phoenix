@@ -198,7 +198,7 @@ async def test_span_fields(
       }
     """
     db_project, db_traces, db_spans = _span_data
-    db_descendent_ids = _get_descendant_rowids(db_spans, 3)
+    db_descendent_rowids = _get_descendant_rowids(db_spans, 3)
     db_num_child_spans = _get_num_child_spans(db_spans)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
     response = await gql_client.execute(
@@ -294,8 +294,7 @@ async def test_span_fields(
             assert span["numChildSpans"] == num_child_spans
         else:
             assert not span["numChildSpans"]
-        if descendants := db_descendent_ids.get(db_span.id):
-            assert span["descendants"]
+        if descendants := db_descendent_rowids.get(db_span.id):
             assert {e["node"]["id"] for e in span["descendants"]["edges"]} == {
                 str(GlobalID(Span.__name__, str(id_))) for id_ in descendants
             }
