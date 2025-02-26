@@ -164,6 +164,10 @@ async def test_span_fields(
           spanId
           traceId
         }
+        trace {
+          id
+          numSpans
+        }
         attributes
         tokenCountTotal
         tokenCountPrompt
@@ -198,6 +202,7 @@ async def test_span_fields(
       }
     """
     db_project, db_traces, db_spans = _span_data
+    db_num_spans_per_trace = _get_num_spans_per_trace(db_spans)
     db_descendent_rowids = _get_descendant_rowids(db_spans, 3)
     db_num_child_spans = _get_num_child_spans(db_spans)
     project_id = str(GlobalID(Project.__name__, str(db_project.id)))
@@ -300,6 +305,8 @@ async def test_span_fields(
             }
         else:
             assert not span["descendants"]["edges"]
+        assert span["trace"]["id"] == str(GlobalID(Trace.__name__, str(db_span.trace_rowid)))
+        assert span["trace"]["numSpans"] == db_num_spans_per_trace[db_span.trace_rowid]
 
 
 def _get_num_child_spans(
@@ -334,6 +341,15 @@ def _get_descendant_rowids(
             child_span = spans[parent_span_rowid]
             level -= 1
     return descendant_rowids
+
+
+def _get_num_spans_per_trace(
+    spans: Mapping[_SpanRowId, models.Span],
+) -> dict[_TraceRowId, int]:
+    ans: defaultdict[_TraceRowId, int] = defaultdict(int)
+    for span in spans.values():
+        ans[span.trace_rowid] += 1
+    return ans
 
 
 @pytest.fixture

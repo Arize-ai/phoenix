@@ -30,6 +30,7 @@ from phoenix.server.api.dataloaders import (
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
+    NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
@@ -78,6 +79,7 @@ class DataLoaders:
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
     num_child_spans: NumChildSpansDataLoader
+    num_spans_per_trace: NumSpansPerTraceDataLoader
     project_fields: TableFieldsDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
