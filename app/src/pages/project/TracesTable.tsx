@@ -364,6 +364,20 @@ export function TracesTable(props: TracesTableProps) {
       ),
     },
     {
+      header: "status",
+      accessorKey: "statusCode",
+      maxSize: 30,
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const statusCode = getValue() as SpanStatusCode;
+        return (
+          <Flex gap="size-50">
+            <SpanStatusCodeIcon statusCode={statusCode} />
+          </Flex>
+        );
+      },
+    },
+    {
       header: () => {
         return (
           <Flex gap="size-50" direction="row" alignItems="center">
@@ -472,14 +486,6 @@ export function TracesTable(props: TracesTableProps) {
             }
           />
         );
-      },
-    },
-    {
-      header: "status",
-      accessorKey: "statusCode",
-      enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },
     },
   ];
