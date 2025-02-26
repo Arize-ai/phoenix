@@ -2107,6 +2107,7 @@ type Trace implements Node {
   projectSessionId: GlobalID
   session: ProjectSession
   rootSpan: Span
+  numSpans: Int!
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Annotations associated with the trace."""

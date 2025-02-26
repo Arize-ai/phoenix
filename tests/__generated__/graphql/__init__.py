@@ -1222,6 +1222,7 @@ class Trace(Node):
     endTime: str
     id: str = Field(...)
     latencyMs: Optional[float] = None
+    numSpans: int
     project: Project
     projectId: str
     projectSessionId: Optional[str] = None

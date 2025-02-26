@@ -172,6 +172,13 @@ class Trace(Node):
         return Span(span_rowid=span_rowid)
 
     @strawberry.field
+    async def num_spans(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.num_spans_per_trace.load(self.trace_rowid)
+
+    @strawberry.field
     async def spans(
         self,
         info: Info[Context, None],
