@@ -78,11 +78,11 @@ export function TraceDetails(props: TraceDetailsProps) {
                     statusCode: propagatedStatusCode
                     startTime
                     parentId
+                    numChildSpans
                     latencyMs
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
-                    numChildSpans
                   }
                 }
               }
