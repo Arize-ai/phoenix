@@ -68,7 +68,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             .where(
                 sa.or_(
                     parents.c.max_depth.is_(None),  # No limit if max_depth is NULL
-                    parents.c.level + 1 <= sa.cast(parents.c.max_depth, sa.Integer),
+                    parents.c.level + 1 <= parents.c.max_depth,
                 ),
             )
         )
