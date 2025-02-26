@@ -245,6 +245,7 @@ assumed_role_session = boto3.Session(
 client_bedrock = assumed_role_session.client("bedrock-runtime")
 # Arize Model Object - Bedrock ClaudV2 by default
 model = BedrockModel(client=client_bedrock)
+# Note: The BedrockModel now uses the 'converse' API instead of 'invoke_model' for model interactions.
 
 ```
 
