@@ -554,7 +554,7 @@ class Span(Node):
                 description="Maximum depth of breadth first search. For example, "
                 "maxDepth=1 searches for only the immediate child spans (if any); "
                 "maxDepth=2 searches for the immediate child spans plus their children. "
-                "maxDepth=0 (or None) means no limit. Defaults to 2."
+                "maxDepth=0 (or None) means no limit."
             ),
         ] = 3,
         first: Optional[int] = 50,
