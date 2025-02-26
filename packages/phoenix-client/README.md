@@ -1,12 +1,12 @@
 # arize-phoenix-client
 
-Phoenix Client is a Python package for interacting with the Arize Phoenix server via its OpenAPI REST interface.
+Phoenix Client is a lightweight package for interacting with the Arize Phoenix server via its OpenAPI REST interface.
 
 [![pypi](https://badge.fury.io/py/arize-phoenix-client.svg)](https://pypi.org/project/arize-phoenix-client/)
 
 ## Installation
 
-Install the `arize-phoenix-client` sub-package via `pip`
+Install the `arize-phoenix-client` package via `pip`
 
 ```shell
 pip install arize-phoenix-client
