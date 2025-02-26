@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb2f3bdbb94d8a60d508f6588b374af6>>
+ * @generated SignedSource<<c3d1bd7847c3734d41cffc8b8ff2f4a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type settingsPageLoaderQuery$variables = Record<PropertyKey, never>;
 export type settingsPageLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"GenerativeProvidersCard_data">;
+  readonly " $fragmentSpreads": FragmentRefs<"DBUsagePieChart_data" | "GenerativeProvidersCard_data">;
 };
 export type settingsPageLoaderQuery = {
   response: settingsPageLoaderQuery$data;
@@ -30,6 +30,11 @@ const node: ConcreteRequest = {
         "args": null,
         "kind": "FragmentSpread",
         "name": "GenerativeProvidersCard_data"
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "DBUsagePieChart_data"
       }
     ],
     "type": "Query",
@@ -93,19 +98,44 @@ const node: ConcreteRequest = {
           }
         ],
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "DbTableStats",
+        "kind": "LinkedField",
+        "name": "dbTableStats",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "tableName",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "numBytes",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "bc46c0b83314efc75f5723890a95ca29",
+    "cacheID": "67562b8680619368296778cb8e2183ee",
     "id": null,
     "metadata": {},
     "name": "settingsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
+    "text": "query settingsPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...DBUsagePieChart_data\n}\n\nfragment DBUsagePieChart_data on Query {\n  dbTableStats {\n    tableName\n    numBytes\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
   }
 };
 
-(node as any).hash = "e63f789fe54d58eb540bf0ab1c8d6a7f";
+(node as any).hash = "69a5a0039a171639cb4817f6d966030c";
 
 export default node;
