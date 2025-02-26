@@ -349,6 +349,8 @@ Meta prompting involves prompting a model to generate a better prompt, based on 
 
 The experiment from round 1 serves as a great starting point for this technique, since it has each of those components.
 
+Note: With the migration to the 'converse' API, ensure that any prompt optimization techniques are compatible with the new API structure and parameters.
+
 
 ```python
 # Access the experiment results from the first round as a dataframe
