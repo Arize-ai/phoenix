@@ -104,6 +104,12 @@ nest_asyncio.apply()  # This is needed for concurrency in notebook environments
 # Set your OpenAI API key
 eval_model = OpenAIModel(model="gpt-4o")
 
+# Initialize Bedrock Model with Converse API
+model = BedrockModel(
+    model_id="amazon.nova-lite-v1:0",
+    session=session,
+)
+
 # Define your evaluators
 hallucination_evaluator = HallucinationEvaluator(eval_model)
 qa_evaluator = QAEvaluator(eval_model)
