@@ -179,6 +179,7 @@ class Trace(Node):
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        root_spans_only: Optional[bool] = UNSET,
     ) -> Connection[Span]:
         args = ConnectionArgs(
             first=first,
@@ -195,6 +196,14 @@ class Trace(Node):
             .order_by(desc(models.Span.id))
             .limit(first)
         )
+        if root_spans_only:
+            # A root span is any span whose parent span is missing in the
+            # database, even if its `parent_id` may not be NULL.
+            parent = select(models.Span.span_id).alias("parent")
+            stmt = stmt.outerjoin(
+                parent,
+                models.Span.parent_id == parent.c.span_id,
+            ).where(parent.c.span_id.is_(None))
         async with info.context.db() as session:
             span_rowids = await session.stream_scalars(stmt)
             data = [Span(span_rowid=span_rowid) async for span_rowid in span_rowids]
