@@ -78,7 +78,7 @@ Once the data is in a dataframe, evaluations can be run on the data. Evaluations
 
 ### Q\&A and Hallucination Evals
 
-This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many other [models](../api/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
+This example shows how to run Q\&A and Hallucination Evals with OpenAI (many other [models](../api/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock using the converse API, etc...)
 
 ```python
 from phoenix.trace import SpanEvaluations, DocumentEvaluations
@@ -100,6 +100,8 @@ hallucination_eval = llm_classify(
   provide_explanation=True,  # Makes the LLM explain its reasoning
   concurrency=4,
 )
+
+# Note: For Bedrock models, ensure to use the 'converse' API for model invocation.
 hallucination_eval["score"] = (
   hallucination_eval.label[~hallucination_eval.label.isna()] == "factual"
 ).astype(int)
