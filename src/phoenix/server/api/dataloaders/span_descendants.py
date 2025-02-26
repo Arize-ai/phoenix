@@ -47,6 +47,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             select(
                 Span.id,
                 Span.span_id,
+                Span.start_time,
                 roots.c.root_rowid,
                 roots.c.max_depth,
                 sa.literal(1).label("depth"),  # immediate children are depth=1 from root
@@ -62,6 +63,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             select(
                 Span.id,
                 Span.span_id,
+                Span.start_time,
                 parents.c.root_rowid,
                 parents.c.max_depth,
                 (parents.c.depth + 1).label("depth"),  # Increment depth for each level
@@ -85,6 +87,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             descendants.c.root_rowid,
             descendants.c.max_depth,
             descendants.c.depth,  # Order by depth for BFS traversal
+            descendants.c.start_time,
             descendants.c.id,
         )
 

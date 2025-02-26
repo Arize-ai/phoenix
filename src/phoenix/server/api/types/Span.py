@@ -556,8 +556,8 @@ class Span(Node):
                 "maxDepth=2 searches for the immediate child spans plus their children. "
                 "maxDepth=0 (or None) means no limit. Defaults to 2."
             ),
-        ] = 2,
-        first: Optional[int] = 100,
+        ] = 3,
+        first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
