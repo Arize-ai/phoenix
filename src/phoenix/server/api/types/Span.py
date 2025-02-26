@@ -557,7 +557,7 @@ class Span(Node):
                 "maxDepth=0 (or None) means no limit. Defaults to 2."
             ),
         ] = 2,
-        first: Optional[int] = 1000,
+        first: Optional[int] = 100,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,

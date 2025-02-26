@@ -1,3 +1,4 @@
+from collections import defaultdict
 from secrets import token_hex
 from typing import Iterable, Optional
 
@@ -23,10 +24,9 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: Iterable[Key]) -> list[Result]:
-        root_id_label = f"root_id_{token_hex(2)}"
-        root_rowid_label = f"root_rowid_{token_hex(2)}"
-        max_depth_label = f"max_depth_{token_hex(2)}"
-        level_label = f"level_{token_hex(2)}"
+        root_rowid_label = f"_root_rowid_{token_hex(2)}"
+        max_depth_label = f"_max_depth_{token_hex(2)}"
+        level_label = f"_level_{token_hex(2)}"
 
         # Create a values expression with Span.id and respective max_depth (which can be None)
         id_depth = (
@@ -40,14 +40,14 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         )
 
         # Get the root spans with their depth limits
-        root_spans = (
+        roots = (
             select(
                 models.Span.span_id,
-                models.Span.id,
+                id_depth.c.id.label(root_rowid_label),
                 id_depth.c.max_depth.label(max_depth_label),
             )
             .join(id_depth, models.Span.id == id_depth.c.id)
-            .subquery("root_spans")
+            .subquery("roots")
         )
 
         # Initialize the recursive CTE with a level column and max_depth
@@ -55,36 +55,32 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             select(
                 models.Span.id,
                 models.Span.span_id,
-                models.Span.parent_id.label(root_id_label),
-                root_spans.c.id.label(root_rowid_label),
-                root_spans.c[max_depth_label].label(max_depth_label),
+                roots.c[root_rowid_label],
+                roots.c[max_depth_label],
                 sa.literal(1).label(level_label),  # Start at level 1
             )
-            .join(root_spans, models.Span.parent_id == root_spans.c.span_id)
+            .join_from(roots, models.Span, models.Span.parent_id == roots.c.span_id)
             .cte("descendants", recursive=True)
         )
 
         # Build the recursive query
-        recursion = select(
-            models.Span.id,
-            models.Span.span_id,
-            descendants.c[root_id_label],
-            descendants.c[root_rowid_label],
-            descendants.c[max_depth_label],
-            (descendants.c[level_label] + 1).label(level_label),
-        ).join(
-            descendants,
-            sa.and_(
-                models.Span.parent_id == descendants.c.span_id,
+        parents = descendants.alias("parents")
+        descendants = descendants.union_all(
+            select(
+                models.Span.id,
+                models.Span.span_id,
+                parents.c[root_rowid_label],
+                parents.c[max_depth_label],
+                (parents.c[level_label] + 1).label(level_label),
+            )
+            .join_from(parents, models.Span, models.Span.parent_id == parents.c.span_id)
+            .where(
                 sa.or_(
-                    descendants.c[max_depth_label].is_(None),  # No limit if max_depth is NULL
-                    descendants.c[level_label] + 1
-                    <= sa.cast(descendants.c[max_depth_label], sa.Integer),
+                    parents.c[max_depth_label].is_(None),  # No limit if max_depth is NULL
+                    parents.c[level_label] + 1 <= sa.cast(parents.c[max_depth_label], sa.Integer),
                 ),
-            ),
+            )
         )
-
-        descendants = descendants.union_all(recursion)
 
         stmt = select(
             descendants.c.id,
@@ -96,7 +92,7 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             descendants.c[level_label],  # Order by level for BFS
             descendants.c.id,
         )
-        results: dict[Key, Result] = {key: [] for key in keys}
+        results: defaultdict[Key, Result] = defaultdict(list)
         async with self._db() as session:
             data = await session.stream(stmt)
             async for key, group in groupby(data, key=lambda d: tuple(d[1:])):
