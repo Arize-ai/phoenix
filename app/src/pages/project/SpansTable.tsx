@@ -284,6 +284,20 @@ export function SpansTable(props: SpansTableProps) {
       ),
     },
     {
+      header: "status",
+      accessorKey: "statusCode",
+      maxSize: 30,
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const statusCode = getValue() as SpanStatusCode;
+        return (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <SpanStatusCodeIcon statusCode={statusCode} />
+          </Flex>
+        );
+      },
+    },
+    {
       header: "kind",
       accessorKey: "spanKind",
       maxSize: 100,
@@ -357,14 +371,6 @@ export function SpansTable(props: SpansTableProps) {
             tokenCountCompletion={row.original.tokenCountCompletion || 0}
           />
         );
-      },
-    },
-    {
-      header: "status",
-      accessorKey: "statusCode",
-      enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },
     },
   ];
