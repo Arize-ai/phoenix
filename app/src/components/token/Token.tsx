@@ -2,18 +2,20 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
-import { StylableProps } from "@phoenix/components/types";
+import { SizingProps, StylableProps } from "@phoenix/components/types";
 import { useTheme } from "@phoenix/contexts";
 
 // Define the base props that all token variants share
-interface TokenProps extends StylableProps {
+interface TokenProps extends StylableProps, SizingProps {
   children?: React.ReactNode;
   /**
    * Whether the token is disabled
    */
   isDisabled?: boolean;
   /**
-   * The color of the token
+   * The color of the token.
+   *
+   * Can be any valid CSS color value, including CSS variables.
    */
   color?: string;
   /**
@@ -37,9 +39,25 @@ const tokenBaseCSS = css`
   padding: var(--ac-global-dimension-static-size-50)
     var(--ac-global-dimension-static-size-100);
   border-radius: var(--ac-global-rounding-medium);
-  border: 1px solid lch(from var(--ac-internal-token-color) calc(l - 15) c h);
+  border: 1px solid
+    lch(from var(--ac-internal-token-color) calc((l) * infinity) c h / 0.3);
   color: lch(from var(--ac-internal-token-color) calc((50 - l) * infinity) 0 0);
   user-select: none;
+
+  &[data-size="S"] {
+    padding: var(--ac-global-dimension-static-size-25)
+      var(--ac-global-dimension-static-size-50);
+  }
+
+  &[data-size="M"] {
+    padding: var(--ac-global-dimension-static-size-50)
+      var(--ac-global-dimension-static-size-100);
+  }
+
+  &[data-size="L"] {
+    padding: var(--ac-global-dimension-static-size-100)
+      var(--ac-global-dimension-static-size-200);
+  }
 
   &[data-disabled] {
     opacity: 0.5;
@@ -86,16 +104,16 @@ const tokenBaseCSS = css`
  * 3. Removable: Wrapped child content, sibling to a remove button (onRemove)
  * 4. Full Interactive: Wrapped sibling buttons with child content in the non-remove button
  */
-function Token(props: TokenProps): JSX.Element {
+function Token({
+  children,
+  isDisabled,
+  css: cssProp,
+  color = "var(--ac-global-color-grey-300)",
+  onPress,
+  onRemove,
+  size = "M",
+}: TokenProps): JSX.Element {
   const { theme } = useTheme();
-  const {
-    children,
-    isDisabled,
-    css: cssProp,
-    color = "var(--ac-global-input-field-background-color)",
-    onPress,
-    onRemove,
-  } = props;
 
   const renderContent = () => {
     if (onPress && onRemove) {
@@ -161,6 +179,7 @@ function Token(props: TokenProps): JSX.Element {
       // @ts-expect-error --px-token-color is a custom property
       style={{ "--ac-internal-token-color": color }}
       data-theme={theme}
+      data-size={size}
       {...(onPress && { "data-interactive": true })}
       {...(onRemove && { "data-removable": true })}
       {...(isDisabled && { "data-disabled": true })}
