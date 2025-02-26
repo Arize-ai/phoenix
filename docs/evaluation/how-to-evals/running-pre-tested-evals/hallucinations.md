@@ -44,14 +44,14 @@ We are continually iterating our templates, view the most up-to-date template [o
 from phoenix.evals import (
     HALLUCINATION_PROMPT_RAILS_MAP,
     HALLUCINATION_PROMPT_TEMPLATE,
-    OpenAIModel,
+    BedrockModel,
     download_benchmark_dataset,
     llm_classify,
 )
 
-model = OpenAIModel(
-    model_name="gpt-4",
-    temperature=0.0,
+model = BedrockModel(
+    model_id="amazon.nova-lite-v1:0",
+    session=session,
 )
 
 #The rails is used to hold the output to specific values based on the template
