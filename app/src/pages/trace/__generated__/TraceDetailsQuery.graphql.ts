@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6292be6f779005151427b3896f1f8388>>
+ * @generated SignedSource<<3e9699f5c793b057dbd823758e2b03c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -175,6 +175,13 @@ v5 = {
                       "name": "parentId",
                       "storageKey": null
                     },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "numChildSpans",
+                      "storageKey": null
+                    },
                     (v4/*: any*/),
                     {
                       "alias": null,
@@ -195,13 +202,6 @@ v5 = {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountCompletion",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "numChildSpans",
                       "storageKey": null
                     }
                   ],
@@ -283,16 +283,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a889fa3551b20efa949c1771da859435",
+    "cacheID": "44e3a07eee6f6fee4ee99c202cf81aee",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n              numChildSpans\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              numChildSpans\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1b5c6caffd2fe9d078d42f175e04bc05";
+(node as any).hash = "8db4995150df08a5ede48948bfc74c7d";
 
 export default node;
