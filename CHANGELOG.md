@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.4.0...arize-phoenix-v8.4.1) (2025-02-26)
+
+
+### Bug Fixes
+
+* **performance:** limit depth (defaults to 3) on descendant spans query ([#6578](https://github.com/Arize-ai/phoenix/issues/6578)) ([e2facc3](https://github.com/Arize-ai/phoenix/commit/e2facc3f39d6808b4f095452355057405e7592d5))
+
 ## [8.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.3.0...arize-phoenix-v8.4.0) (2025-02-26)
 
 
