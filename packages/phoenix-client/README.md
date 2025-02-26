@@ -45,7 +45,7 @@ The client can retrieve a prompt via its name.
 prompt = client.prompts.get(prompt_identifier=prompt_identifier)
 ```
 
-The retrieved prompt can be used to generate completions locally.
+The prompt can be used to generate completions locally.
 
 ```python
 from openai import OpenAI
