@@ -9,11 +9,11 @@ export interface ISpanItem {
   latencyMs: number | null;
   startTime: string;
   parentId: string | null;
+  numChildSpans: number;
   spanId: string;
   tokenCountTotal?: number | null;
   tokenCountPrompt?: number | null;
   tokenCountCompletion?: number | null;
-  numChildSpans: number;
   [otherKeys: string]: unknown;
 }
 
