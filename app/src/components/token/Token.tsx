@@ -3,9 +3,10 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
 import { StylableProps } from "@phoenix/components/types";
+import { useTheme } from "@phoenix/contexts";
 
 // Define the base props that all token variants share
-interface BaseTokenProps extends StylableProps {
+interface TokenProps extends StylableProps {
   children?: React.ReactNode;
   /**
    * Whether the token is disabled
@@ -15,32 +16,17 @@ interface BaseTokenProps extends StylableProps {
    * The color of the token
    */
   color?: string;
+  /**
+   * The function to call when the token is pressed
+   */
+  onPress?: () => void;
+  /**
+   * The function to call when the token is removed.
+   *
+   * If provided, an icon button will be displayed to the right of the token.
+   */
+  onRemove?: () => void;
 }
-
-// Props for interactive token (button variant)
-interface InteractiveTokenProps extends BaseTokenProps {
-  onPress: () => void;
-  onRemove?: never;
-}
-
-// Props for removable token
-interface RemovableTokenProps extends BaseTokenProps {
-  onRemove: () => void;
-  onPress?: never;
-}
-
-// Props for token with both interactions
-interface FullInteractiveTokenProps extends BaseTokenProps {
-  onPress: () => void;
-  onRemove: () => void;
-}
-
-// Union type of all possible token props
-type TokenProps =
-  | BaseTokenProps
-  | InteractiveTokenProps
-  | RemovableTokenProps
-  | FullInteractiveTokenProps;
 
 const tokenBaseCSS = css`
   display: inline-flex;
@@ -51,9 +37,8 @@ const tokenBaseCSS = css`
   padding: var(--ac-global-dimension-static-size-50)
     var(--ac-global-dimension-static-size-100);
   border-radius: var(--ac-global-rounding-medium);
-  border: 1px solid lch(from var(--px-token-color) calc(l - 15) c h);
-  background: var(--px-token-color);
-  color: lch(from var(--px-token-color) calc((50 - l) * infinity) 0 0);
+  border: 1px solid lch(from var(--ac-internal-token-color) calc(l - 15) c h);
+  color: lch(from var(--ac-internal-token-color) calc((50 - l) * infinity) 0 0);
   user-select: none;
 
   &[data-disabled] {
@@ -61,14 +46,24 @@ const tokenBaseCSS = css`
     cursor: not-allowed;
   }
 
+  &[data-theme="light"] {
+    background: var(--ac-internal-token-color);
+  }
+
+  &[data-theme="dark"] {
+    // generate a new dark token bg color from the input color
+    --px-internal-dark-token-bg: lch(
+      from var(--ac-internal-token-color) l c h / calc(alpha - 0.8)
+    );
+    background: var(--px-internal-dark-token-bg);
+    // generate a new dark token text color from the input color
+    color: lch(
+      from var(--px-internal-dark-token-bg) calc((l) * infinity) c h / 1
+    );
+  }
+
   &[data-interactive]:not([data-disabled]) {
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
-
-    &:hover {
-      background: lch(from var(--px-token-color) calc(l - 5) c h);
-      border-color: lch(from var(--px-token-color) calc(l - 30) c h);
-    }
   }
 
   > button {
@@ -76,12 +71,6 @@ const tokenBaseCSS = css`
     cursor: pointer;
     display: flex;
     align-items: center;
-    opacity: 0.8;
-    transition: opacity 0.2s ease-in-out;
-
-    &:hover:not([disabled]) {
-      opacity: 1;
-    }
 
     &[disabled] {
       cursor: not-allowed;
@@ -92,111 +81,91 @@ const tokenBaseCSS = css`
 /**
  * A token is a pill or tag-like component that can display a string of text with optional interactions.
  * It can take one of four forms:
- * 1. Default: A simple div with text content
- * 2. Interactive: A button that can be clicked (onPress)
- * 3. Removable: A div with a remove button (onRemove)
- * 4. Full Interactive: A div with sibling interactive and remove buttons
+ * 1. Default: Wrapped child content
+ * 2. Interactive: Wrapped button with child content that can be clicked (onPress)
+ * 3. Removable: Wrapped child content, sibling to a remove button (onRemove)
+ * 4. Full Interactive: Wrapped sibling buttons with child content in the non-remove button
  */
 function Token(props: TokenProps): JSX.Element {
+  const { theme } = useTheme();
   const {
     children,
     isDisabled,
     css: cssProp,
     color = "var(--ac-global-input-field-background-color)",
+    onPress,
+    onRemove,
   } = props;
-  const hasPress = "onPress" in props && props.onPress;
-  const hasRemove = "onRemove" in props && props.onRemove;
 
-  // Case 1: No interactions - simple div
-  if (!hasPress && !hasRemove) {
-    return (
-      <div
-        css={css(tokenBaseCSS, cssProp)}
-        // @ts-expect-error --px-token-color is a custom property
-        style={{ "--px-token-color": color }}
-        {...(isDisabled && { "data-disabled": true })}
-      >
-        {children}
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (onPress && onRemove) {
+      return (
+        <>
+          <button
+            onClick={() => {
+              onPress();
+            }}
+            disabled={isDisabled}
+          >
+            {children}
+          </button>
+          <button
+            onClick={() => {
+              onRemove();
+            }}
+            disabled={isDisabled}
+            aria-label="Remove"
+          >
+            <Icon svg={<Icons.CloseOutline />} />
+          </button>
+        </>
+      );
+    }
 
-  // Case 2: Interactive only - single button
-  if (hasPress && !hasRemove) {
-    return (
-      <div
-        css={css(tokenBaseCSS, cssProp)}
-        // @ts-expect-error --px-token-color is a custom property
-        style={{ "--px-token-color": color }}
-        data-interactive
-        {...(isDisabled && { "data-disabled": true })}
-      >
+    if (onPress) {
+      return (
         <button
           onClick={() => {
-            if (!isDisabled) {
-              props.onPress();
-            }
+            onPress();
           }}
           disabled={isDisabled}
         >
           {children}
         </button>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Case 3: Removable only - div with remove button
-  if (!hasPress && hasRemove) {
-    return (
-      <div
-        css={css(tokenBaseCSS, cssProp)}
-        // @ts-expect-error --px-token-color is a custom property
-        style={{ "--px-token-color": color }}
-        {...(isDisabled && { "data-disabled": true })}
-      >
-        <span>{children}</span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onRemove();
-          }}
-          disabled={isDisabled}
-          aria-label="Remove"
-        >
-          <Icon svg={<Icons.CloseOutline />} />
-        </button>
-      </div>
-    );
-  }
+    if (onRemove) {
+      return (
+        <>
+          <span>{children}</span>
+          <button
+            onClick={() => {
+              onRemove();
+            }}
+            disabled={isDisabled}
+            aria-label="Remove"
+          >
+            <Icon svg={<Icons.CloseOutline />} />
+          </button>
+        </>
+      );
+    }
 
-  // Case 4: Both interactions - wrapper div with sibling buttons
+    return children;
+  };
+
   return (
     <div
       css={css(tokenBaseCSS, cssProp)}
       // @ts-expect-error --px-token-color is a custom property
-      style={{ "--px-token-color": color }}
-      data-interactive
+      style={{ "--ac-internal-token-color": color }}
+      data-theme={theme}
+      {...(onPress && { "data-interactive": true })}
+      {...(onRemove && { "data-removable": true })}
       {...(isDisabled && { "data-disabled": true })}
     >
-      <button
-        onClick={() => {
-          if (!isDisabled) {
-            props.onPress();
-          }
-        }}
-        disabled={isDisabled}
-      >
-        {children}
-      </button>
-      <button
-        onClick={() => {
-          props.onRemove();
-        }}
-        disabled={isDisabled}
-        aria-label="Remove"
-      >
-        <Icon svg={<Icons.CloseOutline />} />
-      </button>
+      {renderContent()}
     </div>
   );
 }
