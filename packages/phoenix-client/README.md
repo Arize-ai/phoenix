@@ -6,7 +6,7 @@ Phoenix Client is a lightweight package for interacting with the Phoenix server 
 
 ## Installation
 
-Install the package via `pip`.
+Install via `pip`.
 
 ```shell
 pip install -Uq arize-phoenix-client
