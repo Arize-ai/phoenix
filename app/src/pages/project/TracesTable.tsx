@@ -166,39 +166,43 @@ export function TracesTable(props: TracesTableProps) {
                   hit
                 }
                 descendants {
-                  id
-                  spanKind
-                  name
-                  statusCode: propagatedStatusCode
-                  startTime
-                  latencyMs
-                  parentId
-                  cumulativeTokenCountTotal: tokenCountTotal
-                  cumulativeTokenCountPrompt: tokenCountPrompt
-                  cumulativeTokenCountCompletion: tokenCountCompletion
-                  input {
-                    value: truncatedValue
-                  }
-                  output {
-                    value: truncatedValue
-                  }
-                  spanId
-                  trace {
-                    id
-                    traceId
-                  }
-                  spanAnnotations {
-                    id
-                    name
-                    label
-                    score
-                    annotatorKind
-                  }
-                  documentRetrievalMetrics {
-                    evaluationName
-                    ndcg
-                    precision
-                    hit
+                  edges {
+                    node {
+                      id
+                      spanKind
+                      name
+                      statusCode: propagatedStatusCode
+                      startTime
+                      latencyMs
+                      parentId
+                      cumulativeTokenCountTotal: tokenCountTotal
+                      cumulativeTokenCountPrompt: tokenCountPrompt
+                      cumulativeTokenCountCompletion: tokenCountCompletion
+                      input {
+                        value: truncatedValue
+                      }
+                      output {
+                        value: truncatedValue
+                      }
+                      spanId
+                      trace {
+                        id
+                        traceId
+                      }
+                      spanAnnotations {
+                        id
+                        name
+                        label
+                        score
+                        annotatorKind
+                      }
+                      documentRetrievalMetrics {
+                        evaluationName
+                        ndcg
+                        precision
+                        hit
+                      }
+                    }
                   }
                 }
               }
@@ -220,7 +224,10 @@ export function TracesTable(props: TracesTableProps) {
   const tableData = useMemo(() => {
     const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
-      const spanTree = createSpanTree([rootSpan, ...rootSpan.descendants]);
+      const spanTree = createSpanTree([
+        rootSpan,
+        ...rootSpan.descendants.edges.map(({ node }) => node),
+      ]);
       // Unwrap the root span from the span tree and return it
       const [root] = spanTreeToNestedSpanTableRows(spanTree);
       return root;

@@ -9,7 +9,7 @@ import numpy as np
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from strawberry import ID, UNSET
-from strawberry.relay import Node, NodeID
+from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias
 
@@ -30,6 +30,7 @@ from phoenix.server.api.types.Evaluation import DocumentEvaluation
 from phoenix.server.api.types.ExampleRevisionInterface import ExampleRevision
 from phoenix.server.api.types.GenerativeProvider import GenerativeProvider
 from phoenix.server.api.types.MimeType import MimeType
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.api.types.SpanIOValue import SpanIOValue, truncate_value
@@ -547,9 +548,31 @@ class Span(Node):
     async def descendants(
         self,
         info: Info[Context, None],
-    ) -> list["Span"]:
-        ids: Iterable[int] = await info.context.data_loaders.span_descendants.load(self.span_rowid)
-        return [Span(span_rowid=id_) for id_ in ids]
+        max_depth: Annotated[
+            Optional[int],
+            strawberry.argument(
+                description="Maximum depth of breadth first search. For example, "
+                "maxDepth=1 searches for only the immediate child spans (if any); "
+                "maxDepth=2 searches for the immediate child spans plus their children. "
+                "maxDepth=0 (or None) means no limit."
+            ),
+        ] = 3,
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection["Span"]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        span_rowids: Iterable[int] = await info.context.data_loaders.span_descendants.load(
+            (self.span_rowid, max_depth or None),
+        )
+        data = [Span(span_rowid=span_rowid) for span_rowid in span_rowids]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field(
         description="The span's attributes translated into an example revision for a dataset",

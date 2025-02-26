@@ -969,7 +969,7 @@ class Span(Node):
     cumulativeTokenCountCompletion: Optional[int] = Field(default=None)
     cumulativeTokenCountPrompt: Optional[int] = Field(default=None)
     cumulativeTokenCountTotal: Optional[int] = Field(default=None)
-    descendants: list[Span] = Field(...)
+    descendants: SpanConnection = Field(...)
     documentEvaluations: list[DocumentEvaluation] = Field(...)
     documentRetrievalMetrics: list[DocumentRetrievalMetrics] = Field(...)
     endTime: Optional[str] = None
