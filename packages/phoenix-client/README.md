@@ -39,7 +39,7 @@ prompt = client.prompts.create(
 )
 ```
 
-The client cas also retrieve the prompt via its name.
+The client can retrieve a prompt via its name.
 
 ```python
 prompt = client.prompts.get(prompt_identifier=prompt_identifier)
