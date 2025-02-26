@@ -36,29 +36,25 @@ const tokenBaseCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--ac-global-dimension-static-size-100);
-  font-size: var(--ac-global-dimension-static-font-size-100);
-  line-height: 20px;
-  padding: var(--ac-global-dimension-static-size-50)
-    var(--ac-global-dimension-static-size-100);
-  border-radius: var(--ac-global-rounding-medium);
+  font-size: var(--ac-global-dimension-static-font-size-75);
+  line-height: var(--ac-global-line-height-s);
+  padding: 0 var(--ac-global-dimension-static-size-100);
+  border-radius: var(--ac-global-rounding-large);
   border: 1px solid
     lch(from var(--ac-internal-token-color) calc((l) * infinity) c h / 0.3);
   color: lch(from var(--ac-internal-token-color) calc((50 - l) * infinity) 0 0);
   user-select: none;
 
   &[data-size="S"] {
-    padding: var(--ac-global-dimension-static-size-25)
-      var(--ac-global-dimension-static-size-50);
+    height: var(--ac-global-dimension-static-size-200);
   }
 
   &[data-size="M"] {
-    padding: var(--ac-global-dimension-static-size-50)
-      var(--ac-global-dimension-static-size-100);
+    height: var(--ac-global-dimension-static-size-250);
   }
 
   &[data-size="L"] {
-    padding: var(--ac-global-dimension-static-size-100)
-      var(--ac-global-dimension-static-size-200);
+    height: var(--ac-global-dimension-static-size-300);
   }
 
   &[data-disabled] {

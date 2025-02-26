@@ -993,6 +993,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
+    --ac-global-rounding-large: var(--ac-global-dimension-static-size-200);
 
     --ac-global-border-size-thin: var(--ac-global-dimension-static-size-10);
     --ac-global-border-size-thick: var(--ac-global-dimension-static-size-25);

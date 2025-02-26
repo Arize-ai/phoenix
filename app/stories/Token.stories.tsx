@@ -3,7 +3,7 @@ import { Meta, StoryFn } from "@storybook/react";
 
 import { Card } from "@arizeai/components";
 
-import { Icon, Icons, Token, type TokenProps } from "@phoenix/components";
+import { Flex, Icon, Icons, Token, type TokenProps } from "@phoenix/components";
 
 const meta: Meta = {
   title: "Token",
@@ -114,9 +114,32 @@ export const WithIcon: Meta<typeof Token> = {
   argTypes: {},
 };
 
+const SizeTemplate: StoryFn<TokenProps> = (args) => (
+  <Card title="Token Size" bodyStyle={{ width: "600px" }} variant="compact">
+    <Flex gap="size-100" wrap>
+      <Token {...args} size="S" color="var(--ac-global-color-primary)">
+        Small Token
+      </Token>
+      <Token {...args} size="M" color="var(--ac-global-color-primary)">
+        Medium Token
+      </Token>
+      <Token {...args} size="L" color="var(--ac-global-color-primary)">
+        Large Token
+      </Token>
+    </Flex>
+  </Card>
+);
+
+export const Size: Meta<typeof Token> = {
+  render: SizeTemplate,
+  args: {
+    isDisabled: false,
+  },
+};
+
 const GroupTemplate: StoryFn<TokenProps> = (args) => (
   <Card title="Token Group" bodyStyle={{ width: "600px" }} variant="compact">
-    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+    <Flex gap="size-100" wrap>
       <Token {...args}>Default Token</Token>
       <Token {...args} color="var(--ac-global-color-primary)">
         Primary Token
@@ -127,7 +150,7 @@ const GroupTemplate: StoryFn<TokenProps> = (args) => (
       <Token {...args} color="var(--ac-global-color-success)">
         Success Token
       </Token>
-    </div>
+    </Flex>
   </Card>
 );
 
