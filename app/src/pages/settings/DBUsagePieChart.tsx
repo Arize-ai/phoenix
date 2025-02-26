@@ -77,16 +77,36 @@ export function DBUsagePieChart({
           ))}
         </Pie>
         <Tooltip content={<TooltipContent />} />
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          fill="var(--ac-global-text-color-900"
+          fontSize="var(--ac-global-font-size-xl)"
+        >
+          {`${storageSizeFomatter(totalBytes)}`}
+        </text>
+        <text
+          x="50%"
+          y="50%"
+          dy={25}
+          textAnchor="middle"
+          fill="var(--ac-global-text-color-900"
+          fontSize="var(--ac-global-font-size-s)"
+        >
+          {`Used`}
+        </text>
         <g>
           <text
-            x="50%"
-            y="50%"
-            dy={8}
-            textAnchor="middle"
-            fill="var(--ac-global-text-color-900"
-            fontSize="var(--ac-global-font-size-l)"
+            x="100%"
+            y="100%"
+            dx={-80}
+            dy={-2}
+            textAnchor="right"
+            fill="var(--ac-global-text-color-500)"
+            fontSize="var(--ac-global-font-size-xs)"
           >
-            {storageSizeFomatter(totalBytes)}
+            {"* approximate"}
           </text>
         </g>
       </PieChart>
