@@ -1,5 +1,26 @@
 # Changelog
 
+## [8.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.3.0...arize-phoenix-v8.4.0) (2025-02-26)
+
+
+### Features
+
+* **admin:** introspection into DB usage ([#6582](https://github.com/Arize-ai/phoenix/issues/6582)) ([94c2fd4](https://github.com/Arize-ai/phoenix/commit/94c2fd4bf7030a4720a26d8ddc6701a29f04364f))
+* graphql query for number of child spans ([#6580](https://github.com/Arize-ai/phoenix/issues/6580)) ([9ea38e4](https://github.com/Arize-ai/phoenix/commit/9ea38e43fae88bab96dd750e08b74517a56c2fda))
+* graphql query to get byte size of each db table ([#6560](https://github.com/Arize-ai/phoenix/issues/6560)) ([66586a8](https://github.com/Arize-ai/phoenix/commit/66586a878a84a2d5bc04271894d5da9574e0dcae))
+* Persist project table column selections ([#6572](https://github.com/Arize-ai/phoenix/issues/6572)) ([c2e40d3](https://github.com/Arize-ai/phoenix/commit/c2e40d3d791f97bbd068cff12f2936e5dde05dac))
+
+
+### Bug Fixes
+
+* **perf:** remove double fetching of spans ([#6571](https://github.com/Arize-ai/phoenix/issues/6571)) ([e26d08c](https://github.com/Arize-ai/phoenix/commit/e26d08cc290348db2f46e05170095e75546320f1))
+* **ui:** fix lack of scrolling on trace tree ([#6575](https://github.com/Arize-ai/phoenix/issues/6575)) ([e38b0ff](https://github.com/Arize-ai/phoenix/commit/e38b0fff1c799f431a406dc4336d0ec30fdf800b))
+
+
+### Documentation
+
+* **prompts:** promote prompt managemt ([c3e13e8](https://github.com/Arize-ai/phoenix/commit/c3e13e87d87d30972a9384a44172794c572e2a8b))
+
 ## [8.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.2.2...arize-phoenix-v8.3.0) (2025-02-24)
 
 
