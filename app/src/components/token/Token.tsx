@@ -82,6 +82,13 @@ const tokenBaseCSS = css`
 
   &[data-interactive]:not([data-disabled]) {
     cursor: pointer;
+
+    > button {
+      &:focus-visible {
+        outline: 2px solid var(--ac-focus-ring-color);
+        border-radius: var(--ac-global-rounding-small);
+      }
+    }
   }
 
   > button {
