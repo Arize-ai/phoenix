@@ -63,8 +63,8 @@ export function DBUsagePieChart({
           nameKey="tableName"
           cx="50%"
           cy="50%"
-          innerRadius={60}
-          outerRadius={89}
+          innerRadius={70}
+          outerRadius={110}
           strokeWidth={0}
           stroke="transparent"
         >
