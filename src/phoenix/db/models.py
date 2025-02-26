@@ -78,6 +78,10 @@ class SubValues(Values, roles.CompoundElementRole):
     """
     Adapted from the following recipe:
     https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+
+    This is part of a workaround to make it more convenient to construct the VALUES clause in
+    SQLite. The VALUES clause is useful for creating a temporary table in the database with a set
+    of user inputs in the form of multi-value tuples, which can then be joined with other tables.
     """
 
     inherit_cache = True
@@ -92,6 +96,10 @@ def render_subvalues_w_union(elem: SubValues, compiler: compiler.SQLCompiler, **
     """
     Adapted from the following recipe:
     https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+
+    This is part of a workaround to make it more convenient to construct the VALUES clause in
+    SQLite. The VALUES clause is useful for creating a temporary table in the database with a set
+    of user inputs in the form of multi-value tuples, which can then be joined with other tables.
     """
     # omit rendering parenthesis, columns, "AS name", etc.
     kw.pop("asfrom", None)
@@ -108,6 +116,10 @@ def render_values_w_union(
     """
     Adapted from the following recipe:
     https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+
+    This is part of a workaround to make it more convenient to construct the VALUES clause in
+    SQLite. The VALUES clause is useful for creating a temporary table in the database with a set
+    of user inputs in the form of multi-value tuples, which can then be joined with other tables.
     """
     first: tuple[Any, ...]
     rest: list[tuple[Any, ...]]
