@@ -147,7 +147,7 @@ pip install openinference-instrumentation-bedrock opentelemetry-exporter-otlp
 
 ## Setup
 
-After starting a Phoenix server, instrument `boto3` prior to initializing a `bedrock-runtime` client. All clients created after instrumentation will send traces on all calls to `invoke_model`.
+After starting a Phoenix server, instrument `boto3` prior to initializing a `bedrock-runtime` client. All clients created after instrumentation will send traces on all calls to `converse`.
 
 ```python
 import boto3
@@ -167,14 +167,14 @@ From here you can run Bedrock as normal
 prompt = (
     b'{"prompt": "Human: Hello there, how are you? Assistant:", "max_tokens_to_sample": 1024}'
 )
-response = client.invoke_model(modelId="anthropic.claude-v2", body=prompt)
+response = client.converse(modelId="anthropic.claude-v2", body=prompt)
 response_body = json.loads(response.get("body").read())
 print(response_body["completion"])
 ```
 
 ## Observe
 
-Now that you have tracing setup, all calls to invoke\_model will be streamed to your running Phoenix for observability and evaluation.
+Now that you have tracing setup, all calls to converse will be streamed to your running Phoenix for observability and evaluation.
 
 ## Resources
 
