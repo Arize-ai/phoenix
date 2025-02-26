@@ -25,8 +25,8 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
     async def _load_fn(self, keys: Iterable[Key]) -> list[Result]:
         # Create a values expression with Span.id and respective max_depth (which can be None)
         values = sa.values(
-            sa.Column(_ROOT_ROWID, sa.Integer),
-            sa.Column(_MAX_DEPTH, sa.Integer, nullable=True),
+            sa.Column("root_rowid", sa.Integer),
+            sa.Column("max_depth", sa.Integer, nullable=True),
             name="values",
         ).data(list(set(keys)))
 
@@ -34,10 +34,10 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         roots = (
             select(
                 Span.span_id,
-                values.c[_ROOT_ROWID],
-                values.c[_MAX_DEPTH],
+                values.c.root_rowid,
+                values.c.max_depth,
             )
-            .join_from(values, Span, Span.id == values.c[_ROOT_ROWID])
+            .join_from(values, Span, Span.id == values.c.root_rowid)
             .subquery("roots")
         )
 
@@ -46,9 +46,9 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             select(
                 Span.id,
                 Span.span_id,
-                roots.c[_ROOT_ROWID],
-                roots.c[_MAX_DEPTH],
-                sa.literal(1).label(_LEVEL),  # Start at level 1
+                roots.c.root_rowid,
+                roots.c.max_depth,
+                sa.literal(1).label("level"),  # Start at level 1
             )
             .join_from(roots, Span, Span.parent_id == roots.c.span_id)
             .cte("descendants", recursive=True)
@@ -60,27 +60,27 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             select(
                 Span.id,
                 Span.span_id,
-                parents.c[_ROOT_ROWID],
-                parents.c[_MAX_DEPTH],
-                (parents.c[_LEVEL] + 1).label(_LEVEL),
+                parents.c.root_rowid,
+                parents.c.max_depth,
+                (parents.c.level + 1).label("level"),
             )
             .join_from(parents, Span, Span.parent_id == parents.c.span_id)
             .where(
                 sa.or_(
-                    parents.c[_MAX_DEPTH].is_(None),  # No limit if max_depth is NULL
-                    parents.c[_LEVEL] + 1 <= sa.cast(parents.c[_MAX_DEPTH], sa.Integer),
+                    parents.c.max_depth.is_(None),  # No limit if max_depth is NULL
+                    parents.c.level + 1 <= sa.cast(parents.c.max_depth, sa.Integer),
                 ),
             )
         )
 
         stmt = select(
             descendants.c.id,
-            descendants.c[_ROOT_ROWID],
-            descendants.c[_MAX_DEPTH],
+            descendants.c.root_rowid,
+            descendants.c.max_depth,
         ).order_by(
-            descendants.c[_ROOT_ROWID],
-            descendants.c[_MAX_DEPTH],
-            descendants.c[_LEVEL],  # Order by level for BFS
+            descendants.c.root_rowid,
+            descendants.c.max_depth,
+            descendants.c.level,  # Order by level for BFS
             descendants.c.id,
         )
         results: defaultdict[Key, Result] = defaultdict(list)
@@ -89,8 +89,3 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
             async for key, group in groupby(data, key=lambda d: tuple(d[1:])):
                 results[key].extend(span_rowid for span_rowid, *_ in group)
         return [results[key].copy() for key in keys]
-
-
-_ROOT_ROWID = "_root_rowid"
-_MAX_DEPTH = "_max_depth"
-_LEVEL = "_level"
