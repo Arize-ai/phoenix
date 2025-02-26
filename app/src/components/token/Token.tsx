@@ -1,12 +1,14 @@
-import React from "react";
+import React, { HTMLProps } from "react";
 import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";
 import { SizingProps, StylableProps } from "@phoenix/components/types";
 import { useTheme } from "@phoenix/contexts";
 
-// Define the base props that all token variants share
-interface TokenProps extends StylableProps, SizingProps {
+interface TokenProps
+  extends Omit<HTMLProps<HTMLDivElement>, "size" | "css">,
+    StylableProps,
+    SizingProps {
   children?: React.ReactNode;
   /**
    * Whether the token is disabled
@@ -119,6 +121,8 @@ function Token({
   onPress,
   onRemove,
   size = "M",
+  style,
+  ...rest
 }: TokenProps): JSX.Element {
   const { theme } = useTheme();
 
@@ -184,12 +188,13 @@ function Token({
     <div
       css={css(tokenBaseCSS, cssProp)}
       // @ts-expect-error --px-token-color is a custom property
-      style={{ "--ac-internal-token-color": color }}
+      style={{ "--ac-internal-token-color": color, ...style }}
       data-theme={theme}
       data-size={size}
       {...(onPress && { "data-interactive": true })}
       {...(onRemove && { "data-removable": true })}
       {...(isDisabled && { "data-disabled": true })}
+      {...rest}
     >
       {renderContent()}
     </div>
