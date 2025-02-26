@@ -538,6 +538,10 @@ class Span(Node):
             (self.span_rowid, evaluation_name or None, num_documents),
         )
 
+    @strawberry.field
+    async def num_child_spans(self, info: Info[Context, None]) -> int:
+        return await info.context.data_loaders.num_child_spans.load(self.span_rowid)
+
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
     )  # type: ignore

@@ -990,6 +990,7 @@ class Span(Node):
     latencyMs: Optional[float] = None
     metadata: Optional[str] = Field(default=None)
     name: str
+    numChildSpans: int
     numDocuments: Optional[int] = None
     output: Optional[SpanIOValue] = None
     parentId: Optional[str] = Field(default=None)

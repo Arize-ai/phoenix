@@ -85,6 +85,7 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    NumChildSpansDataLoader,
     ProjectByNameDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
@@ -614,6 +615,7 @@ def create_graphql_router(
                         else None
                     ),
                 ),
+                num_child_spans=NumChildSpansDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
