@@ -69,30 +69,6 @@ export const Removable: Meta<typeof Token> = {
   argTypes: {},
 };
 
-const FullInteractiveTemplate: StoryFn<TokenProps> = (args) => (
-  <Card
-    title="Full Interactive Token"
-    bodyStyle={{ width: "600px" }}
-    variant="compact"
-  >
-    <Token
-      {...args}
-      onPress={() => alert("Token clicked!")}
-      onRemove={() => alert("Token removed!")}
-    >
-      Interactive & Removable
-    </Token>
-  </Card>
-);
-
-export const FullInteractive: Meta<typeof Token> = {
-  render: FullInteractiveTemplate,
-  args: {
-    isDisabled: false,
-  },
-  argTypes: {},
-};
-
 const WithLeadingVisualTemplate: StoryFn<TokenProps> = (args) => (
   <Card
     title="Token with Leading Visual"
@@ -110,6 +86,31 @@ export const WithLeadingVisual: Meta<typeof Token> = {
   args: {
     isDisabled: false,
     onPress: () => alert("Token clicked!"),
+  },
+  argTypes: {},
+};
+
+const FullInteractiveTemplate: StoryFn<TokenProps> = (args) => (
+  <Card
+    title="Full Interactive Token"
+    bodyStyle={{ width: "600px" }}
+    variant="compact"
+  >
+    <Token
+      {...args}
+      leadingVisual={<Icon svg={<Icons.Info />} />}
+      onPress={() => alert("Token clicked!")}
+      onRemove={() => alert("Token removed!")}
+    >
+      Interactive & Removable
+    </Token>
+  </Card>
+);
+
+export const FullInteractive: Meta<typeof Token> = {
+  render: FullInteractiveTemplate,
+  args: {
+    isDisabled: false,
   },
   argTypes: {},
 };

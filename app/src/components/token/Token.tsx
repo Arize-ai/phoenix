@@ -93,6 +93,10 @@ const tokenBaseCSS = css`
     }
   }
 
+  &[data-removable] {
+    padding-right: var(--ac-global-dimension-static-size-25);
+  }
+
   > button {
     all: unset;
     cursor: pointer;
@@ -105,16 +109,27 @@ const tokenBaseCSS = css`
   }
 `;
 
-function TokenLeadingVisual({ children }: React.PropsWithChildren) {
+function TokenLeadingVisual({
+  children,
+  size = "M",
+}: React.PropsWithChildren<SizingProps>) {
   return (
     <span
+      data-size={size}
       css={css`
         display: flex;
         align-items: center;
         justify-content: center;
         width: var(--ac-global-dimension-static-size-200);
         height: var(--ac-global-dimension-static-size-200);
-        margin-right: var(--ac-global-dimension-static-size-50);
+
+        &[data-size="M"] {
+          margin-right: var(--ac-global-dimension-static-size-50);
+        }
+
+        &[data-size="L"] {
+          margin-right: var(--ac-global-dimension-static-size-100);
+        }
       `}
     >
       {children}
@@ -149,8 +164,20 @@ function Token({
    */
   const wrappedLeadingVisual =
     leadingVisual && size !== "S" ? (
-      <TokenLeadingVisual>{leadingVisual}</TokenLeadingVisual>
+      <TokenLeadingVisual size={size}>{leadingVisual}</TokenLeadingVisual>
     ) : null;
+
+  const removeButton = onRemove ? (
+    <button
+      onClick={() => {
+        onRemove();
+      }}
+      disabled={isDisabled}
+      aria-label="Remove"
+    >
+      <Icon svg={<Icons.CloseOutline />} />
+    </button>
+  ) : null;
 
   const renderContent = () => {
     if (onPress && onRemove) {
@@ -165,15 +192,7 @@ function Token({
             {wrappedLeadingVisual}
             {children}
           </button>
-          <button
-            onClick={() => {
-              onRemove();
-            }}
-            disabled={isDisabled}
-            aria-label="Remove"
-          >
-            <Icon svg={<Icons.CloseOutline />} />
-          </button>
+          {removeButton}
         </>
       );
     }
@@ -199,15 +218,7 @@ function Token({
             {wrappedLeadingVisual}
             {children}
           </span>
-          <button
-            onClick={() => {
-              onRemove();
-            }}
-            disabled={isDisabled}
-            aria-label="Remove"
-          >
-            <Icon svg={<Icons.CloseOutline />} />
-          </button>
+          {removeButton}
         </>
       );
     }
