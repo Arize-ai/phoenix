@@ -38,7 +38,15 @@ Checkout the [environments section](environments.md) and [deployment guide](depl
 {% endtab %}
 
 {% tab title="npm" %}
-The Phoenix server can be run as a [#container](./#container "mention")and be interacted with using the phoenix-client  and OpenTelelemetry. See [#packages](./#packages "mention") below.
+The Phoenix server can be run as a  [#container](./#container "mention") and interacted with using the phoenix-client and OpenTelelemetry. See  [#packages](./#packages "mention")  below.
+
+```sh
+npm install @arizeai/phoenix-client
+```
+
+```sh
+npm install @opentelemetry/api @opentelemetry/resources @opentelemetry/semantic-conventions
+```
 {% endtab %}
 {% endtabs %}
 
