@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.6.0...arize-phoenix-v8.6.1) (2025-02-27)
+
+
+### Bug Fixes
+
+* Improve performance on project tables ([#6616](https://github.com/Arize-ai/phoenix/issues/6616)) ([d972f65](https://github.com/Arize-ai/phoenix/commit/d972f6560a56035df17a4dba1f469ecb5c5585d1))
+
 ## [8.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.5.0...arize-phoenix-v8.6.0) (2025-02-27)
 
 
