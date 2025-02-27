@@ -799,10 +799,10 @@ class Query:
             try:
                 async with info.context.db() as session:
                     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                stats = _consolidate_sqlite_db_table_stats(stats)
             except Exception:
-                # TODO: temporary workaround until we can reproduce the database error
+                # TODO: temporary workaround until we can reproduce the error
                 return []
-            stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
             stmt = text(f"""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
@@ -815,7 +815,7 @@ class Query:
                 async with info.context.db() as session:
                     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
             except Exception:
-                # TODO: temporary workaround until we can reproduce the database error
+                # TODO: temporary workaround until we can reproduce the error
                 return []
         else:
             assert_never(info.context.db.dialect)
