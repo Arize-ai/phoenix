@@ -23,7 +23,7 @@ class AnnotationSummary:
 
     @strawberry.field
     def labels(self) -> list[str]:
-        return self.df.label.dropna().tolist()
+        return self.df.label.dropna().unique().tolist()
 
     @strawberry.field
     def label_fractions(self) -> list[LabelFraction]:
@@ -38,9 +38,10 @@ class AnnotationSummary:
 
     @strawberry.field
     def mean_score(self) -> Optional[float]:
-        if not (n := self.df.score_count.sum()):
+        valid_scores = self.df["avg_score"].dropna()
+        if valid_scores.empty:
             return None
-        return float(self.df.score_sum.sum()) / float(n)
+        return float(valid_scores.mean())
 
     @strawberry.field
     def score_count(self) -> int:
