@@ -86,7 +86,7 @@ class ModelsInput:
 @strawberry.type
 class DbTableStats:
     table_name: str
-    num_bytes: int
+    num_bytes: float
 
 
 @strawberry.type
@@ -796,9 +796,13 @@ class Query:
     ) -> list[DbTableStats]:
         if info.context.db.dialect is SupportedSQLDialect.SQLITE:
             stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
-            async with info.context.db() as session:
-                stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
-            stats = _consolidate_sqlite_db_table_stats(stats)
+            try:
+                async with info.context.db() as session:
+                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                stats = _consolidate_sqlite_db_table_stats(stats)
+            except Exception:
+                # TODO: temporary workaround until we can reproduce the error
+                return []
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
             stmt = text(f"""\
                 SELECT c.relname, pg_total_relation_size(c.oid)
@@ -807,8 +811,12 @@ class Query:
                 WHERE c.relkind = 'r'
                 AND n.nspname = '{getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"}';
             """)
-            async with info.context.db() as session:
-                stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+            try:
+                async with info.context.db() as session:
+                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+            except Exception:
+                # TODO: temporary workaround until we can reproduce the error
+                return []
         else:
             assert_never(info.context.db.dialect)
         return [

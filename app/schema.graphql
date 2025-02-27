@@ -513,7 +513,7 @@ scalar DateTime
 
 type DbTableStats {
   tableName: String!
-  numBytes: Int!
+  numBytes: Float!
 }
 
 input DeleteAnnotationsInput {
