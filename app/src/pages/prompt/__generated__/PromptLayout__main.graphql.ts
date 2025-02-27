@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b6bc301be121efc3ca6c938bebdbeb9>>
+ * @generated SignedSource<<b687fd6b0eadd43e1eda58e38c71565b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptLayout__main$data = {
   readonly description: string | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4454e2014fd298c353859375ead64f20>>
+ * @generated SignedSource<<2264b11cd91fbe93f593b27a192a8e92>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EditPromptButton_data$data = {
   readonly description: string | null;

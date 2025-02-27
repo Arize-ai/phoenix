@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e1b45b0887e25ef7f04571a3348dc05>>
+ * @generated SignedSource<<3f92fd9dbf70e98dca31aafe6e73c7c9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ProjectActionMenuDeleteMutation$variables = {
   projectId: string;
 };

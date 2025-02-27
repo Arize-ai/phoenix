@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a0c276b9b17c00054a989bf10883ce4>>
+ * @generated SignedSource<<1198e3aadba59b87a8db397fa45cd5f9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type APIKeysCardCreateSystemAPIKeyMutation$variables = {
   description?: string | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a5aeea28d9a5b831c4b4c47a1840ffe>>
+ * @generated SignedSource<<8369ae03889d56ea2a1143f8120162a7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetHistoryDialogQuery$variables = {
   datasetId: string;

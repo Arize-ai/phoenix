@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8eb841a7d431a2662165f2f5e7cd929>>
+ * @generated SignedSource<<63f3495007cbdb34d7c50a543275e7ce>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type ExportSelectionButtonMutation$variables = {
   eventIds: ReadonlyArray<string>;
 };

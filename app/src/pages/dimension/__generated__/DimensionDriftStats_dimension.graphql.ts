@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4813f1f2bdb4e9ac37e902abcc2c2485>>
+ * @generated SignedSource<<d6bedbe6ba0faa43515db7046f52f22c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DimensionDriftStats_dimension$data = {
   readonly id: string;

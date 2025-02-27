@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<de5e3e8f95fa211610ec3a2ce3e73352>>
+ * @generated SignedSource<<7004c830c4faf596214858a0cb2d8710>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type MimeType = "json" | "text";
 export type SessionDetailsQuery$variables = {

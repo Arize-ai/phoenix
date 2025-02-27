@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e6c27cb4e1198a647c99093e4350edf7>>
+ * @generated SignedSource<<52bbb33c0e0b27b694540645d68aff8c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptsTablePromptsQuery$variables = {
   after?: string | null;
