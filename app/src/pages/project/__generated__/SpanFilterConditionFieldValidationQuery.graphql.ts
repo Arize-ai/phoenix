@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a96fe48a834c3d6e8623572517edca56>>
+ * @generated SignedSource<<4b9ce696971be55b0d5bdc76f31de0dd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type SpanFilterConditionFieldValidationQuery$variables = {
   condition: string;
   id: string;

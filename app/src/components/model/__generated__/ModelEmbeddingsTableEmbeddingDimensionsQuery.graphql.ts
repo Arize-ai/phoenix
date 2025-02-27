@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c9370eeb454da237dc29644b01e92f4d>>
+ * @generated SignedSource<<5a462696e764bcee3cb0b64006bf6b58>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelEmbeddingsTableEmbeddingDimensionsQuery$variables = {
   count?: number | null;

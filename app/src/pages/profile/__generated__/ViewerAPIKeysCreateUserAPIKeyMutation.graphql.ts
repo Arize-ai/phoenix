@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<96705c48e81b3d6f8671c93a06189ce7>>
+ * @generated SignedSource<<6177b4db0f8c4728887cfacb72b5bfea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type CreateUserApiKeyInput = {
   description?: string | null;

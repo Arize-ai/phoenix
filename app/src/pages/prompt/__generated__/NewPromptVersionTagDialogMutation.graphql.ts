@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<79b7c153593bc1a8ea8c6089d02ac9a3>>
+ * @generated SignedSource<<ed9c1fb1575de46ea84c04c0ce3a4ba0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SetPromptVersionTagInput = {
   description?: string | null;

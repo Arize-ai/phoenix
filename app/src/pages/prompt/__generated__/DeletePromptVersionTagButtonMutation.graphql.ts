@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<95d7c17b1627dc228cb0000bb87f2913>>
+ * @generated SignedSource<<4e31c25a432606ec9f656152bee65b0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DeletePromptVersionTagInput = {
   promptVersionTagId: string;

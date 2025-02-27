@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39b76fe61e1f5ab6c640e86d5426df57>>
+ * @generated SignedSource<<65583c116e79ffaa0cde9862d1477d26>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExperimentMultiSelector__experiments$data = {
   readonly experiments: {

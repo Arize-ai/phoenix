@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d83ed070bf0ea0d9ef5ce12a8defbcc8>>
+ * @generated SignedSource<<bd2b34cb307796f01c7e01386d50baf9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectSessionColumn = "endTime" | "numTraces" | "startTime" | "tokenCountTotal";
 export type SortDir = "asc" | "desc";

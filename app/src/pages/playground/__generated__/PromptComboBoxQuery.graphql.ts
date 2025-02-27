@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75fb5bba9879d1a5181292484bffcb6d>>
+ * @generated SignedSource<<9dfcf51db4742a17a496feed7e3a8247>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type PromptComboBoxQuery$variables = Record<PropertyKey, never>;
 export type PromptComboBoxQuery$data = {
   readonly prompts: {
