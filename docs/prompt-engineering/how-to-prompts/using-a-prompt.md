@@ -63,7 +63,7 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
 
 # Initialize a phoenix client with your phoenix endpoint
 # By default it will read from your environment variables
-client = client = Client(
+client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
@@ -99,7 +99,7 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
 ```python
 # Initialize a phoenix client with your phoenix endpoint
 # By default it will read from your environment variables
-client = client = Client(
+client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
@@ -130,13 +130,13 @@ Pulling by prompt by [tag](../concepts-prompts.md#prompt-version-tag) is most us
 {% tab title="Python" %}
 ```python
 # By default it will read from your environment variables
-client = client = Client(
+client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
 # Since tags don't uniquely identify a prompt version 
 #  it must be paired with the prompt identifier (e.g. name)
-prompt = px.Client().prompts.get(prompt_identifier="my-prompt-name", tag="staging")
+prompt = client.prompts.get(prompt_identifier="my-prompt-name", tag="staging")
 print(prompt.id)
 prompt.dumps()
 ```

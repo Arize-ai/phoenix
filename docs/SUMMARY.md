@@ -76,7 +76,10 @@
   * [Prompt Playground](prompt-engineering/overview-prompts/prompt-playground.md)
   * [Span Replay](prompt-engineering/overview-prompts/span-replay.md)
   * [Prompts in Code](prompt-engineering/overview-prompts/prompts-in-code.md)
-* [Quickstart: Prompts](prompt-engineering/quickstart-prompts.md)
+* [Quickstart: Prompts](prompt-engineering/quickstart-prompts/README.md)
+  * [Quickstart: Prompts (UI)](prompt-engineering/quickstart-prompts/quickstart-prompts-ui.md)
+  * [Quickstart: Prompts (Python)](prompt-engineering/quickstart-prompts/quickstart-prompts-python.md)
+  * [Quickstart: Prompts (TS)](prompt-engineering/quickstart-prompts/quickstart-prompts-ts.md)
 * [How to: Prompts](prompt-engineering/how-to-prompts/README.md)
   * [Configure AI Providers](prompt-engineering/how-to-prompts/configure-ai-providers.md)
   * [Using the Playground](prompt-engineering/how-to-prompts/using-the-playground.md)
@@ -85,7 +88,7 @@
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
-* [Use Cases: Prompts](prompt-engineering/use-cases-prompts/README.md)
+* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
   * [Prompt Optimization](prompt-engineering/use-cases-prompts/prompt-optimization.md)
 
 ## 🗄️ Datasets & Experiments

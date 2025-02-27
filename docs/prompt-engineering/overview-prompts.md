@@ -8,7 +8,7 @@ Unlike traditional software, AI applications are non-deterministic and depend on
 
 Optimizing your prompts is typically the highest-leverage way to improve the behavior of your application, but “prompt engineering” comes with its own set of challenges. You want to be confident that changes to your prompts have the intended effect and don’t introduce regressions.
 
-To get started, jump to [quickstart-prompts.md](quickstart-prompts.md "mention").
+To get started, jump to [quickstart-prompts](quickstart-prompts/ "mention").
 
 ## Prompt Engineering Features
 
