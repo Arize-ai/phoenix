@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Type
 
 import pandas as pd
 from aioitertools.itertools import groupby
@@ -105,14 +105,14 @@ def _get_stmt(
     kind, project_rowid, (start_time, end_time), filter_condition = segment
 
     if kind == "span":
-        annotation_model = models.SpanAnnotation
-        entity_model = models.Span
+        annotation_model: Type[models.SpanAnnotation] = models.SpanAnnotation
+        entity_model: Type[models.Span] = models.Span
         entity_join_model = models.Trace
         entity_id_column = models.Span.id.label("entity_id")
     elif kind == "trace":
-        annotation_model = models.TraceAnnotation
-        entity_model = models.Trace
-        entity_join_model = None  # No additional join needed for trace
+        annotation_model: Type[models.TraceAnnotation] = models.TraceAnnotation
+        entity_model: Type[models.Trace] = models.Trace
+        entity_join_model = None
         entity_id_column = models.Trace.id.label("entity_id")
     else:
         assert_never(kind)
