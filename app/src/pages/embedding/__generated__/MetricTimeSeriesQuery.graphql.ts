@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7fb95c292929c1f949d085a5d3f487fd>>
+ * @generated SignedSource<<4293107506e89e5b5651c3f750a55761>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type PerformanceMetric = "accuracyScore";
 export type TimeRange = {
   end?: string | null;

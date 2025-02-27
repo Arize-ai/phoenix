@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3884beba6a1beb8a5e7216436e933234>>
+ * @generated SignedSource<<ffece3ac129ed4c07e5346ce99c08470>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type ExperimentRunAnnotatorKind = "CODE" | "HUMAN" | "LLM";
 export type PlaygroundExperimentRunDetailsDialogQuery$variables = {
   runId: string;

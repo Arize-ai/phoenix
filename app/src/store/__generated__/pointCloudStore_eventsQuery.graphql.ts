@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28240650b13f846c6ce442202c1ff9ad>>
+ * @generated SignedSource<<2d7fe62a6d5d80db2fa781302409244e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 export type pointCloudStore_eventsQuery$variables = {
   corpusEventIds: ReadonlyArray<string>;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<82d6ad20643353ceeed5781a447e312e>>
+ * @generated SignedSource<<ceb629e02218c64c584fa68f04a489fd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type SpanToDatasetExampleDialogQuery$variables = {
   spanId: string;
 };

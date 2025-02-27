@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6295fea46e7622e431d7be7b63b18b14>>
+ * @generated SignedSource<<4f34f1e6015cd23ecf69f2f8126fe8d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type DatasetPickerQuery$variables = Record<PropertyKey, never>;
 export type DatasetPickerQuery$data = {
   readonly datasets: {

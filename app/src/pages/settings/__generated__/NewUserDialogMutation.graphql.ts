@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40dffbf76e98c3bd41a3d6848c109dfc>>
+ * @generated SignedSource<<1866da338a059ff51a00952421963fef>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type UserRoleInput = "ADMIN" | "MEMBER";
 export type CreateUserInput = {
   email: string;

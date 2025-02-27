@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<058540469ef7fa909da31d40e17c7f2c>>
+ * @generated SignedSource<<62e9bd86a7acd0a0273a3e2effbb6873>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
 export type DimensionShape = "continuous" | "discrete";
 export type dimensionLoaderQuery$variables = {

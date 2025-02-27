@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<483d1efacfdd4ff9a8796187190711e8>>
+ * @generated SignedSource<<9165c4bbcd695cd2e9608aa9143549ab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ViewerContextRefetchQuery$variables = Record<PropertyKey, never>;
 export type ViewerContextRefetchQuery$data = {

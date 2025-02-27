@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2710e581464dd8c1f32a9421d8cbdaa2>>
+ * @generated SignedSource<<3788d1ebcbd82573e22ade8263d8b3ac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DimensionCardinalityStats_dimension$data = {
   readonly cardinality: number | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c07f898deea3ff4f2d3da3c98b751c9d>>
+ * @generated SignedSource<<cb698ad0655be44d4734fd70af792cfb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type AddExamplesToDatasetInput = {
   datasetId: string;
   datasetVersionDescription?: string | null;

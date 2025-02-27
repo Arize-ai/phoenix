@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4c04691e02173dace538f50236d2363d>>
+ * @generated SignedSource<<0ebe4222000395c94923ac518a7f022b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 import { FragmentRefs } from "relay-runtime";

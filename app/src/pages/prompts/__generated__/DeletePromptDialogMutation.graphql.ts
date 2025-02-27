@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5640b59927cdf88a318c10b1bdc553e1>>
+ * @generated SignedSource<<9632469de534587fa54a551b4a690786>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DeletePromptDialogMutation$variables = {
   promptId: string;

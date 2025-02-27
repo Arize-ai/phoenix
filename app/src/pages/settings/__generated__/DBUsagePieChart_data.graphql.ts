@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b36458171f24a8358e1729915aec329>>
+ * @generated SignedSource<<3d7236b6cc467bb54497ee9a15bd996f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DBUsagePieChart_data$data = {
   readonly dbTableStats: ReadonlyArray<{

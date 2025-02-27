@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a78e89f2f110aaafc990e89d7b718dd8>>
+ * @generated SignedSource<<ca1aeb7a5b9718ea39c48fa1999c08f1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type TraceHeaderRootSpanAnnotationsQuery$variables = {
   id: string;

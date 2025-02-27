@@ -1,6 +1,6 @@
 import React from "react";
 
-import { FileTextOutline, Tooltip, TooltipTrigger } from "@arizeai/components";
+import { FileTextOutline } from "@arizeai/components";
 
 import {
   Icon,
@@ -51,7 +51,7 @@ export function MarkdownModeRadioGroup({
       <ToggleButton aria-label="text" id="text">
         <Icon svg={<Icons.TextOutline />} />
       </ToggleButton>
-      <ToggleButton aria-lable="markdown" id="markdown">
+      <ToggleButton aria-label="markdown" id="markdown">
         <Icon svg={<FileTextOutline />} />
       </ToggleButton>
     </ToggleButtonGroup>

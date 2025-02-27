@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b260f228c0065bed1680376b1d7eced2>>
+ * @generated SignedSource<<f16e7b03e63d598b9c7de5538d1d542f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptsTable_prompts$data = {
   readonly prompts: {

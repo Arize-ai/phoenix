@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff7ae57641ec15930f2f38521308781f>>
+ * @generated SignedSource<<a7ef9cb86aac8b9de53eb2761e20863a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type ClonePromptInput = {
   description?: string | null;
   name: string;

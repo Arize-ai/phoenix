@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<36523970ff07eec9b959c3a724f000b3>>
+ * @generated SignedSource<<9160b4413f627bfd72aea71f3de41439>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 import { FragmentRefs } from "relay-runtime";
 export type MetricSelector_dimensions$data = {

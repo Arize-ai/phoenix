@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8480d978004d74b15d76ff681778b6d>>
+ * @generated SignedSource<<355046acaf87bb3beb7942b4f7258e53>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetExamplesTableQuery$variables = {
   datasetId: string;

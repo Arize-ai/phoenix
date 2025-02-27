@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6987af53458f716107e62f5b49389423>>
+ * @generated SignedSource<<778ab9d2f69892c10199028ebc813fad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type MimeType = "json" | "text";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
@@ -392,7 +392,8 @@ return {
               {
                 "kind": "RequiredField",
                 "field": (v20/*: any*/),
-                "action": "THROW"
+                "action": "THROW",
+                "path": "span.events"
               },
               (v21/*: any*/),
               (v25/*: any*/),

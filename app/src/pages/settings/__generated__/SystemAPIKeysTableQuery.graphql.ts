@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d68603a26d6749e942b00ff03ecf0c12>>
+ * @generated SignedSource<<2060e6c78878fb997233d3316fea6d4b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SystemAPIKeysTableQuery$variables = Record<PropertyKey, never>;
 export type SystemAPIKeysTableQuery$data = {

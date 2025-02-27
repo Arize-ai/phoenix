@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7ff7a52fe470b79042223f7b734a9e56>>
+ * @generated SignedSource<<b6d216dd10399c4c89ae69a816f7e1e2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 export type EditDatasetFormMutation$variables = {
   datasetId: string;
   description?: string | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6c924c62daf5ef3873092f1da2b378f>>
+ * @generated SignedSource<<ebb8ab32330c4b99061aafd8b83bbde0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";

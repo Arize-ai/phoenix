@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c0bab162c7ec1658122ccee3fd74145>>
+ * @generated SignedSource<<58f38a8f3ee8a40df90221a088116c5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Mutation } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PatchPromptInput = {
   description: string;

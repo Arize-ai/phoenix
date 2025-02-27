@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<def397e9e960db0aa5efe76e9e60e28a>>
+ * @generated SignedSource<<d38196355e8260f5110167c3949c484d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EditSpanAnnotationsDialogSpanAnnotationsQuery$variables = {
   id: string;

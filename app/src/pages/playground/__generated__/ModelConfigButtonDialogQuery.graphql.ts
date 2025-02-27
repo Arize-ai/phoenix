@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<457906efcabfba14e023bb436b505b7b>>
+ * @generated SignedSource<<c47b4b5d417dfa5f0ca4d3abe1001a61>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelConfigButtonDialogQuery$variables = Record<PropertyKey, never>;
 export type ModelConfigButtonDialogQuery$data = {

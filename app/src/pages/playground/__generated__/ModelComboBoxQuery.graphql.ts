@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f261834511aa8584c6d6e236e184b502>>
+ * @generated SignedSource<<5107d06379f74f92774e989ad47fd2e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
 export type ModelComboBoxQuery$variables = {
   providerKey: GenerativeProviderKey;

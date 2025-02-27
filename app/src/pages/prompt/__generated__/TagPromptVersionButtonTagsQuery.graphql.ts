@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a41a2681294f79b34f19c5aeb15117c9>>
+ * @generated SignedSource<<c3ed877b3839b33b10be45497263b4b8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type TagPromptVersionButtonTagsQuery$variables = {
   promptId: string;
   versionId: string;

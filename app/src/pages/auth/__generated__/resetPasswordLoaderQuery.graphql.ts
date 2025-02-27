@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84f1f83de728fe14d012b3ec52afdca9>>
+ * @generated SignedSource<<428028b663e02f12e5ef7ccd5cbc46dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type resetPasswordLoaderQuery$variables = Record<PropertyKey, never>;
 export type resetPasswordLoaderQuery$data = {

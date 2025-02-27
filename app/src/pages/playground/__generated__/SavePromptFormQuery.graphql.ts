@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0667268bd57d1da0c20815c03b741d39>>
+ * @generated SignedSource<<3137f8fe8ac50457a669ea419555654d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type SavePromptFormQuery$variables = Record<PropertyKey, never>;
 export type SavePromptFormQuery$data = {
   readonly prompts: {

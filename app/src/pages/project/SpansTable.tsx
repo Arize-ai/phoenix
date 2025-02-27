@@ -26,9 +26,9 @@ import {
   Icon,
   Icons,
   Link,
+  ToggleButton,
   ToggleButtonGroup,
   View,
-  ToggleButton,
 } from "@phoenix/components";
 import {
   AnnotationLabel,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed3392bba044983f8355f4a981291447>>
+ * @generated SignedSource<<ceec0f3392f199eb0837c7b2c15c8c7c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type datasetLoaderQuery$variables = {
   id: string;
 };

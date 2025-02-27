@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<94f98c467593a0fa983c16b81eb884fa>>
+ * @generated SignedSource<<ad5a9f843cfc59c3d1f4842305bb2c7f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest } from 'relay-runtime';
+import { ConcreteRequest, Query } from 'relay-runtime';
 export type ExperimentRunFilterConditionFieldValidationQuery$variables = {
   condition: string;
   experimentIds: ReadonlyArray<string>;
