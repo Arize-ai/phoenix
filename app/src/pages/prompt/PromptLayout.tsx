@@ -153,16 +153,31 @@ export function PromptLayout() {
         }}
       >
         <TabPane name={"Prompt"}>
-          <Outlet />
+          {({ isSelected }) => {
+            if (isSelected) {
+              return <Outlet />;
+            }
+            return null;
+          }}
         </TabPane>
         <TabPane
           name={"Versions"}
           extra={<Counter>{data.promptVersions.edges.length}</Counter>}
         >
-          <Outlet />
+          {({ isSelected }) => {
+            if (isSelected) {
+              return <Outlet />;
+            }
+            return null;
+          }}
         </TabPane>
         <TabPane name={"Config"}>
-          <Outlet />
+          {({ isSelected }) => {
+            if (isSelected) {
+              return <Outlet />;
+            }
+            return null;
+          }}
         </TabPane>
       </Tabs>
       <DialogContainer onDismiss={() => setDialog(null)}>
