@@ -23,18 +23,16 @@ const TracesTabContent = ({
     tracesQueryReference
   );
 
-  return (
-    <Suspense>
-      <TracesTable project={data.project} />
-    </Suspense>
-  );
+  return <TracesTable project={data.project} />;
 };
 
 export const ProjectTracesPage = () => {
   const { tracesQueryReference } = useProjectPageQueryReferenceContext();
+
   if (!tracesQueryReference) {
     return null;
   }
+
   return (
     <TracingRoot>
       <SpanFilterConditionProvider>

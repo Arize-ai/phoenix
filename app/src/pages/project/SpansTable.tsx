@@ -44,6 +44,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
   SpansTable_spans$key,
@@ -223,6 +224,7 @@ export function SpansTable(props: SpansTableProps) {
           </ContextualHelp>
         </Flex>
       ),
+      id: "feedback",
       accessorKey: "spanAnnotations",
       enableSorting: false,
 
@@ -353,7 +355,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: TextCell,
+      cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
       enableSorting: false,
     },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
