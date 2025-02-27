@@ -86,7 +86,7 @@ class ModelsInput:
 @strawberry.type
 class DbTableStats:
     table_name: str
-    num_bytes: int
+    num_bytes: float
 
 
 @strawberry.type

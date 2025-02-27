@@ -312,7 +312,7 @@ class DatasetVersionEdge(BaseModel):
 
 class DbTableStats(BaseModel):
     model_config = ConfigDict(frozen=True)
-    numBytes: int
+    numBytes: float
     tableName: str
 
 
