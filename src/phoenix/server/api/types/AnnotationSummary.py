@@ -40,7 +40,7 @@ class AnnotationSummary:
     def mean_score(self) -> Optional[float]:
         if not (n := self.df.score_count.sum()):
             return None
-        return cast(float, self.df.score_sum.sum() / n)
+        return float(self.df.score_sum.sum()) / float(n)
 
     @strawberry.field
     def score_count(self) -> int:
