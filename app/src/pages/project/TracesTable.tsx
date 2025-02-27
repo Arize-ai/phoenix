@@ -279,7 +279,7 @@ export function TracesTable(props: TracesTableProps) {
           } as SpanRowType,
         ];
       }
-      return root as SpanRowType;
+      return root satisfies SpanRowType;
     });
 
     return tableData;
