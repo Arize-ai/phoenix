@@ -1,4 +1,10 @@
-import React, { Suspense, useCallback, useEffect, useMemo } from "react";
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -122,27 +128,27 @@ export function ProjectPageContent({
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
     if (tabIndex === 0) {
-      disposeSpansQuery();
-      disposeSessionsQuery();
       loadTracesQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
     } else if (tabIndex === 1) {
-      disposeSessionsQuery();
-      disposeTracesQuery();
       loadSpansQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
     } else if (tabIndex === 2) {
-      disposeSpansQuery();
-      disposeTracesQuery();
       loadSessionsQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
     }
+
+    return () => {
+      disposeSpansQuery();
+      disposeSessionsQuery();
+      disposeTracesQuery();
+    };
   }, [
     loadTracesQuery,
     projectId,
@@ -157,16 +163,18 @@ export function ProjectPageContent({
 
   const onTabChange = useCallback(
     (index: number) => {
-      if (index === 1) {
-        // navigate to the spans tab
-        navigate(`${rootPath}/spans`);
-      } else if (index === 2) {
-        // navigate to the sessions tab
-        navigate(`${rootPath}/sessions`);
-      } else {
-        // navigate to the traces tab
-        navigate(`${rootPath}/traces`);
-      }
+      startTransition(() => {
+        if (index === 1) {
+          // navigate to the spans tab
+          navigate(`${rootPath}/spans`);
+        } else if (index === 2) {
+          // navigate to the sessions tab
+          navigate(`${rootPath}/sessions`);
+        } else {
+          // navigate to the traces tab
+          navigate(`${rootPath}/traces`);
+        }
+      });
     },
     [navigate, rootPath]
   );
@@ -192,13 +200,28 @@ export function ProjectPageContent({
         >
           <Tabs onChange={onTabChange} index={tabIndex}>
             <TabPane name="Traces">
-              <Outlet />
+              {({ isSelected }) => {
+                if (isSelected) {
+                  return <Outlet />;
+                }
+                return null;
+              }}
             </TabPane>
             <TabPane name="Spans">
-              <Outlet />
+              {({ isSelected }) => {
+                if (isSelected) {
+                  return <Outlet />;
+                }
+                return null;
+              }}
             </TabPane>
             <TabPane name="Sessions">
-              <Outlet />
+              {({ isSelected }) => {
+                if (isSelected) {
+                  return <Outlet />;
+                }
+                return null;
+              }}
             </TabPane>
           </Tabs>
         </ProjectPageQueryReferenceContext.Provider>
