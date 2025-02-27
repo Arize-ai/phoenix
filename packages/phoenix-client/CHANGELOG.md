@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.0.2...arize-phoenix-client-v1.0.3) (2025-02-27)
+
+
+### Bug Fixes
+
+* add README for phoenix client ([#6604](https://github.com/Arize-ai/phoenix/issues/6604)) ([5ad7b0e](https://github.com/Arize-ai/phoenix/commit/5ad7b0eb5e87d0da3566b6f4a8f048aa9fabb1d1))
+
 ## [1.0.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.0.1...arize-phoenix-client-v1.0.2) (2025-02-24)
 
 
