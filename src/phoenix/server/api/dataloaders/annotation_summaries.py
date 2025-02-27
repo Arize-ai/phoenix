@@ -14,6 +14,7 @@ from phoenix.server.api.dataloaders.cache import TwoTierCache
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.dsl import SpanFilter
 
 Kind: TypeAlias = Literal["span", "trace"]
 ProjectRowId: TypeAlias = int
@@ -134,6 +135,9 @@ def _get_stmt(
     if kind == "span":
         base_stmt = base_stmt.join(entity_model).join_from(entity_model, entity_join_model)
         base_stmt = base_stmt.where(models.Trace.project_rowid == project_rowid)
+        if filter_condition:
+            sf = SpanFilter(filter_condition)
+            base_stmt = sf(base_stmt)
     elif kind == "trace":
         base_stmt = base_stmt.join(entity_model)
         base_stmt = base_stmt.where(entity_model.project_rowid == project_rowid)
