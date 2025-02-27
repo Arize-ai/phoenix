@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.4.1...arize-phoenix-v8.5.0) (2025-02-27)
+
+
+### Features
+
+* **graphql:** query to get number of spans for each trace ([#6599](https://github.com/Arize-ai/phoenix/issues/6599)) ([45e7352](https://github.com/Arize-ai/phoenix/commit/45e7352fccb18113394f5a46ddbf0949b2989147))
+
+
+### Bug Fixes
+
+* return float instead of int for numBytes in DbTableStats ([#6605](https://github.com/Arize-ai/phoenix/issues/6605)) ([705dee4](https://github.com/Arize-ai/phoenix/commit/705dee4bcddefe498d5acf578cb9d918a6cc9fe7))
+* **ui:** span status on the left of table ([#6600](https://github.com/Arize-ai/phoenix/issues/6600)) ([1ed1f54](https://github.com/Arize-ai/phoenix/commit/1ed1f5488bbbdc24facef094931ca604de2cdc9d))
+
 ## [8.4.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.4.0...arize-phoenix-v8.4.1) (2025-02-26)
 
 
