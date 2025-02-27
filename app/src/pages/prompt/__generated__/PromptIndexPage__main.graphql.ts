@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b66fee2a31e02b002f0a332ea6232aa7>>
+ * @generated SignedSource<<4f8e86678ccfa180649cd7e94c8a8adc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptIndexPage__main$data = {
   readonly promptVersions: {

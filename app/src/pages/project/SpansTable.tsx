@@ -20,7 +20,16 @@ import { css } from "@emotion/react";
 
 import { Content, ContextualHelp } from "@arizeai/components";
 
-import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Link,
+  ToggleButtonGroup,
+  View,
+  ToggleButton,
+} from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -60,6 +69,12 @@ type SpansTableProps = {
 
 const PAGE_SIZE = 50;
 
+type RootSpanFilterValue = "root" | "all";
+
+function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
+  return val === "root" || val === "all";
+}
+
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   // Determine if the table is active based on the current path
@@ -70,6 +85,7 @@ export function SpansTable(props: SpansTableProps) {
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
+  const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -80,6 +96,7 @@ export function SpansTable(props: SpansTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
+          rootSpansOnly: { type: "Boolean", defaultValue: true }
           sort: {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
@@ -92,6 +109,7 @@ export function SpansTable(props: SpansTableProps) {
             first: $first
             after: $after
             sort: $sort
+            rootSpansOnly: $rootSpansOnly
             filterCondition: $filterCondition
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
@@ -391,12 +409,20 @@ export function SpansTable(props: SpansTableProps) {
             after: null,
             first: PAGE_SIZE,
             filterCondition,
+            rootSpansOnly,
           },
           { fetchPolicy: "store-and-network" }
         );
       });
     }
-  }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
+  }, [
+    sorting,
+    refetch,
+    filterCondition,
+    fetchKey,
+    isTableActive,
+    rootSpansOnly,
+  ]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -453,6 +479,31 @@ export function SpansTable(props: SpansTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <ToggleButtonGroup
+            aria-label="Toggle between root and all spans"
+            selectionMode="single"
+            selectedKeys={[rootSpansOnly ? "root" : "all"]}
+            onSelectionChange={(selection) => {
+              if (selection.size === 0) {
+                return;
+              }
+              const selectedKey = selection.keys().next().value;
+              if (isRootSpanFilterValue(selectedKey)) {
+                setRootSpansOnly(selectedKey === "root");
+              } else {
+                throw new Error(
+                  `Unknown root span filter selection: ${selectedKey}`
+                );
+              }
+            }}
+          >
+            <ToggleButton aria-label="root spans" id="root">
+              Root Spans
+            </ToggleButton>
+            <ToggleButton aria-label="all spans" id="all">
+              All
+            </ToggleButton>
+          </ToggleButtonGroup>
           <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>

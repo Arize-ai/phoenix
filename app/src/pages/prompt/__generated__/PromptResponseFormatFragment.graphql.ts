@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e461de62d84bb6513501fb4c21259ae1>>
+ * @generated SignedSource<<6ab7102d059d8f6fc33f8ec4b1efe187>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptResponseFormatFragment$data = {
   readonly responseFormat: {

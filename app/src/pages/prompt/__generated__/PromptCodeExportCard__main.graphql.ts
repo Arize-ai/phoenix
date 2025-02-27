@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b8cd5103294eee5c085633a69ddc24c8>>
+ * @generated SignedSource<<6c1b33946ab87c5f022b59fb389abc3f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";

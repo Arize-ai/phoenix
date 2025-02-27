@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0195e1566ea1a297fa4ffb679b7fdef>>
+ * @generated SignedSource<<c496598e46549c779087b818310eb1cb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 export type ModelProvider = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
 import { FragmentRefs } from "relay-runtime";
 export type PromptModelConfigurationCard__main$data = {

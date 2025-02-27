@@ -35,6 +35,7 @@ export function MarkdownModeRadioGroup({
     <ToggleButtonGroup
       aria-label="Markdown Mode"
       selectedKeys={[mode]}
+      size="S"
       onSelectionChange={(v) => {
         if (v.size === 0) {
           return;
@@ -47,18 +48,12 @@ export function MarkdownModeRadioGroup({
         }
       }}
     >
-      <TooltipTrigger placement="top" delay={1000} offset={10}>
-        <ToggleButton aria-label="text" id="text">
-          <Icon svg={<Icons.TextOutline />} />
-        </ToggleButton>
-        <Tooltip>Text</Tooltip>
-      </TooltipTrigger>
-      <TooltipTrigger placement="top" delay={1000} offset={10}>
-        <ToggleButton aria-label="markdown" id="markdown">
-          <Icon svg={<FileTextOutline />} />
-        </ToggleButton>
-        <Tooltip>Markdown</Tooltip>
-      </TooltipTrigger>
+      <ToggleButton aria-label="text" id="text">
+        <Icon svg={<Icons.TextOutline />} />
+      </ToggleButton>
+      <ToggleButton aria-lable="markdown" id="markdown">
+        <Icon svg={<FileTextOutline />} />
+      </ToggleButton>
     </ToggleButtonGroup>
   );
 }

@@ -15,6 +15,7 @@ const baseToggleButtonCSS = css(`
     color: var(--ac-global-text-color-900);
     outline: none;
     min-height: 30px;
+    box-sizing: border-box;
 
     &[data-selected="true"] {
       background-color: var(--ac-global-button-primary-background-color);

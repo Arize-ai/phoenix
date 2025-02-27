@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e9eb73dfb3d60165b3fd98e67d49f1fe>>
+ * @generated SignedSource<<d1477a03fe6b10beeb42b9a479adb83c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptInvocationParameters__main$data = {
   readonly invocationParameters: any | null;
