@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3522bf730e36c5459e9e7f623e0deffa>>
+ * @generated SignedSource<<d0086f0dabe2d465227c39686dc76f3d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -92,6 +92,7 @@ export type TracesTable_spans$data = {
         readonly statusCode: SpanStatusCode;
         readonly trace: {
           readonly id: string;
+          readonly numSpans: number;
           readonly traceId: string;
         };
       };
@@ -199,20 +200,8 @@ v11 = {
 v12 = {
   "alias": null,
   "args": null,
-  "concreteType": "Trace",
-  "kind": "LinkedField",
-  "name": "trace",
-  "plural": false,
-  "selections": [
-    (v2/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "traceId",
-      "storageKey": null
-    }
-  ],
+  "kind": "ScalarField",
+  "name": "traceId",
   "storageKey": null
 },
 v13 = {
@@ -438,12 +427,37 @@ return {
                 (v9/*: any*/),
                 (v10/*: any*/),
                 (v11/*: any*/),
-                (v12/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Trace",
+                  "kind": "LinkedField",
+                  "name": "trace",
+                  "plural": false,
+                  "selections": [
+                    (v2/*: any*/),
+                    (v12/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "numSpans",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
                 (v13/*: any*/),
                 (v14/*: any*/),
                 {
                   "alias": null,
-                  "args": null,
+                  "args": [
+                    {
+                      "kind": "Literal",
+                      "name": "first",
+                      "value": 50
+                    }
+                  ],
                   "concreteType": "SpanConnection",
                   "kind": "LinkedField",
                   "name": "descendants",
@@ -496,7 +510,19 @@ return {
                             (v9/*: any*/),
                             (v10/*: any*/),
                             (v11/*: any*/),
-                            (v12/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "Trace",
+                              "kind": "LinkedField",
+                              "name": "trace",
+                              "plural": false,
+                              "selections": [
+                                (v2/*: any*/),
+                                (v12/*: any*/)
+                              ],
+                              "storageKey": null
+                            },
                             (v13/*: any*/),
                             (v14/*: any*/)
                           ],
@@ -506,7 +532,7 @@ return {
                       "storageKey": null
                     }
                   ],
-                  "storageKey": null
+                  "storageKey": "descendants(first:50)"
                 }
               ],
               "storageKey": null
@@ -574,6 +600,6 @@ return {
 };
 })();
 
-(node as any).hash = "0cca74f403d73787f2bc6d1963e352cc";
+(node as any).hash = "6757deb68e4b09c39445840106c9a3dd";
 
 export default node;

@@ -66,27 +66,50 @@ type TracesTableProps = {
 };
 
 const PAGE_SIZE = 50;
+// The number of descendants that's loaded from the server
+// NB: this number is hard coded in the query below but should be kept in sync
+const NUM_DESCENDANTS = 50;
+
+interface IAdditionalSpansIndicator {
+  /**
+   * A flag that if set, indicates that this row is just there to show that there are N more spans under this span
+   */
+  isAdditionalSpansRow?: true;
+}
+/**
+ * An indicator that this row is an additional row, not a span
+ */
+interface IAdditionalSpansRow extends ISpanItem, IAdditionalSpansIndicator {}
 
 /**
  * A nested table row is a span with a children that recursively
  * contains more nested table rows.
  */
-type NestedSpanTableRow<TSpan extends ISpanItem> = TSpan & {
+type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
   children: NestedSpanTableRow<TSpan>[];
 };
+
+const trCSS = css`
+  &[data-is-additional-row="true"] {
+    box-shadow: inset 0 -10px 20px var(--ac-global-color-grey-100);
+  }
+`;
 
 /**
  * Recursively create a nested table rows to display the span tree
  * as a table.
  */
-function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
-  children: SpanTreeNode<TSpan>[]
-): NestedSpanTableRow<TSpan>[] {
+function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
+  children: SpanTreeNode<TSpan>[];
+}): NestedSpanTableRow<TSpan>[] {
+  const { children } = params;
   const normalizedSpanTreeChildren: NestedSpanTableRow<TSpan>[] = [];
   for (const child of children) {
     const normalizedChild = {
       ...child.span,
-      children: spanTreeToNestedSpanTableRows(child.children),
+      children: spanTreeToNestedSpanTableRows({
+        children: child.children,
+      }),
     };
     normalizedSpanTreeChildren.push(normalizedChild);
   }
@@ -151,6 +174,7 @@ export function TracesTable(props: TracesTableProps) {
                 trace {
                   id
                   traceId
+                  numSpans
                 }
                 spanAnnotations {
                   id
@@ -165,7 +189,7 @@ export function TracesTable(props: TracesTableProps) {
                   precision
                   hit
                 }
-                descendants {
+                descendants(first: 50) {
                   edges {
                     node {
                       id
@@ -229,8 +253,33 @@ export function TracesTable(props: TracesTableProps) {
         ...rootSpan.descendants.edges.map(({ node }) => node),
       ]);
       // Unwrap the root span from the span tree and return it
-      const [root] = spanTreeToNestedSpanTableRows(spanTree);
-      return root;
+      const [root] = spanTreeToNestedSpanTableRows({
+        children: spanTree,
+      });
+      type SpanRowType = typeof root & IAdditionalSpansRow;
+      // check if there are more spans in the tree than is loaded
+      const numSpansNotLoaded = rootSpan.trace.numSpans - NUM_DESCENDANTS - 1;
+      if (numSpansNotLoaded > 0) {
+        root.children = [
+          ...root.children,
+          // We add a dummy span here to indicate that there are more spans in the tree
+          {
+            ...root,
+            // Indicate that this is an additional row, not a span
+            __additionalRow: true,
+            name: `+ ${numSpansNotLoaded} more span${numSpansNotLoaded > 1 ? "s" : ""}`,
+            id: `additional-${root.id}`,
+            // Clear out the span info
+            input: { value: "" },
+            output: { value: "" },
+            metadata: null,
+            spanAnnotations: [],
+            documentRetrievalMetrics: [],
+            children: [],
+          } as SpanRowType,
+        ];
+      }
+      return root as SpanRowType;
     });
 
     return tableData;
@@ -246,7 +295,8 @@ export function TracesTable(props: TracesTableProps) {
             header: `label`,
             accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const data = row.original;
+              const annotation = data.spanAnnotations.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
@@ -291,6 +341,9 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "spanAnnotations",
       enableSorting: false,
       cell: ({ row }) => {
+        if (row.original.__additionalRow) {
+          return null;
+        }
         const hasNoFeedback =
           row.original.spanAnnotations.length === 0 &&
           row.original.documentRetrievalMetrics.length === 0;
@@ -359,29 +412,33 @@ export function TracesTable(props: TracesTableProps) {
           }}
         />
       ),
-      cell: ({ row }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
-          }}
-        />
-      ),
+      cell: ({ row }) => {
+        if (row.original.__additionalRow) {
+          return null;
+        }
+        return (
+          <IndeterminateCheckboxCell
+            {...{
+              checked: row.getIsSelected(),
+              disabled: !row.getCanSelect(),
+              indeterminate: row.getIsSomeSelected(),
+              onChange: row.getToggleSelectedHandler(),
+            }}
+          />
+        );
+      },
     },
     {
       header: "status",
       accessorKey: "statusCode",
       maxSize: 30,
       enableSorting: false,
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
+        if (row.original.__additionalRow) {
+          return null;
+        }
         const statusCode = getValue() as SpanStatusCode;
-        return (
-          <Flex gap="size-50">
-            <SpanStatusCodeIcon statusCode={statusCode} />
-          </Flex>
-        );
+        return <SpanStatusCodeIcon statusCode={statusCode} />;
       },
     },
     {
@@ -401,6 +458,22 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "spanKind",
       maxSize: 100,
       cell: (props) => {
+        if (props.row.original.__additionalRow) {
+          return (
+            <div
+              css={css`
+                // Since rows are flattened by default,
+                // we can use the row.depth property
+                // and paddingLeft to visually indicate the depth
+                // of the row
+                padding-left: ${props.row.depth * 2}rem;
+              `}
+            >
+              <Icon svg={<Icons.MoreHorizontalOutline />} />
+            </div>
+          );
+        }
+
         return (
           <div
             css={css`
@@ -431,8 +504,11 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: ({ getValue, row }) => {
         const { traceId } = row.original.trace;
+        const spanId = row.original.isAdditionalSpansRow
+          ? null
+          : row.original.id;
         return (
-          <Link to={`${traceId}?selectedSpanNodeId=${row.original.id}`}>
+          <Link to={`${traceId}${spanId ? `?selectedSpanId=${spanId}` : ""}`}>
             {getValue() as string}
           </Link>
         );
@@ -460,15 +536,24 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "start time",
       accessorKey: "startTime",
-      cell: TimestampCell,
+      cell: (props) => {
+        if (props.row.original.__additionalRow) {
+          return null;
+        }
+        return <TimestampCell {...props} />;
+      },
     },
     {
       header: "latency",
       accessorKey: "latencyMs",
 
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
         const value = getValue();
-        if (value === null || typeof value !== "number") {
+        if (
+          value === null ||
+          typeof value !== "number" ||
+          row.original.__additionalRow
+        ) {
           return null;
         }
 
@@ -480,6 +565,9 @@ export function TracesTable(props: TracesTableProps) {
       minSize: 80,
       accessorKey: "cumulativeTokenCountTotal",
       cell: ({ row, getValue }) => {
+        if (row.original.__additionalRow) {
+          return null;
+        }
         const value = getValue();
         if (value === null) {
           return "--";
@@ -647,6 +735,8 @@ export function TracesTable(props: TracesTableProps) {
                   <tr
                     key={row.id}
                     onClick={() => navigate(`${row.original.trace.traceId}`)}
+                    data-is-additional-row={row.original.__additionalRow}
+                    css={trCSS}
                   >
                     {row.getVisibleCells().map((cell) => {
                       return (
