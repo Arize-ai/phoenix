@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.5.0...arize-phoenix-v8.6.0) (2025-02-27)
+
+
+### Features
+
+* **perf:** show + n more spans in traces table ([#6607](https://github.com/Arize-ai/phoenix/issues/6607)) ([f803ea5](https://github.com/Arize-ai/phoenix/commit/f803ea508ee47d7e8be8107ff7a400be8a8e5bb0))
+
 ## [8.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.4.1...arize-phoenix-v8.5.0) (2025-02-27)
 
 
