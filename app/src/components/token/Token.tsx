@@ -22,6 +22,8 @@ interface TokenProps
    * The color of the token.
    *
    * Can be any valid CSS color value, including CSS variables.
+   *
+   * @default "var(--ac-global-color-grey-300)"
    */
   color?: string;
   /**
@@ -68,18 +70,17 @@ const tokenBaseCSS = css`
 
   &[data-theme="light"] {
     background: var(--ac-internal-token-color);
+    border-color: var(--ac-internal-token-color);
   }
 
   &[data-theme="dark"] {
     // generate a new dark token bg color from the input color
-    --px-internal-dark-token-bg: lch(
+    --scoped-token-dark-bg: lch(
       from var(--ac-internal-token-color) l c h / calc(alpha - 0.8)
     );
-    background: var(--px-internal-dark-token-bg);
+    background: var(--scoped-token-dark-bg);
     // generate a new dark token text color from the input color
-    color: lch(
-      from var(--px-internal-dark-token-bg) calc((l) * infinity) c h / 1
-    );
+    color: lch(from var(--scoped-token-dark-bg) calc((l) * infinity) c h / 1);
   }
 
   &[data-interactive]:not([data-disabled]) {
@@ -156,7 +157,7 @@ function Token({
   style,
   leadingVisual,
   ...rest
-}: TokenProps): JSX.Element {
+}: TokenProps) {
   const { theme } = useTheme();
 
   /**
