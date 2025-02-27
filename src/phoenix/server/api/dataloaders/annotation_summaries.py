@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Literal, Optional, Type
+from typing import Any, Literal, Optional, Type, Union, cast
 
 import pandas as pd
 from aioitertools.itertools import groupby
@@ -104,14 +104,19 @@ def _get_stmt(
 ) -> Select[Any]:
     kind, project_rowid, (start_time, end_time), filter_condition = segment
 
+    annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
+    entity_model: Union[Type[models.Span], Type[models.Trace]]
+    entity_join_model: Optional[Type[models.Base]]
+    entity_id_column: Any
+
     if kind == "span":
-        annotation_model: Type[models.SpanAnnotation] = models.SpanAnnotation
-        entity_model: Type[models.Span] = models.Span
+        annotation_model = models.SpanAnnotation
+        entity_model = models.Span
         entity_join_model = models.Trace
         entity_id_column = models.Span.id.label("entity_id")
     elif kind == "trace":
-        annotation_model: Type[models.TraceAnnotation] = models.TraceAnnotation
-        entity_model: Type[models.Trace] = models.Trace
+        annotation_model = models.TraceAnnotation
+        entity_model = models.Trace
         entity_join_model = None
         entity_id_column = models.Trace.id.label("entity_id")
     else:
@@ -133,14 +138,19 @@ def _get_stmt(
     )
 
     if kind == "span":
-        base_stmt = base_stmt.join(entity_model).join_from(entity_model, entity_join_model)
+        base_stmt = base_stmt.join(cast(Type[models.Span], entity_model))
+        base_stmt = base_stmt.join_from(
+            cast(Type[models.Span], entity_model), cast(Type[models.Trace], entity_join_model)
+        )
         base_stmt = base_stmt.where(models.Trace.project_rowid == project_rowid)
         if filter_condition:
             sf = SpanFilter(filter_condition)
             base_stmt = sf(base_stmt)
     elif kind == "trace":
-        base_stmt = base_stmt.join(entity_model)
-        base_stmt = base_stmt.where(entity_model.project_rowid == project_rowid)
+        base_stmt = base_stmt.join(cast(Type[models.Trace], entity_model))
+        base_stmt = base_stmt.where(
+            cast(Type[models.Trace], entity_model).project_rowid == project_rowid
+        )
     else:
         assert_never(kind)
 
