@@ -11,7 +11,7 @@ This example will walk you through how to use Phoenix to trace OpenAI requests.
 Let's start by installing Phoenix. You have a few options for how to do this:
 
 {% tabs %}
-{% tab title="Phoenix Developer Edition" %}
+{% tab title="Phoenix Cloud" %}
 The easiest way to use Phoenix is by accessing a free persistent instance provided on our site. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 
 Once you're there, grab your API key from the Keys option on the left bar:
