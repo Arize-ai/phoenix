@@ -38,7 +38,7 @@ const preview: Preview = {
       const theme = globals.theme || "light";
       return (
         <Provider theme={theme} mountGlobalStyles={false}>
-          <ThemeProvider>
+          <ThemeProvider theme={theme}>
             <MemoryRouter initialEntries={["/"]}>
               <GlobalStyles />
               <Story />
