@@ -93,11 +93,16 @@ async def test_multiple_annotations_score_weighting(
     # Overall average score = (0.70+0.575+0.85)/3 ≈ 0.70833.
     expected_avg_score = 0.70833
 
+    async with db() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == "simple_multiple")
+        )
+
     loader = AnnotationSummaryDataLoader(db)
     result = await loader.load(
         (
             "span",
-            1,  # project_id = 1 for simple_data_with_multiple_annotations
+            project_id,
             TimeRange(start=start_time, end=end_time),
             None,
             "quality",
