@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, distinct, func, select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -39,6 +39,7 @@ from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputC
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -660,6 +661,30 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            stmt = select(models.AnnotationConfig).options(
+                selectinload(models.AnnotationConfig.continuous_config),
+                selectinload(models.AnnotationConfig.categorical_config),
+            )
+            configs = await session.stream_scalars(stmt)
+            data = [to_gql_annotation_config(config) async for config in configs]
+            return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def clusters(

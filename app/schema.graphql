@@ -32,6 +32,33 @@ interface Annotation {
   explanation: String
 }
 
+union AnnotationConfig = ContinuousAnnotationConfig | CategoricalAnnotationConfig | FreeformAnnotationConfig
+
+"""A connection to a list of items."""
+type AnnotationConfigConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [AnnotationConfigEdge!]!
+}
+
+"""An edge in a connection."""
+type AnnotationConfigEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: AnnotationConfig!
+}
+
+interface AnnotationConfigInterface {
+  name: String!
+  annotationType: AnnotationType!
+  scoreDirection: ScoreDirection!
+  description: String
+}
+
 type AnnotationSummary {
   count: Int!
   labels: [String!]!
@@ -39,6 +66,13 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+enum AnnotationType {
+  CATEGORICAL
+  CONTINUOUS
+  FREEFORM
+  BINARY
 }
 
 enum AnnotatorKind {
@@ -96,6 +130,25 @@ enum CanonicalParameterName {
   TOOL_CHOICE
   RESPONSE_FORMAT
   REASONING_EFFORT
+}
+
+type CategoricalAnnotationConfig implements Node & AnnotationConfigInterface {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  annotationType: AnnotationType!
+  scoreDirection: ScoreDirection!
+  description: String
+  isOrdinal: Boolean!
+  multilabelAllowed: Boolean!
+  allowedValues: [CategoricalAnnotationValue!]!
+}
+
+type CategoricalAnnotationValue implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  label: String!
+  numericScore: Float
 }
 
 type ChatCompletionFunctionCall {
@@ -262,10 +315,44 @@ input ContentPartInput @oneOf {
   toolResult: ToolResultContentValueInput
 }
 
+type ContinuousAnnotationConfig implements Node & AnnotationConfigInterface {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  annotationType: AnnotationType!
+  scoreDirection: ScoreDirection!
+  description: String
+  lowerBound: Float
+  upperBound: Float
+}
+
 input CreateApiKeyInput {
   name: String!
   description: String
   expiresAt: DateTime
+}
+
+input CreateBinaryAnnotationConfigInput {
+  name: String!
+  scoreDirection: ScoreDirection!
+  description: String = null
+  isOrdinal: Boolean! = false
+  multilabelAllowed: Boolean! = false
+  allowedValues: [CreateCategoricalAnnotationValueInput!]!
+}
+
+input CreateCategoricalAnnotationConfigInput {
+  name: String!
+  scoreDirection: ScoreDirection!
+  description: String = null
+  isOrdinal: Boolean!
+  multilabelAllowed: Boolean!
+  allowedValues: [CreateCategoricalAnnotationValueInput!]!
+}
+
+input CreateCategoricalAnnotationValueInput {
+  label: String!
+  numericScore: Float = null
 }
 
 input CreateChatPromptInput {
@@ -280,10 +367,29 @@ input CreateChatPromptVersionInput {
   tags: [SetPromptVersionTagInput!] = null
 }
 
+input CreateContinuousAnnotationConfigInput {
+  name: String!
+  scoreDirection: ScoreDirection!
+  description: String = null
+  lowerBound: Float = null
+  upperBound: Float = null
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
+}
+
+input CreateFreeformAnnotationConfigInput {
+  name: String!
+  scoreDirection: ScoreDirection!
+  description: String = null
+}
+
+input CreateProjectAnnotationConfigInput {
+  projectId: GlobalID!
+  annotationConfigId: GlobalID!
 }
 
 input CreatePromptLabelInput {
@@ -514,6 +620,10 @@ scalar DateTime
 type DbTableStats {
   tableName: String!
   numBytes: Float!
+}
+
+input DeleteAnnotationConfigInput {
+  configId: GlobalID!
 }
 
 input DeleteAnnotationsInput {
@@ -1005,6 +1115,15 @@ type FloatInvocationParameter implements InvocationParameterBase {
   defaultValue: Float
 }
 
+type FreeformAnnotationConfig implements Node & AnnotationConfigInterface {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  annotationType: AnnotationType!
+  scoreDirection: ScoreDirection!
+  description: String
+}
+
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
   datasetExampleId: GlobalID
   name: String!
@@ -1220,6 +1339,17 @@ input ModelsInput {
 }
 
 type Mutation {
+  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): AnnotationConfig!
+  createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): AnnotationConfig!
+  createBinaryAnnotationConfig(input: CreateBinaryAnnotationConfigInput!): AnnotationConfig!
+  createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): AnnotationConfig!
+  patchAnnotationConfig(input: PatchAnnotationConfigInput!): AnnotationConfig!
+  patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): AnnotationConfig!
+  patchCategoricalAnnotationConfig(input: PatchCategoricalAnnotationConfigInput!): AnnotationConfig!
+  patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): AnnotationConfig!
+  patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): AnnotationConfig!
+  deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): Boolean!
+  createProjectAnnotationConfig(input: [CreateProjectAnnotationConfigInput!]!): ProjectAnnotationConfig!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
@@ -1300,6 +1430,13 @@ type PageInfo {
   endCursor: String
 }
 
+input PatchAnnotationConfigInput {
+  configId: GlobalID!
+  name: String = null
+  description: String = null
+  scoreDirection: ScoreDirection = null
+}
+
 input PatchAnnotationInput {
   annotationId: GlobalID!
   name: String
@@ -1308,6 +1445,29 @@ input PatchAnnotationInput {
   score: Float
   explanation: String
   metadata: JSON
+}
+
+input PatchCategoricalAnnotationConfigInput {
+  configId: GlobalID!
+  isOrdinal: Boolean = null
+  multilabelAllowed: Boolean = null
+}
+
+input PatchCategoricalAnnotationValueInput {
+  valueId: GlobalID!
+  label: String = null
+  numericScore: Float = null
+}
+
+input PatchCategoricalAnnotationValuesInput {
+  configId: GlobalID!
+  allowedValues: [CreateCategoricalAnnotationValueInput!]!
+}
+
+input PatchContinuousAnnotationConfigInput {
+  configId: GlobalID!
+  lowerBound: Float = null
+  upperBound: Float = null
 }
 
 input PatchDatasetExamplesInput {
@@ -1408,6 +1568,13 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+}
+
+type ProjectAnnotationConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  projectId: GlobalID!
+  annotationConfigId: GlobalID!
 }
 
 """A connection to a list of items."""
@@ -1668,6 +1835,7 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
+  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
@@ -1720,6 +1888,11 @@ enum ScalarDriftMetric {
   psi
   klDivergence
   jsDistance
+}
+
+enum ScoreDirection {
+  MINIMIZE
+  MAXIMIZE
 }
 
 type Segment {
