@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<82b11b8146f286e3f8ebe1ff59537d9f>>
+ * @generated SignedSource<<ea4ce5a6e5fe1bdbb97952b121a610ad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DimensionQuantilesStats_dimension$data = {
   readonly p1: number | null;

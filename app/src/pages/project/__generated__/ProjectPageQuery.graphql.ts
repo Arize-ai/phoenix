@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<675b39d20bae1dbb7ff9450952378b10>>
+ * @generated SignedSource<<1454007030fdd1d532d83419d3320240>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TimeRange = {
   end?: string | null;

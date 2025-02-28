@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8fae36ffdbbfc3562314c6ca1d88bee>>
+ * @generated SignedSource<<afe2035812d59e33aeef88825b7c2946>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type PlaygroundQuery$variables = Record<PropertyKey, never>;
 export type PlaygroundQuery$data = {
   readonly modelProviders: ReadonlyArray<{

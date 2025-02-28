@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5951e0de37c6cf017e5d17edeeee72c4>>
+ * @generated SignedSource<<b62159793551a372b81ba56b275835b3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExampleExperimentRunsTableQuery$variables = {
   after?: string | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8d9eb1f3791ea55773dcaedba11f7f8f>>
+ * @generated SignedSource<<c57c249c56c0f6baf88e651f199b3b05>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type RunMetadataFooterQuery$variables = {
   spanId: string;
 };

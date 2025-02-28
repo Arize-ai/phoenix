@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<07f2e34c77d2b1b7483985187913fc92>>
+ * @generated SignedSource<<e49c869739247fee2d22ddd9c358603c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SpanAnnotationActionMenuDeleteMutation$variables = {
   annotationId: string;

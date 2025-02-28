@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<faacd4f84859f135396e055af17afb13>>
+ * @generated SignedSource<<4096df704ab4fccfe42206b52b87b878>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ProjectsPageProjectsFragment$data = {
   readonly projects: {

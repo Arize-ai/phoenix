@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7245a5bd2ffe09132cf8e44465e04ff9>>
+ * @generated SignedSource<<e24bf41359907078fa640eef228f7e5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type UserRoleInput = "ADMIN" | "MEMBER";
 export type PatchUserInput = {
   newPassword?: string | null;

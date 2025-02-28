@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cd20b06f5600fe6fa4d5a637c9ff836f>>
+ * @generated SignedSource<<f855598de5c6b76db1afbfe1f6250249>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ModelSchemaTableDimensionsQuery$variables = {
   count?: number | null;

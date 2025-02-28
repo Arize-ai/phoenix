@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f2b88e12be44c5bad54b9abdfbdb545>>
+ * @generated SignedSource<<f3439483696f26adff95698d55f2d517>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvalAttr = "label" | "score";
 export type SortDir = "asc" | "desc";

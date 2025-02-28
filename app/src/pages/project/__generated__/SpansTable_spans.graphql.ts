@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<88b2c113b2b5504cc4db0366f84afc34>>
+ * @generated SignedSource<<e38b35ea6ee0d0738797326ead5bea1b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";

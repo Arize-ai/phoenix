@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<539937591ea2e8f663d0ccc65d050376>>
+ * @generated SignedSource<<2785c6443bb161624c5566704de898d2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PromptVersionTagsConfigCard_data$data = {
   readonly id: string;

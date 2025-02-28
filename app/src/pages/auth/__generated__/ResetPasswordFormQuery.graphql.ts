@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed9334f2eff320aba09cddcbde3ec246>>
+ * @generated SignedSource<<5bf8729db55b3a1fe35d730d6b14294f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ResetPasswordFormQuery$data = {
   readonly viewer: {

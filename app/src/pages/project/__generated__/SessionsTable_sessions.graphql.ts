@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a1d48f88c8f7c76a01177103a7c11658>>
+ * @generated SignedSource<<440949ad95b44d134e9e32c99c17f02d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SessionsTable_sessions$data = {
   readonly id: string;

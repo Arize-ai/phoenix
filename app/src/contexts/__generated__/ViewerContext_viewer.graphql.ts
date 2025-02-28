@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4943c441f0a18f63c691a565344bcaf7>>
+ * @generated SignedSource<<0c9290a3698614800d03b84a2b77f8bc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type AuthMethod = "LOCAL" | "OAUTH2";
 import { FragmentRefs } from "relay-runtime";
 export type ViewerContext_viewer$data = {
