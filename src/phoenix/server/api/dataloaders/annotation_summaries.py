@@ -163,7 +163,6 @@ def _get_stmt(
         entity_id_column,
         name_column,
         label_column,
-        score_column,
         func.count().label("record_count"),
         func.count(label_column).label("label_count"),
         func.count(score_column).label("score_count"),
