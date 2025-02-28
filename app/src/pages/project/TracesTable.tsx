@@ -11,6 +11,7 @@ import React, {
 import { graphql, usePaginationFragment } from "react-relay";
 import { useMatch, useNavigate } from "react-router";
 import {
+  CellContext,
   ColumnDef,
   ExpandedState,
   flexRender,
@@ -42,6 +43,7 @@ import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
   SpanStatusCode,
@@ -87,6 +89,15 @@ interface IAdditionalSpansRow extends ISpanItem, IAdditionalSpansIndicator {}
  */
 type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
   children: NestedSpanTableRow<TSpan>[];
+};
+
+const MetadataCell = <TData extends ISpanItem, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  if (row.original.__additionalRow) {
+    return null;
+  }
+  return <MetadataTableCell metadata={row.original.metadata} />;
 };
 
 const trCSS = css`
@@ -246,7 +257,7 @@ export function TracesTable(props: TracesTableProps) {
     );
   }, [annotationColumnVisibility]);
   const tableData = useMemo(() => {
-    const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
+    return data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
       const spanTree = createSpanTree([
         rootSpan,
@@ -281,184 +292,205 @@ export function TracesTable(props: TracesTableProps) {
       }
       return root as SpanRowType;
     });
-
-    return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
 
-  const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
-    visibleAnnotationColumnNames.map((name) => {
-      return {
-        header: name,
-        columns: [
-          {
-            header: `label`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
-            cell: ({ row }) => {
-              const data = row.original;
-              const annotation = data.spanAnnotations.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return annotation.label;
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `score`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return annotation.score;
-            },
-          } as ColumnDef<TableRow>,
-        ],
-      };
-    });
+  const dynamicAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
+    () =>
+      visibleAnnotationColumnNames.map((name) => {
+        return {
+          header: name,
+          columns: [
+            {
+              header: `label`,
+              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              cell: ({ row }) => {
+                const data = row.original;
+                const annotation = data.spanAnnotations.find(
+                  (annotation) => annotation.name === name
+                );
+                if (!annotation) {
+                  return null;
+                }
+                return annotation.label;
+              },
+            } as ColumnDef<TableRow>,
+            {
+              header: `score`,
+              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              cell: ({ row }) => {
+                const annotation = row.original.spanAnnotations.find(
+                  (annotation) => annotation.name === name
+                );
+                if (!annotation) {
+                  return null;
+                }
+                return annotation.score;
+              },
+            } as ColumnDef<TableRow>,
+          ],
+        };
+      }),
+    [visibleAnnotationColumnNames]
+  );
 
-  const annotationColumns: ColumnDef<TableRow>[] = [
-    {
-      header: () => (
-        <Flex direction="row" gap="size-50">
-          <span>feedback</span>
-          <ContextualHelp>
-            <Heading level={3} weight="heavy">
-              Feedback
-            </Heading>
-            <Content>
-              Feedback includes evaluations and human annotations logged via the
-              API or set via the UI.
-            </Content>
-          </ContextualHelp>
-        </Flex>
-      ),
-      accessorKey: "spanAnnotations",
-      enableSorting: false,
-      cell: ({ row }) => {
-        if (row.original.__additionalRow) {
-          return null;
-        }
-        const hasNoFeedback =
-          row.original.spanAnnotations.length === 0 &&
-          row.original.documentRetrievalMetrics.length === 0;
-        return (
-          <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanAnnotations.map((annotation) => {
-              return (
-                <AnnotationTooltip
-                  key={annotation.name}
-                  annotation={annotation}
-                  layout="horizontal"
-                  width="500px"
-                  extra={
-                    <AnnotationTooltipFilterActions annotation={annotation} />
-                  }
-                >
-                  <AnnotationLabel
-                    annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
-                </AnnotationTooltip>
-              );
-            })}
-            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
-              return (
-                <Fragment key="doc-evals">
-                  <RetrievalEvaluationLabel
-                    key="ndcg"
-                    name={retrievalMetric.evaluationName}
-                    metric="ndcg"
-                    score={retrievalMetric.ndcg}
-                  />
-                  <RetrievalEvaluationLabel
-                    key="precision"
-                    name={retrievalMetric.evaluationName}
-                    metric="precision"
-                    score={retrievalMetric.precision}
-                  />
-                  <RetrievalEvaluationLabel
-                    key="hit"
-                    name={retrievalMetric.evaluationName}
-                    metric="hit"
-                    score={retrievalMetric.hit}
-                  />
-                </Fragment>
-              );
-            })}
-            {hasNoFeedback ? "--" : null}
+  const annotationColumns: ColumnDef<TableRow>[] = useMemo(
+    () => [
+      {
+        header: () => (
+          <Flex direction="row" gap="size-50">
+            <span>feedback</span>
+            <ContextualHelp>
+              <Heading level={3} weight="heavy">
+                Feedback
+              </Heading>
+              <Content>
+                Feedback includes evaluations and human annotations logged via
+                the API or set via the UI.
+              </Content>
+            </ContextualHelp>
           </Flex>
-        );
+        ),
+        id: "feedback",
+        accessorKey: "spanAnnotations",
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const hasNoFeedback =
+            row.original.spanAnnotations.length === 0 &&
+            row.original.documentRetrievalMetrics.length === 0;
+          return (
+            <Flex direction="row" gap="size-50" wrap="wrap">
+              {row.original.spanAnnotations.map((annotation) => {
+                return (
+                  <AnnotationTooltip
+                    key={annotation.name}
+                    annotation={annotation}
+                    layout="horizontal"
+                    width="500px"
+                    extra={
+                      <AnnotationTooltipFilterActions annotation={annotation} />
+                    }
+                  >
+                    <AnnotationLabel
+                      annotation={annotation}
+                      annotationDisplayPreference="label"
+                    />
+                  </AnnotationTooltip>
+                );
+              })}
+              {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+                return (
+                  <Fragment key="doc-evals">
+                    <RetrievalEvaluationLabel
+                      key="ndcg"
+                      name={retrievalMetric.evaluationName}
+                      metric="ndcg"
+                      score={retrievalMetric.ndcg}
+                    />
+                    <RetrievalEvaluationLabel
+                      key="precision"
+                      name={retrievalMetric.evaluationName}
+                      metric="precision"
+                      score={retrievalMetric.precision}
+                    />
+                    <RetrievalEvaluationLabel
+                      key="hit"
+                      name={retrievalMetric.evaluationName}
+                      metric="hit"
+                      score={retrievalMetric.hit}
+                    />
+                  </Fragment>
+                );
+              })}
+              {hasNoFeedback ? "--" : null}
+            </Flex>
+          );
+        },
       },
-    },
-    ...dynamicAnnotationColumns,
-  ];
+      ...dynamicAnnotationColumns,
+    ],
+    [dynamicAnnotationColumns]
+  );
 
-  const columns: ColumnDef<TableRow>[] = [
-    {
-      id: "select",
-      maxSize: 10,
-      header: ({ table }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            checked: table.getIsAllRowsSelected(),
-            indeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.getToggleAllRowsSelectedHandler(),
-          }}
-        />
-      ),
-      cell: ({ row }) => {
-        if (row.original.__additionalRow) {
-          return null;
-        }
-        return (
+  const columns: ColumnDef<TableRow>[] = useMemo(
+    () => [
+      {
+        id: "select",
+        maxSize: 10,
+        header: ({ table }) => (
           <IndeterminateCheckboxCell
             {...{
-              checked: row.getIsSelected(),
-              disabled: !row.getCanSelect(),
-              indeterminate: row.getIsSomeSelected(),
-              onChange: row.getToggleSelectedHandler(),
+              checked: table.getIsAllRowsSelected(),
+              indeterminate: table.getIsSomeRowsSelected(),
+              onChange: table.getToggleAllRowsSelectedHandler(),
             }}
           />
-        );
-      },
-    },
-    {
-      header: "status",
-      accessorKey: "statusCode",
-      maxSize: 30,
-      enableSorting: false,
-      cell: ({ getValue, row }) => {
-        if (row.original.__additionalRow) {
-          return null;
-        }
-        const statusCode = getValue() as SpanStatusCode;
-        return <SpanStatusCodeIcon statusCode={statusCode} />;
-      },
-    },
-    {
-      header: () => {
-        return (
-          <Flex gap="size-50" direction="row" alignItems="center">
-            <TableExpandButton
-              isExpanded={table.getIsAllRowsExpanded()}
-              onClick={table.getToggleAllRowsExpandedHandler()}
-              aria-label="Expand all rows"
+        ),
+        cell: ({ row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          return (
+            <IndeterminateCheckboxCell
+              {...{
+                checked: row.getIsSelected(),
+                disabled: !row.getCanSelect(),
+                indeterminate: row.getIsSomeSelected(),
+                onChange: row.getToggleSelectedHandler(),
+              }}
             />
-            kind
-          </Flex>
-        );
+          );
+        },
       },
-      enableSorting: false,
-      accessorKey: "spanKind",
-      maxSize: 100,
-      cell: (props) => {
-        if (props.row.original.__additionalRow) {
+      {
+        header: "status",
+        accessorKey: "statusCode",
+        maxSize: 30,
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const statusCode = getValue() as SpanStatusCode;
+          return <SpanStatusCodeIcon statusCode={statusCode} />;
+        },
+      },
+      {
+        header: ({ table }) => {
+          return (
+            <Flex gap="size-50" direction="row" alignItems="center">
+              <TableExpandButton
+                isExpanded={table.getIsAllRowsExpanded()}
+                onClick={table.getToggleAllRowsExpandedHandler()}
+                aria-label="Expand all rows"
+              />
+              kind
+            </Flex>
+          );
+        },
+        enableSorting: false,
+        accessorKey: "spanKind",
+        maxSize: 100,
+        cell: (props) => {
+          if (props.row.original.__additionalRow) {
+            return (
+              <div
+                css={css`
+                  // Since rows are flattened by default,
+                  // we can use the row.depth property
+                  // and paddingLeft to visually indicate the depth
+                  // of the row
+                  padding-left: ${props.row.depth * 2}rem;
+                `}
+              >
+                <Icon svg={<Icons.MoreHorizontalOutline />} />
+              </div>
+            );
+          }
+
           return (
             <div
               css={css`
@@ -469,121 +501,106 @@ export function TracesTable(props: TracesTableProps) {
                 padding-left: ${props.row.depth * 2}rem;
               `}
             >
-              <Icon svg={<Icons.MoreHorizontalOutline />} />
+              <Flex gap="size-50">
+                {props.row.getCanExpand() ? (
+                  <TableExpandButton
+                    isExpanded={props.row.getIsExpanded()}
+                    onClick={props.row.getToggleExpandedHandler()}
+                    aria-label="Expand row"
+                  />
+                ) : null}
+                <SpanKindLabel spanKind={props.getValue() as string} />
+              </Flex>
             </div>
           );
-        }
-
-        return (
-          <div
-            css={css`
-              // Since rows are flattened by default,
-              // we can use the row.depth property
-              // and paddingLeft to visually indicate the depth
-              // of the row
-              padding-left: ${props.row.depth * 2}rem;
-            `}
-          >
-            <Flex gap="size-50">
-              {props.row.getCanExpand() ? (
-                <TableExpandButton
-                  isExpanded={props.row.getIsExpanded()}
-                  onClick={props.row.getToggleExpandedHandler()}
-                  aria-label="Expand row"
-                />
-              ) : null}
-              <SpanKindLabel spanKind={props.getValue() as string} />
-            </Flex>
-          </div>
-        );
+        },
       },
-    },
-    {
-      header: "name",
-      accessorKey: "name",
-      enableSorting: false,
-      cell: ({ getValue, row }) => {
-        const { traceId } = row.original.trace;
-        const spanId = row.original.isAdditionalSpansRow
-          ? null
-          : row.original.id;
-        return (
-          <Link to={`${traceId}${spanId ? `?selectedSpanId=${spanId}` : ""}`}>
-            {getValue() as string}
-          </Link>
-        );
+      {
+        header: "name",
+        accessorKey: "name",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          const { traceId } = row.original.trace;
+          const spanId = row.original.isAdditionalSpansRow
+            ? null
+            : row.original.id;
+          return (
+            <Link to={`${traceId}${spanId ? `?selectedSpanId=${spanId}` : ""}`}>
+              {getValue() as string}
+            </Link>
+          );
+        },
       },
-    },
-    {
-      header: "input",
-      accessorKey: "input.value",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    {
-      header: "output",
-      accessorKey: "output.value",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    {
-      header: "metadata",
-      accessorKey: "metadata",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
-    {
-      header: "start time",
-      accessorKey: "startTime",
-      cell: (props) => {
-        if (props.row.original.__additionalRow) {
-          return null;
-        }
-        return <TimestampCell {...props} />;
+      {
+        header: "input",
+        accessorKey: "input.value",
+        enableSorting: false,
+        cell: TextCell,
       },
-    },
-    {
-      header: "latency",
-      accessorKey: "latencyMs",
-
-      cell: ({ getValue, row }) => {
-        const value = getValue();
-        if (
-          value === null ||
-          typeof value !== "number" ||
-          row.original.__additionalRow
-        ) {
-          return null;
-        }
-
-        return <LatencyText latencyMs={value} />;
+      {
+        header: "output",
+        accessorKey: "output.value",
+        enableSorting: false,
+        cell: TextCell,
       },
-    },
-    {
-      header: "total tokens",
-      minSize: 80,
-      accessorKey: "cumulativeTokenCountTotal",
-      cell: ({ row, getValue }) => {
-        if (row.original.__additionalRow) {
-          return null;
-        }
-        const value = getValue();
-        if (value === null) {
-          return "--";
-        }
-        return (
-          <TokenCount
-            tokenCountTotal={value as number}
-            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
-            tokenCountCompletion={
-              row.original.cumulativeTokenCountCompletion || 0
-            }
-          />
-        );
+      {
+        header: "metadata",
+        accessorKey: "metadata",
+        enableSorting: false,
+        cell: MetadataCell,
       },
-    },
-  ];
+      ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
+      {
+        header: "start time",
+        accessorKey: "startTime",
+        cell: (props) => {
+          if (props.row.original.__additionalRow) {
+            return null;
+          }
+          return <TimestampCell {...props} />;
+        },
+      },
+      {
+        header: "latency",
+        accessorKey: "latencyMs",
+        cell: ({ getValue, row }) => {
+          const value = getValue();
+          if (
+            value === null ||
+            typeof value !== "number" ||
+            row.original.__additionalRow
+          ) {
+            return null;
+          }
+          return <LatencyText latencyMs={value} />;
+        },
+      },
+      {
+        header: "total tokens",
+        minSize: 80,
+        accessorKey: "cumulativeTokenCountTotal",
+        cell: ({ row, getValue }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const value = getValue();
+          if (value === null) {
+            return "--";
+          }
+          return (
+            <TokenCount
+              tokenCountTotal={value as number}
+              tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
+              tokenCountCompletion={
+                row.original.cumulativeTokenCountCompletion || 0
+              }
+            />
+          );
+        },
+      },
+    ],
+    [annotationColumns]
+  );
 
   useEffect(() => {
     if (isFirstRender.current === true) {
@@ -609,7 +626,8 @@ export function TracesTable(props: TracesTableProps) {
       });
     }
   }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
-  const fetchMoreOnBottomReached = React.useCallback(
+
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
