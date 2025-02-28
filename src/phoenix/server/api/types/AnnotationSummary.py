@@ -23,7 +23,7 @@ class AnnotationSummary:
 
     @strawberry.field
     def labels(self) -> list[str]:
-        return self.df.label.dropna().unique().tolist()
+        return self.df["label"].dropna().unique().tolist()
 
     @strawberry.field
     def label_fractions(self) -> list[LabelFraction]:
