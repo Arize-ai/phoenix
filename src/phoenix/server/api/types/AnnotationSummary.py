@@ -30,7 +30,7 @@ class AnnotationSummary:
         return [
             LabelFraction(
                 label=row.label,
-                fraction=row.avg_label_fraction,
+                fraction=float(row.avg_label_fraction),
             )
             for row in self.df.itertuples()
             if row.label is not None
