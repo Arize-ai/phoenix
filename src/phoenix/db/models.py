@@ -739,12 +739,6 @@ class SpanAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "span_rowid",
-        ),
-    )
 
 
 class TraceAnnotation(Base):
@@ -764,12 +758,6 @@ class TraceAnnotation(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "trace_rowid",
-        ),
     )
 
 
@@ -793,14 +781,6 @@ class DocumentAnnotation(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
-
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "span_rowid",
-            "document_position",
-        ),
-    )
 
 
 class Dataset(Base):
