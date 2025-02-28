@@ -1078,7 +1078,7 @@
         "tags": [
           "spans"
         ],
-        "summary": "Create or update span annotations",
+        "summary": "Create span annotations",
         "operationId": "annotateSpans",
         "parameters": [
           {

@@ -219,7 +219,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create or update span annotations */
+        /** Create span annotations */
         post: operations["annotateSpans"];
         delete?: never;
         options?: never;
