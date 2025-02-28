@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<749d6270534ccf205568b2479a5e3ead>>
+ * @generated SignedSource<<2957a55fe97962ace0f1ac8fb466e632>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment } from 'relay-runtime';
+import { Fragment, ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SpanColumnSelector_annotations$data = {
   readonly spanAnnotationNames: ReadonlyArray<string>;

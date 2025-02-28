@@ -95,9 +95,8 @@ const MetadataCell = <TData extends ISpanItem, TValue>({
   row,
 }: CellContext<TData, TValue>) => {
   if (row.original.__additionalRow) {
-    return null as unknown as JSX.Element;
+    return null;
   }
-
   return <MetadataTableCell metadata={row.original.metadata} />;
 };
 
