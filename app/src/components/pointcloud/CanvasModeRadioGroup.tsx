@@ -34,6 +34,7 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
     <ToggleButtonGroup
       selectedKeys={[props.mode]}
       aria-label="Canvas Mode"
+      size="S"
       onSelectionChange={(v) => {
         if (v.size === 0) {
           return;
