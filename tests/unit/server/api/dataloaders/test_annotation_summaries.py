@@ -97,6 +97,7 @@ async def test_multiple_annotations_score_weighting(
         project_id = await session.scalar(
             select(models.Project.id).where(models.Project.name == "simple_multiple")
         )
+        assert isinstance(project_id, int)
 
     loader = AnnotationSummaryDataLoader(db)
     result = await loader.load(
@@ -109,12 +110,12 @@ async def test_multiple_annotations_score_weighting(
         )
     )
     assert result is not None
-    assert result.mean_score() == pytest.approx(expected_avg_score, rel=1e-4)
+    assert result.mean_score() == pytest.approx(expected_avg_score, rel=1e-4)  # type: ignore[call-arg]
 
     # Expected fractions:
     # "good": (2/3 + 1/2 + 1) / 3 ≈ 0.722
     # "bad": (1/3 + 1/2 + 0) / 3 ≈ 0.277
-    label_fracs = {lf.label: lf.fraction for lf in result.label_fractions()}
+    label_fracs = {lf.label: lf.fraction for lf in result.label_fractions()}  # type: ignore[call-arg, attr-defined]
     assert label_fracs["good"] == pytest.approx(0.722, rel=1e-2)
     assert label_fracs["bad"] == pytest.approx(0.277, rel=1e-2)
     assert abs(label_fracs["good"] + label_fracs["bad"] - 1.0) < 1e-2
@@ -140,7 +141,7 @@ async def test_missing_label_aggregation(
         project_id = await session.scalar(
             select(models.Project.id).where(models.Project.name == "simple_missing")
         )
-
+        assert isinstance(project_id, int)
     result = await loader.load(
         (
             "span",
@@ -152,7 +153,7 @@ async def test_missing_label_aggregation(
     )
     assert result is not None
 
-    label_fracs = {lf.label: lf.fraction for lf in result.label_fractions()}
+    label_fracs = {lf.label: lf.fraction for lf in result.label_fractions()}  # type: ignore[call-arg, attr-defined]
     assert label_fracs["X"] == pytest.approx(0.889, rel=1e-2)
     assert label_fracs["Y"] == pytest.approx(0.111, rel=1e-2)
     assert abs(sum(label_fracs.values()) - 1.0) < 1e-7
@@ -162,4 +163,4 @@ async def test_missing_label_aggregation(
     # Span 2: .8
     # Span 3: .8
     # Overall average = ((0.8 + 0.8 + 0.6) / 3 + 0.8 + 0.8) / 3 ≈ 0.777
-    assert result.mean_score() == pytest.approx(0.777, rel=1e-2)
+    assert result.mean_score() == pytest.approx(0.777, rel=1e-2)  # type: ignore[call-arg]
