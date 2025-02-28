@@ -38,10 +38,10 @@ class AnnotationSummary:
 
     @strawberry.field
     def mean_score(self) -> Optional[float]:
-        valid_scores = self.df["avg_score"].dropna()
-        if valid_scores.empty:
+        avg_scores = self.df["avg_score"].dropna()
+        if avg_scores.empty:
             return None
-        return float(valid_scores.mean())
+        return float(avg_scores.mean())  # all avg_scores should be the same
 
     @strawberry.field
     def score_count(self) -> int:

@@ -213,9 +213,6 @@ def _get_stmt(
         .subquery()
     )
 
-    # Calculate per-entity metrics:
-    # 1. Label fractions within each (span/trace)
-    # 2. Average score per (span/trace)
     per_entity_fractions = (
         select(
             base_subquery.c.entity_id,
@@ -225,11 +222,11 @@ def _get_stmt(
             base_subquery.c.label_count,
             base_subquery.c.score_count,
             base_subquery.c.score_sum,
-            # Calculate label fraction as this label's count divided by total labels
+            # Calculate label fraction
             (base_subquery.c.label_count * 1.0 / entity_totals.c.total_label_count).label(
                 "label_fraction"
             ),
-            # Calculate average score across all its annotations
+            # Calculate average score for the entity (if there are any scores)
             case(
                 (
                     entity_totals.c.total_score_count > 0,
@@ -248,8 +245,7 @@ def _get_stmt(
         .subquery()
     )
 
-    # Aggregate metrics across (spans/traces) for each name+label combination
-    # Only for (spans/traces) that have this label
+    # Aggregate metrics across (spans/traces) for each name+label combination.
     label_entity_metrics = (
         select(
             per_entity_fractions.c.name,
@@ -260,31 +256,54 @@ def _get_stmt(
             func.sum(per_entity_fractions.c.score_sum).label("total_score_sum"),
             # Average of label fractions for entities that have this label
             func.avg(per_entity_fractions.c.label_fraction).label("avg_label_fraction_present"),
-            # Average of per-entity average scores (weighted properly)
-            func.avg(per_entity_fractions.c.entity_avg_score).label("avg_score"),
+            # Average of per-entity average scores (but we handle overall aggregation separately)
         )
         .group_by(per_entity_fractions.c.name, per_entity_fractions.c.label)
         .subquery()
     )
 
-    # Final result: adjust metrics to account for (spans/traces) without certain labels
+    # Compute distinct per-entity average scores to ensure each entity counts only once.
+    distinct_entity_scores = (
+        select(
+            per_entity_fractions.c.entity_id,
+            per_entity_fractions.c.name,
+            per_entity_fractions.c.entity_avg_score,
+        )
+        .distinct()
+        .subquery()
+    )
+
+    overall_score_aggregates = (
+        select(
+            distinct_entity_scores.c.name,
+            func.avg(distinct_entity_scores.c.entity_avg_score).label("overall_avg_score"),
+        )
+        .group_by(distinct_entity_scores.c.name)
+        .subquery()
+    )
+
+    # Final result: adjust label fractions by the proportion of entities reporting this label
+    # and include the overall average score per annotation name.
     final_stmt = (
         select(
             label_entity_metrics.c.name,
             label_entity_metrics.c.label,
-            # Scale label fraction by proportion of (spans/traces) that have this label
             (
                 label_entity_metrics.c.avg_label_fraction_present
                 * label_entity_metrics.c.entities_with_label
                 / entity_count_subquery.c.entity_count
             ).label("avg_label_fraction"),
-            label_entity_metrics.c.avg_score.label("avg_score"),
+            overall_score_aggregates.c.overall_avg_score.label("avg_score"),  # same for all labels
             label_entity_metrics.c.total_label_count.label("label_count"),
             label_entity_metrics.c.total_score_count.label("score_count"),
             label_entity_metrics.c.total_score_sum.label("score_sum"),
             label_entity_metrics.c.entities_with_label.label("record_count"),
         )
         .join(entity_count_subquery, label_entity_metrics.c.name == entity_count_subquery.c.name)
+        .join(
+            overall_score_aggregates,
+            label_entity_metrics.c.name == overall_score_aggregates.c.name,
+        )
         .order_by(label_entity_metrics.c.name, label_entity_metrics.c.label)
     )
 
