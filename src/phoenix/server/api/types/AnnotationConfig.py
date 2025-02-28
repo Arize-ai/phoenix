@@ -1,8 +1,9 @@
 from enum import Enum
-from typing import Annotated, List, Optional, TypeAlias, Union
+from typing import Annotated, List, Optional, Union
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
+from typing_extensions import TypeAlias
 
 from phoenix.db import models
 
