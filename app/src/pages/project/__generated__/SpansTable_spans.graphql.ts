@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<beb26b1d968fe4ad910de5fa34635db8>>
+ * @generated SignedSource<<e38b35ea6ee0d0738797326ead5bea1b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -110,6 +110,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": true,
+      "kind": "LocalArgument",
+      "name": "rootSpansOnly"
+    },
+    {
       "defaultValue": {
         "col": "startTime",
         "dir": "desc"
@@ -166,6 +171,11 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "rootSpansOnly",
+          "variableName": "rootSpansOnly"
         },
         {
           "kind": "Variable",
@@ -441,6 +451,6 @@ return {
 };
 })();
 
-(node as any).hash = "deeaa622bee39be6881a6a5b56883d10";
+(node as any).hash = "6205d8a642077d21635556045b1aaef8";
 
 export default node;

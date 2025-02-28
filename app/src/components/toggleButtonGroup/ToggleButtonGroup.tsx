@@ -29,10 +29,24 @@ const baseToggleButtonGroupCSS = css(`
     border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 
-  &[data-size="S"] {
+  &[data-size="XS"] {
     .ac-toggle-button {
       min-height: unset;
       padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-100);
+    }
+  }
+
+  &[data-size="S"] {
+    .ac-toggle-button {
+      padding: var(--ac-global-dimension-size-50) var(--ac-global-dimension-size-100);
+    }
+  }
+
+  &[data-size="M"] {
+    .ac-toggle-button {
+       padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
+       // TODO: this is to align with button
+       line-height: 20px;
     }
   }
 
@@ -52,7 +66,7 @@ const baseToggleButtonGroupCSS = css(`
 export type ToggleButtonGroupProps = AriaToggleButtonGroupProps;
 
 export const ToggleButtonGroup = ({
-  size,
+  size = "M",
   css: cssProp,
   className,
   selectionMode = "single",
