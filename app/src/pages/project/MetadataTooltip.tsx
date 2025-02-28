@@ -5,18 +5,15 @@ import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { toPythonPrimitiveStr } from "@phoenix/utils/pythonUtils";
 
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";
-
-const sanitizeFilterConditionValue = (value: string) => {
-  return value.replaceAll("\n", "\\n").replaceAll('"', '\\"');
-};
 
 export const makeMetadataTooltipFilterCondition = (
   key: string,
   value: string | number | boolean
 ) => {
-  return `metadata['${key}'] == "${sanitizeFilterConditionValue(String(value))}"`;
+  return `metadata['${key}'] == ${toPythonPrimitiveStr(value)}`;
 };
 
 type MetadataTooltipProps = {
