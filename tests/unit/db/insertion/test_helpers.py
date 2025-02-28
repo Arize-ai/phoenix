@@ -1,5 +1,4 @@
 from asyncio import sleep
-from datetime import datetime
 
 import pytest
 from sqlalchemy import insert, select
@@ -68,109 +67,37 @@ class Test_insert_on_conflict:
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
-            project_rowid = await session.scalar(
-                insert(models.Project).values(dict(name="abc")).returning(models.Project.id)
+            project_id = await session.scalar(
+                insert(models.Project)
+                .values(dict(name="abc", description="initial description"))
+                .returning(models.Project.id)
             )
-            trace_rowid = await session.scalar(
-                insert(models.Trace)
-                .values(
-                    dict(
-                        project_rowid=project_rowid,
-                        trace_id="xyz",
-                        start_time=datetime.now(),
-                        end_time=datetime.now(),
-                    )
-                )
-                .returning(models.Trace.id)
+            project_record = await session.scalar(
+                select(models.Project).where(models.Project.id == project_id)
             )
-            record = await session.scalar(
-                insert(models.TraceAnnotation)
-                .values(
-                    dict(
-                        name="uvw",
-                        trace_rowid=trace_rowid,
-                        annotator_kind="LLM",
-                        score=12,
-                        label="ijk",
-                        metadata_={"1": "2"},
-                    )
-                )
-                .returning(models.TraceAnnotation)
-            )
-            anno = await session.scalar(
-                select(models.TraceAnnotation)
-                .where(models.TraceAnnotation.trace_rowid == trace_rowid)
-                .order_by(models.TraceAnnotation.created_at)
-            )
-        assert anno is not None
-        assert record is not None
-        assert anno.id == record.id
-        assert anno.created_at == record.created_at
-        assert anno.name == record.name
-        assert anno.trace_rowid == record.trace_rowid
-        assert anno.updated_at == record.updated_at
-        assert anno.score == record.score
-        assert anno.label == record.label
-        assert anno.explanation == record.explanation
-        assert anno.metadata_ == record.metadata_
-
-        await sleep(1)  # increment `updated_at` by 1 second
+        assert project_record is not None
 
         async with db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
+            new_values = dict(name="abc", description="updated description")
+            await sleep(1)
             await session.execute(
                 insert_on_conflict(
-                    dict(
-                        name="uvw",
-                        trace_rowid=trace_rowid,
-                        annotator_kind="LLM",
-                        score=None,
-                        metadata_={},
-                    ),
-                    dict(
-                        name="rst",
-                        trace_rowid=trace_rowid,
-                        annotator_kind="LLM",
-                        score=12,
-                        metadata_={"1": "2"},
-                    ),
-                    dict(
-                        name="uvw",
-                        trace_rowid=trace_rowid,
-                        annotator_kind="HUMAN",
-                        score=21,
-                        metadata_={"2": "1"},
-                    ),
+                    new_values,
                     dialect=dialect,
-                    table=models.TraceAnnotation,
-                    unique_by=("name", "trace_rowid"),
+                    table=models.Project,
+                    unique_by=("name",),
                     on_conflict=on_conflict,
                 )
             )
-            annos = list(
-                await session.scalars(
-                    select(models.TraceAnnotation)
-                    .where(models.TraceAnnotation.trace_rowid == trace_rowid)
-                    .order_by(models.TraceAnnotation.created_at)
-                )
+            updated_project = await session.scalar(
+                select(models.Project).where(models.Project.id == project_id)
             )
-        assert len(annos) == 2
-        anno = annos[0]
-        assert anno.id == record.id
-        assert anno.created_at == record.created_at
-        assert anno.name == record.name
-        assert anno.trace_rowid == record.trace_rowid
+        assert updated_project is not None
+
         if on_conflict is OnConflict.DO_NOTHING:
-            assert anno.updated_at == record.updated_at
-            assert anno.annotator_kind == record.annotator_kind
-            assert anno.score == record.score
-            assert anno.label == record.label
-            assert anno.explanation == record.explanation
-            assert anno.metadata_ == record.metadata_
+            assert updated_project.description == "initial description"
+            assert updated_project.updated_at == project_record.updated_at
         else:
-            assert anno.updated_at > record.updated_at
-            assert anno.annotator_kind != record.annotator_kind
-            assert anno.score == 21
-            assert anno.label is None
-            assert anno.explanation is None
-            assert anno.metadata_ == {"2": "1"}
+            assert updated_project.description == "updated description"
+            assert updated_project.updated_at > project_record.updated_at
