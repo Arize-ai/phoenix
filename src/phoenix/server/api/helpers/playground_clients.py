@@ -458,6 +458,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
     model_names=[
         PROVIDER_DEFAULT,
         "gpt-4o",
+        "gpt-4o-2024-11-20",
         "gpt-4o-2024-08-06",
         "gpt-4o-2024-05-13",
         "chatgpt-4o-latest",
@@ -473,6 +474,8 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
         "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo",
         "gpt-3.5-turbo-1106",
+        # preview models
+        "gpt-4.5-preview",
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
