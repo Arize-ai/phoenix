@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.6.1...arize-phoenix-v8.7.0) (2025-02-28)
+
+
+### Features
+
+* **components:** Add Token component ([#6596](https://github.com/Arize-ai/phoenix/issues/6596)) ([c4bc506](https://github.com/Arize-ai/phoenix/commit/c4bc5067e31b37e36b76843e6efdf7c538ebb786))
+* **playground:** add gpt-4.5-preview ([#6629](https://github.com/Arize-ai/phoenix/issues/6629)) ([955ae61](https://github.com/Arize-ai/phoenix/commit/955ae6181a7ae290f475d7acf88b0e2b57fa6335))
+* **traces:** root only filter ([#6624](https://github.com/Arize-ai/phoenix/issues/6624)) ([c696564](https://github.com/Arize-ai/phoenix/commit/c6965647996c4011f44a765b3d7b33af6a6437af))
+* Upgrade relay packages ([#6620](https://github.com/Arize-ai/phoenix/issues/6620)) ([5aad5ec](https://github.com/Arize-ai/phoenix/commit/5aad5ec1a7f0c8ae05374ce03d071913763576dd))
+
 ## [8.6.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.6.0...arize-phoenix-v8.6.1) (2025-02-27)
 
 
