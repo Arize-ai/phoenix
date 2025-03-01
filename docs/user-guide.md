@@ -147,6 +147,8 @@ Phoenix's evaluation framework can be used to generate ongoing assessments of LL
 Phoenix and Arize together help teams identify data points for fine-tuning based on production performance and user feedback. This targeted approach ensures that fine-tuning efforts are directed towards the most impactful areas, maximizing the return on investment.
 
 Phoenix, in collaboration with Arize, empowers teams to build, optimize, and maintain high-quality LLM applications throughout the entire lifecycle. By providing a comprehensive observability platform and seamless integration with production monitoring tools, Phoenix and Arize enable teams to deliver exceptional LLM-driven experiences with confidence and efficiency.
+
+* [Fine-Tuning](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets#exporting-for-fine-tuning)
 {% endtab %}
 {% endtabs %}
 
