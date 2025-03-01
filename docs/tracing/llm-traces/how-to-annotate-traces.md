@@ -27,7 +27,7 @@ Sometimes you need to rely on human annotators to attach feedback to specific tr
 
 ## How to Use Feedback
 
-Feedback / Annotations can help you share valuble insight about how your application is performing. However making these insights actionable can be difficult. With Phoenix, the annotations you add to your trace data is propagated to datasets so that you can use the annotations during experimentation.\\
+Feedback / Annotations can help you share valuble insight about how your application is performing. However making these insights actionable can be difficult. With Phoenix, the annotations you add to your trace data is propagated to datasets so that you can use the annotations during experimentation.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/span_to_dataset_example.png" alt=""><figcaption><p>A span's attributes as well as annotations are propagated to example metadata</p></figcaption></figure>
 
