@@ -4,6 +4,8 @@ description: Guides on how to do prompt engineering with Phoenix
 
 # How to: Prompts
 
+{% embed url="https://youtu.be/qbeohWaRlsM?si=8QNzGkp0ahoFX7ut" %}
+
 ## Getting Started
 
 * [configure-ai-providers.md](configure-ai-providers.md "mention") - how to configure API keys for OpenAI, Anthropic, Gemini, and more.
