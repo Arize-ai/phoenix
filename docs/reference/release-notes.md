@@ -6,6 +6,10 @@ description: The latest releases from the Phoenix team.
 
 ## 02.19.2025: Prompts 📃
 
+**Available in Phoenix 8.0+**
+
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-prompts.png)
+
 Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications! These are some more highlights from this release:
 
 * Native prompt, tool, parameter, and response format normalization for OpenAI, Anthropic, Azure Open AI, Google AI Studio.
@@ -15,10 +19,6 @@ Phoenix prompt management will now let you create, modify, tag, and version cont
 * A new Python client for syncing templates and applying them to AI SDKs like OpenAI, Anthropic, and others.
 
 Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
-
-## 02.19.2025: Prompts 📃
-
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-prompts.png)
 
 ## 02.18.2025: One-Line Instrumentation⚡️
 
