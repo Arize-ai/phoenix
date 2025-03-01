@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.7.0...arize-phoenix-v8.8.0) (2025-03-01)
+
+
+### Features
+
+* Implement quick filtering support for metadata cells in trace table ([#6623](https://github.com/Arize-ai/phoenix/issues/6623)) ([fe8b0b0](https://github.com/Arize-ai/phoenix/commit/fe8b0b094469d6c68d59bfb3983c18f1215d79e1))
+
+
+### Documentation
+
+* Update README.md with smolagents ([97cc3c7](https://github.com/Arize-ai/phoenix/commit/97cc3c70da85fe91b3dae918d5e7e6e0ad7fdfdb))
+
 ## [8.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.6.1...arize-phoenix-v8.7.0) (2025-02-28)
 
 
