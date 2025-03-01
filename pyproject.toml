@@ -187,94 +187,6 @@ artifacts = [
   "src/phoenix/db/migrations",
 ]
 
-[tool.hatch.envs.default]
-dependencies = [
-  "numpy",
-  "pandas==2.2.2; python_version>='3.9'",
-  "pytest==8.3.3",
-  "pytest-asyncio",
-  "pytest-cov",
-  "pytest-postgresql",
-  "asyncpg",
-  "psycopg[binary,pool]",
-  "arize",
-  "litellm>=1.0.3",
-  "openai>=1.0.0",
-  "tenacity",
-  "protobuf==3.20.2",  # version minimum (for tests)
-  "grpc-interceptor[testing]",
-  "responses",
-  "tiktoken",
-  "typing-extensions==4.7.0",
-  "httpx", # For OpenAI testing
-  "respx", # For OpenAI testing
-  "nest-asyncio", # for executor testing
-  "asgi-lifespan",
-  "Faker>=30.1.0",
-  "uvloop; platform_system != 'Windows'",
-]
-
-[tool.hatch.envs.type]
-dependencies = [
-  "grpcio",
-  "litellm>=1.0.3",
-  "mypy==1.12.1",
-  "openai>=1.0.0",
-  "opentelemetry-exporter-otlp",
-  "opentelemetry-instrumentation-fastapi",
-  "opentelemetry-instrumentation-grpc",
-  "opentelemetry-instrumentation-sqlalchemy",
-  "opentelemetry-proto>=1.12.0",
-  "opentelemetry-sdk",
-  "opentelemetry-semantic-conventions",
-  "pandas-stubs==2.0.3.230814",
-  "pandas>=1.0",
-  "prometheus_client",
-  "py-grpc-prometheus",
-  "pypistats",  # this is needed to type-check third-party packages
-  "requests",  # this is needed to type-check third-party packages
-  "strawberry-graphql[opentelemetry]==0.253.1",  # need to pin version because we're monkey-patching
-  "tenacity",
-  "types-cachetools",
-  "types-protobuf",
-  "types-psutil",
-  "types-requests",
-  "types-setuptools",
-  "types-tabulate",
-  "types-tqdm",
-]
-
-[[tool.hatch.envs.type.matrix]]
-python = ["3.9", "3.12"]
-
-[tool.hatch.envs.style]
-detached = true
-dependencies = [
-  "ruff==0.6.9",
-]
-
-[[tool.hatch.envs.style.matrix]]
-python = ["3.9", "3.12"]
-
-[tool.hatch.envs.notebooks]
-detached = true
-dependencies = [
-  "jupyter",
-]
-
-[tool.hatch.envs.docs]
-detached = true
-dependencies = [
-  "pyment",
-  "interrogate",
-]
-
-[tool.hatch.envs.default.scripts]
-tests = "pytest {args} tests/unit"
-
-[[tool.hatch.envs.test.matrix]]
-python = ["3.9", "3.12"]
-
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope="function"
@@ -306,26 +218,6 @@ exclude_lines = [
   "if TYPE_CHECKING:",
 ]
 
-[tool.hatch.envs.type.scripts]
-check = [
-  "mypy .",
-]
-
-[tool.hatch.envs.style.scripts]
-check = [
-  "ruff format --check --diff .",
-  "ruff check .",
-]
-fix = [
-  "ruff format .",
-  "ruff check --fix .",
-]
-
-[tool.hatch.envs.notebooks.scripts]
-clean = [
-  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
-]
-
 [tool.hatch.envs.publish]
 dependencies = [
   "check-wheel-contents",
@@ -341,26 +233,6 @@ pypi = [
   "check-wheel-contents dist/",
   "twine upload --verbose dist/*",
 ]
-
-[tool.hatch.envs.docs.scripts]
-check = [
-  "interrogate -vv src/",
-]
-
-[tool.interrogate]
-fail-under = 0
-# generate-badge = "badges/"
-omit-covered-files = true
-ignore-init-method = true
-ignore-init-module = true
-ignore-magic = false
-ignore-semiprivate = false
-ignore-private = false
-ignore-property-decorators = false
-ignore-module = false
-ignore-nested-functions = false
-ignore-nested-classes = false
-ignore-setters = false
 
 [tool.mypy]
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
