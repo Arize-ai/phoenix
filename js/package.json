@@ -25,15 +25,15 @@
   "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
-    "@changesets/cli": "^2.27.10",
+    "@changesets/cli": "^2.28.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.57.1",
     "pkg-pr-new": "^0.0.39",
-    "prettier": "^3.4.1",
+    "prettier": "^3.5.2",
     "rimraf": "^5.0.10",
-    "tsc-alias": "^1.8.10",
-    "typescript": "^5.7.2",
+    "tsc-alias": "^1.8.11",
+    "typescript": "^5.8.2",
     "vitest": "^2.1.9"
   },
   "engines": {
