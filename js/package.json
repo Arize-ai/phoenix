@@ -25,15 +25,15 @@
   "author": "oss@arize.com",
   "license": "ELv2",
   "devDependencies": {
-    "@changesets/cli": "^2.27.10",
+    "@changesets/cli": "^2.28.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.57.1",
     "pkg-pr-new": "^0.0.39",
-    "prettier": "^3.4.1",
+    "prettier": "^3.5.2",
     "rimraf": "^5.0.10",
-    "tsc-alias": "^1.8.10",
-    "typescript": "^5.7.2",
+    "tsc-alias": "^1.8.11",
+    "typescript": "^5.8.2",
     "vitest": "^2.1.9"
   },
   "engines": {
@@ -43,5 +43,14 @@
   "packageManager": "pnpm@10.2.0",
   "eslintIgnore": [
     "examples/**/*"
-  ]
+  ],
+  "pnpm": {
+    "overrides": {
+      "@octokit/request-error@>=1.0.0 <5.1.1": ">=5.1.1",
+      "@octokit/endpoint@>=9.0.5 <9.0.6": ">=9.0.6",
+      "@octokit/request@>=1.0.0 <9.2.1": ">=9.2.1",
+      "@octokit/plugin-paginate-rest@>=1.0.0 <11.4.1": ">=11.4.1",
+      "esbuild@<=0.24.2": ">=0.25.0"
+    }
+  }
 }
