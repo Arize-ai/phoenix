@@ -359,45 +359,53 @@ async def get_experiment_jsonl(
             .group_by(models.DatasetExampleRevision.dataset_example_id)
             .scalar_subquery()
         )
-        runs_and_revisions = await session.execute(
-            select(models.ExperimentRun, models.DatasetExampleRevision)
-            .join(
-                models.DatasetExample,
-                models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+        runs_and_revisions = (
+            await session.execute(
+                select(models.ExperimentRun, models.DatasetExampleRevision)
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+                )
+                .join(
+                    models.DatasetExampleRevision,
+                    and_(
+                        models.DatasetExample.id
+                        == models.DatasetExampleRevision.dataset_example_id,
+                        models.DatasetExampleRevision.id.in_(revision_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
+                    ),
+                )
+                .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                .order_by(
+                    models.ExperimentRun.dataset_example_id, models.ExperimentRun.repetition_number
+                )
             )
-            .join(
-                models.DatasetExampleRevision,
-                and_(
-                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-                    models.DatasetExampleRevision.id.in_(revision_ids),
-                    models.DatasetExampleRevision.revision_kind != "DELETE",
-                ),
+        ).all()
+        if not runs_and_revisions:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_globalid} has no runs",
+                status_code=HTTP_404_NOT_FOUND,
             )
-            .where(models.ExperimentRun.experiment_id == experiment_rowid)
-            .order_by(
-                models.ExperimentRun.dataset_example_id, models.ExperimentRun.repetition_number
-            )
-        )
-        records = io.BytesIO()
-        for run, revision in runs_and_revisions:
-            record = {
-                "example_id": str(
-                    GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
-                ),
-                "repetition_number": run.repetition_number,
-                "input": revision.input,
-                "reference_output": revision.output,
-                "output": run.output,
-                "error": run.error,
-                "latency_ms": run.latency_ms,
-                "start_time": run.start_time.isoformat(),
-                "end_time": run.end_time.isoformat(),
-                "trace_id": run.trace_id,
-                "prompt_token_count": run.prompt_token_count,
-                "completion_token_count": run.completion_token_count,
-            }
-            records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
+    records = io.BytesIO()
+    for run, revision in runs_and_revisions:
+        record = {
+            "example_id": str(
+                GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
+            ),
+            "repetition_number": run.repetition_number,
+            "input": revision.input,
+            "reference_output": revision.output,
+            "output": run.output,
+            "error": run.error,
+            "latency_ms": run.latency_ms,
+            "start_time": run.start_time.isoformat(),
+            "end_time": run.end_time.isoformat(),
+            "trace_id": run.trace_id,
+            "prompt_token_count": run.prompt_token_count,
+            "completion_token_count": run.completion_token_count,
+        }
+        records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
 
-        records.seek(0)
-        response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.jsonl"'
-        return records.read()
+    records.seek(0)
+    response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.jsonl"'
+    return records.read()
