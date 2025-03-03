@@ -359,7 +359,7 @@ async def get_experiment_jsonl(
             .group_by(models.DatasetExampleRevision.dataset_example_id)
             .scalar_subquery()
         )
-        runs = await session.execute(
+        runs_and_revisions = await session.execute(
             select(models.ExperimentRun, models.DatasetExampleRevision)
             .join(
                 models.DatasetExample,
@@ -379,7 +379,7 @@ async def get_experiment_jsonl(
             )
         )
         records = io.BytesIO()
-        for run, revision in runs:
+        for run, revision in runs_and_revisions:
             record = {
                 "example_id": str(
                     GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
