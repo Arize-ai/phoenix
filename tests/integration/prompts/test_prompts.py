@@ -663,13 +663,13 @@ class TestClient:
                 PromptVersion.from_anthropic,
                 MessageCreateParamsBase(
                     model=token_hex(8),
-                    max_tokens=1024,
+                    max_tokens=1025,
                     temperature=random(),
                     top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
                     thinking={
                         "type": "enabled",
-                        "budget_tokens": 2048,
+                        "budget_tokens": 1024,
                     },
                     system="You are {role}.",
                     messages=[
