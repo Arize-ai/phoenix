@@ -12,13 +12,37 @@ description: The latest releases from the Phoenix team.
 
 Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications! These are some more highlights from this release:
 
-* Native prompt, tool, parameter, and response format normalization for OpenAI, Anthropic, Azure Open AI, Google AI Studio.
-* Prompt metadata propagation on Playground spans and experiment metadata on Playground dataset runs.
-* Playground Hotkeys and major performance optimizations in the template editors.
-* A new TypeScript client for syncing prompts with your JavaScript runtime, including native support for OpenAI, Anthropic, and the Vercel AI SDK.
-* A new Python client for syncing templates and applying them to AI SDKs like OpenAI, Anthropic, and others.
+* **Versioning & Iteration**: Seamlessly manage prompt versions in both Phoenix and your codebase.
+* **New TypeScript Clien**t: Sync prompts with your JavaScript runtime, now with native support for OpenAI, Anthropic, and the Vercel AI SDK.
+* **New Python Clien**t: Sync templates and apply them to AI SDKs like OpenAI, Anthropic, and more.
+* **Standardized Prompt Handling**: Native normalization for OpenAI, Anthropic, Azure OpenAI, and Google AI Studio.
+* **Enhanced Metadata Propagation**: Track prompt metadata on Playground spans and experiment metadata in dataset runs.
 
 Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
+
+<details>
+
+<summary>Improvements &#x26; Bug Fixes</summary>
+
+## **Improvements & Bug Fixes 🐛**
+
+**Projects**: Persistent column selection, metadata filters, custom time ranges, root span filtering & quick metadata filters
+
+**Experiments**: Enhanced experiment filtering for better analysis
+
+**Playground**: Now supports GPT-4.5
+
+**Performance**: Major speed improvements in project tracing views & visibility into database usage in settings
+
+**Evals**: o3 support, Audio & Multi-Modal Evaluations
+
+**Instrumentation**: Smol Agents, tool call IDs in Llama-Index, & deprecation of Langchain v0.1
+
+**Integrations**: Phoenix now supports LiteLLM Proxy & Cleanlabs evals
+
+**OTEL**: Auto-instrument tag & decorators for streamlined observability
+
+</details>
 
 ## 02.18.2025: One-Line Instrumentation⚡️
 
