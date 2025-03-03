@@ -2322,7 +2322,6 @@
           },
           "budget_tokens": {
             "type": "integer",
-            "minimum": 1024.0,
             "title": "Budget Tokens"
           }
         },
