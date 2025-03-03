@@ -2,10 +2,14 @@ import React, { useEffect, useMemo } from "react";
 import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
-import { EditorView, hoverTooltip, keymap } from "@codemirror/view";
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
+import CodeMirror, {
+  EditorView,
+  hoverTooltip,
+  keymap,
+  ReactCodeMirrorProps,
+} from "@uiw/react-codemirror";
 import {
   handleRefresh,
   jsonCompletion,
