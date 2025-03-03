@@ -47,6 +47,10 @@ export function TraceTree(props: TraceTreeProps) {
           overflow: hidden;
           height: 100%;
           align-items: stretch;
+          // For smaller widths, we want to collapse the tree
+          @media (max-width: 100px) {
+            background-color: red;
+          }
         `}
       >
         <TraceTreeToolbar />
