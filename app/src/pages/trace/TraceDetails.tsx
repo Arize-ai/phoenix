@@ -13,7 +13,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { resizeHandleCSS } from "@phoenix/components/resize";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
@@ -159,7 +159,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             />
           </ScrollingPanelContent>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
