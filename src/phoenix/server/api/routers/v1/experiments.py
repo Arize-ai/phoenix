@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Response
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 from starlette.status import HTTP_404_NOT_FOUND
@@ -343,20 +343,50 @@ async def get_experiment_jsonl(
                 detail=f"Experiment with ID {experiment_globalid} does not exist",
                 status_code=HTTP_404_NOT_FOUND,
             )
-        runs = await session.scalars(
-            select(models.ExperimentRun)
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(
+                models.DatasetExample,
+                models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+            )
+            .where(
+                and_(
+                    models.DatasetExampleRevision.dataset_version_id
+                    <= experiment.dataset_version_id,
+                    models.DatasetExample.dataset_id == experiment.dataset_id,
+                )
+            )
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+            .scalar_subquery()
+        )
+        runs = await session.execute(
+            select(models.ExperimentRun, models.DatasetExampleRevision)
+            .join(
+                models.DatasetExample,
+                models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+            )
+            .join(
+                models.DatasetExampleRevision,
+                and_(
+                    models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+                    models.DatasetExampleRevision.id.in_(revision_ids),
+                    models.DatasetExampleRevision.revision_kind != "DELETE",
+                ),
+            )
             .where(models.ExperimentRun.experiment_id == experiment_rowid)
             .order_by(
                 models.ExperimentRun.dataset_example_id, models.ExperimentRun.repetition_number
             )
         )
         records = io.BytesIO()
-        for run in runs:
+        for run, revision in runs:
             record = {
                 "example_id": str(
                     GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
                 ),
                 "repetition_number": run.repetition_number,
+                "input": revision.input,
+                "reference_output": revision.output,
                 "output": run.output,
                 "error": run.error,
                 "latency_ms": run.latency_ms,
