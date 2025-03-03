@@ -1,11 +1,14 @@
+import io
+import json
 from datetime import datetime
 from random import getrandbits
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Response
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
@@ -306,3 +309,65 @@ async def list_experiments(
         ]
 
         return ListExperimentsResponseBody(data=data)
+
+
+@router.get(
+    "/experiments/{experiment_id}/jsonl",
+    operation_id="getExperimentJSONL",
+    summary="Download experiment runs as JSONL file",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"},
+        ]
+    ),
+)
+async def get_experiment_jsonl(
+    request: Request,
+    response: Response,
+    experiment_id: str = Path(..., title="Experiment ID"),
+) -> bytes:
+    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
+    async with request.app.state.db() as session:
+        experiment = await session.get(models.Experiment, experiment_rowid)
+        if not experiment:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_globalid} does not exist",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+        runs = await session.scalars(
+            select(models.ExperimentRun)
+            .where(models.ExperimentRun.experiment_id == experiment_rowid)
+            .order_by(
+                models.ExperimentRun.dataset_example_id, models.ExperimentRun.repetition_number
+            )
+        )
+        records = io.BytesIO()
+        for run in runs:
+            record = {
+                "example_id": str(
+                    GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
+                ),
+                "repetition_number": run.repetition_number,
+                "output": run.output,
+                "error": run.error,
+                "latency_ms": run.latency_ms,
+                "start_time": run.start_time.isoformat(),
+                "end_time": run.end_time.isoformat(),
+                "trace_id": run.trace_id,
+                "prompt_token_count": run.prompt_token_count,
+                "completion_token_count": run.completion_token_count,
+            }
+            records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
+
+        records.seek(0)
+        response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.jsonl"'
+        return records.read()
