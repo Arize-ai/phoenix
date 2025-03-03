@@ -43,6 +43,8 @@ if TYPE_CHECKING:
         TextBlock,
         TextBlockParam,
         ThinkingBlockParam,
+        ThinkingConfigDisabledParam,
+        ThinkingConfigEnabledParam,
         ToolChoiceAnyParam,
         ToolChoiceAutoParam,
         ToolChoiceParam,
@@ -85,6 +87,7 @@ class _InvocationParameters(TypedDict, total=False):
     stop_sequences: list[str]
     temperature: float
     top_p: float
+    thinking: Union[ThinkingConfigEnabledParam, ThinkingConfigDisabledParam]
 
 
 class AnthropicMessageModelKwargs(
@@ -239,6 +242,19 @@ class _InvocationParametersConversion:
                 ans["top_p"] = anthropic_params["top_p"]
             if "stop_sequences" in anthropic_params:
                 ans["stop_sequences"] = list(anthropic_params["stop_sequences"])
+            if "thinking" in anthropic_params:
+                thinking = anthropic_params["thinking"]
+                if thinking["type"] == "disabled":
+                    ans["thinking"] = {
+                        "type": "disabled",
+                    }
+                elif thinking["type"] == "enabled":
+                    ans["thinking"] = {
+                        "type": "enabled",
+                        "budget_tokens": thinking["budget_tokens"],
+                    }
+                elif TYPE_CHECKING:
+                    assert_never(thinking["type"])
         elif obj["type"] == "openai":
             openai_params: v1.PromptOpenAIInvocationParametersContent
             openai_params = obj["openai"]
@@ -286,6 +302,19 @@ class _InvocationParametersConversion:
             content["top_p"] = obj["top_p"]
         if "stop_sequences" in obj:
             content["stop_sequences"] = list(obj["stop_sequences"])
+        if "thinking" in obj:
+            thinking = obj["thinking"]
+            if thinking["type"] == "disabled":
+                content["thinking"] = {
+                    "type": "disabled",
+                }
+            elif thinking["type"] == "enabled":
+                content["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": thinking["budget_tokens"],
+                }
+            elif TYPE_CHECKING:
+                assert_never(thinking["type"])
         return v1.PromptAnthropicInvocationParameters(
             type="anthropic",
             anthropic=content,
@@ -341,12 +370,15 @@ class _ToolChoiceConversion:
     @staticmethod
     def to_anthropic(
         obj: Union[
+            v1.PromptToolChoiceNone,
             v1.PromptToolChoiceZeroOrMore,
             v1.PromptToolChoiceOneOrMore,
             v1.PromptToolChoiceSpecificFunctionTool,
         ],
         disable_parallel_tool_use: Optional[bool] = None,
     ) -> ToolChoiceParam:
+        if obj["type"] == "none":
+            return {"type": "none"}
         if obj["type"] == "zero_or_more":
             choice_auto: ToolChoiceAutoParam = {"type": "auto"}
             if disable_parallel_tool_use is not None:
@@ -369,6 +401,7 @@ class _ToolChoiceConversion:
         obj: ToolChoiceParam,
     ) -> tuple[
         Union[
+            v1.PromptToolChoiceNone,
             v1.PromptToolChoiceZeroOrMore,
             v1.PromptToolChoiceOneOrMore,
             v1.PromptToolChoiceSpecificFunctionTool,
@@ -396,6 +429,8 @@ class _ToolChoiceConversion:
                 "function_name": obj["name"],
             }
             return choice_function_tool, disable_parallel_tool_use
+        if obj["type"] == "none":
+            return v1.PromptToolChoiceNone(type="none"), None
         assert_never(obj["type"])
 
 

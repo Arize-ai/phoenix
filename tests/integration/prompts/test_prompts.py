@@ -667,6 +667,43 @@ class TestClient:
                     temperature=random(),
                     top_p=random(),
                     stop_sequences=[token_hex(8), token_hex(8)],
+                    thinking={
+                        "type": "enabled",
+                        "budget_tokens": 2048,
+                    },
+                    system="You are {role}.",
+                    messages=[
+                        {"role": "user", "content": "Write a haiku about {topic}."},
+                    ],
+                ),
+                id="anthropic-thinking-enabled",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
+                    thinking={"type": "disabled"},
+                    system="You are {role}.",
+                    messages=[
+                        {"role": "user", "content": "Write a haiku about {topic}."},
+                    ],
+                ),
+                id="anthropic-thinking-disabled",
+            ),
+            pytest.param(
+                "ANTHROPIC",
+                PromptVersion.from_anthropic,
+                MessageCreateParamsBase(
+                    model=token_hex(8),
+                    max_tokens=1024,
+                    temperature=random(),
+                    top_p=random(),
+                    stop_sequences=[token_hex(8), token_hex(8)],
                     system=[
                         {"type": "text", "text": "You are {role}."},
                         {"type": "text", "text": "You study {topic}."},

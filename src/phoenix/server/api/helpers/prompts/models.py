@@ -370,11 +370,24 @@ class PromptAzureOpenAIInvocationParameters(PromptModel):
     azure_openai: PromptAzureOpenAIInvocationParametersContent
 
 
+class PromptAnthropicThinkingConfigDisabled(PromptModel):
+    type: Literal["disabled"]
+
+
+class PromptAnthropicThinkingConfigEnabled(PromptModel):
+    type: Literal["enabled"]
+    budget_tokens: int
+
+
 class PromptAnthropicInvocationParametersContent(PromptModel):
     max_tokens: int
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
+    thinking: Annotated[
+        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled],
+        Field(..., discriminator="type"),
+    ] = UNDEFINED
 
 
 class PromptAnthropicInvocationParameters(PromptModel):
