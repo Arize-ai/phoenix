@@ -979,13 +979,6 @@ class ExperimentRunAnnotation(Base):
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
-    __table_args__ = (
-        UniqueConstraint(
-            "experiment_run_id",
-            "name",
-        ),
-    )
-
 
 class UserRole(Base):
     __tablename__ = "user_roles"
