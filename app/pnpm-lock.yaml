@@ -41,9 +41,6 @@ importers:
       '@codemirror/lint':
         specifier: ^6.8.1
         version: 6.8.1
-      '@codemirror/view':
-        specifier: ^6.28.5
-        version: 6.29.0
       '@dnd-kit/core':
         specifier: ^6.1.0
         version: 6.1.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
