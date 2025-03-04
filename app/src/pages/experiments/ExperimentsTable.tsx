@@ -10,23 +10,13 @@ import {
 import { css } from "@emotion/react";
 
 import {
-  ActionMenu,
   HelpTooltip,
-  Item,
   ProgressBar,
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
 
-import {
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Flex, Heading, Link, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { SequenceNumberLabel } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
@@ -47,42 +37,11 @@ import { RunExperimentButton } from "../dataset/RunExperimentButton";
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
 const PAGE_SIZE = 100;
-
-function DownloadExperimentActionMenu({
-  experimentId,
-}: {
-  experimentId: string;
-}) {
-  return (
-    <div
-      // TODO: add this logic to the ActionMenu component
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <ActionMenu
-        buttonSize="compact"
-        align="end"
-        icon={<Icon svg={<Icons.DownloadOutline />} />}
-        onAction={(action) => {
-          switch (action) {
-            case "json":
-              window.open(`/v1/experiments/${experimentId}/jsonl`, "_blank");
-              break;
-          }
-        }}
-      >
-        <Item key="json">Download JSON</Item>
-      </ActionMenu>
-    </div>
-  );
-}
 
 export function ExperimentsTableEmpty() {
   return (
