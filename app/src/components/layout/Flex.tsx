@@ -2,6 +2,8 @@ import React, { forwardRef, ReactNode, Ref } from "react";
 import { filterDOMProps } from "@react-aria/utils";
 import { css } from "@emotion/react";
 
+import { classNames } from "@arizeai/components";
+
 import { DOMProps, FlexStyleProps } from "@phoenix/components/types";
 import {
   passthroughStyle,
@@ -28,7 +30,7 @@ const flexStyleProps: StyleHandlers = {
 };
 
 function Flex(props: FlexProps, ref: Ref<HTMLDivElement>) {
-  const { children, ...otherProps } = props;
+  const { children, className, ...otherProps } = props;
 
   const matchedBreakpoints = ["base"];
   const { styleProps } = useStyleProps(otherProps);
@@ -59,7 +61,7 @@ function Flex(props: FlexProps, ref: Ref<HTMLDivElement>) {
     <div
       css={flexCSS}
       {...filterDOMProps(otherProps)}
-      className="flex"
+      className={classNames("flex", className)}
       style={style}
       ref={ref}
     >
