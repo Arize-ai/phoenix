@@ -13,7 +13,11 @@ from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
 from typing_extensions import Annotated, TypeAlias, assert_never
 
-from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, getenv
+from phoenix.config import (
+    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
+    get_env_database_allocated_storage_capacity_in_gibibytes,
+    getenv,
+)
 from phoenix.db import enums, models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import DatasetExample as OrmExample
@@ -788,6 +792,13 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field(
+        description="The allocated storage capacity of the database (in gibbibytes)."
+        "Return None if this information is unavailable. 1 gibbibyte is 2^30 bytes.",
+    )
+    async def db_storage_capacity(self) -> Optional[float]:
+        return get_env_database_allocated_storage_capacity_in_gibibytes()
 
     @strawberry.field
     async def db_table_stats(
