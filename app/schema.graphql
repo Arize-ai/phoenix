@@ -1690,9 +1690,9 @@ type Query {
   ): [Cluster!]!
 
   """
-  The allocated storage capacity of the database (in gibbibytes). Return None if this information is unavailable. 1 gibbibyte is 2^30 bytes.
+  The allocated storage capacity of the database in bytes. Return None if this information is unavailable.
   """
-  dbStorageCapacity: Float
+  dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
 }
 

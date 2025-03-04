@@ -15,7 +15,7 @@ from typing_extensions import Annotated, TypeAlias, assert_never
 
 from phoenix.config import (
     ENV_PHOENIX_SQL_DATABASE_SCHEMA,
-    get_env_database_allocated_storage_capacity_in_gibibytes,
+    get_env_database_allocated_storage_capacity_gigabytes,
     getenv,
 )
 from phoenix.db import enums, models
@@ -794,11 +794,13 @@ class Query:
         )
 
     @strawberry.field(
-        description="The allocated storage capacity of the database (in gibbibytes). "
-        "Return None if this information is unavailable. 1 gibbibyte is 2^30 bytes.",
+        description="The allocated storage capacity of the database in bytes. "
+        "Return None if this information is unavailable.",
     )  # type: ignore
-    async def db_storage_capacity(self) -> Optional[float]:
-        return get_env_database_allocated_storage_capacity_in_gibibytes()
+    async def db_storage_capacity_bytes(self) -> Optional[float]:
+        if gigabytes := get_env_database_allocated_storage_capacity_gigabytes():
+            return gigabytes * 10**9
+        return None
 
     @strawberry.field
     async def db_table_stats(
