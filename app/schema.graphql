@@ -1688,6 +1688,11 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+
+  """
+  The allocated storage capacity of the database in bytes. Return None if this information is unavailable.
+  """
+  dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
 }
 
