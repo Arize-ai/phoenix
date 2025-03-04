@@ -86,6 +86,13 @@ ENV_PHOENIX_SQL_DATABASE_SCHEMA = "PHOENIX_SQL_DATABASE_SCHEMA"
 The schema to use for the PostgresSQL database. (This is ignored for SQLite.)
 See e.g. https://www.postgresql.org/docs/current/ddl-schemas.html
 """
+ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (
+    "PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES"
+)
+"""
+The allocated storage capacity for the Phoenix database in gibibytes (2^30 bytes). Use float for
+fractional value. This is currently used only by the UI for informational displays.
+"""
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
 Whether to enable Prometheus. Defaults to false.
@@ -688,6 +695,10 @@ def get_env_database_schema() -> Optional[str]:
     if get_env_database_connection_str().startswith("sqlite"):
         return None
     return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA)
+
+
+def get_env_database_allocated_storage_capacity_gibibytes() -> Optional[float]:
+    return _float_val(ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES)
 
 
 def get_env_enable_prometheus() -> bool:
