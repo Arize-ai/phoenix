@@ -122,7 +122,7 @@ class TestTraceMutationMixin:
                     select(models.Span).where(models.Span.trace_rowid == trace_id)
                 )
             ).all()
-            assert len(spans) > 0
+            assert len(spans) == 1
 
         # Delete the trace
         result = await gql_client.execute(
@@ -147,4 +147,4 @@ class TestTraceMutationMixin:
                     select(models.Span).where(models.Span.trace_rowid == trace_id)
                 )
             ).all()
-            assert len(spans) > 0
+            assert len(spans) == 1
