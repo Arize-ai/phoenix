@@ -760,6 +760,16 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
 
+        thinking_budget = invocation_parameters.pop(
+            CanonicalParameterName.THINKING_BUDGET.value, None
+        )
+
+        if thinking_budget:
+            invocation_parameters["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": thinking_budget,
+            }
+
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
             "messages": anthropic_messages,
@@ -860,6 +870,25 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
             return tool_use_content
 
         return content
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.ANTHROPIC,
+    model_names=[
+        "claude-3-7-sonnet-latest",
+    ],
+)
+class AnthropicReasoningStreamingClient(PlaygroundStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        invocation_params = super().supported_invocation_parameters()
+        invocation_params.append(
+            IntInvocationParameter(
+                invocation_name="reasoning_tokens",
+                canonical_name=CanonicalParameterName.REASONING_TOKENS,
+            )
+        )
+        return invocation_params
 
 
 @register_llm_client(
