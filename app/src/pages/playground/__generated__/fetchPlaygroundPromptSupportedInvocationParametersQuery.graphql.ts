@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c2124b26bdbb5b62891f54f479dfdbf>>
+ * @generated SignedSource<<370026a410749af58716a8e705a8d4b2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,8 @@ export type fetchPlaygroundPromptSupportedInvocationParametersQuery$data = {
     readonly canonicalName?: CanonicalParameterName | null;
     readonly floatDefaultValue?: number | null;
     readonly intDefaultValue?: number | null;
+    readonly intMaxValue?: number;
+    readonly intMinValue?: number;
     readonly invocationInputField?: InvocationInputField;
     readonly invocationName?: string;
     readonly jsonDefaultValue?: any | null;
@@ -64,7 +66,14 @@ v2 = {
   "name": "defaultValue",
   "storageKey": null
 },
-v3 = [
+v3 = {
+  "alias": "intDefaultValue",
+  "args": null,
+  "kind": "ScalarField",
+  "name": "defaultValue",
+  "storageKey": null
+},
+v4 = [
   {
     "alias": null,
     "args": [
@@ -171,16 +180,33 @@ v3 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          {
-            "alias": "intDefaultValue",
-            "args": null,
-            "kind": "ScalarField",
-            "name": "defaultValue",
-            "storageKey": null
-          },
+          (v3/*: any*/),
           (v1/*: any*/)
         ],
         "type": "IntInvocationParameter",
+        "abstractKey": null
+      },
+      {
+        "kind": "InlineFragment",
+        "selections": [
+          (v3/*: any*/),
+          (v1/*: any*/),
+          {
+            "alias": "intMinValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "minValue",
+            "storageKey": null
+          },
+          {
+            "alias": "intMaxValue",
+            "args": null,
+            "kind": "ScalarField",
+            "name": "maxValue",
+            "storageKey": null
+          }
+        ],
+        "type": "BoundedIntInvocationParameter",
         "abstractKey": null
       },
       {
@@ -238,7 +264,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "fetchPlaygroundPromptSupportedInvocationParametersQuery",
-    "selections": (v3/*: any*/),
+    "selections": (v4/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -247,19 +273,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "fetchPlaygroundPromptSupportedInvocationParametersQuery",
-    "selections": (v3/*: any*/)
+    "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "530366c9a8cc3b47d685ca0600a39bb5",
+    "cacheID": "8ae31bf64d65dc0754169dec2cf7bb63",
     "id": null,
     "metadata": {},
     "name": "fetchPlaygroundPromptSupportedInvocationParametersQuery",
     "operationKind": "query",
-    "text": "query fetchPlaygroundPromptSupportedInvocationParametersQuery(\n  $modelsInput: ModelsInput!\n) {\n  modelInvocationParameters(input: $modelsInput) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n      label\n    }\n    ... on BooleanInvocationParameter {\n      booleanDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on BoundedFloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n      minValue\n      maxValue\n    }\n    ... on FloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      intDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on JSONInvocationParameter {\n      jsonDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      stringDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      stringListDefaultValue: defaultValue\n      invocationInputField\n    }\n  }\n}\n"
+    "text": "query fetchPlaygroundPromptSupportedInvocationParametersQuery(\n  $modelsInput: ModelsInput!\n) {\n  modelInvocationParameters(input: $modelsInput) {\n    __typename\n    ... on InvocationParameterBase {\n      __isInvocationParameterBase: __typename\n      invocationName\n      canonicalName\n      required\n      label\n    }\n    ... on BooleanInvocationParameter {\n      booleanDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on BoundedFloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n      minValue\n      maxValue\n    }\n    ... on FloatInvocationParameter {\n      floatDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on IntInvocationParameter {\n      intDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on BoundedIntInvocationParameter {\n      intDefaultValue: defaultValue\n      invocationInputField\n      intMinValue: minValue\n      intMaxValue: maxValue\n    }\n    ... on JSONInvocationParameter {\n      jsonDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringInvocationParameter {\n      stringDefaultValue: defaultValue\n      invocationInputField\n    }\n    ... on StringListInvocationParameter {\n      stringListDefaultValue: defaultValue\n      invocationInputField\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1138fb98386e86196eaa52c12a6bb27c";
+(node as any).hash = "97abd4992cf7fccf0691082e359bda4f";
 
 export default node;

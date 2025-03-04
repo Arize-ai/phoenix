@@ -87,6 +87,17 @@ type BoundedFloatInvocationParameter implements InvocationParameterBase {
   maxValue: Float!
 }
 
+type BoundedIntInvocationParameter implements InvocationParameterBase {
+  invocationName: String!
+  canonicalName: CanonicalParameterName
+  label: String!
+  required: Boolean!
+  invocationInputField: InvocationInputField!
+  defaultValue: Int
+  minValue: Int!
+  maxValue: Int!
+}
+
 enum CanonicalParameterName {
   TEMPERATURE
   MAX_COMPLETION_TOKENS
@@ -1128,7 +1139,7 @@ enum InvocationInputField {
   value_boolean
 }
 
-union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
+union InvocationParameter = IntInvocationParameter | BoundedIntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
 
 interface InvocationParameterBase {
   invocationName: String!

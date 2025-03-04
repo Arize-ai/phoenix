@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89e074bb59a965d48eaf7628369c0500>>
+ * @generated SignedSource<<05c99bcde458b93e75e26a8febfbba7d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -198,6 +198,12 @@ v9 = {
     {
       "kind": "InlineFragment",
       "selections": (v8/*: any*/),
+      "type": "BoundedIntInvocationParameter",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": (v8/*: any*/),
       "type": "JSONInvocationParameter",
       "abstractKey": null
     },
@@ -284,16 +290,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a386c63f2da095f3c0f5bbb383ffd74d",
+    "cacheID": "b4382c95ba68801abc75751fb002960a",
     "id": null,
     "metadata": {},
     "name": "spanPlaygroundPageLoaderQuery",
     "operationKind": "query",
-    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      spanId\n      trace {\n        id\n        traceId\n      }\n      attributes\n      invocationParameters {\n        __typename\n        ... on InvocationParameterBase {\n          __isInvocationParameterBase: __typename\n          invocationName\n          canonicalName\n        }\n        ... on BooleanInvocationParameter {\n          invocationInputField\n        }\n        ... on StringInvocationParameter {\n          invocationInputField\n        }\n        ... on BoundedFloatInvocationParameter {\n          invocationInputField\n        }\n        ... on FloatInvocationParameter {\n          invocationInputField\n        }\n        ... on IntInvocationParameter {\n          invocationInputField\n        }\n        ... on JSONInvocationParameter {\n          invocationInputField\n        }\n        ... on StringListInvocationParameter {\n          invocationInputField\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query spanPlaygroundPageLoaderQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      id\n      project {\n        id\n        name\n      }\n      spanId\n      trace {\n        id\n        traceId\n      }\n      attributes\n      invocationParameters {\n        __typename\n        ... on InvocationParameterBase {\n          __isInvocationParameterBase: __typename\n          invocationName\n          canonicalName\n        }\n        ... on BooleanInvocationParameter {\n          invocationInputField\n        }\n        ... on StringInvocationParameter {\n          invocationInputField\n        }\n        ... on BoundedFloatInvocationParameter {\n          invocationInputField\n        }\n        ... on FloatInvocationParameter {\n          invocationInputField\n        }\n        ... on IntInvocationParameter {\n          invocationInputField\n        }\n        ... on BoundedIntInvocationParameter {\n          invocationInputField\n        }\n        ... on JSONInvocationParameter {\n          invocationInputField\n        }\n        ... on StringListInvocationParameter {\n          invocationInputField\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1b9e7f07a78fcf0f03722fea073f8a32";
+(node as any).hash = "598b9f050d5fecb83bab40b9e3c1b2c9";
 
 export default node;

@@ -34,6 +34,7 @@ from phoenix.server.api.helpers.playground_registry import PROVIDER_DEFAULT, reg
 from phoenix.server.api.input_types.GenerativeModelInput import GenerativeModelInput
 from phoenix.server.api.input_types.InvocationParameters import (
     BoundedFloatInvocationParameter,
+    BoundedIntInvocationParameter,
     CanonicalParameterName,
     FloatInvocationParameter,
     IntInvocationParameter,
@@ -714,11 +715,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         return [
-            IntInvocationParameter(
+            BoundedIntInvocationParameter(
                 invocation_name="max_tokens",
                 canonical_name=CanonicalParameterName.MAX_COMPLETION_TOKENS,
                 label="Max Tokens",
                 default_value=1024,
+                min_value=1,
+                max_value=128000,
                 required=True,
             ),
             BoundedFloatInvocationParameter(

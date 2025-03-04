@@ -104,6 +104,19 @@ const InvocationParameterFormField = ({
           )}
         />
       );
+    case "BoundedIntInvocationParameter":
+      if (typeof value !== "number" && value !== undefined) return null;
+      return (
+        <Slider
+          label={field.label}
+          isRequired={field.required}
+          defaultValue={value}
+          step={1}
+          minValue={field.intMinValue}
+          maxValue={field.intMaxValue}
+          onChange={(value) => onChange(value)}
+        />
+      );
     case "StringListInvocationParameter":
       if (!Array.isArray(value) && value !== undefined) return null;
       return (

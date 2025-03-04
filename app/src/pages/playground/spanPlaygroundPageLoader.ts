@@ -61,6 +61,9 @@ export async function spanPlaygroundPageLoader(args: LoaderFunctionArgs) {
               ... on IntInvocationParameter {
                 invocationInputField
               }
+              ... on BoundedIntInvocationParameter {
+                invocationInputField
+              }
               ... on JSONInvocationParameter {
                 invocationInputField
               }

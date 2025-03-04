@@ -63,6 +63,12 @@ export const ModelSupportedParamsFetcher = ({
               intDefaultValue: defaultValue
               invocationInputField
             }
+            ... on BoundedIntInvocationParameter {
+              intDefaultValue: defaultValue
+              invocationInputField
+              intMinValue: minValue
+              intMaxValue: maxValue
+            }
             ... on JSONInvocationParameter {
               jsonDefaultValue: defaultValue
               invocationInputField

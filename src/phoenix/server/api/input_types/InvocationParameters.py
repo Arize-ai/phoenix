@@ -57,6 +57,14 @@ class IntInvocationParameter(InvocationParameterBase):
 
 
 @strawberry.type
+class BoundedIntInvocationParameter(InvocationParameterBase):
+    invocation_input_field: InvocationInputField = InvocationInputField.value_int
+    default_value: Optional[int] = None
+    min_value: int
+    max_value: int
+
+
+@strawberry.type
 class FloatInvocationParameter(InvocationParameterBase):
     invocation_input_field: InvocationInputField = InvocationInputField.value_float
     default_value: Optional[float] = None
@@ -98,6 +106,10 @@ def extract_parameter(
     param_def: InvocationParameterBase, param_input: InvocationParameterInput
 ) -> Any:
     if isinstance(param_def, IntInvocationParameter):
+        return (
+            param_input.value_int if param_input.value_int is not UNSET else param_def.default_value
+        )
+    elif isinstance(param_def, BoundedIntInvocationParameter):
         return (
             param_input.value_int if param_input.value_int is not UNSET else param_def.default_value
         )
@@ -152,6 +164,7 @@ def validate_invocation_parameters(
 InvocationParameter = Annotated[
     Union[
         IntInvocationParameter,
+        BoundedIntInvocationParameter,
         FloatInvocationParameter,
         BoundedFloatInvocationParameter,
         StringInvocationParameter,
