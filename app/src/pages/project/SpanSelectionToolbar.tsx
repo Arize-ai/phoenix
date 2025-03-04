@@ -6,6 +6,7 @@ import { css } from "@emotion/react";
 // eslint-disable-next-line deprecate/import
 import {
   Button as LegacyButton, // TODO(components): Move to dialog
+  Card,
   Dialog,
   DialogContainer,
   Flex,
@@ -25,6 +26,7 @@ import { DatasetSelectorPopoverContent } from "./DatasetSelectorPopoverContent";
 
 interface SelectedSpan {
   id: string;
+  traceId: string;
 }
 
 type SpanSelectionToolbarProps = {
@@ -38,6 +40,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [isDatasetPopoverOpen, setIsDatasetPopoverOpen] = useState(false);
+  const [isDeletePopoverOpen, setIsDeletePopoverOpen] = useState(false);
   const { selectedSpans, onClearSelection } = props;
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
     mutation SpanSelectionToolbarAddSpansToDatasetMutation(
@@ -47,6 +50,13 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
         dataset {
           id
         }
+      }
+    }
+  `);
+  const [commitDeleteTraces, isDeletingTraces] = useMutation(graphql`
+    mutation SpanSelectionToolbarDeleteTracesMutation($traceIds: [GlobalID!]!) {
+      deleteTraces(traceIds: $traceIds) {
+        __typename
       }
     }
   `);
@@ -94,6 +104,44 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
       notifyError,
     ]
   );
+  const onDeleteTraces = useCallback(() => {
+    const traceIds = selectedSpans.map((span) => span.traceId);
+    commitDeleteTraces({
+      variables: {
+        traceIds,
+      },
+      onCompleted: () => {
+        notifySuccess({
+          title: "Traces deleted",
+          message: `${traceIds.length} trace${traceIds.length !== 1 ? "s" : ""} have been deleted.`,
+          action: {
+            text: "View traces",
+            onClick: () => {
+              // Navigate to the traces page
+              navigate(`/traces`);
+            },
+          },
+        });
+        // Clear the selection
+        onClearSelection();
+      },
+      onError: (error) => {
+        const formattedError = getErrorMessagesFromRelayMutationError(error);
+        notifyError({
+          title: "An error occurred",
+          message: `Failed to delete traces: ${formattedError?.[0] ?? error.message}`,
+        });
+      },
+    });
+  }, [
+    commitDeleteTraces,
+    selectedSpans,
+    notifySuccess,
+    onClearSelection,
+    navigate,
+    notifyError,
+  ]);
+
   return (
     <div
       css={css`
@@ -185,6 +233,59 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                     );
                   }}
                 />
+              </Suspense>
+            </PopoverTrigger>
+            <PopoverTrigger
+              placement="top end"
+              crossOffset={300}
+              isOpen={isDeletePopoverOpen}
+              onOpenChange={(isOpen) => {
+                setIsDeletePopoverOpen(isOpen);
+              }}
+            >
+              <LegacyButton
+                variant="primary"
+                size="compact"
+                icon={
+                  <Icon
+                    svg={
+                      isDeletingTraces ? (
+                        <Icons.LoadingOutline />
+                      ) : (
+                        <Icons.TrashOutline />
+                      )
+                    }
+                  />
+                }
+                isDisabled={isDeletingTraces}
+              >
+                {isDeletingTraces ? "Deleting traces" : "Delete traces"}
+              </LegacyButton>
+              <Suspense>
+                <Card
+                  title="Delete traces"
+                  variant="compact"
+                  backgroundColor="light"
+                  borderColor="light"
+                  bodyStyle={{ padding: 0 }}
+                  extra={
+                    <Button
+                      variant="default"
+                      size="S"
+                      onPress={() => {
+                        console.log("test");
+                      }}
+                    >
+                      Delete traces
+                    </Button>
+                  }
+                >
+                  <View padding="size-200">
+                    <Text color="danger">
+                      Are you sure you want to delete these traces?
+                    </Text>
+                  </View>
+                </Card>
               </Suspense>
             </PopoverTrigger>
           </Flex>
