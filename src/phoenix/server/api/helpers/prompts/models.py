@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal, Mapping, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
 from phoenix.db.types.model_provider import ModelProvider
@@ -68,6 +68,18 @@ class PromptModel(BaseModel):
 class TextContentPart(PromptModel):
     type: Literal["text"]
     text: str
+    # Use a workaround for codegen to generate an enum in OpenAPI schema. This isn't
+    # necessary if we have more than one value.
+    subtype: Literal["__PLACEHOLDER_WORKAROUND_FOR_ENUM_CODEGEN__", "thinking"] = UNDEFINED
+    signature: str = UNDEFINED
+    redacted: bool = UNDEFINED
+
+    @field_validator("subtype")
+    @classmethod
+    def invalid_subtype(cls, value: str) -> str:
+        if value == "__PLACEHOLDER_WORKAROUND_FOR_ENUM_CODEGEN__":
+            raise ValueError("Invalid subtype value")
+        return value
 
 
 class ToolCallFunction(PromptModel):
