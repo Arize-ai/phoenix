@@ -57,7 +57,12 @@ function TokenItem({
   size?: TextProps["size"];
 }) {
   return (
-    <Flex direction="row" gap="size-50" alignItems="center">
+    <Flex
+      direction="row"
+      gap="size-50"
+      alignItems="center"
+      className="token-count-item"
+    >
       <Icon
         svg={<Icons.TokensOutline />}
         css={css`
