@@ -880,7 +880,7 @@ class AnthropicReasoningStreamingClient(PlaygroundStreamingClient):
             )
         )
         return invocation_params
-    
+
     async def chat_completion_create(
         self,
         messages: list[
