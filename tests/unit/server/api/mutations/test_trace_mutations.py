@@ -104,3 +104,47 @@ class TestTraceMutationMixin:
                 )
             ).all()
             assert len(spans) == 0
+
+    async def test_delete_traces_fails_with_non_existent_trace_id(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_to_delete: tuple[int, int],
+        db: DbSessionFactory,
+    ) -> None:
+        trace_ids = trace_to_delete
+        trace_id = trace_ids[0]
+
+        async with db() as session:
+            trace = await session.get(models.Trace, trace_id)
+            assert trace is not None
+            spans = (
+                await session.scalars(
+                    select(models.Span).where(models.Span.trace_rowid == trace_id)
+                )
+            ).all()
+            assert len(spans) > 0
+
+        # Delete the trace
+        result = await gql_client.execute(
+            self.DELETE_TRACES_MUTATION,
+            variables={
+                "traceIds": [
+                    str(GlobalID("Trace", str(trace_id))),
+                    str(GlobalID("Trace", "1000")),  # non-existent trace id
+                ]
+            },
+        )
+        assert result.errors
+
+        async with db() as session:
+            # Verify trace was not deleted
+            trace = await session.scalar(select(models.Trace).filter_by(id=trace_id))
+            assert trace is not None
+
+            # Verify spans for the existing trace are not deleted
+            spans = (
+                await session.scalars(
+                    select(models.Span).where(models.Span.trace_rowid == trace_id)
+                )
+            ).all()
+            assert len(spans) > 0
