@@ -760,16 +760,6 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
 
-        thinking_budget = invocation_parameters.pop(
-            CanonicalParameterName.THINKING_BUDGET.value, None
-        )
-
-        if thinking_budget:
-            invocation_parameters["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": thinking_budget,
-            }
-
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
             "messages": anthropic_messages,
@@ -885,10 +875,88 @@ class AnthropicReasoningStreamingClient(PlaygroundStreamingClient):
         invocation_params.append(
             IntInvocationParameter(
                 invocation_name="reasoning_tokens",
-                canonical_name=CanonicalParameterName.REASONING_TOKENS,
+                canonical_name=CanonicalParameterName.THINKING_BUDGET,
+                label="Thinking Budget",
             )
         )
         return invocation_params
+    
+    async def chat_completion_create(
+        self,
+        messages: list[
+            tuple[ChatCompletionMessageRole, str, Optional[str], Optional[list[JSONScalarType]]]
+        ],
+        tools: list[JSONScalarType],
+        **invocation_parameters: Any,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        import anthropic.lib.streaming as anthropic_streaming
+        import anthropic.types as anthropic_types
+
+        thinking_budget = invocation_parameters.pop(
+            CanonicalParameterName.THINKING_BUDGET.value, None
+        )
+
+        if thinking_budget:
+            invocation_parameters["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": thinking_budget,
+            }
+
+        anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+        anthropic_params = {
+            "messages": anthropic_messages,
+            "model": self.model_name,
+            "system": system_prompt,
+            "tools": tools,
+            **invocation_parameters,
+        }
+        throttled_stream = self.rate_limiter._alimit(self.client.messages.stream)
+        async with await throttled_stream(**anthropic_params) as stream:
+            async for event in stream:
+                if isinstance(event, anthropic_types.RawMessageStartEvent):
+                    self._attributes.update(
+                        {LLM_TOKEN_COUNT_PROMPT: event.message.usage.input_tokens}
+                    )
+                elif isinstance(event, anthropic_streaming.TextEvent):
+                    yield TextChunk(content=event.text)
+                elif isinstance(event, anthropic_streaming.MessageStopEvent):
+                    self._attributes.update(
+                        {LLM_TOKEN_COUNT_COMPLETION: event.message.usage.output_tokens}
+                    )
+                elif (
+                    isinstance(event, anthropic_streaming.ContentBlockStopEvent)
+                    and event.content_block.type == "tool_use"
+                ):
+                    tool_call_chunk = ToolCallChunk(
+                        id=event.content_block.id,
+                        function=FunctionCallChunk(
+                            name=event.content_block.name,
+                            arguments=json.dumps(event.content_block.input),
+                        ),
+                    )
+                    yield tool_call_chunk
+                elif isinstance(
+                    event,
+                    (
+                        anthropic_types.RawContentBlockStartEvent,
+                        anthropic_types.RawContentBlockDeltaEvent,
+                        anthropic_types.RawMessageDeltaEvent,
+                        anthropic_streaming.ContentBlockStopEvent,
+                        anthropic_streaming.InputJsonEvent,
+                    ),
+                ):
+                    # event types emitted by the stream that don't contain useful information
+                    pass
+                elif isinstance(event, anthropic_streaming.InputJsonEvent):
+                    raise NotImplementedError
+                elif isinstance(event, anthropic_streaming._types.CitationEvent):
+                    raise NotImplementedError
+                elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
+                    raise NotImplementedError
+                elif isinstance(event, anthropic_streaming._types.SignatureEvent):
+                    raise NotImplementedError
+                else:
+                    assert_never(event)
 
 
 @register_llm_client(
