@@ -325,7 +325,7 @@ async def get_experiment_jsonl(
     request: Request,
     response: Response,
     experiment_id: str = Path(..., title="Experiment ID"),
-) -> bytes:
+) -> str:
     experiment_globalid = GlobalID.from_id(experiment_id)
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
