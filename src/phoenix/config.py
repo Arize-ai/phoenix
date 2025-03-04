@@ -91,7 +91,7 @@ ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_IN_GIBIBYTES = (
 )
 """
 The allocated storage capacity for the Phoenix database in GiB. Use float for fractional value.
-This is currently used by the UI for informational displays.
+This is currently used only by the UI for informational displays.
 """
 ENV_PHOENIX_ENABLE_PROMETHEUS = "PHOENIX_ENABLE_PROMETHEUS"
 """
