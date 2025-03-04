@@ -6,7 +6,6 @@ import { css } from "@emotion/react";
 // eslint-disable-next-line deprecate/import
 import {
   Button as LegacyButton, // TODO(components): Move to dialog
-  Card,
   Dialog,
   DialogContainer,
   Flex,
@@ -40,7 +39,6 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [isDatasetPopoverOpen, setIsDatasetPopoverOpen] = useState(false);
-  const [isDeletePopoverOpen, setIsDeletePopoverOpen] = useState(false);
   const { selectedSpans, onClearSelection } = props;
   const [commitSpansToDataset, isAddingSpansToDataset] = useMutation(graphql`
     mutation SpanSelectionToolbarAddSpansToDatasetMutation(
@@ -73,7 +71,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
         onCompleted: () => {
           notifySuccess({
             title: "Examples added to dataset",
-            message: `${selectedSpans.length} example${isPlural ? "s" : ""} have been added to the dataset.`,
+            message: `${selectedSpans.length} example${isPlural ? "s have" : " has"} been added to the dataset.`,
             action: {
               text: "View dataset",
               onClick: () => {
@@ -113,16 +111,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
       onCompleted: () => {
         notifySuccess({
           title: "Traces deleted",
-          message: `${traceIds.length} trace${traceIds.length !== 1 ? "s" : ""} have been deleted.`,
-          action: {
-            text: "View traces",
-            onClick: () => {
-              // Navigate to the traces page
-              navigate(`/traces`);
-            },
-          },
+          message: `${traceIds.length} trace${traceIds.length !== 1 ? "s have" : " has"} been deleted.`,
         });
-        // Clear the selection
         onClearSelection();
       },
       onError: (error) => {
@@ -138,9 +128,44 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     selectedSpans,
     notifySuccess,
     onClearSelection,
-    navigate,
     notifyError,
   ]);
+
+  const onDeleteClick = useCallback(() => {
+    setDialog(
+      <Dialog
+        size="S"
+        title="Delete Traces"
+        isDismissable
+        onDismiss={() => setDialog(null)}
+      >
+        <View padding="size-200">
+          <Text color="danger">
+            Are you sure you want to delete the selected spans and their traces?
+          </Text>
+        </View>
+        <View
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderTopColor="light"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" justifyContent="end">
+            <Button
+              variant="danger"
+              onPress={() => {
+                onDeleteTraces();
+                setDialog(null);
+              }}
+            >
+              Delete Traces
+            </Button>
+          </Flex>
+        </View>
+      </Dialog>
+    );
+  }, [onDeleteTraces]);
 
   return (
     <div
@@ -235,59 +260,25 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 />
               </Suspense>
             </PopoverTrigger>
-            <PopoverTrigger
-              placement="top end"
-              crossOffset={300}
-              isOpen={isDeletePopoverOpen}
-              onOpenChange={(isOpen) => {
-                setIsDeletePopoverOpen(isOpen);
-              }}
-            >
-              <LegacyButton
-                variant="primary"
-                size="compact"
-                icon={
-                  <Icon
-                    svg={
-                      isDeletingTraces ? (
-                        <Icons.LoadingOutline />
-                      ) : (
-                        <Icons.TrashOutline />
-                      )
-                    }
-                  />
-                }
-                isDisabled={isDeletingTraces}
-              >
-                {isDeletingTraces ? "Deleting traces" : "Delete traces"}
-              </LegacyButton>
-              <Suspense>
-                <Card
-                  title="Delete traces"
-                  variant="compact"
-                  backgroundColor="light"
-                  borderColor="light"
-                  bodyStyle={{ padding: 0 }}
-                  extra={
-                    <Button
-                      variant="default"
-                      size="S"
-                      onPress={() => {
-                        console.log("test");
-                      }}
-                    >
-                      Delete traces
-                    </Button>
+            <LegacyButton
+              variant="primary"
+              size="compact"
+              icon={
+                <Icon
+                  svg={
+                    isDeletingTraces ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.TrashOutline />
+                    )
                   }
-                >
-                  <View padding="size-200">
-                    <Text color="danger">
-                      Are you sure you want to delete these traces?
-                    </Text>
-                  </View>
-                </Card>
-              </Suspense>
-            </PopoverTrigger>
+                />
+              }
+              isDisabled={isDeletingTraces}
+              onClick={onDeleteClick}
+            >
+              {isDeletingTraces ? "Deleting traces" : "Delete traces"}
+            </LegacyButton>
           </Flex>
         </Flex>
       </View>
