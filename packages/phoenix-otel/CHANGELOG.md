@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.8.0...arize-phoenix-otel-v0.8.1) (2025-03-04)
+
+
+### Documentation
+
+* No subject (GITBOOK-1038) ([812ea2c](https://github.com/Arize-ai/phoenix/commit/812ea2caaee1889741bb893995fb89b4653430d7))
+* No subject (GITBOOK-1040) ([1d31ae8](https://github.com/Arize-ai/phoenix/commit/1d31ae8de6c924f9ecd0d3c77f77fef033320c86))
+* No subject (GITBOOK-1045) ([0aa0301](https://github.com/Arize-ai/phoenix/commit/0aa03011bda53faad35267facc73047e4be35142))
+* Wording updates (GITBOOK-1030) ([9e9142b](https://github.com/Arize-ai/phoenix/commit/9e9142be0cbc6d5cc08cc373ce1c14eee0479b00))
+
 ## [0.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.7.1...arize-phoenix-otel-v0.8.0) (2025-02-18)
 
 
