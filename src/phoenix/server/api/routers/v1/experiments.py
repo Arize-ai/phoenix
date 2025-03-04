@@ -1,4 +1,3 @@
-import io
 import json
 from datetime import datetime
 from random import getrandbits
@@ -312,9 +311,9 @@ async def list_experiments(
 
 
 @router.get(
-    "/experiments/{experiment_id}/jsonl",
-    operation_id="getExperimentJSONL",
-    summary="Download experiment runs as JSONL file",
+    "/experiments/{experiment_id}/json",
+    operation_id="getExperimentJSON",
+    summary="Download experiment runs as a JSON file",
     response_class=PlainTextResponse,
     responses=add_errors_to_responses(
         [
@@ -386,7 +385,7 @@ async def get_experiment_jsonl(
                 detail=f"Experiment with ID {experiment_globalid} has no runs",
                 status_code=HTTP_404_NOT_FOUND,
             )
-    records = io.BytesIO()
+    records = []
     for run, revision in runs_and_revisions:
         record = {
             "example_id": str(
@@ -404,8 +403,7 @@ async def get_experiment_jsonl(
             "prompt_token_count": run.prompt_token_count,
             "completion_token_count": run.completion_token_count,
         }
-        records.write((json.dumps(record, ensure_ascii=False) + "\n").encode())
+        records.append(record)
 
-    records.seek(0)
-    response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.jsonl"'
-    return records.read()
+    response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.json"'
+    return json.dumps(records, ensure_ascii=False, indent=2)

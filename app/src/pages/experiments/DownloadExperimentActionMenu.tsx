@@ -25,7 +25,7 @@ export function DownloadExperimentActionMenu({
         icon={<Icon svg={<Icons.DownloadOutline />} />}
         onAction={(action) => {
           if (action === "json") {
-            window.open(`/v1/experiments/${experimentId}/jsonl`, "_blank");
+            window.open(`/v1/experiments/${experimentId}/json`, "_blank");
           }
         }}
       >
