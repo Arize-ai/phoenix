@@ -16,6 +16,7 @@ class CanonicalParameterName(str, Enum):
     TOOL_CHOICE = "tool_choice"
     RESPONSE_FORMAT = "response_format"
     REASONING_EFFORT = "reasoning_effort"
+    THINKING_BUDGET = "anthropic_thinking_budget"
 
 
 @strawberry.enum
