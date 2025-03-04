@@ -868,14 +868,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         "claude-3-7-sonnet-latest",
     ],
 )
-class AnthropicReasoningStreamingClient(PlaygroundStreamingClient):
+class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     @classmethod
     def supported_invocation_parameters(cls) -> list[InvocationParameter]:
         invocation_params = super().supported_invocation_parameters()
         invocation_params.append(
-            IntInvocationParameter(
-                invocation_name="reasoning_tokens",
-                canonical_name=CanonicalParameterName.THINKING_BUDGET,
+            JSONInvocationParameter(
+                invocation_name="thinking",
+                canonical_name=CanonicalParameterName.ANTHROPIC_EXTENDED_THINKING,
                 label="Thinking Budget",
             )
         )
@@ -891,16 +891,6 @@ class AnthropicReasoningStreamingClient(PlaygroundStreamingClient):
     ) -> AsyncIterator[ChatCompletionChunk]:
         import anthropic.lib.streaming as anthropic_streaming
         import anthropic.types as anthropic_types
-
-        thinking_budget = invocation_parameters.pop(
-            CanonicalParameterName.THINKING_BUDGET.value, None
-        )
-
-        if thinking_budget:
-            invocation_parameters["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": thinking_budget,
-            }
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
         anthropic_params = {
