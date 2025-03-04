@@ -20,6 +20,10 @@ class TraceMutationMixin:
         info: Info[Context, None],
         trace_ids: list[GlobalID],
     ) -> Query:
+        if not trace_ids:
+            raise BadRequest("Must provide at least one trace ID to delete")
+        if len(set(trace_ids)) < len(trace_ids):
+            raise BadRequest("Trace IDs must be unique")
         try:
             trace_rowids = [
                 from_global_id_with_expected_type(global_id=id, expected_type_name="Trace")
@@ -35,9 +39,12 @@ class TraceMutationMixin:
                     .returning(models.Trace)
                 )
             ).all()
-            if len(traces) != len(trace_rowids):
+            if len(traces) < len(trace_rowids):
                 await session.rollback()
-                raise BadRequest("Failed to delete all traces")
+                raise BadRequest("Invalid trace IDs provided")
             project_ids = tuple(set(trace.project_rowid for trace in traces))
+            if len(project_ids) > 1:
+                await session.rollback()
+                raise BadRequest("Cannot delete traces from multiple projects")
             info.context.event_queue.put(SpanDeleteEvent(project_ids))
         return Query()
