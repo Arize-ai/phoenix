@@ -1,9 +1,11 @@
-from typing import Any
+from contextlib import AbstractContextManager, nullcontext
+from typing import Any, Optional
 
 import pytest
 
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
+    PromptAnthropicInvocationParametersContent,
     denormalize_tools,
     normalize_tools,
 )
@@ -630,3 +632,41 @@ def test_valid_anthropic_tool_schemas_can_be_normalized_and_denormalized_without
     denormalized_tools, _ = denormalize_tools(normalized_tools, ModelProvider.ANTHROPIC)
     assert len(denormalized_tools) == 1
     assert denormalized_tools[0] == tool_schema
+
+
+@pytest.mark.parametrize(
+    "params,expectation",
+    [
+        pytest.param(
+            {"max_tokens": 1025, "thinking": {"type": "enabled", "budget_tokens": 1024}},
+            nullcontext(),
+            id="max-tokens-gt-budget-tokens-gt-1024",
+        ),
+        pytest.param(
+            {"max_tokens": 128, "thinking": {"type": "disabled"}},
+            nullcontext(),
+            id="disabled",
+        ),
+        pytest.param(
+            {"max_tokens": 1025, "thinking": {"type": "enabled", "budget_tokens": 1023}},
+            pytest.raises(ValueError),
+            id="budget-tokens-lt-1024",
+        ),
+        pytest.param(
+            {"max_tokens": 1024, "thinking": {"type": "enabled", "budget_tokens": 1024}},
+            pytest.raises(ValueError),
+            id="budget-tokens-eq-max-tokens",
+        ),
+        pytest.param(
+            {"max_tokens": 1024, "thinking": {"type": "enabled", "budget_tokens": 1025}},
+            pytest.raises(ValueError),
+            id="budget-tokens-gt-max-tokens",
+        ),
+    ],
+)
+def test_validation_of_anthropic_thinking_budget_tokens(
+    params: dict[str, Any],
+    expectation: AbstractContextManager[Optional[Exception]],
+) -> None:
+    with expectation:
+        PromptAnthropicInvocationParametersContent.model_validate(params)

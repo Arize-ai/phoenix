@@ -578,6 +578,26 @@ export interface components {
             top_p?: number;
             /** Stop Sequences */
             stop_sequences?: string[];
+            /** Thinking */
+            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"];
+        };
+        /** PromptAnthropicThinkingConfigDisabled */
+        PromptAnthropicThinkingConfigDisabled: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "disabled";
+        };
+        /** PromptAnthropicThinkingConfigEnabled */
+        PromptAnthropicThinkingConfigEnabled: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "enabled";
+            /** Budget Tokens */
+            budget_tokens: number;
         };
         /** PromptAzureOpenAIInvocationParameters */
         PromptAzureOpenAIInvocationParameters: {
