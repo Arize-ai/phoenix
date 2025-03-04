@@ -796,7 +796,7 @@ class Query:
     @strawberry.field(
         description="The allocated storage capacity of the database (in gibbibytes). "
         "Return None if this information is unavailable. 1 gibbibyte is 2^30 bytes.",
-    )
+    )  # type: ignore
     async def db_storage_capacity(self) -> Optional[float]:
         return get_env_database_allocated_storage_capacity_in_gibibytes()
 
