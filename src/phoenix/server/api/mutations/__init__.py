@@ -13,12 +13,14 @@ from phoenix.server.api.mutations.prompt_mutations import PromptMutationMixin
 from phoenix.server.api.mutations.prompt_version_tag_mutations import PromptVersionTagMutationMixin
 from phoenix.server.api.mutations.span_annotations_mutations import SpanAnnotationMutationMixin
 from phoenix.server.api.mutations.trace_annotations_mutations import TraceAnnotationMutationMixin
+from phoenix.server.api.mutations.trace_mutations import TraceMutationMixin
 from phoenix.server.api.mutations.user_mutations import UserMutationMixin
 
 
 @strawberry.type
 class Mutation(
     ApiKeyMutationMixin,
+    ChatCompletionMutationMixin,
     DatasetMutationMixin,
     ExperimentMutationMixin,
     ExportEventsMutationMixin,
@@ -28,7 +30,7 @@ class Mutation(
     PromptLabelMutationMixin,
     SpanAnnotationMutationMixin,
     TraceAnnotationMutationMixin,
+    TraceMutationMixin,
     UserMutationMixin,
-    ChatCompletionMutationMixin,
 ):
     pass
