@@ -955,13 +955,13 @@
         }
       }
     },
-    "/v1/experiments/{experiment_id}/jsonl": {
+    "/v1/experiments/{experiment_id}/json": {
       "get": {
         "tags": [
           "experiments"
         ],
-        "summary": "Download experiment runs as JSONL file",
-        "operationId": "getExperimentJSONL",
+        "summary": "Download experiment runs as a JSON file",
+        "operationId": "getExperimentJSON",
         "parameters": [
           {
             "name": "experiment_id",
