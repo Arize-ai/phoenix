@@ -3,8 +3,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal, Mapping, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
-from typing_extensions import Annotated, TypeAlias, TypeGuard, assert_never
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
@@ -376,7 +376,7 @@ class PromptAnthropicThinkingConfigDisabled(PromptModel):
 
 class PromptAnthropicThinkingConfigEnabled(PromptModel):
     type: Literal["enabled"]
-    budget_tokens: int
+    budget_tokens: int = Field(..., ge=1024)
 
 
 class PromptAnthropicInvocationParametersContent(PromptModel):
@@ -388,6 +388,14 @@ class PromptAnthropicInvocationParametersContent(PromptModel):
         Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled],
         Field(..., discriminator="type"),
     ] = UNDEFINED
+
+    @model_validator(mode="after")
+    def check_thinking_budget_tokens_lt_max_tokens(self) -> Self:
+        if self.thinking is UNDEFINED:
+            return self
+        if self.thinking.type == "enabled" and self.thinking.budget_tokens >= self.max_tokens:
+            raise ValueError("The thinking budget must be less than max tokens.")
+        return self
 
 
 class PromptAnthropicInvocationParameters(PromptModel):
