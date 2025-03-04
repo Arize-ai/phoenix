@@ -2271,6 +2271,24 @@
             },
             "type": "array",
             "title": "Stop Sequences"
+          },
+          "thinking": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PromptAnthropicThinkingConfigDisabled"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
+              }
+            ],
+            "title": "Thinking",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "disabled": "#/components/schemas/PromptAnthropicThinkingConfigDisabled",
+                "enabled": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
+              }
+            }
           }
         },
         "additionalProperties": false,
@@ -2279,6 +2297,42 @@
           "max_tokens"
         ],
         "title": "PromptAnthropicInvocationParametersContent"
+      },
+      "PromptAnthropicThinkingConfigDisabled": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "disabled",
+            "title": "Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptAnthropicThinkingConfigDisabled"
+      },
+      "PromptAnthropicThinkingConfigEnabled": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "enabled",
+            "title": "Type"
+          },
+          "budget_tokens": {
+            "type": "integer",
+            "minimum": 1024.0,
+            "title": "Budget Tokens"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "budget_tokens"
+        ],
+        "title": "PromptAnthropicThinkingConfigEnabled"
       },
       "PromptAzureOpenAIInvocationParameters": {
         "properties": {

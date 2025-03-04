@@ -106,11 +106,13 @@ class Prompt(PromptData):
     id: str
 
 
-class PromptAnthropicInvocationParametersContent(TypedDict):
-    max_tokens: int
-    temperature: NotRequired[float]
-    top_p: NotRequired[float]
-    stop_sequences: NotRequired[Sequence[str]]
+class PromptAnthropicThinkingConfigDisabled(TypedDict):
+    type: Literal["disabled"]
+
+
+class PromptAnthropicThinkingConfigEnabled(TypedDict):
+    type: Literal["enabled"]
+    budget_tokens: int
 
 
 class PromptAzureOpenAIInvocationParametersContent(TypedDict):
@@ -234,9 +236,14 @@ class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
 
 
-class PromptAnthropicInvocationParameters(TypedDict):
-    type: Literal["anthropic"]
-    anthropic: PromptAnthropicInvocationParametersContent
+class PromptAnthropicInvocationParametersContent(TypedDict):
+    max_tokens: int
+    temperature: NotRequired[float]
+    top_p: NotRequired[float]
+    stop_sequences: NotRequired[Sequence[str]]
+    thinking: NotRequired[
+        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled]
+    ]
 
 
 class PromptAzureOpenAIInvocationParameters(TypedDict):
@@ -294,6 +301,11 @@ class ToolCallContentPart(TypedDict):
 
 class AnnotateSpansRequestBody(TypedDict):
     data: Sequence[SpanAnnotation]
+
+
+class PromptAnthropicInvocationParameters(TypedDict):
+    type: Literal["anthropic"]
+    anthropic: PromptAnthropicInvocationParametersContent
 
 
 class PromptMessage(TypedDict):
