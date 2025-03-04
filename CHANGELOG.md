@@ -1,5 +1,19 @@
 # Changelog
 
+## [8.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.8.0...arize-phoenix-v8.9.0) (2025-03-04)
+
+
+### Features
+
+* add anthropic thinking config param for python client ([#6659](https://github.com/Arize-ai/phoenix/issues/6659)) ([d03d57e](https://github.com/Arize-ai/phoenix/commit/d03d57e0efaedcba4731caa18b74db35f9b104f1))
+* add environment variable for allocated DB storage capacity in gibibytes ([#6664](https://github.com/Arize-ai/phoenix/issues/6664)) ([0161333](https://github.com/Arize-ai/phoenix/commit/016133315d65e624160150339fcd4e0320712199))
+* **traces:** make trace tree more readable on smaller sizes ([#6665](https://github.com/Arize-ai/phoenix/issues/6665)) ([04c72d4](https://github.com/Arize-ai/phoenix/commit/04c72d4d5395c42443eb296a1a7d8e499bfd760b))
+
+
+### Documentation
+
+* update python developer guide to use tox ([#6637](https://github.com/Arize-ai/phoenix/issues/6637)) ([922aa3d](https://github.com/Arize-ai/phoenix/commit/922aa3daa79e4f1f73447b8e9e6eed48d66bad14))
+
 ## [8.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.7.0...arize-phoenix-v8.8.0) (2025-03-01)
 
 
