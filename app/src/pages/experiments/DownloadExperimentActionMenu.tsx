@@ -4,7 +4,7 @@ import { ActionMenu, Item } from "@arizeai/components";
 
 import { Icon, Icons } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-
+import { prependBasename } from "@phoenix/utils/routingUtils";
 interface DownloadExperimentActionMenuProps {
   experimentId: string;
 }
@@ -20,7 +20,10 @@ export function DownloadExperimentActionMenu({
         icon={<Icon svg={<Icons.DownloadOutline />} />}
         onAction={(action) => {
           if (action === "json") {
-            window.open(`/v1/experiments/${experimentId}/json`, "_blank");
+            window.open(
+              prependBasename(`/v1/experiments/${experimentId}/json`),
+              "_blank"
+            );
           }
         }}
       >
