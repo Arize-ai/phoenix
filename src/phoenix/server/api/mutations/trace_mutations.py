@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import delete
+from sqlalchemy import delete, exists, not_
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -46,5 +46,21 @@ class TraceMutationMixin:
             if len(project_ids) > 1:
                 await session.rollback()
                 raise BadRequest("Cannot delete traces from multiple projects")
+            session_ids = set(
+                trace.project_session_rowid
+                for trace in traces
+                if trace.project_session_rowid is not None
+            )
+            if session_ids:
+                await session.execute(
+                    delete(models.ProjectSession).where(
+                        models.ProjectSession.id.in_(session_ids),
+                        not_(
+                            exists().where(
+                                models.Trace.project_session_rowid == models.ProjectSession.id
+                            )
+                        ),
+                    )
+                )
             info.context.event_queue.put(SpanDeleteEvent(project_ids))
         return Query()
