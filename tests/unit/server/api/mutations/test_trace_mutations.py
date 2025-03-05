@@ -12,30 +12,31 @@ from tests.unit.graphql import AsyncGraphQLClient
 @pytest.fixture
 async def trace_to_delete(db: DbSessionFactory) -> tuple[int, ...]:
     async with db() as session:
-        project_row_id = await session.scalar(
-            insert(models.Project).values(name="test-project").returning(models.Project.id)
+        # Create first project and trace
+        project1_row_id = await session.scalar(
+            insert(models.Project).values(name="test-project-1").returning(models.Project.id)
         )
-        assert project_row_id is not None
+        assert project1_row_id is not None
 
-        trace_id = await session.scalar(
+        trace1_id = await session.scalar(
             insert(models.Trace)
             .values(
-                trace_id="test-trace-id",
-                project_rowid=project_row_id,
+                trace_id="test-trace-id-1",
+                project_rowid=project1_row_id,
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
             )
             .returning(models.Trace.id)
         )
-        assert trace_id is not None
+        assert trace1_id is not None
 
-        span_id = await session.scalar(
+        span1_id = await session.scalar(
             insert(models.Span)
             .values(
-                trace_rowid=trace_id,
-                span_id="test-span-id",
+                trace_rowid=trace1_id,
+                span_id="test-span-id-1",
                 parent_id=None,
-                name="test span",
+                name="test span 1",
                 span_kind="CHAIN",
                 start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
                 end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
@@ -52,9 +53,52 @@ async def trace_to_delete(db: DbSessionFactory) -> tuple[int, ...]:
             )
             .returning(models.Span.id)
         )
-        assert span_id is not None
+        assert span1_id is not None
 
-        return (trace_id,)
+        # Create second project and trace
+        project2_row_id = await session.scalar(
+            insert(models.Project).values(name="test-project-2").returning(models.Project.id)
+        )
+        assert project2_row_id is not None
+
+        trace2_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="test-trace-id-2",
+                project_rowid=project2_row_id,
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:00.000+00:00"),
+            )
+            .returning(models.Trace.id)
+        )
+        assert trace2_id is not None
+
+        span2_id = await session.scalar(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace2_id,
+                span_id="test-span-id-2",
+                parent_id=None,
+                name="test span 2",
+                span_kind="CHAIN",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:00.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:30.000+00:00"),
+                attributes={
+                    "input": {"value": "test-input", "mime_type": "text/plain"},
+                    "output": {"value": "test-output", "mime_type": "text/plain"},
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            .returning(models.Span.id)
+        )
+        assert span2_id is not None
+
+        return (trace1_id, trace2_id)
 
 
 class TestTraceMutationMixin:
@@ -148,3 +192,46 @@ class TestTraceMutationMixin:
                 )
             ).all()
             assert len(spans) == 1
+
+    async def test_delete_traces_fails_with_traces_from_multiple_projects(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_to_delete: tuple[int, ...],
+        db: DbSessionFactory,
+    ) -> None:
+        trace1_id, trace2_id = trace_to_delete
+
+        async with db() as session:
+            # Verify both traces exist initially
+            trace1 = await session.get(models.Trace, trace1_id)
+            trace2 = await session.get(models.Trace, trace2_id)
+            assert trace1 is not None
+            assert trace2 is not None
+
+        # Attempt to delete traces from multiple projects
+        result = await gql_client.execute(
+            self.DELETE_TRACES_MUTATION,
+            variables={
+                "traceIds": [
+                    str(GlobalID("Trace", str(trace1_id))),
+                    str(GlobalID("Trace", str(trace2_id))),
+                ]
+            },
+        )
+        assert result.errors
+        # assert "Cannot delete traces from multiple projects" in str(result.errors[0])
+
+        async with db() as session:
+            # Verify neither trace was deleted
+            trace1 = await session.get(models.Trace, trace1_id)
+            trace2 = await session.get(models.Trace, trace2_id)
+            assert trace1 is not None
+            assert trace2 is not None
+
+            # Verify spans were not deleted
+            spans = (
+                await session.scalars(
+                    select(models.Span).where(models.Span.trace_rowid.in_([trace1_id, trace2_id]))
+                )
+            ).all()
+            assert len(spans) == 2
