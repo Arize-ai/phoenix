@@ -9,6 +9,7 @@ import { css } from "@emotion/react";
 import { classNames } from "@phoenix/components";
 import { buttonCSS, ButtonProps } from "@phoenix/components/button";
 import { StylableProps } from "@phoenix/components/types";
+import { useSize } from "@phoenix/contexts";
 
 const baseToggleButtonCSS = css(
   buttonCSS,
@@ -46,10 +47,13 @@ export const ToggleButton = ({
   const {
     leadingVisual,
     trailingVisual,
-    size = "M",
+    size: propSize,
     children,
     ...rest
   } = props;
+  // If the toggle button is nested under a button group, use the size of the button group
+  const contextSize = useSize();
+  const size = propSize ?? contextSize;
   const renderContent = useCallback(
     (props: ToggleButtonRenderProps & { defaultChildren: ReactNode }) => {
       return (
