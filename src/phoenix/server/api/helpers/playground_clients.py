@@ -866,6 +866,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         "claude-3-7-sonnet-latest",
+        "claude-3-7-sonnet-20250219",
     ],
 )
 class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
