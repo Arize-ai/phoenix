@@ -199,7 +199,10 @@ ENV_PHOENIX_DEFAULT_TRACE_RETENTION_DAYS = "PHOENIX_DEFAULT_TRACE_RETENTION_DAYS
 The initial retention period (in days) for traces under the default trace retention policy (id=1).
 Only used during first-time creation of the policy. Accepts float values for partial days
 (e.g. 0.25 = 6 hours). Defaults to 365 days if unspecified. Traces older than this period are
-purged according to the policy's schedule, which defaults to every Sunday midnight UTC.
+purged according to the policy's schedule, which defaults to every Sunday midnight UTC. The default
+policy applies to all projects without a custom trace retention policy. If this environment variable
+is specified when the default policy is created, it'll be created with active=True. Otherwise, the
+default policy is created with active=False and will be dormant for backward compatibility reasons.
 """
 
 
