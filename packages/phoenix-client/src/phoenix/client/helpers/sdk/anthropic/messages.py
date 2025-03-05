@@ -525,8 +525,14 @@ class _TextContentPartConversion:
     def from_anthropic_block(
         obj: Union[TextBlock, ThinkingBlock, RedactedThinkingBlock],
     ) -> v1.TextContentPart:
+        from anthropic.types import TextBlock
+
         if isinstance(obj, TextBlock):
             return {"type": "text", "text": obj.text}
+        if _anthropic_version < (0, 47):
+            raise NotImplementedError
+        from anthropic.types import RedactedThinkingBlock, ThinkingBlock
+
         if isinstance(obj, ThinkingBlock):
             return {
                 "type": "text",
