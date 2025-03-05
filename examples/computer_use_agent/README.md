@@ -15,7 +15,9 @@ This repository contains examples for building a **Computer Use (Operator) Agent
 - **Computer Use Agent Workflow:** Built using **LangGraph**.  
 - **Anthropic Model Integration:** Uses **Anthropic's Computer Use beta models**.  
 - **Prebuilt Tools:** Includes tools for **Bash execution, file editing, and system operations**.  
-- **Instrumentation with Phoenix:** Tracks and evaluates the agent’s performance using **Phoenix evals**.  
+- **Instrumentation with Phoenix:**  Auto-instrumentation with OpenInference decorators to monitor agent interactions.
+- **End-to-end tracing:** Track and evaluate agent's performance using Phoenix.
+
 
 ---  
 
