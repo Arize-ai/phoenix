@@ -46,6 +46,14 @@ export const buttonCSS = css`
     padding: var(--ac-global-dimension-static-size-50)
       var(--ac-global-dimension-static-size-50);
   }
+  // The default style
+
+  background-color: var(--ac-global-input-field-background-color);
+  border-color: var(--ac-global-input-field-border-color);
+  &:hover:not([disabled]) {
+    background-color: var(--ac-global-input-field-border-color-hover);
+  }
+
   &[data-variant="primary"] {
     background-color: var(--ac-global-button-primary-background-color);
     border-color: var(--ac-global-button-primary-border-color);
@@ -69,13 +77,6 @@ export const buttonCSS = css`
     color: var(--ac-global-static-color-white-900);
     &:hover:not([disabled]) {
       background-color: var(--ac-global-button-success-background-color-hover);
-    }
-  }
-  &[data-variant="default"] {
-    background-color: var(--ac-global-input-field-background-color);
-    border-color: var(--ac-global-input-field-border-color);
-    &:hover:not([disabled]) {
-      background-color: var(--ac-global-input-field-border-color-hover);
     }
   }
   &[data-variant="quiet"] {

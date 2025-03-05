@@ -7,6 +7,7 @@ import { css } from "@emotion/react";
 
 import { classNames } from "@phoenix/components";
 import { SizingProps, StylableProps } from "@phoenix/components/types";
+import { SizeProvider } from "@phoenix/contexts";
 
 const baseToggleButtonGroupCSS = css(`
   position: relative;
@@ -14,8 +15,19 @@ const baseToggleButtonGroupCSS = css(`
   flex-direction: row;
   align-items: center;
   width: fit-content;
+  & > button {
+      border-radius: 0;
+      z-index: 1;
 
-  font-size: var(--ac-global-dimension-static-font-size-100);
+      &[data-disabled] {
+        z-index: 0;
+      }
+
+      &[data-selected],
+      &[data-focus-visible] {
+        z-index: 2;
+      }
+    }
 
   & > .ac-toggle-button:not(:first-child):not([data-selected="true"]) {
     border-left: none;
@@ -27,33 +39,6 @@ const baseToggleButtonGroupCSS = css(`
 
   & > .ac-toggle-button:last-child {
     border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
-  }
-
-  &[data-size="XS"] {
-    .ac-toggle-button {
-      min-height: unset;
-      padding: var(--ac-global-dimension-size-25) var(--ac-global-dimension-size-100);
-    }
-  }
-
-  &[data-size="S"] {
-    .ac-toggle-button {
-      padding: var(--ac-global-dimension-size-50) var(--ac-global-dimension-size-100);
-    }
-  }
-
-  &[data-size="M"] {
-    .ac-toggle-button {
-       padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
-       // TODO: this is to align with button
-       line-height: 20px;
-    }
-  }
-
-  &[data-size="L"] {
-    .ac-toggle-button {
-      padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
-    }
   }
 
   &:has(.ac-toggle-button[data-focus-visible]) {
@@ -73,12 +58,14 @@ export const ToggleButtonGroup = ({
   ...props
 }: ToggleButtonGroupProps & SizingProps & StylableProps) => {
   return (
-    <AriaToggleButtonGroup
-      data-size={size}
-      className={classNames("ac-toggle-button-group", className)}
-      css={css(baseToggleButtonGroupCSS, cssProp)}
-      selectionMode={selectionMode}
-      {...props}
-    />
+    <SizeProvider size={size}>
+      <AriaToggleButtonGroup
+        data-size={size}
+        className={classNames("ac-toggle-button-group", className)}
+        css={css(baseToggleButtonGroupCSS, cssProp)}
+        selectionMode={selectionMode}
+        {...props}
+      />
+    </SizeProvider>
   );
 };

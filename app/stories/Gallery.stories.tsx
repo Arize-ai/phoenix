@@ -23,6 +23,8 @@ import {
   Text,
   TextField,
   TimeField,
+  ToggleButton,
+  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 
@@ -46,12 +48,19 @@ const Template: StoryFn = () => {
         borderColor="dark"
         borderRadius="medium"
       >
-        <Button
-          size="S"
-          onPress={() => setDirection(direction === "row" ? "column" : "row")}
-        >
-          {`Toggle Direction: ${direction}`}
-        </Button>
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Button
+            size="S"
+            onPress={() => setDirection(direction === "row" ? "column" : "row")}
+          >
+            {`Toggle Direction: ${direction}`}
+          </Button>
+          <ToggleButtonGroup size="S">
+            <ToggleButton>Option 1</ToggleButton>
+            <ToggleButton>Option 2</ToggleButton>
+            <ToggleButton>Option 3</ToggleButton>
+          </ToggleButtonGroup>
+        </Flex>
       </View>
       <View
         borderWidth="thin"
