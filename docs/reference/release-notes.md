@@ -17,6 +17,8 @@ Phoenix prompt management will now let you create, modify, tag, and version cont
 * **New Python Clien**t: Sync templates and apply them to AI SDKs like OpenAI, Anthropic, and more.
 * **Standardized Prompt Handling**: Native normalization for OpenAI, Anthropic, Azure OpenAI, and Google AI Studio.
 * **Enhanced Metadata Propagation**: Track prompt metadata on Playground spans and experiment metadata in dataset runs.
+* **Prompt Playground**: Now supports GPT-4.5
+* **Instrumentation**: SmolagentsInstrumentor to trace smolagents by Hugging Face
 
 Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
 
@@ -29,8 +31,6 @@ Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prom
 **Projects**: Persistent column selection, metadata filters, custom time ranges, root span filtering & quick metadata filters
 
 **Experiments**: Enhanced experiment filtering for better analysis
-
-**Playground**: Now supports GPT-4.5
 
 **Performance**: Major speed improvements in project tracing views & visibility into database usage in settings
 
