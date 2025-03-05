@@ -103,7 +103,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     ]
   );
   const onDeleteTraces = useCallback(() => {
-    const traceIds = selectedSpans.map((span) => span.traceId);
+    const traceIds = [...new Set(selectedSpans.map((span) => span.traceId))];
     commitDeleteTraces({
       variables: {
         traceIds,
