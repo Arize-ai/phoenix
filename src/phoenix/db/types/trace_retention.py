@@ -1,0 +1,177 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Iterable, Literal, Optional, Union
+
+import sqlalchemy as sa
+from pydantic import BaseModel, BeforeValidator, Field, RootModel
+from sqlalchemy.sql.dml import ReturningDelete
+
+from phoenix.utilities import hour_of_week
+
+
+class MaxDays(BaseModel):
+    type: Literal["max_days"] = "max_days"
+    max_days: float
+
+    def get_stmt_to_delete_traces(
+        self,
+        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+    ) -> ReturningDelete[tuple[int]]:
+        from phoenix.db.models import Trace
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self.max_days)
+        return (
+            sa.delete(Trace)
+            .where(Trace.project_rowid.in_(project_rowids))
+            .where(Trace.start_time < cutoff)
+        ).returning(Trace.project_rowid)
+
+
+class TraceRetentionRule(RootModel[MaxDays]):
+    root: Annotated[MaxDays, Field(discriminator="type")]
+
+    def get_stmt_to_delete_traces(
+        self,
+        project_rowids: Union[Iterable[int], sa.ScalarSelect[int]],
+    ) -> ReturningDelete[tuple[int]]:
+        return self.root.get_stmt_to_delete_traces(project_rowids)
+
+
+def _time_of_next_run(
+    cron_expression: str,
+    after: Optional[datetime] = None,
+) -> datetime:
+    """
+    Parse a cron expression and calculate the UTC datetime of the next run.
+    Only processes hour, and day of week fields; day-of-month and
+    month fields must be '*'; minute field must be 0.
+
+    Args:
+        cron_expression (str): Standard cron expression with 5 fields:
+            minute hour day-of-month month day-of-week
+            (minute must be '0'; day-of-month and month must be '*')
+        after: Optional[datetime]: The datetime to start searching from. If None,
+            the current time is used. Must be timezone-aware.
+
+    Returns:
+        datetime: The datetime of the next run. Timezone is UTC.
+
+    Raises:
+        ValueError: If the expression has non-wildcard values for day-of-month or month, if the
+            minute field is not '0', or if no match is found within the next 7 days (168 hours).
+    """
+    fields: list[str] = cron_expression.strip().split()
+    if len(fields) != 5:
+        raise ValueError(
+            "Invalid cron expression. Expected 5 fields "
+            "(minute hour day-of-month month day-of-week)."
+        )
+    if fields[0] != "0":
+        raise ValueError("Invalid cron expression. Minute field must be '0'.")
+    if fields[2] != "*" or fields[3] != "*":
+        raise ValueError("Invalid cron expression. Day-of-month and month fields must be '*'.")
+    hours: set[int] = _parse_field(fields[1], 0, 23)
+    # Parse days of week (0-6, where 0 is Sunday)
+    days_of_week: set[int] = _parse_field(fields[4], 0, 6)
+    # Convert to Python's weekday format (0-6, where 0 is Monday)
+    # Sunday (0 in cron) becomes 6 in Python's weekday()
+    python_days_of_week = {(day_of_week + 6) % 7 for day_of_week in days_of_week}
+    t = after.replace(tzinfo=timezone.utc) if after else datetime.now(timezone.utc)
+    t = t.replace(minute=0, second=0, microsecond=0)
+    for _ in range(168):  # Check up to 7 days (168 hours)
+        t += timedelta(hours=1)
+        if t.hour in hours and t.weekday() in python_days_of_week:
+            return t
+    raise ValueError("No matching execution time found within the next 7 days.")
+
+
+class TraceRetentionCronExpression(RootModel[str]):
+    root: Annotated[str, BeforeValidator(lambda x: (_time_of_next_run(x), x)[1])]
+
+    def get_hour_of_prev_run(self) -> int:
+        """
+        Calculate the hour of the previous run before now.
+
+        Returns:
+            int: The hour of the previous run (0-167), where 0 is midnight Sunday UTC.
+        """
+        after = datetime.now(timezone.utc) - timedelta(hours=1)
+        return hour_of_week(_time_of_next_run(self.root, after))
+
+
+def _parse_field(field: str, min_val: int, max_val: int) -> set[int]:
+    """
+    Parse a cron field and return the set of matching values.
+
+    Args:
+        field (str): The cron field to parse
+        min_val (int): Minimum allowed value for this field
+        max_val (int): Maximum allowed value for this field
+
+    Returns:
+        set[int]: Set of all valid values represented by the field expression
+
+    Raises:
+        ValueError: If the field contains invalid values or formats
+    """
+    if field == "*":
+        return set(range(min_val, max_val + 1))
+    values: set[int] = set()
+    for part in field.split(","):
+        if "/" in part:
+            # Handle steps
+            range_part, step_str = part.split("/")
+            try:
+                step = int(step_str)
+            except ValueError:
+                raise ValueError(f"Invalid step value: {step_str}")
+            if step <= 0:
+                raise ValueError(f"Step value must be positive: {step}")
+            if range_part == "*":
+                start, end = min_val, max_val
+            elif "-" in range_part:
+                try:
+                    start_str, end_str = range_part.split("-")
+                    start, end = int(start_str), int(end_str)
+                except ValueError:
+                    raise ValueError(f"Invalid range format: {range_part}")
+                if start < min_val or end > max_val:
+                    raise ValueError(
+                        f"Range {start}-{end} outside allowed values ({min_val}-{max_val})"
+                    )
+                if start > end:
+                    raise ValueError(f"Invalid range: {start}-{end} (start > end)")
+            else:
+                try:
+                    start = int(range_part)
+                except ValueError:
+                    raise ValueError(f"Invalid value: {range_part}")
+                if start < min_val or start > max_val:
+                    raise ValueError(f"Value {start} out of range ({min_val}-{max_val})")
+                end = max_val
+            values.update(range(start, end + 1, step))
+        elif "-" in part:
+            # Handle ranges
+            try:
+                start_str, end_str = part.split("-")
+                start, end = int(start_str), int(end_str)
+            except ValueError:
+                raise ValueError(f"Invalid range format: {part}")
+            if start < min_val or end > max_val:
+                raise ValueError(
+                    f"Range {start}-{end} outside allowed values ({min_val}-{max_val})"
+                )
+            if start > end:
+                raise ValueError(f"Invalid range: {start}-{end} (start > end)")
+            values.update(range(start, end + 1))
+        else:
+            # Handle single values
+            try:
+                value = int(part)
+            except ValueError:
+                raise ValueError(f"Invalid value: {part}")
+            if value < min_val or value > max_val:
+                raise ValueError(f"Value {value} out of range ({min_val}-{max_val})")
+            values.add(value)
+    return values

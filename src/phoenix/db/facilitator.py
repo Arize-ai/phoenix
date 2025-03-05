@@ -19,9 +19,17 @@ from phoenix.auth import (
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
 )
-from phoenix.config import get_env_default_admin_initial_password
+from phoenix.config import (
+    get_env_default_admin_initial_password,
+    get_env_default_trace_retention_days,
+)
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
+from phoenix.db.types.trace_retention import (
+    MaxDays,
+    TraceRetentionCronExpression,
+    TraceRetentionRule,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -41,6 +49,7 @@ class Facilitator:
             for fn in (
                 _ensure_enums,
                 _ensure_user_roles,
+                _ensure_default_trace_retention_policy,
             ):
                 async with session.begin_nested():
                     await fn(session)
@@ -110,4 +119,42 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
             reset_password=True,
         )
         session.add(admin_user)
+    await session.flush()
+
+
+async def _ensure_default_trace_retention_policy(session: AsyncSession) -> None:
+    """
+    Ensures the default trace retention policy (id=1) exists in the database. Default policy
+    applies to all projects without a specific policy (i.e. foreign key is null).
+
+    This function checks for the presence of the default trace retention policy and
+    creates it if missing. The default trace retention policy:
+
+        - Has ID=1
+        - Is named "Default"
+        - Runs every Sunday at midnight UTC (cron: "0 0 * * 0")
+        - Uses the PHOENIX_DEFAULT_TRACE_RETENTION_DAYS environment variable value if set,
+            otherwise retains traces for 365 days by default
+
+    If the default policy already exists, this function makes no changes.
+
+    Args:
+        session (AsyncSession): An async SQLAlchemy session.
+
+    Returns:
+        None
+    """
+    if await session.scalar(select(models.TraceRetentionPolicy.id).filter_by(id=1)):
+        return
+    env_days = get_env_default_trace_retention_days()
+    max_days = env_days or 365.0
+    cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")  # midnight UTC on Sundays
+    rule = TraceRetentionRule(root=MaxDays(max_days=max_days))
+    default_policy = models.TraceRetentionPolicy(
+        name="Default",
+        active=bool(env_days),
+        cron_expression=cron_expression,
+        rule=rule,
+    )
+    session.add(default_policy)
     await session.flush()
