@@ -197,7 +197,7 @@ class UserMutationMixin:
             response.delete_cookie(PHOENIX_ACCESS_TOKEN_COOKIE_NAME)
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
     async def delete_users(
         self,
         info: Info[Context, None],
