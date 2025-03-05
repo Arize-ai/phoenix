@@ -20,7 +20,7 @@ class IsNotReadOnly(Authorization):
         return not info.context.read_only
 
 
-class IsLocked(Authorization):
+class IsNotLocked(Authorization):
     """
     Disables mutations and subscriptions that create or update data but allows
     queries and delete mutations.

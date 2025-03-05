@@ -8,7 +8,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import enums, models
-from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsAdmin, IsNotLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.queries import Query
@@ -60,7 +60,7 @@ class DeleteApiKeyMutationPayload:
 
 @strawberry.type
 class ApiKeyMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsNotLocked])  # type: ignore
     async def create_system_api_key(
         self, info: Info[Context, None], input: CreateApiKeyInput
     ) -> CreateSystemApiKeyMutationPayload:
@@ -101,7 +101,7 @@ class ApiKeyMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
     async def create_user_api_key(
         self, info: Info[Context, None], input: CreateUserApiKeyInput
     ) -> CreateUserApiKeyMutationPayload:
