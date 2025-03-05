@@ -96,6 +96,7 @@ enum CanonicalParameterName {
   TOOL_CHOICE
   RESPONSE_FORMAT
   REASONING_EFFORT
+  ANTHROPIC_EXTENDED_THINKING
 }
 
 type ChatCompletionFunctionCall {
