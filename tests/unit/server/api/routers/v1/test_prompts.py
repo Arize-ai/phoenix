@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import string
+from contextlib import AbstractContextManager, nullcontext
 from enum import Enum
 from secrets import token_hex
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from urllib.parse import quote_plus
 
 import httpx
@@ -12,8 +13,9 @@ from deepdiff.diff import DeepDiff
 from faker import Faker
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, ValidationError, create_model
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -25,6 +27,7 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptOpenAIInvocationParametersContent,
     PromptResponseFormatJSONSchema,
     PromptResponseFormatJSONSchemaDefinition,
+    PromptStringTemplate,
     PromptTemplateFormat,
     PromptTemplateType,
     PromptToolFunction,
@@ -34,12 +37,50 @@ from phoenix.server.api.helpers.prompts.models import (
     ToolCallFunction,
     ToolResultContentPart,
 )
+from phoenix.server.api.routers.v1.prompts import PromptVersionData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
+
+
+class TestPromptVersionData:
+    @pytest.mark.parametrize("template_type", list(PromptTemplateType))
+    @pytest.mark.parametrize(
+        "template",
+        [
+            PromptChatTemplate(type="chat", messages=[PromptMessage(role="user", content="hi")]),
+            PromptStringTemplate(type="string", template=""),
+        ],
+    )
+    def test_template_type_mismatch(
+        self,
+        template_type: PromptTemplateType,
+        template: Union[PromptChatTemplate, PromptStringTemplate],
+    ) -> None:
+        expectation: AbstractContextManager[Any] = pytest.raises(ValidationError)
+        if template_type == PromptTemplateType.CHAT:
+            if template.type == "chat":
+                expectation = nullcontext()
+        elif template_type == PromptTemplateType.STRING:
+            if template.type == "string":
+                expectation = nullcontext()
+        else:
+            assert_never(template_type)
+        with expectation:
+            PromptVersionData(
+                template_type=template_type,
+                template_format=PromptTemplateFormat.MUSTACHE,
+                template=template,
+                invocation_parameters=PromptOpenAIInvocationParameters(
+                    type="openai",
+                    openai=PromptOpenAIInvocationParametersContent(),
+                ),
+                model_provider=ModelProvider.OPENAI,
+                model_name=token_hex(16),
+            )
 
 
 class TestPrompts:
