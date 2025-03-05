@@ -194,6 +194,15 @@ ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
 ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS = "PHOENIX_GRPC_INTERCEPTOR_PATHS"
 
 
+ENV_PHOENIX_DEFAULT_TRACE_RETENTION_DAYS = "PHOENIX_DEFAULT_TRACE_RETENTION_DAYS"
+"""
+The initial retention period (in days) for traces under the default trace retention policy (id=1).
+Only used during first-time creation of the policy. Accepts float values for partial days
+(e.g. 0.25 = 6 hours). Defaults to 365 days if unspecified. Traces older than this period are
+purged according to the policy's schedule, which defaults to every Sunday midnight UTC.
+"""
+
+
 def server_instrumentation_is_enabled() -> bool:
     return bool(
         getenv(ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
@@ -529,6 +538,19 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
+def get_env_default_trace_retention_days() -> Optional[float]:
+    """
+    Gets the value of the PHOENIX_DEFAULT_TRACE_RETENTION_DAYS environment variable.
+    """
+    ans = _float_val(ENV_PHOENIX_DEFAULT_TRACE_RETENTION_DAYS)
+    if ans and ans <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_DEFAULT_TRACE_RETENTION_DAYS}: "
+            f"{ans}. Value must be a positive number."
+        )
+    return ans
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
