@@ -229,6 +229,19 @@ class TracerProvider(_TracerProvider):
             "|  Using a default SpanProcessor. `add_span_processor` will overwrite this default.\n"
         )
 
+        using_simple_processor = isinstance(span_processor, _SimpleSpanProcessor)
+        span_processor_warning = "|  \n"
+        if os.name == "nt":
+            span_processor_warning += (
+                "|  WARNING: It is strongly advised to use a BatchSpanProcessor in production "
+                "environments.\n"
+            )
+        else:
+            span_processor_warning += (
+                "|  ⚠️ WARNING: It is strongly advised to use a BatchSpanProcessor in production "
+                "environments.\n"
+            )
+
         details_msg = (
             f"{details_header}\n"
             f"|  Phoenix Project: {project}\n"
@@ -238,6 +251,7 @@ class TracerProvider(_TracerProvider):
             f"|  Transport Headers: {headers}\n"
             "|  \n"
             f"{configuration_msg if self._default_processor else ''}"
+            f"{span_processor_warning if using_simple_processor else ''}"
         )
         return details_msg
 
