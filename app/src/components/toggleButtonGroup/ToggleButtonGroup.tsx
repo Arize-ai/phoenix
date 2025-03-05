@@ -14,8 +14,19 @@ const baseToggleButtonGroupCSS = css(`
   flex-direction: row;
   align-items: center;
   width: fit-content;
+  & > button {
+      border-radius: 0;
+      z-index: 1;
 
-  font-size: var(--ac-global-dimension-static-font-size-100);
+      &[data-disabled] {
+        z-index: 0;
+      }
+
+      &[data-selected],
+      &[data-focus-visible] {
+        z-index: 2;
+      }
+    }
 
   & > .ac-toggle-button:not(:first-child):not([data-selected="true"]) {
     border-left: none;

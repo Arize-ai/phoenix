@@ -1,5 +1,5 @@
-import React, { Ref } from "react";
-import { Button as AriaButton } from "react-aria-components";
+import React, { ReactNode, Ref, useCallback } from "react";
+import { Button as AriaButton, ButtonRenderProps } from "react-aria-components";
 import { css } from "@emotion/react";
 
 import { buttonCSS } from "./styles";
@@ -16,6 +16,18 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
     ...otherProps
   } = props;
 
+  const renderContent = useCallback(
+    (props: ButtonRenderProps & { defaultChildren: ReactNode }) => {
+      return (
+        <>
+          {leadingVisual}
+          {typeof children === "function" ? children(props) : children}
+          {trailingVisual}
+        </>
+      );
+    },
+    [leadingVisual, trailingVisual, children]
+  );
   return (
     <AriaButton
       {...otherProps}
@@ -25,9 +37,7 @@ function Button(props: ButtonProps, ref: Ref<HTMLButtonElement>) {
       data-childless={!children}
       css={css(buttonCSS, propCSS)}
     >
-      {leadingVisual}
-      <>{children}</>
-      {trailingVisual}
+      {renderContent}
     </AriaButton>
   );
 }
