@@ -12,11 +12,11 @@ This repository contains examples for building a **Computer Use (Operator) Agent
 
 ## Features  
 - **UI:** Built with Gradio app
-- **Computer Use Agent Workflow:** Built using **LangGraph**.  
-- **Anthropic Model Integration:** Uses **Anthropic's Computer Use beta models**.  
-- **Prebuilt Tools:** Includes tools for **Bash execution, file editing, and system operations**.  
-- **Instrumentation with Phoenix:**  Auto-instrumentation with OpenInference decorators to monitor agent interactions.
-- **End-to-end tracing:** Track and evaluate agent's performance using Phoenix.
+- **Computer Use Agent Workflow:** Built using **LangGraph**
+- **Anthropic Model Integration:** Uses **Anthropic's Computer Use beta models**
+- **Prebuilt Tools:** Includes tools for **Bash execution, file editing, and system operations**
+- **Instrumentation with Phoenix:**  Auto-instrumentation with OpenInference decorators to fully instrument the agent
+- **End-to-end tracing:** Track agent performance using Phoenix
 
 
 ---  
@@ -59,7 +59,7 @@ Once the container is running, access the Ubuntu environment using **noVNC**:
   http://localhost:8080  
   ```  
 
-### 3. Input all the required configuration in webpage
+### 3. Input all the required configurations in the webpage
 
 * **Anthropic API Key**
 * **Phoenix API Key**

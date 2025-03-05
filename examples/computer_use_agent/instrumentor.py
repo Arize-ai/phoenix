@@ -5,6 +5,7 @@ from openinference.instrumentation.anthropic._wrappers import _MessagesWrapper
 from wrapt import wrap_function_wrapper
 
 
+# Our default instrumentor does not capture computer use, so we are using a Beta version which adds support for computer use.
 class AnthropicBetaInstrumentor(AnthropicInstrumentor):
     def _instrument(self, **kwargs: Any) -> None:
         super(AnthropicBetaInstrumentor, self)._instrument()

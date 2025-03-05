@@ -9,8 +9,8 @@ This folder contains examples for building a Retrieval-Augmented Generation (RAG
 * Construction of a RAG agent workflow using LangChain
 * Integration with OpenAI models for language generation and retrieval
 * Example usage of tools such as web search and response analysis, create rag response
-* Auto-instrumentation with OpenInference decorators to monitor agent interactions
-* End-to-end tracing with Phoenix to track and evaluate agent performance
+* Auto-instrumentation with OpenInference decorators to fully instrument the agent
+* End-to-end tracing with Phoenix to track agent performance
 
 ## Requirements
 

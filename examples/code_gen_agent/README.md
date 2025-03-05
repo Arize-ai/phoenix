@@ -10,8 +10,8 @@ This agent is designed to generate, refine, and validate code using OpenAI model
 * Construction of a Code-Gen agent workflow using LangChain
 * Integration with OpenAI models for generating and refining code
 * Example usage of tools such as code analysis, execution, and generation
-* Auto-instrumentation with OpenInference decorators to monitor agent interactions
-* End-to-end tracing with Phoenix to track and evaluate agent performance
+* Auto-instrumentation with OpenInference decorators to fully instrument the agent
+* End-to-end tracing with Phoenix to track agent performance
 
 ## Requirements
 
