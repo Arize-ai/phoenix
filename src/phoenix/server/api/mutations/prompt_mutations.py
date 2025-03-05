@@ -13,6 +13,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.models import (
@@ -74,7 +75,7 @@ class DeletePromptMutationPayload:
 
 @strawberry.type
 class PromptMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_chat_prompt(
         self, info: Info[Context, None], input: CreateChatPromptInput
     ) -> Prompt:
@@ -141,7 +142,7 @@ class PromptMutationMixin:
                 raise Conflict(f"A prompt named '{input.name}' already exists")
         return to_gql_prompt_from_orm(prompt)
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_chat_prompt_version(
         self,
         info: Info[Context, None],
@@ -219,7 +220,7 @@ class PromptMutationMixin:
 
         return to_gql_prompt_from_orm(prompt)
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_prompt(
         self, info: Info[Context, None], input: DeletePromptInput
     ) -> DeletePromptMutationPayload:
@@ -236,7 +237,7 @@ class PromptMutationMixin:
             await session.commit()
         return DeletePromptMutationPayload(query=Query())
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def clone_prompt(self, info: Info[Context, None], input: ClonePromptInput) -> Prompt:
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
@@ -289,7 +290,7 @@ class PromptMutationMixin:
                 raise Conflict(f"A prompt named '{input.name}' already exists")
         return to_gql_prompt_from_orm(new_prompt)
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_prompt(self, info: Info[Context, None], input: PatchPromptInput) -> Prompt:
         prompt_id = from_global_id_with_expected_type(
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
