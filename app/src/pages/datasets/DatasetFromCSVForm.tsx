@@ -23,6 +23,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type CreateDatasetFromCSVParams = {
   file: FileList;
@@ -82,7 +83,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       data.metadata_keys.forEach((key) => {
         formData.append("metadata_keys[]", key);
       });
-      return fetch("/v1/datasets/upload?sync=true", {
+      return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
         body: formData,
       })
