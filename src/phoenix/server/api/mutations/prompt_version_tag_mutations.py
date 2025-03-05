@@ -10,6 +10,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
@@ -41,7 +42,7 @@ class PromptVersionTagMutationPayload:
 
 @strawberry.type
 class PromptVersionTagMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_prompt_version_tag(
         self, info: Info[Context, None], input: DeletePromptVersionTagInput
     ) -> PromptVersionTagMutationPayload:
@@ -77,7 +78,7 @@ class PromptVersionTagMutationMixin:
                 prompt_version_tag=None, query=Query(), prompt=to_gql_prompt_from_orm(prompt)
             )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def set_prompt_version_tag(
         self, info: Info[Context, None], input: SetPromptVersionTagInput
     ) -> PromptVersionTagMutationPayload:
