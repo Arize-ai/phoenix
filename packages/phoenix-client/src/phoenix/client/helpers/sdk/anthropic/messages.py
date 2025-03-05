@@ -547,8 +547,7 @@ class _TextContentPartConversion:
                 "subtype": "thinking",
                 "redacted": True,
             }
-        else:
-            assert_never(obj)
+        assert_never(obj)
 
     @staticmethod
     def from_anthropic(
