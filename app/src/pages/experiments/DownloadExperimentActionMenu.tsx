@@ -3,6 +3,7 @@ import React from "react";
 import { ActionMenu, Item } from "@arizeai/components";
 
 import { Icon, Icons } from "@phoenix/components";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 interface DownloadExperimentActionMenuProps {
   experimentId: string;
@@ -12,13 +13,7 @@ export function DownloadExperimentActionMenu({
   experimentId,
 }: DownloadExperimentActionMenuProps) {
   return (
-    <div
-      onClick={(e) => {
-        // prevent parent anchor link from being followed
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
+    <StopPropagation>
       <ActionMenu
         buttonSize="compact"
         align="end"
@@ -31,6 +26,6 @@ export function DownloadExperimentActionMenu({
       >
         <Item key="json">Download JSON</Item>
       </ActionMenu>
-    </div>
+    </StopPropagation>
   );
 }
