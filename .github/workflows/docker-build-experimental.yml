@@ -3,7 +3,7 @@ name: Publish experimental Docker image
 on:
   push:
     branches:
-      - span-query-optimization
+      - trace-data-retention
 
 jobs:
   push_to_registry:
