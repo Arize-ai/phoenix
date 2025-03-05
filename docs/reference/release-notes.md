@@ -36,7 +36,7 @@ Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prom
 
 **Evals**: o3 support, Audio & Multi-Modal Evaluations
 
-**Instrumentation**: Smol Agents, tool call IDs in Llama-Index, & deprecation of Langchain v0.1
+**Instrumentation**: Tool call IDs in Llama-Index & deprecation of Langchain v0.1
 
 **Integrations**: Phoenix now supports LiteLLM Proxy & Cleanlabs evals
 

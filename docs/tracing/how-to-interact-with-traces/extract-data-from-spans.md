@@ -2,7 +2,7 @@
 description: Various options for to help you get data out of Phoenix
 ---
 
-# Exporting Data & Querying Spans
+# Export Data & Query Spans
 
 ## Options for Exporting Data from Phoenix
 
@@ -197,7 +197,7 @@ query = SpanQuery().where(
 )
 ```
 
-**Filtering for No Evaluations**
+#### **Filtering for No Evaluations**
 
 Get spans that do not have an evaluation attached yet
 
@@ -207,6 +207,10 @@ query = SpanQuery().where(
 )
 # correctness is whatever you named your evaluation metric
 ```
+
+### How to Apply Filters (UI)
+
+You can also use Python boolean expressions to filter spans in the Phoenix UI. These expressions can be entered directly into the search bar above your experiment runs, allowing you to apply complex conditions involving span attributes. Any expressions that work with the `.where()` method [above](extract-data-from-spans.md#how-to-apply-filters) can also be used in the UI.
 
 ### How to Extract Attributes
 
