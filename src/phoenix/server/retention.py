@@ -26,7 +26,9 @@ class TraceDataSweeper(DaemonTask):
             if not (policies := await self._get_active_policies()):
                 continue
             if tasks := [
-                create_task(self._apply(policy)) for policy in policies if self._is_overdue(policy)
+                create_task(self._apply(policy))
+                for policy in policies
+                if self._should_apply(policy)
             ]:
                 await gather(*tasks, return_exceptions=True)
 
@@ -46,7 +48,7 @@ class TraceDataSweeper(DaemonTask):
     def _current_hour(self) -> int:
         return hour_of_week(self._now())
 
-    def _is_overdue(self, policy: TraceRetentionPolicy) -> bool:
+    def _should_apply(self, policy: TraceRetentionPolicy) -> bool:
         if self._current_hour() != policy.cron_expression.get_hour_of_prev_run():
             return False
         if policy.id != 1 and not policy.projects:
