@@ -12,14 +12,16 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.auth import (
-    DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SECRET_LENGTH,
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
 )
-from phoenix.config import get_env_default_admin_initial_password
+from phoenix.config import (
+    get_env_default_admin_initial_email,
+    get_env_default_admin_initial_password,
+)
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
 from phoenix.server.types import DbSessionFactory
@@ -97,6 +99,7 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
         admin_role_id := role_ids.get(admin_role)
     ) is not None:
         salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+        email = get_env_default_admin_initial_email()
         password = get_env_default_admin_initial_password()
         compute = partial(compute_password_hash, password=password, salt=salt)
         loop = asyncio.get_running_loop()
@@ -104,7 +107,7 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
         admin_user = models.User(
             user_role_id=admin_role_id,
             username=DEFAULT_ADMIN_USERNAME,
-            email=DEFAULT_ADMIN_EMAIL,
+            email=email,
             password_salt=salt,
             password_hash=hash_,
             reset_password=True,
