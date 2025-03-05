@@ -11,7 +11,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.server.api.auth import IsNotLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.queries import Query
@@ -59,7 +59,7 @@ class PromptLabelMutationPayload:
 
 @strawberry.type
 class PromptLabelMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_prompt_label(
         self, info: Info[Context, None], input: CreatePromptLabelInput
     ) -> PromptLabelMutationPayload:
@@ -78,7 +78,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_prompt_label(
         self, info: Info[Context, None], input: PatchPromptLabelInput
     ) -> PromptLabelMutationPayload:
@@ -131,7 +131,7 @@ class PromptLabelMutationMixin:
                 query=Query(),
             )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def set_prompt_label(
         self, info: Info[Context, None], input: SetPromptLabelInput
     ) -> PromptLabelMutationPayload:

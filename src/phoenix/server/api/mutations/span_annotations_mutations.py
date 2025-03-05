@@ -6,7 +6,7 @@ from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsNotLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
@@ -25,7 +25,7 @@ class SpanAnnotationMutationPayload:
 
 @strawberry.type
 class SpanAnnotationMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def create_span_annotations(
         self, info: Info[Context, None], input: list[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
@@ -59,7 +59,7 @@ class SpanAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_span_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:

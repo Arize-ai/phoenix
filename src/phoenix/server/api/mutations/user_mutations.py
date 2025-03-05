@@ -23,7 +23,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import enums, models
-from phoenix.server.api.auth import IsAdmin, IsNotLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
@@ -82,7 +82,7 @@ class UserMutationPayload:
 
 @strawberry.type
 class UserMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
     async def create_user(
         self,
         info: Info[Context, None],
@@ -113,7 +113,7 @@ class UserMutationMixin:
                 raise Conflict(_user_operation_error_message(error))
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
     async def patch_user(
         self,
         info: Info[Context, None],
@@ -156,7 +156,7 @@ class UserMutationMixin:
             await info.context.log_out(user.id)
         return UserMutationPayload(user=to_gql_user(user))
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_viewer(
         self,
         info: Info[Context, None],
