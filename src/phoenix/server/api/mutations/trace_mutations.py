@@ -1,5 +1,6 @@
 import strawberry
 from sqlalchemy import and_, delete, not_, select
+from sqlalchemy.orm import load_only
 from sqlalchemy.sql import literal
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -38,6 +39,9 @@ class TraceMutationMixin:
                     delete(models.Trace)
                     .where(models.Trace.id.in_(trace_rowids))
                     .returning(models.Trace)
+                    .options(
+                        load_only(models.Trace.project_rowid, models.Trace.project_session_rowid)
+                    )
                 )
             ).all()
             if len(traces) < len(trace_rowids):
