@@ -863,6 +863,27 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
 
 
 @register_llm_client(
+    provider_key=GenerativeProviderKey.ANTHROPIC,
+    model_names=[
+        "claude-3-7-sonnet-latest",
+        "claude-3-7-sonnet-20250219",
+    ],
+)
+class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
+    @classmethod
+    def supported_invocation_parameters(cls) -> list[InvocationParameter]:
+        invocation_params = super().supported_invocation_parameters()
+        invocation_params.append(
+            JSONInvocationParameter(
+                invocation_name="thinking",
+                canonical_name=CanonicalParameterName.ANTHROPIC_EXTENDED_THINKING,
+                label="Thinking Budget",
+            )
+        )
+        return invocation_params
+
+
+@register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,

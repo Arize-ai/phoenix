@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<93cbafd441031112e88f1d21abbae174>>
+ * @generated SignedSource<<ece6bdb60c4f9c2aaf308cac68b8bb90>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type CanonicalParameterName = "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
+export type CanonicalParameterName = "ANTHROPIC_EXTENDED_THINKING" | "MAX_COMPLETION_TOKENS" | "RANDOM_SEED" | "REASONING_EFFORT" | "RESPONSE_FORMAT" | "STOP_SEQUENCES" | "TEMPERATURE" | "TOOL_CHOICE" | "TOP_P";
 export type GenerativeProviderKey = "ANTHROPIC" | "AZURE_OPENAI" | "GOOGLE" | "OPENAI";
 export type InvocationInputField = "value_bool" | "value_boolean" | "value_float" | "value_int" | "value_json" | "value_string" | "value_string_list";
 export type ModelsInput = {
