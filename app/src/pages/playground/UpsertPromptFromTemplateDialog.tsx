@@ -110,6 +110,23 @@ export const UpsertPromptFromTemplateDialog = ({
         instanceId,
         store
       );
+      const invocationParameters = {
+        ...(promptInput.invocationParameters ?? {}),
+      };
+      if (
+        promptInput.modelProvider === "ANTHROPIC" &&
+        typeof invocationParameters === "object" &&
+        "thinking" in invocationParameters &&
+        invocationParameters["thinking"] != null &&
+        typeof invocationParameters["thinking"] === "object" &&
+        "type" in invocationParameters["thinking"] &&
+        invocationParameters["thinking"]["type"] === "enabled"
+      ) {
+        // https://github.com/Arize-ai/phoenix/issues/6711
+        // Create a new object without the top_p property if
+        // extended thinking is enabled.
+        delete invocationParameters.top_p;
+      }
       createPrompt({
         variables: {
           input: {
@@ -117,6 +134,7 @@ export const UpsertPromptFromTemplateDialog = ({
             description: params.description,
             promptVersion: {
               ...promptInput,
+              invocationParameters,
               templateFormat,
             },
           },
