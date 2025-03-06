@@ -90,7 +90,7 @@ export const buttonCSS = css`
   }
 
   kbd {
-    background-color: var(--ac-global-color-grey-800);
+    background-color: var(--ac-global-color-grey-700);
     border-radius: var(--ac-global-rounding-small);
     padding: var(--ac-global-dimension-static-size-50);
     font-size: var(--ac-global-font-size-xs);

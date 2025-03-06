@@ -165,11 +165,11 @@ export const darkThemeCSS = css`
     /* Colors */
 
     // The primary color tint for  the apps
-    --ac-global-color-primary: rgb(114, 217, 255);
-    --ac-global-color-primary-900: rgba(114, 217, 255, 0.9);
-    --ac-global-color-primary-700: rgba(114, 217, 255, 0.7);
-    --ac-global-color-primary-500: rgba(114, 217, 255, 0.5);
-    --ac-global-color-primary-300: rgba(114, 217, 255, 0.3);
+    --ac-global-color-primary: rgb(255, 255, 255);
+    --ac-global-color-primary-900: rgba(255, 255, 255, 0.9);
+    --ac-global-color-primary-700: rgba(255, 255, 255, 0.7);
+    --ac-global-color-primary-500: rgba(255, 255, 255, 0.5);
+    --ac-global-color-primary-300: rgba(255, 255, 255, 0.3);
 
     // These colors are legacy
     --ac-global-color-gray-900: #181b1f;
@@ -686,11 +686,11 @@ export const lightThemeCSS = css`
     /* Colors */
 
     // The primary color tint for  the apps
-    --ac-global-color-primary: rgb(9, 105, 218);
-    --ac-global-color-primary-900: rgba(9, 105, 218, 0.9);
-    --ac-global-color-primary-700: rgba(9, 105, 218, 0.7);
-    --ac-global-color-primary-500: rgba(9, 105, 218, 0.5);
-    --ac-global-color-primary-300: rgba(9, 105, 218, 0.3);
+    --ac-global-color-primary: rgb(47, 47, 47);
+    --ac-global-color-primary-900: rgba(47, 47, 47, 0.9);
+    --ac-global-color-primary-700: rgba(47, 47, 47, 0.7);
+    --ac-global-color-primary-500: rgba(47, 47, 47, 0.5);
+    --ac-global-color-primary-300: rgba(47, 47, 47, 0.3);
 
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 255, 255, 255;
