@@ -2023,6 +2023,9 @@ type TextContentValue {
 
 input TextContentValueInput {
   text: String!
+  subtype: String
+  signature: String
+  redacted: Boolean
 }
 
 input TimeRange {
