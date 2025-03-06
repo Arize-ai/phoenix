@@ -14,10 +14,17 @@ import argparse
 import ast
 import sys
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Dict, List, Literal, Tuple, Union
 
-# Define a type alias for a violation record (file path, line number, function name)
-Violation = Tuple[Path, int, str]
+# Define types for issues
+IssueType = Literal["no_permission_classes", "missing_is_not_read_only"]
+ISSUE_DESCRIPTIONS: Dict[IssueType, str] = {
+    "no_permission_classes": "Missing permission_classes keyword",
+    "missing_is_not_read_only": "permission_classes exists but missing IsNotReadOnly",
+}
+
+# Define a type alias for a issue record (file path, line number, function name, issue type)
+Issue = Tuple[Path, int, str, IssueType]
 
 
 class StrawberryMutationVisitor(ast.NodeVisitor):
@@ -33,7 +40,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
             current_file: Path to the file being analyzed.
         """
         super().__init__()
-        self.violations: List[Violation] = []
+        self.issues: List[Issue] = []
         self.current_file: Path = current_file
         self.mutations_found: int = 0  # Track total number of mutations found
 
@@ -61,7 +68,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         self, node: Union[ast.FunctionDef, ast.AsyncFunctionDef]
     ) -> None:
         """
-        Check if a function has a strawberry.mutation decorator without permission_classes.
+        Check if a function has a strawberry.mutation decorator without proper permission classes.
 
         Args:
             node: The function definition node to check.
@@ -69,8 +76,19 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         for decorator in node.decorator_list:
             if self._is_strawberry_mutation(decorator):
                 self.mutations_found += 1  # Increment counter for each mutation found
-                if not self._has_permission_classes(decorator):
-                    self.violations.append((self.current_file, node.lineno, node.name))
+
+                has_permission_classes, has_is_not_read_only = self._check_permissions(decorator)
+
+                if not has_permission_classes:
+                    # Issue: No permission_classes keyword found
+                    self.issues.append(
+                        (self.current_file, node.lineno, node.name, "no_permission_classes")
+                    )
+                elif not has_is_not_read_only:
+                    # Issue: permission_classes exists but missing IsNotReadOnly
+                    self.issues.append(
+                        (self.current_file, node.lineno, node.name, "missing_is_not_read_only")
+                    )
 
     def _is_strawberry_mutation(self, decorator: ast.expr) -> bool:
         """
@@ -118,41 +136,50 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
 
         return False
 
-    def _has_permission_classes(self, decorator: ast.expr) -> bool:
+    def _check_permissions(self, decorator: ast.expr) -> Tuple[bool, bool]:
         """
-        Check if the decorator includes permission_classes with IsNotReadOnly.
+        Check if the decorator includes permission_classes and if it includes IsNotReadOnly.
 
         Args:
             decorator: The decorator AST node to check.
 
         Returns:
-            True if permission_classes is set with IsNotReadOnly; otherwise False.
+            A tuple with two booleans:
+            - First boolean indicates if permission_classes is present
+            - Second boolean indicates if IsNotReadOnly is found in permission_classes
         """
+        # If not a call, we can't have permission_classes
         if not isinstance(decorator, ast.Call):
-            return False
+            return False, False
+
+        has_permission_classes = False
+        has_is_not_read_only = False
 
         for keyword in decorator.keywords:
             if keyword.arg == "permission_classes":
+                has_permission_classes = True
                 if isinstance(keyword.value, ast.List):
                     for elt in keyword.value.elts:
                         if isinstance(elt, ast.Name) and elt.id == "IsNotReadOnly":
-                            return True
-        return False
+                            has_is_not_read_only = True
+                            break
+
+        return has_permission_classes, has_is_not_read_only
 
 
-def check_files(directory: Path) -> Tuple[List[Violation], int]:
+def check_files(directory: Path) -> Tuple[List[Issue], int]:
     """
-    Recursively check all Python files in the specified directory for violations.
+    Recursively check all Python files in the specified directory for issues.
 
     Args:
         directory: The directory to search for Python files.
 
     Returns:
         A tuple containing:
-            - A list of violations as tuples: (file_path, line_number, function_name)
+            - A list of issues as tuples: (file_path, line_number, function_name, issue_type)
             - Total number of mutations found across all files
     """
-    violations: List[Violation] = []
+    issues: List[Issue] = []
     total_mutations_found: int = 0
     files_checked: int = 0
 
@@ -165,7 +192,7 @@ def check_files(directory: Path) -> Tuple[List[Violation], int]:
             tree = ast.parse(file_contents, filename=str(py_file))
             visitor = StrawberryMutationVisitor(py_file)
             visitor.visit(tree)
-            violations.extend(visitor.violations)
+            issues.extend(visitor.issues)
             total_mutations_found += visitor.mutations_found
         except SyntaxError:
             print(f"Syntax error in {py_file}, skipping", file=sys.stderr)
@@ -173,31 +200,42 @@ def check_files(directory: Path) -> Tuple[List[Violation], int]:
             print(f"Error processing {py_file}: {e}", file=sys.stderr)
 
     print(f"Checked {files_checked} Python files")
-    return violations, total_mutations_found
+    return issues, total_mutations_found
 
 
-def format_violations(violations: List[Violation], total_mutations: int) -> None:
+def format_issues(issues: List[Issue], total_mutations: int) -> None:
     """
-    Print formatted violation messages.
+    Print formatted issue messages.
 
     Args:
-        violations: List of violations to print.
+        issues: List of issues to print.
         total_mutations: Total number of mutations found.
     """
     if total_mutations == 0:
         print("No mutations found! This might indicate you're checking the wrong directory.")
         return
 
-    if not violations:
-        print(f"No violations found! All {total_mutations} mutations have permission_classes.")
+    if not issues:
+        print(f"No issues found! All {total_mutations} mutations have proper permission_classes.")
         return
 
-    print(f"\nFound {len(violations)} violation(s) out of {total_mutations} total mutations:")
-    for file_path, line_number, func_name in violations:
-        print(
-            f"{file_path}:{line_number} - Missing permission_classes in @strawberry.mutation for "
-            f"function '{func_name}'"
-        )
+    # Group issues by issue type
+    by_issue_type: Dict[IssueType, List[Issue]] = {
+        "no_permission_classes": [],
+        "missing_is_not_read_only": [],
+    }
+
+    for issue in issues:
+        by_issue_type[issue[3]].append(issue)
+
+    print(f"\nFound {len(issues)} issue(s) out of {total_mutations} total mutations:")
+
+    # Print each issue type separately
+    for issue_type, issues in by_issue_type.items():
+        if issues:
+            print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(issues)} occurrences):")
+            for file_path, line_number, func_name, _ in issues:
+                print(f"  - {file_path}:{line_number} - function '{func_name}'")
 
 
 def main() -> int:
@@ -205,19 +243,24 @@ def main() -> int:
     Main entry point for the script.
 
     Returns:
-        0 if no violations found and mutations exist,
-        1 if violations found,
+        0 if no issues found and mutations exist,
+        1 if issues found,
         2 for invalid directory,
         3 if no mutations found (likely wrong directory).
     """
     parser = argparse.ArgumentParser(
-        description="Check for Strawberry mutations without permission_classes"
+        description="Check for Strawberry mutations without proper permission_classes"
     )
     parser.add_argument(
         "directory",
         nargs="?",
         default=".",
         help="Directory to search for Python files (default: current directory)",
+    )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Only show summary counts without detailed issue listings",
     )
     args = parser.parse_args()
 
@@ -226,8 +269,19 @@ def main() -> int:
         print(f"Error: {directory} is not a valid directory", file=sys.stderr)
         return 2
 
-    violations, total_mutations = check_files(directory)
-    format_violations(violations, total_mutations)
+    issues, total_mutations = check_files(directory)
+
+    if args.summary:
+        # Count by issue type
+        issue_counts = {
+            issue: len([v for v in issues if v[3] == issue]) for issue in ISSUE_DESCRIPTIONS
+        }
+        print(f"\nSummary (total mutations: {total_mutations}):")
+        for issue, count in issue_counts.items():
+            print(f"- {ISSUE_DESCRIPTIONS[issue]}: {count}")
+        print(f"- Total issues: {len(issues)}")
+    else:
+        format_issues(issues, total_mutations)
 
     # Return appropriate exit code based on findings
     if total_mutations == 0:
@@ -236,10 +290,9 @@ def main() -> int:
             file=sys.stderr,
         )
         return 3
-    elif violations:
+    if issues:
         return 1
-    else:
-        return 0
+    return 0
 
 
 if __name__ == "__main__":
