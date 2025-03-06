@@ -24,8 +24,7 @@ class TraceMutationMixin:
     ) -> Query:
         if not trace_ids:
             raise BadRequest("Must provide at least one trace ID to delete")
-        if len(set(trace_ids)) < len(trace_ids):
-            raise BadRequest("Trace IDs must be unique")
+        trace_ids = list(set(trace_ids))
         try:
             trace_rowids = [
                 from_global_id_with_expected_type(global_id=id, expected_type_name="Trace")
