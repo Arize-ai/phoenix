@@ -525,7 +525,9 @@ export function TracesTable(props: TracesTableProps) {
             ? null
             : row.original.id;
           return (
-            <Link to={`${traceId}${spanId ? `?selectedSpanId=${spanId}` : ""}`}>
+            <Link
+              to={`${traceId}${spanId ? `?selectedSpanNodeId=${spanId}` : ""}`}
+            >
               {getValue() as string}
             </Link>
           );
