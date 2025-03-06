@@ -286,6 +286,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            scripts/ci/
             requirements/
             src/phoenix/
             packages/phoenix-client/
