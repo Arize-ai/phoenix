@@ -216,7 +216,7 @@ export function SessionDetailsTraceList({
 
   return (
     <View height={"100%"} flex={"1 1 auto"} overflow={"auto"}>
-      {sessionRootSpans.map(({ id, rootSpan }, index) => (
+      {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
         <View
           borderBottomColor={"dark"}
           borderBottomWidth={"thin"}
@@ -232,7 +232,11 @@ export function SessionDetailsTraceList({
               <RootSpanInputOutput rootSpan={rootSpan} />
             </View>
             <View width={350} padding="size-200" flex="none">
-              <RootSpanDetails traceId={id} rootSpan={rootSpan} index={index} />
+              <RootSpanDetails
+                traceId={traceId}
+                rootSpan={rootSpan}
+                index={index}
+              />
             </View>
           </Flex>
         </View>

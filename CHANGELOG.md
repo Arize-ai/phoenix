@@ -1,5 +1,28 @@
 # Changelog
 
+## [8.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.8.0...arize-phoenix-v8.9.0) (2025-03-06)
+
+
+### Features
+
+* add anthropic thinking config param for python client ([#6659](https://github.com/Arize-ai/phoenix/issues/6659)) ([d03d57e](https://github.com/Arize-ai/phoenix/commit/d03d57e0efaedcba4731caa18b74db35f9b104f1))
+* add environment variable for allocated DB storage capacity in gibibytes ([#6664](https://github.com/Arize-ai/phoenix/issues/6664)) ([0161333](https://github.com/Arize-ai/phoenix/commit/016133315d65e624160150339fcd4e0320712199))
+* Add thinking budget invocation parameter ([#6670](https://github.com/Arize-ai/phoenix/issues/6670)) ([8edd118](https://github.com/Arize-ai/phoenix/commit/8edd11857a082e0e5581ef30300e5a90c1ec1676))
+* **components:** ToggleButton ([#6679](https://github.com/Arize-ai/phoenix/issues/6679)) ([f062960](https://github.com/Arize-ai/phoenix/commit/f062960cf43fa34f80a290b6ef2f1a6a052d4d6d))
+* experiment json downloads ([#6642](https://github.com/Arize-ai/phoenix/issues/6642)) ([3cf20bf](https://github.com/Arize-ai/phoenix/commit/3cf20bfd44614e31c966f5a70041346b9641f5e8))
+* **traces:** make trace tree more readable on smaller sizes ([#6665](https://github.com/Arize-ai/phoenix/issues/6665)) ([04c72d4](https://github.com/Arize-ai/phoenix/commit/04c72d4d5395c42443eb296a1a7d8e499bfd760b))
+
+
+### Bug Fixes
+
+* broken url from session to trace ([#6705](https://github.com/Arize-ai/phoenix/issues/6705)) ([d2d8edf](https://github.com/Arize-ai/phoenix/commit/d2d8edf7f00d907318ff20ed6ac2d425e39b6c47))
+* respect read only mode for prompt mutations ([#6686](https://github.com/Arize-ai/phoenix/issues/6686)) ([a988a38](https://github.com/Arize-ai/phoenix/commit/a988a38af3ea83efbddda607b75527aad3981d7e))
+
+
+### Documentation
+
+* update python developer guide to use tox ([#6637](https://github.com/Arize-ai/phoenix/issues/6637)) ([922aa3d](https://github.com/Arize-ai/phoenix/commit/922aa3daa79e4f1f73447b8e9e6eed48d66bad14))
+
 ## [8.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.7.0...arize-phoenix-v8.8.0) (2025-03-01)
 
 

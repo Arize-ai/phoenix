@@ -86,6 +86,7 @@ export function SessionDetails(props: SessionDetailsProps) {
               edges {
                 trace: node {
                   id
+                  traceId
                   rootSpan {
                     id
                     attributes
