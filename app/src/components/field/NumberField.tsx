@@ -1,7 +1,7 @@
 import React, { forwardRef, Ref } from "react";
 import {
-  TextField as AriaTextField,
-  TextFieldProps as AriaTextFieldProps,
+  NumberField as AriaNumberField,
+  NumberFieldProps as AriaNumberFieldProps,
 } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -10,12 +10,15 @@ import { SizingProps } from "@phoenix/components/types";
 
 import { textFieldCSS } from "./styles";
 
-export interface TextFieldProps extends AriaTextFieldProps, SizingProps {}
+export interface NumberFieldProps extends AriaNumberFieldProps, SizingProps {}
 
-function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
+const NumberField = forwardRef(function NumberField(
+  props: NumberFieldProps,
+  ref: Ref<HTMLDivElement>
+) {
   const { size = "M", ...otherProps } = props;
   return (
-    <AriaTextField
+    <AriaNumberField
       data-size={size}
       className="ac-textfield"
       ref={ref}
@@ -23,8 +26,6 @@ function TextField(props: TextFieldProps, ref: Ref<HTMLDivElement>) {
       css={css(fieldBaseCSS, textFieldCSS)}
     />
   );
-}
+});
 
-const _TextField = forwardRef(TextField);
-
-export { _TextField as TextField };
+export { NumberField };
