@@ -761,6 +761,13 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.types as anthropic_types
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+        if (
+            "thinking" in invocation_parameters
+            and isinstance(invocation_parameters, dict)
+            and "type" in invocation_parameters["thinking"]
+            and invocation_parameters["thinking"]["type"] == "enabled"
+        ):
+            invocation_parameters.pop("top_p", None)
         anthropic_params = {
             "messages": anthropic_messages,
             "model": self.model_name,
@@ -810,9 +817,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 elif isinstance(event, anthropic_streaming._types.CitationEvent):
                     raise NotImplementedError
                 elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
-                    raise NotImplementedError
+                    pass
                 elif isinstance(event, anthropic_streaming._types.SignatureEvent):
-                    raise NotImplementedError
+                    pass
                 else:
                     assert_never(event)
 
