@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8b36458171f24a8358e1729915aec329>>
+ * @generated SignedSource<<fd7a4f5e92b224da19ec998b6dd084d9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DBUsagePieChart_data$data = {
+  readonly dbStorageCapacityBytes: number | null;
   readonly dbTableStats: ReadonlyArray<{
     readonly numBytes: number;
     readonly tableName: string;
@@ -52,12 +53,19 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "dbStorageCapacityBytes",
+      "storageKey": null
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "7b7167c8ac9f08c7d6574e9deba0c4cd";
+(node as any).hash = "922bf6de312a4be0c38025ffbb868d6d";
 
 export default node;
