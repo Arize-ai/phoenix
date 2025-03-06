@@ -115,8 +115,6 @@ export const UpsertPromptFromTemplateDialog = ({
       };
       if (
         promptInput.modelProvider === "ANTHROPIC" &&
-        typeof invocationParameters === "object" &&
-        "thinking" in invocationParameters &&
         invocationParameters["thinking"] != null &&
         typeof invocationParameters["thinking"] === "object" &&
         "type" in invocationParameters["thinking"] &&
