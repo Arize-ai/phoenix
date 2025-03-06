@@ -282,6 +282,8 @@ class ExperimentEvaluationRun:
 ExperimentTask: TypeAlias = Union[
     Callable[[Example], TaskOutput],
     Callable[[Example], Awaitable[TaskOutput]],
+    Callable[..., JSONSerializable],
+    Callable[..., Awaitable[JSONSerializable]],
 ]
 
 
