@@ -2,9 +2,18 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
 import { debounce } from "lodash";
 
-import { Slider, Switch } from "@arizeai/components";
+import { Switch } from "@arizeai/components";
 
-import { FieldError, Input, Label, Text, TextField } from "@phoenix/components";
+import {
+  FieldError,
+  Input,
+  Label,
+  NumberField,
+  Slider,
+  SliderNumberField,
+  Text,
+  TextField,
+} from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { Mutable } from "@phoenix/typeUtils";
 
@@ -64,13 +73,14 @@ const InvocationParameterFormField = ({
       return (
         <Slider
           label={field.label}
-          isRequired={field.required}
           defaultValue={value}
           step={0.1}
           minValue={field.minValue}
           maxValue={field.maxValue}
           onChange={(value) => onChange(value)}
-        />
+        >
+          <SliderNumberField />
+        </Slider>
       );
     case "FloatInvocationParameter":
     case "IntInvocationParameter":
@@ -84,23 +94,18 @@ const InvocationParameterFormField = ({
             max: maxRuleMessage,
           }}
           render={({ field: { onBlur } }) => (
-            <TextField
+            <NumberField
               isRequired={field.required}
-              value={value?.toString() || ""}
-              type="number"
+              value={Number(value)}
               onBlur={onBlur}
               onChange={(value) => {
-                if (value === "") {
-                  onChange(undefined);
-                  return;
-                }
-                onChange(Number(value));
+                onChange(value);
               }}
             >
               <Label>{field.label}</Label>
               <Input />
               {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
-            </TextField>
+            </NumberField>
           )}
         />
       );
