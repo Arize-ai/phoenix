@@ -277,7 +277,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               isDisabled={isDeletingTraces}
               onClick={onDeleteClick}
             >
-              {isDeletingTraces ? "Deleting traces" : "Delete traces"}
+              {isDeletingTraces ? "Deleting..." : "Delete traces"}
             </LegacyButton>
           </Flex>
         </Flex>
