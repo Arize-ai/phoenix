@@ -90,6 +90,9 @@
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
 * [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
   * [Prompt Optimization](prompt-engineering/use-cases-prompts/prompt-optimization.md)
+  * [ReAct Prompting](prompt-engineering/use-cases-prompts/react-prompting.md)
+  * [Chain-of-Thought Prompting](prompt-engineering/use-cases-prompts/chain-of-thought-prompting.md)
+  * [Few Shot Prompting](prompt-engineering/use-cases-prompts/few-shot-prompting.md)
 
 ## 🗄️ Datasets & Experiments
 
