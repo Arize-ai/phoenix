@@ -35,6 +35,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         super().__init__()
         self.violations: List[Violation] = []
         self.current_file: Path = current_file
+        self.mutations_found: int = 0  # Track total number of mutations found
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """
@@ -42,6 +43,16 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
 
         Args:
             node: The AsyncFunctionDef node being visited.
+        """
+        self._check_function_decorators(node)
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """
+        Visit synchronous function definitions to check their decorators.
+
+        Args:
+            node: The FunctionDef node being visited.
         """
         self._check_function_decorators(node)
         self.generic_visit(node)
@@ -57,6 +68,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         """
         for decorator in node.decorator_list:
             if self._is_strawberry_mutation(decorator):
+                self.mutations_found += 1  # Increment counter for each mutation found
                 if not self._has_permission_classes(decorator):
                     self.violations.append((self.current_file, node.lineno, node.name))
 
@@ -128,7 +140,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         return False
 
 
-def check_files(directory: Path) -> List[Violation]:
+def check_files(directory: Path) -> Tuple[List[Violation], int]:
     """
     Recursively check all Python files in the specified directory for violations.
 
@@ -136,10 +148,16 @@ def check_files(directory: Path) -> List[Violation]:
         directory: The directory to search for Python files.
 
     Returns:
-        A list of violations as tuples: (file_path, line_number, function_name).
+        A tuple containing:
+            - A list of violations as tuples: (file_path, line_number, function_name)
+            - Total number of mutations found across all files
     """
     violations: List[Violation] = []
+    total_mutations_found: int = 0
+    files_checked: int = 0
+
     for py_file in directory.glob("**/*.py"):
+        files_checked += 1
         print(f"Checking {py_file}")
         try:
             with py_file.open("r", encoding="utf-8") as f:
@@ -148,25 +166,33 @@ def check_files(directory: Path) -> List[Violation]:
             visitor = StrawberryMutationVisitor(py_file)
             visitor.visit(tree)
             violations.extend(visitor.violations)
+            total_mutations_found += visitor.mutations_found
         except SyntaxError:
             print(f"Syntax error in {py_file}, skipping", file=sys.stderr)
         except Exception as e:
             print(f"Error processing {py_file}: {e}", file=sys.stderr)
-    return violations
+
+    print(f"Checked {files_checked} Python files")
+    return violations, total_mutations_found
 
 
-def format_violations(violations: List[Violation]) -> None:
+def format_violations(violations: List[Violation], total_mutations: int) -> None:
     """
     Print formatted violation messages.
 
     Args:
         violations: List of violations to print.
+        total_mutations: Total number of mutations found.
     """
-    if not violations:
-        print("No violations found! All mutations have permission_classes.")
+    if total_mutations == 0:
+        print("No mutations found! This might indicate you're checking the wrong directory.")
         return
 
-    print(f"\nFound {len(violations)} violation(s):")
+    if not violations:
+        print(f"No violations found! All {total_mutations} mutations have permission_classes.")
+        return
+
+    print(f"\nFound {len(violations)} violation(s) out of {total_mutations} total mutations:")
     for file_path, line_number, func_name in violations:
         print(
             f"{file_path}:{line_number} - Missing permission_classes in @strawberry.mutation for "
@@ -179,7 +205,10 @@ def main() -> int:
     Main entry point for the script.
 
     Returns:
-        0 if no violations found, 1 if violations found, 2 for invalid directory.
+        0 if no violations found and mutations exist,
+        1 if violations found,
+        2 for invalid directory,
+        3 if no mutations found (likely wrong directory).
     """
     parser = argparse.ArgumentParser(
         description="Check for Strawberry mutations without permission_classes"
@@ -197,11 +226,20 @@ def main() -> int:
         print(f"Error: {directory} is not a valid directory", file=sys.stderr)
         return 2
 
-    violations = check_files(directory)
-    format_violations(violations)
+    violations, total_mutations = check_files(directory)
+    format_violations(violations, total_mutations)
 
-    # Return 1 if any violations are found, otherwise 0.
-    return 1 if violations else 0
+    # Return appropriate exit code based on findings
+    if total_mutations == 0:
+        print(
+            "ERROR: No mutations found in any files. Are you checking the correct directory?",
+            file=sys.stderr,
+        )
+        return 3
+    elif violations:
+        return 1
+    else:
+        return 0
 
 
 if __name__ == "__main__":
