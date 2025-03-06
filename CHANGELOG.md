@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.9.0...arize-phoenix-v8.10.0) (2025-03-06)
+
+
+### Features
+
+* **admin:** show percent used of DB ([#6722](https://github.com/Arize-ai/phoenix/issues/6722)) ([9812d2e](https://github.com/Arize-ai/phoenix/commit/9812d2e2b507ff8641f24ab6072b8b2799f225a7))
+* delete selected traces ([#6681](https://github.com/Arize-ai/phoenix/issues/6681)) ([5a2e4b6](https://github.com/Arize-ai/phoenix/commit/5a2e4b64cffb56d92ffbbcff71c2a1441197315d))
+
+
+### Bug Fixes
+
+* add model validator for template type ([#6475](https://github.com/Arize-ai/phoenix/issues/6475)) ([4d3a1bc](https://github.com/Arize-ai/phoenix/commit/4d3a1bc838d90cc0ffc41ede4c78070e53efd1c9))
+* ensure type is correct on run_experiment ([#6708](https://github.com/Arize-ai/phoenix/issues/6708)) ([995cb50](https://github.com/Arize-ai/phoenix/commit/995cb506a8a6aafa05dc99c779ef9b1de20dc4f3))
+* ignore top_p if extended thinking is enabled for playground ([#6720](https://github.com/Arize-ai/phoenix/issues/6720)) ([7549f11](https://github.com/Arize-ai/phoenix/commit/7549f1101975e83a08fe872b3fcb5fe91065cff9))
+* update strawberry ([#6716](https://github.com/Arize-ai/phoenix/issues/6716)) ([9dd5195](https://github.com/Arize-ai/phoenix/commit/9dd5195205f15fb75eee2c2fbf075371d02a962d))
+
 ## [8.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.8.0...arize-phoenix-v8.9.0) (2025-03-06)
 
 
