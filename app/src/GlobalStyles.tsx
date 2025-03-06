@@ -966,12 +966,15 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 
     // Styles for buttons
     --ac-global-button-primary-background-color: var(
-      --ac-global-color-primary-700
+      --ac-global-color-grey-900
+    );
+    --ac-global-button-primary-foreground-color: var(
+      --ac-global-color-grey-100
     );
     --ac-global-button-primary-background-color-hover: var(
-      --ac-global-color-primary-900
+      --ac-global-color-grey-800
     );
-    --ac-global-button-primary-border-color: var(--ac-global-color-primary);
+    --ac-global-button-primary-border-color: var(--ac-global-color-grey-900);
     --ac-global-button-danger-background-color: var(
       --ac-global-color-danger-700
     );
