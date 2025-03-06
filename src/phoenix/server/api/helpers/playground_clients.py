@@ -761,6 +761,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         import anthropic.types as anthropic_types
 
         anthropic_messages, system_prompt = self._build_anthropic_messages(messages)
+        invocation_parameters = dict(invocation_parameters)
         if (
             "thinking" in invocation_parameters
             and isinstance(invocation_parameters, dict)
