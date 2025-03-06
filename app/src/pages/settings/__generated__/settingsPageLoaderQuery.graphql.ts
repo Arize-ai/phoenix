@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ae688e11dc06cfe9c655b7025c5b2701>>
+ * @generated SignedSource<<5d9562447b1ec9aee54d580a20800dfd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -123,16 +123,23 @@ const node: ConcreteRequest = {
           }
         ],
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "dbStorageCapacityBytes",
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "67562b8680619368296778cb8e2183ee",
+    "cacheID": "57e864e0c3d3ad1ca6853bcc545b0b63",
     "id": null,
     "metadata": {},
     "name": "settingsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...DBUsagePieChart_data\n}\n\nfragment DBUsagePieChart_data on Query {\n  dbTableStats {\n    tableName\n    numBytes\n  }\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
+    "text": "query settingsPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...DBUsagePieChart_data\n}\n\nfragment DBUsagePieChart_data on Query {\n  dbTableStats {\n    tableName\n    numBytes\n  }\n  dbStorageCapacityBytes\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
   }
 };
 

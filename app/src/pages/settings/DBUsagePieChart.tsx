@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { schemePaired } from "d3-scale-chromatic";
 import {
@@ -11,10 +11,12 @@ import {
 } from "recharts";
 
 import { ChartTooltip, ChartTooltipItem } from "@phoenix/components/chart";
-import { storageSizeFomatter } from "@phoenix/utils/storageSizeFormatUtils";
+import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
+import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
 import { DBUsagePieChart_data$key } from "./__generated__/DBUsagePieChart_data.graphql";
 
+const REMAINING_TEXT = "remaining";
 function TooltipContent({ active, payload }: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
     return (
@@ -23,7 +25,7 @@ function TooltipContent({ active, payload }: TooltipProps<number, string>) {
           shape="square"
           color={payload[0].payload.fill || "transparent"}
           name={payload[0].name || "--"}
-          value={storageSizeFomatter(payload[0].value || 0)}
+          value={storageSizeFormatter(payload[0].value || 0)}
         />
       </ChartTooltip>
     );
@@ -44,21 +46,35 @@ export function DBUsagePieChart({
           tableName
           numBytes
         }
+        dbStorageCapacityBytes
       }
     `,
     query
   );
 
-  const totalBytes = data.dbTableStats.reduce(
+  const totalUsedBytes = data.dbTableStats.reduce(
     (acc, table) => acc + table.numBytes,
     0
   );
-
+  const remainingBytes =
+    typeof data.dbStorageCapacityBytes === "number"
+      ? data.dbStorageCapacityBytes - totalUsedBytes
+      : null;
+  const chartData = useMemo(() => {
+    const chartData = [...data.dbTableStats];
+    if (remainingBytes !== null) {
+      chartData.push({
+        tableName: REMAINING_TEXT,
+        numBytes: remainingBytes,
+      });
+    }
+    return chartData;
+  }, [data.dbTableStats, remainingBytes]);
   return (
     <ResponsiveContainer width="100%" height={245}>
       <PieChart>
         <Pie
-          data={[...data.dbTableStats]}
+          data={chartData}
           dataKey="numBytes"
           nameKey="tableName"
           cx="50%"
@@ -68,11 +84,15 @@ export function DBUsagePieChart({
           strokeWidth={0}
           stroke="transparent"
         >
-          {data.dbTableStats.map((x, index) => (
+          {chartData.map((x, index) => (
             <Cell
               stroke="0"
               key={`cell-${index}`}
-              fill={`${schemePaired[index % schemePaired.length]}`}
+              fill={
+                x.tableName === REMAINING_TEXT
+                  ? "var(--ac-global-color-grey-200)"
+                  : `${schemePaired[index % schemePaired.length]}`
+              }
             />
           ))}
         </Pie>
@@ -84,7 +104,7 @@ export function DBUsagePieChart({
           fill="var(--ac-global-text-color-900"
           fontSize="var(--ac-global-font-size-xl)"
         >
-          {`${storageSizeFomatter(totalBytes)}`}
+          {`${typeof data.dbStorageCapacityBytes === "number" ? percentFormatter((totalUsedBytes / data.dbStorageCapacityBytes) * 100) : storageSizeFormatter(totalUsedBytes)}`}
         </text>
         <text
           x="50%"
