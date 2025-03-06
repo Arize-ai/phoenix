@@ -1,7 +1,7 @@
 /**
  * Format bytes as human-readable text.
  */
-export function storageSizeFomatter(
+export function storageSizeFormatter(
   bytes: number,
   config?: {
     /**
