@@ -549,7 +549,7 @@ def create_graphql_router(
     read_only: bool = False,
     secret: Optional[str] = None,
     token_store: Optional[TokenStore] = None,
-) -> GraphQLRouter:  # type: ignore[type-arg]
+) -> GraphQLRouter:
     """Creates the GraphQL router.
 
     Args:
