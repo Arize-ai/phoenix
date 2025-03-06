@@ -128,6 +128,15 @@ const sliderCSS = css`
     flex-direction: column;
     width: 100%;
 
+    .ac-slider-number-field {
+      .react-aria-Input {
+        min-width: var(--ac-global-dimension-size-900);
+        width: var(--ac-global-dimension-size-900);
+        padding: 0 var(--ac-global-dimension-size-100);
+        text-align: right;
+      }
+    }
+
     .ac-slider-track {
       height: var(--ac-slider-track-height, var(--ac-global-border-size-thick));
       width: 100%;
@@ -223,6 +232,7 @@ export function SliderNumberField({
   const labelProps = useSlottedContext(LabelContext)!;
   return (
     <NumberField
+      className="ac-slider-number-field"
       aria-labelledby={labelProps.id}
       value={Number(value)}
       onChange={(v) => {
