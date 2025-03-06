@@ -764,6 +764,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
         if (
             "thinking" in invocation_parameters
             and isinstance(invocation_parameters, dict)
+            and "type" in invocation_parameters["thinking"]
             and invocation_parameters["thinking"]["type"] == "enabled"
         ):
             invocation_parameters.pop("top_p", None)
