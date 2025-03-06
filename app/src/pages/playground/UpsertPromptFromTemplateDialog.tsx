@@ -122,8 +122,7 @@ export const UpsertPromptFromTemplateDialog = ({
         invocationParameters["thinking"]["type"] === "enabled"
       ) {
         // https://github.com/Arize-ai/phoenix/issues/6711
-        // Create a new object without the top_p property if
-        // extended thinking is enabled.
+        // top_p is not compatible with extended thinking, so we remove it.
         delete invocationParameters.top_p;
       }
       createPrompt({
