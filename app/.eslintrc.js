@@ -118,6 +118,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      {
+        name: "Slider",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },
