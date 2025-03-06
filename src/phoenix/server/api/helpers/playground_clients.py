@@ -810,9 +810,9 @@ class AnthropicStreamingClient(PlaygroundStreamingClient):
                 elif isinstance(event, anthropic_streaming._types.CitationEvent):
                     raise NotImplementedError
                 elif isinstance(event, anthropic_streaming._types.ThinkingEvent):
-                    raise NotImplementedError
+                    yield TextChunk(content=event.thinking)
                 elif isinstance(event, anthropic_streaming._types.SignatureEvent):
-                    raise NotImplementedError
+                    pass
                 else:
                     assert_never(event)
 
