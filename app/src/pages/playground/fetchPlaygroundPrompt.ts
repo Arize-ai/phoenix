@@ -11,6 +11,7 @@ import {
   TOOL_CHOICE_PARAM_NAME,
 } from "@phoenix/pages/playground/constants";
 import {
+  applyProviderInvocationParameterConstraints,
   areInvocationParamsEqual,
   getChatRole,
   toCamelCase,
@@ -367,24 +368,28 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
         }))
         .at(0) || undefined,
     invocationParameters: invocationParametersToObject(
-      instance.model.invocationParameters
-        .filter(
-          (invocationParameter) =>
-            !HIDDEN_INVOCATION_PARAMETERS.some((hidden) =>
-              areInvocationParamsEqual(hidden, invocationParameter)
-            )
-        )
-        .concat(
-          instance.toolChoice
-            ? [
-                {
-                  invocationName: TOOL_CHOICE_PARAM_NAME,
-                  valueJson: instance.toolChoice,
-                  canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
-                },
-              ]
-            : []
-        ),
+      applyProviderInvocationParameterConstraints(
+        instance.model.invocationParameters
+          .filter(
+            (invocationParameter) =>
+              !HIDDEN_INVOCATION_PARAMETERS.some((hidden) =>
+                areInvocationParamsEqual(hidden, invocationParameter)
+              )
+          )
+          .concat(
+            instance.toolChoice
+              ? [
+                  {
+                    invocationName: TOOL_CHOICE_PARAM_NAME,
+                    valueJson: instance.toolChoice,
+                    canonicalName: TOOL_CHOICE_PARAM_CANONICAL_NAME,
+                  },
+                ]
+              : []
+          ),
+        instance.model.provider,
+        instance.model.modelName
+      ),
       instance.model.supportedInvocationParameters
     ),
   } satisfies Partial<ChatPromptVersionInput>;

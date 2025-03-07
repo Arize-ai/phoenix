@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
 
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
@@ -1031,7 +1033,11 @@ const getBaseChatCompletionInput = ({
       baseUrl: instance.model.baseUrl,
       ...azureModelParams,
     },
-    invocationParameters: invocationParameters,
+    invocationParameters: applyProviderInvocationParameterConstraints(
+      invocationParameters,
+      instance.model.provider,
+      instance.model.modelName
+    ),
     tools: instance.tools.length
       ? instance.tools.map((tool) => tool.definition)
       : undefined,
@@ -1265,3 +1271,92 @@ export function mergeInvocationParametersWithDefaults(
   // Return the new invocation parameter inputs as an array
   return Array.from(currentInvocationParametersMap.values());
 }
+
+/**
+ * Schema for validating if Anthropic extended thinking is enabled.
+ */
+const anthropicExtendedThinkingEnabledSchema = z
+  .object({
+    type: z.literal("enabled"),
+  })
+  .passthrough();
+
+/**
+ * Schema for validating Anthropic forced tool use.
+ */
+const anthropicForcedToolUseSchema = z
+  .object({
+    type: z.enum(["any", "tool"]),
+  })
+  .passthrough();
+
+/**
+ * Applies Anthropic-specific constraints to the invocation parameters.
+ *
+ * @param invocationParameters - The invocation parameters to be constrained.
+ * @param model - The model name.
+ * @returns The constrained invocation parameters.
+ */
+const applyAnthropicInvocationParameterConstraints = (
+  invocationParameters: InvocationParameterInput[],
+  model: string | null
+): InvocationParameterInput[] => {
+  if (!model) {
+    return invocationParameters;
+  }
+  // First determine if extended thinking is enabled
+  const hasExtendedThinking = invocationParameters.some(
+    (param) =>
+      param.canonicalName === "ANTHROPIC_EXTENDED_THINKING" &&
+      param.valueJson &&
+      anthropicExtendedThinkingEnabledSchema.safeParse(param.valueJson).success
+  );
+  // Filter parameters in a single pass
+  return invocationParameters.filter((param) => {
+    // Skip null/undefined valueJson for extended thinking
+    if (
+      param.canonicalName === "ANTHROPIC_EXTENDED_THINKING" &&
+      !param.valueJson
+    ) {
+      return false;
+    }
+    // If extended thinking is enabled, apply specific constraints
+    if (hasExtendedThinking) {
+      // Remove temperature and top_p when extended thinking is enabled
+      if (
+        param.canonicalName === "TEMPERATURE" ||
+        param.canonicalName === "TOP_P"
+      ) {
+        return false;
+      }
+      // Remove forced tool use because it's not compatible with extended thinking
+      if (param.canonicalName === TOOL_CHOICE_PARAM_CANONICAL_NAME) {
+        return !anthropicForcedToolUseSchema.safeParse(param.valueJson).success;
+      }
+    }
+    // Keep all other parameters
+    return true;
+  });
+};
+
+/**
+ * Applies provider-specific constraints to the invocation parameters.
+ *
+ * @param invocationParameters - The invocation parameters to be constrained.
+ * @param provider - The provider of the model.
+ * @param model - The model name.
+ * @returns The constrained invocation parameters.
+ */
+export const applyProviderInvocationParameterConstraints = (
+  invocationParameters: InvocationParameterInput[],
+  provider: ModelProvider,
+  model: string | null
+): InvocationParameterInput[] => {
+  if (provider === "ANTHROPIC") {
+    return applyAnthropicInvocationParameterConstraints(
+      invocationParameters,
+      model
+    );
+  }
+  return invocationParameters;
+};
