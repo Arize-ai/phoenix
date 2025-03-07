@@ -286,6 +286,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
+            scripts/ci/
             requirements/
             src/phoenix/
             packages/phoenix-client/
@@ -305,6 +306,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Check types
         run: uvx --with tox-uv tox run -e type_check
+      - name: Ensure GraphQL mutations have permission classes
+        run: uvx --with tox-uv tox run -e ensure_graphql_mutations_have_permission_classes
 
   type-check-unit-tests:
     name: Type Check Unit Tests
