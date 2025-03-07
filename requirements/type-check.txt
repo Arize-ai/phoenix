@@ -1,5 +1,4 @@
 -r ci.txt
-anthropic>=0.45.2
 asyncpg
 grpcio
 litellm>=1.0.3

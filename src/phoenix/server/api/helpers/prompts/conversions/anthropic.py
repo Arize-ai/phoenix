@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     )
 
     from phoenix.server.api.helpers.prompts.models import (
+        PromptToolChoiceNone,
         PromptToolChoiceOneOrMore,
         PromptToolChoiceSpecificFunctionTool,
         PromptToolChoiceZeroOrMore,
@@ -23,6 +24,7 @@ class AnthropicToolChoiceConversion:
     @staticmethod
     def to_anthropic(
         obj: Union[
+            PromptToolChoiceNone,
             PromptToolChoiceZeroOrMore,
             PromptToolChoiceOneOrMore,
             PromptToolChoiceSpecificFunctionTool,
@@ -44,6 +46,8 @@ class AnthropicToolChoiceConversion:
             if disable_parallel_tool_use is not None:
                 choice_tool["disable_parallel_tool_use"] = disable_parallel_tool_use
             return choice_tool
+        if obj.type == "none":
+            return {"type": "none"}
         assert_never(obj.type)
 
     @staticmethod
@@ -51,6 +55,7 @@ class AnthropicToolChoiceConversion:
         obj: ToolChoiceParam,
     ) -> tuple[
         Union[
+            PromptToolChoiceNone,
             PromptToolChoiceZeroOrMore,
             PromptToolChoiceOneOrMore,
             PromptToolChoiceSpecificFunctionTool,
@@ -58,6 +63,7 @@ class AnthropicToolChoiceConversion:
         Optional[bool],
     ]:
         from phoenix.server.api.helpers.prompts.models import (
+            PromptToolChoiceNone,
             PromptToolChoiceOneOrMore,
             PromptToolChoiceSpecificFunctionTool,
             PromptToolChoiceZeroOrMore,
@@ -84,4 +90,6 @@ class AnthropicToolChoiceConversion:
                 function_name=obj["name"],
             )
             return choice_function_tool, disable_parallel_tool_use
+        if obj["type"] == "none":
+            return PromptToolChoiceNone(type="none"), None
         assert_never(obj)
