@@ -39,7 +39,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -323,7 +323,7 @@ export function SpansTable(props: SpansTableProps) {
       maxSize: 100,
       enableSorting: false,
       cell: ({ getValue }) => {
-        return <SpanKindLabel spanKind={getValue() as string} />;
+        return <SpanKindToken spanKind={getValue() as string} />;
       },
     },
     {

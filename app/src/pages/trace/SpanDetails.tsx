@@ -62,7 +62,7 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -243,7 +243,7 @@ export function SpanDetails({
             height="100%"
             alignItems="center"
           >
-            <SpanKindLabel spanKind={span.spanKind} />
+            <SpanKindToken spanKind={span.spanKind} />
             <Text>{span.name}</Text>
           </Flex>
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
