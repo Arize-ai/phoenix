@@ -261,7 +261,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               </Suspense>
             </PopoverTrigger>
             <LegacyButton
-              variant="primary"
+              variant="danger"
               size="compact"
               icon={
                 <Icon
@@ -277,7 +277,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
               isDisabled={isDeletingTraces}
               onClick={onDeleteClick}
             >
-              {isDeletingTraces ? "Deleting..." : "Delete traces"}
+              {isDeletingTraces ? "Deleting..." : "Delete"}
             </LegacyButton>
           </Flex>
         </Flex>
