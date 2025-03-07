@@ -8,7 +8,7 @@ description: The latest releases from the Phoenix team.
 
 **Available in Phoenix 8.6+**
 
-{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/metadata_filters.png" %}
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/metadata_projects.png" %}
 
 We’ve introduced several enhancements to **Projects**, providing greater flexibility and control over how you interact with data. These updates include:
 
