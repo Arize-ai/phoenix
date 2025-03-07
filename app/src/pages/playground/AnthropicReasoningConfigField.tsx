@@ -5,9 +5,11 @@ import { Switch } from "@arizeai/components";
 
 import { Input, Label, NumberField, Text } from "@phoenix/components";
 
+const MINIMUM_BUDGET_TOKENS = 1024;
+
 const thinkingSchema = z.object({
   type: z.literal("enabled"),
-  budget_tokens: z.number().optional(),
+  budget_tokens: z.number().min(MINIMUM_BUDGET_TOKENS),
 });
 
 type AnthropicReasoningConfigFieldProps = {
@@ -30,9 +32,7 @@ export const AnthropicReasoningConfigField = ({
     if (enabled) {
       onChange({
         type: "enabled",
-        ...(lastBudgetTokens.current != null
-          ? { budget_tokens: lastBudgetTokens.current }
-          : {}),
+        budget_tokens: lastBudgetTokens.current || MINIMUM_BUDGET_TOKENS,
       });
     } else {
       onChange(null);
@@ -41,10 +41,10 @@ export const AnthropicReasoningConfigField = ({
 
   const handleBudgetTokensChange = (value: number | undefined) => {
     const hasBudget = value != null && !isNaN(value);
-    lastBudgetTokens.current = hasBudget ? value : undefined;
+    lastBudgetTokens.current = hasBudget ? value : MINIMUM_BUDGET_TOKENS;
     onChange({
       type: "enabled",
-      ...(hasBudget ? { budget_tokens: value } : {}),
+      budget_tokens: lastBudgetTokens.current,
     });
     if (!hasBudget) {
       setThinkingBudgetVersion((v) => v + 1);
@@ -65,12 +65,15 @@ export const AnthropicReasoningConfigField = ({
           value={configuration?.budget_tokens}
           onChange={handleBudgetTokensChange}
           isDisabled={configuration?.type !== "enabled"}
+          isRequired={true}
+          defaultValue={MINIMUM_BUDGET_TOKENS}
+          minValue={MINIMUM_BUDGET_TOKENS}
         >
           <Label>Budget Tokens</Label>
           <Input />
           <Text slot="description">
-            (optional) The maximum number of tokens that can be used for
-            reasoning.
+            Determines how many tokens Claude can use for its internal reasoning
+            process. Must be ≥1024 and less than max_tokens.
           </Text>
         </NumberField>
       )}
