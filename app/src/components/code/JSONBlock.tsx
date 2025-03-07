@@ -1,7 +1,7 @@
 import React from "react";
 import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {
   EditorView,
   ReactCodeMirrorProps,
@@ -18,7 +18,7 @@ type JSONBlockProps = Omit<
 
 export function JSONBlock(props: JSONBlockProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <CodeMirror
       value={props.value}

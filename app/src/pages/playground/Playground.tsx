@@ -18,7 +18,10 @@ import {
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
-import { resizeHandleCSS } from "@phoenix/components/resize";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import {
@@ -296,7 +299,7 @@ function PlaygroundContent() {
             </DisclosureGroup>
           </div>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           {isDatasetMode ? (
             <Suspense fallback={<Loading />}>

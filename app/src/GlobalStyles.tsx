@@ -164,24 +164,6 @@ export const darkThemeCSS = css`
   .ac-theme--dark {
     /* Colors */
 
-    // The primary color tint for  the apps
-    --ac-global-color-primary: rgb(255, 255, 255);
-    --ac-global-color-primary-900: rgba(255, 255, 255, 0.9);
-    --ac-global-color-primary-700: rgba(255, 255, 255, 0.7);
-    --ac-global-color-primary-500: rgba(255, 255, 255, 0.5);
-    --ac-global-color-primary-300: rgba(255, 255, 255, 0.3);
-
-    // These colors are legacy
-    --ac-global-color-gray-900: #181b1f;
-    --ac-global-color-gray-800: #1d2126;
-    --ac-global-color-gray-700: #23282e;
-    --ac-global-color-gray-600: #282e35;
-    --ac-global-color-gray-500: #2f353d;
-    --ac-global-color-gray-400: #3d434a;
-    --ac-global-color-gray-300: #4a5057;
-    --ac-global-color-gray-200: #585d64;
-    --ac-global-color-gray-100: #666b71;
-
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 0, 0, 0;
     --ac-global-color-grey-50: rgb(var(--ac-global-color-grey-50-rgb));
@@ -677,6 +659,9 @@ export const darkThemeCSS = css`
     --ac-global-text-color-700: rgba(255, 255, 255, 0.7);
     --ac-global-text-color-500: rgba(255, 255, 255, 0.5);
     --ac-global-text-color-300: rgba(255, 255, 255, 0.3);
+
+    // Link colors
+    --ac-global-link-color: rgb(114, 217, 255);
   }
 `;
 
@@ -684,13 +669,6 @@ export const lightThemeCSS = css`
   :root,
   .ac-theme--light {
     /* Colors */
-
-    // The primary color tint for  the apps
-    --ac-global-color-primary: rgb(47, 47, 47);
-    --ac-global-color-primary-900: rgba(47, 47, 47, 0.9);
-    --ac-global-color-primary-700: rgba(47, 47, 47, 0.7);
-    --ac-global-color-primary-500: rgba(47, 47, 47, 0.5);
-    --ac-global-color-primary-300: rgba(47, 47, 47, 0.3);
 
     // The newer grays (grey)
     --ac-global-color-grey-50-rgb: 255, 255, 255;
@@ -925,12 +903,53 @@ export const lightThemeCSS = css`
     --ac-global-text-color-700: rgba(0, 0, 0, 0.7);
     --ac-global-text-color-500: rgba(0, 0, 0, 0.5);
     --ac-global-text-color-300: rgba(0, 0, 0, 0.3);
+
+    --ac-global-link-color: rgb(9, 105, 218);
   }
 `;
 
 export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
   :root,
   .ac-theme--${theme} {
+    // The primary color tint for  the apps
+    --ac-global-color-primary: var(--ac-global-color-grey-900);
+    --ac-global-color-primary-900: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.9
+    );
+    --ac-global-color-primary-800: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.8
+    );
+    --ac-global-color-primary-700: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.7
+    );
+    --ac-global-color-primary-600: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.6
+    );
+    --ac-global-color-primary-500: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.5
+    );
+    --ac-global-color-primary-400: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.4
+    );
+    --ac-global-color-primary-300: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.3
+    );
+    --ac-global-color-primary-200: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.2
+    );
+    --ac-global-color-primary-100: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.1
+    );
+
     --ac-global-background-color-default: var(--ac-global-color-grey-100);
     --ac-global-background-color-light: var(--ac-global-color-grey-200);
     --ac-global-background-color-light-hover: var(--ac-global-color-grey-300);
@@ -1152,6 +1171,25 @@ const appGlobalStylesCSS = css`
   }
 `;
 
+const codeMirrorOverridesCSS = css`
+  .ac-theme--light {
+    .cm-editor {
+      background-color: rgba(255, 255, 255, 0.5) !important;
+    }
+    .cm-gutters {
+      background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+  }
+  .ac-theme--dark {
+    .cm-editor {
+      background-color: rgba(0, 0, 0, 0.4) !important;
+    }
+    .cm-gutters {
+      background-color: rgba(0, 0, 0, 0.2) !important;
+    }
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1164,7 +1202,8 @@ export function GlobalStyles() {
         derivedCSS(theme),
         mediumRootCSS,
         opacitiesCSS,
-        appGlobalStylesCSS
+        appGlobalStylesCSS,
+        codeMirrorOverridesCSS
       )}
     />
   );
