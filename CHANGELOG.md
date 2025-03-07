@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.10.0...arize-phoenix-v8.11.0) (2025-03-07)
+
+
+### Features
+
+* Port slider component to react-aria ([#6719](https://github.com/Arize-ai/phoenix/issues/6719)) ([5b61fc4](https://github.com/Arize-ai/phoenix/commit/5b61fc47b589de05670388edce4fe8b75485afa7))
+* Specialized UI for thinking budget parameter ([#6726](https://github.com/Arize-ai/phoenix/issues/6726)) ([86054c3](https://github.com/Arize-ai/phoenix/commit/86054c350f6f682c31d39af0c717e45678709e64))
+
+
+### Bug Fixes
+
+* typo in variable reference ([#6727](https://github.com/Arize-ai/phoenix/issues/6727)) ([33f3f21](https://github.com/Arize-ai/phoenix/commit/33f3f217146b07fee699cbc5d36233b7ea21fa7a))
+
 ## [8.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.9.0...arize-phoenix-v8.10.0) (2025-03-06)
 
 
