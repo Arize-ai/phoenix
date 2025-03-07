@@ -115,11 +115,10 @@ export const UpsertPromptFromTemplateDialog = ({
       };
       if (
         promptInput.modelProvider === "ANTHROPIC" &&
-        "thinking" in invocationParameters &&
-        invocationParameters["thinking"] != null &&
-        typeof invocationParameters["thinking"] === "object" &&
-        "type" in invocationParameters["thinking"] &&
-        invocationParameters["thinking"]["type"] === "enabled"
+        invocationParameters.thinking &&
+        typeof invocationParameters.thinking === "object" &&
+        "type" in invocationParameters.thinking &&
+        invocationParameters.thinking.type === "enabled"
       ) {
         // https://github.com/Arize-ai/phoenix/issues/6711
         // top_p is not compatible with extended thinking, so we remove it.
