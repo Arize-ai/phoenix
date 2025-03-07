@@ -12,18 +12,30 @@ Usage:
 import argparse
 import ast
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Literal, Tuple, Union
 
-# Define types for issues
+# Define issue type
 IssueType = Literal["no_permission_classes", "missing_is_not_read_only"]
+
+# Define issue descriptions
 ISSUE_DESCRIPTIONS: Dict[IssueType, str] = {
     "no_permission_classes": "Missing permission_classes keyword",
     "missing_is_not_read_only": "permission_classes exists but missing IsNotReadOnly",
 }
 
-# Define a type alias for a issue record (file path, line number, function name, issue type)
-Issue = Tuple[Path, int, str, IssueType]
+
+@dataclass
+class Issue:
+    """
+    Represents a permission issue found in a Strawberry GraphQL mutation.
+    """
+
+    file_path: Path
+    line_number: int
+    function_name: str
+    issue_type: IssueType
 
 
 class StrawberryMutationVisitor(ast.NodeVisitor):
@@ -81,12 +93,22 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
                 if not has_permission_classes:
                     # Issue: No permission_classes keyword found
                     self.issues.append(
-                        (self.current_file, node.lineno, node.name, "no_permission_classes")
+                        Issue(
+                            file_path=self.current_file,
+                            line_number=node.lineno,
+                            function_name=node.name,
+                            issue_type="no_permission_classes",
+                        )
                     )
                 elif not has_is_not_read_only:
                     # Issue: permission_classes exists but missing IsNotReadOnly
                     self.issues.append(
-                        (self.current_file, node.lineno, node.name, "missing_is_not_read_only")
+                        Issue(
+                            file_path=self.current_file,
+                            line_number=node.lineno,
+                            function_name=node.name,
+                            issue_type="missing_is_not_read_only",
+                        )
                     )
 
     def _is_strawberry_mutation(self, decorator: ast.expr) -> bool:
@@ -175,7 +197,7 @@ def check_files(directory: Path) -> Tuple[List[Issue], int]:
 
     Returns:
         A tuple containing:
-            - A list of issues as tuples: (file_path, line_number, function_name, issue_type)
+            - A list of issues
             - Total number of mutations found across all files
     """
     issues: List[Issue] = []
@@ -225,16 +247,18 @@ def format_issues(issues: List[Issue], total_mutations: int) -> None:
     }
 
     for issue in issues:
-        by_issue_type[issue[3]].append(issue)
+        by_issue_type[issue.issue_type].append(issue)
 
     print(f"\nFound {len(issues)} issue(s) out of {total_mutations} total mutations:")
 
     # Print each issue type separately
-    for issue_type, issues in by_issue_type.items():
-        if issues:
-            print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(issues)} occurrences):")
-            for file_path, line_number, func_name, _ in issues:
-                print(f"  - {file_path}:{line_number} - function '{func_name}'")
+    for issue_type, type_issues in by_issue_type.items():
+        if type_issues:
+            print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(type_issues)} occurrences):")
+            for issue in type_issues:
+                print(
+                    f"  - {issue.file_path}:{issue.line_number} - function '{issue.function_name}'"
+                )
 
 
 def main() -> int:
@@ -256,11 +280,6 @@ def main() -> int:
         default=".",
         help="Directory to search for Python files (default: current directory)",
     )
-    parser.add_argument(
-        "--summary",
-        action="store_true",
-        help="Only show summary counts without detailed issue listings",
-    )
     args = parser.parse_args()
 
     directory = Path(args.directory)
@@ -269,18 +288,7 @@ def main() -> int:
         return 2
 
     issues, total_mutations = check_files(directory)
-
-    if args.summary:
-        # Count by issue type
-        issue_counts = {
-            issue: len([v for v in issues if v[3] == issue]) for issue in ISSUE_DESCRIPTIONS
-        }
-        print(f"\nSummary (total mutations: {total_mutations}):")
-        for issue, count in issue_counts.items():
-            print(f"- {ISSUE_DESCRIPTIONS[issue]}: {count}")
-        print(f"- Total issues: {len(issues)}")
-    else:
-        format_issues(issues, total_mutations)
+    format_issues(issues, total_mutations)
 
     # Return appropriate exit code based on findings
     if total_mutations == 0:
