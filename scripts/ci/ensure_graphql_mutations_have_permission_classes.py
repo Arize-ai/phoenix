@@ -14,7 +14,7 @@ import ast
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Literal, Tuple, Union
+from typing import Dict, List, Literal, Set, Tuple, Union
 
 # Define issue type
 IssueType = Literal["no_permission_classes", "missing_is_not_read_only"]
@@ -37,6 +37,10 @@ class Issue:
     function_name: str
     issue_type: IssueType
 
+    def __str__(self) -> str:
+        """Return a string representation of the issue for easy reporting."""
+        return f"{self.file_path}:{self.line_number} - function '{self.function_name}'"
+
 
 class StrawberryMutationVisitor(ast.NodeVisitor):
     """
@@ -54,6 +58,23 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         self.issues: List[Issue] = []
         self.current_file: Path = current_file
         self.mutations_found: int = 0  # Track total number of mutations found
+        # Keep track of imported names to better detect strawberry mutations
+        self.imported_names: Set[str] = set()
+
+    def visit_Import(self, node: ast.Import) -> None:
+        """Track imported modules."""
+        for name in node.names:
+            if name.name == "strawberry":
+                self.imported_names.add("strawberry")
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        """Track imports from specific modules."""
+        if node.module == "strawberry":
+            for name in node.names:
+                if name.name == "mutation":
+                    self.imported_names.add("mutation")
+        self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """
@@ -138,7 +159,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
 
         # Case 2: mutation() call (imported directly)
         if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name):
-            if decorator.func.id == "mutation":
+            if decorator.func.id == "mutation" and "mutation" in self.imported_names:
                 return True
 
         # Case 3: strawberry.mutation attribute
@@ -152,7 +173,7 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
 
         # Case 4: mutation attribute (imported directly)
         if isinstance(decorator, ast.Name):
-            if decorator.id == "mutation":
+            if decorator.id == "mutation" and "mutation" in self.imported_names:
                 return True
 
         return False
@@ -179,11 +200,18 @@ class StrawberryMutationVisitor(ast.NodeVisitor):
         for keyword in decorator.keywords:
             if keyword.arg == "permission_classes":
                 has_permission_classes = True
+
+                # Check for IsNotReadOnly in the list
                 if isinstance(keyword.value, ast.List):
                     for elt in keyword.value.elts:
                         if isinstance(elt, ast.Name) and elt.id == "IsNotReadOnly":
                             has_is_not_read_only = True
                             break
+                # Also support imported permissions from a module
+                elif isinstance(keyword.value, ast.Attribute):
+                    # Check for cases like permissions.IsNotReadOnly
+                    if keyword.value.attr == "IsNotReadOnly":
+                        has_is_not_read_only = True
 
         return has_permission_classes, has_is_not_read_only
 
@@ -256,9 +284,7 @@ def format_issues(issues: List[Issue], total_mutations: int) -> None:
         if type_issues:
             print(f"\n{ISSUE_DESCRIPTIONS[issue_type]} ({len(type_issues)} occurrences):")
             for issue in type_issues:
-                print(
-                    f"  - {issue.file_path}:{issue.line_number} - function '{issue.function_name}'"
-                )
+                print(f"  - {issue}")
 
 
 def main() -> int:
