@@ -18,10 +18,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
-import {
-  compactResizeHandleCSS,
-  resizeHandleCSS,
-} from "@phoenix/components/resize";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import {
