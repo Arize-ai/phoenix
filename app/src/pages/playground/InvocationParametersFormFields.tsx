@@ -15,6 +15,7 @@ import {
   TextField,
 } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
 import { Mutable } from "@phoenix/typeUtils";
 
 import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
@@ -64,6 +65,12 @@ const InvocationParameterFormField = ({
     field.maxValue != null
       ? `${field.label || invocationName} must be at most ${field.maxValue}`
       : undefined;
+
+  // special case for anthropic reasoning config
+  if (field.canonicalName === "ANTHROPIC_EXTENDED_THINKING") {
+    return <AnthropicReasoningConfigField onChange={onChange} value={value} />;
+  }
+
   const { __typename } = field;
   switch (__typename) {
     case "InvocationParameterBase":
