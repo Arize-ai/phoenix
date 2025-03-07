@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
@@ -52,7 +52,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const { filterIoSubstring, setFilterIoSubstring } = useSessionSearchContext();
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "dark" ? nord : undefined;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
 
   const hasSubstring = filterIoSubstring !== "";
   return (

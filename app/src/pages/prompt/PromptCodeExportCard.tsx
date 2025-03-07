@@ -103,7 +103,11 @@ export function PromptCodeExportCard({
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex gap="size-100" alignItems="center">
-          <CodeLanguageRadioGroup language={language} onChange={setLanguage} />
+          <CodeLanguageRadioGroup
+            language={language}
+            onChange={setLanguage}
+            size="S"
+          />
         </Flex>
       }
     >
@@ -122,17 +126,15 @@ export function PromptCodeExportCard({
             </Flex>
           </DisclosureTrigger>
           <DisclosurePanel>
-            <View padding="size-100">
-              {sdkSnippet == null ? (
-                <View width="100%" padding="size-200">
-                  <Text color="text-300">
-                    No code snippet available for this prompt
-                  </Text>
-                </View>
-              ) : (
-                <CodeBlock language={language} value={sdkSnippet} />
-              )}
-            </View>
+            {sdkSnippet == null ? (
+              <View width="100%" padding="size-200">
+                <Text color="text-300">
+                  No code snippet available for this prompt
+                </Text>
+              </View>
+            ) : (
+              <CodeBlock language={language} value={sdkSnippet} />
+            )}
           </DisclosurePanel>
         </Disclosure>
         <Disclosure id="client">
@@ -151,17 +153,15 @@ export function PromptCodeExportCard({
             </Flex>
           </DisclosureTrigger>
           <DisclosurePanel>
-            <View padding="size-100">
-              {clientSnippet == null ? (
-                <View width="100%" padding="size-200">
-                  <Text color="text-300">
-                    No client code snippet available for this prompt
-                  </Text>
-                </View>
-              ) : (
-                <CodeBlock language={language} value={clientSnippet} />
-              )}
-            </View>
+            {clientSnippet == null ? (
+              <View width="100%" padding="size-200">
+                <Text color="text-300">
+                  No client code snippet available for this prompt
+                </Text>
+              </View>
+            ) : (
+              <CodeBlock language={language} value={clientSnippet} />
+            )}
           </DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>

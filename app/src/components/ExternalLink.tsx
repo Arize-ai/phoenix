@@ -14,7 +14,7 @@ export function ExternalLink({ href, children }: ExternalLinkProps) {
       href={href}
       target="_blank"
       css={css`
-        color: var(--ac-global-color-primary);
+        color: var(--ac-global-link-color);
         text-decoration: none;
         position: relative;
         &:hover {

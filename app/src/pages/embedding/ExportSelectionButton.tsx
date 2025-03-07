@@ -1,7 +1,7 @@
 import React, { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { python } from "@codemirror/lang-python";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
@@ -47,7 +47,7 @@ const codeMirrorCSS = css`
 `;
 function CodeBlock({ value }: { value: string }) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <CodeMirror
       value={value}

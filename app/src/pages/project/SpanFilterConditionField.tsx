@@ -11,7 +11,7 @@ import {
   CompletionResult,
 } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
@@ -262,7 +262,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     useSpanFilterCondition();
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "dark" ? nord : undefined;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
 
   const { projectId } = useParams();
 
@@ -332,7 +332,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             <button
               css={css`
                 color: var(--ac-global-text-color-700);
-                background-color: var(--ac-global-color-grey-400);
+                background-color: var(--ac-global-color-grey-300);
                 padding-left: var(--ac-global-dimension-static-size-100);
                 padding-right: var(--ac-global-dimension-static-size-100);
                 height: 100%;
@@ -439,7 +439,7 @@ function FilterConditionSnippet(props: {
   const { initialSnippet, onAddFilterConditionSnippet } = props;
   const [snippet, setSnippet] = useState<string>(initialSnippet);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <Field label={props.label}>
       <Flex direction="row" width="100%" gap="size-100">

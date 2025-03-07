@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { defaultKeymap } from "@codemirror/commands";
-import { githubLight } from "@uiw/codemirror-theme-github";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import ReactCodeMirror, {
   BasicSetupOptions,
   EditorView,
@@ -65,7 +64,7 @@ export const VariableEditor = ({
     setInitialValue(valueRef.current);
     setVersion((prev) => prev + 1);
   }, [label]);
-  const codeMirrorTheme = theme === "light" ? githubLight : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   return (
     <Field label={label}>
       <CodeWrap width="100%">

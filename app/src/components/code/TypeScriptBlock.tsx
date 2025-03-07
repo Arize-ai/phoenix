@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { javascript } from "@codemirror/lang-javascript";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {
   BasicSetupOptions,
   ReactCodeMirrorProps,
@@ -19,7 +19,7 @@ type TypeScriptBlockProps = Omit<
 
 export function TypeScriptBlock(props: TypeScriptBlockProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   const { basicSetup: propsBasicSetup } = props;
 
   const basicSetup = useMemo(() => {

@@ -23,11 +23,16 @@ export function PromptsPage() {
         borderBottomColor="dark"
         flex="none"
       >
-        <Flex direction="row" justifyContent="space-between">
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
           <Heading level={1}>Prompts</Heading>
           <LinkButton
-            size="S"
-            leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+            size="M"
+            leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+            variant="primary"
             to="/playground"
           >
             Create Prompt

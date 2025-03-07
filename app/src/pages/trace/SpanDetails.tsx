@@ -9,7 +9,7 @@ import React, {
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
@@ -1640,7 +1640,7 @@ function CopyToClipboard({
  */
 function JSONBlock({ children }: { children: string }) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   // We need to make sure that the content can actually be displayed
   // As JSON as we cannot fully trust the backend to always send valid JSON
   const { value, mimeType } = useMemo(() => {

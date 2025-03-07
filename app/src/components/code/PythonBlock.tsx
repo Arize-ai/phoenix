@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { python } from "@codemirror/lang-python";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {
   BasicSetupOptions,
   ReactCodeMirrorProps,
@@ -18,7 +18,7 @@ type PythonBlockProps = Omit<
 
 export function PythonBlock(props: PythonBlockProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   const { basicSetup: propsBasicSetup = {} } = props;
   const basicSetup = useMemo(() => {
     return {

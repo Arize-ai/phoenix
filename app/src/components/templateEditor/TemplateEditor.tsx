@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { defaultKeymap } from "@codemirror/commands";
-import { githubLight } from "@uiw/codemirror-theme-github";
-import { nord } from "@uiw/codemirror-theme-nord";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, {
   BasicSetupOptions,
   EditorView,
@@ -56,7 +55,7 @@ export const TemplateEditor = ({
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : nord;
+  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [...baseExtensions];
     switch (templateFormat) {

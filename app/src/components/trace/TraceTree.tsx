@@ -367,8 +367,8 @@ function SpanNodeWrap(
           background-color: var(--ac-global-color-grey-200);
         }
         &.is-selected {
-          background-color: var(--ac-global-color-primary-300);
-          border-color: var(--ac-global-color-primary);
+          background-color: var(--ac-global-color-primary-100);
+          border-color: var(--ac-global-color-primary-200);
         }
         & > *:first-child {
           margin-left: calc(
