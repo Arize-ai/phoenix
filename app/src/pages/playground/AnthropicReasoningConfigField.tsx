@@ -55,7 +55,7 @@ export const AnthropicReasoningConfigField = ({
     <>
       <Switch
         onChange={handleEnabledChange}
-        isSelected={Boolean(configuration?.type === "enabled")}
+        isSelected={configuration?.type === "enabled"}
       >
         Thinking Enabled
       </Switch>
