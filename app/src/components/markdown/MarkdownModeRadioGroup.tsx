@@ -1,13 +1,6 @@
 import React from "react";
 
-import { FileTextOutline } from "@arizeai/components";
-
-import {
-  Icon,
-  Icons,
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@phoenix/components";
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
@@ -49,10 +42,10 @@ export function MarkdownModeRadioGroup({
       }}
     >
       <ToggleButton aria-label="text" id="text">
-        <Icon svg={<Icons.TextOutline />} />
+        Text
       </ToggleButton>
       <ToggleButton aria-label="markdown" id="markdown">
-        <Icon svg={<FileTextOutline />} />
+        Markdown
       </ToggleButton>
     </ToggleButtonGroup>
   );

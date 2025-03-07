@@ -14,6 +14,7 @@ export const buttonCSS = css`
   box-sizing: border-box;
   border-radius: var(--ac-global-rounding-small);
   color: var(--ac-global-text-color-900);
+  transition: background-color 0.2s ease-in-out;
   cursor: pointer;
   /* Disable outline since there are other mechanisms to show focus */
   outline: none;
@@ -57,7 +58,7 @@ export const buttonCSS = css`
   &[data-variant="primary"] {
     background-color: var(--ac-global-button-primary-background-color);
     border-color: var(--ac-global-button-primary-border-color);
-    color: var(--ac-global-static-color-white-900);
+    color: var(--ac-global-button-primary-foreground-color);
     &:hover:not([disabled]) {
       background-color: var(--ac-global-button-primary-background-color-hover);
     }
@@ -89,7 +90,7 @@ export const buttonCSS = css`
   }
 
   kbd {
-    background-color: var(--ac-global-text-color-300);
+    background-color: var(--ac-global-color-grey-700);
     border-radius: var(--ac-global-rounding-small);
     padding: var(--ac-global-dimension-static-size-50);
     font-size: var(--ac-global-font-size-xs);

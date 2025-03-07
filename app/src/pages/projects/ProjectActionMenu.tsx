@@ -165,6 +165,7 @@ export function ProjectActionMenu({
     >
       <ActionMenu
         buttonVariant="quiet"
+        buttonSize="compact"
         align="end"
         onAction={(action) => {
           switch (action as ProjectAction) {

@@ -57,11 +57,11 @@ const navLinkCSS = css`
 
   &.active {
     color: var(--ac-global-color-grey-1200);
-    background-color: var(--ac-global-color-primary-300);
+    background-color: var(--ac-global-color-primary-200);
   }
   &:hover:not(.active) {
     color: var(--ac-global-color-grey-1200);
-    background-color: var(--ac-global-color-grey-200);
+    background-color: var(--ac-global-color-grey-100);
   }
   & > .ac-icon-wrap {
     padding: var(--ac-global-dimension-size-50);

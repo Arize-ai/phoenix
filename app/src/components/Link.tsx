@@ -12,7 +12,7 @@ export function Link(props: LinkProps) {
     >
       <RouterLink
         css={css`
-          color: var(--ac-global-color-primary);
+          color: var(--ac-global-link-color);
           &:not(:hover) {
             text-decoration: none;
           }

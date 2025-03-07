@@ -301,7 +301,6 @@ function ProjectItem({
         border: 1px solid var(--ac-global-color-grey-400);
         background-color: var(--ac-global-color-grey-100);
         border-radius: var(--ac-global-rounding-medium);
-        height: var(--ac-global-dimension-size-1250);
         width: var(--ac-global-dimension-size-3600);
         transition: border-color 0.2s;
         &:hover {
@@ -310,6 +309,7 @@ function ProjectItem({
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        gap: var(--ac-global-dimension-size-200);
       `}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
@@ -342,7 +342,6 @@ function ProjectItem({
           onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
-
       <Flex direction="row" justifyContent="space-between">
         <Flex direction="column" flex="none">
           <Text elementType="h3" size="S" color="text-700">
