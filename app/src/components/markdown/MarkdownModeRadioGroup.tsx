@@ -1,13 +1,6 @@
 import React from "react";
 
-import { FileTextOutline } from "@arizeai/components";
-
-import {
-  Icon,
-  Icons,
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@phoenix/components";
+import { ToggleButton, ToggleButtonGroup } from "@phoenix/components";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
 import { MarkdownDisplayMode } from "./types";
