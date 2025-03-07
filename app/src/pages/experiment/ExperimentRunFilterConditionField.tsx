@@ -46,7 +46,7 @@ const codeMirrorCSS = css`
     padding: var(--ac-global-dimension-static-size-100) 0;
   }
   .cm-editor {
-    background-color: transparent;
+    background-color: transparent !important;
   }
   .cm-focused {
     outline: none;
