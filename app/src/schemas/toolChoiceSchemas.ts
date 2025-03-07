@@ -28,6 +28,9 @@ export type OpenaiToolChoice = z.infer<typeof openAIToolChoiceSchema>;
  */
 export const anthropicToolChoiceSchema = z.discriminatedUnion("type", [
   z.object({
+    type: z.literal("none"),
+  }),
+  z.object({
     type: z.literal("auto"),
     disable_parallel_tool_use: z.boolean().optional(),
   }),
@@ -48,6 +51,7 @@ export const anthropicToolChoiceToOpenaiToolChoice =
   anthropicToolChoiceSchema.transform((anthropic): OpenaiToolChoice => {
     switch (anthropic.type) {
       case "any":
+        return "required";
       case "auto":
         return "auto";
       case "tool":
@@ -58,6 +62,8 @@ export const anthropicToolChoiceToOpenaiToolChoice =
           type: "function",
           function: { name: anthropic.name },
         };
+      case "none":
+        return "none";
       default:
         return "auto";
     }
@@ -70,6 +76,7 @@ export const openAIToolChoiceToAnthropicToolChoice =
     }
     switch (openAI) {
       case "none":
+        return { type: "none" };
       case "auto":
         return { type: "auto" };
       case "required":

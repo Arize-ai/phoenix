@@ -22,7 +22,7 @@ import { assertUnreachable, isObject } from "@phoenix/typeUtils";
 export const DEFAULT_TOOL_CHOICES_BY_PROVIDER = {
   OPENAI: ["required", "auto", "none"] as const,
   AZURE_OPENAI: ["required", "auto", "none"] as const,
-  ANTHROPIC: ["auto", "any"] as const,
+  ANTHROPIC: ["any", "auto", "none"] as const,
 } satisfies Partial<
   Record<ModelProvider, (string | Record<string, unknown>)[]>
 >;
