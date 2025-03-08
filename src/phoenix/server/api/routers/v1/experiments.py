@@ -486,28 +486,35 @@ async def get_experiment_csv(
         )
 
         runs_and_revisions = (
-            await session.execute(
-                select(models.ExperimentRun, models.DatasetExampleRevision)
-                .join(
-                    models.DatasetExample,
-                    models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
-                )
-                .join(
-                    models.DatasetExampleRevision,
-                    and_(
-                        models.DatasetExample.id
-                        == models.DatasetExampleRevision.dataset_example_id,
-                        models.DatasetExampleRevision.id.in_(revision_ids),
-                        models.DatasetExampleRevision.revision_kind != "DELETE",
-                    ),
-                )
-                .where(models.ExperimentRun.experiment_id == experiment_rowid)
-                .order_by(
-                    models.ExperimentRun.dataset_example_id,
-                    models.ExperimentRun.repetition_number,
+            (
+                await session.execute(
+                    select(models.ExperimentRun, models.DatasetExampleRevision)
+                    .join(
+                        models.DatasetExample,
+                        models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+                    )
+                    .join(
+                        models.DatasetExampleRevision,
+                        and_(
+                            models.DatasetExample.id
+                            == models.DatasetExampleRevision.dataset_example_id,
+                            models.DatasetExampleRevision.id.in_(revision_ids),
+                            models.DatasetExampleRevision.revision_kind != "DELETE",
+                        ),
+                    )
+                    .options(
+                        joinedload(models.ExperimentRun.annotations),
+                    )
+                    .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                    .order_by(
+                        models.ExperimentRun.dataset_example_id,
+                        models.ExperimentRun.repetition_number,
+                    )
                 )
             )
-        ).all()
+            .unique()
+            .all()
+        )
 
         if not runs_and_revisions:
             raise HTTPException(
@@ -536,6 +543,21 @@ async def get_experiment_csv(
                 "prompt_token_count": run.prompt_token_count,
                 "completion_token_count": run.completion_token_count,
             }
+            for annotation in run.annotations:
+                prefix = f"annotation_{annotation.name}"
+                record.update(
+                    {
+                        f"{prefix}_label": annotation.label,
+                        f"{prefix}_score": annotation.score,
+                        f"{prefix}_explanation": annotation.explanation,
+                        f"{prefix}_metadata": json.dumps(annotation.metadata_),
+                        f"{prefix}_annotator_kind": annotation.annotator_kind,
+                        f"{prefix}_trace_id": annotation.trace_id,
+                        f"{prefix}_error": annotation.error,
+                        f"{prefix}_start_time": annotation.start_time.isoformat(),
+                        f"{prefix}_end_time": annotation.end_time.isoformat(),
+                    }
+                )
             records.append(record)
 
         df = pd.DataFrame.from_records(records)

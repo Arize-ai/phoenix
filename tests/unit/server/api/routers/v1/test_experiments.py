@@ -125,7 +125,7 @@ async def test_experiments_api(
     evaluation_payload = {
         "experiment_run_id": run_payload["id"],
         "trace_id": "placeholder-id",
-        "name": "some evaluation name",
+        "name": "some_evaluation_name",
         "annotator_kind": "LLM",
         "result": {
             "label": "some label",
@@ -149,7 +149,7 @@ async def test_experiments_api(
     assert len(runs) == 1
     assert len(runs[0]["annotations"]) == 1
     annotation = runs[0]["annotations"][0]
-    assert annotation.pop("name") == "some evaluation name"
+    assert annotation.pop("name") == "some_evaluation_name"
     assert annotation.pop("label") == "some label"
     assert annotation.pop("score") == 0.5
     assert annotation.pop("explanation") == "some explanation"
@@ -167,12 +167,12 @@ async def test_experiments_api(
     assert response.headers["content-type"] == "text/csv"
     assert response.headers["content-disposition"].startswith('attachment; filename="')
 
-    # Parse CSV content and verify the data
+    # Parse CSV content and verify the data with annotations
     csv_content = response.text
     df = pd.read_csv(StringIO(csv_content))
     assert len(df) == 1
 
-    # Convert first row to dictionary and verify all fields
+    # Verify base fields
     row = df.iloc[0].to_dict()
     assert isinstance(row.pop("example_id"), str)
     assert row.pop("repetition_number") == 1
@@ -186,6 +186,18 @@ async def test_experiments_api(
     assert row.pop("trace_id") == "placeholder-id"
     assert pd.isna(row.pop("prompt_token_count"))
     assert pd.isna(row.pop("completion_token_count"))
+
+    # Verify annotation fields
+    annotation_prefix = "annotation_some_evaluation_name"
+    assert row.pop(f"{annotation_prefix}_label") == "some label"
+    assert row.pop(f"{annotation_prefix}_score") == 0.5
+    assert row.pop(f"{annotation_prefix}_explanation") == "some explanation"
+    assert json.loads(row.pop(f"{annotation_prefix}_metadata")) == {}
+    assert row.pop(f"{annotation_prefix}_annotator_kind") == "LLM"
+    assert row.pop(f"{annotation_prefix}_trace_id") == "placeholder-id"
+    assert row.pop(f"{annotation_prefix}_error") == "an error message, if applicable"
+    assert isinstance(row.pop(f"{annotation_prefix}_start_time"), str)
+    assert isinstance(row.pop(f"{annotation_prefix}_end_time"), str)
     assert not row
 
 
