@@ -11,7 +11,7 @@ import {
 } from "@arizeai/components";
 
 import { Flex, Text } from "@phoenix/components";
-import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
+import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 
 import { ExperimentMultiSelector__experiments$key } from "./__generated__/ExperimentMultiSelector__experiments.graphql";
 
@@ -94,7 +94,7 @@ export function ExperimentMultiSelector(
               <Item key={experiment.id} textValue={experiment.name}>
                 <Flex direction="column" gap="size-50">
                   <Flex direction="row" gap="size-100">
-                    <SequenceNumberLabel
+                    <SequenceNumberToken
                       sequenceNumber={experiment.sequenceNumber}
                     />
 
