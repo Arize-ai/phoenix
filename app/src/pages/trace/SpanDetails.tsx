@@ -22,8 +22,6 @@ import {
   Counter,
   DialogContainer,
   EmptyGraphic,
-  Label,
-  LabelProps,
   List,
   ListItem,
   TabbedCard,
@@ -53,6 +51,8 @@ import {
   Icon,
   Icons,
   Text,
+  Token,
+  TokenProps,
   View,
   ViewProps,
 } from "@phoenix/components";
@@ -62,7 +62,7 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -243,7 +243,7 @@ export function SpanDetails({
             height="100%"
             alignItems="center"
           >
-            <SpanKindLabel spanKind={span.spanKind} />
+            <SpanKindToken spanKind={span.spanKind} />
             <Text>{span.name}</Text>
           </Flex>
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
@@ -852,7 +852,7 @@ function RetrieverSpanInfo(props: {
                       documentEvaluations={documentEvaluationsMap[idx]}
                       borderColor={"seafoam-700"}
                       backgroundColor={"seafoam-100"}
-                      labelColor="seafoam-1000"
+                      tokenColor="var(--ac-global-color-seafoam-1000)"
                     />
                   </li>
                 );
@@ -931,7 +931,7 @@ function RerankerSpanInfo(props: {
                     document={document}
                     borderColor={"seafoam-700"}
                     backgroundColor={"seafoam-100"}
-                    labelColor="seafoam-1000"
+                    tokenColor="var(--ac-global-color-seafoam-1000)"
                   />
                 </li>
               );
@@ -961,7 +961,7 @@ function RerankerSpanInfo(props: {
                     document={document}
                     borderColor={"celery-700"}
                     backgroundColor={"celery-100"}
-                    labelColor="celery-1000"
+                    tokenColor="var(--ac-global-color-celery-1000)"
                   />
                 </li>
               );
@@ -1151,13 +1151,13 @@ function DocumentItem({
   documentEvaluations,
   backgroundColor,
   borderColor,
-  labelColor,
+  tokenColor,
 }: {
   document: AttributeDocument;
   documentEvaluations?: DocumentEvaluation[] | null;
   backgroundColor: ViewProps["backgroundColor"];
   borderColor: ViewProps["borderColor"];
-  labelColor: LabelProps["color"];
+  tokenColor: TokenProps["color"];
 }) {
   const metadata = document[DocumentAttributePostfixes.metadata];
   const hasEvaluations = documentEvaluations && documentEvaluations.length;
@@ -1180,9 +1180,11 @@ function DocumentItem({
       }
       extra={
         typeof document[DocumentAttributePostfixes.score] === "number" && (
-          <Label color={labelColor}>{`score ${numberFormatter(
-            document[DocumentAttributePostfixes.score]
-          )}`}</Label>
+          <Token color={tokenColor}>
+            {`score ${numberFormatter(
+              document[DocumentAttributePostfixes.score]
+            )}`}
+          </Token>
         )
       }
     >
@@ -1212,13 +1214,13 @@ function DocumentItem({
               <ul>
                 {documentEvaluations.map((documentEvaluation, idx) => {
                   // Highlight the label as danger if it is a danger classification
-                  const evalLabelColor =
+                  const evalTokenColor =
                     documentEvaluation.label &&
                     DANGER_DOCUMENT_EVALUATION_LABELS.includes(
                       documentEvaluation.label
                     )
-                      ? "danger"
-                      : labelColor;
+                      ? "var(--ac-global-color-danger)"
+                      : tokenColor;
                   return (
                     <li key={idx}>
                       <View
@@ -1233,12 +1235,12 @@ function DocumentItem({
                               {documentEvaluation.name}
                             </Text>
                             {documentEvaluation.label && (
-                              <Label color={evalLabelColor} shape="badge">
+                              <Token color={evalTokenColor}>
                                 {documentEvaluation.label}
-                              </Label>
+                              </Token>
                             )}
                             {typeof documentEvaluation.score === "number" && (
-                              <Label color={evalLabelColor} shape="badge">
+                              <Token color={evalTokenColor}>
                                 <Flex direction="row" gap="size-50">
                                   <Text
                                     size="XS"
@@ -1251,7 +1253,7 @@ function DocumentItem({
                                     {formatFloat(documentEvaluation.score)}
                                   </Text>
                                 </Flex>
-                              </Label>
+                              </Token>
                             )}
                           </Flex>
                           {typeof documentEvaluation.explanation && (

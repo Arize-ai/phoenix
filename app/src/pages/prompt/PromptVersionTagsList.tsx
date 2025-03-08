@@ -1,10 +1,7 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Label } from "@arizeai/components";
-
-import { Flex } from "@phoenix/components";
-import { ColorValue } from "@phoenix/components/types";
+import { Flex, Token, TokenProps } from "@phoenix/components";
 
 import { PromptVersionTagsList_data$key } from "./__generated__/PromptVersionTagsList_data.graphql";
 
@@ -35,17 +32,17 @@ export function PromptVersionTagsList({
 }
 
 function VersionLabel({ children }: { children: string }) {
-  const color: ColorValue = useMemo(() => {
+  const color: TokenProps["color"] = useMemo(() => {
     switch (children) {
       case "production":
-        return "green-1000";
+        return "var(--ac-global-color-green-1000)";
       case "staging":
-        return "yellow-1000";
+        return "var(--ac-global-color-yellow-1000)";
       case "development":
-        return "blue-1000";
+        return "var(--ac-global-color-blue-1000)";
       default:
-        return "grey-900";
+        return "var(--ac-global-color-grey-900)";
     }
   }, [children]);
-  return <Label color={color}>{children}</Label>;
+  return <Token color={color}>{children}</Token>;
 }

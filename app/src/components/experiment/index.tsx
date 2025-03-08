@@ -1,1 +1,1 @@
-export * from "./SequenceNumberLabel";
+export * from "./SequenceNumberToken";

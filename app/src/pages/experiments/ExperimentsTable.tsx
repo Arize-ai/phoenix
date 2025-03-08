@@ -18,7 +18,7 @@ import {
 
 import { Flex, Heading, Link, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
-import { SequenceNumberLabel } from "@phoenix/components/experiment";
+import { SequenceNumberToken } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import { CompactJSONCell, IntCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
@@ -170,7 +170,7 @@ export function ExperimentsTable({
         const sequenceNumber = row.original.sequenceNumber;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
-            <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+            <SequenceNumberToken sequenceNumber={sequenceNumber} />
             <Link
               to={`/datasets/${dataset.id}/compare?experimentId=${experimentId}`}
             >

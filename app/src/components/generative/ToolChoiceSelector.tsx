@@ -1,8 +1,8 @@
 import React from "react";
 
-import { Item, Label, Picker } from "@arizeai/components";
+import { Item, Picker } from "@arizeai/components";
 
-import { Flex } from "@phoenix/components";
+import { Flex, Token } from "@phoenix/components";
 import {
   AnthropicToolChoice,
   findToolChoiceName,
@@ -141,22 +141,30 @@ export const ChoiceLabel = ({
     case "any":
     case "required":
       return (
-        <Flex gap={"size-100"} width={"100%"} justifyContent={"space-between"}>
-          Use at least one tool <Label color="grey-900">{choiceType}</Label>
+        <Flex gap={"size-100"} width={"100%"}>
+          Use at least one tool{" "}
+          <Token color="var(--ac-global-color-grey-900)" size="S">
+            {choiceType}
+          </Token>
         </Flex>
       );
     case "none":
       return (
-        <Flex gap={"size-100"} width={"100%"} justifyContent={"space-between"}>
-          Don&apos;t use any tools <Label color="grey-900">{choiceType}</Label>
+        <Flex gap={"size-100"} width={"100%"}>
+          Don&apos;t use any tools{" "}
+          <Token color="var(--ac-global-color-grey-900)" size="S">
+            {choiceType}
+          </Token>
         </Flex>
       );
     case "auto":
     default:
       return (
-        <Flex gap={"size-100"} width={"100%"} justifyContent={"space-between"}>
+        <Flex gap={"size-100"} width={"100%"}>
           Tools auto-selected by LLM{" "}
-          <Label color="grey-900">{choiceType}</Label>
+          <Token color="var(--ac-global-color-grey-900)" size="S">
+            {choiceType}
+          </Token>
         </Flex>
       );
   }

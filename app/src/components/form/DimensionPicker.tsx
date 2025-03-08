@@ -6,13 +6,11 @@ import {
   Content,
   ContextualHelp,
   Item,
-  Label,
-  LabelProps,
   Picker,
   PickerProps,
 } from "@arizeai/components";
 
-import { Heading, Text } from "@phoenix/components";
+import { Heading, Text, Token, TokenProps } from "@phoenix/components";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -33,34 +31,34 @@ type DimensionPickerProps<T> = Omit<
   isLoading?: boolean;
 };
 
-function DimensionTypeLabel(props: { type: Dimension["type"] }) {
+function DimensionTypeToken(props: { type: Dimension["type"] }) {
   const { type } = props;
-  let labelColor: LabelProps["color"] = "gray";
+  let tokenColor: TokenProps["color"] = "gray";
   let text = "";
   switch (type) {
     case "feature":
-      labelColor = "blue";
+      tokenColor = "blue";
       text = "FEA";
       break;
     case "tag":
-      labelColor = "purple";
+      tokenColor = "purple";
       text = "TAG";
       break;
     case "prediction":
-      labelColor = "white";
+      tokenColor = "white";
       text = "PRE";
       break;
     case "actual":
-      labelColor = "orange";
+      tokenColor = "orange";
       text = "ACT";
       break;
     default:
       assertUnreachable(type);
   }
   return (
-    <Label color={labelColor} aria-label={type} title="type">
+    <Token color={tokenColor} aria-Token={type} title="type">
       {text}
-    </Label>
+    </Token>
   );
 }
 
@@ -89,7 +87,7 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
       defaultSelectedKey={
         selectedDimension ? selectedDimension.name : undefined
       }
-      aria-label="Select a dimension"
+      aria-Token="Select a dimension"
       onSelectionChange={(key) => {
         // Find the dimension in the list
         const dimension = dimensions.find((d) => d.name === key);
@@ -106,12 +104,12 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
         <Item key={dimension.name} textValue={dimension.name}>
           <div
             css={css`
-              .ac-label {
+              .ac-Token {
                 margin-right: var(--ac-global-dimension-static-size-100);
               }
             `}
           >
-            <DimensionTypeLabel type={dimension.type} />
+            <DimensionTypeToken type={dimension.type} />
             {dimension.name}
           </div>
         </Item>
