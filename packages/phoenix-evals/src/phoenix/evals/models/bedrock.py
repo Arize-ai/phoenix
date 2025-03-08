@@ -19,9 +19,9 @@ class BedrockModel(BaseModel):
     """
     An interface for using LLM models via AWS Bedrock.
 
-    This class wraps the boto3 Bedrock client for use with Phoenix LLM evaluations. Calls to the
-    AWS API are dynamically throttled when encountering rate limit errors. Requires the `boto3`
-    package to be installed.
+    This class wraps the boto3 Bedrock client with the converse API for use with Phoenix LLM
+    evaluations. Calls to the AWS API are dynamically throttled when encountering rate limit
+    errors. Requires the `boto3` package to be installed.
 
     Supports Async: 🟡
         `boto3` does not support async calls, so it's wrapped in an executor.
@@ -105,6 +105,10 @@ class BedrockModel(BaseModel):
         )
 
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        # the legacy "instruction" parameter from llm_classify is intended to indicate a
+        # system instruction, but not all models supported by Bedrock support system instructions
+        _ = kwargs.pop("instruction", None)
+
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
