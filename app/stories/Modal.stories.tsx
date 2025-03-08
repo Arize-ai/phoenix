@@ -1,5 +1,4 @@
 import React from "react";
-import { ModalOverlayProps } from "react-aria-components";
 import { Meta, StoryFn } from "@storybook/react";
 
 import {
@@ -8,6 +7,7 @@ import {
   DialogTrigger,
   Heading,
   Modal,
+  ModalProps,
 } from "@phoenix/components";
 
 const meta: Meta = {
@@ -17,7 +17,7 @@ const meta: Meta = {
 
 export default meta;
 
-const Template: StoryFn<ModalOverlayProps> = (args) => (
+const Template: StoryFn<ModalProps> = (args) => (
   <DialogTrigger>
     <Button>Open Modal</Button>
     <Modal {...args}>

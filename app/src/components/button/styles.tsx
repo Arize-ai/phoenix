@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
 
 export const buttonCSS = css`
-  border: 1px solid var(--ac-global-border-color-default);
+  --button-border-color: var(--ac-global-border-color-default);
+  border: 1px solid var(--button-border-color);
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
@@ -16,6 +17,11 @@ export const buttonCSS = css`
   color: var(--ac-global-text-color-900);
   transition: background-color 0.2s ease-in-out;
   cursor: pointer;
+
+  // Fix aliasing on buttons
+  box-shadow:
+    0 0 1px 0px var(--button-border-color) inset,
+    0 0 1px 0px var(--button-border-color);
   /* Disable outline since there are other mechanisms to show focus */
   outline: none;
   &[data-focus-visible] {
@@ -50,14 +56,14 @@ export const buttonCSS = css`
   // The default style
 
   background-color: var(--ac-global-input-field-background-color);
-  border-color: var(--ac-global-input-field-border-color);
+  border-color: var(--button-border-color);
   &:hover:not([disabled]) {
     background-color: var(--ac-global-input-field-border-color-hover);
   }
 
   &[data-variant="primary"] {
     background-color: var(--ac-global-button-primary-background-color);
-    border-color: var(--ac-global-button-primary-border-color);
+    --button-border-color: var(--ac-global-button-primary-border-color);
     color: var(--ac-global-button-primary-foreground-color);
     &:hover:not([disabled]) {
       background-color: var(--ac-global-button-primary-background-color-hover);
@@ -65,7 +71,7 @@ export const buttonCSS = css`
   }
   &[data-variant="danger"] {
     background-color: var(--ac-global-button-danger-background-color);
-    border-color: var(--ac-global-button-danger-border-color);
+    --button-border-color: var(--ac-global-button-danger-border-color);
     color: var(--ac-global-static-color-white-900);
     &:hover:not([disabled]) {
       background-color: var(--ac-global-button-danger-background-color-hover);
@@ -73,8 +79,7 @@ export const buttonCSS = css`
   }
   &[data-variant="success"] {
     background-color: var(--ac-global-button-success-background-color);
-    border-color: var(--ac-global-button-success-border-color);
-    color: var(--ac-global-static-color-white-900);
+    --button-border-color: var(--ac-global-button-success-border-color);
     color: var(--ac-global-static-color-white-900);
     &:hover:not([disabled]) {
       background-color: var(--ac-global-button-success-background-color-hover);
@@ -82,7 +87,7 @@ export const buttonCSS = css`
   }
   &[data-variant="quiet"] {
     background-color: transparent;
-    border-color: transparent;
+    --button-border-color: transparent;
     &:hover:not([disabled]) {
       border-color: transparent;
       background-color: var(--ac-global-input-field-background-color-active);

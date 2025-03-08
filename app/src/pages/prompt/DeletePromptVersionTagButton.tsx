@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -6,10 +6,11 @@ import {
   Button,
   Dialog,
   DialogTrigger,
+  Flex,
+  Heading,
   Icon,
   Icons,
-  Popover,
-  PopoverArrow,
+  Modal,
   Text,
   View,
 } from "@phoenix/components";
@@ -24,6 +25,7 @@ export function DeletePromptVersionTagButton({
   promptVersionTagId: string;
   promptId: string;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const notifySuccess = useNotifySuccess();
   const [commitDelete, isCommitting] =
     useMutation<DeletePromptVersionTagButtonMutation>(graphql`
@@ -41,15 +43,15 @@ export function DeletePromptVersionTagButton({
       }
     `);
   return (
-    <DialogTrigger>
+    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <Button
         aria-label="Delete tag"
         size="S"
         leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
       />
-      <Popover placement="bottom end">
-        <PopoverArrow />
+      <Modal size="S" isDismissable>
         <Dialog>
+          <Heading slot="title">Delete Tag</Heading>
           <View padding="size-200">
             <View paddingBottom="size-100">
               <Text color="danger" size="XS">
@@ -58,34 +60,43 @@ export function DeletePromptVersionTagButton({
                 not used before deleting.
               </Text>
             </View>
-            <Button
-              css={css`
-                width: 100%;
-              `}
-              variant="danger"
-              size="S"
-              onPress={() =>
-                commitDelete({
-                  variables: {
-                    input: {
-                      promptVersionTagId,
+          </View>
+          <View
+            paddingX="size-200"
+            paddingY="size-100"
+            borderTopWidth="thin"
+            borderColor="light"
+          >
+            <Flex gap="size-100" justifyContent="end">
+              <Button size="S" onPress={() => setIsOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="S"
+                onPress={() =>
+                  commitDelete({
+                    variables: {
+                      input: {
+                        promptVersionTagId,
+                      },
+                      promptId,
                     },
-                    promptId,
-                  },
-                  onCompleted: () => {
-                    notifySuccess({
-                      title: "Tag Deleted",
-                      message: "The tag has been deleted",
-                    });
-                  },
-                })
-              }
-            >
-              {isCommitting ? "Deleting..." : "Delete Tag"}
-            </Button>
+                    onCompleted: () => {
+                      notifySuccess({
+                        title: "Tag Deleted",
+                        message: "The tag has been deleted",
+                      });
+                    },
+                  })
+                }
+              >
+                {isCommitting ? "Deleting..." : "Delete Tag"}
+              </Button>
+            </Flex>
           </View>
         </Dialog>
-      </Popover>
+      </Modal>
     </DialogTrigger>
   );
 }

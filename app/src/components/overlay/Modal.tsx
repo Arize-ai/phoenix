@@ -73,6 +73,7 @@ const modalCSS = css`
 `;
 
 export interface ModalProps extends AriaModalOverlayProps, SizingProps {}
+
 function Modal(props: ModalProps, ref: Ref<HTMLDivElement>) {
   const { size = "M", ...otherProps } = props;
   return (
