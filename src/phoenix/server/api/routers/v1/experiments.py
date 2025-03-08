@@ -6,6 +6,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, HTTPException, Path, Response
 from pydantic import Field
 from sqlalchemy import and_, func, select
+from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 from starlette.status import HTTP_404_NOT_FOUND
@@ -321,7 +322,7 @@ async def list_experiments(
         ]
     ),
 )
-async def get_experiment_jsonl(
+async def get_experiment_json(
     request: Request,
     response: Response,
     experiment_id: str = Path(..., title="Experiment ID"),
@@ -359,27 +360,35 @@ async def get_experiment_jsonl(
             .scalar_subquery()
         )
         runs_and_revisions = (
-            await session.execute(
-                select(models.ExperimentRun, models.DatasetExampleRevision)
-                .join(
-                    models.DatasetExample,
-                    models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
-                )
-                .join(
-                    models.DatasetExampleRevision,
-                    and_(
-                        models.DatasetExample.id
-                        == models.DatasetExampleRevision.dataset_example_id,
-                        models.DatasetExampleRevision.id.in_(revision_ids),
-                        models.DatasetExampleRevision.revision_kind != "DELETE",
-                    ),
-                )
-                .where(models.ExperimentRun.experiment_id == experiment_rowid)
-                .order_by(
-                    models.ExperimentRun.dataset_example_id, models.ExperimentRun.repetition_number
+            (
+                await session.execute(
+                    select(models.ExperimentRun, models.DatasetExampleRevision)
+                    .join(
+                        models.DatasetExample,
+                        models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+                    )
+                    .join(
+                        models.DatasetExampleRevision,
+                        and_(
+                            models.DatasetExample.id
+                            == models.DatasetExampleRevision.dataset_example_id,
+                            models.DatasetExampleRevision.id.in_(revision_ids),
+                            models.DatasetExampleRevision.revision_kind != "DELETE",
+                        ),
+                    )
+                    .options(
+                        joinedload(models.ExperimentRun.annotations),
+                    )
+                    .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                    .order_by(
+                        models.ExperimentRun.dataset_example_id,
+                        models.ExperimentRun.repetition_number,
+                    )
                 )
             )
-        ).all()
+            .unique()
+            .all()
+        )
         if not runs_and_revisions:
             raise HTTPException(
                 detail=f"Experiment with ID {experiment_globalid} has no runs",
@@ -387,6 +396,22 @@ async def get_experiment_jsonl(
             )
     records = []
     for run, revision in runs_and_revisions:
+        annotations = []
+        for annotation in run.annotations:
+            annotations.append(
+                {
+                    "name": annotation.name,
+                    "annotator_kind": annotation.annotator_kind,
+                    "label": annotation.label,
+                    "score": annotation.score,
+                    "explanation": annotation.explanation,
+                    "trace_id": annotation.trace_id,
+                    "error": annotation.error,
+                    "metadata": annotation.metadata_,
+                    "start_time": annotation.start_time.isoformat(),
+                    "end_time": annotation.end_time.isoformat(),
+                }
+            )
         record = {
             "example_id": str(
                 GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
@@ -394,7 +419,7 @@ async def get_experiment_jsonl(
             "repetition_number": run.repetition_number,
             "input": revision.input,
             "reference_output": revision.output,
-            "output": run.output,
+            "output": run.output["task_output"],
             "error": run.error,
             "latency_ms": run.latency_ms,
             "start_time": run.start_time.isoformat(),
@@ -402,6 +427,7 @@ async def get_experiment_jsonl(
             "trace_id": run.trace_id,
             "prompt_token_count": run.prompt_token_count,
             "completion_token_count": run.completion_token_count,
+            "annotations": annotations,
         }
         records.append(record)
 
