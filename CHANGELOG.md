@@ -1,5 +1,19 @@
 # Changelog
 
+## [8.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.11.0...arize-phoenix-v8.12.0) (2025-03-08)
+
+
+### Features
+
+* **ui:** high contrast ui ([#6718](https://github.com/Arize-ai/phoenix/issues/6718)) ([faa0777](https://github.com/Arize-ai/phoenix/commit/faa0777d204794e871922869d65f1eafcb1527fc))
+
+
+### Bug Fixes
+
+* add `none` as option for tool choice for anthropic 0.49.0 ([#6740](https://github.com/Arize-ai/phoenix/issues/6740)) ([825915c](https://github.com/Arize-ai/phoenix/commit/825915c89b401b8b4911c9a75983273c821da8af))
+* add annotations to experiment json download ([#6744](https://github.com/Arize-ai/phoenix/issues/6744)) ([14005dc](https://github.com/Arize-ai/phoenix/commit/14005dce4c9b62ee160a3cb8af79232730ff3338))
+* apply constraints related to extended thinking on anthropic invocation parameters ([#6738](https://github.com/Arize-ai/phoenix/issues/6738)) ([6e50edf](https://github.com/Arize-ai/phoenix/commit/6e50edfb1f2992054fb1a026ef88844123b3b9bc))
+
 ## [8.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.10.0...arize-phoenix-v8.11.0) (2025-03-07)
 
 
