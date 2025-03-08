@@ -11,6 +11,9 @@ import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
 export const makeMetadataTooltipFilterCondition = (
   key: string,
+  /**
+   * The value of the metadata key. NB the value could be an object.
+   */
   value: string | number | boolean
 ) => {
   return `metadata['${key}'] == ${toPythonPrimitiveStr(value)}`;

@@ -6,6 +6,7 @@ import {
   MetadataTooltip,
 } from "@phoenix/pages/project/MetadataTooltip";
 import { useSpanFilterCondition } from "@phoenix/pages/project/SpanFilterConditionContext";
+import { jsonStringToFlatObject } from "@phoenix/utils/jsonUtils";
 
 type MetadataTableCellProps = {
   metadata: unknown;
@@ -18,10 +19,11 @@ export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
   // This is intended to work with object metadata but will technically work for arrays as well
   const [parsedMetadata, stringifiedMetadata] = React.useMemo(() => {
     try {
-      const parsed: Record<string, string | number | boolean> =
-        typeof metadata === "string" ? JSON.parse(metadata) : metadata;
-      const stringified =
-        typeof metadata === "string" ? metadata : JSON.stringify(metadata);
+      if (typeof metadata !== "string") {
+        throw new Error("Metadata is not a string");
+      }
+      const parsed = jsonStringToFlatObject(metadata);
+      const stringified = JSON.stringify(parsed);
 
       // If metadata is empty, return empty values
       if (Object.keys(parsed).length === 0) {
