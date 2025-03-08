@@ -39,10 +39,16 @@ export const CustomCSS = Template.bind({});
 
 CustomCSS.args = {
   css: css`
-    /* TODO: we need to make it simpler to not have to make styles more specific */
-    border-color: var(--ac-global-color-primary) !important;
+    --button-border-color: pink;
   `,
   children: "Custom",
+};
+
+export const Quiet = Template.bind({});
+
+Quiet.args = {
+  children: "Quiet",
+  variant: "quiet",
 };
 
 export const WithKeyboard = Template.bind({});
