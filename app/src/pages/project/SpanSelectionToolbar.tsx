@@ -4,19 +4,9 @@ import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 // eslint-disable-next-line deprecate/import
-import {
-  Button as LegacyButton, // TODO(components): Move to dialog
-  Dialog,
-  DialogContainer,
-  Flex,
-  Icon,
-  Icons,
-  PopoverTrigger,
-  Text,
-  View,
-} from "@arizeai/components";
+import { Dialog, DialogContainer, PopoverTrigger } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -131,7 +121,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     notifyError,
   ]);
 
-  const onDeleteClick = useCallback(() => {
+  const onDeletePress = useCallback(() => {
     setDialog(
       <Dialog
         size="S"
@@ -171,9 +161,12 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
     <div
       css={css`
         position: absolute;
-        bottom: var(--ac-global-dimension-size-400);
+        bottom: var(--ac-global-dimension-size-600);
         left: 50%;
         transform: translateX(-50%);
+        z-index: 1000;
+        box-shadow: 8px 8px 20px 0 rgba(0, 0, 0, 0.4);
+        border-radius: var(--ac-global-rounding-medium);
       `}
     >
       <View
@@ -202,10 +195,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 setIsDatasetPopoverOpen(isOpen);
               }}
             >
-              <LegacyButton
+              <Button
                 variant="primary"
-                size="compact"
-                icon={
+                size="S"
+                leadingVisual={
                   <Icon
                     svg={
                       isAddingSpansToDataset ? (
@@ -218,10 +211,8 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 }
                 isDisabled={isAddingSpansToDataset}
               >
-                {isAddingSpansToDataset
-                  ? "Adding to dataset"
-                  : "Add to dataset"}
-              </LegacyButton>
+                {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
+              </Button>
               <Suspense>
                 <DatasetSelectorPopoverContent
                   onDatasetSelected={(datasetId) => {
@@ -260,10 +251,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 />
               </Suspense>
             </PopoverTrigger>
-            <LegacyButton
+            <Button
               variant="danger"
-              size="compact"
-              icon={
+              size="S"
+              leadingVisual={
                 <Icon
                   svg={
                     isDeletingTraces ? (
@@ -275,10 +266,10 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 />
               }
               isDisabled={isDeletingTraces}
-              onClick={onDeleteClick}
+              onPress={onDeletePress}
             >
               {isDeletingTraces ? "Deleting..." : "Delete"}
-            </LegacyButton>
+            </Button>
           </Flex>
         </Flex>
       </View>

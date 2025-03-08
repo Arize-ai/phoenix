@@ -36,7 +36,7 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
@@ -509,7 +509,7 @@ export function TracesTable(props: TracesTableProps) {
                     aria-label="Expand row"
                   />
                 ) : null}
-                <SpanKindLabel spanKind={props.getValue() as string} />
+                <SpanKindToken spanKind={props.getValue() as string} />
               </Flex>
             </div>
           );

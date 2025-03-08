@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Counter, Label } from "@arizeai/components";
+import { Counter } from "@arizeai/components";
 
 import {
   Disclosure,
@@ -18,6 +18,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Token,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
@@ -214,9 +215,9 @@ function DocumentItem({ document }: { document: RetrievalDocument }) {
               <Heading level={4}>document {document.id}</Heading>
             </Flex>
             {typeof document.relevance === "number" && (
-              <Label color="blue">{`relevance ${numberFormatter(
-                document.relevance
-              )}`}</Label>
+              <Token color="var(--ac-global-color-blue-1000)">
+                {`relevance ${numberFormatter(document.relevance)}`}
+              </Token>
             )}
           </Flex>
         </View>

@@ -3,9 +3,7 @@ import { useFragment } from "react-relay";
 import { formatRelative } from "date-fns/formatRelative";
 import { graphql } from "relay-runtime";
 
-import { Label } from "@arizeai/components";
-
-import { Flex, Text, View } from "@phoenix/components";
+import { Flex, Text, Token, View } from "@phoenix/components";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 
@@ -43,8 +41,10 @@ export function PromptVersionSummary(props: {
           width="100%"
         >
           <Flex direction="row" gap="size-100" alignItems="center">
-            <Label color="blue-1000">{version.sequenceNumber}</Label>
-            <span>{version.id}</span>
+            <Token color="var(--ac-global-color-blue-900)">
+              {version.sequenceNumber}
+            </Token>
+            <span>{`${version.id}`}</span>
           </Flex>
         </Flex>
       </View>

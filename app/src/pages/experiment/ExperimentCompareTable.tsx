@@ -47,7 +47,7 @@ import {
 import { JSONBlock } from "@phoenix/components/code";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { SequenceNumberLabel } from "@phoenix/components/experiment/SequenceNumberLabel";
+import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import {
   CellWithControlsWrap,
@@ -315,7 +315,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             justifyContent="space-between"
           >
             <Flex direction="row" gap="size-100" wrap alignItems="center">
-              <SequenceNumberLabel sequenceNumber={sequenceNumber} />
+              <SequenceNumberToken sequenceNumber={sequenceNumber} />
               <Text>{name}</Text>
             </Flex>
             <ExperimentActionMenu
@@ -865,7 +865,7 @@ function SelectedExampleDialog({
                         {...defaultCardProps}
                         title={experiment?.name}
                         titleExtra={
-                          <SequenceNumberLabel
+                          <SequenceNumberToken
                             sequenceNumber={experiment?.sequenceNumber || 0}
                           />
                         }
