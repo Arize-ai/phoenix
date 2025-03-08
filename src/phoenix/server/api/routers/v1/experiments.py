@@ -322,7 +322,7 @@ async def list_experiments(
         ]
     ),
 )
-async def get_experiment_jsonl(
+async def get_experiment_json(
     request: Request,
     response: Response,
     experiment_id: str = Path(..., title="Experiment ID"),
@@ -419,7 +419,7 @@ async def get_experiment_jsonl(
             "repetition_number": run.repetition_number,
             "input": revision.input,
             "reference_output": revision.output,
-            "output": run.output,
+            "output": run.output["task_output"],
             "error": run.error,
             "latency_ms": run.latency_ms,
             "start_time": run.start_time.isoformat(),

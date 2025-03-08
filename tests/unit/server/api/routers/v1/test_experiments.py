@@ -1,4 +1,5 @@
 import datetime
+import json
 from typing import Any
 
 import httpx
@@ -41,6 +42,11 @@ async def test_experiments_api(
     assert experiment
     assert created_experiment["repetitions"] == 1
 
+    # get experiment JSON before any runs - should return 404
+    response = await httpx_client.get(f"/v1/experiments/{experiment_gid}/json")
+    assert response.status_code == 404
+    assert "has no runs" in response.text
+
     # create experiment runs for each dataset example
     run_payload = {
         "dataset_example_id": str(dataset_examples[0]["id"]),
@@ -57,6 +63,27 @@ async def test_experiments_api(
             json=run_payload,
         )
     ).json()["data"]["id"]
+
+    # get experiment JSON after runs but before evaluations
+    response = await httpx_client.get(f"/v1/experiments/{experiment_gid}/json")
+    assert response.status_code == 200
+    runs = json.loads(response.text)
+    assert len(runs) == 1
+    run = runs[0]
+    assert isinstance(run.pop("example_id"), str)
+    assert run.pop("repetition_number") == 1
+    assert run.pop("input") == {"in": "foo"}
+    assert run.pop("reference_output") == {"out": "bar"}
+    assert run.pop("output") == "some LLM application output"
+    assert run.pop("error") == "an error message, if applicable"
+    assert isinstance(run.pop("latency_ms"), float)
+    assert isinstance(run.pop("start_time"), str)
+    assert isinstance(run.pop("end_time"), str)
+    assert run.pop("trace_id") == "placeholder-id"
+    assert run.pop("prompt_token_count") is None
+    assert run.pop("completion_token_count") is None
+    assert run.pop("annotations") == []
+    assert not run
 
     # experiment runs can be listed for evaluations
     experiment_runs = (await httpx_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()[
@@ -85,6 +112,25 @@ async def test_experiments_api(
         await httpx_client.post("/v1/experiment_evaluations", json=evaluation_payload)
     ).json()
     assert experiment_evaluation
+
+    # get experiment JSON after adding evaluations
+    response = await httpx_client.get(f"/v1/experiments/{experiment_gid}/json")
+    assert response.status_code == 200
+    runs = json.loads(response.text)
+    assert len(runs) == 1
+    assert len(runs[0]["annotations"]) == 1
+    annotation = runs[0]["annotations"][0]
+    assert annotation.pop("name") == "some evaluation name"
+    assert annotation.pop("label") == "some label"
+    assert annotation.pop("score") == 0.5
+    assert annotation.pop("explanation") == "some explanation"
+    assert annotation.pop("metadata") == {}
+    assert annotation.pop("annotator_kind") == "LLM"
+    assert annotation.pop("trace_id") == "placeholder-id"
+    assert annotation.pop("error") == "an error message, if applicable"
+    assert isinstance(annotation.pop("start_time"), str)
+    assert isinstance(annotation.pop("end_time"), str)
+    assert not annotation
 
 
 async def test_experiment_404s_with_missing_dataset(
