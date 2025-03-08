@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.12.0...arize-phoenix-v8.12.1) (2025-03-08)
+
+
+### Bug Fixes
+
+* be more careful about metadata structure ([#6750](https://github.com/Arize-ai/phoenix/issues/6750)) ([86a4a0e](https://github.com/Arize-ai/phoenix/commit/86a4a0e5d5a68301a68442bad21abed88dcfcbfc))
+
 ## [8.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.11.0...arize-phoenix-v8.12.0) (2025-03-08)
 
 
