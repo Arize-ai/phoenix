@@ -17,5 +17,8 @@ export function toPythonPrimitiveStr(val: string | number | boolean): string {
   if (typeof val === "number") {
     return val.toString();
   }
-  return `"${sanitizePythonStr(val)}"`;
+  if (typeof val === "string") {
+    return `"${sanitizePythonStr(val)}"`;
+  }
+  return "";
 }
