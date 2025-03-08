@@ -1,8 +1,10 @@
 import datetime
 import json
+from io import StringIO
 from typing import Any
 
 import httpx
+import pandas as pd
 import pytest
 from httpx import HTTPStatusError
 from strawberry.relay import GlobalID
@@ -85,6 +87,33 @@ async def test_experiments_api(
     assert run.pop("annotations") == []
     assert not run
 
+    # get experiment CSV after runs but before evaluations
+    response = await httpx_client.get(f"/v1/experiments/{experiment_gid}/csv")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv"
+    assert response.headers["content-disposition"].startswith('attachment; filename="')
+
+    # Parse CSV content and verify the data
+    csv_content = response.text
+    df = pd.read_csv(StringIO(csv_content))
+    assert len(df) == 1
+
+    # Convert first row to dictionary and verify all fields
+    row = df.iloc[0].to_dict()
+    assert isinstance(row.pop("example_id"), str)
+    assert row.pop("repetition_number") == 1
+    assert json.loads(row.pop("input")) == {"in": "foo"}
+    assert json.loads(row.pop("reference_output")) == {"out": "bar"}
+    assert row.pop("output") == "some LLM application output"
+    assert row.pop("error") == "an error message, if applicable"
+    assert isinstance(row.pop("latency_ms"), float)
+    assert isinstance(row.pop("start_time"), str)
+    assert isinstance(row.pop("end_time"), str)
+    assert row.pop("trace_id") == "placeholder-id"
+    assert pd.isna(row.pop("prompt_token_count"))
+    assert pd.isna(row.pop("completion_token_count"))
+    assert not row
+
     # experiment runs can be listed for evaluations
     experiment_runs = (await httpx_client.get(f"/v1/experiments/{experiment_gid}/runs")).json()[
         "data"
@@ -131,6 +160,33 @@ async def test_experiments_api(
     assert isinstance(annotation.pop("start_time"), str)
     assert isinstance(annotation.pop("end_time"), str)
     assert not annotation
+
+    # get experiment CSV after evaluations
+    response = await httpx_client.get(f"/v1/experiments/{experiment_gid}/csv")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv"
+    assert response.headers["content-disposition"].startswith('attachment; filename="')
+
+    # Parse CSV content and verify the data
+    csv_content = response.text
+    df = pd.read_csv(StringIO(csv_content))
+    assert len(df) == 1
+
+    # Convert first row to dictionary and verify all fields
+    row = df.iloc[0].to_dict()
+    assert isinstance(row.pop("example_id"), str)
+    assert row.pop("repetition_number") == 1
+    assert json.loads(row.pop("input")) == {"in": "foo"}
+    assert json.loads(row.pop("reference_output")) == {"out": "bar"}
+    assert row.pop("output") == "some LLM application output"
+    assert row.pop("error") == "an error message, if applicable"
+    assert isinstance(row.pop("latency_ms"), float)
+    assert isinstance(row.pop("start_time"), str)
+    assert isinstance(row.pop("end_time"), str)
+    assert row.pop("trace_id") == "placeholder-id"
+    assert pd.isna(row.pop("prompt_token_count"))
+    assert pd.isna(row.pop("completion_token_count"))
+    assert not row
 
 
 async def test_experiment_404s_with_missing_dataset(
