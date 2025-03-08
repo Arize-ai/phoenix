@@ -950,6 +950,9 @@ class ExperimentRun(Base):
         primaryjoin="foreign(ExperimentRun.trace_id) == Trace.trace_id",
         back_populates="experiment_runs",
     )
+    annotations: Mapped[list["ExperimentRunAnnotation"]] = relationship(
+        back_populates="experiment_run"
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -978,6 +981,10 @@ class ExperimentRunAnnotation(Base):
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
+
+    experiment_run: Mapped["ExperimentRun"] = relationship(
+        back_populates="annotations",
+    )
 
     __table_args__ = (
         UniqueConstraint(
