@@ -316,7 +316,7 @@ async def list_experiments(
 async def _get_experiment_runs_and_revisions(
     session: AsyncSession,
     experiment_id: str,
-) -> tuple[models.Experiment, list[models.ExperimentRun], list[models.DatasetExampleRevision]]:
+) -> tuple[models.Experiment, tuple[models.ExperimentRun], tuple[models.DatasetExampleRevision]]:
     experiment_globalid = GlobalID.from_id(experiment_id)
     try:
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
@@ -332,7 +332,6 @@ async def _get_experiment_runs_and_revisions(
             detail=f"Experiment with ID {experiment_globalid} does not exist",
             status_code=HTTP_404_NOT_FOUND,
         )
-
     revision_ids = (
         select(func.max(models.DatasetExampleRevision.id))
         .join(
@@ -348,7 +347,6 @@ async def _get_experiment_runs_and_revisions(
         .group_by(models.DatasetExampleRevision.dataset_example_id)
         .scalar_subquery()
     )
-
     runs_and_revisions = (
         (
             await session.execute(
@@ -379,16 +377,13 @@ async def _get_experiment_runs_and_revisions(
         .unique()
         .all()
     )
-
     if not runs_and_revisions:
         raise HTTPException(
             detail=f"Experiment with ID {experiment_globalid} has no runs",
             status_code=HTTP_404_NOT_FOUND,
         )
 
-    runs = [run for run, _ in runs_and_revisions]
-    revisions = [revision for _, revision in runs_and_revisions]
-
+    runs, revisions = zip(*runs_and_revisions)
     return experiment, runs, revisions
 
 
