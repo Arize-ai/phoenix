@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0de4be1481d0b1da17674430ccdf2f51>>
+ * @generated SignedSource<<7d922280e7a25ce7c7cb95d7247b136c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,6 +39,9 @@ export type ContentPartInput = {
   toolResult?: ToolResultContentValueInput | null;
 };
 export type TextContentValueInput = {
+  redacted?: boolean | null;
+  signature?: string | null;
+  subtype?: string | null;
   text: string;
 };
 export type ToolCallContentValueInput = {
