@@ -286,6 +286,9 @@ export function ExperimentsTable({
               projectId={project?.id || null}
               experimentId={row.original.id}
               metadata={metadata}
+              onExperimentDeleted={() => {
+                refetch({}, { fetchPolicy: "store-and-network" });
+              }}
             />
           </Flex>
         );
