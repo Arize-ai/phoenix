@@ -286,10 +286,10 @@ export function ExperimentsTable({
               projectId={project?.id || null}
               experimentId={row.original.id}
               metadata={metadata}
+              canDeleteExperiment={true}
               onExperimentDeleted={() => {
                 refetch({}, { fetchPolicy: "store-and-network" });
               }}
-              canDeleteExperiment={true}
             />
           </Flex>
         );
