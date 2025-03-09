@@ -10,7 +10,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse, StreamingResponse
+from starlette.responses import PlainTextResponse
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
@@ -314,24 +314,11 @@ async def list_experiments(
 
 
 async def _get_experiment_runs_and_revisions(
-    session: AsyncSession,
-    experiment_id: str,
+    session: AsyncSession, experiment_rowid: int
 ) -> tuple[models.Experiment, tuple[models.ExperimentRun], tuple[models.DatasetExampleRevision]]:
-    experiment_globalid = GlobalID.from_id(experiment_id)
-    try:
-        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
-    except ValueError:
-        raise HTTPException(
-            detail=f"Experiment with ID {experiment_globalid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
-        )
-
     experiment = await session.get(models.Experiment, experiment_rowid)
     if not experiment:
-        raise HTTPException(
-            detail=f"Experiment with ID {experiment_globalid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
-        )
+        raise HTTPException(detail="Experiment not found", status_code=HTTP_404_NOT_FOUND)
     revision_ids = (
         select(func.max(models.DatasetExampleRevision.id))
         .join(
@@ -379,10 +366,9 @@ async def _get_experiment_runs_and_revisions(
     )
     if not runs_and_revisions:
         raise HTTPException(
-            detail=f"Experiment with ID {experiment_globalid} has no runs",
+            detail="Experiment has no runs",
             status_code=HTTP_404_NOT_FOUND,
         )
-
     runs, revisions = zip(*runs_and_revisions)
     return experiment, runs, revisions
 
@@ -400,12 +386,20 @@ async def _get_experiment_runs_and_revisions(
 )
 async def get_experiment_json(
     request: Request,
-    response: Response,
     experiment_id: str = Path(..., title="Experiment ID"),
-) -> str:
+) -> Response:
+    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Invalid experiment ID: {experiment_globalid}",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
     async with request.app.state.db() as session:
         experiment, runs, revisions = await _get_experiment_runs_and_revisions(
-            session, experiment_id
+            session, experiment_rowid
         )
         records = []
         for run, revision in zip(runs, revisions):
@@ -444,28 +438,35 @@ async def get_experiment_json(
             }
             records.append(record)
 
-        response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.json"'
-        return json.dumps(records, ensure_ascii=False, indent=2)
+        return Response(
+            content=json.dumps(records, ensure_ascii=False, indent=2),
+            headers={"content-disposition": f'attachment; filename="{experiment.name}.json"'},
+            media_type="application/json",
+        )
 
 
 @router.get(
     "/experiments/{experiment_id}/csv",
     operation_id="getExperimentCSV",
     summary="Download experiment runs as a CSV file",
-    response_class=StreamingResponse,
-    status_code=HTTP_200_OK,
-    responses={
-        **add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
-        **add_text_csv_content_to_responses(HTTP_200_OK),
-    },
+    responses={**add_text_csv_content_to_responses(HTTP_200_OK)},
 )
 async def get_experiment_csv(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
+    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Invalid experiment ID: {experiment_globalid}",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
     async with request.app.state.db() as session:
         experiment, runs, revisions = await _get_experiment_runs_and_revisions(
-            session, experiment_id
+            session, experiment_rowid
         )
         records = []
         for run, revision in zip(runs, revisions):

@@ -1039,6 +1039,9 @@
           "200": {
             "description": "Successful Response",
             "content": {
+              "application/json": {
+                "schema": {}
+              },
               "text/csv": {
                 "schema": {
                   "type": "string",
@@ -1058,14 +1061,14 @@
             "description": "Forbidden"
           },
           "422": {
+            "description": "Validation Error",
             "content": {
-              "text/plain": {
+              "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
-            },
-            "description": "Unprocessable Entity"
+            }
           }
         }
       }
