@@ -26,6 +26,12 @@ class BedrockModel(BaseModel):
     Supports Async: 🟡
         `boto3` does not support async calls, so it's wrapped in an executor.
 
+    Note:
+        Cohere Command (Text) and AI21 Labs Jurassic-2 (Text) models don't support chat
+        with the Converse API and can only handle single message interactions.
+        For more details, see: 
+        https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-supported-models-features.html
+
     Args:
         model_id (str): The model name to use.
         temperature (float, optional): Sampling temperature to use. Defaults to 0.0.
