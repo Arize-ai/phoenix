@@ -315,9 +315,17 @@ async def list_experiments(
 
 async def _get_experiment_runs_and_revisions(
     session: AsyncSession,
-    experiment_rowid: int,
-    experiment_globalid: GlobalID,
+    experiment_id: str,
 ) -> tuple[models.Experiment, list[models.ExperimentRun], list[models.DatasetExampleRevision]]:
+    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
     experiment = await session.get(models.Experiment, experiment_rowid)
     if not experiment:
         raise HTTPException(
@@ -400,18 +408,9 @@ async def get_experiment_json(
     response: Response,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> str:
-    experiment_globalid = GlobalID.from_id(experiment_id)
-    try:
-        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
-    except ValueError:
-        raise HTTPException(
-            detail=f"Experiment with ID {experiment_globalid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
-        )
-
     async with request.app.state.db() as session:
         experiment, runs, revisions = await _get_experiment_runs_and_revisions(
-            session, experiment_rowid, experiment_globalid
+            session, experiment_id
         )
         records = []
         for run, revision in zip(runs, revisions):
@@ -469,18 +468,9 @@ async def get_experiment_csv(
     request: Request,
     experiment_id: str = Path(..., title="Experiment ID"),
 ) -> Response:
-    experiment_globalid = GlobalID.from_id(experiment_id)
-    try:
-        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
-    except ValueError:
-        raise HTTPException(
-            detail=f"Invalid experiment ID: {experiment_globalid}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-        )
-
     async with request.app.state.db() as session:
         experiment, runs, revisions = await _get_experiment_runs_and_revisions(
-            session, experiment_rowid, experiment_globalid
+            session, experiment_id
         )
         records = []
         for run, revision in zip(runs, revisions):
