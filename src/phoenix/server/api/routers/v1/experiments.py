@@ -7,6 +7,7 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException, Path, Response
 from pydantic import Field
 from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, StreamingResponse
@@ -312,6 +313,77 @@ async def list_experiments(
         return ListExperimentsResponseBody(data=data)
 
 
+async def _get_experiment_runs_and_revisions(
+    session: AsyncSession,
+    experiment_rowid: int,
+    experiment_globalid: GlobalID,
+) -> tuple[models.Experiment, list[models.ExperimentRun], list[models.DatasetExampleRevision]]:
+    experiment = await session.get(models.Experiment, experiment_rowid)
+    if not experiment:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
+    revision_ids = (
+        select(func.max(models.DatasetExampleRevision.id))
+        .join(
+            models.DatasetExample,
+            models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+        )
+        .where(
+            and_(
+                models.DatasetExampleRevision.dataset_version_id <= experiment.dataset_version_id,
+                models.DatasetExample.dataset_id == experiment.dataset_id,
+            )
+        )
+        .group_by(models.DatasetExampleRevision.dataset_example_id)
+        .scalar_subquery()
+    )
+
+    runs_and_revisions = (
+        (
+            await session.execute(
+                select(models.ExperimentRun, models.DatasetExampleRevision)
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+                )
+                .join(
+                    models.DatasetExampleRevision,
+                    and_(
+                        models.DatasetExample.id
+                        == models.DatasetExampleRevision.dataset_example_id,
+                        models.DatasetExampleRevision.id.in_(revision_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
+                    ),
+                )
+                .options(
+                    joinedload(models.ExperimentRun.annotations),
+                )
+                .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                .order_by(
+                    models.ExperimentRun.dataset_example_id,
+                    models.ExperimentRun.repetition_number,
+                )
+            )
+        )
+        .unique()
+        .all()
+    )
+
+    if not runs_and_revisions:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} has no runs",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
+    runs = [run for run, _ in runs_and_revisions]
+    revisions = [revision for _, revision in runs_and_revisions]
+
+    return experiment, runs, revisions
+
+
 @router.get(
     "/experiments/{experiment_id}/json",
     operation_id="getExperimentJSON",
@@ -338,102 +410,48 @@ async def get_experiment_json(
         )
 
     async with request.app.state.db() as session:
-        experiment = await session.get(models.Experiment, experiment_rowid)
-        if not experiment:
-            raise HTTPException(
-                detail=f"Experiment with ID {experiment_globalid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(
-                models.DatasetExample,
-                models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-            )
-            .where(
-                and_(
-                    models.DatasetExampleRevision.dataset_version_id
-                    <= experiment.dataset_version_id,
-                    models.DatasetExample.dataset_id == experiment.dataset_id,
-                )
-            )
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
-            .scalar_subquery()
+        experiment, runs, revisions = await _get_experiment_runs_and_revisions(
+            session, experiment_rowid, experiment_globalid
         )
-        runs_and_revisions = (
-            (
-                await session.execute(
-                    select(models.ExperimentRun, models.DatasetExampleRevision)
-                    .join(
-                        models.DatasetExample,
-                        models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
-                    )
-                    .join(
-                        models.DatasetExampleRevision,
-                        and_(
-                            models.DatasetExample.id
-                            == models.DatasetExampleRevision.dataset_example_id,
-                            models.DatasetExampleRevision.id.in_(revision_ids),
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
-                        ),
-                    )
-                    .options(
-                        joinedload(models.ExperimentRun.annotations),
-                    )
-                    .where(models.ExperimentRun.experiment_id == experiment_rowid)
-                    .order_by(
-                        models.ExperimentRun.dataset_example_id,
-                        models.ExperimentRun.repetition_number,
-                    )
+        records = []
+        for run, revision in zip(runs, revisions):
+            annotations = []
+            for annotation in run.annotations:
+                annotations.append(
+                    {
+                        "name": annotation.name,
+                        "annotator_kind": annotation.annotator_kind,
+                        "label": annotation.label,
+                        "score": annotation.score,
+                        "explanation": annotation.explanation,
+                        "trace_id": annotation.trace_id,
+                        "error": annotation.error,
+                        "metadata": annotation.metadata_,
+                        "start_time": annotation.start_time.isoformat(),
+                        "end_time": annotation.end_time.isoformat(),
+                    }
                 )
-            )
-            .unique()
-            .all()
-        )
-        if not runs_and_revisions:
-            raise HTTPException(
-                detail=f"Experiment with ID {experiment_globalid} has no runs",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-    records = []
-    for run, revision in runs_and_revisions:
-        annotations = []
-        for annotation in run.annotations:
-            annotations.append(
-                {
-                    "name": annotation.name,
-                    "annotator_kind": annotation.annotator_kind,
-                    "label": annotation.label,
-                    "score": annotation.score,
-                    "explanation": annotation.explanation,
-                    "trace_id": annotation.trace_id,
-                    "error": annotation.error,
-                    "metadata": annotation.metadata_,
-                    "start_time": annotation.start_time.isoformat(),
-                    "end_time": annotation.end_time.isoformat(),
-                }
-            )
-        record = {
-            "example_id": str(
-                GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
-            ),
-            "repetition_number": run.repetition_number,
-            "input": revision.input,
-            "reference_output": revision.output,
-            "output": run.output["task_output"],
-            "error": run.error,
-            "latency_ms": run.latency_ms,
-            "start_time": run.start_time.isoformat(),
-            "end_time": run.end_time.isoformat(),
-            "trace_id": run.trace_id,
-            "prompt_token_count": run.prompt_token_count,
-            "completion_token_count": run.completion_token_count,
-            "annotations": annotations,
-        }
-        records.append(record)
+            record = {
+                "example_id": str(
+                    GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
+                ),
+                "repetition_number": run.repetition_number,
+                "input": revision.input,
+                "reference_output": revision.output,
+                "output": run.output["task_output"],
+                "error": run.error,
+                "latency_ms": run.latency_ms,
+                "start_time": run.start_time.isoformat(),
+                "end_time": run.end_time.isoformat(),
+                "trace_id": run.trace_id,
+                "prompt_token_count": run.prompt_token_count,
+                "completion_token_count": run.completion_token_count,
+                "annotations": annotations,
+            }
+            records.append(record)
 
-    response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.json"'
-    return json.dumps(records, ensure_ascii=False, indent=2)
+        response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.json"'
+        return json.dumps(records, ensure_ascii=False, indent=2)
 
 
 @router.get(
@@ -456,74 +474,16 @@ async def get_experiment_csv(
         experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
     except ValueError:
         raise HTTPException(
-            detail=f"Experiment with ID {experiment_globalid} does not exist",
-            status_code=HTTP_404_NOT_FOUND,
+            detail=f"Invalid experiment ID: {experiment_globalid}",
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     async with request.app.state.db() as session:
-        experiment = await session.get(models.Experiment, experiment_rowid)
-        if not experiment:
-            raise HTTPException(
-                detail=f"Experiment with ID {experiment_globalid} does not exist",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(
-                models.DatasetExample,
-                models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-            )
-            .where(
-                and_(
-                    models.DatasetExampleRevision.dataset_version_id
-                    <= experiment.dataset_version_id,
-                    models.DatasetExample.dataset_id == experiment.dataset_id,
-                )
-            )
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
-            .scalar_subquery()
+        experiment, runs, revisions = await _get_experiment_runs_and_revisions(
+            session, experiment_rowid, experiment_globalid
         )
-
-        runs_and_revisions = (
-            (
-                await session.execute(
-                    select(models.ExperimentRun, models.DatasetExampleRevision)
-                    .join(
-                        models.DatasetExample,
-                        models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
-                    )
-                    .join(
-                        models.DatasetExampleRevision,
-                        and_(
-                            models.DatasetExample.id
-                            == models.DatasetExampleRevision.dataset_example_id,
-                            models.DatasetExampleRevision.id.in_(revision_ids),
-                            models.DatasetExampleRevision.revision_kind != "DELETE",
-                        ),
-                    )
-                    .options(
-                        joinedload(models.ExperimentRun.annotations),
-                    )
-                    .where(models.ExperimentRun.experiment_id == experiment_rowid)
-                    .order_by(
-                        models.ExperimentRun.dataset_example_id,
-                        models.ExperimentRun.repetition_number,
-                    )
-                )
-            )
-            .unique()
-            .all()
-        )
-
-        if not runs_and_revisions:
-            raise HTTPException(
-                detail=f"Experiment with ID {experiment_globalid} has no runs",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-
         records = []
-        for run, revision in runs_and_revisions:
+        for run, revision in zip(runs, revisions):
             serialized_run_output = (
                 json.dumps(run.output["task_output"])
                 if isinstance(run.output["task_output"], dict)
