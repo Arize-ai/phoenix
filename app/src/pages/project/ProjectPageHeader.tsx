@@ -4,7 +4,13 @@ import { css } from "@emotion/react";
 
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  ErrorBoundary,
+  Flex,
+  Text,
+  TextErrorBoundaryFallback,
+  View,
+} from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatInt, intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -181,7 +187,9 @@ export function ProjectPageHeader(props: {
               )}
             </Flex>
             {spanAnnotationNames.map((name) => (
-              <AnnotationSummary key={name} annotationName={name} />
+              <ErrorBoundary key={name} fallback={TextErrorBoundaryFallback}>
+                <AnnotationSummary key={name} annotationName={name} />
+              </ErrorBoundary>
             ))}
             {documentEvaluationNames.map((name) => (
               <DocumentEvaluationSummary

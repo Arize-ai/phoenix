@@ -13,7 +13,7 @@ export function DatasetHistoryButton(props: { datasetId: string }) {
     <>
       <TooltipTrigger>
         <Button
-          icon={<Icon svg={<Icons.ClockOutline />} />}
+          leadingVisual={<Icon svg={<Icons.ClockOutline />} />}
           aria-label="Version History"
           onPress={() => {
             setDialog(<DatasetHistoryDialog datasetId={datasetId} />);

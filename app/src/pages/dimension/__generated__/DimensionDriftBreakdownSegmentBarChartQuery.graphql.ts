@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<599c28803e2323fc686f3182858c25c3>>
+ * @generated SignedSource<<83836b2254a1fadeb5dec4ae3447aff5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type TimeRange = {
   end?: string | null;
   start?: string | null;
@@ -246,8 +246,7 @@ return {
                   ],
                   "storageKey": null
                 },
-                "action": "THROW",
-                "path": "dimension.segmentsComparison"
+                "action": "THROW"
               }
             ],
             "type": "Dimension",

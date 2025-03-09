@@ -46,6 +46,7 @@ import {
 import {
   Button,
   CopyToClipboardButton,
+  ErrorBoundary,
   ExternalLink,
   Flex,
   Heading,
@@ -55,7 +56,6 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
-import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,
@@ -151,13 +151,14 @@ export function SpanDetails({
   const navigate = useNavigate();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($spanId: GlobalID!) {
-        span: node(id: $spanId) {
+      query SpanDetailsQuery($id: GlobalID!) {
+        span: node(id: $id) {
           __typename
           ... on Span {
             id
-            context {
-              spanId
+            spanId
+            trace {
+              id
               traceId
             }
             name
@@ -208,7 +209,7 @@ export function SpanDetails({
       }
     `,
     {
-      spanId: spanNodeId,
+      id: spanNodeId,
     }
   );
 
@@ -248,7 +249,7 @@ export function SpanDetails({
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <Button
               variant="default"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               isDisabled={span.spanKind !== "llm"}
               onPress={() => {
                 navigate(`/playground/spans/${span.id}`);
@@ -257,8 +258,8 @@ export function SpanDetails({
               Playground
             </Button>
             <SpanCodeDropdown
-              traceId={span.context.traceId}
-              spanId={span.context.spanId}
+              traceId={span.trace.traceId}
+              spanId={span.spanId}
             />
             <AddSpanToDatasetButton span={span} />
             <EditSpanAnnotationsButton
@@ -272,7 +273,7 @@ export function SpanDetails({
                 onPress={() => {
                   setShowSpanAside(!showSpanAside);
                 }}
-                icon={
+                leadingVisual={
                   <Icon
                     svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
                   />
@@ -383,7 +384,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
     <>
       <Button
         variant="default"
-        icon={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={onAddSpanToDataset}
       >
         Add to Dataset

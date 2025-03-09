@@ -1,12 +1,12 @@
-import React, { Suspense, useCallback, useMemo } from "react";
-import {
-  graphql,
-  PreloadedQuery,
-  useLazyLoadQuery,
-  usePreloadedQuery,
-  useQueryLoader,
-} from "react-relay";
-import { Outlet, useParams } from "react-router";
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
+import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
+import { Outlet, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { TabPane, Tabs } from "@arizeai/components";
@@ -14,19 +14,23 @@ import { TabPane, Tabs } from "@arizeai/components";
 import { Flex, Loading } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
-  useLastNTimeRange,
+  useTimeRange,
 } from "@phoenix/components/datetime";
+import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
+import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
-import { ProjectPageQuery } from "./__generated__/ProjectPageQuery.graphql";
-import { ProjectPageSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageSessionsQuery.graphql";
-import { ProjectPageSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageSpansQuery.graphql";
+import { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
+import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
+import { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
+import { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
-import { SessionSearchProvider } from "./SessionSearchContext";
-import { SessionsTable } from "./SessionsTable";
-import { SpanFilterConditionProvider } from "./SpanFilterConditionContext";
-import { SpansTable } from "./SpansTable";
+import {
+  ProjectPageQueriesSessionsQuery,
+  ProjectPageQueriesSpansQuery,
+  ProjectPageQueriesTracesQuery,
+  ProjectPageQueryReferenceContext,
+} from "./ProjectPageQueries";
 import { StreamToggle } from "./StreamToggle";
-import { TracesTable } from "./TracesTable";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -58,7 +62,7 @@ const mainCSS = css`
 
 export function ProjectPage() {
   const { projectId } = useParams();
-  const { timeRange } = useLastNTimeRange();
+  const { timeRange } = useTimeRange();
   return (
     <Suspense fallback={<Loading />}>
       <ProjectPageContent
@@ -69,41 +73,36 @@ export function ProjectPage() {
   );
 }
 
-const ProjectPageSpansQuery = graphql`
-  query ProjectPageSpansQuery($id: GlobalID!, $timeRange: TimeRange!) {
-    project: node(id: $id) {
-      ...SpansTable_spans
-    }
-  }
-`;
+const TABS = ["traces", "spans", "sessions"] as const;
+const isTab = (tab: string): tab is (typeof TABS)[number] => {
+  return TABS.includes(tab as (typeof TABS)[number]);
+};
 
-const ProjectPageSessionsQuery = graphql`
-  query ProjectPageSessionsQuery($id: GlobalID!, $timeRange: TimeRange!) {
-    project: node(id: $id) {
-      ...SessionsTable_sessions
-    }
-  }
-`;
+const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
+  traces: 0,
+  spans: 1,
+  sessions: 2,
+};
 
 export function ProjectPageContent({
   projectId,
   timeRange,
 }: {
   projectId: string;
-  timeRange: TimeRange;
+  timeRange: OpenTimeRange;
 }) {
   const timeRangeVariable = useMemo(() => {
     return {
-      start: timeRange.start.toISOString(),
-      end: timeRange.end.toISOString(),
+      start: timeRange?.start?.toISOString(),
+      end: timeRange?.end?.toISOString(),
     };
   }, [timeRange]);
-
-  const data = useLazyLoadQuery<ProjectPageQuery>(
+  const navigate = useNavigate();
+  const { rootPath, tab } = useProjectRootPath();
+  const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: GlobalID!, $timeRange: TimeRange!) {
         project: node(id: $id) {
-          ...TracesTable_spans
           ...ProjectPageHeader_stats
           ...StreamToggle_data
         }
@@ -115,117 +114,118 @@ export function ProjectPageContent({
     },
     {
       fetchPolicy: "store-and-network",
+      fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
     }
   );
+  const [tracesQueryReference, loadTracesQuery, disposeTracesQuery] =
+    useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
   const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
-    useQueryLoader<ProjectPageSpansQueryType>(ProjectPageSpansQuery);
+    useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
   const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
-    useQueryLoader<ProjectPageSessionsQueryType>(ProjectPageSessionsQuery);
+    useQueryLoader<ProjectPageSessionsQueryType>(
+      ProjectPageQueriesSessionsQuery
+    );
+  const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  useEffect(() => {
+    if (tabIndex === 0) {
+      loadTracesQuery({
+        id: projectId as string,
+        timeRange: timeRangeVariable,
+      });
+    } else if (tabIndex === 1) {
+      loadSpansQuery({
+        id: projectId as string,
+        timeRange: timeRangeVariable,
+      });
+    } else if (tabIndex === 2) {
+      loadSessionsQuery({
+        id: projectId as string,
+        timeRange: timeRangeVariable,
+      });
+    }
+
+    return () => {
+      disposeSpansQuery();
+      disposeSessionsQuery();
+      disposeTracesQuery();
+    };
+  }, [
+    loadTracesQuery,
+    projectId,
+    timeRangeVariable,
+    tabIndex,
+    disposeSpansQuery,
+    disposeSessionsQuery,
+    disposeTracesQuery,
+    loadSpansQuery,
+    loadSessionsQuery,
+  ]);
+
   const onTabChange = useCallback(
     (index: number) => {
-      if (index === 1) {
-        disposeSessionsQuery();
-        loadSpansQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
-        });
-      } else if (index === 2) {
-        disposeSpansQuery();
-        loadSessionsQuery({
-          id: projectId as string,
-          timeRange: timeRangeVariable,
-        });
-      } else {
-        disposeSpansQuery();
-        disposeSessionsQuery();
-      }
-    },
-    [
-      disposeSpansQuery,
-      loadSpansQuery,
-      disposeSessionsQuery,
-      loadSessionsQuery,
-      projectId,
-      timeRangeVariable,
-    ]
-  );
-  return (
-    <main css={mainCSS}>
-      <ProjectPageHeader
-        project={data.project}
-        extra={
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <StreamToggle project={data.project} />
-            <ConnectedLastNTimeRangePicker />
-          </Flex>
+      startTransition(() => {
+        if (index === 1) {
+          // navigate to the spans tab
+          navigate(`${rootPath}/spans`);
+        } else if (index === 2) {
+          // navigate to the sessions tab
+          navigate(`${rootPath}/sessions`);
+        } else {
+          // navigate to the traces tab
+          navigate(`${rootPath}/traces`);
         }
-      />
-      <Tabs onChange={onTabChange}>
-        <TabPane name="Traces">
-          {({ isSelected }) => {
-            return (
-              isSelected && (
-                <SpanFilterConditionProvider>
-                  <Suspense>
-                    <TracesTable project={data.project} />
-                  </Suspense>
-                </SpanFilterConditionProvider>
-              )
-            );
-          }}
-        </TabPane>
-        <TabPane name="Spans">
-          {({ isSelected }) => {
-            return (
-              isSelected &&
-              spansQueryReference && (
-                <SpanFilterConditionProvider>
-                  <Suspense fallback={<Loading />}>
-                    <SpansTabContent queryReference={spansQueryReference} />
-                  </Suspense>
-                </SpanFilterConditionProvider>
-              )
-            );
-          }}
-        </TabPane>
-        <TabPane name="Sessions">
-          {({ isSelected }) => {
-            return (
-              isSelected &&
-              sessionsQueryReference && (
-                <SessionSearchProvider>
-                  <Suspense>
-                    <SessionsTabContent
-                      queryReference={sessionsQueryReference}
-                    />
-                  </Suspense>
-                </SessionSearchProvider>
-              )
-            );
-          }}
-        </TabPane>
-      </Tabs>
-      <Suspense>
-        <Outlet />
-      </Suspense>
-    </main>
+      });
+    },
+    [navigate, rootPath]
   );
-}
 
-function SpansTabContent({
-  queryReference,
-}: {
-  queryReference: PreloadedQuery<ProjectPageSpansQueryType>;
-}) {
-  const data = usePreloadedQuery(ProjectPageSpansQuery, queryReference);
-  return <SpansTable project={data.project} />;
-}
-
-function SessionsTabContent({
-  queryReference,
-}: {
-  queryReference: PreloadedQuery<ProjectPageSessionsQueryType>;
-}) {
-  const data = usePreloadedQuery(ProjectPageSessionsQuery, queryReference);
-  return <SessionsTable project={data.project} />;
+  return (
+    <StreamStateProvider>
+      <main css={mainCSS}>
+        <ProjectPageHeader
+          project={data.project}
+          extra={
+            <Flex direction="row" alignItems="center" gap="size-100">
+              <StreamToggle project={data.project} />
+              <ConnectedLastNTimeRangePicker />
+            </Flex>
+          }
+        />
+        <ProjectPageQueryReferenceContext.Provider
+          value={{
+            spansQueryReference: spansQueryReference ?? null,
+            sessionsQueryReference: sessionsQueryReference ?? null,
+            tracesQueryReference: tracesQueryReference ?? null,
+          }}
+        >
+          <Tabs onChange={onTabChange} index={tabIndex}>
+            <TabPane name="Traces">
+              {({ isSelected }) => {
+                if (isSelected) {
+                  return <Outlet />;
+                }
+                return null;
+              }}
+            </TabPane>
+            <TabPane name="Spans">
+              {({ isSelected }) => {
+                if (isSelected) {
+                  return <Outlet />;
+                }
+                return null;
+              }}
+            </TabPane>
+            <TabPane name="Sessions">
+              {({ isSelected }) => {
+                if (isSelected) {
+                  return <Outlet />;
+                }
+                return null;
+              }}
+            </TabPane>
+          </Tabs>
+        </ProjectPageQueryReferenceContext.Provider>
+      </main>
+    </StreamStateProvider>
+  );
 }

@@ -5,9 +5,12 @@ export const buttonCSS = css`
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
+
   display: flex;
+  gap: var(--ac-global-dimension-static-size-100);
   justify-content: center;
   align-items: center;
+  flex-direction: row;
   box-sizing: border-box;
   border-radius: var(--ac-global-rounding-small);
   color: var(--ac-global-text-color-900);
@@ -43,6 +46,14 @@ export const buttonCSS = css`
     padding: var(--ac-global-dimension-static-size-50)
       var(--ac-global-dimension-static-size-50);
   }
+  // The default style
+
+  background-color: var(--ac-global-input-field-background-color);
+  border-color: var(--ac-global-input-field-border-color);
+  &:hover:not([disabled]) {
+    background-color: var(--ac-global-input-field-border-color-hover);
+  }
+
   &[data-variant="primary"] {
     background-color: var(--ac-global-button-primary-background-color);
     border-color: var(--ac-global-button-primary-border-color);
@@ -68,13 +79,6 @@ export const buttonCSS = css`
       background-color: var(--ac-global-button-success-background-color-hover);
     }
   }
-  &[data-variant="default"] {
-    background-color: var(--ac-global-input-field-background-color);
-    border-color: var(--ac-global-input-field-border-color);
-    &:hover:not([disabled]) {
-      background-color: var(--ac-global-input-field-border-color-hover);
-    }
-  }
   &[data-variant="quiet"] {
     background-color: transparent;
     border-color: transparent;
@@ -84,8 +88,15 @@ export const buttonCSS = css`
     }
   }
 
-  &[data-childless="false"] > i,
-  & > .ac-spinner {
-    margin-right: var(--ac-global-dimension-static-size-50);
+  kbd {
+    background-color: var(--ac-global-text-color-300);
+    border-radius: var(--ac-global-rounding-small);
+    padding: var(--ac-global-dimension-static-size-50);
+    font-size: var(--ac-global-font-size-xs);
+    line-height: var(--ac-global-font-size-xxs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ac-global-dimension-static-size-25);
   }
 `;

@@ -63,7 +63,7 @@ export function RunExperimentButton() {
     <>
       <Button
         size="S"
-        icon={<Icon svg={<Icons.ExperimentOutline />} />}
+        leadingVisual={<Icon svg={<Icons.ExperimentOutline />} />}
         onPress={onRunExample}
       >
         Run Experiment

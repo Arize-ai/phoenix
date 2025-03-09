@@ -1,0 +1,9 @@
+{
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.9",
+  "useLibraryCodeForTypes": true,
+  "reportMissingTypeStubs": false,
+  "reportUnusedClass": false,
+  "reportUnusedFunction": false,
+  "reportUnnecessaryIsInstance": false
+}

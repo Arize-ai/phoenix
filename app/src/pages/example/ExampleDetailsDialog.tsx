@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Card, CardProps, Dialog, DialogContainer } from "@arizeai/components";
 
 import {
-  Button,
   CopyToClipboardButton,
   Flex,
   Heading,
+  LinkButton,
   View,
 } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
@@ -45,11 +44,12 @@ export function ExampleDetailsDialog({
             }
             span {
               id
-              context {
-                traceId
-              }
-              project {
+              trace {
                 id
+                traceId
+                project {
+                  id
+                }
               }
             }
           }
@@ -75,12 +75,11 @@ export function ExampleDetailsDialog({
     }
     return {
       id: sourceSpan.id,
-      traceId: sourceSpan.context.traceId,
-      projectId: sourceSpan.project.id,
+      traceId: sourceSpan.trace.traceId,
+      projectId: sourceSpan.trace.project.id,
     };
   }, [data]);
   const { input, output, metadata } = revision;
-  const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   return (
     <DialogContainer type="slideOver" isDismissable onDismiss={onDismiss}>
@@ -90,16 +89,12 @@ export function ExampleDetailsDialog({
         extra={
           <Flex direction="row" gap="size-100">
             {sourceSpanInfo ? (
-              <Button
+              <LinkButton
                 size="S"
-                onPress={() => {
-                  navigate(
-                    `/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`
-                  );
-                }}
+                to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?selectedSpanNodeId=${sourceSpanInfo.id}`}
               >
                 View Source Span
-              </Button>
+              </LinkButton>
             ) : null}
             <EditExampleButton
               exampleId={exampleId as string}
@@ -116,7 +111,7 @@ export function ExampleDetailsDialog({
         }
       >
         <PanelGroup direction="vertical" autoSaveId="example-panel-group">
-          <Panel defaultSize={200}>
+          <Panel defaultSize={65}>
             <div
               css={css`
                 overflow-y: auto;
@@ -159,7 +154,7 @@ export function ExampleDetailsDialog({
             </div>
           </Panel>
           <PanelResizeHandle css={resizeHandleCSS} />
-          <Panel defaultSize={100}>
+          <Panel defaultSize={35}>
             <Flex direction="column" height="100%">
               <View
                 paddingStart="size-200"

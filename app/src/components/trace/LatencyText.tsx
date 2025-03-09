@@ -39,6 +39,7 @@ export function LatencyText({
       alignItems="center"
       justifyContent="start"
       gap="size-50"
+      className="latency-text"
     >
       {showIcon ? (
         <Text color={color} size={size}>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5f02fa700410bd979b2bf466b8d93b8e>>
+ * @generated SignedSource<<bf81c5ad095f7ca310565378e6f09a16>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetExamplesTableRefetchQuery$variables = {
   after?: string | null;

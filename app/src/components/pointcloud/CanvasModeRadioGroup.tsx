@@ -1,21 +1,21 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import {
-  Radio,
-  RadioGroup,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Tooltip, TooltipTrigger } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@phoenix/components";
 import { CanvasMode } from "@phoenix/store";
 
 const radioItemCSS = css`
   display: flex;
   flex-direction: row;
   gap: var(--ac-global-dimension-static-size-50);
+  align-items: center;
 `;
 /**
  * TypeGuard for the canvas mode
@@ -31,38 +31,38 @@ type CanvasModeRadioGroupProps = {
 
 export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
   return (
-    <RadioGroup
-      defaultValue={props.mode}
-      variant="inline-button"
-      size="compact"
-      onChange={(v) => {
-        if (isCanvasMode(v)) {
-          props.onChange(v);
+    <ToggleButtonGroup
+      selectedKeys={[props.mode]}
+      aria-label="Canvas Mode"
+      size="S"
+      onSelectionChange={(v) => {
+        if (v.size === 0) {
+          return;
+        }
+        const mode = v.keys().next().value;
+        if (isCanvasMode(mode)) {
+          props.onChange(mode);
         } else {
           throw new Error(`Unknown canvas mode: ${v}`);
         }
       }}
     >
-      <Radio label="Move" value={CanvasMode.move}>
-        <TooltipTrigger placement="top" delay={0} offset={10}>
-          <TriggerWrap>
-            <div css={radioItemCSS}>
-              <Icon svg={<Icons.MoveFilled />} /> Move
-            </div>
-          </TriggerWrap>
-          <Tooltip>Move around the canvas using orbital controls</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-      <Radio label="Select" value={CanvasMode.select}>
-        <TooltipTrigger placement="top" delay={0} offset={10}>
-          <TriggerWrap>
-            <div css={radioItemCSS}>
-              <Icon svg={<Icons.LassoOutline />} /> Select
-            </div>
-          </TriggerWrap>
-          <Tooltip>Select points using the lasso tool</Tooltip>
-        </TooltipTrigger>
-      </Radio>
-    </RadioGroup>
+      <TooltipTrigger placement="top" delay={0} offset={10}>
+        <ToggleButton aria-label="Move" id={CanvasMode.move}>
+          <div css={radioItemCSS}>
+            <Icon svg={<Icons.MoveFilled />} /> Move
+          </div>
+        </ToggleButton>
+        <Tooltip>Move around the canvas using orbital controls</Tooltip>
+      </TooltipTrigger>
+      <TooltipTrigger placement="top" delay={0} offset={10}>
+        <ToggleButton aria-label="Select" id={CanvasMode.select}>
+          <div css={radioItemCSS}>
+            <Icon svg={<Icons.LassoOutline />} /> Select
+          </div>
+        </ToggleButton>
+        <Tooltip>Select points using the lasso tool</Tooltip>
+      </TooltipTrigger>
+    </ToggleButtonGroup>
   );
 }

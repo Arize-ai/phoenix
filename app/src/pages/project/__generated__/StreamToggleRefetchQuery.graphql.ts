@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3525676eed8987ac7fa4ad5d36bb0c27>>
+ * @generated SignedSource<<70520bcd913307e25639a84e44aef198>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type StreamToggleRefetchQuery$variables = {
   id: string;

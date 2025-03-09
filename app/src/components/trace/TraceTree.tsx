@@ -13,7 +13,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
+import { Button, Flex, Heading, Icon, Icons } from "@phoenix/components";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
@@ -35,6 +35,11 @@ type TraceTreeProps = {
  */
 const NESTING_INDENT = 30;
 
+/**
+ * The breakpoint at which the trace tree switches to compact mode.
+ */
+const COMPACT_BREAKPOINT = "200px";
+
 export function TraceTree(props: TraceTreeProps) {
   const { spans, onSpanClick, selectedSpanNodeId } = props;
   const spanTree = createSpanTree(spans);
@@ -47,6 +52,7 @@ export function TraceTree(props: TraceTreeProps) {
           overflow: hidden;
           height: 100%;
           align-items: stretch;
+          container-type: inline-size;
         `}
       >
         <TraceTreeToolbar />
@@ -57,6 +63,23 @@ export function TraceTree(props: TraceTreeProps) {
             flex-direction: column;
             width: 100%;
             overflow: auto;
+            --trace-tree-nesting-indent: ${NESTING_INDENT}px;
+            @container (width < ${COMPACT_BREAKPOINT}) {
+              --trace-tree-nesting-indent: 0;
+              // Hide the collapse button
+              .span-controls,
+              .latency-text,
+              .token-count-item,
+              .span-tree-edge-connector,
+              .span-tree-edge {
+                display: none;
+                visibility: hidden;
+                width: 0;
+              }
+              .span-node-wrap {
+                padding-left: var(--ac-global-dimension-static-size-200);
+              }
+            }
           `}
           data-testid="trace-tree"
         >
@@ -83,69 +106,97 @@ function TraceTreeToolbar() {
   );
   const { isCollapsed, setIsCollapsed } = useTraceTree();
   return (
-    <View borderBottomWidth="thin" borderColor="dark" padding="size-100">
-      <Flex direction="row" justifyContent="end" flex="none" gap="size-100">
-        <TooltipTrigger offset={5}>
-          <TriggerWrap>
-            <Button
-              variant="default"
-              size="S"
-              aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-              onPress={() => {
-                setIsCollapsed(!isCollapsed);
-              }}
-              icon={
-                <Icon
-                  svg={
-                    isCollapsed ? (
-                      <Icons.RowCollapseOutline />
-                    ) : (
-                      <Icons.RowExpandOutline />
-                    )
-                  }
-                />
-              }
-            />
-          </TriggerWrap>
-          <Tooltip>
-            {isCollapsed
-              ? "Expand all nested spans"
-              : "Collapse all nested spans"}
-          </Tooltip>
-        </TooltipTrigger>
-        <TooltipTrigger offset={5}>
-          <TriggerWrap>
-            <Button
-              size="S"
-              aria-label={
-                showMetricsInTraceTree
-                  ? "Hide metrics in trace tree"
-                  : "Show metrics in trace tree"
-              }
-              onPress={() => {
-                setShowMetricsInTraceTree(!showMetricsInTraceTree);
-              }}
-              icon={
-                <Icon
-                  svg={
-                    showMetricsInTraceTree ? (
-                      <Icons.TimerOutline />
-                    ) : (
-                      <Icons.TimerOffOutline />
-                    )
-                  }
-                />
-              }
-            />
-          </TriggerWrap>
-          <Tooltip>
-            {showMetricsInTraceTree
-              ? "Hide metrics in trace tree"
-              : "Show metrics in trace tree"}
-          </Tooltip>
-        </TooltipTrigger>
+    <div
+      className="trace-tree-toolbar"
+      css={css`
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        box-sizing: border-box;
+        width: 100%;
+        align-items: center;
+        padding: var(--ac-global-dimension-size-100);
+        border-bottom: 1px solid var(--ac-global-color-grey-300);
+        height: var(--ac-global-dimension-size-600);
+        @container (width < ${COMPACT_BREAKPOINT}) {
+          button {
+            display: none;
+          }
+        }
+      `}
+    >
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        flex="none"
+        gap="size-100"
+        width="100%"
+      >
+        <Heading level={3}>Trace</Heading>
+        <Flex direction="row" gap="size-100" className="trace-tree-controls">
+          <TooltipTrigger offset={5}>
+            <TriggerWrap>
+              <Button
+                variant="default"
+                size="S"
+                aria-label={isCollapsed ? "Expand all" : "Collapse all"}
+                onPress={() => {
+                  setIsCollapsed(!isCollapsed);
+                }}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      isCollapsed ? (
+                        <Icons.RowCollapseOutline />
+                      ) : (
+                        <Icons.RowExpandOutline />
+                      )
+                    }
+                  />
+                }
+              />
+            </TriggerWrap>
+            <Tooltip>
+              {isCollapsed
+                ? "Expand all nested spans"
+                : "Collapse all nested spans"}
+            </Tooltip>
+          </TooltipTrigger>
+          <TooltipTrigger offset={5}>
+            <TriggerWrap>
+              <Button
+                size="S"
+                aria-label={
+                  showMetricsInTraceTree
+                    ? "Hide metrics in trace tree"
+                    : "Show metrics in trace tree"
+                }
+                onPress={() => {
+                  setShowMetricsInTraceTree(!showMetricsInTraceTree);
+                }}
+                leadingVisual={
+                  <Icon
+                    svg={
+                      showMetricsInTraceTree ? (
+                        <Icons.TimerOutline />
+                      ) : (
+                        <Icons.TimerOffOutline />
+                      )
+                    }
+                  />
+                }
+              />
+            </TriggerWrap>
+            <Tooltip>
+              {showMetricsInTraceTree
+                ? "Hide metrics in trace tree"
+                : "Show metrics in trace tree"}
+            </Tooltip>
+          </TooltipTrigger>
+        </Flex>
       </Flex>
-    </View>
+    </div>
   );
 }
 
@@ -196,7 +247,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         className="button--reset"
         css={css`
           width: 100%;
-          min-width: 200px;
+          overflow: hidden;
           cursor: pointer;
         `}
         onClick={() => {
@@ -224,7 +275,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             {statusCode === "ERROR" ? (
               <SpanStatusCodeIcon statusCode="ERROR" />
             ) : null}
-            {typeof tokenCountTotal === "number" && showMetricsInTraceTree ? (
+            {typeof tokenCountTotal === "number" &&
+            tokenCountTotal > 0 &&
+            showMetricsInTraceTree ? (
               <TokenCount
                 tokenCountTotal={tokenCountTotal}
                 tokenCountPrompt={tokenCountPrompt ?? 0}
@@ -232,10 +285,14 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
               />
             ) : null}
             {latencyMs != null && showMetricsInTraceTree ? (
-              <LatencyText latencyMs={latencyMs} showIcon={false} />
+              <LatencyText latencyMs={latencyMs} showIcon={false} size="XS" />
             ) : null}
           </Flex>
-          <div css={spanControlsCSS} data-testid="span-controls">
+          <div
+            css={spanControlsCSS}
+            data-testid="span-controls"
+            className="span-controls"
+          >
             {hasChildren ? (
               <CollapseToggleButton
                 isCollapsed={isCollapsed}
@@ -260,7 +317,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             const nexSibling = childNodes[index + 1];
             return (
               <li
-                key={leafNode.span.context.spanId}
+                key={leafNode.span.spanId}
                 css={css`
                   position: relative;
                 `}
@@ -292,7 +349,9 @@ function SpanNodeWrap(
 ) {
   return (
     <div
-      className={props.isSelected ? "is-selected" : ""}
+      className={classNames("span-node-wrap", {
+        "is-selected": props.isSelected,
+      })}
       css={css`
         width: 100%;
         display: flex;
@@ -312,7 +371,9 @@ function SpanNodeWrap(
           border-color: var(--ac-global-color-primary);
         }
         & > *:first-child {
-          margin-left: ${props.nestingLevel * NESTING_INDENT + 16}px;
+          margin-left: calc(
+            (${props.nestingLevel} * var(--trace-tree-nesting-indent)) + 16px
+          );
         }
       `}
     >
@@ -335,6 +396,7 @@ function SpanTreeEdgeConnector({
     <div
       aria-hidden="true"
       data-testid="span-tree-edge-connector"
+      className="span-tree-edge-connector"
       css={css`
         position: absolute;
         border-left: 1px solid
@@ -365,6 +427,7 @@ function SpanTreeEdge({
   return (
     <div
       aria-hidden="true"
+      className="span-tree-edge"
       css={css`
         position: absolute;
         border-left: 1px solid ${color};
@@ -421,7 +484,7 @@ function CollapseToggleButton({
         e.preventDefault();
         onClick();
       }}
-      className={classNames("button--reset", {
+      className={classNames("button--reset collapse-toggle-button", {
         "is-collapsed": isCollapsed,
       })}
       css={collapseButtonCSS}

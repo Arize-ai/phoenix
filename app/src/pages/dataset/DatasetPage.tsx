@@ -18,6 +18,7 @@ import {
   DatasetProvider,
   useDatasetContext,
 } from "@phoenix/contexts/DatasetContext";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
 import { AddDatasetExampleButton } from "./AddDatasetExampleButton";
@@ -135,17 +136,24 @@ function DatasetPageContent({
               onAction={(action) => {
                 switch (action) {
                   case "csv":
-                    window.open(`/v1/datasets/${dataset.id}/csv`, "_blank");
+                    window.open(
+                      prependBasename(`/v1/datasets/${dataset.id}/csv`),
+                      "_blank"
+                    );
                     break;
                   case "openai-ft":
                     window.open(
-                      `/v1/datasets/${dataset.id}/jsonl/openai_ft`,
+                      prependBasename(
+                        `/v1/datasets/${dataset.id}/jsonl/openai_ft`
+                      ),
                       "_blank"
                     );
                     break;
                   case "openai-evals":
                     window.open(
-                      `/v1/datasets/${dataset.id}/jsonl/openai_evals`,
+                      prependBasename(
+                        `/v1/datasets/${dataset.id}/jsonl/openai_evals`
+                      ),
                       "_blank"
                     );
                     break;
@@ -160,9 +168,9 @@ function DatasetPageContent({
             <DatasetCodeDropdown />
             <RunExperimentButton />
             <Button
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               onPress={() => {
-                navigate(`/playground/datasets/${dataset.id}`);
+                navigate(`/playground?datasetId=${dataset.id}`);
               }}
             >
               Playground

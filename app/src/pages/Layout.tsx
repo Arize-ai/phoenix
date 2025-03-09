@@ -103,7 +103,7 @@ function SideNav() {
               <NavLink
                 to="/model"
                 text="Model"
-                icon={<Icon svg={<Icons.CubeOutline />} />}
+                leadingVisual={<Icon svg={<Icons.CubeOutline />} />}
               />
             </li>
           )}
@@ -111,28 +111,35 @@ function SideNav() {
             <NavLink
               to="/projects"
               text="Projects"
-              icon={<Icon svg={<Icons.GridOutline />} />}
+              leadingVisual={<Icon svg={<Icons.GridOutline />} />}
             />
           </li>
           <li>
             <NavLink
               to="/datasets"
               text="Datasets"
-              icon={<Icon svg={<Icons.DatabaseOutline />} />}
+              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
             />
           </li>
           <li>
             <NavLink
               to="/playground"
               text="Playground"
-              icon={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+            />
+          </li>
+          <li>
+            <NavLink
+              to="/prompts"
+              text="Prompts"
+              leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
             />
           </li>
           <li>
             <NavLink
               to="/apis"
               text="APIs"
-              icon={<Icon svg={<Icons.Code />} />}
+              leadingVisual={<Icon svg={<Icons.Code />} />}
             />
           </li>
         </ul>
@@ -141,7 +148,7 @@ function SideNav() {
             <NavLink
               to="/settings"
               text="Settings"
-              icon={<Icon svg={<Icons.SettingsOutline />} />}
+              leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
             />
           </li>
           <li>
@@ -151,7 +158,7 @@ function SideNav() {
             <NavLink
               to="/support"
               text="Support"
-              icon={<Icon svg={<Icons.LifeBuoy />} />}
+              leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
             />
           </li>
           <li>
@@ -163,13 +170,13 @@ function SideNav() {
                 <NavLink
                   to="/profile"
                   text="Profile"
-                  icon={<Icon svg={<Icons.PersonOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
                 />
               </li>
               <li>
                 <NavButton
                   text="Log Out"
-                  icon={<Icon svg={<Icons.LogOut />} />}
+                  leadingVisual={<Icon svg={<Icons.LogOut />} />}
                   onClick={onLogout}
                 />
               </li>

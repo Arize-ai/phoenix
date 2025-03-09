@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional, TypedDict
+from typing import Any, Iterable, Optional, Sequence, TypedDict, cast
 
+import sqlalchemy.sql as sql
+from openinference.semconv.trace import RerankerAttributes, SpanAttributes
 from sqlalchemy import (
     JSON,
     NUMERIC,
@@ -12,7 +14,9 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     MetaData,
+    Null,
     String,
     TypeDecorator,
     UniqueConstraint,
@@ -24,6 +28,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.sqlite.base import SQLiteCompiler
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -34,10 +39,105 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import expression
+from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
+from sqlalchemy.sql.compiler import SQLCompiler
+from sqlalchemy.sql.functions import coalesce
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.server.api.helpers.prompts.models import (
+    PromptInvocationParameters,
+    PromptInvocationParametersRootModel,
+    PromptResponseFormat,
+    PromptResponseFormatRootModel,
+    PromptTemplate,
+    PromptTemplateFormat,
+    PromptTemplateRootModel,
+    PromptTemplateType,
+    PromptTools,
+    is_prompt_invocation_parameters,
+    is_prompt_template,
+)
+from phoenix.trace.attributes import get_attribute_value
+
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
+INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
+LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
+LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
+METADATA = SpanAttributes.METADATA.split(".")
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE.split(".")
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+RERANKER_OUTPUT_DOCUMENTS = RerankerAttributes.RERANKER_OUTPUT_DOCUMENTS.split(".")
+RETRIEVAL_DOCUMENTS = SpanAttributes.RETRIEVAL_DOCUMENTS.split(".")
+
+
+class SubValues(Values, roles.CompoundElementRole):
+    """
+    Adapted from the following recipe:
+    https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+
+    This is part of a workaround to make it more convenient to construct the VALUES clause in
+    SQLite. The VALUES clause is useful for creating a temporary table in the database with a set
+    of user inputs in the form of multi-value tuples, which can then be joined with other tables.
+    """
+
+    inherit_cache = True
+
+    @property
+    def _all_selected_columns(self) -> Iterable[ColumnElement[Any]]:
+        return self.columns
+
+
+@compiles(SubValues, "sqlite")
+def render_subvalues_w_union(elem: SubValues, compiler: compiler.SQLCompiler, **kw: Any) -> str:
+    """
+    Adapted from the following recipe:
+    https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+
+    This is part of a workaround to make it more convenient to construct the VALUES clause in
+    SQLite. The VALUES clause is useful for creating a temporary table in the database with a set
+    of user inputs in the form of multi-value tuples, which can then be joined with other tables.
+    """
+    # omit rendering parenthesis, columns, "AS name", etc.
+    kw.pop("asfrom", None)
+    return cast(str, compiler.visit_values(elem, **kw))  # type: ignore[no-untyped-call]
+
+
+@compiles(Values, "sqlite")
+def render_values_w_union(
+    elem: Values,
+    compiler: compiler.SQLCompiler,
+    from_linter: Optional[compiler.FromLinter] = None,
+    **kw: Any,
+) -> str:
+    """
+    Adapted from the following recipe:
+    https://github.com/sqlalchemy/sqlalchemy/issues/7228#issuecomment-1746837960
+
+    This is part of a workaround to make it more convenient to construct the VALUES clause in
+    SQLite. The VALUES clause is useful for creating a temporary table in the database with a set
+    of user inputs in the form of multi-value tuples, which can then be joined with other tables.
+    """
+    first: tuple[Any, ...]
+    rest: list[tuple[Any, ...]]
+    first, *rest = [e for chunk in elem._data for e in chunk]
+    stmt = select(*(literal(val).label(col.key) for col, val in zip(elem.columns, first)))
+    if rest:
+        cols = [column(c.key, c.type) for c in elem.columns]
+        stmt = union_all(stmt, SubValues(*cols).data(rest))  # type: ignore[assignment]
+    subquery = stmt.subquery(elem.name)
+    if from_linter:
+        # replace all occurrences of elem with subquery so the from linter
+        # can eliminate the values object from its cartesian product check.
+        edges = set(from_linter.edges)
+        from_linter.edges.clear()
+        from_linter.edges.update(
+            tuple(subquery if node == elem else node for node in edge) for edge in edges
+        )
+    return compiler.process(subquery, from_linter=from_linter, **kw)
 
 
 class AuthMethod(Enum):
@@ -99,11 +199,145 @@ class UtcTimeStamp(TypeDecorator[datetime]):
         return normalize_datetime(value, timezone.utc)
 
 
+class _Identifier(TypeDecorator[Identifier]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[Identifier], _: Dialect) -> Optional[str]:
+        assert isinstance(value, Identifier) or value is None
+        return None if value is None else value.root
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[Identifier]:
+        return None if value is None else Identifier.model_validate(value)
+
+
+class _ModelProvider(TypeDecorator[ModelProvider]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[ModelProvider], _: Dialect) -> Optional[str]:
+        if isinstance(value, str):
+            return ModelProvider(value).value
+        return None if value is None else value.value
+
+    def process_result_value(self, value: Optional[str], _: Dialect) -> Optional[ModelProvider]:
+        return None if value is None else ModelProvider(value)
+
+
+class _InvocationParameters(TypeDecorator[PromptInvocationParameters]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptInvocationParameters], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert is_prompt_invocation_parameters(value)
+        invocation_parameters = value.model_dump()
+        assert isinstance(invocation_parameters, dict)
+        return invocation_parameters
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptInvocationParameters]:
+        assert isinstance(value, dict)
+        return PromptInvocationParametersRootModel.model_validate(value).root
+
+
+class _PromptTemplate(TypeDecorator[PromptTemplate]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptTemplate], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert is_prompt_template(value)
+        return value.model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptTemplate]:
+        assert isinstance(value, dict)
+        return PromptTemplateRootModel.model_validate(value).root
+
+
+class _Tools(TypeDecorator[PromptTools]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptTools], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptTools]:
+        return PromptTools.model_validate(value) if value is not None else None
+
+
+class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[PromptResponseFormat], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return value.model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[PromptResponseFormat]:
+        return (
+            PromptResponseFormatRootModel.model_validate(value).root if value is not None else None
+        )
+
+
+class _PromptTemplateType(TypeDecorator[PromptTemplateType]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(self, value: Optional[PromptTemplateType], _: Dialect) -> Optional[str]:
+        if isinstance(value, str):
+            return PromptTemplateType(value).value
+        return None if value is None else value.value
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[PromptTemplateType]:
+        return None if value is None else PromptTemplateType(value)
+
+
+class _TemplateFormat(TypeDecorator[PromptTemplateFormat]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(
+        self, value: Optional[PromptTemplateFormat], _: Dialect
+    ) -> Optional[str]:
+        if isinstance(value, str):
+            return PromptTemplateFormat(value).value
+        return None if value is None else value.value
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[PromptTemplateFormat]:
+        return None if value is None else PromptTemplateFormat(value)
+
+
 class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
 
 
 class Base(DeclarativeBase):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Enforce best practices for naming constraints
     # https://alembic.sqlalchemy.org/en/latest/naming.html#integration-of-naming-conventions-into-operations-autogenerate
     metadata = MetaData(
@@ -125,7 +359,6 @@ class Base(DeclarativeBase):
 
 class Project(Base):
     __tablename__ = "projects"
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[Optional[str]]
     gradient_start_color: Mapped[str] = mapped_column(
@@ -158,7 +391,6 @@ class Project(Base):
 
 class ProjectSession(Base):
     __tablename__ = "project_sessions"
-    id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
@@ -176,7 +408,6 @@ class ProjectSession(Base):
 
 class Trace(Base):
     __tablename__ = "traces"
-    id: Mapped[int] = mapped_column(primary_key=True)
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -192,13 +423,11 @@ class Trace(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_ms_expression(cls) -> ColumnElement[float]:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
 
     project: Mapped["Project"] = relationship(
@@ -228,7 +457,6 @@ class Trace(Base):
 
 class Span(Base):
     __tablename__ = "spans"
-    id: Mapped[int] = mapped_column(primary_key=True)
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
@@ -255,24 +483,123 @@ class Span(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
-        return (self.end_time - self.start_time).total_seconds() * 1000
+        return round((self.end_time - self.start_time).total_seconds() * 1000, 1)
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_ms_expression(cls) -> ColumnElement[float]:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
+
+    @hybrid_property
+    def input_value(self) -> Any:
+        return get_attribute_value(self.attributes, INPUT_VALUE)
+
+    @input_value.inplace.expression
+    @classmethod
+    def _input_value_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[INPUT_VALUE]
+
+    @hybrid_property
+    def input_value_first_101_chars(self) -> Any:
+        if (v := get_attribute_value(self.attributes, INPUT_VALUE)) is None:
+            return None
+        return str(v)[:101]
+
+    @input_value_first_101_chars.inplace.expression
+    @classmethod
+    def _input_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+        return case(
+            (
+                cls.attributes[INPUT_VALUE] != sql.null(),
+                func.substr(cls.attributes[INPUT_VALUE].as_string(), 1, 101),
+            ),
+        )
+
+    @hybrid_property
+    def input_mime_type(self) -> Any:
+        return get_attribute_value(self.attributes, INPUT_MIME_TYPE)
+
+    @input_mime_type.inplace.expression
+    @classmethod
+    def _input_mime_type_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[INPUT_MIME_TYPE]
+
+    @hybrid_property
+    def output_value(self) -> Any:
+        return get_attribute_value(self.attributes, OUTPUT_VALUE)
+
+    @output_value.inplace.expression
+    @classmethod
+    def _output_value_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[OUTPUT_VALUE]
+
+    @hybrid_property
+    def output_value_first_101_chars(self) -> Any:
+        if (v := get_attribute_value(self.attributes, OUTPUT_VALUE)) is None:
+            return None
+        return str(v)[:101]
+
+    @output_value_first_101_chars.inplace.expression
+    @classmethod
+    def _output_value_first_101_chars_expression(cls) -> ColumnElement[Any]:
+        return case(
+            (
+                cls.attributes[OUTPUT_VALUE] != sql.null(),
+                func.substr(cls.attributes[OUTPUT_VALUE].as_string(), 1, 101),
+            ),
+        )
+
+    @hybrid_property
+    def output_mime_type(self) -> Any:
+        return get_attribute_value(self.attributes, OUTPUT_MIME_TYPE)
+
+    @output_mime_type.inplace.expression
+    @classmethod
+    def _output_mime_type_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[OUTPUT_MIME_TYPE]
+
+    @hybrid_property
+    def metadata_(self) -> Any:
+        return get_attribute_value(self.attributes, METADATA)
+
+    @metadata_.inplace.expression
+    @classmethod
+    def _metadata_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[METADATA]
+
+    @hybrid_property
+    def num_documents(self) -> int:
+        if self.span_kind.upper() == "RERANKER":
+            reranker_documents = get_attribute_value(self.attributes, RERANKER_OUTPUT_DOCUMENTS)
+            return len(reranker_documents) if isinstance(reranker_documents, Sequence) else 0
+        retrieval_documents = get_attribute_value(self.attributes, RETRIEVAL_DOCUMENTS)
+        return len(retrieval_documents) if isinstance(retrieval_documents, Sequence) else 0
+
+    @num_documents.inplace.expression
+    @classmethod
+    def _num_documents_expression(cls) -> ColumnElement[int]:
+        return NumDocuments(cls.attributes, cls.span_kind)
 
     @hybrid_property
     def cumulative_llm_token_count_total(self) -> int:
         return self.cumulative_llm_token_count_prompt + self.cumulative_llm_token_count_completion
 
+    @cumulative_llm_token_count_total.inplace.expression
+    @classmethod
+    def _cumulative_llm_token_count_total_expression(cls) -> ColumnElement[int]:
+        return cls.cumulative_llm_token_count_prompt + cls.cumulative_llm_token_count_completion
+
     @hybrid_property
-    def llm_token_count_total(self) -> Optional[int]:
-        if self.llm_token_count_prompt is None and self.llm_token_count_completion is None:
-            return None
+    def llm_token_count_total(self) -> int:
         return (self.llm_token_count_prompt or 0) + (self.llm_token_count_completion or 0)
+
+    @llm_token_count_total.inplace.expression
+    @classmethod
+    def _llm_token_count_total_expression(cls) -> ColumnElement[int]:
+        return coalesce(
+            coalesce(cls.llm_token_count_prompt, 0) + coalesce(cls.llm_token_count_completion, 0),
+            0,
+        )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
@@ -328,6 +655,33 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     )
 
 
+class NumDocuments(expression.FunctionElement[int]):
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    inherit_cache = True
+    type = Integer()
+    name = "num_documents"
+
+
+@compiles(NumDocuments)
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+    # See https://docs.sqlalchemy.org/en/20/core/compiler.html
+    array_length = (
+        func.json_array_length if isinstance(compiler, SQLiteCompiler) else func.jsonb_array_length
+    )
+    attributes, span_kind = list(element.clauses)
+    retrieval_docs = attributes[RETRIEVAL_DOCUMENTS]
+    num_retrieval_docs = coalesce(array_length(retrieval_docs), 0)
+    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS]
+    num_reranker_docs = coalesce(array_length(reranker_docs), 0)
+    return compiler.process(
+        sql.case(
+            (func.upper(span_kind) == "RERANKER", num_reranker_docs),
+            else_=num_retrieval_docs,
+        ),
+        **kw,
+    )
+
+
 class TextContains(expression.FunctionElement[str]):
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     inherit_cache = True
@@ -369,7 +723,6 @@ async def init_models(engine: AsyncEngine) -> None:
 
 class SpanAnnotation(Base):
     __tablename__ = "span_annotations"
-    id: Mapped[int] = mapped_column(primary_key=True)
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         index=True,
@@ -396,7 +749,6 @@ class SpanAnnotation(Base):
 
 class TraceAnnotation(Base):
     __tablename__ = "trace_annotations"
-    id: Mapped[int] = mapped_column(primary_key=True)
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
@@ -423,7 +775,6 @@ class TraceAnnotation(Base):
 
 class DocumentAnnotation(Base):
     __tablename__ = "document_annotations"
-    id: Mapped[int] = mapped_column(primary_key=True)
     span_rowid: Mapped[int] = mapped_column(
         ForeignKey("spans.id", ondelete="CASCADE"),
         index=True,
@@ -454,7 +805,6 @@ class DocumentAnnotation(Base):
 
 class Dataset(Base):
     __tablename__ = "datasets"
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
@@ -514,7 +864,6 @@ class Dataset(Base):
 
 class DatasetVersion(Base):
     __tablename__ = "dataset_versions"
-    id: Mapped[int] = mapped_column(primary_key=True)
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
@@ -526,7 +875,6 @@ class DatasetVersion(Base):
 
 class DatasetExample(Base):
     __tablename__ = "dataset_examples"
-    id: Mapped[int] = mapped_column(primary_key=True)
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
@@ -543,7 +891,6 @@ class DatasetExample(Base):
 
 class DatasetExampleRevision(Base):
     __tablename__ = "dataset_example_revisions"
-    id: Mapped[int] = mapped_column(primary_key=True)
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
         index=True,
@@ -572,7 +919,6 @@ class DatasetExampleRevision(Base):
 
 class Experiment(Base):
     __tablename__ = "experiments"
-    id: Mapped[int] = mapped_column(primary_key=True)
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
         index=True,
@@ -594,7 +940,6 @@ class Experiment(Base):
 
 class ExperimentRun(Base):
     __tablename__ = "experiment_runs"
-    id: Mapped[int] = mapped_column(primary_key=True)
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiments.id", ondelete="CASCADE"),
         index=True,
@@ -614,13 +959,11 @@ class ExperimentRun(Base):
 
     @hybrid_property
     def latency_ms(self) -> float:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return (self.end_time - self.start_time).total_seconds() * 1000
 
     @latency_ms.inplace.expression
     @classmethod
     def _latency_expression(cls) -> ColumnElement[float]:
-        # See https://docs.sqlalchemy.org/en/20/orm/extensions/hybrid.html
         return LatencyMs(cls.start_time, cls.end_time)
 
     trace: Mapped["Trace"] = relationship(
@@ -639,7 +982,6 @@ class ExperimentRun(Base):
 
 class ExperimentRunAnnotation(Base):
     __tablename__ = "experiment_run_annotations"
-    id: Mapped[int] = mapped_column(primary_key=True)
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
         index=True,
@@ -667,14 +1009,12 @@ class ExperimentRunAnnotation(Base):
 
 class UserRole(Base):
     __tablename__ = "user_roles"
-    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, index=True)
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
 class User(Base):
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
     user_role_id: Mapped[int] = mapped_column(
         ForeignKey("user_roles.id", ondelete="CASCADE"),
         index=True,
@@ -749,7 +1089,6 @@ class User(Base):
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
-    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         unique=True,
@@ -763,7 +1102,6 @@ class PasswordResetToken(Base):
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
-    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
@@ -776,7 +1114,6 @@ class RefreshToken(Base):
 
 class AccessToken(Base):
     __tablename__ = "access_tokens"
-    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
@@ -794,7 +1131,6 @@ class AccessToken(Base):
 
 class ApiKey(Base):
     __tablename__ = "api_keys"
-    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True,
@@ -805,3 +1141,156 @@ class ApiKey(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
+
+
+class PromptLabel(Base):
+    __tablename__ = "prompt_labels"
+
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    color: Mapped[str] = mapped_column(String, nullable=True)
+
+    prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
+        "PromptPromptLabel",
+        back_populates="prompt_label",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class Prompt(Base):
+    __tablename__ = "prompts"
+
+    source_prompt_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("prompts.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, unique=True, index=True, nullable=False)
+    description: Mapped[Optional[str]]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
+        "PromptPromptLabel",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    prompt_versions: Mapped[list["PromptVersion"]] = relationship(
+        "PromptVersion",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+    prompt_version_tags: Mapped[list["PromptVersionTag"]] = relationship(
+        "PromptVersionTag",
+        back_populates="prompt",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class PromptPromptLabel(Base):
+    __tablename__ = "prompts_prompt_labels"
+
+    prompt_label_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_labels.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    prompt_label: Mapped["PromptLabel"] = relationship(
+        "PromptLabel", back_populates="prompts_prompt_labels"
+    )
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompts_prompt_labels")
+
+    __table_args__ = (UniqueConstraint("prompt_label_id", "prompt_id"),)
+
+
+class PromptVersion(Base):
+    __tablename__ = "prompt_versions"
+
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    template_type: Mapped[PromptTemplateType] = mapped_column(
+        _PromptTemplateType,
+        CheckConstraint("template_type IN ('CHAT', 'STR')", name="template_type"),
+        nullable=False,
+    )
+    template_format: Mapped[PromptTemplateFormat] = mapped_column(
+        _TemplateFormat,
+        CheckConstraint(
+            "template_format IN ('F_STRING', 'MUSTACHE', 'NONE')", name="template_format"
+        ),
+        nullable=False,
+    )
+    template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate, nullable=False)
+    invocation_parameters: Mapped[PromptInvocationParameters] = mapped_column(
+        _InvocationParameters, nullable=False
+    )
+    tools: Mapped[Optional[PromptTools]] = mapped_column(_Tools, default=Null(), nullable=True)
+    response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
+        _PromptResponseFormat, default=Null(), nullable=True
+    )
+    model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
+    model_name: Mapped[str]
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_versions")
+
+    prompt_version_tags: Mapped[list["PromptVersionTag"]] = relationship(
+        "PromptVersionTag",
+        back_populates="prompt_version",
+        cascade="all, delete-orphan",
+        uselist=True,
+    )
+
+
+class PromptVersionTag(Base):
+    __tablename__ = "prompt_version_tags"
+
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    prompt_id: Mapped[int] = mapped_column(
+        ForeignKey("prompts.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    prompt_version_id: Mapped[int] = mapped_column(
+        ForeignKey("prompt_versions.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+
+    prompt: Mapped["Prompt"] = relationship("Prompt", back_populates="prompt_version_tags")
+    prompt_version: Mapped["PromptVersion"] = relationship(
+        "PromptVersion", back_populates="prompt_version_tags"
+    )
+
+    __table_args__ = (UniqueConstraint("name", "prompt_id"),)

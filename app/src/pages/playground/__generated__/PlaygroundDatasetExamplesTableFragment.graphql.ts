@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8c42c1b6ff7a0e8134308a80281b58ab>>
+ * @generated SignedSource<<f7387a17ed7db065e10a1f1a5ee92041>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type PlaygroundDatasetExamplesTableFragment$data = {
   readonly examples: {

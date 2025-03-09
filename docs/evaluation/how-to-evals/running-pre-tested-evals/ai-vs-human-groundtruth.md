@@ -10,7 +10,7 @@ description: >-
 
 A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
-#### Example Human vs AI on Arize Docs:
+### Example Human vs AI on Arize Docs:
 
 _**Question:**_
 
@@ -37,7 +37,7 @@ The AI answer is very brief and lacks the specific details that are present in t
 Overview of template:
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L433).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L433).
 {% endhint %}
 
 ```python
@@ -60,7 +60,7 @@ Human answer please answer "correct". If the AI answer diverges or does not cont
 idea of the human answer, please answer "incorrect".
 ```
 
-#### How to run Eval:
+## How to run the Human vs AI Eval:
 
 ```python
 from phoenix.evals import (
@@ -89,7 +89,9 @@ relevance_classifications = llm_classify(
 )
 ```
 
-### Benchmark Results:
+## Benchmark Results:
+
+The follow benchmarking data was gathered by comparing various model results to ground truth data. The ground truth data used was a handcrafted dataset consisting of questions about the Arize platform. That[ dataset is availabe here](https://storage.googleapis.com/arize-phoenix-assets/evals/human_vs_ai/human_vs_ai_classifications.csv).
 
 **GPT-4 Results**
 

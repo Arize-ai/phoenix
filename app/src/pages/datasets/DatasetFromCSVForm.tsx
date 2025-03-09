@@ -7,14 +7,23 @@ import {
   DropdownProps,
   Field,
   FieldProps,
-  Form,
   Item,
   ListBox,
-  TextArea,
-  TextField,
 } from "@arizeai/components";
 
-import { Button, Flex, View } from "@phoenix/components";
+import {
+  Button,
+  FieldError,
+  Flex,
+  Form,
+  Input,
+  Label,
+  Text,
+  TextArea,
+  TextField,
+  View,
+} from "@phoenix/components";
+import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type CreateDatasetFromCSVParams = {
   file: FileList;
@@ -61,7 +70,6 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
   const onSubmit = useCallback(
     (data: CreateDatasetFromCSVParams) => {
       const formData = new FormData();
-
       formData.append("file", data.file[0]);
       formData.append("name", data.name);
       formData.append("description", data.description);
@@ -75,7 +83,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
       data.metadata_keys.forEach((key) => {
         formData.append("metadata_keys[]", key);
       });
-      return fetch("/v1/datasets/upload?sync=true", {
+      return fetch(prependBasename("/v1/datasets/upload?sync=true"), {
         method: "POST",
         body: formData,
       })
@@ -117,14 +125,19 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
             fieldState: { invalid, error },
           }) => (
             <TextField
-              label="Dataset Name"
-              description={`The name of the dataset`}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+              isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
               value={value.toString()}
-            />
+            >
+              <Label>Dataset Name</Label>
+              <Input placeholder="e.x. Golden Dataset" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The name of the dataset</Text>
+              )}
+            </TextField>
           )}
         />
         <Controller
@@ -134,17 +147,20 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
             field: { onChange, onBlur, value },
             fieldState: { invalid, error },
           }) => (
-            <TextArea
-              label="description"
-              placeholder="Description of the dataset"
-              isRequired={false}
-              height={100}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+            <TextField
+              isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
               value={value.toString()}
-            />
+            >
+              <Label>Description</Label>
+              <TextArea placeholder="e.x. A dataset for structured data extraction" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The description of the dataset</Text>
+              )}
+            </TextField>
           )}
         />
         <Controller

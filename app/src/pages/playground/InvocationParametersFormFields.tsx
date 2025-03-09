@@ -2,9 +2,20 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import { Control, Controller, FieldErrors, useForm } from "react-hook-form";
 import { debounce } from "lodash";
 
-import { Slider, Switch, TextField } from "@arizeai/components";
+import { Switch } from "@arizeai/components";
 
+import {
+  FieldError,
+  Input,
+  Label,
+  NumberField,
+  Slider,
+  SliderNumberField,
+  Text,
+  TextField,
+} from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
 import { Mutable } from "@phoenix/typeUtils";
 
 import { ModelSupportedParamsFetcherQuery$data } from "./__generated__/ModelSupportedParamsFetcherQuery.graphql";
@@ -54,6 +65,12 @@ const InvocationParameterFormField = ({
     field.maxValue != null
       ? `${field.label || invocationName} must be at most ${field.maxValue}`
       : undefined;
+
+  // special case for anthropic reasoning config
+  if (field.canonicalName === "ANTHROPIC_EXTENDED_THINKING") {
+    return <AnthropicReasoningConfigField onChange={onChange} value={value} />;
+  }
+
   const { __typename } = field;
   switch (__typename) {
     case "InvocationParameterBase":
@@ -63,13 +80,14 @@ const InvocationParameterFormField = ({
       return (
         <Slider
           label={field.label}
-          isRequired={field.required}
           defaultValue={value}
           step={0.1}
           minValue={field.minValue}
           maxValue={field.maxValue}
           onChange={(value) => onChange(value)}
-        />
+        >
+          <SliderNumberField />
+        </Slider>
       );
     case "FloatInvocationParameter":
     case "IntInvocationParameter":
@@ -83,22 +101,18 @@ const InvocationParameterFormField = ({
             max: maxRuleMessage,
           }}
           render={({ field: { onBlur } }) => (
-            <TextField
-              label={field.label}
+            <NumberField
               isRequired={field.required}
-              value={value?.toString() || ""}
-              type="number"
+              value={Number(value)}
               onBlur={onBlur}
               onChange={(value) => {
-                if (value === "") {
-                  onChange(undefined);
-                  return;
-                }
-                onChange(Number(value));
+                onChange(value);
               }}
-              errorMessage={errorMessage}
-              validationState={errorMessage ? "invalid" : "valid"}
-            />
+            >
+              <Label>{field.label}</Label>
+              <Input />
+              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+            </NumberField>
           )}
         />
       );
@@ -113,7 +127,6 @@ const InvocationParameterFormField = ({
           }}
           render={({ field: { onBlur } }) => (
             <TextField
-              label={field.label}
               isRequired={field.required}
               defaultValue={value?.join(", ") ?? ""}
               onBlur={onBlur}
@@ -124,9 +137,17 @@ const InvocationParameterFormField = ({
                 }
                 onChange(value.split(/, */g));
               }}
-              description={"A comma separated list of strings"}
-              errorMessage={errorMessage}
-            />
+            >
+              <Label>{field.label}</Label>
+              <Input />
+              {errorMessage ? (
+                <FieldError>{errorMessage}</FieldError>
+              ) : (
+                <Text slot="description">
+                  A comma separated list of strings
+                </Text>
+              )}
+            </TextField>
           )}
         />
       );
@@ -140,7 +161,6 @@ const InvocationParameterFormField = ({
           }}
           render={({ field: { onBlur } }) => (
             <TextField
-              label={field.label}
               isRequired={field.required}
               defaultValue={value?.toString() || ""}
               type="text"
@@ -152,8 +172,11 @@ const InvocationParameterFormField = ({
                 }
                 onChange(value);
               }}
-              errorMessage={errorMessage}
-            />
+            >
+              <Label>{field.label}</Label>
+              <Input />
+              {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
+            </TextField>
           )}
         />
       );

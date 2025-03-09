@@ -122,10 +122,8 @@ class Experiment(Node):
             return None
 
         return Project(
-            id_attr=db_project.id,
-            name=db_project.name,
-            gradient_start_color=db_project.gradient_start_color,
-            gradient_end_color=db_project.gradient_end_color,
+            project_rowid=db_project.id,
+            db_project=db_project,
         )
 
     @strawberry.field

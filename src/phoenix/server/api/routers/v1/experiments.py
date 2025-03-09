@@ -1,11 +1,13 @@
+import json
 from datetime import datetime
 from random import getrandbits
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Response
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 from starlette.status import HTTP_404_NOT_FOUND
 from strawberry.relay import GlobalID
 
@@ -15,7 +17,7 @@ from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentInsertEvent
 
-from .pydantic_compat import V1RoutesBaseModel
+from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
 router = APIRouter(tags=["experiments"], include_in_schema=True)
@@ -306,3 +308,102 @@ async def list_experiments(
         ]
 
         return ListExperimentsResponseBody(data=data)
+
+
+@router.get(
+    "/experiments/{experiment_id}/json",
+    operation_id="getExperimentJSON",
+    summary="Download experiment runs as a JSON file",
+    response_class=PlainTextResponse,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": HTTP_404_NOT_FOUND, "description": "Experiment not found"},
+        ]
+    ),
+)
+async def get_experiment_jsonl(
+    request: Request,
+    response: Response,
+    experiment_id: str = Path(..., title="Experiment ID"),
+) -> str:
+    experiment_globalid = GlobalID.from_id(experiment_id)
+    try:
+        experiment_rowid = from_global_id_with_expected_type(experiment_globalid, "Experiment")
+    except ValueError:
+        raise HTTPException(
+            detail=f"Experiment with ID {experiment_globalid} does not exist",
+            status_code=HTTP_404_NOT_FOUND,
+        )
+
+    async with request.app.state.db() as session:
+        experiment = await session.get(models.Experiment, experiment_rowid)
+        if not experiment:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_globalid} does not exist",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+        revision_ids = (
+            select(func.max(models.DatasetExampleRevision.id))
+            .join(
+                models.DatasetExample,
+                models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
+            )
+            .where(
+                and_(
+                    models.DatasetExampleRevision.dataset_version_id
+                    <= experiment.dataset_version_id,
+                    models.DatasetExample.dataset_id == experiment.dataset_id,
+                )
+            )
+            .group_by(models.DatasetExampleRevision.dataset_example_id)
+            .scalar_subquery()
+        )
+        runs_and_revisions = (
+            await session.execute(
+                select(models.ExperimentRun, models.DatasetExampleRevision)
+                .join(
+                    models.DatasetExample,
+                    models.DatasetExample.id == models.ExperimentRun.dataset_example_id,
+                )
+                .join(
+                    models.DatasetExampleRevision,
+                    and_(
+                        models.DatasetExample.id
+                        == models.DatasetExampleRevision.dataset_example_id,
+                        models.DatasetExampleRevision.id.in_(revision_ids),
+                        models.DatasetExampleRevision.revision_kind != "DELETE",
+                    ),
+                )
+                .where(models.ExperimentRun.experiment_id == experiment_rowid)
+                .order_by(
+                    models.ExperimentRun.dataset_example_id, models.ExperimentRun.repetition_number
+                )
+            )
+        ).all()
+        if not runs_and_revisions:
+            raise HTTPException(
+                detail=f"Experiment with ID {experiment_globalid} has no runs",
+                status_code=HTTP_404_NOT_FOUND,
+            )
+    records = []
+    for run, revision in runs_and_revisions:
+        record = {
+            "example_id": str(
+                GlobalID(models.DatasetExample.__name__, str(run.dataset_example_id))
+            ),
+            "repetition_number": run.repetition_number,
+            "input": revision.input,
+            "reference_output": revision.output,
+            "output": run.output,
+            "error": run.error,
+            "latency_ms": run.latency_ms,
+            "start_time": run.start_time.isoformat(),
+            "end_time": run.end_time.isoformat(),
+            "trace_id": run.trace_id,
+            "prompt_token_count": run.prompt_token_count,
+            "completion_token_count": run.completion_token_count,
+        }
+        records.append(record)
+
+    response.headers["content-disposition"] = f'attachment; filename="{experiment.name}.json"'
+    return json.dumps(records, ensure_ascii=False, indent=2)

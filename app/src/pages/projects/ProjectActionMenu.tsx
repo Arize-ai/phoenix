@@ -142,7 +142,7 @@ export function ProjectActionMenu({
 
   const onRemoveData = useCallback(() => {
     setDialog(
-      <Dialog size="M" title="Remove Data">
+      <Dialog size="S" title="Remove Data">
         <RemoveProjectDataForm
           projectId={projectId}
           onComplete={() => {

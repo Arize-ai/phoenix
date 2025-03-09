@@ -3,7 +3,7 @@ import { useZustand } from "use-zustand";
 
 import {
   createTracingStore,
-  TracingProps,
+  CreateTracingStoreProps,
   TracingState,
   TracingStore,
 } from "@phoenix/store/tracingStore";
@@ -13,7 +13,7 @@ export const TracingContext = createContext<TracingStore | null>(null);
 export function TracingProvider({
   children,
   ...props
-}: PropsWithChildren<Partial<TracingProps>>) {
+}: PropsWithChildren<CreateTracingStoreProps>) {
   const [store] = useState<TracingStore>(() => createTracingStore(props));
 
   return (

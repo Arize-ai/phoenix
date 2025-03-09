@@ -3,7 +3,8 @@ import { useLoaderData, useNavigate, useParams } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
-import { ErrorBoundary } from "@phoenix/components/ErrorBoundary";
+import { ErrorBoundary } from "@phoenix/components";
+import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
 import { sessionLoaderQuery$data } from "./__generated__/sessionLoaderQuery.graphql";
 import { SessionDetails } from "./SessionDetails";
@@ -13,13 +14,14 @@ import { SessionDetails } from "./SessionDetails";
  */
 export function SessionPage() {
   const loaderData = useLoaderData() as sessionLoaderQuery$data;
-  const { sessionId, projectId } = useParams();
+  const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { rootPath } = useProjectRootPath();
   return (
     <DialogContainer
       type="slideOver"
       isDismissable
-      onDismiss={() => navigate(`/projects/${projectId}`)}
+      onDismiss={() => navigate(`${rootPath}/sessions`)}
     >
       <Dialog
         size="fullscreen"

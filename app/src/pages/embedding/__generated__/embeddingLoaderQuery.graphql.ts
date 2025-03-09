@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c3a56ed50eccfb9b192f6658da78c50>>
+ * @generated SignedSource<<96288ea3d91fa42f461c4e06625c468e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type embeddingLoaderQuery$variables = {
   id: string;
 };

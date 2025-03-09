@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b969eb99eb191e42f8511f5a9e8d671>>
+ * @generated SignedSource<<c57c249c56c0f6baf88e651f199b3b05>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,24 +8,25 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type RunMetadataFooterQuery$variables = {
   spanId: string;
 };
 export type RunMetadataFooterQuery$data = {
   readonly span: {
-    readonly context?: {
-      readonly spanId: string;
-      readonly traceId: string;
-    };
     readonly id: string;
     readonly latencyMs?: number | null;
-    readonly project?: {
-      readonly id: string;
-    };
+    readonly spanId?: string;
     readonly tokenCountCompletion?: number | null;
     readonly tokenCountPrompt?: number | null;
     readonly tokenCountTotal?: number | null;
+    readonly trace?: {
+      readonly id: string;
+      readonly project: {
+        readonly id: string;
+      };
+      readonly traceId: string;
+    };
   };
 };
 export type RunMetadataFooterQuery = {
@@ -61,23 +62,19 @@ v3 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "Project",
-      "kind": "LinkedField",
-      "name": "project",
-      "plural": false,
-      "selections": [
-        (v2/*: any*/)
-      ],
+      "kind": "ScalarField",
+      "name": "spanId",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "SpanContext",
+      "concreteType": "Trace",
       "kind": "LinkedField",
-      "name": "context",
+      "name": "trace",
       "plural": false,
       "selections": [
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -88,8 +85,13 @@ v3 = {
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "spanId",
+          "concreteType": "Project",
+          "kind": "LinkedField",
+          "name": "project",
+          "plural": false,
+          "selections": [
+            (v2/*: any*/)
+          ],
           "storageKey": null
         }
       ],
@@ -180,16 +182,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bee4b51bd781a58c87fd283a966776f6",
+    "cacheID": "447ee90c4f55ded6a8a64e73fc30c065",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      project {\n        id\n      }\n      context {\n        traceId\n        spanId\n      }\n      tokenCountCompletion\n      tokenCountPrompt\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountCompletion\n      tokenCountPrompt\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c89cb87e785645bbf42e3eadbacc4fc0";
+(node as any).hash = "d8025b7f870ac81e2d1e3249bb818186";
 
 export default node;

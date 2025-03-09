@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4dd8cc0ea82581272b4749c4237cf5b7>>
+ * @generated SignedSource<<57f94610bc0aad56719b10b91acd2b51>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Mutation } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type DeleteApiKeyInput = {
   id: string;
 };

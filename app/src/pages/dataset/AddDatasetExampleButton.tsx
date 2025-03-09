@@ -29,7 +29,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
   return (
     <>
       <Button
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         size="S"
         onPress={onAddExample}
       >

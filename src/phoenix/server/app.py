@@ -85,7 +85,10 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    NumChildSpansDataLoader,
+    NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -93,9 +96,11 @@ from phoenix.server.api.dataloaders import (
     SessionTokenUsagesDataLoader,
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
+    SpanByIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
+    TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRootSpansDataLoader,
@@ -544,7 +549,7 @@ def create_graphql_router(
     read_only: bool = False,
     secret: Optional[str] = None,
     token_store: Optional[TokenStore] = None,
-) -> GraphQLRouter:  # type: ignore[type-arg]
+) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
     Args:
@@ -611,6 +616,10 @@ def create_graphql_router(
                         else None
                     ),
                 ),
+                num_child_spans=NumChildSpansDataLoader(db),
+                num_spans_per_trace=NumSpansPerTraceDataLoader(db),
+                project_fields=TableFieldsDataLoader(db, models.Project),
+                prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
@@ -622,6 +631,8 @@ def create_graphql_router(
                 session_token_usages=SessionTokenUsagesDataLoader(db),
                 session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
                 span_annotations=SpanAnnotationsDataLoader(db),
+                span_fields=TableFieldsDataLoader(db, models.Span),
+                span_by_id=SpanByIdDataLoader(db),
                 span_dataset_examples=SpanDatasetExamplesDataLoader(db),
                 span_descendants=SpanDescendantsDataLoader(db),
                 span_projects=SpanProjectsDataLoader(db),
@@ -630,6 +641,7 @@ def create_graphql_router(
                     cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
                 ),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
+                trace_fields=TableFieldsDataLoader(db, models.Trace),
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
@@ -914,6 +926,7 @@ def create_app(
             ),
             name="static",
         )
+    app.state.authentication_enabled = authentication_enabled
     app.state.read_only = read_only
     app.state.export_path = export_path
     app.state.password_reset_token_expiry = password_reset_token_expiry

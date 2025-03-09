@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5879aa07be440ef50ad5ba976a6623a4>>
+ * @generated SignedSource<<ccac21c49553e558b1596d3f195b2ed5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DocumentEvaluationSummaryValueFragment$data = {
   readonly documentEvaluationSummary: {

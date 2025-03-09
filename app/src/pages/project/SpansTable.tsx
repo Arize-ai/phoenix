@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useMatch, useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -20,7 +20,16 @@ import { css } from "@emotion/react";
 
 import { Content, ContextualHelp } from "@arizeai/components";
 
-import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Link,
+  ToggleButton,
+  ToggleButtonGroup,
+  View,
+} from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -35,6 +44,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
   SpansTable_spans$key,
@@ -60,13 +70,23 @@ type SpansTableProps = {
 
 const PAGE_SIZE = 50;
 
+type RootSpanFilterValue = "root" | "all";
+
+function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
+  return val === "root" || val === "all";
+}
+
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
+  // Determine if the table is active based on the current path
+  const isTableActive = !!useMatch("/projects/:projectId/spans");
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
+  const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -77,6 +97,7 @@ export function SpansTable(props: SpansTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 50 }
+          rootSpansOnly: { type: "Boolean", defaultValue: true }
           sort: {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
@@ -89,6 +110,7 @@ export function SpansTable(props: SpansTableProps) {
             first: $first
             after: $after
             sort: $sort
+            rootSpansOnly: $rootSpansOnly
             filterCondition: $filterCondition
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
@@ -104,8 +126,9 @@ export function SpansTable(props: SpansTableProps) {
                 tokenCountTotal
                 tokenCountPrompt
                 tokenCountCompletion
-                context {
-                  spanId
+                spanId
+                trace {
+                  id
                   traceId
                 }
                 input {
@@ -201,6 +224,7 @@ export function SpansTable(props: SpansTableProps) {
           </ContextualHelp>
         </Flex>
       ),
+      id: "feedback",
       accessorKey: "spanAnnotations",
       enableSorting: false,
 
@@ -280,6 +304,20 @@ export function SpansTable(props: SpansTableProps) {
       ),
     },
     {
+      header: "status",
+      accessorKey: "statusCode",
+      maxSize: 30,
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const statusCode = getValue() as SpanStatusCode;
+        return (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <SpanStatusCodeIcon statusCode={statusCode} />
+          </Flex>
+        );
+      },
+    },
+    {
       header: "kind",
       accessorKey: "spanKind",
       maxSize: 100,
@@ -294,9 +332,9 @@ export function SpansTable(props: SpansTableProps) {
       enableSorting: false,
       cell: ({ getValue, row }) => {
         const span = row.original;
-        const { traceId } = span.context;
+        const { traceId } = span.trace;
         return (
-          <Link to={`traces/${traceId}?selectedSpanNodeId=${span.id}`}>
+          <Link to={`${traceId}?selectedSpanNodeId=${span.id}`}>
             {getValue() as string}
           </Link>
         );
@@ -317,7 +355,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "metadata",
       accessorKey: "metadata",
-      cell: TextCell,
+      cell: ({ row }) => <MetadataTableCell metadata={row.original.metadata} />,
       enableSorting: false,
     },
     ...annotationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
@@ -355,32 +393,38 @@ export function SpansTable(props: SpansTableProps) {
         );
       },
     },
-    {
-      header: "status",
-      accessorKey: "statusCode",
-      enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
-      },
-    },
   ];
 
   useEffect(() => {
-    //if the sorting changes, we need to reset the pagination
-    const sort = sorting[0];
-
-    startTransition(() => {
-      refetch(
-        {
-          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
-          after: null,
-          first: PAGE_SIZE,
-          filterCondition,
-        },
-        { fetchPolicy: "store-and-network" }
-      );
-    });
-  }, [sorting, refetch, filterCondition, fetchKey]);
+    // Skip the first render. It's been loaded by the parent
+    if (isFirstRender.current === true) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (isTableActive) {
+      //if the sorting changes, we need to reset the pagination
+      startTransition(() => {
+        const sort = sorting[0];
+        refetch(
+          {
+            sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
+            after: null,
+            first: PAGE_SIZE,
+            filterCondition,
+            rootSpansOnly,
+          },
+          { fetchPolicy: "store-and-network" }
+        );
+      });
+    }
+  }, [
+    sorting,
+    refetch,
+    filterCondition,
+    fetchKey,
+    isTableActive,
+    rootSpansOnly,
+  ]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -414,7 +458,10 @@ export function SpansTable(props: SpansTableProps) {
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().rows;
-  const selectedSpans = selectedRows.map((row) => row.original);
+  const selectedSpans = selectedRows.map((row) => ({
+    id: row.original.id,
+    traceId: row.original.trace.id,
+  }));
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
@@ -437,6 +484,31 @@ export function SpansTable(props: SpansTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <ToggleButtonGroup
+            aria-label="Toggle between root and all spans"
+            selectionMode="single"
+            selectedKeys={[rootSpansOnly ? "root" : "all"]}
+            onSelectionChange={(selection) => {
+              if (selection.size === 0) {
+                return;
+              }
+              const selectedKey = selection.keys().next().value;
+              if (isRootSpanFilterValue(selectedKey)) {
+                setRootSpansOnly(selectedKey === "root");
+              } else {
+                throw new Error(
+                  `Unknown root span filter selection: ${selectedKey}`
+                );
+              }
+            }}
+          >
+            <ToggleButton aria-label="root spans" id="root">
+              Root Spans
+            </ToggleButton>
+            <ToggleButton aria-label="all spans" id="all">
+              All
+            </ToggleButton>
+          </ToggleButtonGroup>
           <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>
@@ -500,7 +572,7 @@ export function SpansTable(props: SpansTableProps) {
                     key={row.id}
                     onClick={() =>
                       navigate(
-                        `traces/${row.original.context.traceId}?selectedSpanNodeId=${row.original.id}`
+                        `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
                       )
                     }
                   >

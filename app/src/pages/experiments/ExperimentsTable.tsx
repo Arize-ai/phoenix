@@ -37,6 +37,7 @@ import { RunExperimentButton } from "../dataset/RunExperimentButton";
 import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
 import type { ExperimentsTableFragment$key } from "./__generated__/ExperimentsTableFragment.graphql";
 import { ExperimentsTableQuery } from "./__generated__/ExperimentsTableQuery.graphql";
+import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateCell } from "./ErrorRateCell";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 
@@ -279,11 +280,14 @@ export function ExperimentsTable({
         const project = row.original.project;
         const metadata = row.original.metadata;
         return (
-          <ExperimentActionMenu
-            projectId={project?.id || null}
-            experimentId={row.original.id}
-            metadata={metadata}
-          />
+          <Flex direction="row" gap="size-100">
+            <DownloadExperimentActionMenu experimentId={row.original.id} />
+            <ExperimentActionMenu
+              projectId={project?.id || null}
+              experimentId={row.original.id}
+              metadata={metadata}
+            />
+          </Flex>
         );
       },
     },

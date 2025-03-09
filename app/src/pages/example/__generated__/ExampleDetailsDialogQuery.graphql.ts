@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5930c1dbf55baf0619403784534be419>>
+ * @generated SignedSource<<17980864e7d0bd10c0391b1bda526700>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type ExampleDetailsDialogQuery$variables = {
   exampleId: string;
@@ -22,12 +22,13 @@ export type ExampleDetailsDialogQuery$data = {
       readonly output: any;
     };
     readonly span?: {
-      readonly context: {
-        readonly traceId: string;
-      };
       readonly id: string;
-      readonly project: {
+      readonly trace: {
         readonly id: string;
+        readonly project: {
+          readonly id: string;
+        };
+        readonly traceId: string;
       };
     } | null;
     readonly " $fragmentSpreads": FragmentRefs<"ExampleExperimentRunsTableFragment">;
@@ -112,24 +113,25 @@ v6 = {
     {
       "alias": null,
       "args": null,
-      "concreteType": "SpanContext",
+      "concreteType": "Trace",
       "kind": "LinkedField",
-      "name": "context",
+      "name": "trace",
       "plural": false,
       "selections": [
-        (v5/*: any*/)
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "Project",
-      "kind": "LinkedField",
-      "name": "project",
-      "plural": false,
-      "selections": [
-        (v2/*: any*/)
+        (v2/*: any*/),
+        (v5/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "Project",
+          "kind": "LinkedField",
+          "name": "project",
+          "plural": false,
+          "selections": [
+            (v2/*: any*/)
+          ],
+          "storageKey": null
+        }
       ],
       "storageKey": null
     }
@@ -158,6 +160,7 @@ v9 = {
   "name": "trace",
   "plural": false,
   "selections": [
+    (v2/*: any*/),
     (v5/*: any*/),
     {
       "alias": null,
@@ -421,16 +424,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6fa23dc80c23ecdf48e57d139d76a721",
+    "cacheID": "ae7779e6fb1148a472e58fff0f5e0f66",
     "id": null,
     "metadata": {},
     "name": "ExampleDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        id\n        context {\n          traceId\n        }\n        project {\n          id\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleDetailsDialogQuery(\n  $exampleId: GlobalID!\n) {\n  example: node(id: $exampleId) {\n    __typename\n    ... on DatasetExample {\n      id\n      latestRevision: revision {\n        input\n        output\n        metadata\n      }\n      span {\n        id\n        trace {\n          id\n          traceId\n          project {\n            id\n          }\n        }\n      }\n    }\n    ...ExampleExperimentRunsTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment on DatasetExample {\n  experimentRuns(first: 100) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "65b1c049bacc1ef8739c61af32a9414c";
+(node as any).hash = "5c65343f3fa6361ad93f3e548a8f8c75";
 
 export default node;

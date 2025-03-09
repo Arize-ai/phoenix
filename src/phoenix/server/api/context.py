@@ -29,7 +29,10 @@ from phoenix.server.api.dataloaders import (
     ExperimentSequenceNumberDataLoader,
     LatencyMsQuantileDataLoader,
     MinStartOrMaxEndTimeDataLoader,
+    NumChildSpansDataLoader,
+    NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
     SessionNumTracesDataLoader,
@@ -37,9 +40,11 @@ from phoenix.server.api.dataloaders import (
     SessionTokenUsagesDataLoader,
     SessionTraceLatencyMsQuantileDataLoader,
     SpanAnnotationsDataLoader,
+    SpanByIdDataLoader,
     SpanDatasetExamplesDataLoader,
     SpanDescendantsDataLoader,
     SpanProjectsDataLoader,
+    TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
     TraceRootSpansDataLoader,
@@ -73,6 +78,10 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    num_child_spans: NumChildSpansDataLoader
+    num_spans_per_trace: NumSpansPerTraceDataLoader
+    project_fields: TableFieldsDataLoader
+    prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
     session_first_inputs: SessionIODataLoader
     session_last_outputs: SessionIODataLoader
@@ -81,11 +90,14 @@ class DataLoaders:
     session_token_usages: SessionTokenUsagesDataLoader
     session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
     span_annotations: SpanAnnotationsDataLoader
+    span_by_id: SpanByIdDataLoader
     span_dataset_examples: SpanDatasetExamplesDataLoader
     span_descendants: SpanDescendantsDataLoader
+    span_fields: TableFieldsDataLoader
     span_projects: SpanProjectsDataLoader
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
+    trace_fields: TableFieldsDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     project_by_name: ProjectByNameDataLoader
     users: UsersDataLoader

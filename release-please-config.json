@@ -23,10 +23,7 @@
         },
         "packages/phoenix-client": {
             "package-name": "arize-phoenix-client",
-            "release-type": "python",
-            "versioning": "prerelease",
-            "prerelease-type": "alpha",
-            "prerelease": true
+            "release-type": "python"
         },
         "packages/phoenix-evals": {
             "package-name": "arize-phoenix-evals",

@@ -1,15 +1,15 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { Form, TextArea } from "@arizeai/components";
-
 import {
   Button,
   FieldError,
   Flex,
+  Form,
   Input,
   Label,
   Text,
+  TextArea,
   TextField,
   View,
 } from "@phoenix/components";
@@ -87,17 +87,20 @@ export function DatasetForm({
             field: { onChange, onBlur, value },
             fieldState: { invalid, error },
           }) => (
-            <TextArea
-              label="description"
-              description={`A description of the dataset`}
-              isRequired={false}
-              height={100}
-              errorMessage={error?.message}
-              validationState={invalid ? "invalid" : "valid"}
+            <TextField
+              isInvalid={invalid}
               onChange={onChange}
               onBlur={onBlur}
-              value={value?.toString()}
-            />
+              value={value.toString()}
+            >
+              <Label>Description</Label>
+              <TextArea placeholder="e.x. A golden dataset for structured data extraction" />
+              {error?.message ? (
+                <FieldError>{error.message}</FieldError>
+              ) : (
+                <Text slot="description">The description of the dataset</Text>
+              )}
+            </TextField>
           )}
         />
         <Controller

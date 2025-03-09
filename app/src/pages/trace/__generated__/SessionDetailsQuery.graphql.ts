@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<292bc5a11f4c6b4b17c434179df223b7>>
+ * @generated SignedSource<<0201f3f1d37d413eed0774de949bfbfb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type MimeType = "json" | "text";
 export type SessionDetailsQuery$variables = {
@@ -27,12 +27,9 @@ export type SessionDetailsQuery$data = {
     readonly traces?: {
       readonly edges: ReadonlyArray<{
         readonly trace: {
+          readonly id: string;
           readonly rootSpan: {
             readonly attributes: string;
-            readonly context: {
-              readonly spanId: string;
-              readonly traceId: string;
-            };
             readonly cumulativeTokenCountCompletion: number | null;
             readonly cumulativeTokenCountPrompt: number | null;
             readonly cumulativeTokenCountTotal: number | null;
@@ -56,8 +53,10 @@ export type SessionDetailsQuery$data = {
               readonly name: string;
               readonly score: number | null;
             }>;
+            readonly spanId: string;
             readonly startTime: string;
           } | null;
+          readonly traceId: string;
         };
       }>;
     };
@@ -192,6 +191,14 @@ v4 = {
               "name": "node",
               "plural": false,
               "selections": [
+                (v2/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "traceId",
+                  "storageKey": null
+                },
                 {
                   "alias": null,
                   "args": null,
@@ -324,26 +331,8 @@ v4 = {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": "SpanContext",
-                      "kind": "LinkedField",
-                      "name": "context",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "traceId",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "spanId",
-                          "storageKey": null
-                        }
-                      ],
+                      "kind": "ScalarField",
+                      "name": "spanId",
                       "storageKey": null
                     }
                   ],
@@ -418,16 +407,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2de2cec071eec7a908fbeaa045b1d4af",
+    "cacheID": "537f0044aba3bca68c76ef30c43a810c",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              context {\n                traceId\n                spanId\n              }\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            id\n            traceId\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              spanId\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "90059208fe6444236630273b31e8cef6";
+(node as any).hash = "48d10974b52b961361ff750b74e21d8e";
 
 export default node;

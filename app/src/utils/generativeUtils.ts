@@ -6,6 +6,6 @@ export function isModelProvider(provider: string): provider is ModelProvider {
     provider === "OPENAI" ||
     provider === "AZURE_OPENAI" ||
     provider === "ANTHROPIC" ||
-    provider === "GEMINI"
+    provider === "GOOGLE"
   );
 }

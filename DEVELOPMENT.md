@@ -8,11 +8,6 @@
   - [Building the Package](#building-the-package)
   - [Installing a Phoenix Build](#installing-a-phoenix-build)
   - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-  - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
-    - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
-    - [Installing Python and Phoenix](#installing-python-and-phoenix)
-    - [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
-    - [Troubleshooting](#troubleshooting)
   - [Publishing a New Release](#publishing-a-new-release)
   - [Best Practices](#best-practices)
     - [REST API](#rest-api)
@@ -25,20 +20,32 @@
 
 ## Setting Up Your macOS Development Environment
 
-We recommend using a virtual environment to isolate your Python dependencies. This guide will use `conda`, but you can use a different virtual environment management tool if you want.
+We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-First, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `conda` via `brew` with
+First, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `uv` via `brew` with
 
 ```
-brew install --cask mambaforge
+brew install uv
 ```
 
-For non-mac users, you can follow the instruction [here](https://github.com/conda-forge/miniforge#miniforge) to install `conda` for your particular operating system.
+For non-mac users, you can follow the instruction [here](https://docs.astral.sh/uv/getting-started/installation/) to install `uv` for your particular operating system.
 
-Create a new virtual environment with a Phoenix-compatible Python version. For example,
+Create a new virtual environment. In general, we recommend developing on the lowest Python version compatible with Phoenix (currently 3.9) to make it easier to write code that is compatible across all supported versions.
 
 ```bash
-conda create --name phoenix python=3.8
+uv venv --python 3.9
+```
+
+Activate your virtual environment before continuing.
+
+```bash
+source ./.venv/bin/activate
+```
+
+From the root of the reposistory, install the `arize-phoenix` package in editable mode (using the `-e` flag) with development dependencies (using the `dev` extra) by running
+
+```bash
+uv pip install -e ".[dev]"
 ```
 
 Second, install the web build dependencies.
@@ -65,30 +72,6 @@ pnpm install
 pnpm run build
 ```
 
-Finally, change directory back to repository root and install `phoenix` in
-development mode (using the `-e` flag), and with development dependencies
-(using the `[dev,test]` extra) by running
-
-```bash
-pip install -e ".[dev,test]"
-```
-
-If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain from source. To install LlamaIndex from source,
-
--   Uninstall any pre-existing version of LlamaIndex with `pip uninstall llama-index`.
--   Fork and clone LlamaIndex using one of the following two methods:
-    -   If you are an Arize employee, clone [Arize's fork of LlamaIndex](https://github.com/Arize-ai/llama_index).
-    -   If you are an external contributor, fork and clone [LlamaIndex's upstream repository](https://github.com/run-llama/llama_index).
--   Run `pip install -e .` from the repository root.
-
-To install LangChain from source,
-
--   Uninstall any pre-existing version of LangChain with `pip uninstall langchain`.
--   Fork and clone LangChain using one of the following two methods:
-    -   If you are an Arize employee, clone [Arize's fork of LangChain](https://github.com/Arize-ai/langchain).
-    -   If you are an external contributor, fork and clone [LangChain's upstream repository](https://github.com/langchain-ai/langchain).
--   Run `pip install -e .` from `libs/langchain`.
-
 ## Testing and Linting
 
 Phoenix is backed with either a `sqlite` or `postgresql` database. By default, tests that involve
@@ -108,47 +91,34 @@ pg_config --bindir
 This command should point to the `homebrew` install of `postgresql`, if it doesn't, try creating
 a fresh Python environment or modifying your `PATH`.
 
-Phoenix uses `hatch` as the project management tool to lint and test source code and to build the package. After creating and activating your `phoenix` virtual environment, view your `hatch` environments, dependencies and, scripts defined in `pyproject.toml` with
+Phoenix uses `tox` to run linters, formatters, type-checks, tests, and more. In particular, we recommend using `tox-uv`, which uses `uv` under the hood for package management and is significantly faster than vanilla `tox`.
+
+You can install `tox-uv` globally with
 
 ```bash
-hatch env show
+uv tool install tox --with tox-uv
 ```
 
-Scripts belonging to the various environments can be run with
+`tox` manages isolated virtual environments, each with a corresponding set of commands. These environments are defined inside of `tox.ini` and can be enumerated by running
 
 ```bash
-hatch run <env-name>:<script-name>
+tox list
 ```
 
-To type-check your code, run
+Commands corresponding to an environment can be executed by running `tox run -e <env-name>`. For example, you can execute unit tests by running
 
 ```bash
-hatch run type:check
-```
-
-To format your code, run
-
-```bash
-hatch run style:fix
-```
-
-To run tests
-
-```bash
-hatch run tests
+tox run -e unit_tests
 ```
 
 By default, database tests only run against `sqlite`, in order to run database tests against
 a `postgresql` database as well, use the `--run-postgres` flag
 
 ```bash
-hatch run tests --run-postgres
+tox run -e unit_tests -- --run-postgres
 ```
 
-The following resources are helpful to learn more about the capabilities of `hatch` and to familiarize yourself with the CLI.
-
--   [Hatch Quickstart](https://hatch.pypa.io/latest/)
--   [Hatch CLI Reference](https://hatch.pypa.io/latest/cli/reference/)
+Check the output of `tox list` to find commands for type-checks, linters, formatters, etc.
 
 ## Installing Pre-Commit Hooks
 
@@ -164,9 +134,8 @@ Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` wil
 
 To add or modify a Jupyter notebook, the following commands are needed to pass CI.
 
-- `hatch run type:check`: Run type checks
-- `hatch run style:fix`: Runs formatters
-- `hatch run notebooks:clean`: Removes cell output and notebook metadata to keep the diff as small as possible
+- `tox run -e ruff`: Runs formatters
+- `tox run -e clean_jupyter_notebooks`: Removes cell output and notebook metadata to keep the diff as small as possible
 
 ## Building the Package
 
@@ -228,102 +197,6 @@ The code below installs the `main` branch in [Colab](https://colab.research.goog
 !npm install -g -s npm@latest
 %pip install git+https://github.com/Arize-ai/phoenix.git@main
 ```
-
-## Setting Up Your Windows Test Environment
-
-It is occasionally necessary to manually test a Phoenix build or to run Phoenix from source on Windows. The following instructions enable macOS developers who do not have a PC to quickly set up a Windows Python environment in a cloud or local virtual machine.
-
-### Selecting a Virtualization Option
-
-We recommend to use a virtual machine either with Microsoft Azure (a cloud virtual machine) or using the Parallels Desktop app (a local virtual machine). Which option you select will depend on your hardware and whether you wish to run a remote IDE. The following resources are helpful to make a decision:
-
--   [Parallels Desktop for Mac System Requirements](https://kb.parallels.com/en/124223)
--   [Supported SSH Clients for Remote Development with VSCode](https://code.visualstudio.com/docs/remote/troubleshooting#_installing-a-supported-ssh-client)
-
-At the time of this writing in December 2022,
-
--   Windows 11 is the only Windows OS with a supported ARM version,
--   JetBrains does not support remote development on Windows servers,
--   VSCode supports remote development on certain Windows versions not including Windows 11.
-
-Hence, if you are a macOS developer using an Apple Silicon machine and you wish to use a remote interpreter, running a Windows VM locally is not straightforward and we recommend you use a Windows VM on Azure.
-
-If you elect to use an Azure VM, we recommend that you select a non-headless OS (we use Windows Server 2019), configure an inbound port rule for RDP on port 3389 while creating the VM and screenshare with your VM using Microsoft Remote Desktop, which can be downloaded from the Apple App Store. This will enable you to [configure an SSH server](#configuring-a-remote-interpreter) on the VM for remote development.
-
-### Installing Python and Phoenix
-
-The following instructions assume you have created a Windows virtual machine either locally or in the cloud. These instructions have been tested on Windows Server 2019 and assume you are using Powershell.
-
-Install `chocolatey`, a package manager for Windows, by following the instructions [here](https://chocolatey.org/install#individual).
-
-Open a new shell and run
-
-```powershell
-choco install nvm pyenv-win git
-```
-
-Open a new shell and install the latest long-term supported version of `node` using
-
-```powershell
-nvm install lts
-```
-
-Activate this version using
-
-```powershell
-nvm use lts
-```
-
-Open a new shell and confirm that `node` and `npm` are available with
-
-```powershell
-node --version
-npm --version
-```
-
-Install your desired Python version with
-
-```powershell
-$env:PHOENIX_PYTHON_VERSION = "desired-python-version"
-pyenv install $env:PHOENIX_PYTHON_VERSION
-```
-
-Set the global `pyenv` version with
-
-```powershell
-pyenv global $env:PHOENIX_PYTHON_VERSION
-```
-
-Install `virtualenvwrapper-win` with
-
-```powershell
-pip install virtualenvwrapper-win
-```
-
-Create a virtual environment called `phoenix` with
-
-```powershell
-mkvirtualenv phoenix-env
-```
-
-Activate your virtual environment. You can now [install a Phoenix build](#installing-a-phoenix-build). Alternatively, if you wish to run Phoenix from source, clone the repo and install Phoenix in development mode with
-
-```powershell
-pip install -e ".[dev]"
-```
-
-### Configuring a Remote Interpreter
-
-If you wish to use a remote SSH interpreter (e.g., via VSCode), you must install and run an SSH server on your Windows VM. We recommend to install OpenSSH Server by navigating to `Settings > Apps > Manage optional features > Add a feature`, selecting `OpenSSH Server` in the list and clicking `Install`. To start the SSH server, navigate to `Control Panel > System and Security > Administrative Tools > View local services`, select `OpenSSH Server` and press `Start`. If you wish to configure the server to start automatically on startup, select `Actions > Properties` while `OpenSSH Server` is selected from the list (or just double-click on `OpenSSH Server`), select `Automatic` in the `Startup type` dropdown and hit `Apply`.
-
-You must also ensure that port 22 of your Windows VM is reachable by your SSH client.
-
--   If using an Azure VM, this can be accomplished by defining an appropriate inbound port rule for TCP on port 22 either during creation of the virtual machine or after creation in the VM's networking settings.
--   If using Parallels Desktop, navigate to `Preferences > Network` and define a port forwarding rule for TCP on destination port 22.
-
-### Troubleshooting
-
--   In our experience, the `workon` command familiar to users of `virtualenvwrapper` may not properly run on Windows with `virtualenvwrapper-win`. In order to activate a virtual environment, you can manually run the appropriate activation script (`activate.ps1` if using Powershell) typically located in `$env:USERPROFILE\Envs\<env-name>\Scripts`.
 
 ## Publishing a New Release
 

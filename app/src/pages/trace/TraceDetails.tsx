@@ -13,11 +13,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
-import { resizeHandleCSS } from "@phoenix/components/resize";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
@@ -28,6 +24,7 @@ import {
   TraceDetailsQuery$data,
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { SpanDetails } from "./SpanDetails";
+import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
 
 export const SELECTED_SPAN_NODE_ID_URL_PARAM = "selectedSpanNodeId";
 
@@ -44,7 +41,7 @@ function findRootSpan(spansList: Span[]): Span | null {
   const rootSpan = spansList.find((span) => span.parentId == null);
   if (rootSpan) return rootSpan;
   // Otherwise we need to find all spans whose parent span is not in our collection.
-  const spanIds = new Set(spansList.map((span) => span.context.spanId));
+  const spanIds = new Set(spansList.map((span) => span.spanId));
   const rootSpans = spansList.filter(
     (span) => span.parentId != null && !spanIds.has(span.parentId)
   );
@@ -75,10 +72,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                 edges {
                   span: node {
                     id
-                    context {
-                      spanId
-                      traceId
-                    }
+                    spanId
                     name
                     spanKind
                     statusCode: propagatedStatusCode
@@ -88,13 +82,6 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
-                    spanAnnotations {
-                      id
-                      name
-                      label
-                      score
-                      annotatorKind
-                    }
                   }
                 }
               }
@@ -155,7 +142,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           overflow: hidden;
         `}
       >
-        <Panel defaultSize={30} minSize={10} maxSize={70}>
+        <Panel defaultSize={30} minSize={5}>
           <ScrollingPanelContent>
             <TraceTree
               spans={spansList}
@@ -172,7 +159,7 @@ export function TraceDetails(props: TraceDetailsProps) {
             />
           </ScrollingPanelContent>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
@@ -200,11 +187,9 @@ function TraceHeader({
   sessionId?: string | null;
 }) {
   const { projectId } = useParams();
-  const { statusCode, spanAnnotations } = rootSpan ?? {
+  const { statusCode } = rootSpan ?? {
     statusCode: "UNSET",
-    spanAnnotations: [],
   };
-  const hasAnnotations = spanAnnotations.length > 0;
   const statusColor = useSpanStatusCodeColor(statusCode);
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
@@ -234,28 +219,7 @@ function TraceHeader({
             )}
           </Text>
         </Flex>
-        {hasAnnotations ? (
-          <Flex direction="column" gap="size-50">
-            <Text elementType="h3" size="M" color="text-700">
-              Feedback
-            </Text>
-            <Flex direction="row" gap="size-50">
-              {spanAnnotations.map((annotation) => {
-                return (
-                  <AnnotationTooltip
-                    key={annotation.name}
-                    annotation={annotation}
-                  >
-                    <AnnotationLabel
-                      annotation={annotation}
-                      annotationDisplayPreference="label"
-                    />
-                  </AnnotationTooltip>
-                );
-              })}
-            </Flex>
-          </Flex>
-        ) : null}
+        {rootSpan ? TraceHeaderRootSpanAnnotations(rootSpan.id) : null}
         {sessionId && (
           <span
             css={css`

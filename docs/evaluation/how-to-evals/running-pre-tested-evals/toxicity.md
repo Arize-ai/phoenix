@@ -8,10 +8,6 @@ The following shows the results of the toxicity Eval on a toxic dataset test to 
 
 ## Toxicity Eval Template
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
-Try it out!
-{% endembed %}
-
 ```
 You are examining written text content. Here is the text:
     [BEGIN DATA]
@@ -33,28 +29,10 @@ words, sentiments or meaning that could be considered toxic.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L194).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L194).
 {% endhint %}
 
-## Benchmark Results
-
-#### GPT-4 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.41.55 PM (1).png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-3.5 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.42.56 PM.png" alt=""><figcaption></figcaption></figure>
-
-#### Claude V2 Results
-
-<figure><img src="../../../.gitbook/assets/calude_v2_toxic (1).png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-<figure><img src="../../../.gitbook/assets/gpt-4-turbo-toxicity.png" alt=""><figcaption></figcaption></figure>
-
-## How To Run the Eval
+## How To Run the Toxicity Eval
 
 ```python
 from phoenix.evals import (
@@ -82,6 +60,30 @@ toxic_classifications = llm_classify(
     provide_explanation=True, #optional to generate explanations for the value produced by the eval LLM
 )
 ```
+
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using the [WikiToxic dataset ](https://huggingface.co/datasets/OxAISH-AL-LLM/wiki_toxic)as a ground truth dataset. Each example in the dataset was evaluating using the `TOXICITY_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the benchmark dataset to generate the confusion matrices below.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
+Try it out!
+{% endembed %}
+
+#### GPT-4 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.41.55 PM (1).png" alt=""><figcaption></figcaption></figure>
+
+#### GPT-3.5 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.42.56 PM.png" alt=""><figcaption></figcaption></figure>
+
+#### Claude V2 Results
+
+<figure><img src="../../../.gitbook/assets/calude_v2_toxic (1).png" alt=""><figcaption></figcaption></figure>
+
+#### GPT-4 Turbo
+
+<figure><img src="../../../.gitbook/assets/gpt-4-turbo-toxicity.png" alt=""><figcaption></figcaption></figure>
 
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 

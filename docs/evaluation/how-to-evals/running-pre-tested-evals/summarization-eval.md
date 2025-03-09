@@ -9,10 +9,6 @@ This Eval helps evaluate the summarization results of a summarization task. The 
 
 ## Summarization Eval Template
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_summarization_classifications.ipynb" %}
-Try it out!
-{% endembed %}
-
 ```
 You are comparing the summary text and it's original document and trying to determine
 if the summary is good. Here is the data:
@@ -31,32 +27,10 @@ Summary is comprehensive, concise, coherent, and independent relative to the Ori
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default\_templates.py#L289).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/default_templates.py#L289).
 {% endhint %}
 
-## Benchmark Results
-
-#### GPT-4 Results
-
-<div align="left">
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.04.55 PM.png" alt=""><figcaption></figcaption></figure>
-
-</div>
-
-#### GPT-3.5 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.05.02 PM (2).png" alt=""><figcaption></figcaption></figure>
-
-#### Claud V2 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-10-28 at 9.58.08 AM.png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-<figure><img src="../../../.gitbook/assets/GPT-4 Turbo Summarization.png" alt=""><figcaption></figcaption></figure>
-
-## How To Run the Eval
+## How To Run the Summarization Eval
 
 ```python
 import phoenix.evals.default_templates as templates
@@ -85,5 +59,29 @@ summarization_classifications = llm_classify(
 ```
 
 The above shows how to use the summarization Eval template.
+
+## Benchmark Results
+
+This benchmark was obtained using notebook below. It was run using a [Daily Mail CNN summarization dataset](https://storage.googleapis.com/arize-phoenix-assets/evals/summarization-classification/summarization-test.jsonl.zip) as a ground truth dataset. Each example in the dataset was evaluating using the `SUMMARIZATION_PROMPT_TEMPLATE` above, then the resulting labels were compared against the ground truth label in the summarization dataset to generate the confusion matrices below.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_summarization_classifications.ipynb" %}
+Try it out!
+{% endembed %}
+
+#### GPT-4 Results
+
+<div align="left"><figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.04.55 PM.png" alt=""><figcaption></figcaption></figure></div>
+
+#### GPT-3.5 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.05.02 PM (2).png" alt=""><figcaption></figcaption></figure>
+
+#### Claud V2 Results
+
+<figure><img src="../../../.gitbook/assets/Screenshot 2023-10-28 at 9.58.08 AM.png" alt=""><figcaption></figcaption></figure>
+
+#### GPT-4 Turbo
+
+<figure><img src="../../../.gitbook/assets/GPT-4 Turbo Summarization.png" alt=""><figcaption></figcaption></figure>
 
 <table><thead><tr><th width="122">Eval</th><th>GPT-4o</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>GPT-3.5 Instruct</th><th width="75">Palm 2 (Text Bison)</th><th>Claud V2</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.61</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.57</mark></td><td><mark style="color:purple;">0.75</mark></td><td></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.63</mark></td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.641</mark></td><td><mark style="color:green;">1.0</mark></td><td><mark style="color:red;">0.1</mark></td><td><mark style="color:red;">0.16</mark></td><td><mark style="color:red;">0.7</mark></td><td><mark style="color:purple;">0.61</mark></td><td></td></tr><tr><td>F1</td><td><mark style="color:green;">0.73</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:red;">0.18</mark></td><td><mark style="color:red;">0.280</mark></td><td><mark style="color:red;">0.63</mark></td><td><mark style="color:purple;">0.67</mark></td><td></td></tr></tbody></table>

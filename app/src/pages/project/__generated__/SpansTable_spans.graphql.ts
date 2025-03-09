@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6d68580c3529a74e2f4819c3532ed0d3>>
+ * @generated SignedSource<<e38b35ea6ee0d0738797326ead5bea1b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type SpanKind = "agent" | "chain" | "embedding" | "evaluator" | "guardrail" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
@@ -19,10 +19,6 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly context: {
-          readonly spanId: string;
-          readonly traceId: string;
-        };
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
           readonly hit: number | null;
@@ -45,12 +41,17 @@ export type SpansTable_spans$data = {
           readonly name: string;
           readonly score: number | null;
         }>;
+        readonly spanId: string;
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
         readonly tokenCountCompletion: number | null;
         readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
+        readonly trace: {
+          readonly id: string;
+          readonly traceId: string;
+        };
       };
     }>;
   };
@@ -109,6 +110,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": true,
+      "kind": "LocalArgument",
+      "name": "rootSpansOnly"
+    },
+    {
       "defaultValue": {
         "col": "startTime",
         "dir": "desc"
@@ -165,6 +171,11 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "rootSpansOnly",
+          "variableName": "rootSpansOnly"
         },
         {
           "kind": "Variable",
@@ -259,18 +270,19 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SpanContext",
+                  "kind": "ScalarField",
+                  "name": "spanId",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Trace",
                   "kind": "LinkedField",
-                  "name": "context",
+                  "name": "trace",
                   "plural": false,
                   "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "spanId",
-                      "storageKey": null
-                    },
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -439,6 +451,6 @@ return {
 };
 })();
 
-(node as any).hash = "4827989f55b1c0bd269253b6bc977439";
+(node as any).hash = "6205d8a642077d21635556045b1aaef8";
 
 export default node;

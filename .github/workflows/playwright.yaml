@@ -2,9 +2,9 @@ name: Playwright Tests
 
 on:
   push:
-    branches: [main, sessions]
+    branches: [main, prompts]
   pull_request:
-    branches: [main, sessions]
+    branches: [main, prompts]
 jobs:
   e2e-test:
     timeout-minutes: 60
@@ -17,13 +17,10 @@ jobs:
       # despite always installing it on cache-hit.
       CI_PLAYWRIGHT_SKIP_WEBKIT: true
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        py: [3.9, 3.12, 3.13]
-        os: [ubuntu-latest, macos-latest, macos-13]
-        exclude:
-          - py: 3.13
-            os: macos-13
+        py: [3.13]
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Install PNPM
@@ -59,9 +56,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.py }}
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
-          version: 0.5.15
+          version: 0.6.3
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
           github-token: ${{ secrets.GITHUB_TOKEN }}

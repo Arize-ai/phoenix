@@ -11,13 +11,14 @@ import { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 
 export const basePlaygroundSpan: PlaygroundSpan = {
   __typename: "Span",
-  id: "fake-id",
-  context: {
-    traceId: "test",
-    spanId: "test",
+  id: "fake-span-global-id",
+  spanId: "fake-span-id",
+  trace: {
+    id: "fake-trace-global-id",
+    traceId: "fake-trace-id",
   },
   project: {
-    id: "test",
+    id: "fake-project-global-id",
     name: "test",
   },
   attributes: "",
@@ -107,8 +108,17 @@ export const testSpanToolCall: SpanToolCall = {
   },
 };
 
+export const expectedUnknownToolCall = {
+  id: "1",
+  function: {
+    name: "functionName",
+    arguments: { arg1: "value1" },
+  },
+};
+
 export const expectedTestOpenAIToolCall: OpenAIToolCall = {
   id: "1",
+  type: "function",
   function: {
     name: "functionName",
     arguments: { arg1: "value1" },

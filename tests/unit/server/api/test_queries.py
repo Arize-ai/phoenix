@@ -168,6 +168,21 @@ async def test_compare_experiments_returns_expected_comparisons(
     }
 
 
+async def test_db_table_stats(gql_client: AsyncGraphQLClient) -> None:
+    query = """
+      query {
+        dbTableStats {
+          tableName
+          numBytes
+        }
+      }
+    """
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert (data := response.data) is not None
+    assert set(s["tableName"] for s in data["dbTableStats"]) == set(models.Base.metadata.tables)
+
+
 @pytest.fixture
 async def projects_with_and_without_experiments(
     db: DbSessionFactory,

@@ -6,8 +6,17 @@ import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLo
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
-import { PlaygroundExamplePage } from "./pages/playground/PlaygroundExamplePage";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
+import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
+import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
+import { PromptLayout } from "./pages/prompt/PromptLayout";
+import { promptPlaygroundLoader } from "./pages/prompt/promptPlaygroundLoader";
+import { PromptPlaygroundPage } from "./pages/prompt/PromptPlaygroundPage";
+import { PromptVersionDetailsPage } from "./pages/prompt/PromptVersionDetailsPage";
+import { promptVersionLoader } from "./pages/prompt/promptVersionLoader";
+import { promptVersionsLoader } from "./pages/prompt/promptVersionsLoader";
+import { PromptVersionsPage } from "./pages/prompt/PromptVersionsPage";
 import { sessionLoader } from "./pages/trace/sessionLoader";
 import { SessionPage } from "./pages/trace/SessionPage";
 import {
@@ -36,10 +45,18 @@ import {
   ModelRoot,
   PlaygroundPage,
   ProfilePage,
+  ProjectIndexPage,
   projectLoader,
   ProjectPage,
+  ProjectSessionsPage,
   ProjectsPage,
+  ProjectSpansPage,
   ProjectsRoot,
+  ProjectTracesPage,
+  PromptConfigPage,
+  promptLoader,
+  promptsLoader,
+  PromptsPage,
   resetPasswordLoader,
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
@@ -49,7 +66,6 @@ import {
   spanPlaygroundPageLoader,
   SupportPage,
   TracePage,
-  TracingRoot,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -113,20 +129,26 @@ const router = createBrowserRouter(
             <Route index element={<ProjectsPage />} />
             <Route
               path=":projectId"
-              element={<TracingRoot />}
               loader={projectLoader}
               handle={{
                 crumb: (data: projectLoaderQuery$data) => data.project.name,
               }}
             >
-              <Route index element={<ProjectPage />} />
+              <Route index element={<ProjectIndexPage />} />
               <Route element={<ProjectPage />}>
-                <Route path="traces/:traceId" element={<TracePage />} />
-                <Route
-                  path="sessions/:sessionId"
-                  element={<SessionPage />}
-                  loader={sessionLoader}
-                />
+                <Route path="traces" element={<ProjectTracesPage />}>
+                  <Route path=":traceId" element={<TracePage />} />
+                </Route>
+                <Route path="spans" element={<ProjectSpansPage />}>
+                  <Route path=":traceId" element={<TracePage />} />
+                </Route>
+                <Route path="sessions" element={<ProjectSessionsPage />}>
+                  <Route
+                    path=":sessionId"
+                    element={<SessionPage />}
+                    loader={sessionLoader}
+                  />
+                </Route>
               </Route>
             </Route>
           </Route>
@@ -175,25 +197,70 @@ const router = createBrowserRouter(
             }}
           >
             <Route index element={<PlaygroundPage />} />
-            <Route path="datasets/:datasetId" element={<PlaygroundPage />}>
-              <Route
-                path="examples/:exampleId"
-                element={<PlaygroundExamplePage />}
-              />
-            </Route>
             <Route
-              path="spans/:spanId" // TODO: Make it possible to go back to the span
+              path="spans/:spanId"
               element={<SpanPlaygroundPage />}
               loader={spanPlaygroundPageLoader}
               handle={{
                 crumb: (data: spanPlaygroundPageLoaderQuery$data) => {
                   if (data.span.__typename === "Span") {
-                    return `span ${data.span.context.spanId}`;
+                    return `span ${data.span.spanId}`;
                   }
                   return "span unknown";
                 },
               }}
             />
+          </Route>
+          <Route
+            path="/prompts"
+            handle={{
+              crumb: () => "prompts",
+            }}
+          >
+            <Route index element={<PromptsPage />} loader={promptsLoader} />
+            <Route
+              path=":promptId"
+              loader={promptLoader}
+              // force this route to always revalidate, preventing stale versions from being
+              // displayed when navigating back to the prompt page after gql mutation
+              shouldRevalidate={() => true}
+              handle={{
+                crumb: (data: promptLoaderQuery$data) => {
+                  if (data.prompt.__typename === "Prompt") {
+                    return data.prompt.name;
+                  }
+                  return "unknown";
+                },
+              }}
+            >
+              <Route element={<PromptLayout />}>
+                <Route index element={<PromptIndexPage />} />
+                <Route
+                  path="versions"
+                  loader={promptVersionsLoader}
+                  element={<PromptVersionsPage />}
+                >
+                  <Route
+                    path=":versionId"
+                    loader={promptVersionLoader}
+                    element={<PromptVersionDetailsPage />}
+                  />
+                </Route>
+                <Route
+                  path="config"
+                  element={<PromptConfigPage />}
+                  loader={promptConfigLoader}
+                />
+              </Route>
+              <Route
+                path="playground"
+                element={<PromptPlaygroundPage />}
+                loader={promptPlaygroundLoader}
+                handle={{
+                  crumb: () => "playground",
+                }}
+              />
+            </Route>
           </Route>
           <Route
             path="/apis"
@@ -206,7 +273,7 @@ const router = createBrowserRouter(
             path="/support"
             element={<SupportPage />}
             handle={{
-              crumb: () => "Support",
+              crumb: () => "support",
             }}
           />
           <Route
@@ -214,7 +281,7 @@ const router = createBrowserRouter(
             element={<SettingsPage />}
             loader={settingsPageLoader}
             handle={{
-              crumb: () => "Settings",
+              crumb: () => "settings",
             }}
           />
         </Route>

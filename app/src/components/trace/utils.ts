@@ -13,7 +13,7 @@ export function createSpanTree<TSpan extends ISpanItem>(
 ): SpanTreeNode<TSpan>[] {
   // A map of spanId to span tree node
   const spanMap = spans.reduce((acc, span) => {
-    acc.set(span.context.spanId, {
+    acc.set(span.spanId, {
       span,
       children: [],
     });
@@ -21,7 +21,7 @@ export function createSpanTree<TSpan extends ISpanItem>(
   }, new Map<string, SpanTreeNode<TSpan>>());
   const rootSpans: SpanTreeNode<TSpan>[] = [];
   for (const span of spans) {
-    const spanTreeItem = spanMap.get(span.context.spanId);
+    const spanTreeItem = spanMap.get(span.spanId);
     if (span.parentId === null || !spanMap.has(span.parentId)) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       rootSpans.push(spanTreeItem!);
@@ -42,5 +42,10 @@ export function createSpanTree<TSpan extends ISpanItem>(
         new Date(b.span.startTime).valueOf()
     );
   }
+  rootSpans.sort(
+    (a, b) =>
+      new Date(a.span.startTime).valueOf() -
+      new Date(b.span.startTime).valueOf()
+  );
   return rootSpans;
 }

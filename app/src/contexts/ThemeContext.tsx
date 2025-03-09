@@ -3,6 +3,7 @@ import React, {
   PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useState,
 } from "react";
 
@@ -30,12 +31,27 @@ export function useTheme() {
   return context;
 }
 
-export function ThemeProvider(props: PropsWithChildren) {
-  const [theme, _setTheme] = useState<ProviderTheme>(getCurrentTheme());
+export function ThemeProvider(
+  props: PropsWithChildren<{
+    /**
+     * If provided, the ThemeProvider will become controlled and the theme will not update automatically.
+     */
+    theme?: ProviderTheme;
+  }>
+) {
+  const [theme, _setTheme] = useState<ProviderTheme>(
+    () => props.theme || getCurrentTheme()
+  );
   const setTheme = useCallback((theme: ProviderTheme) => {
     localStorage.setItem(LOCAL_STORAGE_THEME_KEY, theme);
     _setTheme(theme);
   }, []);
+
+  useEffect(() => {
+    if (props.theme) {
+      _setTheme(props.theme);
+    }
+  }, [props.theme, setTheme]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>

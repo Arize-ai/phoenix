@@ -5,11 +5,10 @@ from typing import Any, ClassVar, Optional
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, desc, distinct, func, or_, select
-from sqlalchemy.orm import contains_eager
+from sqlalchemy import desc, distinct, func, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
-from strawberry import ID, UNSET
+from strawberry import ID, UNSET, Private
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -33,8 +32,8 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
-from phoenix.server.api.types.Trace import Trace, to_gql_trace
+from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
@@ -42,10 +41,51 @@ from phoenix.trace.dsl import SpanFilter
 @strawberry.type
 class Project(Node):
     _table: ClassVar[type[models.Base]] = models.Project
-    id_attr: NodeID[int]
-    name: str
-    gradient_start_color: str
-    gradient_end_color: str
+    project_rowid: NodeID[int]
+    db_project: Private[models.Project] = UNSET
+
+    def __post_init__(self) -> None:
+        if self.db_project and self.project_rowid != self.db_project.id:
+            raise ValueError("Project ID mismatch")
+
+    @strawberry.field
+    async def name(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_project:
+            name = self.db_project.name
+        else:
+            name = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.name),
+            )
+        return name
+
+    @strawberry.field
+    async def gradient_start_color(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_project:
+            gradient_start_color = self.db_project.gradient_start_color
+        else:
+            gradient_start_color = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.gradient_start_color),
+            )
+        return gradient_start_color
+
+    @strawberry.field
+    async def gradient_end_color(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        if self.db_project:
+            gradient_end_color = self.db_project.gradient_end_color
+        else:
+            gradient_end_color = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.gradient_end_color),
+            )
+        return gradient_end_color
 
     @strawberry.field
     async def start_time(
@@ -53,7 +93,7 @@ class Project(Node):
         info: Info[Context, None],
     ) -> Optional[datetime]:
         start_time = await info.context.data_loaders.min_start_or_max_end_times.load(
-            (self.id_attr, "start"),
+            (self.project_rowid, "start"),
         )
         start_time, _ = right_open_time_range(start_time, None)
         return start_time
@@ -64,7 +104,7 @@ class Project(Node):
         info: Info[Context, None],
     ) -> Optional[datetime]:
         end_time = await info.context.data_loaders.min_start_or_max_end_times.load(
-            (self.id_attr, "end"),
+            (self.project_rowid, "end"),
         )
         _, end_time = right_open_time_range(None, end_time)
         return end_time
@@ -77,7 +117,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> int:
         return await info.context.data_loaders.record_counts.load(
-            ("span", self.id_attr, time_range, filter_condition),
+            ("span", self.project_rowid, time_range, filter_condition),
         )
 
     @strawberry.field
@@ -87,7 +127,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
         return await info.context.data_loaders.record_counts.load(
-            ("trace", self.id_attr, time_range, None),
+            ("trace", self.project_rowid, time_range, None),
         )
 
     @strawberry.field
@@ -98,7 +138,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> int:
         return await info.context.data_loaders.token_counts.load(
-            ("total", self.id_attr, time_range, filter_condition),
+            ("total", self.project_rowid, time_range, filter_condition),
         )
 
     @strawberry.field
@@ -109,7 +149,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> int:
         return await info.context.data_loaders.token_counts.load(
-            ("prompt", self.id_attr, time_range, filter_condition),
+            ("prompt", self.project_rowid, time_range, filter_condition),
         )
 
     @strawberry.field
@@ -120,7 +160,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> int:
         return await info.context.data_loaders.token_counts.load(
-            ("completion", self.id_attr, time_range, filter_condition),
+            ("completion", self.project_rowid, time_range, filter_condition),
         )
 
     @strawberry.field
@@ -133,7 +173,7 @@ class Project(Node):
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "trace",
-                self.id_attr,
+                self.project_rowid,
                 time_range,
                 None,
                 probability,
@@ -151,7 +191,7 @@ class Project(Node):
         return await info.context.data_loaders.latency_ms_quantile.load(
             (
                 "span",
-                self.id_attr,
+                self.project_rowid,
                 time_range,
                 filter_condition,
                 probability,
@@ -163,12 +203,12 @@ class Project(Node):
         stmt = (
             select(models.Trace)
             .where(models.Trace.trace_id == str(trace_id))
-            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.Trace.project_rowid == self.project_rowid)
         )
         async with info.context.db() as session:
             if (trace := await session.scalar(stmt)) is None:
                 return None
-        return to_gql_trace(trace)
+        return Trace(trace_rowid=trace.id, db_trace=trace)
 
     @strawberry.field
     async def spans(
@@ -184,18 +224,15 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
         stmt = (
-            select(models.Span)
+            select(models.Span.id)
             .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id_attr)
-            .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
+            .where(models.Trace.project_rowid == self.project_rowid)
         )
         if time_range:
-            stmt = stmt.where(
-                and_(
-                    time_range.start <= models.Span.start_time,
-                    models.Span.start_time < time_range.end,
-                )
-            )
+            if time_range.start:
+                stmt = stmt.where(time_range.start <= models.Span.start_time)
+            if time_range.end:
+                stmt = stmt.where(models.Span.start_time < time_range.end)
         if root_spans_only:
             # A root span is any span whose parent span is missing in the
             # database, even if its `parent_span_id` may not be NULL.
@@ -234,21 +271,21 @@ class Project(Node):
         stmt = stmt.order_by(cursor_rowid_column)
         cursors_and_nodes = []
         async with info.context.db() as session:
-            span_records = await session.execute(stmt)
+            span_records = await session.stream(stmt)
             async for span_record in islice(span_records, first):
-                span = span_record[0]
-                cursor = Cursor(rowid=span.id)
+                span_rowid: int = span_record[0]
+                cursor = Cursor(rowid=span_rowid)
                 if sort_config:
                     assert len(span_record) > 1
                     cursor.sort_column = CursorSortColumn(
                         type=sort_config.column_data_type,
                         value=span_record[1],
                     )
-                cursors_and_nodes.append((cursor, to_gql_span(span)))
+                cursors_and_nodes.append((cursor, Span(span_rowid=span_rowid)))
             has_next_page = True
             try:
-                next(span_records)
-            except StopIteration:
+                await span_records.__anext__()
+            except StopAsyncIteration:
                 has_next_page = False
 
         return connection_from_cursors_and_nodes(
@@ -268,7 +305,7 @@ class Project(Node):
         filter_io_substring: Optional[str] = UNSET,
     ) -> Connection[ProjectSession]:
         table = models.ProjectSession
-        stmt = select(table).filter_by(project_id=self.id_attr)
+        stmt = select(table).filter_by(project_id=self.project_rowid)
         if time_range:
             if time_range.start:
                 stmt = stmt.where(time_range.start <= table.start_time)
@@ -386,7 +423,7 @@ class Project(Node):
         stmt = (
             select(distinct(models.TraceAnnotation.name))
             .join(models.Trace)
-            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.Trace.project_rowid == self.project_rowid)
         )
         async with info.context.db() as session:
             return list(await session.scalars(stmt))
@@ -403,7 +440,7 @@ class Project(Node):
             select(distinct(models.SpanAnnotation.name))
             .join(models.Span)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.Trace.project_rowid == self.project_rowid)
         )
         async with info.context.db() as session:
             return list(await session.scalars(stmt))
@@ -420,7 +457,7 @@ class Project(Node):
             select(distinct(models.DocumentAnnotation.name))
             .join(models.Span)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == self.id_attr)
+            .where(models.Trace.project_rowid == self.project_rowid)
             .where(models.DocumentAnnotation.annotator_kind == "LLM")
         )
         if span_id:
@@ -436,7 +473,7 @@ class Project(Node):
         time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("trace", self.id_attr, time_range, None, annotation_name),
+            ("trace", self.project_rowid, time_range, None, annotation_name),
         )
 
     @strawberry.field
@@ -448,7 +485,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[AnnotationSummary]:
         return await info.context.data_loaders.annotation_summaries.load(
-            ("span", self.id_attr, time_range, filter_condition, annotation_name),
+            ("span", self.project_rowid, time_range, filter_condition, annotation_name),
         )
 
     @strawberry.field
@@ -460,7 +497,7 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
     ) -> Optional[DocumentEvaluationSummary]:
         return await info.context.data_loaders.document_evaluation_summaries.load(
-            (self.id_attr, time_range, filter_condition, evaluation_name),
+            (self.project_rowid, time_range, filter_condition, evaluation_name),
         )
 
     @strawberry.field
@@ -468,7 +505,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
     ) -> Optional[datetime]:
-        return info.context.last_updated_at.get(self._table, self.id_attr)
+        return info.context.last_updated_at.get(self._table, self.project_rowid)
 
     @strawberry.field
     async def validate_span_filter_condition(self, condition: str) -> ValidationResult:
@@ -485,18 +522,6 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
-
-
-def to_gql_project(project: models.Project) -> Project:
-    """
-    Converts an ORM project to a GraphQL Project.
-    """
-    return Project(
-        id_attr=project.id,
-        name=project.name,
-        gradient_start_color=project.gradient_start_color,
-        gradient_end_color=project.gradient_end_color,
-    )
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

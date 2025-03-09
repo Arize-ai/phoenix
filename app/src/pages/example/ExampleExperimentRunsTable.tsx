@@ -79,6 +79,7 @@ export function ExampleExperimentRunsTable({
               error
               output
               trace {
+                id
                 traceId
                 projectId
               }
@@ -92,6 +93,7 @@ export function ExampleExperimentRunsTable({
                     explanation
                     annotatorKind
                     trace {
+                      id
                       traceId
                       projectId
                     }
@@ -202,7 +204,7 @@ export function ExampleExperimentRunsTable({
           return (
             <Button
               size="S"
-              icon={<Icon svg={<Icons.Trace />} />}
+              leadingVisual={<Icon svg={<Icons.Trace />} />}
               onPress={() => {
                 navigate(
                   `/projects/${trace.projectId}/traces/${trace.traceId}`

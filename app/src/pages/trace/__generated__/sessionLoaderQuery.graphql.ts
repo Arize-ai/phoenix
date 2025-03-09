@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6a317767fa35c0ba549716c69394ada1>>
+ * @generated SignedSource<<91e796da5a7c5712bc64d5eb87386c7a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ConcreteRequest, Query } from 'relay-runtime';
+import { ConcreteRequest } from 'relay-runtime';
 export type sessionLoaderQuery$variables = {
   id: string;
 };

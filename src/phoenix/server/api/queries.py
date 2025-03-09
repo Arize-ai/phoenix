@@ -1,35 +1,31 @@
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional, Union
+from typing import Iterable, Iterator, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, distinct, func, select, text
 from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
 from strawberry.types import Info
-from typing_extensions import Annotated, TypeAlias
+from typing_extensions import Annotated, TypeAlias, assert_never
 
+from phoenix.config import (
+    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
+    get_env_database_allocated_storage_capacity_gibibytes,
+    getenv,
+)
 from phoenix.db import enums, models
-from phoenix.db.models import (
-    DatasetExample as OrmExample,
-)
-from phoenix.db.models import (
-    DatasetExampleRevision as OrmRevision,
-)
-from phoenix.db.models import (
-    DatasetVersion as OrmVersion,
-)
-from phoenix.db.models import (
-    Experiment as OrmExperiment,
-)
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.models import DatasetExample as OrmExample
+from phoenix.db.models import DatasetExampleRevision as OrmRevision
+from phoenix.db.models import DatasetVersion as OrmVersion
+from phoenix.db.models import Experiment as OrmExperiment
 from phoenix.db.models import ExperimentRun as OrmExperimentRun
-from phoenix.db.models import (
-    Trace as OrmTrace,
-)
+from phoenix.db.models import Trace as OrmTrace
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
@@ -43,14 +39,9 @@ from phoenix.server.api.helpers.experiment_run_filters import (
 from phoenix.server.api.helpers.playground_clients import initialize_playground_clients
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.input_types.Coordinates import (
-    InputCoordinate2D,
-    InputCoordinate3D,
-)
+from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
-from phoenix.server.api.input_types.InvocationParameters import (
-    InvocationParameter,
-)
+from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
@@ -68,24 +59,20 @@ from phoenix.server.api.types.ExperimentComparison import ExperimentComparison, 
 from phoenix.server.api.types.ExperimentRun import ExperimentRun, to_gql_experiment_run
 from phoenix.server.api.types.Functionality import Functionality
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
-from phoenix.server.api.types.GenerativeProvider import (
-    GenerativeProvider,
-    GenerativeProviderKey,
-)
+from phoenix.server.api.types.GenerativeProvider import GenerativeProvider, GenerativeProviderKey
 from phoenix.server.api.types.InferencesRole import AncillaryInferencesRole, InferencesRole
 from phoenix.server.api.types.Model import Model
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
-from phoenix.server.api.types.pagination import (
-    ConnectionArgs,
-    CursorString,
-    connection_from_list,
-)
+from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
+from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
+from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
-from phoenix.server.api.types.Span import Span, to_gql_span
+from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
-from phoenix.server.api.types.Trace import to_gql_trace
+from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.api.types.UserApiKey import UserApiKey, to_gql_api_key
 from phoenix.server.api.types.UserRole import UserRole
@@ -98,6 +85,12 @@ initialize_playground_clients()
 class ModelsInput:
     provider_key: Optional[GenerativeProviderKey]
     model_name: Optional[str] = None
+
+
+@strawberry.type
+class DbTableStats:
+    table_name: str
+    num_bytes: float
 
 
 @strawberry.type
@@ -255,10 +248,8 @@ class Query:
             projects = await session.stream_scalars(stmt)
             data = [
                 Project(
-                    id_attr=project.id,
-                    name=project.name,
-                    gradient_start_color=project.gradient_start_color,
-                    gradient_end_color=project.gradient_end_color,
+                    project_rowid=project.id,
+                    db_project=project,
                 )
                 async for project in projects
             ]
@@ -467,21 +458,14 @@ class Query:
             embedding_dimension = info.context.model.embedding_dimensions[node_id]
             return to_gql_embedding_dimension(node_id, embedding_dimension)
         elif type_name == "Project":
-            project_stmt = select(
-                models.Project.id,
-                models.Project.name,
-                models.Project.gradient_start_color,
-                models.Project.gradient_end_color,
-            ).where(models.Project.id == node_id)
+            project_stmt = select(models.Project).filter_by(id=node_id)
             async with info.context.db() as session:
-                project = (await session.execute(project_stmt)).first()
+                project = await session.scalar(project_stmt)
             if project is None:
                 raise NotFound(f"Unknown project: {id}")
             return Project(
-                id_attr=project.id,
-                name=project.name,
-                gradient_start_color=project.gradient_start_color,
-                gradient_end_color=project.gradient_end_color,
+                project_rowid=project.id,
+                db_project=project,
             )
         elif type_name == "Trace":
             trace_stmt = select(models.Trace).filter_by(id=node_id)
@@ -489,7 +473,7 @@ class Query:
                 trace = await session.scalar(trace_stmt)
             if trace is None:
                 raise NotFound(f"Unknown trace: {id}")
-            return to_gql_trace(trace)
+            return Trace(trace_rowid=trace.id, db_trace=trace)
         elif type_name == Span.__name__:
             span_stmt = (
                 select(models.Span)
@@ -502,7 +486,7 @@ class Query:
                 span = await session.scalar(span_stmt)
             if span is None:
                 raise NotFound(f"Unknown span: {id}")
-            return to_gql_span(span)
+            return Span(span_rowid=span.id, db_span=span)
         elif type_name == Dataset.__name__:
             dataset_stmt = select(models.Dataset).where(models.Dataset.id == node_id)
             async with info.context.db() as session:
@@ -587,6 +571,31 @@ class Query:
                 ):
                     raise NotFound(f"Unknown user: {id}")
             return to_gql_project_session(project_session)
+        elif type_name == Prompt.__name__:
+            async with info.context.db() as session:
+                if orm_prompt := await session.scalar(
+                    select(models.Prompt).where(models.Prompt.id == node_id)
+                ):
+                    return to_gql_prompt_from_orm(orm_prompt)
+                else:
+                    raise NotFound(f"Unknown prompt: {id}")
+        elif type_name == PromptVersion.__name__:
+            async with info.context.db() as session:
+                if orm_prompt_version := await session.scalar(
+                    select(models.PromptVersion).where(models.PromptVersion.id == node_id)
+                ):
+                    return to_gql_prompt_version(orm_prompt_version)
+                else:
+                    raise NotFound(f"Unknown prompt version: {id}")
+        elif type_name == PromptLabel.__name__:
+            async with info.context.db() as session:
+                if not (
+                    prompt_label := await session.scalar(
+                        select(models.PromptLabel).where(models.PromptLabel.id == node_id)
+                    )
+                ):
+                    raise NotFound(f"Unknown prompt label: {id}")
+            return to_gql_prompt_label(prompt_label)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -608,6 +617,53 @@ class Query:
             ) is None:
                 return None
         return to_gql_user(user)
+
+    @strawberry.field
+    async def prompts(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[Prompt]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.Prompt)
+        async with info.context.db() as session:
+            orm_prompts = await session.stream_scalars(stmt)
+            data = [to_gql_prompt_from_orm(orm_prompt) async for orm_prompt in orm_prompts]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
+
+    @strawberry.field
+    async def prompt_labels(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[PromptLabel]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            prompt_labels = await session.stream_scalars(select(models.PromptLabel))
+            data = [to_gql_prompt_label(prompt_label) async for prompt_label in prompt_labels]
+            return connection_from_list(
+                data=data,
+                args=args,
+            )
 
     @strawberry.field
     def clusters(
@@ -736,3 +792,81 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field(
+        description="The allocated storage capacity of the database in bytes. "
+        "Return None if this information is unavailable.",
+    )  # type: ignore
+    async def db_storage_capacity_bytes(self) -> Optional[float]:
+        if gibibytes := get_env_database_allocated_storage_capacity_gibibytes():
+            return gibibytes * 2**30
+        return None
+
+    @strawberry.field
+    async def db_table_stats(
+        self,
+        info: Info[Context, None],
+    ) -> list[DbTableStats]:
+        if info.context.db.dialect is SupportedSQLDialect.SQLITE:
+            stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
+            try:
+                async with info.context.db() as session:
+                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+                stats = _consolidate_sqlite_db_table_stats(stats)
+            except Exception:
+                # TODO: temporary workaround until we can reproduce the error
+                return []
+        elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
+            stmt = text(f"""\
+                SELECT c.relname, pg_total_relation_size(c.oid)
+                FROM pg_class as c
+                INNER JOIN pg_namespace as n ON n.oid = c.relnamespace
+                WHERE c.relkind = 'r'
+                AND n.nspname = '{getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or "public"}';
+            """)
+            try:
+                async with info.context.db() as session:
+                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+            except Exception:
+                # TODO: temporary workaround until we can reproduce the error
+                return []
+        else:
+            assert_never(info.context.db.dialect)
+        return [
+            DbTableStats(table_name=table_name, num_bytes=num_bytes)
+            for table_name, num_bytes in stats
+        ]
+
+
+def _consolidate_sqlite_db_table_stats(
+    stats: Iterable[tuple[str, int]],
+) -> Iterator[tuple[str, int]]:
+    """
+    Consolidate SQLite database stats by combining indexes with their respective tables.
+    """
+    aggregate: dict[str, int] = {}
+    for name, num_bytes in stats:
+        # Skip internal SQLite tables and indexes.
+        if name.startswith("ix_") or name.startswith("sqlite_"):
+            continue
+        aggregate[name] = num_bytes
+    for name, num_bytes in stats:
+        # Combine indexes with their respective tables.
+        for flag in ["sqlite_autoindex_", "ix_"]:
+            if not name.startswith(flag):
+                continue
+            if parent := _longest_matching_prefix(name[len(flag) :], aggregate.keys()):
+                aggregate[parent] += num_bytes
+            break
+    yield from aggregate.items()
+
+
+def _longest_matching_prefix(s: str, prefixes: Iterable[str]) -> str:
+    """
+    Return the longest prefix of s that matches any of the given prefixes.
+    """
+    longest = ""
+    for prefix in prefixes:
+        if s.startswith(prefix) and len(prefix) > len(longest):
+            longest = prefix
+    return longest

@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo } from "react";
+import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
-import { EditorView, hoverTooltip } from "@codemirror/view";
 import { githubLight } from "@uiw/codemirror-theme-github";
 import { nord } from "@uiw/codemirror-theme-nord";
-import CodeMirror, { ReactCodeMirrorProps } from "@uiw/react-codemirror";
+import CodeMirror, {
+  EditorView,
+  hoverTooltip,
+  keymap,
+  ReactCodeMirrorProps,
+} from "@uiw/react-codemirror";
 import {
   handleRefresh,
   jsonCompletion,
@@ -32,7 +37,7 @@ export type JSONEditorProps = Omit<
 
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
-  const { jsonSchema, optionalLint, ...restProps } = props;
+  const { jsonSchema, optionalLint, basicSetup, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : nord;
   // Force a refresh of the editor when the jsonSchema changes
   // Code mirror does not automatically refresh when the extensions change
@@ -45,7 +50,14 @@ export function JSONEditor(props: JSONEditorProps) {
   // If optionalLint is true, we only lint when there is content to allow for empty json values
   const shouldLint = !optionalLint || (contentLength && contentLength > 0);
   const extensions = useMemo(() => {
-    const baseExtensions = [json(), EditorView.lineWrapping];
+    const baseExtensions = [
+      json(),
+      EditorView.lineWrapping,
+      // Reserve Mod-Enter for the submit button
+      keymap.of([
+        ...defaultKeymap.filter((binding) => binding.key !== "Mod-Enter"),
+      ]),
+    ];
 
     if (shouldLint) {
       baseExtensions.push(linter(jsonParseLinter()));
@@ -71,6 +83,10 @@ export function JSONEditor(props: JSONEditorProps) {
       extensions={extensions}
       editable
       theme={codeMirrorTheme}
+      basicSetup={{
+        ...(basicSetup as object),
+        defaultKeymap: false,
+      }}
       {...restProps}
     />
   );

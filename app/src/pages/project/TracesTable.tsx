@@ -9,8 +9,9 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useMatch, useNavigate } from "react-router";
 import {
+  CellContext,
   ColumnDef,
   ExpandedState,
   flexRender,
@@ -42,6 +43,7 @@ import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
   SpanStatusCode,
@@ -66,27 +68,59 @@ type TracesTableProps = {
 };
 
 const PAGE_SIZE = 50;
+// The number of descendants that's loaded from the server
+// NB: this number is hard coded in the query below but should be kept in sync
+const NUM_DESCENDANTS = 50;
+
+interface IAdditionalSpansIndicator {
+  /**
+   * A flag that if set, indicates that this row is just there to show that there are N more spans under this span
+   */
+  isAdditionalSpansRow?: true;
+}
+/**
+ * An indicator that this row is an additional row, not a span
+ */
+interface IAdditionalSpansRow extends ISpanItem, IAdditionalSpansIndicator {}
 
 /**
  * A nested table row is a span with a children that recursively
  * contains more nested table rows.
  */
-type NestedSpanTableRow<TSpan extends ISpanItem> = TSpan & {
+type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
   children: NestedSpanTableRow<TSpan>[];
 };
+
+const MetadataCell = <TData extends ISpanItem, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  if (row.original.__additionalRow) {
+    return null;
+  }
+  return <MetadataTableCell metadata={row.original.metadata} />;
+};
+
+const trCSS = css`
+  &[data-is-additional-row="true"] {
+    box-shadow: inset 0 -10px 20px var(--ac-global-color-grey-100);
+  }
+`;
 
 /**
  * Recursively create a nested table rows to display the span tree
  * as a table.
  */
-function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
-  children: SpanTreeNode<TSpan>[]
-): NestedSpanTableRow<TSpan>[] {
+function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
+  children: SpanTreeNode<TSpan>[];
+}): NestedSpanTableRow<TSpan>[] {
+  const { children } = params;
   const normalizedSpanTreeChildren: NestedSpanTableRow<TSpan>[] = [];
   for (const child of children) {
     const normalizedChild = {
       ...child.span,
-      children: spanTreeToNestedSpanTableRows(child.children),
+      children: spanTreeToNestedSpanTableRows({
+        children: child.children,
+      }),
     };
     normalizedSpanTreeChildren.push(normalizedChild);
   }
@@ -96,10 +130,13 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isFirstRender = useRef<boolean>(true);
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
+  // Determine if the table is active based on the current path
+  const isTableActive = !!useMatch("/projects/:projectId/traces");
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -144,9 +181,11 @@ export function TracesTable(props: TracesTableProps) {
                 output {
                   value: truncatedValue
                 }
-                context {
-                  spanId
+                spanId
+                trace {
+                  id
                   traceId
+                  numSpans
                 }
                 spanAnnotations {
                   id
@@ -161,39 +200,44 @@ export function TracesTable(props: TracesTableProps) {
                   precision
                   hit
                 }
-                descendants {
-                  id
-                  spanKind
-                  name
-                  statusCode: propagatedStatusCode
-                  startTime
-                  latencyMs
-                  parentId
-                  cumulativeTokenCountTotal: tokenCountTotal
-                  cumulativeTokenCountPrompt: tokenCountPrompt
-                  cumulativeTokenCountCompletion: tokenCountCompletion
-                  input {
-                    value: truncatedValue
-                  }
-                  output {
-                    value: truncatedValue
-                  }
-                  context {
-                    spanId
-                    traceId
-                  }
-                  spanAnnotations {
-                    id
-                    name
-                    label
-                    score
-                    annotatorKind
-                  }
-                  documentRetrievalMetrics {
-                    evaluationName
-                    ndcg
-                    precision
-                    hit
+                descendants(first: 50) {
+                  edges {
+                    node {
+                      id
+                      spanKind
+                      name
+                      statusCode: propagatedStatusCode
+                      startTime
+                      latencyMs
+                      parentId
+                      cumulativeTokenCountTotal: tokenCountTotal
+                      cumulativeTokenCountPrompt: tokenCountPrompt
+                      cumulativeTokenCountCompletion: tokenCountCompletion
+                      input {
+                        value: truncatedValue
+                      }
+                      output {
+                        value: truncatedValue
+                      }
+                      spanId
+                      trace {
+                        id
+                        traceId
+                      }
+                      spanAnnotations {
+                        id
+                        name
+                        label
+                        score
+                        annotatorKind
+                      }
+                      documentRetrievalMetrics {
+                        evaluationName
+                        ndcg
+                        precision
+                        hit
+                      }
+                    }
                   }
                 }
               }
@@ -213,290 +257,379 @@ export function TracesTable(props: TracesTableProps) {
     );
   }, [annotationColumnVisibility]);
   const tableData = useMemo(() => {
-    const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
+    return data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
-      const spanTree = createSpanTree([rootSpan, ...rootSpan.descendants]);
+      const spanTree = createSpanTree([
+        rootSpan,
+        ...rootSpan.descendants.edges.map(({ node }) => node),
+      ]);
       // Unwrap the root span from the span tree and return it
-      const [root] = spanTreeToNestedSpanTableRows(spanTree);
-      return root;
+      const [root] = spanTreeToNestedSpanTableRows({
+        children: spanTree,
+      });
+      type SpanRowType = typeof root & IAdditionalSpansRow;
+      // check if there are more spans in the tree than is loaded
+      const numSpansNotLoaded = rootSpan.trace.numSpans - NUM_DESCENDANTS - 1;
+      if (numSpansNotLoaded > 0) {
+        root.children = [
+          ...root.children,
+          // We add a dummy span here to indicate that there are more spans in the tree
+          {
+            ...root,
+            // Indicate that this is an additional row, not a span
+            __additionalRow: true,
+            name: `+ ${numSpansNotLoaded} more span${numSpansNotLoaded > 1 ? "s" : ""}`,
+            id: `additional-${root.id}`,
+            // Clear out the span info
+            input: { value: "" },
+            output: { value: "" },
+            metadata: null,
+            spanAnnotations: [],
+            documentRetrievalMetrics: [],
+            children: [],
+          } as SpanRowType,
+        ];
+      }
+      return root as SpanRowType;
     });
-
-    return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
 
-  const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
-    visibleAnnotationColumnNames.map((name) => {
-      return {
-        header: name,
-        columns: [
-          {
-            header: `label`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return annotation.label;
-            },
-          } as ColumnDef<TableRow>,
-          {
-            header: `score`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
-            cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
-                (annotation) => annotation.name === name
-              );
-              if (!annotation) {
-                return null;
-              }
-              return annotation.score;
-            },
-          } as ColumnDef<TableRow>,
-        ],
-      };
-    });
+  const dynamicAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
+    () =>
+      visibleAnnotationColumnNames.map((name) => {
+        return {
+          header: name,
+          columns: [
+            {
+              header: `label`,
+              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              cell: ({ row }) => {
+                const data = row.original;
+                const annotation = data.spanAnnotations.find(
+                  (annotation) => annotation.name === name
+                );
+                if (!annotation) {
+                  return null;
+                }
+                return annotation.label;
+              },
+            } as ColumnDef<TableRow>,
+            {
+              header: `score`,
+              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              cell: ({ row }) => {
+                const annotation = row.original.spanAnnotations.find(
+                  (annotation) => annotation.name === name
+                );
+                if (!annotation) {
+                  return null;
+                }
+                return annotation.score;
+              },
+            } as ColumnDef<TableRow>,
+          ],
+        };
+      }),
+    [visibleAnnotationColumnNames]
+  );
 
-  const annotationColumns: ColumnDef<TableRow>[] = [
-    {
-      header: () => (
-        <Flex direction="row" gap="size-50">
-          <span>feedback</span>
-          <ContextualHelp>
-            <Heading level={3} weight="heavy">
-              Feedback
-            </Heading>
-            <Content>
-              Feedback includes evaluations and human annotations logged via the
-              API or set via the UI.
-            </Content>
-          </ContextualHelp>
-        </Flex>
-      ),
-      accessorKey: "spanAnnotations",
-      enableSorting: false,
-      cell: ({ row }) => {
-        const hasNoFeedback =
-          row.original.spanAnnotations.length === 0 &&
-          row.original.documentRetrievalMetrics.length === 0;
-        return (
-          <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanAnnotations.map((annotation) => {
-              return (
-                <AnnotationTooltip
-                  key={annotation.name}
-                  annotation={annotation}
-                  layout="horizontal"
-                  width="500px"
-                  extra={
-                    <AnnotationTooltipFilterActions annotation={annotation} />
-                  }
-                >
-                  <AnnotationLabel
+  const annotationColumns: ColumnDef<TableRow>[] = useMemo(
+    () => [
+      {
+        header: () => (
+          <Flex direction="row" gap="size-50">
+            <span>feedback</span>
+            <ContextualHelp>
+              <Heading level={3} weight="heavy">
+                Feedback
+              </Heading>
+              <Content>
+                Feedback includes evaluations and human annotations logged via
+                the API or set via the UI.
+              </Content>
+            </ContextualHelp>
+          </Flex>
+        ),
+        id: "feedback",
+        accessorKey: "spanAnnotations",
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const hasNoFeedback =
+            row.original.spanAnnotations.length === 0 &&
+            row.original.documentRetrievalMetrics.length === 0;
+          return (
+            <Flex direction="row" gap="size-50" wrap="wrap">
+              {row.original.spanAnnotations.map((annotation) => {
+                return (
+                  <AnnotationTooltip
+                    key={annotation.name}
                     annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
-                </AnnotationTooltip>
-              );
-            })}
-            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
-              return (
-                <Fragment key="doc-evals">
-                  <RetrievalEvaluationLabel
-                    key="ndcg"
-                    name={retrievalMetric.evaluationName}
-                    metric="ndcg"
-                    score={retrievalMetric.ndcg}
-                  />
-                  <RetrievalEvaluationLabel
-                    key="precision"
-                    name={retrievalMetric.evaluationName}
-                    metric="precision"
-                    score={retrievalMetric.precision}
-                  />
-                  <RetrievalEvaluationLabel
-                    key="hit"
-                    name={retrievalMetric.evaluationName}
-                    metric="hit"
-                    score={retrievalMetric.hit}
-                  />
-                </Fragment>
-              );
-            })}
-            {hasNoFeedback ? "--" : null}
-          </Flex>
-        );
-      },
-    },
-    ...dynamicAnnotationColumns,
-  ];
-
-  const columns: ColumnDef<TableRow>[] = [
-    {
-      id: "select",
-      maxSize: 10,
-      header: ({ table }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            checked: table.getIsAllRowsSelected(),
-            indeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.getToggleAllRowsSelectedHandler(),
-          }}
-        />
-      ),
-      cell: ({ row }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
-          }}
-        />
-      ),
-    },
-    {
-      header: () => {
-        return (
-          <Flex gap="size-50" direction="row" alignItems="center">
-            <TableExpandButton
-              isExpanded={table.getIsAllRowsExpanded()}
-              onClick={table.getToggleAllRowsExpandedHandler()}
-              aria-label="Expand all rows"
-            />
-            kind
-          </Flex>
-        );
-      },
-      enableSorting: false,
-      accessorKey: "spanKind",
-      maxSize: 100,
-      cell: (props) => {
-        return (
-          <div
-            css={css`
-              // Since rows are flattened by default,
-              // we can use the row.depth property
-              // and paddingLeft to visually indicate the depth
-              // of the row
-              padding-left: ${props.row.depth * 2}rem;
-            `}
-          >
-            <Flex gap="size-50">
-              {props.row.getCanExpand() ? (
-                <TableExpandButton
-                  isExpanded={props.row.getIsExpanded()}
-                  onClick={props.row.getToggleExpandedHandler()}
-                  aria-label="Expand row"
-                />
-              ) : null}
-              <SpanKindLabel spanKind={props.getValue() as string} />
+                    layout="horizontal"
+                    width="500px"
+                    extra={
+                      <AnnotationTooltipFilterActions annotation={annotation} />
+                    }
+                  >
+                    <AnnotationLabel
+                      annotation={annotation}
+                      annotationDisplayPreference="label"
+                    />
+                  </AnnotationTooltip>
+                );
+              })}
+              {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+                return (
+                  <Fragment key="doc-evals">
+                    <RetrievalEvaluationLabel
+                      key="ndcg"
+                      name={retrievalMetric.evaluationName}
+                      metric="ndcg"
+                      score={retrievalMetric.ndcg}
+                    />
+                    <RetrievalEvaluationLabel
+                      key="precision"
+                      name={retrievalMetric.evaluationName}
+                      metric="precision"
+                      score={retrievalMetric.precision}
+                    />
+                    <RetrievalEvaluationLabel
+                      key="hit"
+                      name={retrievalMetric.evaluationName}
+                      metric="hit"
+                      score={retrievalMetric.hit}
+                    />
+                  </Fragment>
+                );
+              })}
+              {hasNoFeedback ? "--" : null}
             </Flex>
-          </div>
-        );
+          );
+        },
       },
-    },
-    {
-      header: "name",
-      accessorKey: "name",
-      enableSorting: false,
-      cell: ({ getValue, row }) => {
-        const { traceId } = row.original.context;
-        return (
-          <Link to={`traces/${traceId}?selectedSpanNodeId=${row.original.id}`}>
-            {getValue() as string}
-          </Link>
-        );
-      },
-    },
-    {
-      header: "input",
-      accessorKey: "input.value",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    {
-      header: "output",
-      accessorKey: "output.value",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    {
-      header: "metadata",
-      accessorKey: "metadata",
-      enableSorting: false,
-      cell: TextCell,
-    },
-    ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
-    {
-      header: "start time",
-      accessorKey: "startTime",
-      cell: TimestampCell,
-    },
-    {
-      header: "latency",
-      accessorKey: "latencyMs",
+      ...dynamicAnnotationColumns,
+    ],
+    [dynamicAnnotationColumns]
+  );
 
-      cell: ({ getValue }) => {
-        const value = getValue();
-        if (value === null || typeof value !== "number") {
-          return null;
-        }
-
-        return <LatencyText latencyMs={value} />;
-      },
-    },
-    {
-      header: "total tokens",
-      minSize: 80,
-      accessorKey: "cumulativeTokenCountTotal",
-      cell: ({ row, getValue }) => {
-        const value = getValue();
-        if (value === null) {
-          return "--";
-        }
-        return (
-          <TokenCount
-            tokenCountTotal={value as number}
-            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
-            tokenCountCompletion={
-              row.original.cumulativeTokenCountCompletion || 0
-            }
+  const columns: ColumnDef<TableRow>[] = useMemo(
+    () => [
+      {
+        id: "select",
+        maxSize: 10,
+        header: ({ table }) => (
+          <IndeterminateCheckboxCell
+            {...{
+              checked: table.getIsAllRowsSelected(),
+              indeterminate: table.getIsSomeRowsSelected(),
+              onChange: table.getToggleAllRowsSelectedHandler(),
+            }}
           />
-        );
+        ),
+        cell: ({ row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          return (
+            <IndeterminateCheckboxCell
+              {...{
+                checked: row.getIsSelected(),
+                disabled: !row.getCanSelect(),
+                indeterminate: row.getIsSomeSelected(),
+                onChange: row.getToggleSelectedHandler(),
+              }}
+            />
+          );
+        },
       },
-    },
-    {
-      header: "status",
-      accessorKey: "statusCode",
-      enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
+      {
+        header: "status",
+        accessorKey: "statusCode",
+        maxSize: 30,
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const statusCode = getValue() as SpanStatusCode;
+          return <SpanStatusCodeIcon statusCode={statusCode} />;
+        },
       },
-    },
-  ];
+      {
+        header: ({ table }) => {
+          return (
+            <Flex gap="size-50" direction="row" alignItems="center">
+              <TableExpandButton
+                isExpanded={table.getIsAllRowsExpanded()}
+                onClick={table.getToggleAllRowsExpandedHandler()}
+                aria-label="Expand all rows"
+              />
+              kind
+            </Flex>
+          );
+        },
+        enableSorting: false,
+        accessorKey: "spanKind",
+        maxSize: 100,
+        cell: (props) => {
+          if (props.row.original.__additionalRow) {
+            return (
+              <div
+                css={css`
+                  // Since rows are flattened by default,
+                  // we can use the row.depth property
+                  // and paddingLeft to visually indicate the depth
+                  // of the row
+                  padding-left: ${props.row.depth * 2}rem;
+                `}
+              >
+                <Icon svg={<Icons.MoreHorizontalOutline />} />
+              </div>
+            );
+          }
+
+          return (
+            <div
+              css={css`
+                // Since rows are flattened by default,
+                // we can use the row.depth property
+                // and paddingLeft to visually indicate the depth
+                // of the row
+                padding-left: ${props.row.depth * 2}rem;
+              `}
+            >
+              <Flex gap="size-50">
+                {props.row.getCanExpand() ? (
+                  <TableExpandButton
+                    isExpanded={props.row.getIsExpanded()}
+                    onClick={props.row.getToggleExpandedHandler()}
+                    aria-label="Expand row"
+                  />
+                ) : null}
+                <SpanKindLabel spanKind={props.getValue() as string} />
+              </Flex>
+            </div>
+          );
+        },
+      },
+      {
+        header: "name",
+        accessorKey: "name",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          const { traceId } = row.original.trace;
+          const spanId = row.original.isAdditionalSpansRow
+            ? null
+            : row.original.id;
+          return (
+            <Link
+              to={`${traceId}${spanId ? `?selectedSpanNodeId=${spanId}` : ""}`}
+            >
+              {getValue() as string}
+            </Link>
+          );
+        },
+      },
+      {
+        header: "input",
+        accessorKey: "input.value",
+        enableSorting: false,
+        cell: TextCell,
+      },
+      {
+        header: "output",
+        accessorKey: "output.value",
+        enableSorting: false,
+        cell: TextCell,
+      },
+      {
+        header: "metadata",
+        accessorKey: "metadata",
+        enableSorting: false,
+        cell: MetadataCell,
+      },
+      ...annotationColumns, // TODO: consider hiding this column is there is no evals. For now show it
+      {
+        header: "start time",
+        accessorKey: "startTime",
+        cell: (props) => {
+          if (props.row.original.__additionalRow) {
+            return null;
+          }
+          return <TimestampCell {...props} />;
+        },
+      },
+      {
+        header: "latency",
+        accessorKey: "latencyMs",
+        cell: ({ getValue, row }) => {
+          const value = getValue();
+          if (
+            value === null ||
+            typeof value !== "number" ||
+            row.original.__additionalRow
+          ) {
+            return null;
+          }
+          return <LatencyText latencyMs={value} />;
+        },
+      },
+      {
+        header: "total tokens",
+        minSize: 80,
+        accessorKey: "cumulativeTokenCountTotal",
+        cell: ({ row, getValue }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const value = getValue();
+          if (value === null) {
+            return "--";
+          }
+          return (
+            <TokenCount
+              tokenCountTotal={value as number}
+              tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
+              tokenCountCompletion={
+                row.original.cumulativeTokenCountCompletion || 0
+              }
+            />
+          );
+        },
+      },
+    ],
+    [annotationColumns]
+  );
 
   useEffect(() => {
-    //if the sorting changes, we need to reset the pagination
-    const sort = sorting[0];
-    startTransition(() => {
-      refetch(
-        {
-          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
-          after: null,
-          first: PAGE_SIZE,
-          filterCondition: filterCondition,
-        },
-        {
-          fetchPolicy: "store-and-network",
-        }
-      );
-    });
-  }, [sorting, refetch, filterCondition, fetchKey]);
-  const fetchMoreOnBottomReached = React.useCallback(
+    if (isFirstRender.current === true) {
+      // Skip the first render. The data is already fetched by the parent
+      isFirstRender.current = false;
+      return;
+    }
+    if (isTableActive) {
+      //if the sorting changes, we need to reset the pagination
+      const sort = sorting[0];
+      startTransition(() => {
+        refetch(
+          {
+            sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
+            after: null,
+            first: PAGE_SIZE,
+            filterCondition: filterCondition,
+          },
+          {
+            fetchPolicy: "store-and-network",
+          }
+        );
+      });
+    }
+  }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
+
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
@@ -536,7 +669,10 @@ export function TracesTable(props: TracesTableProps) {
   });
   const rows = table.getRowModel().rows;
   const selectedRows = table.getSelectedRowModel().flatRows;
-  const selectedSpans = selectedRows.map((row) => row.original);
+  const selectedSpans = selectedRows.map((row) => ({
+    id: row.original.id,
+    traceId: row.original.trace.id,
+  }));
   const clearSelection = useCallback(() => {
     setRowSelection({});
   }, [setRowSelection]);
@@ -621,9 +757,9 @@ export function TracesTable(props: TracesTableProps) {
                 return (
                   <tr
                     key={row.id}
-                    onClick={() =>
-                      navigate(`traces/${row.original.context.traceId}`)
-                    }
+                    onClick={() => navigate(`${row.original.trace.traceId}`)}
+                    data-is-additional-row={row.original.__additionalRow}
+                    css={trCSS}
                   >
                     {row.getVisibleCells().map((cell) => {
                       return (

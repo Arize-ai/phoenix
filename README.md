@@ -34,8 +34,9 @@ Phoenix is an open-source AI observability platform designed for experimentation
 - [**_Datasets_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
 - [**_Experiments_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
 - [**_Playground_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
+- [**_Prompt Mangement_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
 
-Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
+Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy), 🤗[smolagents](https://docs.arize.com/phoenix/tracing/integrations-tracing/hfsmolagents)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
 Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
 
@@ -53,30 +54,30 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 
 ## Features
 
-| Key Features                                                                                                     | Availability   |
-| ---------------------------------------------------------------------------------------------------------------- | -------------- |
-| [Tracing](https://docs.arize.com/phoenix/tracing/concepts-tracing/what-are-traces)                               | ✅             |
-| [Evaluation](https://docs.arize.com/phoenix/evaluation/llm-evals)                                                | ✅             |
-| [Retrieval (RAG) Analysis](https://docs.arize.com/phoenix/tracing/use-cases-tracing/rag-evaluation)              | ✅             |
-| [Datasets](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets)                            | ✅             |
-| [Fine-Tuning Export](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets) | ✅             |
-| [Annotations](https://docs.arize.com/phoenix/tracing/concepts-tracing/how-to-annotate-traces)                    | ✅             |
-| [Human Feedback](https://docs.arize.com/phoenix/tracing/how-to-tracing/capture-feedback)                         | ✅             |
-| [Experiments](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)        | ✅             |
-| [Embeddings Analysis](https://docs.arize.com/phoenix/inferences/phoenix-inferences)                              | ✅             |
-| [Data Export](https://docs.arize.com/phoenix/tracing/how-to-tracing/extract-data-from-spans)                     | ✅             |
-| REST API                                                                                                         | ✅             |
-| GraphQL API                                                                                                      | ✅             |
-| Data Retention                                                                                                   | Customizable   |
-| [Authentication](https://docs.arize.com/phoenix/deployment/authentication)                                       | ✅             |
-| [Social Login](https://docs.arize.com/phoenix/deployment/authentication#configuring-oauth2-identity-providers)   | ✅             |
-| [RBAC](https://docs.arize.com/phoenix/deployment/authentication#permissions)                                     | ✅             |
-| Projects                                                                                                         | ✅             |
-| [Self-Hosting](https://docs.arize.com/phoenix/deployment)                                                        | ✅             |
-| Jupyter Notebooks                                                                                                | ✅             |
-| [Prompt Playground](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)                          | ✅             |
-| [Sessions](https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-sessions)                                 | ✅             |
-| Prompt Management                                                                                                | Coming soon ⏱️ |
+| Key Features                                                                                                     | Availability |
+| ---------------------------------------------------------------------------------------------------------------- | ------------ |
+| [Tracing](https://docs.arize.com/phoenix/tracing/concepts-tracing/what-are-traces)                               | ✅           |
+| [Evaluation](https://docs.arize.com/phoenix/evaluation/llm-evals)                                                | ✅           |
+| [Retrieval (RAG) Analysis](https://docs.arize.com/phoenix/tracing/use-cases-tracing/rag-evaluation)              | ✅           |
+| [Datasets](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets)                            | ✅           |
+| [Fine-Tuning Export](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets) | ✅           |
+| [Annotations](https://docs.arize.com/phoenix/tracing/concepts-tracing/how-to-annotate-traces)                    | ✅           |
+| [Human Feedback](https://docs.arize.com/phoenix/tracing/how-to-tracing/capture-feedback)                         | ✅           |
+| [Experiments](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)        | ✅           |
+| [Embeddings Analysis](https://docs.arize.com/phoenix/inferences/phoenix-inferences)                              | ✅           |
+| [Data Export](https://docs.arize.com/phoenix/tracing/how-to-tracing/extract-data-from-spans)                     | ✅           |
+| REST API                                                                                                         | ✅           |
+| GraphQL API                                                                                                      | ✅           |
+| Data Retention                                                                                                   | Customizable |
+| [Authentication](https://docs.arize.com/phoenix/deployment/authentication)                                       | ✅           |
+| [Social Login](https://docs.arize.com/phoenix/deployment/authentication#configuring-oauth2-identity-providers)   | ✅           |
+| [RBAC](https://docs.arize.com/phoenix/deployment/authentication#permissions)                                     | ✅           |
+| Projects                                                                                                         | ✅           |
+| [Self-Hosting](https://docs.arize.com/phoenix/deployment)                                                        | ✅           |
+| Jupyter Notebooks                                                                                                | ✅           |
+| [Prompt Playground](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)                          | ✅           |
+| [Sessions](https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-sessions)                                 | ✅           |
+| [Prompt Management](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)                          | ✅           |
 
 ## Tracing Integrations
 
@@ -131,6 +132,6 @@ See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 Copyright 2024 Arize AI, Inc. All Rights Reserved.
 
-Portions of this code are patent protected by one or more U.S. Patents. See [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
+Portions of this code are patent protected by one or more U.S. Patents. See the [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).

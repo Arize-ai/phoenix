@@ -1,13 +1,7 @@
-import React, { Suspense, useCallback, useEffect } from "react";
+import React, { Fragment, Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import {
-  BlockerFunction,
-  Outlet,
-  useBlocker,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { BlockerFunction, useBlocker, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
@@ -26,12 +20,13 @@ import {
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { TemplateLanguages } from "@phoenix/components/templateEditor/constants";
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import { PlaygroundProps } from "@phoenix/store";
 
 import { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
@@ -45,7 +40,7 @@ import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundStreamToggle } from "./PlaygroundStreamToggle";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
-import { TemplateLanguageRadioGroup } from "./TemplateLanguageRadioGroup";
+import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
 
 const playgroundWrapCSS = css`
   display: flex;
@@ -100,7 +95,6 @@ export function Playground(props: Partial<PlaygroundProps>) {
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
-
   return (
     <PlaygroundProvider
       {...props}
@@ -131,7 +125,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
         <PlaygroundContent />
       </div>
       <Suspense>
-        <Outlet />
+        <PlaygroundExamplePage />
       </Suspense>
     </PlaygroundProvider>
   );
@@ -146,7 +140,7 @@ function AddPromptButton() {
     <Button
       size="S"
       aria-label="add prompt"
-      icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+      leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
       isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
       onPress={() => {
         addInstance();
@@ -208,45 +202,55 @@ const playgroundInputOutputPanelContentCSS = css`
  * This width accomodates the model config button min-width, as well as chat message accordion
  * header contents such as the chat message mode radio group for AI messages
  */
-const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 475;
+const PLAYGROUND_PROMPT_PANEL_MIN_WIDTH = 632;
+
+const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
+const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
   const instances = usePlaygroundContext((state) => state.instances);
-  const templateLanguage = usePlaygroundContext(
-    (state) => state.templateLanguage
-  );
-  const { datasetId } = useParams<{ datasetId: string }>();
+  const templateFormat = usePlaygroundContext((state) => state.templateFormat);
+  const [searchParams] = useSearchParams();
+  const datasetId = searchParams.get("datasetId");
   const isDatasetMode = datasetId != null;
   const numInstances = instances.length;
   const isSingleInstance = numInstances === 1;
   const isRunning = instances.some((instance) => instance.activeRunId != null);
+  const anyDirtyPromptInstances = instances
+    .filter((i) => i.prompt)
+    .some((instance) => instance.dirty);
 
+  // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
   const shouldBlockUnload = useCallback(
     ({ currentLocation, nextLocation }: Parameters<BlockerFunction>[0]) => {
-      return isRunning && currentLocation.pathname !== nextLocation.pathname;
+      const goingToNewPage = currentLocation.pathname !== nextLocation.pathname;
+      return (isRunning || anyDirtyPromptInstances) && goingToNewPage;
     },
-    [isRunning]
+    [isRunning, anyDirtyPromptInstances]
   );
   const blocker = useBlocker(shouldBlockUnload);
 
+  // Hard block at the browser level when a run is in progress
   // Handles blocking page reloads when a run is in progress
   useEffect(() => {
+    const shouldBlock = isRunning;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isRunning) {
-        e.preventDefault();
-        // This is deprecated but still necessary for cross-browser compatibility
-        e.returnValue = true;
-      }
+      e.preventDefault();
+      // This is deprecated but still necessary for cross-browser compatibility
+      e.returnValue = true;
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    if (shouldBlock) {
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      return () => {
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    }
   }, [isRunning]);
 
   return (
-    <>
+    <Fragment key="playground-content">
       <PanelGroup
         direction={
           isSingleInstance && !isDatasetMode ? "horizontal" : "vertical"
@@ -257,7 +261,7 @@ function PlaygroundContent() {
       >
         <Panel>
           <div css={playgroundPromptPanelContentCSS}>
-            <DisclosureGroup defaultExpandedKeys={["prompts"]}>
+            <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PROMPTS}>
               <Disclosure id="prompts" size="L">
                 <DisclosureTrigger
                   arrowPosition="start"
@@ -266,7 +270,7 @@ function PlaygroundContent() {
                   Prompts
                   <StopPropagation>
                     <Flex direction="row" gap="size-100" alignItems="center">
-                      <TemplateLanguageRadioGroup />
+                      <TemplateFormatRadioGroup size="S" />
                       <AddPromptButton />
                     </Flex>
                   </StopPropagation>
@@ -277,11 +281,10 @@ function PlaygroundContent() {
                       {instances.map((instance) => (
                         <View
                           flex="1 1 0px"
-                          key={instance.id}
+                          key={`${instance.id}-prompt`}
                           minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                         >
                           <PlaygroundTemplate
-                            key={instance.id}
                             playgroundInstanceId={instance.id}
                           />
                         </View>
@@ -301,8 +304,8 @@ function PlaygroundContent() {
             </Suspense>
           ) : (
             <div css={playgroundInputOutputPanelContentCSS}>
-              <DisclosureGroup defaultExpandedKeys={["input", "output"]}>
-                {templateLanguage !== TemplateLanguages.NONE ? (
+              <DisclosureGroup defaultExpandedKeys={DEFAULT_EXPANDED_PARAMS}>
+                {templateFormat !== TemplateFormats.NONE ? (
                   <Disclosure id="input" size="L">
                     <DisclosureTrigger arrowPosition="start">
                       Inputs
@@ -321,10 +324,9 @@ function PlaygroundContent() {
                   <DisclosurePanel>
                     <View padding="size-200" height="100%">
                       <Flex direction="row" gap="size-200">
-                        {instances.map((instance, i) => (
-                          <View key={i} flex="1 1 0px">
+                        {instances.map((instance) => (
+                          <View key={`${instance.id}-output`} flex="1 1 0px">
                             <PlaygroundOutput
-                              key={i}
                               playgroundInstanceId={instance.id}
                             />
                           </View>
@@ -341,9 +343,13 @@ function PlaygroundContent() {
       {blocker != null && (
         <ConfirmNavigationDialog
           blocker={blocker}
-          message="Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+          message={
+            isRunning
+              ? "Playground run is still in progress, leaving the page may result in incomplete runs. Are you sure you want to leave?"
+              : "You have unsaved changes. Are you sure you want to leave?"
+          }
         />
       )}
-    </>
+    </Fragment>
   );
 }

@@ -8,7 +8,7 @@ The Agent Function Call eval can be used to determine how well a model selects a
 Demo
 {% endembed %}
 
-**Eval Prompt:**
+## **Function Calling Eval Template**
 
 ```python
 TOOL_CALLING_PROMPT_TEMPLATE = """
@@ -42,10 +42,10 @@ in the generated question.
 ```
 
 {% hint style="info" %}
-We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/span\_templates.py#L189).
+We are continually iterating our templates, view the most up-to-date template [on GitHub](https://github.com/Arize-ai/phoenix/blob/ecef5242d2f9bb39a2fdf5d96a2b1841191f7944/packages/phoenix-evals/src/phoenix/evals/span_templates.py#L189).
 {% endhint %}
 
-**Example Code:**
+## **Running an Agent Eval using the Function Calling Template**
 
 ```python
 from phoenix.evals import (
@@ -79,4 +79,4 @@ Parameters:
 
 * `df` - a dataframe of cases to evaluate. The dataframe must have these columns to match the default template:
   * `question` - the query made to the model. If you've [exported spans from Phoenix](https://app.gitbook.com/o/ZmsT56faZH0gUFkMMqBk/s/gtQcEYlwzTfZSAnHREvw/) to evaluate, this will the `llm.input_messages` column in your exported data.
-  * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](../../../tracing/how-to-tracing/extract-data-from-spans.md) to evaluate, this will be the `llm.function_call` column in your exported data.
+  * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](../../../tracing/how-to-interact-with-traces/extract-data-from-spans.md) to evaluate, this will be the `llm.function_call` column in your exported data.

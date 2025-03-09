@@ -30,7 +30,7 @@ class SpanColumn(Enum):
 
     @property
     def column_name(self) -> str:
-        return "f{self.name}_span_sort_column"
+        return f"{self.name}_span_sort_column"
 
     @property
     def orm_expression(self) -> Any:

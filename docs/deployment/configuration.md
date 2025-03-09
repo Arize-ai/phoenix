@@ -51,7 +51,7 @@ The following environment variables will control your client or notebook environ
 
 * **PHOENIX\_NOTEBOOK\_ENV:** The notebook environment. Typically you do not need to set this but it can be set explicitly (e.x. `sagemaker`)
 * **PHOENIX\_COLLECTOR\_ENDPOINT:** The endpoint traces and evals are sent to. This must be set if the Phoenix server is running on a remote instance. For example if phoenix is running at `http://125.2.3.5:4040` , this environment variable must be set where your LLM application is running and being traced. Note that the endpoint should not contain trailing slashes or slugs.
-* **PHOENIX\_PROJECT\_NAME:** The project under which traces will be sent. See [projects](../tracing/how-to-tracing/setup-tracing/setup-tracing-python/#log-to-a-specific-project).
+* **PHOENIX\_PROJECT\_NAME:** The project under which traces will be sent. See [projects](../tracing/how-to-tracing/setup-tracing-python.md#log-to-a-specific-project).
 * **PHOENIX\_CLIENT\_HEADERS:** The headers to set when talking to the phoenix server. This might be things like authentication headers for hosted phoenix.
 
 ## FAQs
