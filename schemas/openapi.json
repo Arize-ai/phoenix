@@ -1017,6 +1017,62 @@
         }
       }
     },
+    "/v1/experiments/{experiment_id}/csv": {
+      "get": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Download experiment runs as a CSV file",
+        "operationId": "getExperimentCSV",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "contentMediaType": "text/csv"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/span_annotations": {
       "post": {
         "tags": [

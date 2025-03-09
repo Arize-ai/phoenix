@@ -19,6 +19,12 @@ export function DownloadExperimentActionMenu({
         align="end"
         icon={<Icon svg={<Icons.DownloadOutline />} />}
         onAction={(action) => {
+          if (action === "csv") {
+            window.open(
+              prependBasename(`/v1/experiments/${experimentId}/csv`),
+              "_blank"
+            );
+          }
           if (action === "json") {
             window.open(
               prependBasename(`/v1/experiments/${experimentId}/json`),
@@ -27,6 +33,7 @@ export function DownloadExperimentActionMenu({
           }
         }}
       >
+        <Item key="csv">Download CSV</Item>
         <Item key="json">Download JSON</Item>
       </ActionMenu>
     </StopPropagation>
