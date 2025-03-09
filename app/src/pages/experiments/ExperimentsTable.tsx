@@ -289,6 +289,7 @@ export function ExperimentsTable({
               onExperimentDeleted={() => {
                 refetch({}, { fetchPolicy: "store-and-network" });
               }}
+              canDeleteExperiment={true}
             />
           </Flex>
         );

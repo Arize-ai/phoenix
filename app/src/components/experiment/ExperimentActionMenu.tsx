@@ -24,13 +24,25 @@ export enum ExperimentAction {
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
 }
 
-export function ExperimentActionMenu(props: {
-  projectId?: string | null;
-  experimentId: string;
-  metadata: unknown;
-  isQuiet?: ActionMenuProps<string>["isQuiet"];
-  onExperimentDeleted: () => void;
-}) {
+type ExperimentActionMenuProps =
+  | {
+      projectId?: string | null;
+      experimentId: string;
+      metadata: unknown;
+      isQuiet?: ActionMenuProps<string>["isQuiet"];
+      canDeleteExperiment: true;
+      onExperimentDeleted: () => void;
+    }
+  | {
+      projectId?: string | null;
+      experimentId: string;
+      metadata: unknown;
+      isQuiet?: ActionMenuProps<string>["isQuiet"];
+      canDeleteExperiment: false;
+      onExperimentDeleted?: undefined;
+    };
+
+export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [commitDeleteExperiment, isDeletingExperiment] = useMutation(graphql`
     mutation ExperimentActionMenuDeleteExperimentMutation(
       $input: DeleteExperimentsInput!
@@ -69,7 +81,7 @@ export function ExperimentActionMenu(props: {
           });
         },
       });
-      onExperimentDeleted();
+      onExperimentDeleted?.();
     },
     [commitDeleteExperiment, notifySuccess, notifyError, onExperimentDeleted]
   );
@@ -113,6 +125,57 @@ export function ExperimentActionMenu(props: {
     },
     [onDeleteExperiment]
   );
+
+  const menuItems = [
+    <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
+      <Flex
+        direction="row"
+        gap="size-75"
+        justifyContent="start"
+        alignItems="center"
+      >
+        <Icon svg={<Icons.Trace />} />
+        <Text>View run traces</Text>
+      </Flex>
+    </Item>,
+    <Item key={ExperimentAction.VIEW_METADATA}>
+      <Flex
+        direction="row"
+        gap="size-75"
+        justifyContent="start"
+        alignItems="center"
+      >
+        <Icon svg={<Icons.InfoOutline />} />
+        <Text>View metadata</Text>
+      </Flex>
+    </Item>,
+    <Item key={ExperimentAction.COPY_EXPERIMENT_ID}>
+      <Flex
+        direction="row"
+        gap="size-75"
+        justifyContent="start"
+        alignItems="center"
+      >
+        <Icon svg={<Icons.ClipboardCopy />} />
+        <Text>Copy experiment ID</Text>
+      </Flex>
+    </Item>,
+  ];
+  if (props.canDeleteExperiment) {
+    menuItems.push(
+      <Item key={ExperimentAction.DELETE_EXPERIMENT}>
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon svg={<Icons.TrashOutline />} />
+          <Text>{isDeletingExperiment ? "Deleting..." : "Delete"}</Text>
+        </Flex>
+      </Item>
+    );
+  }
 
   return (
     <div
@@ -162,50 +225,7 @@ export function ExperimentActionMenu(props: {
           }
         }}
       >
-        <Item key={ExperimentAction.GO_TO_EXPERIMENT_RUN_TRACES}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.Trace />} />
-            <Text>View run traces</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.VIEW_METADATA}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.InfoOutline />} />
-            <Text>View metadata</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.COPY_EXPERIMENT_ID}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.ClipboardCopy />} />
-            <Text>Copy experiment ID</Text>
-          </Flex>
-        </Item>
-        <Item key={ExperimentAction.DELETE_EXPERIMENT}>
-          <Flex
-            direction="row"
-            gap="size-75"
-            justifyContent="start"
-            alignItems="center"
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-            <Text>{isDeletingExperiment ? "Deleting..." : "Delete"}</Text>
-          </Flex>
-        </Item>
+        {menuItems}
       </ActionMenu>
       <DialogContainer
         type="modal"

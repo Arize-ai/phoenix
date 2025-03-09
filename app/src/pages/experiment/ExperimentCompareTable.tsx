@@ -323,6 +323,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               metadata={metadata}
               isQuiet={true}
               projectId={projectId}
+              canDeleteExperiment={false}
             />
           </Flex>
         );
