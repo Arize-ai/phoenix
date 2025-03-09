@@ -103,11 +103,11 @@ class MistralAIModel(BaseModel):
         return {k: v for k, v in params.items() if v is not None}
 
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
-        # instruction is an invalid input to Mistral models, it is passed in by
-        # BaseEvalModel.__call__ and needs to be removed
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
+        # instruction is an invalid input to Mistral models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
         invocation_parameters = self.invocation_parameters()
         invocation_parameters.update(kwargs)
