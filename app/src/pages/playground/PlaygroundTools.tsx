@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
 
-import { Counter, Form } from "@arizeai/components";
+import { Form } from "@arizeai/components";
 
 import {
+  Counter,
   Disclosure,
   DisclosurePanel,
   DisclosureTrigger,
