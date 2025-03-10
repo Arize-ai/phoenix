@@ -56,7 +56,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
     <Disclosure id="tools">
       <DisclosureTrigger arrowPosition="start">
         Tools
-        <Counter variant="light">{tools.length}</Counter>
+        <Counter>{tools.length}</Counter>
       </DisclosureTrigger>
       <DisclosurePanel>
         <View padding="size-200">
