@@ -2,10 +2,11 @@ import React, { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { ActionMenu, Counter, Item, TabPane, Tabs } from "@arizeai/components";
+import { ActionMenu, Item, TabPane, Tabs } from "@arizeai/components";
 
 import {
   Button,
+  Counter,
   Flex,
   Icon,
   Icons,

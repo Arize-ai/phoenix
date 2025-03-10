@@ -8,7 +8,7 @@ export function SequenceNumberToken({
   sequenceNumber: number;
 }) {
   return (
-    <Token color="var(--ac-global-color-yellow-900)" size="S">
+    <Token color="var(--ac-global-color-yellow-500)" size="S">
       #{sequenceNumber}
     </Token>
   );
