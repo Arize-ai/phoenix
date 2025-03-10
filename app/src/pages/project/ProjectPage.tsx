@@ -165,14 +165,14 @@ export function ProjectPageContent({
     (index: number) => {
       startTransition(() => {
         if (index === 1) {
-          // navigate to the spans tab
-          navigate(`${rootPath}/spans`);
+          // navigate to the traces tab
+          navigate(`${rootPath}/traces`);
         } else if (index === 2) {
           // navigate to the sessions tab
           navigate(`${rootPath}/sessions`);
         } else {
-          // navigate to the traces tab
-          navigate(`${rootPath}/traces`);
+          // navigate to the spans tab
+          navigate(`${rootPath}/spans`);
         }
       });
     },
@@ -199,7 +199,7 @@ export function ProjectPageContent({
           }}
         >
           <Tabs onChange={onTabChange} index={tabIndex}>
-            <TabPane name="Traces">
+            <TabPane name="Spans">
               {({ isSelected }) => {
                 if (isSelected) {
                   return <Outlet />;
@@ -207,7 +207,7 @@ export function ProjectPageContent({
                 return null;
               }}
             </TabPane>
-            <TabPane name="Spans">
+            <TabPane name="Traces">
               {({ isSelected }) => {
                 if (isSelected) {
                   return <Outlet />;

@@ -126,6 +126,9 @@ export function SpansTable(props: SpansTableProps) {
                 tokenCountTotal
                 tokenCountPrompt
                 tokenCountCompletion
+                cumulativeTokenCountTotal
+                cumulativeTokenCountPrompt
+                cumulativeTokenCountCompletion
                 spanId
                 trace {
                   id
@@ -377,18 +380,31 @@ export function SpansTable(props: SpansTableProps) {
       },
     },
     {
-      header: "total tokens",
-      accessorKey: "tokenCountTotal",
+      header: rootSpansOnly ? "cumulative tokens" : "total tokens",
+      accessorKey: rootSpansOnly
+        ? "tokenCountTotal"
+        : "cumulativeTokenCountTotal",
+      id: "total tokens",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
           return "--";
         }
+        const span = row.original;
+        const tokenCountTotal = rootSpansOnly
+          ? span.cumulativeTokenCountTotal
+          : span.tokenCountTotal;
+        const tokenCountPrompt = rootSpansOnly
+          ? span.cumulativeTokenCountPrompt
+          : span.tokenCountPrompt;
+        const tokenCountCompletion = rootSpansOnly
+          ? span.cumulativeTokenCountCompletion
+          : span.tokenCountCompletion;
         return (
           <TokenCount
-            tokenCountTotal={value as number}
-            tokenCountPrompt={row.original.tokenCountPrompt || 0}
-            tokenCountCompletion={row.original.tokenCountCompletion || 0}
+            tokenCountTotal={tokenCountTotal || 0}
+            tokenCountPrompt={tokenCountPrompt || 0}
+            tokenCountCompletion={tokenCountCompletion || 0}
           />
         );
       },
