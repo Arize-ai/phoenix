@@ -4,10 +4,11 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { Counter, DialogContainer, TabPane, Tabs } from "@arizeai/components";
+import { DialogContainer, TabPane, Tabs } from "@arizeai/components";
 
 import {
   Button,
+  Counter,
   Flex,
   Heading,
   Icon,

@@ -73,14 +73,18 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["traces", "spans", "sessions"] as const;
+const TABS = ["spans", "traces", "sessions"] as const;
+
+/**
+ * Type guard for the tab path in the URL
+ */
 const isTab = (tab: string): tab is (typeof TABS)[number] => {
   return TABS.includes(tab as (typeof TABS)[number]);
 };
 
 const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
-  traces: 0,
-  spans: 1,
+  spans: 0,
+  traces: 1,
   sessions: 2,
 };
 
@@ -128,12 +132,12 @@ export function ProjectPageContent({
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
     if (tabIndex === 0) {
-      loadTracesQuery({
+      loadSpansQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
     } else if (tabIndex === 1) {
-      loadSpansQuery({
+      loadTracesQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
@@ -165,14 +169,14 @@ export function ProjectPageContent({
     (index: number) => {
       startTransition(() => {
         if (index === 1) {
-          // navigate to the spans tab
-          navigate(`${rootPath}/spans`);
+          // navigate to the traces tab
+          navigate(`${rootPath}/traces`);
         } else if (index === 2) {
           // navigate to the sessions tab
           navigate(`${rootPath}/sessions`);
         } else {
-          // navigate to the traces tab
-          navigate(`${rootPath}/traces`);
+          // navigate to the spans tab
+          navigate(`${rootPath}/spans`);
         }
       });
     },
@@ -199,7 +203,7 @@ export function ProjectPageContent({
           }}
         >
           <Tabs onChange={onTabChange} index={tabIndex}>
-            <TabPane name="Traces">
+            <TabPane name="Spans">
               {({ isSelected }) => {
                 if (isSelected) {
                   return <Outlet />;
@@ -207,7 +211,7 @@ export function ProjectPageContent({
                 return null;
               }}
             </TabPane>
-            <TabPane name="Spans">
+            <TabPane name="Traces">
               {({ isSelected }) => {
                 if (isSelected) {
                   return <Outlet />;

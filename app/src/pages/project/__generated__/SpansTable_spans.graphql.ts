@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e38b35ea6ee0d0738797326ead5bea1b>>
+ * @generated SignedSource<<d3e5880d722a2958a3015bccd909ba51>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,9 @@ export type SpansTable_spans$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
+        readonly cumulativeTokenCountCompletion: number | null;
+        readonly cumulativeTokenCountPrompt: number | null;
+        readonly cumulativeTokenCountTotal: number | null;
         readonly documentRetrievalMetrics: ReadonlyArray<{
           readonly evaluationName: string;
           readonly hit: number | null;
@@ -271,6 +274,27 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "cumulativeTokenCountTotal",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountPrompt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountCompletion",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "spanId",
                   "storageKey": null
                 },
@@ -451,6 +475,6 @@ return {
 };
 })();
 
-(node as any).hash = "6205d8a642077d21635556045b1aaef8";
+(node as any).hash = "aafd0f4f7a46cdc47d1768cea97c46c8";
 
 export default node;

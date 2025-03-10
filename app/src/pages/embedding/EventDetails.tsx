@@ -7,9 +7,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Counter } from "@arizeai/components";
-
 import {
+  Counter,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -170,9 +169,7 @@ export function EventDetails({ event }: { event: ModelEvent }) {
           <Disclosure id="retrievals">
             <DisclosureTrigger>
               Retrieved Documents
-              <Counter variant="light">
-                {event.retrievedDocuments.length}
-              </Counter>
+              <Counter>{event.retrievedDocuments.length}</Counter>
             </DisclosureTrigger>
             <DisclosurePanel>
               <ul

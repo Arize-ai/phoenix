@@ -19,7 +19,6 @@ import {
   CardProps,
   Content,
   ContextualHelp,
-  Counter,
   DialogContainer,
   EmptyGraphic,
   List,
@@ -44,6 +43,7 @@ import {
 import {
   Button,
   CopyToClipboardButton,
+  Counter,
   ErrorBoundary,
   ExternalLink,
   Flex,
@@ -248,7 +248,7 @@ export function SpanDetails({
           </Flex>
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <Button
-              variant="default"
+              variant={span.spanKind !== "llm" ? "default" : "primary"}
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               isDisabled={span.spanKind !== "llm"}
               onPress={() => {
@@ -299,9 +299,7 @@ export function SpanDetails({
         </TabPane>
         <TabPane
           name={"Feedback"}
-          extra={
-            <Counter variant={"light"}>{span.spanAnnotations.length}</Counter>
-          }
+          extra={<Counter>{span.spanAnnotations.length}</Counter>}
         >
           {(selected) => {
             return selected ? <SpanFeedback span={span} /> : null;
@@ -322,7 +320,7 @@ export function SpanDetails({
         <TabPane
           name={"Events"}
           extra={
-            <Counter variant={hasExceptions ? "danger" : "light"}>
+            <Counter variant={hasExceptions ? "danger" : "default"}>
               {span.events.length}
             </Counter>
           }
@@ -910,7 +908,7 @@ function RerankerSpanInfo(props: {
       </MarkdownDisplayProvider>
       <Card
         title={"Input Documents"}
-        titleExtra={<Counter variant="light">{numInputDocuments}</Counter>}
+        titleExtra={<Counter>{numInputDocuments}</Counter>}
         {...defaultCardProps}
         defaultOpen={false}
         bodyStyle={{ padding: 0 }}
@@ -941,7 +939,7 @@ function RerankerSpanInfo(props: {
       </Card>
       <Card
         title={"Output Documents"}
-        titleExtra={<Counter variant="light">{numOutputDocuments}</Counter>}
+        titleExtra={<Counter>{numOutputDocuments}</Counter>}
         {...defaultCardProps}
         bodyStyle={{ padding: 0 }}
       >
@@ -1392,7 +1390,7 @@ function LLMToolSchema({
   return (
     <Card
       title={titleEl}
-      titleExtra={<Counter variant="light">#{index + 1}</Counter>}
+      titleExtra={<Counter>#{index + 1}</Counter>}
       {...defaultCardProps}
       backgroundColor="yellow-100"
       borderColor="yellow-700"

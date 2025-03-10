@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
 
-import { Counter, Form } from "@arizeai/components";
+import { Form } from "@arizeai/components";
 
 import {
+  Counter,
   Disclosure,
   DisclosurePanel,
   DisclosureTrigger,
@@ -55,7 +56,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
     <Disclosure id="tools">
       <DisclosureTrigger arrowPosition="start">
         Tools
-        <Counter variant="light">{tools.length}</Counter>
+        <Counter>{tools.length}</Counter>
       </DisclosureTrigger>
       <DisclosurePanel>
         <View padding="size-200">
