@@ -31,7 +31,7 @@ registerInstrumentations({
 
 ## Support
 
-Instrumentation version >1.0.0 supports both [attribute masking](../how-to-tracing/masking-span-attributes.md) and [context attribute propagation](../how-to-tracing/customize-spans.md) to spans.
+Instrumentation version >1.0.0 supports both [attribute masking](../how-to-tracing/advanced/masking-span-attributes.md) and [context attribute propagation](../how-to-tracing/add-metadata/customize-spans.md) to spans.
 
 ## Resources
 

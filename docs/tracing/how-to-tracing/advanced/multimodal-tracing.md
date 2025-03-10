@@ -1,4 +1,4 @@
-# Multi-modal Tracing
+# Capture Multimodal Traces
 
 Phoenix supports displaying images that are included in LLM traces.
 
@@ -6,8 +6,8 @@ Phoenix supports displaying images that are included in LLM traces.
 
 ## To view images in Phoenix
 
-1. [Connect to a Phoenix instance](../../quickstart.md)
-2. [Instrument your application](../integrations-tracing/)
+1. [Connect to a Phoenix instance](../../../quickstart.md)
+2. [Instrument your application](../../integrations-tracing/)
 3. Include either a base64 UTF-8 encoded image or an image url in the call made to your LLM
 
 ## Example
@@ -68,5 +68,4 @@ response = client.chat.completions.create(
 
 You should see your image appear in Phoenix:
 
-<figure><img src="../../.gitbook/assets/image-trace.png" alt=""><figcaption></figcaption></figure>
-
+<figure><img src="../../../.gitbook/assets/image-trace.png" alt=""><figcaption></figcaption></figure>

@@ -24,7 +24,7 @@
 
 Run evaluations via a job to visualize in the UI as traces stream in.
 
-## [Evaluating Phoenix Traces](evaluating-phoenix-traces.md)
+## [Evaluating Phoenix Traces](../../tracing/how-to-tracing/feedback-and-annotations/evaluating-phoenix-traces.md)
 
 Evaluate traces captured in Phoenix and export results to the Phoenix UI.&#x20;
 

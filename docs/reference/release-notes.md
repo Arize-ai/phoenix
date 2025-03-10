@@ -29,7 +29,7 @@ We’ve introduced several enhancements to **Projects**, providing greater flexi
 * **Integrations**: Phoenix now supports LiteLLM Proxy & Cleanlabs evals
 * **OTEL**: Auto-instrument tag & decorators for streamlined observability
 
-Check out these [docs](../tracing/llm-traces/what-are-traces.md#projects) for more!
+Check out these [docs](../tracing/concepts-tracing/what-are-traces.md#projects) for more!
 
 ***
 
@@ -75,7 +75,7 @@ For more details, you can check the [docs](../tracing/llm-traces-1.md) and explo
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-tracing.png)
 
-In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
+In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/setup-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
 
 You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are:
 

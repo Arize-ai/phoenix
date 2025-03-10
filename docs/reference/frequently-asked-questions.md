@@ -1,5 +1,7 @@
 # Frequently Asked Questions
 
+## Will Phoenix Cloud be on the latest version of Phoenix?
+
 ## What is the difference between Phoenix and Arize?
 
 Arize is the company that makes Phoenix. Phoenix is an open source LLM observability tool offered by Arize. It can be access in its Cloud form online, or self-hosted and run on your own machine or server.
@@ -22,7 +24,9 @@ Self-hosted Phoenix supports multiple user with authentication, roles, and more.
 
 ## Pricing
 
-Phoenix Cloud is free up and comes with 10gb of data storage. More storage is available at a cost.
+Phoenix Cloud is free up to the following limits, then $50/month.
+
+* 10gb storage
 
 Self-hosting Phoenix is completely free.
 

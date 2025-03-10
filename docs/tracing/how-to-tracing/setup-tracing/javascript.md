@@ -1,14 +1,8 @@
----
-description: >-
-  While Phoenix is heavily a Python-based Observability and Evaluation
-  framework, it supports other languages like TypeScript / JavaScript
----
-
-# Setup Tracing & Instrument: TS
+# Setup Tracing (TS)
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/nodejs_deployment.png" alt=""><figcaption><p>You can trace your NodeJS application over OpenTelemetry</p></figcaption></figure>
 
-Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](../how-to-interact-with-traces/llm-evaluations.md), Ragas).
+Phoenix is written and maintained in Python to make it natively runnable in Python notebooks. However, it can be stood up as a trace collector so that your LLM traces from your NodeJS application (e.g., LlamaIndex.TS, Langchain.js) can be collected. The traces collected by Phoenix can then be downloaded to a Jupyter notebook and used to run evaluations (e.g., [LLM Evals](../feedback-and-annotations/llm-evaluations.md), Ragas).
 
 ## Getting Started
 

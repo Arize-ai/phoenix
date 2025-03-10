@@ -1,6 +1,6 @@
 # Instrument Prompt Templates and Prompt Variables
 
-Instrumenting prompt templates and variables allows you to track and visualize prompt changes. These can also be combined with [Experiments](../../datasets-and-experiments/how-to-experiments/run-experiments.md) to measure the performance changes driven by each of your prompts.
+Instrumenting prompt templates and variables allows you to track and visualize prompt changes. These can also be combined with [Experiments](../../../datasets-and-experiments/how-to-experiments/run-experiments.md) to measure the performance changes driven by each of your prompts.
 
 {% tabs %}
 {% tab title="Python" %}
@@ -47,7 +47,7 @@ def call_fn(*args, **kwargs):
 {% endtab %}
 
 {% tab title="JS" %}
-We provide a `setPromptTemplate` function which allows you to set a template, version, and variables on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. The components of a prompt template are:
+We provide a `setPromptTemplate` function which allows you to set a template, version, and variables on context. You can use this utility in conjunction with [`context.with`](https://opentelemetry.io/docs/languages/js/context/#set-active-context) to set the active context. OpenInference [auto instrumentations](../../integrations-tracing/#javascript) will then pick up these attributes and add them to any spans created within the `context.with` callback. The components of a prompt template are:
 
 * template - a string with templated variables ex. `"hello {{name}}"`
 * variables - an object with variable names and their values ex. `{name: "world"}`
