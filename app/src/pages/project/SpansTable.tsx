@@ -382,9 +382,8 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: rootSpansOnly ? "cumulative tokens" : "total tokens",
       accessorKey: rootSpansOnly
-        ? "tokenCountTotal"
-        : "cumulativeTokenCountTotal",
-      id: "total tokens",
+        ? "cumulativeTokenCountTotal"
+        : "tokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
