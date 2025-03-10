@@ -1,10 +1,10 @@
-# Capture Feedback
+# Capture Feedback on Traces
 
 {% hint style="info" %}
 feedback and annotations are available for arize-phoenix>=4.20.0
 {% endhint %}
 
-<figure><img src="../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
 
 When building LLM applications, it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have identified these example, you can share them for further review, automatic evaluation, or fine-tuning.
 

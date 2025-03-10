@@ -4,7 +4,7 @@ description: >-
   make manual instrumentation easier.
 ---
 
-# Instrument: Python
+# Setup Tracing using Phoenix Decorators
 
 ## OpenInference OTEL Tracing
 
@@ -49,7 +49,7 @@ tracer = tracer_provider.get_tracer(__name__)
 ```python
 from phoenix.otel import register
 
-tracer_provider = register(protocol="http/protobuf")
+tracer_provider = register(protocol="http/protobuf", project_name="your project name")
 tracer = tracer_provider.get_tracer(__name__)
 ```
 

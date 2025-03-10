@@ -140,7 +140,7 @@ tracer_provider = register(
 {% hint style="info" %}
 Phoenix's auto-instrumentor collects any traces from **Haystack Pipelines**. If you are using Haystack but not using Pipelines, you won't see traces appearing in Phoenix automatically.
 
-If you don't want to use Haystack pipelines but still want tracing in Phoenix, you can use [instrument-python.md](../how-to-tracing/instrument-python.md "mention") instead of this auto-instrumentor.
+If you don't want to use Haystack pipelines but still want tracing in Phoenix, you can use [instrument-python.md](../how-to-tracing/setup-tracing/instrument-python.md "mention") instead of this auto-instrumentor.
 {% endhint %}
 
 From here, you can set up your Haystack app as normal:

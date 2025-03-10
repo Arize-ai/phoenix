@@ -40,7 +40,7 @@ A client for making HTTP requests to the Phoenix server for extracting/downloadi
 px.Client(endpoint="http://127.0.0.1:6006").get_spans_dataframe()
 ```
 
-Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../tracing/llm-traces/) for more about tracing your LLM application.\
+Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](../tracing/llm-traces.md) for more about tracing your LLM application.\
 \
 **Parameters**
 
@@ -54,11 +54,11 @@ Returns spans in a pandas.dataframe. Filters can be applied. See [LLM Traces](..
 
 -> Optional\[Union\[pandas.DataFrame, List\[pandas.DataFrame]]\
 \
-Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-interact-with-traces/extract-data-from-spans.md "mention")for more details.\
+Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md](../tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md "mention")for more details.\
 \
 **Parameters**
 
-* **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../tracing/how-to-interact-with-traces/extract-data-from-spans.md "mention")for more details.
+* **\*queries** (SpanQuery): One or more SpanQuery object. See [extract-data-from-spans.md](../tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md "mention")for more details.
 * **start\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
 * **end\_time** (Optional\[datetime]): A Python datetime object for filtering spans by time.
 * **root\_spans\_only** (Optional\[bool]): Whether to return only root spans, i.e. spans without parents. Defaults to `False`.
@@ -72,7 +72,7 @@ Extract values from spans in a pandas.dataframe. See [extract-data-from-spans.md
 px.Client(endpoint="http://127.0.0.1:6006").get_evaluations()
 ```
 
-Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.md](../tracing/how-to-interact-with-traces/llm-evaluations.md "mention")for more details.\
+Extract evaluations if any. Otherwise returns empty List. See [llm-evaluations.md](../tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md "mention")for more details.\
 \
 **Parameters**
 
@@ -96,11 +96,11 @@ Returns the trace dataset containing spans and evaluations.\
 
 -> None\
 \
-Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-interact-with-traces/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
+Send evaluations to Phoenix. See [#logging-multiple-evaluation-dataframes](../tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md#logging-multiple-evaluation-dataframes "mention")for usage.\
 \
 **Parameters**
 
-* **\*evaluations** (Evaluations): A collection of Evaluations. See [llm-evaluations.md](../tracing/how-to-interact-with-traces/llm-evaluations.md "mention")for more details.
+* **\*evaluations** (Evaluations): A collection of Evaluations. See [llm-evaluations.md](../tracing/how-to-tracing/feedback-and-annotations/llm-evaluations.md "mention")for more details.
 * **project\_name** (Optional\[str]): The name of the project to send the evaluations for. It can also be specified via an environment variable, or if left blank, defaults to the default project name.
 
 ## _**get\_dataset\_versions**_
