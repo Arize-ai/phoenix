@@ -73,14 +73,18 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["traces", "spans", "sessions"] as const;
+const TABS = ["spans", "traces", "sessions"] as const;
+
+/**
+ * Type guard for the tab path in the URL
+ */
 const isTab = (tab: string): tab is (typeof TABS)[number] => {
   return TABS.includes(tab as (typeof TABS)[number]);
 };
 
 const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
-  traces: 0,
-  spans: 1,
+  spans: 0,
+  traces: 1,
   sessions: 2,
 };
 
@@ -128,12 +132,12 @@ export function ProjectPageContent({
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
     if (tabIndex === 0) {
-      loadTracesQuery({
+      loadSpansQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
     } else if (tabIndex === 1) {
-      loadSpansQuery({
+      loadTracesQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
