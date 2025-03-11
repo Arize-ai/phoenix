@@ -78,39 +78,6 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
       minHeight="100%"
     >
       <Flex direction="column" gap="size-200">
-        <LabeledValue label="Status">
-          <Flex direction="row" gap="size-50" alignItems="center">
-            <SpanStatusCodeIcon statusCode={code} />
-            <Text color={statusColor}>{code}</Text>
-          </Flex>
-        </LabeledValue>
-        <LabeledValue label="Start Time">
-          <Text>{fullTimeFormatter(startDate)}</Text>
-        </LabeledValue>
-        {endDate && (
-          <LabeledValue label="End Time">
-            <Text size="M">{fullTimeFormatter(endDate)}</Text>
-          </LabeledValue>
-        )}
-        <LabeledValue label="Latency">
-          <Text>
-            {typeof latencyMs === "number" ? (
-              <LatencyText latencyMs={latencyMs} />
-            ) : (
-              "--"
-            )}
-          </Text>
-        </LabeledValue>
-        {tokenCountTotal ? (
-          <LabeledValue label="Total Tokens" key="tokens">
-            <TokenCount
-              tokenCountTotal={tokenCountTotal}
-              tokenCountPrompt={tokenCountPrompt ?? 0}
-              tokenCountCompletion={tokenCountCompletion ?? 0}
-              size="L"
-            />
-          </LabeledValue>
-        ) : null}
         {hasAnnotations && (
           <LabeledValue label="Feedback">
             <ul css={annotationListCSS}>
