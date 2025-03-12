@@ -104,6 +104,7 @@ export type AttributeLlm = {
   [LLMAttributePostfixes.prompts]?: string[];
   [LLMAttributePostfixes.prompt_template]?: AttributePromptTemplate;
   [LLMAttributePostfixes.tools]?: AttributeLLMTool[];
+  [LLMAttributePostfixes.provider]?: string;
 };
 
 export type AttributePromptTemplate = {
