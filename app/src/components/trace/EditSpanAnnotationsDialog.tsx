@@ -16,21 +16,25 @@ import { css } from "@emotion/react";
 // eslint-disable-next-line deprecate/import
 import {
   Alert,
-  Button as LegacyButton,
   Card,
   Dialog,
+  Item,
+  ListBox,
+  PopoverTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
+
+import {
+  Button,
   Flex,
   Icon,
   Icons,
-  Item,
+  Input,
   Label,
-  ListBox,
-  PopoverTrigger,
   TextField,
+  Token,
   View,
-} from "@arizeai/components";
-
-import { Button } from "@phoenix/components";
+} from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -131,17 +135,19 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
         setIsPopoverOpen(isOpen);
       }}
     >
-      <LegacyButton
-        variant="primary"
-        disabled={disabled}
-        size="compact"
-        icon={<Icon svg={<Icons.PlusCircleOutline />} />}
-        onClick={() => {
-          setIsPopoverOpen(true);
-        }}
-      >
-        New Annotation
-      </LegacyButton>
+      <TriggerWrap>
+        <Button
+          variant={disabled ? "default" : "primary"}
+          isDisabled={disabled}
+          size="S"
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          onPress={() => {
+            setIsPopoverOpen(true);
+          }}
+        >
+          New Annotation
+        </Button>
+      </TriggerWrap>
       <NewAnnotationPopover
         projectId={projectId}
         spanNodeId={spanNodeId}
@@ -408,7 +414,15 @@ function SpanAnnotationCard(props: {
 function AnnotatorKindLabel(props: { kind: AnnotatorKind }) {
   const { kind } = props;
   return (
-    <Label color={kind === "HUMAN" ? "blue-900" : "orange-900"}>{kind}</Label>
+    <Token
+      color={
+        kind === "HUMAN"
+          ? "var(--ac-global-color-blue-500) "
+          : "var(--ac-global-color-orange-500)"
+      }
+    >
+      {kind}
+    </Token>
   );
 }
 
@@ -469,13 +483,14 @@ function NewAnnotationPopoverContent(props: {
       <View padding="size-200">
         <Flex direction="row" gap="size-100" alignItems="end">
           <TextField
-            label="Annotation Name"
             value={newName}
-            placeholder="e.x. correctness"
             onChange={(newName) => {
               setNewName(newName);
             }}
-          />
+          >
+            <Label>Annotation Name</Label>
+            <Input placeholder="e.x. correctness" />
+          </TextField>
           <Button
             variant="primary"
             onPress={() => {
