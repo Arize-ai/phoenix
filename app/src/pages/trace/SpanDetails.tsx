@@ -56,6 +56,7 @@ import {
   View,
   ViewProps,
 } from "@phoenix/components";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import {
   ConnectedMarkdownBlock,
   ConnectedMarkdownModeRadioGroup,
@@ -81,6 +82,7 @@ import {
   isAttributeMessages,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -485,6 +487,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     () => spanAttributes[SemanticAttributePrefixes.llm] || null,
     [spanAttributes]
   );
+  const provider = llmAttributes?.[LLMAttributePostfixes.provider];
 
   const modelName = useMemo<string | null>(() => {
     if (llmAttributes == null) {
@@ -588,15 +591,24 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     if (modelName == null) {
       return null;
     }
+    let icon = <SpanKindIcon spanKind="llm" />;
+    const normalizedProvider = provider?.toUpperCase();
+    // Show the provider if it exists
+    if (
+      typeof normalizedProvider === "string" &&
+      isModelProvider(normalizedProvider)
+    ) {
+      icon = <GenerativeProviderIcon provider={normalizedProvider} />;
+    }
     return (
       <Flex direction="row" gap="size-100" alignItems="center">
-        <SpanKindIcon spanKind="llm" />
+        {icon}
         <Text size="M" weight="heavy">
           {modelName}
         </Text>
       </Flex>
     );
-  }, [modelName]);
+  }, [modelName, provider]);
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
   const hasLLMToolSchemas = llmToolSchemas.length > 0;
