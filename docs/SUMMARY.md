@@ -25,6 +25,7 @@
   * [Sessions](tracing/features-tracing/sessions.md)
 * [Integrations: Tracing](tracing/integrations-tracing/README.md)
   * [OpenAI](tracing/integrations-tracing/openai.md)
+  * [OpenAI Agents SDK](tracing/integrations-tracing/openai-agents-sdk.md)
   * [LlamaIndex](tracing/integrations-tracing/llamaindex.md)
   * [LlamaIndex Workflows](tracing/integrations-tracing/llamaindex-1.md)
   * [LangChain](tracing/integrations-tracing/langchain.md)
