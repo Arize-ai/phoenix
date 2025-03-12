@@ -1665,6 +1665,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": unknown;
                     "text/csv": string;
                 };
             };
@@ -1677,13 +1678,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Unprocessable Entity */
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/plain": string;
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
