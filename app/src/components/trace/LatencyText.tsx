@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text, TextProps } from "@phoenix/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -43,7 +44,12 @@ export function LatencyText({
     >
       {showIcon ? (
         <Text color={color} size={size}>
-          <Icon svg={<Icons.ClockOutline />} />
+          <Icon
+            svg={<Icons.ClockOutline />}
+            css={css`
+              font-size: 1.1em;
+            `}
+          />
         </Text>
       ) : null}
       <Text color={color} size={size}>

@@ -8,6 +8,7 @@ import { useSpanStatusCodeColor } from "./useSpanStatusCodeColor";
 
 export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
   statusCode,
+  ...restProps
 }: {
   statusCode: TCode;
 }) {
@@ -26,5 +27,7 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
     default:
       assertUnreachable(statusCode);
   }
-  return <Icon svg={iconSVG} color={color} aria-label={statusCode} />;
+  return (
+    <Icon svg={iconSVG} color={color} aria-label={statusCode} {...restProps} />
+  );
 }
