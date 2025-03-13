@@ -32,7 +32,7 @@ export function SpanHeader(props: SpanHeaderProps) {
 
   const startTime = useMemo<Date>(() => {
     return new Date(span.startTime);
-  }, [span]);
+  }, [span.startTime]);
 
   return (
     <Flex
