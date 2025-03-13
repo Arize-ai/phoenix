@@ -2,7 +2,7 @@ import React, { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { ActionMenu, Item, TabPane, Tabs } from "@arizeai/components";
+import { ActionMenu, Item } from "@arizeai/components";
 
 import {
   Button,
@@ -10,7 +10,11 @@ import {
   Flex,
   Icon,
   Icons,
+  LazyTabPanel,
   Loading,
+  Tab,
+  TabList,
+  Tabs,
   Text,
   View,
 } from "@phoenix/components";
@@ -190,23 +194,37 @@ function DatasetPageContent({
           </Flex>
         </Flex>
       </View>
-      <Tabs onChange={onTabChange} defaultIndex={initialIndex}>
-        <TabPane
-          name="Experiments"
-          extra={<Counter>{dataset.experimentCount}</Counter>}
-        >
+      <Tabs
+        defaultSelectedKey={initialIndex === 0 ? "experiments" : "examples"}
+        onSelectionChange={(key) => {
+          switch (key) {
+            case "experiments":
+              onTabChange(0);
+              break;
+            case "examples":
+              onTabChange(1);
+              break;
+          }
+        }}
+      >
+        <TabList>
+          <Tab id="experiments">
+            Experiments <Counter>{dataset.experimentCount}</Counter>
+          </Tab>
+          <Tab id="examples">
+            Examples <Counter>{dataset.exampleCount}</Counter>
+          </Tab>
+        </TabList>
+        <LazyTabPanel id="experiments">
           <Suspense>
             <Outlet />
           </Suspense>
-        </TabPane>
-        <TabPane
-          name="Examples"
-          extra={<Counter>{dataset.exampleCount}</Counter>}
-        >
+        </LazyTabPanel>
+        <LazyTabPanel id="examples">
           <Suspense>
             <Outlet />
           </Suspense>
-        </TabPane>
+        </LazyTabPanel>
       </Tabs>
     </main>
   );

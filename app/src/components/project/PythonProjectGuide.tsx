@@ -1,8 +1,17 @@
 import React from "react";
 
-import { TabbedCard, TabPane, Tabs } from "@arizeai/components";
+import { TabbedCard } from "@arizeai/components";
 
-import { ExternalLink, Heading, Text, View } from "@phoenix/components";
+import {
+  ExternalLink,
+  Heading,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  Text,
+  View,
+} from "@phoenix/components";
 import { CodeWrap } from "@phoenix/components/code/CodeWrap";
 import { PythonBlockWithCopy } from "@phoenix/components/code/PythonBlockWithCopy";
 import { BASE_URL } from "@phoenix/config";
@@ -180,7 +189,11 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       </View>
       <TabbedCard variant="compact">
         <Tabs>
-          <TabPane name="Instrumentation">
+          <TabList>
+            <Tab id="instrumentation">Instrumentation</Tab>
+            <Tab id="openai-example">OpenAI Example</Tab>
+          </TabList>
+          <TabPanel id="instrumentation">
             <View padding="size-200">
               <Text>
                 Trace your application using{" "}
@@ -199,8 +212,8 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
                 </ExternalLink>
               </Text>
             </View>
-          </TabPane>
-          <TabPane name="OpenAI Example">
+          </TabPanel>
+          <TabPanel id="openai-example">
             <View padding="size-200">
               <p>
                 Install{" "}
@@ -232,7 +245,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
                 </CodeWrap>
               </View>
             </View>
-          </TabPane>
+          </TabPanel>
         </Tabs>
       </TabbedCard>
     </div>

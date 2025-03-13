@@ -7,11 +7,17 @@ import {
   CompactSearchField,
   Dialog,
   DialogContainer,
-  TabPane,
-  Tabs,
 } from "@arizeai/components";
 
-import { Button, Icon, Text } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  Text,
+} from "@phoenix/components";
 import { Toolbar } from "@phoenix/components/filter";
 import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
@@ -318,9 +324,11 @@ export function PointSelectionPanelContent() {
         />
         <ExportSelectionButton />
       </div>
-      {/* @ts-expect-error more tabs to come */}
       <Tabs>
-        <TabPane name="Selection">
+        <TabList>
+          <Tab id="selection">Selection</Tab>
+        </TabList>
+        <TabPanel id="selection">
           <SelectionToolbar
             numSelectedEvents={numSelectedEvents}
             numMatchingEvents={numMatchingEvents}
@@ -344,7 +352,7 @@ export function PointSelectionPanelContent() {
               onItemSelected={setSelectedDetailPointId}
             />
           )}
-        </TabPane>
+        </TabPanel>
       </Tabs>
       <DialogContainer
         type="slideOver"

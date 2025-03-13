@@ -4,7 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { DialogContainer, TabPane, Tabs } from "@arizeai/components";
+import { DialogContainer } from "@arizeai/components";
 
 import {
   Button,
@@ -13,7 +13,11 @@ import {
   Heading,
   Icon,
   Icons,
+  LazyTabPanel,
   Link,
+  Tab,
+  TabList,
+  Tabs,
   Text,
   View,
 } from "@phoenix/components";
@@ -55,11 +59,11 @@ export function PromptLayout() {
   const loaderData = usePromptIdLoader();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  let tabIndex = 0;
+  let defaultTab = "prompt";
   if (pathname.includes("versions")) {
-    tabIndex = 1;
+    defaultTab = "versions";
   } else if (pathname.includes("config")) {
-    tabIndex = 2;
+    defaultTab = "config";
   }
 
   const data = useFragment<PromptLayout__main$key>(
@@ -140,12 +144,12 @@ export function PromptLayout() {
         </Flex>
       </View>
       <Tabs
-        index={tabIndex}
-        onChange={(index) => {
+        defaultSelectedKey={defaultTab}
+        onSelectionChange={(key) => {
           let url: string;
-          if (index === 1) {
+          if (key === "versions") {
             url = `/prompts/${loaderData.prompt.id}/versions`;
-          } else if (index === 2) {
+          } else if (key === "config") {
             url = `/prompts/${loaderData.prompt.id}/config`;
           } else {
             url = `/prompts/${loaderData.prompt.id}`;
@@ -153,33 +157,22 @@ export function PromptLayout() {
           navigate(url);
         }}
       >
-        <TabPane name={"Prompt"}>
-          {({ isSelected }) => {
-            if (isSelected) {
-              return <Outlet />;
-            }
-            return null;
-          }}
-        </TabPane>
-        <TabPane
-          name={"Versions"}
-          extra={<Counter>{data.promptVersions.edges.length}</Counter>}
-        >
-          {({ isSelected }) => {
-            if (isSelected) {
-              return <Outlet />;
-            }
-            return null;
-          }}
-        </TabPane>
-        <TabPane name={"Config"}>
-          {({ isSelected }) => {
-            if (isSelected) {
-              return <Outlet />;
-            }
-            return null;
-          }}
-        </TabPane>
+        <TabList>
+          <Tab id="prompt">Prompt</Tab>
+          <Tab id="versions">
+            Versions <Counter>{data.promptVersions.edges.length}</Counter>
+          </Tab>
+          <Tab id="config">Config</Tab>
+        </TabList>
+        <LazyTabPanel id="prompt">
+          <Outlet />
+        </LazyTabPanel>
+        <LazyTabPanel id="versions">
+          <Outlet />
+        </LazyTabPanel>
+        <LazyTabPanel id="config">
+          <Outlet />
+        </LazyTabPanel>
       </Tabs>
       <DialogContainer onDismiss={() => setDialog(null)}>
         {dialog}

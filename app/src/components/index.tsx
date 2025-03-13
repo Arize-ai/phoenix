@@ -45,3 +45,4 @@ export * from "./listbox";
 export * from "./token";
 export * from "./slider";
 export * from "./counter";
+export * from "./tabs";

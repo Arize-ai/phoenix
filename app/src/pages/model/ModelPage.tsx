@@ -3,13 +3,17 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
-import { TabbedCard, TabPane, Tabs } from "@arizeai/components";
+import { TabbedCard } from "@arizeai/components";
 
 import {
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
   DisclosureTrigger,
+  LazyTabPanel,
+  Tab,
+  TabList,
+  Tabs,
 } from "@phoenix/components";
 import {
   PrimaryInferencesTimeRange,
@@ -68,7 +72,12 @@ export function ModelPage(_props: ModelPageProps) {
           bodyStyle={{ padding: 0 }}
         >
           <Tabs>
-            <TabPane name="All" key="all">
+            <TabList>
+              <Tab id="all">All</Tab>
+              <Tab id="embeddings">Embeddings</Tab>
+              <Tab id="dimensions">Dimensions</Tab>
+            </TabList>
+            <LazyTabPanel id="all">
               <DisclosureGroup
                 defaultExpandedKeys={["embeddings", "dimensions"]}
               >
@@ -85,13 +94,13 @@ export function ModelPage(_props: ModelPageProps) {
                   </DisclosurePanel>
                 </Disclosure>
               </DisclosureGroup>
-            </TabPane>
-            <TabPane name="Embeddings" key="embeddings">
+            </LazyTabPanel>
+            <LazyTabPanel id="embeddings">
               <ModelEmbeddingsTable model={data} />
-            </TabPane>
-            <TabPane name="Dimensions" key="dimensions">
+            </LazyTabPanel>
+            <LazyTabPanel id="dimensions">
               <ModelSchemaTable model={data} />
-            </TabPane>
+            </LazyTabPanel>
           </Tabs>
         </TabbedCard>
       </section>
