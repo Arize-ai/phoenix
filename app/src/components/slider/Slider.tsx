@@ -48,6 +48,7 @@ const sliderCSS = css`
 
   .ac-slider-output {
     grid-area: output;
+    min-height: var(--ac-global-dimension-size-350);
   }
 
   .ac-slider-track {
@@ -127,13 +128,16 @@ const sliderCSS = css`
   &[data-orientation="horizontal"] {
     flex-direction: column;
     width: 100%;
+    align-items: baseline;
 
     .ac-slider-number-field {
       .react-aria-Input {
-        min-width: var(--ac-global-dimension-size-900);
-        width: var(--ac-global-dimension-size-900);
+        min-width: var(--ac-global-dimension-size-800);
+        width: var(--ac-global-dimension-size-800);
         padding: 0 var(--ac-global-dimension-size-100);
+        height: var(--ac-global-dimension-size-350);
         text-align: right;
+        margin-bottom: var(--ac-global-dimension-size-100);
       }
     }
 
