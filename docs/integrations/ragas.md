@@ -12,7 +12,7 @@ The tutorial below covers:
 * Arize AI’s [Phoenix](https://colab.research.google.com/corgiredirector?site=https%3A%2F%2Fdocs.arize.com%2Fphoenix) for tracing, visualization, and cluster analysis
 * [LlamaIndex](https://colab.research.google.com/corgiredirector?site=https%3A%2F%2Fdocs.llamaindex.ai%2Fen%2Fstable%2F) for building RAG pipelines
 
-You can also follow along on the [RAGAS docs](https://docs.ragas.io/en/stable/howtos/integrations/_arize/), which mirros the colab below.
+You can also follow along on the [RAGAS docs](https://docs.ragas.io/en/stable/howtos/integrations/_arize/), which mirrors the Colab below.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/ragas_retrieval_evals_tutorial.ipynb" %}
 
