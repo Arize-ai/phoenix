@@ -143,19 +143,24 @@ const sliderCSS = css`
 
     .ac-slider-track {
       height: var(--ac-slider-track-height, var(--ac-global-border-size-thick));
-      width: calc(100% - var(--ac-slider-handle-width) / 2);
+      width: calc(100% - var(--ac-slider-handle-width));
+      left: calc(var(--ac-slider-handle-width) / 2);
 
       /* background track line */
       &:before {
-        width: calc(100% + var(--ac-slider-handle-width) / 2);
+        left: calc(var(--ac-slider-handle-width) / -2);
+        width: calc(100% + var(--ac-slider-handle-width));
         top: 50%;
         transform: translateY(-50%);
       }
 
       /* filled track line */
       &:after {
-        left: var(--slider-start);
-        width: calc(var(--slider-end) - var(--slider-start));
+        left: calc(var(--slider-start) - var(--ac-slider-handle-width) / 2);
+        width: calc(
+          var(--slider-end) - var(--slider-start) +
+            var(--ac-slider-handle-width)
+        );
         top: 50%;
         transform: translateY(-50%);
         z-index: 1;
