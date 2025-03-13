@@ -18,10 +18,20 @@ import { subDays } from "date-fns";
 import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
-import { Switch, TabPane, Tabs } from "@arizeai/components";
+import { Switch } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
-import { Counter, Flex, Loading, LoadingMask, View } from "@phoenix/components";
+import {
+  Counter,
+  Flex,
+  Loading,
+  LoadingMask,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  View,
+} from "@phoenix/components";
 import {
   PrimaryInferencesTimeRange,
   ReferenceInferencesTimeRange,
@@ -535,12 +545,16 @@ function PointCloudDisplay({
               `}
             >
               <Tabs>
-                <TabPane name="Display">
+                <TabList>
+                  <Tab id="display">Display</Tab>
+                  <Tab id="hyperparameters">Hyperparameters</Tab>
+                </TabList>
+                <TabPanel id="display">
                   <PointCloudDisplaySettings />
-                </TabPane>
-                <TabPane name="Hyperparameters">
+                </TabPanel>
+                <TabPanel id="hyperparameters">
                   <PointCloudParameterSettings />
-                </TabPane>
+                </TabPanel>
               </Tabs>
             </Panel>
           </PanelGroup>
@@ -621,10 +635,6 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   );
 }
 
-/**
- * The tab index for which the HDBSCAN configuration is displayed
- */
-const CLUSTERING_CONFIG_TAB_INDEX = 1;
 const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   const { referenceInferences } = useInferences();
   const clusters = usePointCloudContext((state) => state.clusters);
@@ -649,8 +659,8 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   // 3. The metric is drift
   const hideReference = referenceInferences == null || metric.type === "drift";
   const onTabChange = useCallback(
-    (index: number) => {
-      if (index === CLUSTERING_CONFIG_TAB_INDEX) {
+    (key: string) => {
+      if (key === "configuration") {
         setClusterColorMode(ClusterColorMode.highlight);
       } else {
         setClusterColorMode(ClusterColorMode.default);
@@ -660,8 +670,14 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   );
 
   return (
-    <Tabs onChange={onTabChange}>
-      <TabPane name="Clusters" extra={<Counter>{clusters.length}</Counter>}>
+    <Tabs onSelectionChange={(key) => onTabChange(key as string)}>
+      <TabList>
+        <Tab id="clusters">
+          Clusters <Counter>{clusters.length}</Counter>
+        </Tab>
+        <Tab id="configuration">Configuration</Tab>
+      </TabList>
+      <TabPanel id="clusters">
         <Flex direction="column" height="100%">
           <View
             borderBottomColor="dark"
@@ -719,12 +735,12 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
             </ul>
           </View>
         </Flex>
-      </TabPane>
-      <TabPane name="Configuration">
+      </TabPanel>
+      <TabPanel id="configuration">
         <View overflow="auto" height="100%">
           <ClusteringSettings />
         </View>
-      </TabPane>
+      </TabPanel>
     </Tabs>
   );
 });

@@ -133,6 +133,11 @@ module.exports = {
         module: "@arizeai/components",
         use: "@phoenix/components",
       },
+      {
+        name: "Tabs",
+        module: "@arizeai/components",
+        use: "@phoenix/components",
+      },
     ],
     "no-duplicate-imports": "error",
   },
