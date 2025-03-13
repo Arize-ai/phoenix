@@ -49,6 +49,7 @@ import {
   Icon,
   Icons,
   LazyTabPanel,
+  LinkButton,
   Tab,
   TabList,
   Tabs,
@@ -96,8 +97,8 @@ import {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
-import { SpanCodeDropdown } from "./SpanCodeDropdown";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -152,7 +153,6 @@ export function SpanDetails({
   spanNodeId: string;
   projectId: string;
 }) {
-  const navigate = useNavigate();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
       query SpanDetailsQuery($id: GlobalID!) {
@@ -238,36 +238,33 @@ export function SpanDetails({
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
         paddingTop="size-100"
-        paddingBottom="size-100"
+        paddingBottom="size-50"
         paddingStart="size-150"
         paddingEnd="size-200"
         flex="none"
       >
-        <Flex>
+        <Flex direction="row" alignItems="center">
           <SpanHeader span={span} />
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
-            <Button
+            <LinkButton
               variant={span.spanKind !== "llm" ? "default" : "primary"}
               leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
               isDisabled={span.spanKind !== "llm"}
-              onPress={() => {
-                navigate(`/playground/spans/${span.id}`);
-              }}
+              to={`/playground/spans/${span.id}`}
+              size="S"
             >
               Playground
-            </Button>
-            <SpanCodeDropdown
-              traceId={span.trace.traceId}
-              spanId={span.spanId}
-            />
+            </LinkButton>
             <AddSpanToDatasetButton span={span} />
             <EditSpanAnnotationsButton
+              size="S"
               spanNodeId={span.id}
               projectId={projectId}
             />
+            <SpanActionMenu traceId={span.trace.traceId} spanId={span.spanId} />
             <TooltipTrigger placement="top" offset={5}>
               <Button
-                variant="default"
+                size="S"
                 aria-label="Toggle showing span details"
                 onPress={() => {
                   setShowSpanAside(!showSpanAside);
@@ -391,6 +388,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
     <>
       <Button
         variant="default"
+        size="S"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={onAddSpanToDataset}
       >

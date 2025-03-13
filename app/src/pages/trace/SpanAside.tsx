@@ -1,14 +1,9 @@
-import React, { PropsWithChildren, useMemo } from "react";
+import React, { PropsWithChildren } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
-import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
@@ -47,24 +42,6 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
     `,
     props.span
   );
-  const {
-    startTime,
-    endTime,
-    code,
-    tokenCountCompletion,
-    tokenCountPrompt,
-    tokenCountTotal,
-  } = data;
-  const startDate = useMemo(() => new Date(startTime), [startTime]);
-  const endDate = useMemo(
-    () => (endTime ? new Date(endTime) : null),
-    [endTime]
-  );
-  const latencyMs = useMemo(() => {
-    if (!endDate) return null;
-    return endDate.getTime() - startDate.getTime();
-  }, [endDate, startDate]);
-  const statusColor = useSpanStatusCodeColor(code);
   const annotations = data.spanAnnotations;
   const hasAnnotations = annotations.length > 0;
   return (
@@ -78,8 +55,8 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
       minHeight="100%"
     >
       <Flex direction="column" gap="size-200">
-        {hasAnnotations && (
-          <LabeledValue label="Feedback">
+        <LabeledValue label="Feedback">
+          {hasAnnotations ? (
             <ul css={annotationListCSS}>
               {annotations.map((annotation) => (
                 <li key={annotation.id}>
@@ -90,8 +67,14 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
                 </li>
               ))}
             </ul>
-          </LabeledValue>
-        )}
+          ) : (
+            <View padding="size-200">
+              <Flex direction="row" alignItems="center" justifyContent="center">
+                <Text color="text-300">No Annotations</Text>
+              </Flex>
+            </View>
+          )}
+        </LabeledValue>
       </Flex>
     </View>
   );

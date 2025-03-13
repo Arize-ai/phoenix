@@ -397,17 +397,20 @@ function SpanTreeEdgeConnector({
   statusCode: SpanStatusCodeType;
   nestingLevel: number;
 }) {
+  const isError = statusCode === "ERROR";
   return (
     <div
       aria-hidden="true"
       data-testid="span-tree-edge-connector"
       className="span-tree-edge-connector"
+      data-status-code={statusCode}
       css={css`
         position: absolute;
         border-left: 1px solid
-          ${statusCode === "ERROR"
+          ${isError
             ? "var(--ac-global-color-danger)"
             : "var(--ac-global-color-grey-700)"};
+        z-index: ${isError ? 1 : 0};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
         width: 42px;
@@ -425,10 +428,11 @@ function SpanTreeEdge({
   statusCode: SpanStatusCodeType;
   nestingLevel: number;
 }) {
-  const color =
-    statusCode === "ERROR"
-      ? "var(--ac-global-color-danger)"
-      : "var(--ac-global-color-grey-700)";
+  const isError = statusCode === "ERROR";
+  const color = isError
+    ? "var(--ac-global-color-danger)"
+    : "var(--ac-global-color-grey-700)";
+  const zIndex = isError ? 1 : 0;
   return (
     <div
       aria-hidden="true"
@@ -437,6 +441,7 @@ function SpanTreeEdge({
         position: absolute;
         border-left: 1px solid ${color};
         border-bottom: 1px solid ${color};
+        z-index: ${zIndex};
         border-radius: 0 0 0 11px;
         top: -5px;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
