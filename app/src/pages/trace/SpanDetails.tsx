@@ -65,10 +65,6 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -90,9 +86,9 @@ import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { RetrievalEvaluationLabel } from "../project/RetrievalEvaluationLabel";
+import { SpanHeader } from "../SpanHeader";
 
 import {
   MimeType,
@@ -213,6 +209,7 @@ export function SpanDetails({
               id
               name
             }
+            ...SpanHeader_span
             ...SpanFeedback_annotations
             ...SpanAside_span
           }
@@ -230,13 +227,6 @@ export function SpanDetails({
     );
   }
 
-  const [startTime, endTime] = useMemo<[Date, Date | null]>(() => {
-    return [
-      new Date(span.startTime),
-      span.endTime ? new Date(span.endTime) : null,
-    ];
-  }, [span]);
-
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
@@ -253,46 +243,8 @@ export function SpanDetails({
         paddingEnd="size-200"
         flex="none"
       >
-        <Flex direction="row" gap="size-200" alignItems="center">
-          <Flex
-            direction="row"
-            gap="size-100"
-            width="100%"
-            height="100%"
-            alignItems="center"
-          >
-            <Flex direction="column" gap="size-50">
-              <Flex direction="row" gap="size-100">
-                <SpanKindToken spanKind={span.spanKind} />
-                <Text>{span.name}</Text>
-                <SpanStatusCodeIcon statusCode={span.statusCode} />
-              </Flex>
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <Text>{fullTimeFormatter(startTime)}</Text>
-                {endTime && (
-                  <>
-                    <Text>{fullTimeFormatter(endTime)}</Text>
-                  </>
-                )}
-                <Text>
-                  {typeof span.latencyMs === "number" ? (
-                    <LatencyText latencyMs={span.latencyMs} />
-                  ) : null}
-                </Text>
-                {span.tokenCountTotal ? (
-                  <>
-                    <Text weight="heavy">Total Tokens:</Text>
-                    <TokenCount
-                      tokenCountTotal={span.tokenCountTotal}
-                      tokenCountPrompt={span.tokenCountPrompt ?? 0}
-                      tokenCountCompletion={span.tokenCountCompletion ?? 0}
-                      size="L"
-                    />
-                  </>
-                ) : null}
-              </Flex>
-            </Flex>
-          </Flex>
+        <Flex>
+          <SpanHeader span={span} />
           <Flex flex="none" direction="row" alignItems="center" gap="size-100">
             <Button
               variant={span.spanKind !== "llm" ? "default" : "primary"}

@@ -273,7 +273,12 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
               {name}
             </span>
             {statusCode === "ERROR" ? (
-              <SpanStatusCodeIcon statusCode="ERROR" />
+              <SpanStatusCodeIcon
+                statusCode="ERROR"
+                css={css`
+                  font-size: var(--ac-global-font-size-m);
+                `}
+              />
             ) : null}
             {typeof tokenCountTotal === "number" &&
             tokenCountTotal > 0 &&

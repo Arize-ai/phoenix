@@ -1,10 +1,10 @@
 import React, { HTMLAttributes, ReactNode } from "react";
 import { css } from "@emotion/react";
 
-import { ColorValue } from "@phoenix/components/types";
+import { ColorValue, StylableProps } from "@phoenix/components/types";
 import { colorValue } from "@phoenix/components/utils";
 
-interface IconProps extends HTMLAttributes<HTMLElement> {
+interface IconProps extends StylableProps, HTMLAttributes<HTMLElement> {
   svg: ReactNode;
   /**
    * Passed through by wrapping components.
@@ -26,27 +26,31 @@ export const Icon = ({
   svg,
   isDisabled: _isDisabled,
   color = "inherit",
+  css: propsCSS,
   ...restProps
 }: IconProps) => {
   const resolvedColor = color === "inherit" ? "inherit" : colorValue(color);
   return (
     <i
       className={"ac-icon-wrap"}
-      css={css`
-        width: 1em;
-        height: 1em;
-        font-size: 1.3rem;
-        color: ${resolvedColor};
-        display: flex;
-        svg {
-          fill: currentColor;
+      css={css(
+        css`
           width: 1em;
           height: 1em;
-          display: inline-block;
-          flex-shrink: 0;
-          user-select: none;
-        }
-      `}
+          font-size: 1.2rem;
+          color: ${resolvedColor};
+          display: flex;
+          svg {
+            fill: currentColor;
+            width: 1em;
+            height: 1em;
+            display: inline-block;
+            flex-shrink: 0;
+            user-select: none;
+          }
+        `,
+        propsCSS
+      )}
       {...restProps}
     >
       {svg}
