@@ -17,6 +17,7 @@ const counterCSS = css`
   background-color: var(--ac-global-background-color-light);
   font-size: var(--ac-global-font-size-xs);
   line-height: var(--ac-global-line-height-xs);
+  text-align: center;
   color: var(--ac-global-text-color-900);
   &[data-variant="danger"] {
     background-color: var(--ac-global-background-color-danger);

@@ -5,8 +5,6 @@ import {
   DropdownButton,
   DropdownMenu,
   DropdownTrigger,
-  TabPane,
-  Tabs,
 } from "@arizeai/components";
 
 import {
@@ -17,6 +15,10 @@ import {
   Icons,
   Input,
   Label,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
   TextField,
   View,
 } from "@phoenix/components";
@@ -99,7 +101,11 @@ export function DatasetCodeDropdown() {
               </Form>
             </View>
             <Tabs>
-              <TabPane name="Python">
+              <TabList>
+                <Tab id="python">Python</Tab>
+                <Tab id="rest">REST</Tab>
+              </TabList>
+              <TabPanel id="python">
                 <View
                   margin="size-200"
                   borderColor="light"
@@ -108,8 +114,8 @@ export function DatasetCodeDropdown() {
                 >
                   <PythonBlockWithCopy value={pythonCode} />
                 </View>
-              </TabPane>
-              <TabPane name="REST">
+              </TabPanel>
+              <TabPanel id="rest">
                 <View padding="size-200">
                   <Form>
                     <Flex direction="row" gap="size-100" alignItems="end">
@@ -121,7 +127,7 @@ export function DatasetCodeDropdown() {
                     </Flex>
                   </Form>
                 </View>
-              </TabPane>
+              </TabPanel>
             </Tabs>
           </section>
         </DropdownMenu>

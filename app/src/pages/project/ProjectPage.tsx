@@ -9,9 +9,14 @@ import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { TabPane, Tabs } from "@arizeai/components";
-
-import { Flex, Loading } from "@phoenix/components";
+import {
+  Flex,
+  LazyTabPanel,
+  Loading,
+  Tab,
+  TabList,
+  Tabs,
+} from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
@@ -202,31 +207,28 @@ export function ProjectPageContent({
             tracesQueryReference: tracesQueryReference ?? null,
           }}
         >
-          <Tabs onChange={onTabChange} index={tabIndex}>
-            <TabPane name="Spans">
-              {({ isSelected }) => {
-                if (isSelected) {
-                  return <Outlet />;
-                }
-                return null;
-              }}
-            </TabPane>
-            <TabPane name="Traces">
-              {({ isSelected }) => {
-                if (isSelected) {
-                  return <Outlet />;
-                }
-                return null;
-              }}
-            </TabPane>
-            <TabPane name="Sessions">
-              {({ isSelected }) => {
-                if (isSelected) {
-                  return <Outlet />;
-                }
-                return null;
-              }}
-            </TabPane>
+          <Tabs
+            onSelectionChange={(key) => {
+              if (typeof key === "string" && isTab(key)) {
+                onTabChange(TAB_INDEX_MAP[key]);
+              }
+            }}
+            selectedKey={tab}
+          >
+            <TabList>
+              <Tab id="spans">Spans</Tab>
+              <Tab id="traces">Traces</Tab>
+              <Tab id="sessions">Sessions</Tab>
+            </TabList>
+            <LazyTabPanel padded={false} id="spans">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="traces">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="sessions">
+              <Outlet />
+            </LazyTabPanel>
           </Tabs>
         </ProjectPageQueryReferenceContext.Provider>
       </main>

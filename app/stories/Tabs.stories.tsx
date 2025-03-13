@@ -29,9 +29,15 @@ const Template: StoryFn = (args) => (
         <Tab id="tab2">Tab 2</Tab>
         <Tab id="tab3">Tab 3</Tab>
       </TabList>
-      <TabPanel id="tab1">Content for Tab 1</TabPanel>
-      <TabPanel id="tab2">Content for Tab 2</TabPanel>
-      <TabPanel id="tab3">Content for Tab 3</TabPanel>
+      <TabPanel padded id="tab1">
+        Content for Tab 1
+      </TabPanel>
+      <TabPanel padded id="tab2">
+        Content for Tab 2
+      </TabPanel>
+      <TabPanel padded id="tab3">
+        Content for Tab 3
+      </TabPanel>
     </Tabs>
   </Card>
 );
@@ -55,9 +61,15 @@ const DisabledTemplate: StoryFn = (args) => (
         </Tab>
         <Tab id="tab3">Tab 3</Tab>
       </TabList>
-      <TabPanel id="tab1">Content for Tab 1</TabPanel>
-      <TabPanel id="tab2">Content for Tab 2</TabPanel>
-      <TabPanel id="tab3">Content for Tab 3</TabPanel>
+      <TabPanel padded id="tab1">
+        Content for Tab 1
+      </TabPanel>
+      <TabPanel padded id="tab2">
+        Content for Tab 2
+      </TabPanel>
+      <TabPanel padded id="tab3">
+        Content for Tab 3
+      </TabPanel>
     </Tabs>
   </Card>
 );
@@ -79,9 +91,15 @@ const LazyLoadingTemplate: StoryFn = (args) => (
         <Tab id="tab2">Tab 2</Tab>
         <Tab id="tab3">Tab 3</Tab>
       </TabList>
-      <LazyTabPanel id="tab1">Content for Tab 1 (Lazy Loaded)</LazyTabPanel>
-      <LazyTabPanel id="tab2">Content for Tab 2 (Lazy Loaded)</LazyTabPanel>
-      <LazyTabPanel id="tab3">Content for Tab 3 (Lazy Loaded)</LazyTabPanel>
+      <LazyTabPanel padded id="tab1">
+        Content for Tab 1 (Lazy Loaded)
+      </LazyTabPanel>
+      <LazyTabPanel padded id="tab2">
+        Content for Tab 2 (Lazy Loaded)
+      </LazyTabPanel>
+      <LazyTabPanel padded id="tab3">
+        Content for Tab 3 (Lazy Loaded)
+      </LazyTabPanel>
     </Tabs>
   </Card>
 );
@@ -103,7 +121,7 @@ const ComplexContentTemplate: StoryFn = (args) => (
         <Tab id="settings">Settings</Tab>
         <Tab id="advanced">Advanced</Tab>
       </TabList>
-      <TabPanel padded={false} id="details">
+      <TabPanel id="details">
         <h3>Product Details</h3>
         <p>
           This is a detailed description of the product with multiple paragraphs
@@ -111,7 +129,7 @@ const ComplexContentTemplate: StoryFn = (args) => (
         </p>
         <p>It can contain rich content and complex layouts.</p>
       </TabPanel>
-      <TabPanel padded={false} id="settings">
+      <TabPanel id="settings">
         <h3>Settings Panel</h3>
         <ul>
           <li>Setting 1</li>
@@ -119,7 +137,7 @@ const ComplexContentTemplate: StoryFn = (args) => (
           <li>Setting 3</li>
         </ul>
       </TabPanel>
-      <TabPanel padded={false} id="advanced">
+      <TabPanel id="advanced">
         <h3>Advanced Options</h3>
         <div>
           <p>Advanced configuration options go here.</p>
@@ -145,9 +163,15 @@ const OrientationTemplate: StoryFn = (args) => (
         <Tab id="tab2">Tab 2</Tab>
         <Tab id="tab3">Tab 3</Tab>
       </TabList>
-      <TabPanel id="tab1">Content for Tab 1</TabPanel>
-      <TabPanel id="tab2">Content for Tab 2</TabPanel>
-      <TabPanel id="tab3">Content for Tab 3</TabPanel>
+      <TabPanel padded id="tab1">
+        Content for Tab 1
+      </TabPanel>
+      <TabPanel padded id="tab2">
+        Content for Tab 2
+      </TabPanel>
+      <TabPanel padded id="tab3">
+        Content for Tab 3
+      </TabPanel>
     </Tabs>
   </Card>
 );

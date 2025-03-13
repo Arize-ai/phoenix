@@ -2,14 +2,19 @@ import React, { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { getLocalTimeZone } from "@internationalized/date";
 
-import {
-  DialogContainer,
-  TabbedCard,
-  TabPane,
-  Tabs,
-} from "@arizeai/components";
+import { DialogContainer, TabbedCard } from "@arizeai/components";
 
-import { Button, Icon, Icons, Loading, View } from "@phoenix/components";
+import {
+  Button,
+  Icon,
+  Icons,
+  LazyTabPanel,
+  Loading,
+  Tab,
+  TabList,
+  Tabs,
+  View,
+} from "@phoenix/components";
 import {
   APIKeyFormParams,
   CreateAPIKeyDialog,
@@ -36,12 +41,16 @@ function APIKeysCardContent() {
 
   return (
     <Tabs>
-      <TabPane title="System Keys" name="System Keys">
+      <TabList>
+        <Tab id="system">System Keys</Tab>
+        <Tab id="user">User Keys</Tab>
+      </TabList>
+      <LazyTabPanel id="system">
         <SystemAPIKeysTable query={query} />
-      </TabPane>
-      <TabPane title="User Keys" name="User Keys">
+      </LazyTabPanel>
+      <LazyTabPanel id="user">
         <UserAPIKeysTable query={query} />
-      </TabPane>
+      </LazyTabPanel>
     </Tabs>
   );
 }

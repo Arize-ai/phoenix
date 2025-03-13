@@ -24,8 +24,6 @@ import {
   List,
   ListItem,
   TabbedCard,
-  TabPane,
-  Tabs,
   Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
@@ -50,6 +48,10 @@ import {
   Heading,
   Icon,
   Icons,
+  LazyTabPanel,
+  Tab,
+  TabList,
+  Tabs,
   Text,
   Token,
   TokenProps,
@@ -289,7 +291,21 @@ export function SpanDetails({
         </Flex>
       </View>
       <Tabs>
-        <TabPane name={"Info"}>
+        <TabList>
+          <Tab id="info">Info</Tab>
+          <Tab id="feedback">
+            Feedback <Counter>{span.spanAnnotations.length}</Counter>
+          </Tab>
+          <Tab id="attributes">Attributes</Tab>
+          <Tab id="events">
+            Events{" "}
+            <Counter variant={hasExceptions ? "danger" : "default"}>
+              {span.events.length}
+            </Counter>
+          </Tab>
+        </TabList>
+
+        <LazyTabPanel id="info">
           <Flex direction="row" height="100%">
             <SpanInfoWrap>
               <ErrorBoundary>
@@ -298,17 +314,19 @@ export function SpanDetails({
             </SpanInfoWrap>
             {showSpanAside ? <SpanAside span={span} /> : null}
           </Flex>
-        </TabPane>
-        <TabPane
-          name={"Feedback"}
-          extra={<Counter>{span.spanAnnotations.length}</Counter>}
-        >
-          {(selected) => {
-            return selected ? <SpanFeedback span={span} /> : null;
-          }}
-        </TabPane>
-        <TabPane name={"Attributes"} title="Attributes">
-          <View padding="size-200">
+        </LazyTabPanel>
+
+        <LazyTabPanel id="feedback">
+          <SpanFeedback span={span} />
+        </LazyTabPanel>
+
+        <LazyTabPanel id="attributes">
+          <View
+            padding="size-200"
+            height="100%"
+            maxHeight="100%"
+            overflow="auto"
+          >
             <Card
               title="All Attributes"
               {...defaultCardProps}
@@ -318,17 +336,11 @@ export function SpanDetails({
               <JSONBlock>{span.attributes}</JSONBlock>
             </Card>
           </View>
-        </TabPane>
-        <TabPane
-          name={"Events"}
-          extra={
-            <Counter variant={hasExceptions ? "danger" : "default"}>
-              {span.events.length}
-            </Counter>
-          }
-        >
+        </LazyTabPanel>
+
+        <LazyTabPanel id="events">
           <SpanEventsList events={span.events} />
-        </TabPane>
+        </LazyTabPanel>
       </Tabs>
     </Flex>
   );
@@ -634,18 +646,33 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         title={modelNameTitleEl}
       >
         <Tabs>
-          {hasInputMessages ? (
-            <TabPane name="Input Messages" hidden={!hasInputMessages}>
+          <TabList>
+            {hasInputMessages && <Tab id="input-messages">Input Messages</Tab>}
+            {hasLLMToolSchemas && <Tab id="tools">Tools</Tab>}
+            {hasInput && <Tab id="input">Input</Tab>}
+            {hasPromptTemplateObject && (
+              <Tab id="prompt-template">Prompt Template</Tab>
+            )}
+            {hasPrompts && <Tab id="prompts">Prompts</Tab>}
+            {hasInvocationParams && (
+              <Tab id="invocation-params">Invocation Params</Tab>
+            )}
+          </TabList>
+
+          {hasInputMessages && (
+            <LazyTabPanel id="input-messages">
               <LLMMessagesList messages={inputMessages} />
-            </TabPane>
-          ) : null}
-          {hasLLMToolSchemas ? (
-            <TabPane name="Tools" hidden={!hasLLMToolSchemas}>
+            </LazyTabPanel>
+          )}
+
+          {hasLLMToolSchemas && (
+            <LazyTabPanel id="tools">
               <LLMToolSchemasList toolSchemas={llmToolSchemas} />
-            </TabPane>
-          ) : null}
-          {hasInput ? (
-            <TabPane name="Input" hidden={!hasInput}>
+            </LazyTabPanel>
+          )}
+
+          {hasInput && (
+            <LazyTabPanel id="input">
               <View padding="size-200">
                 <MarkdownDisplayProvider>
                   <Card
@@ -662,10 +689,11 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   </Card>
                 </MarkdownDisplayProvider>
               </View>
-            </TabPane>
-          ) : null}
-          {hasPromptTemplateObject ? (
-            <TabPane name="Prompt Template" hidden={!hasPromptTemplateObject}>
+            </LazyTabPanel>
+          )}
+
+          {hasPromptTemplateObject && (
+            <LazyTabPanel id="prompt-template">
               <View padding="size-200">
                 <Flex direction="column" gap="size-100">
                   <View
@@ -702,31 +730,45 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   </View>
                 </Flex>
               </View>
-            </TabPane>
-          ) : null}
-          <TabPane name="Prompts" hidden={!hasPrompts}>
-            <LLMPromptsList prompts={prompts} />
-          </TabPane>
-          <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
-            <CopyToClipboard
-              text={invocation_parameters_str}
-              padding="size-100"
-            >
-              <JSONBlock>{invocation_parameters_str}</JSONBlock>
-            </CopyToClipboard>
-          </TabPane>
+            </LazyTabPanel>
+          )}
+
+          {hasPrompts && (
+            <LazyTabPanel id="prompts">
+              <LLMPromptsList prompts={prompts} />
+            </LazyTabPanel>
+          )}
+
+          {hasInvocationParams && (
+            <LazyTabPanel id="invocation-params">
+              <CopyToClipboard
+                text={invocation_parameters_str}
+                padding="size-100"
+              >
+                <JSONBlock>{invocation_parameters_str}</JSONBlock>
+              </CopyToClipboard>
+            </LazyTabPanel>
+          )}
         </Tabs>
       </Card>
       {hasOutput || hasOutputMessages ? (
         <TabbedCard {...defaultCardProps}>
           <Tabs>
-            {hasOutputMessages ? (
-              <TabPane name="Output Messages" hidden={!hasOutputMessages}>
+            <TabList>
+              {hasOutputMessages && (
+                <Tab id="output-messages">Output Messages</Tab>
+              )}
+              {hasOutput && <Tab id="output">Output</Tab>}
+            </TabList>
+
+            {hasOutputMessages && (
+              <LazyTabPanel id="output-messages">
                 <LLMMessagesList messages={outputMessages} />
-              </TabPane>
-            ) : null}
-            {hasOutput ? (
-              <TabPane name="Output" hidden={!hasOutput}>
+              </LazyTabPanel>
+            )}
+
+            {hasOutput && (
+              <LazyTabPanel id="output">
                 <View padding="size-200">
                   <MarkdownDisplayProvider>
                     <Card
@@ -743,8 +785,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                     </Card>
                   </MarkdownDisplayProvider>
                 </View>
-              </TabPane>
-            ) : null}
+              </LazyTabPanel>
+            )}
           </Tabs>
         </TabbedCard>
       ) : null}

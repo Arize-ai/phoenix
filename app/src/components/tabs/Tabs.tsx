@@ -23,6 +23,9 @@ const tabsCSS = css`
   flex-direction: column;
 
   &[data-orientation="horizontal"] {
+    flex: 1 1 auto;
+    overflow: hidden;
+    box-sizing: border-box;
     .react-aria-TabPanel[data-padded="true"] {
       padding-top: var(--ac-global-dimension-static-size-200);
     }
@@ -98,6 +101,12 @@ const tabPanelCSS = css`
   padding: 0;
   border-radius: 0;
   outline: none;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 100%;
 
   &[data-focus-visible] {
     outline: unset;
@@ -107,7 +116,7 @@ const tabPanelCSS = css`
 export function TabPanel({
   css: _css,
   className,
-  padded = true,
+  padded,
   ...props
 }: { padded?: boolean } & AriaTabPanelProps & StylableProps) {
   return (

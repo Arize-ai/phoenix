@@ -1,9 +1,16 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Alert, TabPane, Tabs } from "@arizeai/components";
+import { Alert } from "@arizeai/components";
 
-import { Icon, Icons } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  LazyTabPanel,
+  Tab,
+  TabList,
+  Tabs,
+} from "@phoenix/components";
 
 const basename = window.Config.basename;
 const iframeStyle = {
@@ -34,24 +41,16 @@ export function APIsPage() {
         These APIs are under active development and are subject to change.
       </Alert>
       <Tabs>
-        <TabPane name="REST">
-          {({ isSelected }) => {
-            return (
-              isSelected && (
-                <iframe src={`${basename}/docs`} style={iframeStyle} />
-              )
-            );
-          }}
-        </TabPane>
-        <TabPane name="GraphQL">
-          {({ isSelected }) => {
-            return (
-              isSelected && (
-                <iframe src={`${basename}/graphql`} style={iframeStyle} />
-              )
-            );
-          }}
-        </TabPane>
+        <TabList>
+          <Tab id="rest">REST</Tab>
+          <Tab id="graphql">GraphQL</Tab>
+        </TabList>
+        <LazyTabPanel id="rest">
+          <iframe src={`${basename}/docs`} style={iframeStyle} />
+        </LazyTabPanel>
+        <LazyTabPanel id="graphql">
+          <iframe src={`${basename}/graphql`} style={iframeStyle} />
+        </LazyTabPanel>
       </Tabs>
     </div>
   );
