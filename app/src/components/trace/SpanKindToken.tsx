@@ -2,8 +2,11 @@ import React, { useMemo } from "react";
 
 import { Token, TokenProps } from "@phoenix/components/token";
 
-export function SpanKindToken(props: { spanKind: string }) {
-  const { spanKind } = props;
+export function SpanKindToken(props: {
+  spanKind: string;
+  size?: TokenProps["size"];
+}) {
+  const { spanKind, size = "M" } = props;
   const color = useMemo<TokenProps["color"]>(() => {
     let color: TokenProps["color"] = "var(--ac-global-color-grey-500)";
     switch (spanKind) {
@@ -38,7 +41,7 @@ export function SpanKindToken(props: { spanKind: string }) {
     return color;
   }, [spanKind]);
   return (
-    <Token color={color} size="M">
+    <Token color={color} size={size}>
       {spanKind}
     </Token>
   );

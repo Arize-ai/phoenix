@@ -1050,7 +1050,9 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
 `;
 
 const opacitiesCSS = css`
-  --ac-opacity-disabled: 0.6;
+  :root {
+    --ac-opacity-disabled: 0.6;
+  }
 `;
 
 const appGlobalStylesCSS = css`

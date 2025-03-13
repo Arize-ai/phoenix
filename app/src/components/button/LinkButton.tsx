@@ -9,12 +9,22 @@ interface LinkButtonProps
   extends Pick<LinkProps, "to" | "children">,
     Pick<
       ButtonProps,
-      "size" | "variant" | "leadingVisual" | "trailingVisual" | "css"
+      | "size"
+      | "variant"
+      | "leadingVisual"
+      | "trailingVisual"
+      | "css"
+      | "isDisabled"
     > {}
 
 const linkButtonCSS = css`
   text-decoration: none;
   user-select: none;
+  &[data-disabled="true"] {
+    pointer-events: none;
+    cursor: default;
+    opacity: var(--ac-opacity-disabled);
+  }
 `;
 /**
  * A link that is rendered as a button
@@ -28,6 +38,7 @@ function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
     trailingVisual,
     children,
     css: propCSS,
+    isDisabled,
     to,
   } = props;
   return (
@@ -36,6 +47,7 @@ function LinkButton(props: LinkButtonProps, ref: Ref<HTMLAnchorElement>) {
       data-size={size}
       data-variant={variant}
       data-childless={!children}
+      data-disabled={isDisabled}
       css={css(buttonCSS, linkButtonCSS, propCSS)}
       to={to}
     >

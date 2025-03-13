@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 export const buttonCSS = css`
-  --button-border-color: var(--ac-global-border-color-default);
+  --button-border-color: var(--ac-global-input-field-border-color);
   border: 1px solid var(--button-border-color);
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
@@ -35,7 +35,7 @@ export const buttonCSS = css`
   }
   &[disabled] {
     cursor: default;
-    opacity: 0.6;
+    opacity: var(--ac-opacity-disabled);
   }
   &[data-size="M"][data-childless="false"] {
     padding: var(--ac-global-dimension-static-size-100)
