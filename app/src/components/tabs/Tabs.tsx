@@ -176,8 +176,8 @@ const tabCSS = css`
   &[data-focus-visible]:after {
     content: "";
     position: absolute;
-    inset: 4px;
-    border-radius: 4px;
+    inset: var(--ac-global-dimension-size-50);
+    border-radius: var(--ac-global-rounding-small);
     border: 2px solid var(--ac-focus-ring-color);
   }
 `;
