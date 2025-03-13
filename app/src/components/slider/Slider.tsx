@@ -143,11 +143,11 @@ const sliderCSS = css`
 
     .ac-slider-track {
       height: var(--ac-slider-track-height, var(--ac-global-border-size-thick));
-      width: 100%;
+      width: calc(100% - var(--ac-slider-handle-width) / 2);
 
       /* background track line */
       &:before {
-        width: 100%;
+        width: calc(100% + var(--ac-slider-handle-width) / 2);
         top: 50%;
         transform: translateY(-50%);
       }
