@@ -48,6 +48,7 @@ const sliderCSS = css`
 
   .ac-slider-output {
     grid-area: output;
+    min-height: var(--ac-global-dimension-size-350);
   }
 
   .ac-slider-track {
@@ -127,31 +128,39 @@ const sliderCSS = css`
   &[data-orientation="horizontal"] {
     flex-direction: column;
     width: 100%;
+    align-items: baseline;
 
     .ac-slider-number-field {
       .react-aria-Input {
-        min-width: var(--ac-global-dimension-size-900);
-        width: var(--ac-global-dimension-size-900);
+        min-width: var(--ac-global-dimension-size-800);
+        width: var(--ac-global-dimension-size-800);
         padding: 0 var(--ac-global-dimension-size-100);
+        height: var(--ac-global-dimension-size-350);
         text-align: right;
+        margin-bottom: var(--ac-global-dimension-size-100);
       }
     }
 
     .ac-slider-track {
       height: var(--ac-slider-track-height, var(--ac-global-border-size-thick));
-      width: 100%;
+      width: calc(100% - var(--ac-slider-handle-width));
+      left: calc(var(--ac-slider-handle-width) / 2);
 
       /* background track line */
       &:before {
-        width: 100%;
+        left: calc(var(--ac-slider-handle-width) / -2);
+        width: calc(100% + var(--ac-slider-handle-width));
         top: 50%;
         transform: translateY(-50%);
       }
 
       /* filled track line */
       &:after {
-        left: var(--slider-start);
-        width: calc(var(--slider-end) - var(--slider-start));
+        left: calc(var(--slider-start) - var(--ac-slider-handle-width) / 2);
+        width: calc(
+          var(--slider-end) - var(--slider-start) +
+            var(--ac-slider-handle-width)
+        );
         top: 50%;
         transform: translateY(-50%);
         z-index: 1;
