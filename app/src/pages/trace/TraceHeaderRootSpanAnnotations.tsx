@@ -9,11 +9,11 @@ import {
 
 import { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeaderRootSpanAnnotationsQuery.graphql";
 
-export function TraceHeaderRootSpanAnnotations(id: string) {
+export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
   const data = useLazyLoadQuery<TraceHeaderRootSpanAnnotationsQuery>(
     graphql`
-      query TraceHeaderRootSpanAnnotationsQuery($id: GlobalID!) {
-        span: node(id: $id) {
+      query TraceHeaderRootSpanAnnotationsQuery($spanId: GlobalID!) {
+        span: node(id: $spanId) {
           ... on Span {
             spanAnnotations {
               name
@@ -25,7 +25,7 @@ export function TraceHeaderRootSpanAnnotations(id: string) {
         }
       }
     `,
-    { id },
+    { spanId },
     {
       fetchPolicy: "store-and-network",
     }
@@ -34,7 +34,7 @@ export function TraceHeaderRootSpanAnnotations(id: string) {
   const hasAnnotations = spanAnnotations.length > 0;
   return hasAnnotations ? (
     <Flex direction="column" gap="size-50">
-      <Text elementType="h3" size="M" color="text-700">
+      <Text elementType="h3" size="S" color="text-700">
         Feedback
       </Text>
       <Flex direction="row" gap="size-50">

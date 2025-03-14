@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a78e89f2f110aaafc990e89d7b718dd8>>
+ * @generated SignedSource<<28d7b1e76d4b4eb02f45faf80ed76984>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type TraceHeaderRootSpanAnnotationsQuery$variables = {
-  id: string;
+  spanId: string;
 };
 export type TraceHeaderRootSpanAnnotationsQuery$data = {
   readonly span: {
@@ -33,14 +33,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "id"
+    "name": "spanId"
   }
 ],
 v1 = [
   {
     "kind": "Variable",
     "name": "id",
-    "variableName": "id"
+    "variableName": "spanId"
   }
 ],
 v2 = {
@@ -151,16 +151,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "72a83342701c8636f9f95241c5f879e6",
+    "cacheID": "660fcce54b17ff01056ef96c4dcb3c35",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderRootSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $id: GlobalID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c3505c6379d4b0066df22d2599c1c0f";
+(node as any).hash = "d506d0235a1602f740af082698950c65";
 
 export default node;

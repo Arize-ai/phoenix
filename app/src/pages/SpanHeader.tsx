@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
+import { css } from "@emotion/react";
 
 import { Flex, Text } from "@phoenix/components";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -45,14 +46,19 @@ export function SpanHeader(props: SpanHeaderProps) {
       <Flex direction="column" gap="size-50">
         <Flex direction="row" gap="size-100" alignItems="center">
           <SpanKindToken spanKind={span.spanKind} />
-          <Text size="XL">{span.name}</Text>
-          <SpanStatusCodeIcon statusCode={span.code} />
+          <Text size="L">{span.name}</Text>
+          <SpanStatusCodeIcon
+            statusCode={span.code}
+            css={css`
+              font-size: var(--ac-global-font-size-m);
+            `}
+          />
         </Flex>
         <Flex direction="row" gap="size-100" alignItems="center">
           {typeof span.latencyMs === "number" ? (
             <LatencyText latencyMs={span.latencyMs} size="S" />
           ) : null}
-          <Text color="text-700" size="S">
+          <Text color="text-500" size="S">
             at {fullTimeFormatter(startTime)}
           </Text>
           {span.tokenCountTotal ? (
