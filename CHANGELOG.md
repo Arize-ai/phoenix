@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.13.0...arize-phoenix-v8.13.1) (2025-03-14)
+
+
+### Bug Fixes
+
+* **ui:** heading size ([#6776](https://github.com/Arize-ai/phoenix/issues/6776)) ([f4a2505](https://github.com/Arize-ai/phoenix/commit/f4a2505aff159e472e4db8c446078a93602dcbbf))
+
 ## [8.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.12.1...arize-phoenix-v8.13.0) (2025-03-14)
 
 
