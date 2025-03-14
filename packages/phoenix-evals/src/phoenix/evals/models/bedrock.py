@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from dataclasses import dataclass, field
 from functools import partial
@@ -20,12 +19,16 @@ class BedrockModel(BaseModel):
     """
     An interface for using LLM models via AWS Bedrock.
 
-    This class wraps the boto3 Bedrock client for use with Phoenix LLM evaluations. Calls to the
-    AWS API are dynamically throttled when encountering rate limit errors. Requires the `boto3`
-    package to be installed.
+    This class wraps the boto3 Bedrock client with the converse API for use with Phoenix LLM
+    evaluations. Calls to the AWS API are dynamically throttled when encountering rate limit
+    errors. Requires the `boto3` package to be installed.
 
     Supports Async: 🟡
         `boto3` does not support async calls, so it's wrapped in an executor.
+
+    Note:
+        Cohere Command (Text) and AI21 Labs Jurassic-2 (Text) models don't support chat
+        with the Converse API and cannot support templates with multiple parts.
 
     Args:
         model_id (str): The model name to use.
@@ -106,16 +109,15 @@ class BedrockModel(BaseModel):
         )
 
     def _generate(self, prompt: Union[str, MultimodalPrompt], **kwargs: Dict[str, Any]) -> str:
+        # the legacy "instruction" parameter from llm_classify is intended to indicate a
+        # system instruction, but not all models supported by Bedrock support system instructions
+        _ = kwargs.pop("instruction", None)
+
         if isinstance(prompt, str):
             prompt = MultimodalPrompt.from_string(prompt)
 
-        body = json.dumps(self._create_request_body(prompt))
-        accept = "application/json"
-        contentType = "application/json"
-
-        response = self._rate_limited_completion(
-            body=body, modelId=self.model_id, accept=accept, contentType=contentType
-        )
+        body = self._create_request_body(prompt)
+        response = self._rate_limited_completion(**body)
 
         return self._parse_output(response) or ""
 
@@ -134,7 +136,7 @@ class BedrockModel(BaseModel):
         @self._rate_limiter.limit
         def _completion(**kwargs: Any) -> Any:
             try:
-                return self.client.invoke_model(**kwargs)
+                return self.client.converse(**kwargs)
             except Exception as e:
                 exception_message = e.args[0]
                 if not exception_message:
@@ -153,86 +155,48 @@ class BedrockModel(BaseModel):
 
         return _completion(**kwargs)
 
-    def _format_prompt_for_claude(self, prompt: str) -> List[Dict[str, str]]:
-        # Claude requires prompt in the format of Human: ... Assisatnt:
-        return [
-            {"role": "user", "content": prompt},
-        ]
-
     def _create_request_body(self, prompt: MultimodalPrompt) -> Dict[str, Any]:
         # The request formats for bedrock models differ
         # see https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html
 
-        # TODO: Migrate to using the bedrock `converse` API
-        # https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference-call.html
-
         prompt_str = prompt.to_text_only_prompt()
 
-        if self.model_id.startswith("ai21"):
-            return {
-                **{
-                    "prompt": prompt_str,
-                    "temperature": self.temperature,
-                    "topP": self.top_p,
-                    "maxTokens": self.max_tokens,
-                    "stopSequences": self.stop_sequences,
-                },
-                **self.extra_parameters,
+        # Construct the messages list
+        messages = [
+            {
+                "role": "user",
+                "content": [{"text": prompt_str}],
             }
-        elif self.model_id.startswith("anthropic"):
-            return {
-                **{
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "messages": self._format_prompt_for_claude(prompt_str),
-                    "temperature": self.temperature,
-                    "top_p": self.top_p,
-                    "top_k": self.top_k,
-                    "max_tokens": self.max_tokens,
-                    "stop_sequences": self.stop_sequences,
-                },
-                **self.extra_parameters,
-            }
-        elif self.model_id.startswith("mistral"):
-            return {
-                **{
-                    "prompt": prompt_str,
-                    "max_tokens": self.max_tokens,
-                    "temperature": self.temperature,
-                    "stop": self.stop_sequences,
-                    "top_p": self.top_p,
-                    "top_k": self.top_k,
-                },
-                **self.extra_parameters,
-            }
-        else:
-            if not self.model_id.startswith("amazon"):
-                logger.warn(f"Unknown format for model {self.model_id}, returning titan format...")
-            return {
-                **{
-                    "inputText": prompt_str,
-                    "textGenerationConfig": {
-                        "temperature": self.temperature,
-                        "topP": self.top_p,
-                        "maxTokenCount": self.max_tokens,
-                        "stopSequences": self.stop_sequences,
-                    },
-                },
-                **self.extra_parameters,
-            }
+        ]
+
+        # Construct the inferenceConfig
+        inference_config = {
+            "maxTokens": self.max_tokens,
+            "temperature": self.temperature,
+            "topP": self.top_p,
+            "stopSequences": self.stop_sequences,
+        }
+
+        # Add any extra parameters that aren't part of the Converse inferenceConfig parameter
+        additional_model_request_fields = {}
+        if self.top_k != 256:  # Only add if different from default
+            additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
+
+        # Add any remaining extra parameters
+        additional_model_request_fields.update(self.extra_parameters)
+
+        # Construct the input_params to the converse API
+        converse_input_params = {
+            "modelId": self.model_id,
+            "messages": messages,
+            "inferenceConfig": inference_config,
+        }
+
+        # Only add additional fields if we have any
+        if additional_model_request_fields:
+            converse_input_params["additionalModelRequestFields"] = additional_model_request_fields
+
+        return converse_input_params
 
     def _parse_output(self, response: Any) -> Any:
-        if self.model_id.startswith("ai21"):
-            body = json.loads(response.get("body").read())
-            return body.get("completions")[0].get("data").get("text")
-        elif self.model_id.startswith("anthropic"):
-            body = json.loads(response.get("body").read().decode())
-            return body.get("content")[0]["text"]
-        elif self.model_id.startswith("amazon"):
-            body = json.loads(response.get("body").read())
-            return body.get("results")[0].get("outputText")
-        elif self.model_id.startswith("mistral"):
-            body = json.loads(response.get("body").read())
-            return body.get("outputs")[0].get("text")
-        else:
-            body = json.loads(response.get("body").read())
-            return body.get("results")[0].get("data").get("outputText")
+        return response.get("output").get("message").get("content")[0]["text"]
