@@ -1,5 +1,22 @@
 # Changelog
 
+## [8.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.12.1...arize-phoenix-v8.13.0) (2025-03-14)
+
+
+### Features
+
+* **components:** Add react-aria Tabs components ([#6771](https://github.com/Arize-ai/phoenix/issues/6771)) ([374fa66](https://github.com/Arize-ai/phoenix/commit/374fa66c9e0990f0aafbd59dceff939d1e9751ab))
+* download experiment runs and annotations as csv ([#6749](https://github.com/Arize-ai/phoenix/issues/6749)) ([305f10b](https://github.com/Arize-ai/phoenix/commit/305f10b28dc73b7468b9795bb834e6ff6e61e377))
+* **perf:** make the spans table the default tab ([#6756](https://github.com/Arize-ai/phoenix/issues/6756)) ([99d56c6](https://github.com/Arize-ai/phoenix/commit/99d56c64a23566ada3be0234bf5c4c0a65202062))
+* **trace:** move info out of side ([#6773](https://github.com/Arize-ai/phoenix/issues/6773)) ([be4732c](https://github.com/Arize-ai/phoenix/commit/be4732c4d5a2312c5122b3585a4340c0b7757fb7))
+
+
+### Bug Fixes
+
+* **playground:** ai message size ([#6775](https://github.com/Arize-ai/phoenix/issues/6775)) ([a0adba8](https://github.com/Arize-ai/phoenix/commit/a0adba8e4fbe6a77cb18aa1b723a3f444d14cf8d))
+* Tighten padding and height tolerances for Slider component ([#6770](https://github.com/Arize-ai/phoenix/issues/6770)) ([7194f34](https://github.com/Arize-ai/phoenix/commit/7194f348460640fc393940b6a7e2de5a065eba55))
+* **ui:** annotation button color ([#6765](https://github.com/Arize-ai/phoenix/issues/6765)) ([800633f](https://github.com/Arize-ai/phoenix/commit/800633f9e153937d93fea11a98754b1ba1c86fd5))
+
 ## [8.12.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.12.0...arize-phoenix-v8.12.1) (2025-03-08)
 
 
