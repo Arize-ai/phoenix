@@ -26,6 +26,7 @@ export function AIMessageContentRadioGroup({
   return (
     <ToggleButtonGroup
       selectedKeys={[messageMode]}
+      size="S"
       aria-label="Message Mode"
       onSelectionChange={(v) => {
         if (v.size === 0) {
