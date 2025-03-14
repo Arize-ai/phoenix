@@ -28,7 +28,7 @@ class BedrockModel(BaseModel):
 
     Note:
         Cohere Command (Text) and AI21 Labs Jurassic-2 (Text) models don't support chat
-        with the Converse API and can only handle single message interactions.
+        with the Converse API and cannot support templates with multiple parts.
 
     Args:
         model_id (str): The model name to use.
