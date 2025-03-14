@@ -3,11 +3,6 @@ import React from "react";
 import { Meta } from "@storybook/react";
 import { css } from "@emotion/react";
 
-import {
-  Text as LegacyText,
-  TextProps as LegacyTextProps,
-} from "@arizeai/components";
-
 import { Flex, Text, TextProps } from "@phoenix/components";
 
 import { GLOBAL_COLORS } from "./constants/colorConstants";
@@ -24,12 +19,6 @@ const meta: Meta = {
 export default meta;
 
 const sizes: TextProps["size"][] = ["XS", "S", "M", "L"];
-const legacySizes: LegacyTextProps["textSize"][] = [
-  "small",
-  "medium",
-  "large",
-  "xlarge",
-];
 
 const colors: TextProps["color"][] = [
   "text-900",
@@ -48,7 +37,6 @@ export const Gallery = () => {
   return (
     <Flex direction="row" gap="size-200" alignItems="start" height="1000px">
       <GalleryComponent />
-      <LegacyGalleryComponent />
     </Flex>
   );
 };
@@ -101,86 +89,6 @@ function GalleryComponent() {
         {colors.map((color) => {
           return (
             <Text key={color} size="L" color={color} weight="heavy">
-              {`I will not waste chalk`}
-            </Text>
-          );
-        })}
-      </p>
-    </div>
-  );
-}
-
-function LegacyGalleryComponent() {
-  const Text = LegacyText;
-  return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-      `}
-    >
-      <p
-        css={css`
-          .ac-text {
-            display: block;
-          }
-        `}
-      >
-        {legacySizes.map((size) => {
-          return (
-            <Text key={size} textSize={size}>
-              {`I will not waste chalk`}
-            </Text>
-          );
-        })}
-      </p>
-      <p
-        css={css`
-          .ac-text {
-            display: block;
-          }
-        `}
-      >
-        {legacySizes.map((size) => {
-          return (
-            <Text key={size} textSize={size} weight="heavy">
-              {`I will not waste chalk`}
-            </Text>
-          );
-        })}
-      </p>
-      <p
-        css={css`
-          .ac-text {
-            display: block;
-          }
-        `}
-      >
-        {colors.map((color) => {
-          return (
-            <Text key={color} textSize="xlarge" color={color} weight="heavy">
-              {`I will not waste chalk`}
-            </Text>
-          );
-        })}
-      </p>
-
-      <p
-        css={css`
-          .ac-text {
-            display: block;
-          }
-        `}
-      >
-        {colors.map((color) => {
-          return (
-            <Text
-              key={color}
-              fontStyle="italic"
-              textSize="xlarge"
-              color={color}
-              weight="heavy"
-            >
               {`I will not waste chalk`}
             </Text>
           );

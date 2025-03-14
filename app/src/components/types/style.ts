@@ -582,8 +582,14 @@ export type Responsive<T> = T | ResponsiveProp<T>;
 
 export type TextColorValue =
   | "text-900"
+  | "text-800"
   | "text-700"
+  | "text-600"
+  | "text-500"
+  | "text-400"
   | "text-300"
+  | "text-200"
+  | "text-100"
   | "inherit"
   | ColorValue;
 

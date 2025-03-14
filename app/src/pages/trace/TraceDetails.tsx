@@ -4,15 +4,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Link,
-  Loading,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Flex, LinkButton, Loading, Text, View } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -192,10 +184,23 @@ function TraceHeader({
   };
   const statusColor = useSpanStatusCodeColor(statusCode);
   return (
-    <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
-      <Flex direction="row" gap="size-400" alignItems={"center"}>
+    <View
+      paddingTop="size-100"
+      paddingBottom="size-150"
+      paddingX="size-200"
+      borderBottomWidth="thin"
+      borderBottomColor="dark"
+    >
+      <Flex
+        direction="row"
+        gap="size-400"
+        alignItems="center"
+        css={css`
+          box-sizing: content-box;
+        `}
+      >
         <Flex direction="column">
-          <Text elementType="h3" size="M" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
             Trace Status
           </Text>
           <Text size="XL">
@@ -208,7 +213,7 @@ function TraceHeader({
           </Text>
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" size="M" color="text-700">
+          <Text elementType="h3" size="S" color="text-700">
             Latency
           </Text>
           <Text size="XL">
@@ -219,18 +224,22 @@ function TraceHeader({
             )}
           </Text>
         </Flex>
-        {rootSpan ? TraceHeaderRootSpanAnnotations(rootSpan.id) : null}
+        {rootSpan ? (
+          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
+        ) : null}
         {sessionId && (
           <span
             css={css`
               margin-left: auto;
             `}
           >
-            <Link to={`/projects/${projectId}/sessions/${sessionId}`}>
-              <Flex alignItems={"center"}>
-                View Session <Icon svg={<Icons.ArrowIosForwardOutline />} />
-              </Flex>
-            </Link>
+            <LinkButton
+              size="S"
+              variant="primary"
+              to={`/projects/${projectId}/sessions/${sessionId}`}
+            >
+              View Session
+            </LinkButton>
           </span>
         )}
       </Flex>
