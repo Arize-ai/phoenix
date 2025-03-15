@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.13.1...arize-phoenix-v8.13.2) (2025-03-15)
+
+
+### Bug Fixes
+
+* **onboarding:** add space between link and text in new project guide ([#6781](https://github.com/Arize-ai/phoenix/issues/6781)) ([0250610](https://github.com/Arize-ai/phoenix/commit/02506102fb049c8bfd46fccd88bcc397d8e4121a))
+
 ## [8.13.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.13.0...arize-phoenix-v8.13.1) (2025-03-14)
 
 
