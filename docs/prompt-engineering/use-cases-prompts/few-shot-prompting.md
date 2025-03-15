@@ -58,7 +58,7 @@ Here, we also import the Phoenix Client, which enables us to create and modify p
 ```python
 from datasets import load_dataset
 
-ds = load_dataset("syeddula/customer_questions")["train"]
+ds = load_dataset("syeddula/fridgeReviews")["train"]
 ds = ds.to_pandas()
 ds.head()
 ```
