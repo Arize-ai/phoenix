@@ -1,6 +1,5 @@
 ---
 description: Use Phoenix and OpenAI Agents SDK for powerful multi-agent tracing
-hidden: true
 ---
 
 # OpenAI Agents SDK
@@ -117,7 +116,7 @@ By default, notebook instances do not have persistent storage, so your traces wi
 ## 2. Install
 
 ```bash
-pip install openinference-instrumentation-openai openai
+pip install openinference-instrumentation-openai-agents openai-agents
 ```
 
 ## 3. Set up Tracing
@@ -135,7 +134,19 @@ from phoenix.otel import register
 
 # configure the Phoenix tracer
 tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
+  project_name="agents", # Default is 'default'
   auto_instrument=True # Auto-instrument your app based on installed dependencies
 )
 ```
+
+Run your `agents`code.
+
+```python
+from agents import Agent, Runner
+
+agent = Agent(name="Assistant", instructions="You are a helpful assistant")
+result = Runner.run_sync(agent, "Write a haiku about recursion in programming.")
+print(result.final_output)
+```
+
+View your traces in Phoenix.
