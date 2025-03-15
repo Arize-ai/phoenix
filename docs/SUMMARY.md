@@ -148,6 +148,11 @@
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
   * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
 
+***
+
+* [Use Cases: Evals](use-cases-evals/README.md)
+  * [Evaluating a Data Agent](use-cases-evals/evaluating-a-data-agent.md)
+
 ## 🔎 Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
