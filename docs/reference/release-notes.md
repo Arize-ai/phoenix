@@ -4,6 +4,22 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
+## 03.14.2025: OpenAI Agents Instrumentation 📡
+
+**Available in Phoenix 8.6+**
+
+We've introduced the OpenAI Agents SDK for Python which provides enhanced visibility into agent behavior and performance. With minimal setup, you can enable tracing and gain real-time insights into your agents' workflows.
+
+**Installation**
+
+```bash
+pip install openinference-instrumentation-openai-agents openai-agents
+```
+
+To enable tracing, use the register function to connect your application to Phoenix. Then, run your `agents` code and view traces in Phoenix.&#x20;
+
+For more details on a quick setup, check out our [docs](../tracing/integrations-tracing/openai-agents-sdk.md)!&#x20;
+
 ## 03.07.2025: Projects Improvements 📽️
 
 **Available in Phoenix 8.6+**
