@@ -111,13 +111,14 @@ class TestTextConversion:
     def test_round_trip(self) -> None:
         obj: TextBlockParam = _text()
         x: v1.TextContentPart = _TextContentPartConversion.from_anthropic(obj)
-        new_obj: TextBlockParam = _TextContentPartConversion.to_anthropic(x, {}, NO_OP_FORMATTER)
+        new_obj = _TextContentPartConversion.to_anthropic(x, {}, NO_OP_FORMATTER)
         assert not DeepDiff(obj, new_obj)
 
     def test_formatter(self) -> None:
         x = v1.TextContentPart(type="text", text=_str())
         formatter, variables = _MockFormatter(), _dict()
-        ans: TextBlockParam = _TextContentPartConversion.to_anthropic(x, variables, formatter)
+        ans = _TextContentPartConversion.to_anthropic(x, variables, formatter)
+        assert ans["type"] == "text"
         assert ans["text"] == formatter.format(x["text"], variables=variables)
 
 

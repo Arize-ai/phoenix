@@ -8,6 +8,9 @@ export const textPartSchema = schemaMatches<
   z.object({
     type: z.literal("text"),
     text: z.string(),
+    subtype: z.optional(z.literal("thinking")),
+    signature: z.optional(z.string()),
+    redacted: z.optional(z.boolean()),
   })
 );
 
