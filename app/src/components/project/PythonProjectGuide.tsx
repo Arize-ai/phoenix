@@ -121,7 +121,7 @@ export function PythonProjectGuide(props: PythonProjectGuideProps) {
       <View paddingBottom="size-100">
         <Text>
           <b>arize-phoenix-otel</b> automatically picks up your configuration
-          from
+          from{" "}
           <ExternalLink href={PHOENIX_ENVIRONMENT_VARIABLES_LINK}>
             environment variables
           </ExternalLink>
