@@ -27,7 +27,7 @@ export enum ExperimentAction {
 type ExperimentActionMenuProps =
   | {
       projectId?: string | null;
-      connectionId: string;
+      connectionIds: string[];
       datasetId: string;
       experimentId: string;
       metadata: unknown;
@@ -47,11 +47,11 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [commitDeleteExperiment, isDeletingExperiment] = useMutation(graphql`
     mutation ExperimentActionMenuDeleteExperimentMutation(
       $input: DeleteExperimentsInput!
-      $connectionId: ID!
+      $connectionIds: [ID!]!
     ) {
       deleteExperiments(input: $input) {
         experiments {
-          id @deleteEdge(connections: [$connectionId]) @deleteRecord
+          id @deleteEdge(connections: $connectionIds) @deleteRecord
         }
         __typename
       }
@@ -62,13 +62,13 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const connectionId = props.canDeleteExperiment
-    ? props.connectionId
+  const connectionIds = props.canDeleteExperiment
+    ? props.connectionIds
     : undefined;
 
   const onDeleteExperiment = useCallback(
     (experimentId: string) => {
-      if (connectionId == null) {
+      if (connectionIds == null) {
         return;
       }
       commitDeleteExperiment({
@@ -76,7 +76,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           input: {
             experimentIds: [experimentId],
           },
-          connectionId,
+          connectionIds,
         },
         onCompleted: () => {
           notifySuccess({
@@ -93,13 +93,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         },
       });
     },
-    [
-      commitDeleteExperiment,
-      connectionId,
-      notifySuccess,
-      notifyError,
-      // props.datasetId,
-    ]
+    [commitDeleteExperiment, connectionIds, notifySuccess, notifyError]
   );
 
   const onDeletePress = useCallback(

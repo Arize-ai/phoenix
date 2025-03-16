@@ -285,7 +285,7 @@ export function ExperimentsTable({
             <DownloadExperimentActionMenu experimentId={row.original.id} />
             <ExperimentActionMenu
               projectId={project?.id || null}
-              connectionId={data.experiments.__id}
+              connectionIds={[data.experiments.__id]}
               datasetId={dataset.id}
               experimentId={row.original.id}
               metadata={metadata}

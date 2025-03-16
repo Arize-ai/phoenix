@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9210a7c701f6af6385678e495fb3000a>>
+ * @generated SignedSource<<206ffdbfbe15092023a0dd15951f7aa1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type DeleteExperimentsInput = {
   experimentIds: ReadonlyArray<string>;
 };
 export type ExperimentActionMenuDeleteExperimentMutation$variables = {
-  connectionId: string;
+  connectionIds: ReadonlyArray<string>;
   input: DeleteExperimentsInput;
 };
 export type ExperimentActionMenuDeleteExperimentMutation$data = {
@@ -33,7 +33,7 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "connectionId"
+  "name": "connectionIds"
 },
 v1 = {
   "defaultValue": null,
@@ -135,15 +135,9 @@ return {
                 "name": "id",
                 "handleArgs": [
                   {
-                    "items": [
-                      {
-                        "kind": "Variable",
-                        "name": "connections.0",
-                        "variableName": "connectionId"
-                      }
-                    ],
-                    "kind": "ListValue",
-                    "name": "connections"
+                    "kind": "Variable",
+                    "name": "connections",
+                    "variableName": "connectionIds"
                   }
                 ]
               }
@@ -167,6 +161,6 @@ return {
 };
 })();
 
-(node as any).hash = "1cf42474b4790735463e198da5c51be3";
+(node as any).hash = "5b4a1dd11da8092e60478dc64ffad389";
 
 export default node;
