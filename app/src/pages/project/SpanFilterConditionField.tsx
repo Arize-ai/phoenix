@@ -209,7 +209,7 @@ async function isConditionValid(condition: string, projectId: string) {
       graphql`
         query SpanFilterConditionFieldValidationQuery(
           $condition: String!
-          $id: GlobalID!
+          $id: ID!
         ) {
           project: node(id: $id) {
             ... on Project {

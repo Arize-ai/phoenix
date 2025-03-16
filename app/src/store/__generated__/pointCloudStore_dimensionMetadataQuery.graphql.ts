@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<575052580bbd25f68cec1906fabf97de>>
+ * @generated SignedSource<<28226eea86d88dfb09b61d94c61b054e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -169,10 +169,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -189,16 +185,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "79c15606d5694bd068270b42ed2fe74c",
+    "cacheID": "cc8c5b634ad1f06e595b1542b2f9830b",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_dimensionMetadataQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_dimensionMetadataQuery(\n  $id: GlobalID!\n  $getDimensionMinMax: Boolean!\n  $getDimensionCategories: Boolean!\n) {\n  dimension: node(id: $id) {\n    __typename\n    ... on Dimension {\n      id\n      min: dataQualityMetric(metric: min) @include(if: $getDimensionMinMax)\n      max: dataQualityMetric(metric: max) @include(if: $getDimensionMinMax)\n      categories @include(if: $getDimensionCategories)\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query pointCloudStore_dimensionMetadataQuery(\n  $id: ID!\n  $getDimensionMinMax: Boolean!\n  $getDimensionCategories: Boolean!\n) {\n  dimension: node(id: $id) {\n    __typename\n    ... on Dimension {\n      id\n      min: dataQualityMetric(metric: min) @include(if: $getDimensionMinMax)\n      max: dataQualityMetric(metric: max) @include(if: $getDimensionMinMax)\n      categories @include(if: $getDimensionCategories)\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e8fa488a0d466b5e40fdadc1e5227a57";
+(node as any).hash = "2d61766d79c27d5fe1d17dba940dfe52";
 
 export default node;

@@ -27,27 +27,32 @@ export enum ExperimentAction {
 type ExperimentActionMenuProps =
   | {
       projectId?: string | null;
+      connectionId: string;
+      datasetId: string;
       experimentId: string;
       metadata: unknown;
       isQuiet?: ActionMenuProps<string>["isQuiet"];
       canDeleteExperiment: true;
-      onExperimentDeleted: () => void;
     }
   | {
       projectId?: string | null;
+      datasetId: string;
       experimentId: string;
       metadata: unknown;
       isQuiet?: ActionMenuProps<string>["isQuiet"];
       canDeleteExperiment: false;
-      onExperimentDeleted?: undefined;
     };
 
 export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [commitDeleteExperiment, isDeletingExperiment] = useMutation(graphql`
     mutation ExperimentActionMenuDeleteExperimentMutation(
       $input: DeleteExperimentsInput!
+      $connectionId: ID!
     ) {
       deleteExperiments(input: $input) {
+        experiments {
+          id @deleteEdge(connections: [$connectionId]) @deleteRecord
+        }
         __typename
       }
     }
@@ -57,15 +62,21 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
-  const onExperimentDeleted = props.onExperimentDeleted;
+  const connectionId = props.canDeleteExperiment
+    ? props.connectionId
+    : undefined;
 
   const onDeleteExperiment = useCallback(
     (experimentId: string) => {
+      if (connectionId == null) {
+        return;
+      }
       commitDeleteExperiment({
         variables: {
           input: {
             experimentIds: [experimentId],
           },
+          connectionId,
         },
         onCompleted: () => {
           notifySuccess({
@@ -81,9 +92,14 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           });
         },
       });
-      onExperimentDeleted?.();
     },
-    [commitDeleteExperiment, notifySuccess, notifyError, onExperimentDeleted]
+    [
+      commitDeleteExperiment,
+      connectionId,
+      notifySuccess,
+      notifyError,
+      // props.datasetId,
+    ]
   );
 
   const onDeletePress = useCallback(

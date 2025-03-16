@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7fb95c292929c1f949d085a5d3f487fd>>
+ * @generated SignedSource<<bf1a3901f2c37bfd131a8a5f70ddf024>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -438,10 +438,6 @@ return {
             "selections": [
               (v20/*: any*/),
               (v18/*: any*/),
-              {
-                "kind": "TypeDiscriminator",
-                "abstractKey": "__isNode"
-              },
               (v11/*: any*/)
             ],
             "storageKey": null
@@ -452,16 +448,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a68a8204bf7fdd13e6915b338d4b5497",
+    "cacheID": "752d4bce509b4932d2511c656378a7bf",
     "id": null,
     "metadata": {},
     "name": "MetricTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query MetricTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $metricGranularity: Granularity!\n  $countGranularity: Granularity!\n  $fetchDrift: Boolean!\n  $fetchQueryDistance: Boolean!\n  $fetchDataQuality: Boolean!\n  $dimensionId: GlobalID!\n  $fetchPerformance: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchDrift) {\n        data {\n          timestamp\n          value\n        }\n      }\n      retrievalMetricTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchQueryDistance) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n  dimension: node(id: $dimensionId) @include(if: $fetchDataQuality) {\n    __typename\n    ... on Dimension {\n      name\n      dataQualityTimeSeries(metric: mean, timeRange: $timeRange, granularity: $metricGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  model {\n    performanceTimeSeries(metric: {metric: $performanceMetric}, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchPerformance) {\n      data {\n        timestamp\n        value\n      }\n    }\n  }\n}\n"
+    "text": "query MetricTimeSeriesQuery(\n  $embeddingDimensionId: ID!\n  $timeRange: TimeRange!\n  $metricGranularity: Granularity!\n  $countGranularity: Granularity!\n  $fetchDrift: Boolean!\n  $fetchQueryDistance: Boolean!\n  $fetchDataQuality: Boolean!\n  $dimensionId: ID!\n  $fetchPerformance: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchDrift) {\n        data {\n          timestamp\n          value\n        }\n      }\n      retrievalMetricTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchQueryDistance) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n  dimension: node(id: $dimensionId) @include(if: $fetchDataQuality) {\n    __typename\n    ... on Dimension {\n      name\n      dataQualityTimeSeries(metric: mean, timeRange: $timeRange, granularity: $metricGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    id\n  }\n  model {\n    performanceTimeSeries(metric: {metric: $performanceMetric}, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchPerformance) {\n      data {\n        timestamp\n        value\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f31abad2141a5a1c461ef2a598ffa4f3";
+(node as any).hash = "c0f9fd33875d639882a5b673d484bf3d";
 
 export default node;

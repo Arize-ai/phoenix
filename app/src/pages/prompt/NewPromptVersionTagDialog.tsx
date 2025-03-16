@@ -50,7 +50,7 @@ export function NewPromptVersionDialog({
   const [commitCreate, isCommitting] = useMutation(graphql`
     mutation NewPromptVersionTagDialogMutation(
       $input: SetPromptVersionTagInput!
-      $promptVersionId: GlobalID!
+      $promptVersionId: ID!
     ) {
       setPromptVersionTag(input: $input) {
         query {

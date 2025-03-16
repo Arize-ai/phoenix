@@ -185,7 +185,7 @@ type EditSpanAnnotationsProps = EditSpanAnnotationsDialogProps;
 function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
   const data = useLazyLoadQuery<EditSpanAnnotationsDialogQuery>(
     graphql`
-      query EditSpanAnnotationsDialogQuery($spanId: GlobalID!) {
+      query EditSpanAnnotationsDialogQuery($spanId: ID!) {
         span: node(id: $spanId) {
           id
           ... on Span {
@@ -306,8 +306,8 @@ function SpanAnnotationCard(props: {
   const [commitEdit, isCommittingEdit] =
     useMutation<EditSpanAnnotationsDialogEditAnnotationMutation>(graphql`
       mutation EditSpanAnnotationsDialogEditAnnotationMutation(
-        $spanId: GlobalID!
-        $annotationId: GlobalID!
+        $spanId: ID!
+        $annotationId: ID!
         $name: String!
         $label: String
         $score: Float
@@ -425,8 +425,8 @@ function NewAnnotationPopoverContent(props: {
   const data = useLazyLoadQuery<EditSpanAnnotationsDialogNewAnnotationQuery>(
     graphql`
       query EditSpanAnnotationsDialogNewAnnotationQuery(
-        $projectId: GlobalID!
-        $spanId: GlobalID!
+        $projectId: ID!
+        $spanId: ID!
       ) {
         project: node(id: $projectId) {
           id

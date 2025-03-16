@@ -35,7 +35,7 @@ export function ProjectActionMenu({
   const [dialog, setDialog] = useState<ReactNode>(null);
   const canDelete = projectName !== "default";
   const [commitDelete] = useMutation<ProjectActionMenuDeleteMutation>(graphql`
-    mutation ProjectActionMenuDeleteMutation($projectId: GlobalID!) {
+    mutation ProjectActionMenuDeleteMutation($projectId: ID!) {
       deleteProject(id: $projectId) {
         __typename
       }

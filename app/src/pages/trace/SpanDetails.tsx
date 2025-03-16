@@ -151,7 +151,7 @@ export function SpanDetails({
   const navigate = useNavigate();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!) {
+      query SpanDetailsQuery($id: ID!) {
         span: node(id: $id) {
           __typename
           ... on Span {

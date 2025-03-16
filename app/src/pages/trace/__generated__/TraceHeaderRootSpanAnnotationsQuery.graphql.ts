@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a78e89f2f110aaafc990e89d7b718dd8>>
+ * @generated SignedSource<<6ac8f1a7b592a1dac2c46cb6cb1a362f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,50 +44,39 @@ v1 = [
   }
 ],
 v2 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "SpanAnnotation",
-      "kind": "LinkedField",
-      "name": "spanAnnotations",
-      "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "label",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "score",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "annotatorKind",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    }
-  ],
-  "type": "Span",
-  "abstractKey": null
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "score",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotatorKind",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -104,7 +93,28 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanAnnotation",
+                "kind": "LinkedField",
+                "name": "spanAnnotations",
+                "plural": true,
+                "selections": [
+                  (v2/*: any*/),
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Span",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -133,34 +143,46 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanAnnotation",
+                "kind": "LinkedField",
+                "name": "spanAnnotations",
+                "plural": true,
+                "selections": [
+                  (v2/*: any*/),
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v5/*: any*/),
+                  (v6/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Span",
+            "abstractKey": null
           },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "72a83342701c8636f9f95241c5f879e6",
+    "cacheID": "1b4e3f827795fae2bd4e11d4584eb34b",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderRootSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $id: GlobalID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $id: ID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c3505c6379d4b0066df22d2599c1c0f";
+(node as any).hash = "192ccb0afb9ceaaec6760b28b71d77e6";
 
 export default node;

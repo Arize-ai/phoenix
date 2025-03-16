@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6177b4db0f8c4728887cfacb72b5bfea>>
+ * @generated SignedSource<<a3a67add4969785c6f11680dbba4c644>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -199,12 +199,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "572bf0f64678128defccf833e6a5d4ce",
+    "cacheID": "500fa7541c393ca91d6fa184c5626b44",
     "id": null,
     "metadata": {},
     "name": "ViewerAPIKeysCreateUserAPIKeyMutation",
     "operationKind": "mutation",
-    "text": "mutation ViewerAPIKeysCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
+    "text": "mutation ViewerAPIKeysCreateUserAPIKeyMutation(\n  $input: CreateUserApiKeyInput!\n) {\n  createUserApiKey(input: $input) {\n    jwt\n    apiKey {\n      id\n      user {\n        ...APIKeysTableFragment\n        id\n      }\n    }\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n"
   }
 };
 })();

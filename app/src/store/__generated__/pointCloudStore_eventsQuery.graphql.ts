@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28240650b13f846c6ce442202c1ff9ad>>
+ * @generated SignedSource<<131e459b758b47fb6368e9a60ee95195>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -113,35 +113,42 @@ v2 = {
   "kind": "LocalArgument",
   "name": "referenceEventIds"
 },
-v3 = {
+v3 = [
+  {
+    "kind": "Variable",
+    "name": "eventIds",
+    "variableName": "primaryEventIds"
+  }
+],
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "type",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "value",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "EventMetadata",
@@ -187,7 +194,7 @@ v7 = {
   ],
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptResponse",
@@ -212,15 +219,15 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "documentText",
   "storageKey": null
 },
-v10 = [
-  (v3/*: any*/),
+v11 = [
+  (v4/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -237,143 +244,115 @@ v10 = [
         "name": "dimension",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
-          (v5/*: any*/)
+          (v5/*: any*/),
+          (v6/*: any*/)
         ],
         "storageKey": null
       },
-      (v6/*: any*/)
+      (v7/*: any*/)
     ],
     "storageKey": null
   },
-  (v7/*: any*/),
   (v8/*: any*/),
-  (v9/*: any*/)
+  (v9/*: any*/),
+  (v10/*: any*/)
 ],
-v11 = [
+v12 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Inferences",
+  "kind": "LinkedField",
+  "name": "referenceInferences",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "eventIds",
+          "variableName": "referenceEventIds"
+        }
+      ],
+      "concreteType": "Event",
+      "kind": "LinkedField",
+      "name": "events",
+      "plural": true,
+      "selections": [
+        (v4/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DimensionWithValue",
+          "kind": "LinkedField",
+          "name": "dimensions",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "Dimension",
+              "kind": "LinkedField",
+              "name": "dimension",
+              "plural": false,
+              "selections": [
+                (v4/*: any*/),
+                (v5/*: any*/),
+                (v6/*: any*/)
+              ],
+              "storageKey": null
+            },
+            (v7/*: any*/)
+          ],
+          "storageKey": null
+        },
+        (v8/*: any*/),
+        (v9/*: any*/),
+        (v10/*: any*/)
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v13 = [
+  {
+    "kind": "Variable",
+    "name": "eventIds",
+    "variableName": "corpusEventIds"
+  }
+],
+v14 = [
+  (v4/*: any*/),
   {
     "alias": null,
     "args": null,
-    "concreteType": "Model",
+    "concreteType": "DimensionWithValue",
     "kind": "LinkedField",
-    "name": "model",
-    "plural": false,
+    "name": "dimensions",
+    "plural": true,
     "selections": [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Inferences",
+        "concreteType": "Dimension",
         "kind": "LinkedField",
-        "name": "primaryInferences",
+        "name": "dimension",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "eventIds",
-                "variableName": "primaryEventIds"
-              }
-            ],
-            "concreteType": "Event",
-            "kind": "LinkedField",
-            "name": "events",
-            "plural": true,
-            "selections": (v10/*: any*/),
-            "storageKey": null
-          }
+          (v5/*: any*/),
+          (v6/*: any*/),
+          (v4/*: any*/)
         ],
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Inferences",
-        "kind": "LinkedField",
-        "name": "referenceInferences",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "eventIds",
-                "variableName": "referenceEventIds"
-              }
-            ],
-            "concreteType": "Event",
-            "kind": "LinkedField",
-            "name": "events",
-            "plural": true,
-            "selections": [
-              (v3/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DimensionWithValue",
-                "kind": "LinkedField",
-                "name": "dimensions",
-                "plural": true,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "Dimension",
-                    "kind": "LinkedField",
-                    "name": "dimension",
-                    "plural": false,
-                    "selections": [
-                      (v3/*: any*/),
-                      (v4/*: any*/),
-                      (v5/*: any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  (v6/*: any*/)
-                ],
-                "storageKey": null
-              },
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/)
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Inferences",
-        "kind": "LinkedField",
-        "name": "corpusInferences",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "eventIds",
-                "variableName": "corpusEventIds"
-              }
-            ],
-            "concreteType": "Event",
-            "kind": "LinkedField",
-            "name": "events",
-            "plural": true,
-            "selections": (v10/*: any*/),
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
+      (v7/*: any*/)
     ],
     "storageKey": null
-  }
+  },
+  (v8/*: any*/),
+  (v9/*: any*/),
+  (v10/*: any*/)
 ];
 return {
   "fragment": {
@@ -385,7 +364,62 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v11/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Model",
+        "kind": "LinkedField",
+        "name": "model",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "primaryInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v11/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          (v12/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "corpusInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v13/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v11/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Query",
     "abstractKey": null
   },
@@ -398,15 +432,70 @@ return {
     ],
     "kind": "Operation",
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v11/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Model",
+        "kind": "LinkedField",
+        "name": "model",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "primaryInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v14/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          (v12/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "corpusInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v13/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v14/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "388c28f19a685a131b1dfd4bac80cb7c",
+    "cacheID": "bcac76c653bed7d4f922f175d03a3408",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_eventsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryInferences {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceInferences {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusInferences {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryInferences {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n            id\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceInferences {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusInferences {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n            id\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
   }
 };
 })();

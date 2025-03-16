@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c5b4f14e508ee0fd4aae796aae997ef>>
+ * @generated SignedSource<<1e74b83e5bb080d8209ae02b6809e9e9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,16 +74,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "eb52eb7c9b255069f86fde333d3c1c75",
+    "cacheID": "3e39d87554a43d8dc3006d3e977317e5",
     "id": null,
     "metadata": {},
     "name": "SpanSelectionToolbarDeleteTracesMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanSelectionToolbarDeleteTracesMutation(\n  $traceIds: [GlobalID!]!\n) {\n  deleteTraces(traceIds: $traceIds) {\n    __typename\n  }\n}\n"
+    "text": "mutation SpanSelectionToolbarDeleteTracesMutation(\n  $traceIds: [ID!]!\n) {\n  deleteTraces(traceIds: $traceIds) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5283cfa8a6e985223f13d95395852b17";
+(node as any).hash = "61f5b577eead8d4094340843ed9d8d28";
 
 export default node;

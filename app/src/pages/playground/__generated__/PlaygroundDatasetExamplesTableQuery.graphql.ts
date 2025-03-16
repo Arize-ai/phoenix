@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8480d978004d74b15d76ff681778b6d>>
+ * @generated SignedSource<<45bb82d1131e054885c1284aea1ccd61>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -101,10 +101,6 @@ return {
         "plural": false,
         "selections": [
           (v2/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v3/*: any*/),
           {
             "kind": "InlineFragment",
@@ -177,7 +173,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v2/*: any*/)
+                          (v2/*: any*/),
+                          (v3/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -233,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "795ea41682593e1fedd5ced3252f7602",
+    "cacheID": "4542fde74f9abf1ade84ed347ac5a767",
     "id": null,
     "metadata": {},
     "name": "PlaygroundDatasetExamplesTableQuery",
     "operationKind": "query",
-    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: GlobalID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment\n    __isNode: __typename\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment on Dataset {\n  examples(first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PlaygroundDatasetExamplesTableQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    ...PlaygroundDatasetExamplesTableFragment\n    id\n  }\n}\n\nfragment PlaygroundDatasetExamplesTableFragment on Dataset {\n  examples(first: 20) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f809b3d539d0032d9681a4a4450b1d6f";
+(node as any).hash = "45aac1ecf30dcedfbeea2321ee6e3c35";
 
 export default node;

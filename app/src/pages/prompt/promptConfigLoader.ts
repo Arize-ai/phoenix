@@ -14,7 +14,7 @@ export const promptConfigLoader = async ({ params }: LoaderFunctionArgs) => {
   return await fetchQuery<promptConfigLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query promptConfigLoaderQuery($id: GlobalID!) {
+      query promptConfigLoaderQuery($id: ID!) {
         prompt: node(id: $id) {
           ... on Prompt {
             ...PromptVersionTagsConfigCard_data

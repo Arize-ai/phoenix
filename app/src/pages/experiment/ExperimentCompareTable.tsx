@@ -137,8 +137,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
       query ExperimentCompareTableQuery(
-        $experimentIds: [GlobalID!]!
-        $datasetId: GlobalID!
+        $experimentIds: [ID!]!
+        $datasetId: ID!
         $filterCondition: String
       ) {
         comparisons: compareExperiments(
@@ -319,10 +319,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <Text>{name}</Text>
             </Flex>
             <ExperimentActionMenu
+              projectId={projectId}
+              datasetId={datasetId}
               experimentId={experimentId}
               metadata={metadata}
               isQuiet={true}
-              projectId={projectId}
               canDeleteExperiment={false}
             />
           </Flex>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d81c395cf139c5a3338dbe8ef5f8374>>
+ * @generated SignedSource<<67f81d12c748c56c71359d18cc6e5cb4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -163,16 +163,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "532b3c148c3bf1411b8820714c68f4e3",
+    "cacheID": "fa9009e21fe4c676b813c273c48d2f55",
     "id": null,
     "metadata": {},
     "name": "EditSpanAnnotationsDialogQuery",
     "operationKind": "query",
-    "text": "query EditSpanAnnotationsDialogQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      ...EditSpanAnnotationsDialog_spanAnnotations\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "query EditSpanAnnotationsDialogQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      ...EditSpanAnnotationsDialog_spanAnnotations\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "36093f4285a168993ec87fd6aac82365";
+(node as any).hash = "0780096641c37c465b08fb8b0838a461";
 
 export default node;

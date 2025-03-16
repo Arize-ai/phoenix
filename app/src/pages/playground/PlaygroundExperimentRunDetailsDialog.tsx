@@ -32,7 +32,7 @@ export function PlaygroundExperimentRunDetailsDialog({
 }) {
   const data = useLazyLoadQuery<PlaygroundExperimentRunDetailsDialogQuery>(
     graphql`
-      query PlaygroundExperimentRunDetailsDialogQuery($runId: GlobalID!) {
+      query PlaygroundExperimentRunDetailsDialogQuery($runId: ID!) {
         run: node(id: $runId) {
           ... on ExperimentRun {
             output

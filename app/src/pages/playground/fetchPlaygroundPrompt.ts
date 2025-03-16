@@ -397,7 +397,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
 };
 
 const fetchPlaygroundPromptQuery = graphql`
-  query fetchPlaygroundPromptQuery($promptId: GlobalID!) {
+  query fetchPlaygroundPromptQuery($promptId: ID!) {
     prompt: node(id: $promptId) {
       ... on Prompt {
         id

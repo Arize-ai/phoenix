@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52bbb33c0e0b27b694540645d68aff8c>>
+ * @generated SignedSource<<a6b7d6f135ce7a1a40a6d229d0bb1fc0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,6 +48,13 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -100,13 +107,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -121,7 +122,7 @@ return {
                     "name": "description",
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -130,6 +131,7 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
+                      (v3/*: any*/),
                       (v2/*: any*/)
                     ],
                     "storageKey": null
@@ -158,7 +160,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -205,12 +208,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "78e88c2a2ce510e78c6c6d8e1b8523b2",
+    "cacheID": "d34de7b5cd9490100a935debc9b71892",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_2HEEH6\n}\n\nfragment PromptsTable_prompts_2HEEH6 on Query {\n  prompts(first: $first, after: $after) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $first: Int = 100\n) {\n  ...PromptsTable_prompts_2HEEH6\n}\n\nfragment PromptsTable_prompts_2HEEH6 on Query {\n  prompts(first: $first, after: $after) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        createdAt\n        version {\n          createdAt\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

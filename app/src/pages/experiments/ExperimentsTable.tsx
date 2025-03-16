@@ -91,6 +91,7 @@ export function ExperimentsTable({
           }
           experiments(first: $first, after: $after)
             @connection(key: "ExperimentsTable_experiments") {
+            __id
             edges {
               experiment: node {
                 id
@@ -284,12 +285,11 @@ export function ExperimentsTable({
             <DownloadExperimentActionMenu experimentId={row.original.id} />
             <ExperimentActionMenu
               projectId={project?.id || null}
+              connectionId={data.experiments.__id}
+              datasetId={dataset.id}
               experimentId={row.original.id}
               metadata={metadata}
               canDeleteExperiment={true}
-              onExperimentDeleted={() => {
-                refetch({}, { fetchPolicy: "store-and-network" });
-              }}
             />
           </Flex>
         );

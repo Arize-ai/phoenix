@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<06639466f0571ea6a62bbc6e652c2fa3>>
+ * @generated SignedSource<<c87d6f7d547852da71812625de131105>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -267,10 +267,6 @@ return {
                     "type": "Prompt",
                     "abstractKey": null
                   },
-                  {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isNode"
-                  },
                   (v3/*: any*/)
                 ],
                 "storageKey": null
@@ -284,16 +280,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8fb2730b63a6d441fbac8e5f5a438c9b",
+    "cacheID": "991a6a38de992c1261cceafe9b2c6850",
     "id": null,
     "metadata": {},
     "name": "TagPromptVersionButtonSetTagMutation",
     "operationKind": "mutation",
-    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: GlobalID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionsList__main\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
+    "text": "mutation TagPromptVersionButtonSetTagMutation(\n  $input: SetPromptVersionTagInput!\n  $promptId: ID!\n) {\n  setPromptVersionTag(input: $input) {\n    query {\n      prompt: node(id: $promptId) {\n        __typename\n        ... on Prompt {\n          ...PromptVersionsList__main\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6d6be37ba7956dbb351980e05b62cac1";
+(node as any).hash = "e6cca3095cc459928e5d7ff1e7137a43";
 
 export default node;

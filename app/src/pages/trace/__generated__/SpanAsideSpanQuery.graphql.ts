@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72f71ab2a306ed90250e9e5fc6072754>>
+ * @generated SignedSource<<aac820b1f1c3f985c45ecba6749dfffb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -92,10 +92,6 @@ return {
             "kind": "ScalarField",
             "name": "__typename",
             "storageKey": null
-          },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
           },
           (v2/*: any*/),
           {
@@ -193,12 +189,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "878027b90513af8f947e6aa408450057",
+    "cacheID": "d86fe9916820e2c035b1924d6bba0ea6",
     "id": null,
     "metadata": {},
     "name": "SpanAsideSpanQuery",
     "operationKind": "query",
-    "text": "query SpanAsideSpanQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpanAside_span\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n"
+    "text": "query SpanAsideSpanQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpanAside_span\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n"
   }
 };
 })();

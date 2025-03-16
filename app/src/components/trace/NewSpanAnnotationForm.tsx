@@ -16,7 +16,7 @@ export function NewSpanAnnotationForm(props: NewSpanAnnotationFormProps) {
     graphql`
       mutation NewSpanAnnotationFormMutation(
         $input: CreateSpanAnnotationInput!
-        $spanId: GlobalID!
+        $spanId: ID!
       ) {
         createSpanAnnotations(input: [$input]) {
           query {

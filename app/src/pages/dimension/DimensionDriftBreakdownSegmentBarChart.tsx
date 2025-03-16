@@ -108,7 +108,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
   const data = useLazyLoadQuery<DimensionDriftBreakdownSegmentBarChartQuery>(
     graphql`
       query DimensionDriftBreakdownSegmentBarChartQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
       ) {
         dimension: node(id: $dimensionId) {

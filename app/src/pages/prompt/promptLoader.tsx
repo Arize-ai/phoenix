@@ -20,7 +20,7 @@ export async function promptLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<promptLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query promptLoaderQuery($id: GlobalID!) {
+      query promptLoaderQuery($id: ID!) {
         prompt: node(id: $id) {
           __typename
           id

@@ -13,7 +13,7 @@ export async function projectLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<projectLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query projectLoaderQuery($id: GlobalID!) {
+      query projectLoaderQuery($id: ID!) {
         project: node(id: $id) {
           id
           ... on Project {

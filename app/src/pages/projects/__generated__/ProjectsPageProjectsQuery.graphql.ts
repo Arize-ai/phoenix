@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00e1a12bb6cd7dcb2712038f6aa1271b>>
+ * @generated SignedSource<<425cfb7c90cb7750d920f9d2ea7a5616>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,12 +58,19 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v3 = [
-  (v2/*: any*/)
+v4 = [
+  (v3/*: any*/)
 ];
 return {
   "fragment": {
@@ -111,13 +118,7 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v2/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -141,7 +142,7 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v3/*: any*/),
+                    "args": (v4/*: any*/),
                     "kind": "ScalarField",
                     "name": "traceCount",
                     "storageKey": null
@@ -161,7 +162,7 @@ return {
                         "name": "probability",
                         "value": 0.5
                       },
-                      (v2/*: any*/)
+                      (v3/*: any*/)
                     ],
                     "kind": "ScalarField",
                     "name": "latencyMsQuantile",
@@ -169,7 +170,7 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v3/*: any*/),
+                    "args": (v4/*: any*/),
                     "kind": "ScalarField",
                     "name": "tokenCountTotal",
                     "storageKey": null
@@ -198,7 +199,8 @@ return {
                     "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
-                  }
+                  },
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -245,12 +247,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ead527a5c3ddda0f6c906c99183edf06",
+    "cacheID": "950f87034831d4530d4579ec503cf747",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<205f8f44362e395ad31a61862e78da59>>
+ * @generated SignedSource<<93dc3f479dbc4178508d216a7629fbed>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -114,12 +114,119 @@ v2 = {
 },
 v3 = [
   {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  },
+    "kind": "Variable",
+    "name": "eventIds",
+    "variableName": "primaryEventIds"
+  }
+],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "type",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "value",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EventMetadata",
+  "kind": "LinkedField",
+  "name": "eventMetadata",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "predictionId",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "predictionLabel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "predictionScore",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "actualLabel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "actualScore",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v9 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PromptResponse",
+  "kind": "LinkedField",
+  "name": "promptAndResponse",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "prompt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "response",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "documentText",
+  "storageKey": null
+},
+v11 = [
+  (v4/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -136,205 +243,64 @@ v3 = [
         "name": "dimension",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "type",
-            "storageKey": null
-          }
+          (v5/*: any*/),
+          (v6/*: any*/)
         ],
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "value",
-        "storageKey": null
-      }
+      (v7/*: any*/)
     ],
     "storageKey": null
   },
+  (v8/*: any*/),
+  (v9/*: any*/),
+  (v10/*: any*/)
+],
+v12 = [
   {
-    "alias": null,
-    "args": null,
-    "concreteType": "EventMetadata",
-    "kind": "LinkedField",
-    "name": "eventMetadata",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "predictionId",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "predictionLabel",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "predictionScore",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "actualLabel",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "actualScore",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PromptResponse",
-    "kind": "LinkedField",
-    "name": "promptAndResponse",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "prompt",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "response",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "documentText",
-    "storageKey": null
+    "kind": "Variable",
+    "name": "eventIds",
+    "variableName": "referenceEventIds"
   }
 ],
-v4 = [
+v13 = [
+  {
+    "kind": "Variable",
+    "name": "eventIds",
+    "variableName": "corpusEventIds"
+  }
+],
+v14 = [
+  (v4/*: any*/),
   {
     "alias": null,
     "args": null,
-    "concreteType": "Model",
+    "concreteType": "DimensionWithValue",
     "kind": "LinkedField",
-    "name": "model",
-    "plural": false,
+    "name": "dimensions",
+    "plural": true,
     "selections": [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Inferences",
+        "concreteType": "Dimension",
         "kind": "LinkedField",
-        "name": "primaryInferences",
+        "name": "dimension",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "eventIds",
-                "variableName": "primaryEventIds"
-              }
-            ],
-            "concreteType": "Event",
-            "kind": "LinkedField",
-            "name": "events",
-            "plural": true,
-            "selections": (v3/*: any*/),
-            "storageKey": null
-          }
+          (v5/*: any*/),
+          (v6/*: any*/),
+          (v4/*: any*/)
         ],
         "storageKey": null
       },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Inferences",
-        "kind": "LinkedField",
-        "name": "referenceInferences",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "eventIds",
-                "variableName": "referenceEventIds"
-              }
-            ],
-            "concreteType": "Event",
-            "kind": "LinkedField",
-            "name": "events",
-            "plural": true,
-            "selections": (v3/*: any*/),
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Inferences",
-        "kind": "LinkedField",
-        "name": "corpusInferences",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": [
-              {
-                "kind": "Variable",
-                "name": "eventIds",
-                "variableName": "corpusEventIds"
-              }
-            ],
-            "concreteType": "Event",
-            "kind": "LinkedField",
-            "name": "events",
-            "plural": true,
-            "selections": (v3/*: any*/),
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
+      (v7/*: any*/)
     ],
     "storageKey": null
-  }
+  },
+  (v8/*: any*/),
+  (v9/*: any*/),
+  (v10/*: any*/)
 ];
 return {
   "fragment": {
@@ -346,7 +312,82 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v4/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Model",
+        "kind": "LinkedField",
+        "name": "model",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "primaryInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v11/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "referenceInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v12/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v11/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "corpusInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v13/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v11/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Query",
     "abstractKey": null
   },
@@ -359,15 +400,90 @@ return {
     ],
     "kind": "Operation",
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v4/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Model",
+        "kind": "LinkedField",
+        "name": "model",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "primaryInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v14/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "referenceInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v12/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v14/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Inferences",
+            "kind": "LinkedField",
+            "name": "corpusInferences",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": (v13/*: any*/),
+                "concreteType": "Event",
+                "kind": "LinkedField",
+                "name": "events",
+                "plural": true,
+                "selections": (v14/*: any*/),
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "8b48064eba35d0d6c8dc834c2f7795c0",
+    "cacheID": "12c88e562048659c9ca654fccf693fb2",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryInferences {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceInferences {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusInferences {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryInferences {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n            id\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceInferences {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n            id\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusInferences {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n            id\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
   }
 };
 })();

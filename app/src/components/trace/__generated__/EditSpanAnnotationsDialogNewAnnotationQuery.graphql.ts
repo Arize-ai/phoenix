@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e50ec692c78ebf9f9d9421cf0762d142>>
+ * @generated SignedSource<<89163ee4ab47c259ef52a1fdca03964a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -195,16 +195,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4aa13fbe70360943615a8ff4d4b2a06f",
+    "cacheID": "183d7286be2b681e3c6388c0774be5af",
     "id": null,
     "metadata": {},
     "name": "EditSpanAnnotationsDialogNewAnnotationQuery",
     "operationKind": "query",
-    "text": "query EditSpanAnnotationsDialogNewAnnotationQuery(\n  $projectId: GlobalID!\n  $spanId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      spanAnnotationNames\n    }\n  }\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        annotatorKind\n      }\n    }\n  }\n}\n"
+    "text": "query EditSpanAnnotationsDialogNewAnnotationQuery(\n  $projectId: ID!\n  $spanId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    id\n    ... on Project {\n      spanAnnotationNames\n    }\n  }\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        annotatorKind\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "09b2ee5f96c0192a5618ae6c04c321ae";
+(node as any).hash = "3f7b069bc9db6a54078de830fa2a8988";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b62159793551a372b81ba56b275835b3>>
+ * @generated SignedSource<<daecace9bba89881b3ee8128f260a286>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -144,10 +144,6 @@ return {
         "plural": false,
         "selections": [
           (v3/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v4/*: any*/),
           {
             "kind": "InlineFragment",
@@ -294,7 +290,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*: any*/),
+                          (v4/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -348,12 +345,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2cfc5c04c7f88f6bbd464f6a09f87521",
+    "cacheID": "0b278c0b360ced38183ea75b27edca2d",
     "id": null,
     "metadata": {},
     "name": "ExampleExperimentRunsTableQuery",
     "operationKind": "query",
-    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ExampleExperimentRunsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExampleExperimentRunsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExampleExperimentRunsTableFragment_2HEEH6 on DatasetExample {\n  experimentRuns(first: $first, after: $after) {\n    edges {\n      run: node {\n        id\n        startTime\n        endTime\n        error\n        output\n        trace {\n          id\n          traceId\n          projectId\n        }\n        annotations {\n          edges {\n            annotation: node {\n              id\n              name\n              label\n              score\n              explanation\n              annotatorKind\n              trace {\n                id\n                traceId\n                projectId\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
