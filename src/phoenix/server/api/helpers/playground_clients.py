@@ -659,17 +659,33 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     ):
         from openai import AsyncAzureOpenAI
 
-        if not (api_key := api_key or getenv("AZURE_OPENAI_API_KEY")):
-            raise BadRequest("An Azure API key is required for Azure OpenAI models")
         if not (endpoint := model.endpoint or getenv("AZURE_OPENAI_ENDPOINT")):
             raise BadRequest("An Azure endpoint is required for Azure OpenAI models")
         if not (api_version := model.api_version or getenv("OPENAI_API_VERSION")):
             raise BadRequest("An OpenAI API version is required for Azure OpenAI models")
-        client = AsyncAzureOpenAI(
-            api_key=api_key,
-            azure_endpoint=endpoint,
-            api_version=api_version,
-        )
+        if api_key := api_key or getenv("AZURE_OPENAI_API_KEY"):
+            client = AsyncAzureOpenAI(
+                api_key=api_key,
+                azure_endpoint=endpoint,
+                api_version=api_version,
+            )
+        else:
+            try:
+                from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
+            except ImportError:
+                raise BadRequest(
+                    "Provide an API key for Azure OpenAI models or use azure-identity, see. e.g. "
+                    "https://learn.microsoft.com/en-us/python/api/azure-identity/azure.identity.environmentcredential?view=azure-python"  # noqa: E501
+                )
+
+            client = AsyncAzureOpenAI(
+                azure_ad_token_provider=get_bearer_token_provider(
+                    DefaultAzureCredential(),
+                    "https://cognitiveservices.azure.com/.default",
+                ),
+                azure_endpoint=endpoint,
+                api_version=api_version,
+            )
         super().__init__(client=client, model=model, api_key=api_key)
         self._attributes[LLM_PROVIDER] = OpenInferenceLLMProviderValues.AZURE.value
         self._attributes[LLM_SYSTEM] = OpenInferenceLLMSystemValues.OPENAI.value
