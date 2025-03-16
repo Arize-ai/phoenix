@@ -36,8 +36,8 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
   const [commitDelete, isCommittingDelete] =
     useMutation<SpanAnnotationActionMenuDeleteMutation>(graphql`
       mutation SpanAnnotationActionMenuDeleteMutation(
-        $annotationId: GlobalID!
-        $spanId: GlobalID!
+        $annotationId: ID!
+        $spanId: ID!
       ) {
         deleteSpanAnnotations(input: { annotationIds: [$annotationId] }) {
           query {

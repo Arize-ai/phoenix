@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<058540469ef7fa909da31d40e17c7f2c>>
+ * @generated SignedSource<<c7d31af5d415dcaf6b6ea751c5b24a48>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -124,10 +124,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -145,16 +141,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "03a9aafe3f08a9d093b029ff4a9e3253",
+    "cacheID": "f16f279b01e4bc5c5261bbdb629a0b73",
     "id": null,
     "metadata": {},
     "name": "dimensionLoaderQuery",
     "operationKind": "query",
-    "text": "query dimensionLoaderQuery(\n  $id: GlobalID!\n) {\n  dimension: node(id: $id) {\n    __typename\n    ... on Dimension {\n      id\n      name\n      dataType\n      shape\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query dimensionLoaderQuery(\n  $id: ID!\n) {\n  dimension: node(id: $id) {\n    __typename\n    ... on Dimension {\n      id\n      name\n      dataType\n      shape\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5a662d77e69d2e9bb4eb2af4cad6b722";
+(node as any).hash = "00f0d45ac038a51b4b30d9c5251f701e";
 
 export default node;

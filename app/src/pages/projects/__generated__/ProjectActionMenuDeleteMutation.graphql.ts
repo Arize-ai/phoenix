@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3f92fd9dbf70e98dca31aafe6e73c7c9>>
+ * @generated SignedSource<<9654dd814cbf9984a4fc91458ff428b5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -74,16 +74,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "8b00ab3aaef4c5fb3de24f7295d38499",
+    "cacheID": "9a79d6d39a73196765b89d130a8e6a3f",
     "id": null,
     "metadata": {},
     "name": "ProjectActionMenuDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation ProjectActionMenuDeleteMutation(\n  $projectId: GlobalID!\n) {\n  deleteProject(id: $projectId) {\n    __typename\n  }\n}\n"
+    "text": "mutation ProjectActionMenuDeleteMutation(\n  $projectId: ID!\n) {\n  deleteProject(id: $projectId) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3bf82e90b3f2d3485b4efb954e30b2cf";
+(node as any).hash = "e97af5c157e96020ec94d1ca72af6737";
 
 export default node;

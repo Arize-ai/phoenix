@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3884beba6a1beb8a5e7216436e933234>>
+ * @generated SignedSource<<265ec9531d222a9dba3cb6f47d93ea38>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -248,10 +248,6 @@ return {
             "storageKey": null
           },
           (v4/*: any*/),
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v3/*: any*/)
         ],
         "storageKey": null
@@ -259,16 +255,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1e3277995e47da369d84557def1a62bf",
+    "cacheID": "a0e03785a6ab482250d20af95ca7ef91",
     "id": null,
     "metadata": {},
     "name": "PlaygroundExperimentRunDetailsDialogQuery",
     "operationKind": "query",
-    "text": "query PlaygroundExperimentRunDetailsDialogQuery(\n  $runId: GlobalID!\n) {\n  run: node(id: $runId) {\n    __typename\n    ... on ExperimentRun {\n      output\n      startTime\n      endTime\n      error\n      example {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      annotations {\n        edges {\n          annotation: node {\n            id\n            name\n            label\n            score\n            explanation\n            annotatorKind\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query PlaygroundExperimentRunDetailsDialogQuery(\n  $runId: ID!\n) {\n  run: node(id: $runId) {\n    __typename\n    ... on ExperimentRun {\n      output\n      startTime\n      endTime\n      error\n      example {\n        id\n        revision {\n          input\n          output\n        }\n      }\n      annotations {\n        edges {\n          annotation: node {\n            id\n            name\n            label\n            score\n            explanation\n            annotatorKind\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2eee337b0f8c4e738dd6580efa1e3c96";
+(node as any).hash = "e2203e071e6fce91c764fa6fee48dfc1";
 
 export default node;

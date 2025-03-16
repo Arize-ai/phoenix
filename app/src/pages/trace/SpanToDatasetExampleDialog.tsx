@@ -38,7 +38,7 @@ export function SpanToDatasetExampleDialog({
 
   const data = useLazyLoadQuery<SpanToDatasetExampleDialogQuery>(
     graphql`
-      query SpanToDatasetExampleDialogQuery($spanId: GlobalID!) {
+      query SpanToDatasetExampleDialogQuery($spanId: ID!) {
         span: node(id: $spanId) {
           ... on Span {
             revision: asExampleRevision {

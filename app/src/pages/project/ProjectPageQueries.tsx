@@ -6,7 +6,7 @@ import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__g
 import { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 
 export const ProjectPageQueriesTracesQuery = graphql`
-  query ProjectPageQueriesTracesQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query ProjectPageQueriesTracesQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
       ...TracesTable_spans
     }
@@ -14,7 +14,7 @@ export const ProjectPageQueriesTracesQuery = graphql`
 `;
 
 export const ProjectPageQueriesSpansQuery = graphql`
-  query ProjectPageQueriesSpansQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query ProjectPageQueriesSpansQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
       ...SpansTable_spans
     }
@@ -22,10 +22,7 @@ export const ProjectPageQueriesSpansQuery = graphql`
 `;
 
 export const ProjectPageQueriesSessionsQuery = graphql`
-  query ProjectPageQueriesSessionsQuery(
-    $id: GlobalID!
-    $timeRange: TimeRange!
-  ) {
+  query ProjectPageQueriesSessionsQuery($id: ID!, $timeRange: TimeRange!) {
     project: node(id: $id) {
       ...SessionsTable_sessions
     }

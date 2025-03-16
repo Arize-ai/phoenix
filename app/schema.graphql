@@ -1,15 +1,15 @@
 directive @oneOf on INPUT_OBJECT
 
 input AddExamplesToDatasetInput {
-  datasetId: GlobalID!
+  datasetId: ID!
   examples: [DatasetExampleInput!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
 }
 
 input AddSpansToDatasetInput {
-  datasetId: GlobalID!
-  spanIds: [GlobalID!]!
+  datasetId: ID!
+  spanIds: [ID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
 }
@@ -156,8 +156,8 @@ input ChatCompletionOverDatasetInput {
   tools: [JSON!]
   apiKey: String = null
   templateFormat: PromptTemplateFormat! = MUSTACHE
-  datasetId: GlobalID!
-  datasetVersionId: GlobalID = null
+  datasetId: ID!
+  datasetVersionId: ID = null
   experimentName: String = null
   experimentDescription: String = null
   experimentMetadata: JSON = {}
@@ -165,34 +165,34 @@ input ChatCompletionOverDatasetInput {
 }
 
 type ChatCompletionOverDatasetMutationExamplePayload {
-  datasetExampleId: GlobalID!
-  experimentRunId: GlobalID!
+  datasetExampleId: ID!
+  experimentRunId: ID!
   result: ChatCompletionMutationPayloadChatCompletionMutationError!
 }
 
 type ChatCompletionOverDatasetMutationPayload {
-  datasetId: GlobalID!
-  datasetVersionId: GlobalID!
-  experimentId: GlobalID!
+  datasetId: ID!
+  datasetVersionId: ID!
+  experimentId: ID!
   examples: [ChatCompletionOverDatasetMutationExamplePayload!]!
 }
 
 type ChatCompletionSubscriptionError implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
   message: String!
 }
 
 type ChatCompletionSubscriptionExperiment implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
   experiment: Experiment!
 }
 
 interface ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
 }
 
 type ChatCompletionSubscriptionResult implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
   span: Span
   experimentRun: ExperimentRun
 }
@@ -214,7 +214,7 @@ input ChatPromptVersionInput {
 }
 
 input ClearProjectInput {
-  id: GlobalID!
+  id: ID!
 
   """The time up to which to purge data. Time is right-open /non-inclusive."""
   endTime: DateTime
@@ -223,7 +223,7 @@ input ClearProjectInput {
 input ClonePromptInput {
   name: Identifier!
   description: String = null
-  promptId: GlobalID!
+  promptId: ID!
 }
 
 type Cluster {
@@ -276,7 +276,7 @@ input CreateChatPromptInput {
 }
 
 input CreateChatPromptVersionInput {
-  promptId: GlobalID!
+  promptId: ID!
   promptVersion: ChatPromptVersionInput!
   tags: [SetPromptVersionTagInput!] = null
 }
@@ -293,7 +293,7 @@ input CreatePromptLabelInput {
 }
 
 input CreateSpanAnnotationInput {
-  spanId: GlobalID!
+  spanId: ID!
   name: String!
   annotatorKind: AnnotatorKind!
   label: String = null
@@ -309,7 +309,7 @@ type CreateSystemApiKeyMutationPayload {
 }
 
 input CreateTraceAnnotationInput {
-  traceId: GlobalID!
+  traceId: ID!
   name: String!
   annotatorKind: AnnotatorKind!
   label: String = null
@@ -363,7 +363,7 @@ type DataQualityTimeSeries implements TimeSeries {
 
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
   description: String
   metadata: JSON!
@@ -374,13 +374,13 @@ type Dataset implements Node {
   """
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
-  exampleCount(datasetVersionId: GlobalID): Int!
-  examples(datasetVersionId: GlobalID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
+  exampleCount(datasetVersionId: ID): Int!
+  examples(datasetVersionId: ID, first: Int = 50, last: Int, after: String, before: String): DatasetExampleConnection!
 
   """
   Number of experiments for a specific version if version is specified, or for all versions if version is not specified.
   """
-  experimentCount(datasetVersionId: GlobalID): Int!
+  experimentCount(datasetVersionId: ID): Int!
   experiments(first: Int = 50, last: Int, after: String, before: String): ExperimentConnection!
   experimentAnnotationSummaries: [ExperimentAnnotationSummary!]!
   lastUpdatedAt: DateTime
@@ -411,9 +411,9 @@ type DatasetEdge {
 
 type DatasetExample implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   createdAt: DateTime!
-  revision(datasetVersionId: GlobalID): DatasetExampleRevision!
+  revision(datasetVersionId: ID): DatasetExampleRevision!
   span: Span
   experimentRuns(first: Int = 50, last: Int, after: String, before: String): ExperimentRunConnection!
 }
@@ -440,11 +440,11 @@ input DatasetExampleInput {
   input: JSON!
   output: JSON!
   metadata: JSON!
-  spanId: GlobalID
+  spanId: ID
 }
 
 input DatasetExamplePatch {
-  exampleId: GlobalID!
+  exampleId: ID!
   input: JSON
   output: JSON
   metadata: JSON
@@ -475,7 +475,7 @@ type DatasetValues {
 
 type DatasetVersion implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   description: String
   metadata: JSON!
   createdAt: DateTime!
@@ -518,38 +518,38 @@ type DbTableStats {
 }
 
 input DeleteAnnotationsInput {
-  annotationIds: [GlobalID!]!
+  annotationIds: [ID!]!
 }
 
 input DeleteApiKeyInput {
-  id: GlobalID!
+  id: ID!
 }
 
 type DeleteApiKeyMutationPayload {
-  apiKeyId: GlobalID!
+  apiKeyId: ID!
   query: Query!
 }
 
 input DeleteDatasetExamplesInput {
-  exampleIds: [GlobalID!]!
+  exampleIds: [ID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
 }
 
 input DeleteDatasetInput {
-  datasetId: GlobalID!
+  datasetId: ID!
 }
 
 input DeleteExperimentsInput {
-  experimentIds: [GlobalID!]!
+  experimentIds: [ID!]!
 }
 
 input DeletePromptInput {
-  promptId: GlobalID!
+  promptId: ID!
 }
 
 input DeletePromptLabelInput {
-  promptLabelId: GlobalID!
+  promptLabelId: ID!
 }
 
 type DeletePromptMutationPayload {
@@ -557,16 +557,16 @@ type DeletePromptMutationPayload {
 }
 
 input DeletePromptVersionTagInput {
-  promptVersionTagId: GlobalID!
+  promptVersionTagId: ID!
 }
 
 input DeleteUsersInput {
-  userIds: [GlobalID!]!
+  userIds: [ID!]!
 }
 
 type Dimension implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
 
   """The name of the dimension (a.k.a. the column name)"""
   name: String!
@@ -742,7 +742,7 @@ type DriftTimeSeries implements TimeSeries {
 
 type EmbeddingDimension implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
 
   """
@@ -865,7 +865,7 @@ interface ExampleRevision {
 
 type Experiment implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
   projectName: String
   description: String
@@ -922,8 +922,8 @@ type ExperimentMutationPayload {
 
 type ExperimentRun implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
-  experimentId: GlobalID!
+  id: ID!
+  experimentId: ID!
   traceId: String
   output: JSON
   startTime: DateTime!
@@ -936,7 +936,7 @@ type ExperimentRun implements Node {
 
 type ExperimentRunAnnotation implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
   annotatorKind: ExperimentRunAnnotatorKind!
   label: String
@@ -1007,7 +1007,7 @@ type FloatInvocationParameter implements InvocationParameterBase {
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
   name: String!
   arguments: String!
 }
@@ -1052,11 +1052,6 @@ enum GenerativeProviderKey {
   AZURE_OPENAI
   GOOGLE
 }
-
-"""
-The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
-"""
-scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
 """
 Granularity specifies the distance between points in a time-series and the duration of time (i.e. evaluation window) by which data is aggregated for  each data point. By convention all time intervals are right-open intervals, i.e. the end instant of the evaluation window is excluded from the interval. As a matter of standardization, each point in a time-series aggregates data  corresponding to an interval of time (i.e. the evaluation window) ending at the point's timestamp, and each time-series enumerates its points starting from the end instant of the TimeRange.
@@ -1245,7 +1240,7 @@ type Mutation {
   Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
-  deleteProject(id: GlobalID!): Query!
+  deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
@@ -1265,7 +1260,7 @@ type Mutation {
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
-  deleteTraces(traceIds: [GlobalID!]!): Query!
+  deleteTraces(traceIds: [ID!]!): Query!
   createUser(input: CreateUserInput!): UserMutationPayload!
   patchUser(input: PatchUserInput!): UserMutationPayload!
   patchViewer(input: PatchViewerInput!): UserMutationPayload!
@@ -1275,7 +1270,7 @@ type Mutation {
 """An object with a Globally Unique ID"""
 interface Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
 }
 
 type NominalBin {
@@ -1303,7 +1298,7 @@ type PageInfo {
 }
 
 input PatchAnnotationInput {
-  annotationId: GlobalID!
+  annotationId: ID!
   name: String
   annotatorKind: AnnotatorKind
   label: String
@@ -1319,25 +1314,25 @@ input PatchDatasetExamplesInput {
 }
 
 input PatchDatasetInput {
-  datasetId: GlobalID!
+  datasetId: ID!
   name: String
   description: String
   metadata: JSON
 }
 
 input PatchPromptInput {
-  promptId: GlobalID!
+  promptId: ID!
   description: String!
 }
 
 input PatchPromptLabelInput {
-  promptLabelId: GlobalID!
+  promptLabelId: ID!
   name: Identifier = null
   description: String = null
 }
 
 input PatchUserInput {
-  userId: GlobalID!
+  userId: ID!
   newRole: UserRoleInput
   newUsername: String
   newPassword: String
@@ -1376,7 +1371,7 @@ type Point3D {
 
 type Project implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
   gradientStartColor: String!
   gradientEndColor: String!
@@ -1432,11 +1427,11 @@ type ProjectEdge {
 
 type ProjectSession implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   sessionId: String!
   startTime: DateTime!
   endTime: DateTime!
-  projectId: GlobalID!
+  projectId: ID!
   numTraces: Int!
   numTracesWithError: Int!
   firstInput: SpanIOValue
@@ -1479,12 +1474,12 @@ input ProjectSessionSort {
 
 type Prompt implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
-  sourcePromptId: GlobalID
+  id: ID!
+  sourcePromptId: ID
   name: Identifier!
   description: String
   createdAt: DateTime!
-  version(versionId: GlobalID = null): PromptVersion!
+  version(versionId: ID = null): PromptVersion!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
@@ -1518,7 +1513,7 @@ type PromptEdge {
 
 type PromptLabel implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: Identifier!
   description: String
   prompts: [Prompt!]!
@@ -1596,7 +1591,7 @@ enum PromptTemplateType {
 
 type PromptVersion implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   description: String
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
@@ -1638,8 +1633,8 @@ type PromptVersionEdge {
 
 type PromptVersionTag implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
-  promptVersionId: GlobalID!
+  id: ID!
+  promptVersionId: ID!
   name: Identifier!
   description: String
 }
@@ -1662,11 +1657,11 @@ type Query {
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   datasetsLastUpdatedAt: DateTime
-  compareExperiments(experimentIds: [GlobalID!]!, filterCondition: String): [ExperimentComparison!]!
-  validateExperimentRunFilterCondition(condition: String!, experimentIds: [GlobalID!]!): ValidationResult!
+  compareExperiments(experimentIds: [ID!]!, filterCondition: String): [ExperimentComparison!]!
+  validateExperimentRunFilterCondition(condition: String!, experimentIds: [ID!]!): ValidationResult!
   functionality: Functionality!
   model: Model!
-  node(id: GlobalID!): Node!
+  node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
@@ -1719,7 +1714,7 @@ enum RevisionKind {
 }
 
 type RunComparisonItem {
-  experimentId: GlobalID!
+  experimentId: ID!
   runs: [ExperimentRun!]!
 }
 
@@ -1740,12 +1735,12 @@ type Segments {
 }
 
 input SetPromptLabelInput {
-  promptId: GlobalID!
-  promptLabelId: GlobalID!
+  promptId: ID!
+  promptLabelId: ID!
 }
 
 input SetPromptVersionTagInput {
-  promptVersionId: GlobalID!
+  promptVersionId: ID!
   name: Identifier!
   description: String = null
 }
@@ -1757,7 +1752,7 @@ enum SortDir {
 
 type Span implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
   statusCode: SpanStatusCode!
   statusMessage: String!
@@ -1848,7 +1843,7 @@ type Span implements Node {
 
 type SpanAnnotation implements Node & Annotation {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
 
   """Name of the annotation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -1867,7 +1862,7 @@ type SpanAnnotation implements Node & Annotation {
   explanation: String
   annotatorKind: AnnotatorKind!
   metadata: JSON!
-  spanId: GlobalID!
+  spanId: ID!
 }
 
 enum SpanAnnotationColumn {
@@ -2006,11 +2001,11 @@ type SystemApiKey implements ApiKey & Node {
   expiresAt: DateTime
 
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
 }
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
   content: String!
 }
 
@@ -2050,7 +2045,7 @@ type TokenUsage {
 }
 
 type ToolCallChunk implements ChatCompletionSubscriptionPayload {
-  datasetExampleId: GlobalID
+  datasetExampleId: ID
   id: String!
   function: FunctionCallChunk!
 }
@@ -2104,14 +2099,14 @@ input ToolResultContentValueInput {
 
 type Trace implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   traceId: ID!
   startTime: DateTime!
   endTime: DateTime!
   latencyMs: Float
   project: Project!
-  projectId: GlobalID!
-  projectSessionId: GlobalID
+  projectId: ID!
+  projectSessionId: ID
   session: ProjectSession
   rootSpan: Span
   numSpans: Int!
@@ -2123,14 +2118,14 @@ type Trace implements Node {
 
 type TraceAnnotation implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
   annotatorKind: AnnotatorKind!
   label: String
   score: Float
   explanation: String
   metadata: JSON!
-  traceId: GlobalID!
+  traceId: ID!
 }
 
 enum TraceAnnotationColumn {
@@ -2168,7 +2163,7 @@ type TraceEdge {
 }
 
 type UMAPPoint {
-  id: GlobalID!
+  id: ID!
 
   """The ID of the event that the point is a projection of"""
   eventId: ID!
@@ -2186,13 +2181,13 @@ type UMAPPoints {
 }
 
 input UnsetPromptLabelInput {
-  promptId: GlobalID!
-  promptLabelId: GlobalID!
+  promptId: ID!
+  promptLabelId: ID!
 }
 
 type User implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   passwordNeedsReset: Boolean!
   email: String!
   username: String!
@@ -2217,7 +2212,7 @@ type UserApiKey implements ApiKey & Node {
   expiresAt: DateTime
 
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   user: User!
 }
 
@@ -2245,7 +2240,7 @@ type UserMutationPayload {
 
 type UserRole implements Node {
   """The Globally Unique ID of this object"""
-  id: GlobalID!
+  id: ID!
   name: String!
 }
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7ff7a52fe470b79042223f7b734a9e56>>
+ * @generated SignedSource<<047cbf7da216cdd129b4d16c60744eca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,76 +52,53 @@ v3 = {
 },
 v4 = [
   {
-    "alias": null,
-    "args": [
+    "fields": [
       {
-        "fields": [
-          {
-            "kind": "Variable",
-            "name": "datasetId",
-            "variableName": "datasetId"
-          },
-          {
-            "kind": "Variable",
-            "name": "description",
-            "variableName": "description"
-          },
-          {
-            "kind": "Variable",
-            "name": "metadata",
-            "variableName": "metadata"
-          },
-          {
-            "kind": "Variable",
-            "name": "name",
-            "variableName": "name"
-          }
-        ],
-        "kind": "ObjectValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "datasetId",
+        "variableName": "datasetId"
+      },
+      {
+        "kind": "Variable",
+        "name": "description",
+        "variableName": "description"
+      },
+      {
+        "kind": "Variable",
+        "name": "metadata",
+        "variableName": "metadata"
+      },
+      {
+        "kind": "Variable",
+        "name": "name",
+        "variableName": "name"
       }
     ],
-    "concreteType": "DatasetMutationPayload",
-    "kind": "LinkedField",
-    "name": "patchDataset",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Dataset",
-        "kind": "LinkedField",
-        "name": "dataset",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "description",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "metadata",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
+    "kind": "ObjectValue",
+    "name": "input"
   }
-];
+],
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "metadata",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -133,7 +110,33 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "EditDatasetFormMutation",
-    "selections": (v4/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": (v4/*: any*/),
+        "concreteType": "DatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "patchDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Dataset",
+            "kind": "LinkedField",
+            "name": "dataset",
+            "plural": false,
+            "selections": [
+              (v5/*: any*/),
+              (v6/*: any*/),
+              (v7/*: any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Mutation",
     "abstractKey": null
   },
@@ -147,19 +150,52 @@ return {
     ],
     "kind": "Operation",
     "name": "EditDatasetFormMutation",
-    "selections": (v4/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v4/*: any*/),
+        "concreteType": "DatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "patchDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Dataset",
+            "kind": "LinkedField",
+            "name": "dataset",
+            "plural": false,
+            "selections": [
+              (v5/*: any*/),
+              (v6/*: any*/),
+              (v7/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "id",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "d68da97aac0aaababba2324b7d10e250",
+    "cacheID": "24675cd487da4f57f6aa04d850e65ad3",
     "id": null,
     "metadata": {},
     "name": "EditDatasetFormMutation",
     "operationKind": "mutation",
-    "text": "mutation EditDatasetFormMutation(\n  $datasetId: GlobalID!\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  patchDataset(input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      name\n      description\n      metadata\n    }\n  }\n}\n"
+    "text": "mutation EditDatasetFormMutation(\n  $datasetId: ID!\n  $name: String!\n  $description: String = null\n  $metadata: JSON = null\n) {\n  patchDataset(input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}) {\n    dataset {\n      name\n      description\n      metadata\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "17e232f5c22d36d0663f140c00343680";
+(node as any).hash = "e952d9cbc840dd6cd447b3024178aab4";
 
 export default node;

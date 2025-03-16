@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85bf73e07ab7a5ac32add19bc07c03e9>>
+ * @generated SignedSource<<d9f774cd351048ae5cde7a486ba08512>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -63,155 +63,137 @@ v2 = [
     "variableName": "id"
   }
 ],
-v3 = {
+v3 = [
+  {
+    "kind": "Variable",
+    "name": "traceId",
+    "variableName": "traceId"
+  }
+],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "projectSessionId",
+  "storageKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latencyMs",
   "storageKey": null
 },
-v5 = {
-  "kind": "InlineFragment",
+v7 = {
+  "alias": null,
+  "args": [
+    {
+      "kind": "Literal",
+      "name": "first",
+      "value": 1000
+    }
+  ],
+  "concreteType": "SpanConnection",
+  "kind": "LinkedField",
+  "name": "spans",
+  "plural": false,
   "selections": [
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "traceId",
-          "variableName": "traceId"
-        }
-      ],
-      "concreteType": "Trace",
+      "args": null,
+      "concreteType": "SpanEdge",
       "kind": "LinkedField",
-      "name": "trace",
-      "plural": false,
+      "name": "edges",
+      "plural": true,
       "selections": [
         {
-          "alias": null,
+          "alias": "span",
           "args": null,
-          "kind": "ScalarField",
-          "name": "projectSessionId",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": [
-            {
-              "kind": "Literal",
-              "name": "first",
-              "value": 1000
-            }
-          ],
-          "concreteType": "SpanConnection",
+          "concreteType": "Span",
           "kind": "LinkedField",
-          "name": "spans",
+          "name": "node",
           "plural": false,
           "selections": [
+            (v5/*: any*/),
             {
               "alias": null,
               "args": null,
-              "concreteType": "SpanEdge",
-              "kind": "LinkedField",
-              "name": "edges",
-              "plural": true,
-              "selections": [
-                {
-                  "alias": "span",
-                  "args": null,
-                  "concreteType": "Span",
-                  "kind": "LinkedField",
-                  "name": "node",
-                  "plural": false,
-                  "selections": [
-                    (v3/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "spanId",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "spanKind",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": "statusCode",
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "propagatedStatusCode",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "startTime",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "parentId",
-                      "storageKey": null
-                    },
-                    (v4/*: any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "tokenCountTotal",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "tokenCountPrompt",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "tokenCountCompletion",
-                      "storageKey": null
-                    }
-                  ],
-                  "storageKey": null
-                }
-              ],
+              "kind": "ScalarField",
+              "name": "spanId",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "name",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "spanKind",
+              "storageKey": null
+            },
+            {
+              "alias": "statusCode",
+              "args": null,
+              "kind": "ScalarField",
+              "name": "propagatedStatusCode",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "startTime",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "parentId",
+              "storageKey": null
+            },
+            (v6/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "tokenCountTotal",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "tokenCountPrompt",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "tokenCountCompletion",
               "storageKey": null
             }
           ],
-          "storageKey": "spans(first:1000)"
-        },
-        (v4/*: any*/)
+          "storageKey": null
+        }
       ],
       "storageKey": null
     }
   ],
-  "type": "Project",
-  "abstractKey": null
+  "storageKey": "spans(first:1000)"
 };
 return {
   "fragment": {
@@ -231,7 +213,27 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "Trace",
+                "kind": "LinkedField",
+                "name": "trace",
+                "plural": false,
+                "selections": [
+                  (v4/*: any*/),
+                  (v7/*: any*/),
+                  (v6/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -263,28 +265,45 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v5/*: any*/),
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v3/*: any*/),
+                "concreteType": "Trace",
+                "kind": "LinkedField",
+                "name": "trace",
+                "plural": false,
+                "selections": [
+                  (v4/*: any*/),
+                  (v7/*: any*/),
+                  (v6/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "Project",
+            "abstractKey": null
           },
-          (v3/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "ac9147f8bf0ef8c809d19877e0ee5f2c",
+    "cacheID": "14afda377a55af207241cdf1c877e9c4",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n        id\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aedd511ed255adab3a80dde8956a01c4";
+(node as any).hash = "414d155a07df7f8640fcddcf4a207063";
 
 export default node;

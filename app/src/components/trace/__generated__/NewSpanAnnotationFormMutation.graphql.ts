@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad5fb0e53951bb75aeb156d374165de3>>
+ * @generated SignedSource<<99c2e22809458b9470c193293fb966d4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -171,10 +171,6 @@ return {
                     "name": "__typename",
                     "storageKey": null
                   },
-                  {
-                    "kind": "TypeDiscriminator",
-                    "abstractKey": "__isNode"
-                  },
                   (v3/*: any*/),
                   {
                     "kind": "InlineFragment",
@@ -242,16 +238,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d6f016f4dfb0c142854c3ecd840b09f5",
+    "cacheID": "d9bc40b3c8c963526cd6b1bbdbb1b85e",
     "id": null,
     "metadata": {},
     "name": "NewSpanAnnotationFormMutation",
     "operationKind": "mutation",
-    "text": "mutation NewSpanAnnotationFormMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: GlobalID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...EditSpanAnnotationsDialog_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation NewSpanAnnotationFormMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: ID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...EditSpanAnnotationsDialog_spanAnnotations\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ded0a7a64a2706f6ec472a63c1c57eca";
+(node as any).hash = "e009a1d7b410078a2e91b819721dfe55";
 
 export default node;

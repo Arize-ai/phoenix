@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ece00921afdaa1bb0774ca8883f899c>>
+ * @generated SignedSource<<07d5847709ab670fd70f364e72cc8c84>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -121,10 +121,6 @@ return {
             "storageKey": null
           },
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -187,16 +183,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "88dfad5d25db7e03286a789f3ba37c75",
+    "cacheID": "165ea79045b0b83209c273df6f32a9f8",
     "id": null,
     "metadata": {},
     "name": "AnnotationSummaryQuery",
     "operationKind": "query",
-    "text": "query AnnotationSummaryQuery(\n  $id: GlobalID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query AnnotationSummaryQuery(\n  $id: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6a15ba35fe9e1e35aa4c517ab6309a2b";
+(node as any).hash = "3853ce97f7a810755cb61812e309942d";
 
 export default node;

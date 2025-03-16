@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f307a3460c6cb1310bb46d3746cb03bb>>
+ * @generated SignedSource<<747cbed49d4e0b39454f07e4e45ac69e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,15 @@ export type UsersTableQuery = {
   variables: UsersTableQuery$variables;
 };
 
-const node: ConcreteRequest = {
+const node: ConcreteRequest = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
+return {
   "fragment": {
     "argumentDefinitions": [],
     "kind": "Fragment",
@@ -65,13 +73,7 @@ const node: ConcreteRequest = {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "id",
-                    "storageKey": null
-                  },
+                  (v0/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -121,7 +123,8 @@ const node: ConcreteRequest = {
                         "kind": "ScalarField",
                         "name": "name",
                         "storageKey": null
-                      }
+                      },
+                      (v0/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -137,14 +140,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "d3f85064b63f026a47a8ef139638b933",
+    "cacheID": "e5a1fa2cfeca95ac9f22b2c65d3a4548",
     "id": null,
     "metadata": {},
     "name": "UsersTableQuery",
     "operationKind": "query",
-    "text": "query UsersTableQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query UsersTableQuery {\n  ...UsersTable_users\n}\n\nfragment UsersTable_users on Query {\n  users {\n    edges {\n      user: node {\n        id\n        email\n        username\n        createdAt\n        authMethod\n        profilePictureUrl\n        role {\n          name\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
+})();
 
 (node as any).hash = "acd5e44c43deb927fea733697593c97d";
 

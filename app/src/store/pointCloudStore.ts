@@ -1160,7 +1160,7 @@ async function fetchDimensionMetadata(
     RelayEnvironment,
     graphql`
       query pointCloudStore_dimensionMetadataQuery(
-        $id: GlobalID!
+        $id: ID!
         $getDimensionMinMax: Boolean!
         $getDimensionCategories: Boolean!
       ) {

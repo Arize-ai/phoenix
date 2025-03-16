@@ -3,11 +3,13 @@ from typing import Any, Iterable, Iterator, Optional, Union
 
 import strawberry
 from strawberry.extensions import SchemaExtension
+from strawberry.relay.types import GlobalID
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
 from phoenix.server.api.exceptions import get_mask_errors_extension
 from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.queries import Query
+from phoenix.server.api.scalars import RelayID
 from phoenix.server.api.subscriptions import Subscription
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
@@ -26,6 +28,7 @@ def build_graphql_schema(
         extensions=list(chain(extensions or [], [get_mask_errors_extension()])),
         subscription=Subscription,
         types=_implementing_types(ChatCompletionSubscriptionPayload),
+        scalar_overrides={GlobalID: RelayID, strawberry.ID: RelayID},
     )
 
 

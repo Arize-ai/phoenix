@@ -95,7 +95,7 @@ export function DimensionDriftTimeSeries({
   const data = useLazyLoadQuery<DimensionDriftTimeSeriesQuery>(
     graphql`
       query DimensionDriftTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $driftGranularity: Granularity!
         $countGranularity: Granularity!

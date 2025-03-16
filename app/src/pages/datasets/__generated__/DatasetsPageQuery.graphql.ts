@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d521ccb2cd48f0bf9e24fa30e137204>>
+ * @generated SignedSource<<36599dfa7adb9738a129cc53d74ce69b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -174,6 +174,18 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "kind": "ClientExtension",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "__id",
+                "storageKey": null
+              }
+            ]
           }
         ],
         "storageKey": "datasets(first:100,sort:{\"col\":\"createdAt\",\"dir\":\"desc\"})"

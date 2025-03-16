@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9802d63232cb94fe44c76458925e772f>>
+ * @generated SignedSource<<da4ada1353903d011f3058389b0583c0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type ExperimentsTableFragment$data = {
     readonly minScore: number | null;
   }>;
   readonly experiments: {
+    readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly experiment: {
         readonly annotationSummaries: ReadonlyArray<{
@@ -303,6 +304,18 @@ return {
             }
           ],
           "storageKey": null
+        },
+        {
+          "kind": "ClientExtension",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "__id",
+              "storageKey": null
+            }
+          ]
         }
       ],
       "storageKey": null
@@ -314,6 +327,6 @@ return {
 };
 })();
 
-(node as any).hash = "c7c7580fe40888ceb86a1701fe4eedf4";
+(node as any).hash = "b7cac85fa8fe9ad556978669a3d2fa0e";
 
 export default node;

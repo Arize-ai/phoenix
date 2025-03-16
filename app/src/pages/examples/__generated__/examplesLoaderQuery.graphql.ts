@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74ad0f7e02a9d86bb2ef1ffc21269fc4>>
+ * @generated SignedSource<<b90db326dac7bb245ccdd12f2d49f8b4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -182,7 +182,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/)
+                          (v3/*: any*/),
+                          (v2/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -238,16 +239,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7e303fa9a3c09ccd6a3dc1f3dbb2afb3",
+    "cacheID": "3199afe500e1707d9a6eda312c67b0f1",
     "id": null,
     "metadata": {},
     "name": "examplesLoaderQuery",
     "operationKind": "query",
-    "text": "query examplesLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ...ExamplesTableFragment\n  }\n}\n\nfragment ExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query examplesLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ...ExamplesTableFragment\n  }\n}\n\nfragment ExamplesTableFragment on Dataset {\n  examples(first: 100) {\n    edges {\n      example: node {\n        id\n        revision {\n          input\n          output\n          metadata\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6406bbf43a2e850b384ba9573d8e69de";
+(node as any).hash = "87c9a24e8d6450699d9fd403b3653108";
 
 export default node;

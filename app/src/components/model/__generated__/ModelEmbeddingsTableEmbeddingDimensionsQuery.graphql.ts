@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5a462696e764bcee3cb0b64006bf6b58>>
+ * @generated SignedSource<<df3467319c5599c9f2575888b76d78a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,7 +58,14 @@ v1 = [
     "name": "first",
     "variableName": "count"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -134,13 +141,7 @@ return {
                     "name": "node",
                     "plural": false,
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "id",
-                        "storageKey": null
-                      },
+                      (v2/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -201,7 +202,8 @@ return {
                         "kind": "ScalarField",
                         "name": "__typename",
                         "storageKey": null
-                      }
+                      },
+                      (v2/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -251,12 +253,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d0057a41a1d9795383a58de89e72ad76",
+    "cacheID": "fd1226f3c603a0c90b1c1657a894e691",
     "id": null,
     "metadata": {},
     "name": "ModelEmbeddingsTableEmbeddingDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $endTime: DateTime!\n  $startTime: DateTime!\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_4sIU9C\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_4sIU9C on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $endTime: DateTime!\n  $startTime: DateTime!\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_4sIU9C\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_4sIU9C on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n          id\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

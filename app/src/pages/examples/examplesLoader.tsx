@@ -13,7 +13,7 @@ export async function examplesLoader(args: LoaderFunctionArgs) {
   return await fetchQuery<examplesLoaderQuery>(
     RelayEnvironment,
     graphql`
-      query examplesLoaderQuery($id: GlobalID!) {
+      query examplesLoaderQuery($id: ID!) {
         dataset: node(id: $id) {
           id
           ...ExamplesTableFragment

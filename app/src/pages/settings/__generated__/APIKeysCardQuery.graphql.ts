@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<351efc4732283d374e68672f5a2c343c>>
+ * @generated SignedSource<<8ae58e33cf86f753b27da51b4c5951bb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -125,7 +125,8 @@ return {
                 "kind": "ScalarField",
                 "name": "email",
                 "storageKey": null
-              }
+              },
+              (v0/*: any*/)
             ],
             "storageKey": null
           }
@@ -135,12 +136,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a8cfba9eaaac34bc497efaacbff45c05",
+    "cacheID": "002d6c72a80b294266c909bd743a881c",
     "id": null,
     "metadata": {},
     "name": "APIKeysCardQuery",
     "operationKind": "query",
-    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n    }\n  }\n}\n"
+    "text": "query APIKeysCardQuery {\n  ...SystemAPIKeysTableFragment\n  ...UserAPIKeysTableFragment\n}\n\nfragment SystemAPIKeysTableFragment on Query {\n  systemApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n}\n\nfragment UserAPIKeysTableFragment on Query {\n  userApiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n    user {\n      email\n      id\n    }\n  }\n}\n"
   }
 };
 })();

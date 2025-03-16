@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<753c4bb477d25f3b871826be5bc067c1>>
+ * @generated SignedSource<<77a1436d38e67b142ab66c24f3de1aa4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -115,10 +115,6 @@ return {
             "storageKey": null
           },
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
@@ -177,16 +173,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3ebd1cf66ef8f31c995ec6aae6505e94",
+    "cacheID": "6f74fa682304c8e322329ebe91d73bf2",
     "id": null,
     "metadata": {},
     "name": "DocumentEvaluationSummaryQuery",
     "operationKind": "query",
-    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
+    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4d50474ffa9b9e4a68d07f6e0777c144";
+(node as any).hash = "6ec982057cc21ad195aa215a2118c5bc";
 
 export default node;

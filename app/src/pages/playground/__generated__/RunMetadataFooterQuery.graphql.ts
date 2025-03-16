@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c57c249c56c0f6baf88e651f199b3b05>>
+ * @generated SignedSource<<adefe0ab8d1a85c959e64a22693f7961>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -182,16 +182,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "447ee90c4f55ded6a8a64e73fc30c065",
+    "cacheID": "08422bdb5aad945374ab05768d983b66",
     "id": null,
     "metadata": {},
     "name": "RunMetadataFooterQuery",
     "operationKind": "query",
-    "text": "query RunMetadataFooterQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountCompletion\n      tokenCountPrompt\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
+    "text": "query RunMetadataFooterQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    id\n    ... on Span {\n      spanId\n      trace {\n        id\n        traceId\n        project {\n          id\n        }\n      }\n      tokenCountCompletion\n      tokenCountPrompt\n      tokenCountTotal\n      latencyMs\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d8025b7f870ac81e2d1e3249bb818186";
+(node as any).hash = "6c45e1167bc5e5b0c0d0123656a7ef47";
 
 export default node;

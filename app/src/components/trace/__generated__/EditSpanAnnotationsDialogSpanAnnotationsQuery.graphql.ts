@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<def397e9e960db0aa5efe76e9e60e28a>>
+ * @generated SignedSource<<66bfb766d511cde62be516c5386ae0ff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -93,10 +93,6 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -158,12 +154,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8649eb1dd42a29a0d38b9a1538490de4",
+    "cacheID": "acf4b911c6de76f7200d8c978014e6ef",
     "id": null,
     "metadata": {},
     "name": "EditSpanAnnotationsDialogSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query EditSpanAnnotationsDialogSpanAnnotationsQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...EditSpanAnnotationsDialog_spanAnnotations\n    __isNode: __typename\n    id\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "query EditSpanAnnotationsDialogSpanAnnotationsQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...EditSpanAnnotationsDialog_spanAnnotations\n    id\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();

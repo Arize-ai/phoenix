@@ -12,7 +12,7 @@ import { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeader
 export function TraceHeaderRootSpanAnnotations(id: string) {
   const data = useLazyLoadQuery<TraceHeaderRootSpanAnnotationsQuery>(
     graphql`
-      query TraceHeaderRootSpanAnnotationsQuery($id: GlobalID!) {
+      query TraceHeaderRootSpanAnnotationsQuery($id: ID!) {
         span: node(id: $id) {
           ... on Span {
             spanAnnotations {

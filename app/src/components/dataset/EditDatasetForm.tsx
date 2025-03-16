@@ -21,7 +21,7 @@ export function EditDatasetForm({
 }) {
   const [commit, isCommitting] = useMutation<EditDatasetFormMutation>(graphql`
     mutation EditDatasetFormMutation(
-      $datasetId: GlobalID!
+      $datasetId: ID!
       $name: String!
       $description: String = null
       $metadata: JSON = null
