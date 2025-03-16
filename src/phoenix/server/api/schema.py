@@ -9,12 +9,11 @@ from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 from phoenix.server.api.exceptions import get_mask_errors_extension
 from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.queries import Query
+from phoenix.server.api.scalars import RelayID
 from phoenix.server.api.subscriptions import Subscription
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
 )
-
-from .scalars import RelayID
 
 
 def build_graphql_schema(
