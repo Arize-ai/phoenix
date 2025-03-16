@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6de4dbc0eec53e1d0dab5cdeadd90ed2>>
+ * @generated SignedSource<<1ac6bde0c18764abf05e1b52eeb7004e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type DeleteDatasetDialogMutation$variables = {
+  connectionId: string;
   datasetId: string;
 };
 export type DeleteDatasetDialogMutation$data = {
   readonly deleteDataset: {
-    readonly __typename: "DatasetMutationPayload";
+    readonly dataset: {
+      readonly id: string;
+    };
   };
 };
 export type DeleteDatasetDialogMutation = {
@@ -23,73 +26,140 @@ export type DeleteDatasetDialogMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "datasetId"
+},
+v2 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "datasetId"
+    "fields": [
+      {
+        "kind": "Variable",
+        "name": "datasetId",
+        "variableName": "datasetId"
+      }
+    ],
+    "kind": "ObjectValue",
+    "name": "input"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "fields": [
-          {
-            "kind": "Variable",
-            "name": "datasetId",
-            "variableName": "datasetId"
-          }
-        ],
-        "kind": "ObjectValue",
-        "name": "input"
-      }
-    ],
-    "concreteType": "DatasetMutationPayload",
-    "kind": "LinkedField",
-    "name": "deleteDataset",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "__typename",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+};
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "DeleteDatasetDialogMutation",
-    "selections": (v1/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "deleteDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Dataset",
+            "kind": "LinkedField",
+            "name": "dataset",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Mutation",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "DeleteDatasetDialogMutation",
-    "selections": (v1/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v2/*: any*/),
+        "concreteType": "DatasetMutationPayload",
+        "kind": "LinkedField",
+        "name": "deleteDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "Dataset",
+            "kind": "LinkedField",
+            "name": "dataset",
+            "plural": false,
+            "selections": [
+              (v3/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "filters": null,
+                "handle": "deleteEdge",
+                "key": "",
+                "kind": "ScalarHandle",
+                "name": "id",
+                "handleArgs": [
+                  {
+                    "items": [
+                      {
+                        "kind": "Variable",
+                        "name": "connections.0",
+                        "variableName": "connectionId"
+                      }
+                    ],
+                    "kind": "ListValue",
+                    "name": "connections"
+                  }
+                ]
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "dd7db4b6f6eac9ceaecd096c341e427c",
+    "cacheID": "f1d9d6b5d0630749b8f2d82800454b91",
     "id": null,
     "metadata": {},
     "name": "DeleteDatasetDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteDatasetDialogMutation(\n  $datasetId: ID!\n) {\n  deleteDataset(input: {datasetId: $datasetId}) {\n    __typename\n  }\n}\n"
+    "text": "mutation DeleteDatasetDialogMutation(\n  $datasetId: ID!\n) {\n  deleteDataset(input: {datasetId: $datasetId}) {\n    dataset {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bd97316dd472eec18504f66e16088abc";
+(node as any).hash = "73189c37f2d9405ede905ba773eee4c2";
 
 export default node;

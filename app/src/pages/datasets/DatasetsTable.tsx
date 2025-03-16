@@ -73,6 +73,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
         ) {
           datasets(first: $first, after: $after, sort: $sort)
             @connection(key: "DatasetsTable_datasets") {
+            __id
             edges {
               node {
                 id
@@ -163,6 +164,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
           return (
             <DatasetActionMenu
               datasetId={row.original.id}
+              connectionId={data.datasets.__id}
               datasetName={row.original.name}
               datasetDescription={row.original.description}
               datasetMetadata={row.original.metadata}
@@ -171,7 +173,6 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset updated",
                   message: `${row.original.name} has been successfully updated.`,
                 });
-                refetch({}, { fetchPolicy: "store-and-network" });
               }}
               onDatasetEditError={(error) => {
                 const formattedError =
@@ -186,7 +187,6 @@ export function DatasetsTable(props: DatasetsTableProps) {
                   title: "Dataset deleted",
                   message: `${row.original.name} has been successfully deleted.`,
                 });
-                refetch({}, { fetchPolicy: "store-and-network" });
               }}
               onDatasetDeleteError={(error) => {
                 const formattedError =

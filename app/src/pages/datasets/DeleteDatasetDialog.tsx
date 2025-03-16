@@ -10,20 +10,27 @@ import { DeleteDatasetDialogMutation } from "./__generated__/DeleteDatasetDialog
 
 export function DeleteDatasetDialog({
   datasetId,
+  connectionId,
   datasetName,
   onDatasetDelete,
   onDatasetDeleteError,
 }: {
   datasetId: string;
+  connectionId: string;
   datasetName: string;
   onDatasetDelete: () => void;
   onDatasetDeleteError: (error: Error) => void;
 }) {
   const [commitDelete, isCommittingDelete] =
     useMutation<DeleteDatasetDialogMutation>(graphql`
-      mutation DeleteDatasetDialogMutation($datasetId: ID!) {
+      mutation DeleteDatasetDialogMutation(
+        $datasetId: ID!
+        $connectionId: ID!
+      ) {
         deleteDataset(input: { datasetId: $datasetId }) {
-          __typename
+          dataset {
+            id @deleteEdge(connections: [$connectionId]) @deleteRecord
+          }
         }
       }
     `);
@@ -33,6 +40,7 @@ export function DeleteDatasetDialog({
       commitDelete({
         variables: {
           datasetId,
+          connectionId,
         },
         onCompleted: () => {
           onDatasetDelete();
@@ -42,7 +50,13 @@ export function DeleteDatasetDialog({
         },
       });
     });
-  }, [commitDelete, datasetId, onDatasetDelete, onDatasetDeleteError]);
+  }, [
+    commitDelete,
+    connectionId,
+    datasetId,
+    onDatasetDelete,
+    onDatasetDeleteError,
+  ]);
   return (
     <Dialog size="S" title="Delete Dataset">
       <View padding="size-200">

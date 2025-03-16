@@ -8,6 +8,7 @@ import { DeleteDatasetDialog } from "./DeleteDatasetDialog";
 import { EditDatasetDialog } from "./EditDatasetDialog";
 type DatasetActionMenuProps = {
   datasetId: string;
+  connectionId: string;
   datasetName: string;
   datasetDescription?: string | null;
   datasetMetadata?: Record<string, unknown> | null;
@@ -25,6 +26,7 @@ enum DatasetAction {
 export function DatasetActionMenu(props: DatasetActionMenuProps) {
   const {
     datasetId,
+    connectionId,
     datasetName,
     datasetDescription,
     datasetMetadata,
@@ -39,6 +41,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
     setDialog(
       <DeleteDatasetDialog
         datasetId={datasetId}
+        connectionId={connectionId}
         datasetName={datasetName}
         onDatasetDelete={() => {
           onDatasetDelete();
@@ -47,7 +50,13 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
         onDatasetDeleteError={onDatasetDeleteError}
       />
     );
-  }, [datasetId, datasetName, onDatasetDelete, onDatasetDeleteError]);
+  }, [
+    connectionId,
+    datasetId,
+    datasetName,
+    onDatasetDelete,
+    onDatasetDeleteError,
+  ]);
 
   const onEdit = useCallback(() => {
     setDialog(
