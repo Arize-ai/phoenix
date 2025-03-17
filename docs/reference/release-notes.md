@@ -8,7 +8,9 @@ description: The latest releases from the Phoenix team.
 
 **Available in Phoenix 8.6+**
 
-We've introduced the OpenAI Agents SDK for Python which provides enhanced visibility into agent behavior and performance. With minimal setup, you can enable tracing and gain real-time insights into your agents' workflows.
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance.&#x20;
+
+This includes an OpenTelemetry Instrumentor that natively traces agents, LLM calls, tool usage, and agent handoffs. With minimal setup, you can enable tracing and gain real-time insights into your agents' workflows.
 
 **Installation**
 
@@ -16,7 +18,7 @@ We've introduced the OpenAI Agents SDK for Python which provides enhanced visibi
 pip install openinference-instrumentation-openai-agents openai-agents
 ```
 
-To enable tracing, use the register function to connect your application to Phoenix. Then, run your `agents` code and view traces in Phoenix.&#x20;
+To enable tracing, use the `register` function to connect your application to Phoenix. Once set up, run your agents and view traces directly in Phoenix for real-time insights.
 
 For more details on a quick setup, check out our [docs](../tracing/integrations-tracing/openai-agents-sdk.md)!&#x20;
 
