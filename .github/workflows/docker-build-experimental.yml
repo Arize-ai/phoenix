@@ -88,7 +88,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Update Kustomize image version
         run: |
-          sed -i "s/arize\/phoenix:.*$/arize\/phoenix:dangerously-experimental-commit-${{ needs.push_to_registry.outputs.commit_hash }}/" kustomize/base/phoenix.yaml
+          sed -i "s/arizephoenix\/phoenix:version-.*$/arizephoenix\/phoenix:version-${{ needs.push_to_registry.outputs.commit_hash }}/" kustomize/base/phoenix.yaml
           cat kustomize/base/phoenix.yaml
       - name: Create Pull Request
         run: |
