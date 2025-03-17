@@ -1,5 +1,5 @@
 ---
-description: How to configure Phoenix for your needs
+description: How to customize your self-hosted deployment of Phoenix
 ---
 
 # Configuration
