@@ -190,3 +190,4 @@ Now that you have tracing setup, all invocations and steps of your Agent will be
 
 * [OpenInference package](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents)
 * [Working examples](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents/examples)
+* [Smolagents Tracing Documentation](https://huggingface.co/docs/smolagents/en/tutorials/inspect_runs)
