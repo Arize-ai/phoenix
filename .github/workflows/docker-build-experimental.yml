@@ -90,15 +90,10 @@ jobs:
         run: |
           sed -i "s/arizephoenix\/phoenix:version-.*$/arizephoenix\/phoenix:version-${{ needs.push_to_registry.outputs.commit_hash }}/" kustomize/base/phoenix.yaml
           cat kustomize/base/phoenix.yaml
-      - name: Create Pull Request
-        run: |
-          git checkout -b update-phoenix-experimental-version-${{ needs.push_to_registry.outputs.commit_hash }}
-          git add kustomize/base/phoenix.yaml
-          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "chore: update Phoenix version to experimental-${{ needs.push_to_registry.outputs.commit_hash }} in Kustomize"
-          git push --set-upstream origin update-phoenix-experimental-version-${{ needs.push_to_registry.outputs.commit_hash }}
       - name: Create PR
         uses: peter-evans/create-pull-request@v7
         with:
+          commit-message: "chore: update Phoenix version to experimental-${{ needs.push_to_registry.outputs.commit_hash }} in Kustomize"
           title: "chore: update Phoenix version to experimental-${{ needs.push_to_registry.outputs.commit_hash }} in Kustomize"
           body: |
             This PR updates the Phoenix version in the Kustomize template to use the experimental build from commit ${{ needs.push_to_registry.outputs.commit_hash }}.
