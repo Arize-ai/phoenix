@@ -48,60 +48,61 @@ jobs:
         id: extract_commit
         run: echo "COMMIT_HASH=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            ${{ matrix.variant == 'root' && 'dangerously-experimental' || '' }}
-            ${{ matrix.variant == 'nonroot' && 'dangerously-experimental' || '' }}
-            ${{ matrix.variant == 'debug' && 'dangerously-experimental' || '' }}
+      # - name: Extract metadata (tags, labels) for Docker
+      #   id: meta
+      #   uses: docker/metadata-action@v4
+      #   with:
+      #     images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+      #     tags: |
+      #       ${{ matrix.variant == 'root' && 'dangerously-experimental' || '' }}
+      #       ${{ matrix.variant == 'nonroot' && 'dangerously-experimental' || '' }}
+      #       ${{ matrix.variant == 'debug' && 'dangerously-experimental' || '' }}
 
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          platforms: linux/amd64,linux/arm64
-          context: .
-          file: ./Dockerfile
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: |
-            ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
-            ${{ matrix.variant == 'nonroot' && format('{0}/{1}:dangerously-experimental-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
-            ${{ matrix.variant == 'debug' && format('{0}/{1}:dangerously-experimental-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            BASE_IMAGE=${{ env.BASE_IMAGE }}
+      # - name: Build and push Docker image
+      #   id: push
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     platforms: linux/amd64,linux/arm64
+      #     context: .
+      #     file: ./Dockerfile
+      #     push: true
+      #     sbom: true
+      #     provenance: mode=max
+      #     tags: |
+      #       ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental', env.REGISTRY, env.IMAGE_NAME) || '' }}
+      #       ${{ matrix.variant == 'root' && format('{0}/{1}:dangerously-experimental-commit-{2}', env.REGISTRY, env.IMAGE_NAME, env.COMMIT_HASH) || '' }}
+      #       ${{ matrix.variant == 'nonroot' && format('{0}/{1}:dangerously-experimental-nonroot', env.REGISTRY, env.IMAGE_NAME) || '' }}
+      #       ${{ matrix.variant == 'debug' && format('{0}/{1}:dangerously-experimental-debug', env.REGISTRY, env.IMAGE_NAME) || '' }}
+      #     labels: ${{ steps.meta.outputs.labels }}
+      #     build-args: |
+      #       BASE_IMAGE=${{ env.BASE_IMAGE }}
+
+    outputs:
+      commit_hash: ${{ env.COMMIT_HASH }}
 
   update-kustomize:
     name: Update Kustomize Template
     runs-on: ubuntu-latest
     needs: push_to_registry
-    env:
-      BRANCH_NAME: update-phoenix-experimental-version-${{ env.COMMIT_HASH }}
     steps:
       - uses: actions/checkout@v4
       - name: Update Kustomize image version
         run: |
-          sed -i "s/arize\/phoenix:.*$/arize\/phoenix:dangerously-experimental-commit-${COMMIT_HASH}/" kustomize/base/phoenix.yaml
+          sed -i "s/arize\/phoenix:.*$/arize\/phoenix:dangerously-experimental-commit-${{ needs.push_to_registry.outputs.commit_hash }}/" kustomize/base/phoenix.yaml
           cat kustomize/base/phoenix.yaml
       - name: Create Pull Request
         run: |
-          git checkout -b ${BRANCH_NAME}
+          git checkout -b update-phoenix-experimental-version-${{ needs.push_to_registry.outputs.commit_hash }}
           git add kustomize/base/phoenix.yaml
-          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "chore: update Phoenix version to experimental-${COMMIT_HASH} in Kustomize"
-          git push --set-upstream origin ${BRANCH_NAME}
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" commit -m "chore: update Phoenix version to experimental-${{ needs.push_to_registry.outputs.commit_hash }} in Kustomize"
+          git push --set-upstream origin update-phoenix-experimental-version-${{ needs.push_to_registry.outputs.commit_hash }}
       - name: Create PR
         uses: peter-evans/create-pull-request@v7
         with:
-          title: "chore: update Phoenix version to experimental-${{ env.COMMIT_HASH }} in Kustomize"
+          title: "chore: update Phoenix version to experimental-${{ needs.push_to_registry.outputs.commit_hash }} in Kustomize"
           body: |
-            This PR updates the Phoenix version in the Kustomize template to use the experimental build from commit ${{ env.COMMIT_HASH }}.
+            This PR updates the Phoenix version in the Kustomize template to use the experimental build from commit ${{ needs.push_to_registry.outputs.commit_hash }}.
             
             This change was automatically generated by the experimental build workflow.
-          branch: ${{ env.BRANCH_NAME }}
+          branch: update-phoenix-experimental-version-${{ needs.push_to_registry.outputs.commit_hash }}
           base: main
