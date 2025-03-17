@@ -11,8 +11,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("can create a user", async ({ page }) => {
-  await page.goto("/settings");
-  await page.waitForURL("**/settings");
+  await page.goto("/settings/general");
+  await page.waitForURL("**/settings/general");
   await page.getByRole("button", { name: "Add User" }).click();
 
   const email = `member-${randomUUID()}@localhost.com`;

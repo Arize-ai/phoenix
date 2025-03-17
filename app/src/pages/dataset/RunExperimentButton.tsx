@@ -122,7 +122,7 @@ function RunExperimentExample() {
           >
             <Text>
               System API keys can be created and managed in{" "}
-              <ExternalLink href="/settings">Settings</ExternalLink>
+              <ExternalLink href="/settings/general">Settings</ExternalLink>
             </Text>
           </IsAdmin>
         </View>

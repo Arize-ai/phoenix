@@ -146,7 +146,7 @@ function SideNav() {
         <ul css={bottomLinksCSS}>
           <li>
             <NavLink
-              to="/settings"
+              to="/settings/general"
               text="Settings"
               leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
             />
