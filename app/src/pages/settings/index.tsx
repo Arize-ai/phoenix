@@ -1,2 +1,3 @@
 export * from "./SettingsPage";
-export * from "./settingsPageLoader";
+export * from "./settingsGeneralPageLoader";
+export * from "./settingsAIProvidersPageLoader";
