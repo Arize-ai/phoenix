@@ -32,7 +32,7 @@ New major versions of Phoenix may contain database migrations that run automatic
 For other ways to run Phoenix, including Phoenix Cloud, see [environments.md](../environments.md "mention").
 {% endhint %}
 
-<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Docker</strong></td><td>How to deploy Phoenix using Docker</td><td><a href="../.gitbook/assets/docker.png">docker.png</a></td><td><a href="docker.md">docker.md</a></td></tr><tr><td></td><td><strong>Kubernetes</strong></td><td>How to deploy Phoenix on K8S</td><td><a href="../.gitbook/assets/k8s.png">k8s.png</a></td><td><a href="kubernetes.md">kubernetes.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Docker</strong></td><td>How to deploy Phoenix using Docker</td><td><a href="../.gitbook/assets/docker.png">docker.png</a></td><td><a href="docker.md">docker.md</a></td></tr><tr><td></td><td><strong>Kubernetes</strong></td><td>How to deploy Phoenix on K8S</td><td><a href="../.gitbook/assets/k8s.png">k8s.png</a></td><td><a href="kubernetes.md">kubernetes.md</a></td></tr></tbody></table>
 
 ## Configure Phoenix
 
