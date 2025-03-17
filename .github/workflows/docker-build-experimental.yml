@@ -3,7 +3,7 @@ name: Publish experimental Docker image
 on:
   push:
     branches:
-      - span-query-optimization
+      - feat/annotations
 
 jobs:
   push_to_registry:
