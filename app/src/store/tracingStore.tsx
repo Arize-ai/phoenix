@@ -1,3 +1,4 @@
+import { ColumnSizingState, Updater } from "@tanstack/react-table";
 import { create, StateCreator } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
@@ -13,6 +14,10 @@ export interface TracingProps {
    * Map of the annotation column names that are toggled on
    */
   annotationColumnVisibility: VisibilityState;
+  /**
+   * Map of the column id to the width
+   */
+  columnSizing: ColumnSizingState;
 }
 
 export interface TracingState extends TracingProps {
@@ -28,6 +33,10 @@ export interface TracingState extends TracingProps {
   setAnnotationColumnVisibility: (
     annotationColumnVisibility: VisibilityState
   ) => void;
+  /**
+   * Sets the width of a column
+   */
+  setColumnSizing: (updater: Updater<ColumnSizingState>) => void;
 }
 
 const makeTracingStoreKey = ({
@@ -49,12 +58,24 @@ export const createTracingStore = (initialProps: CreateTracingStoreProps) => {
     columnVisibility: {
       metadata: false,
     },
+    columnSizing: {
+      metadata: 200,
+    },
     annotationColumnVisibility: {},
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility });
     },
     setAnnotationColumnVisibility: (annotationColumnVisibility) => {
       set({ annotationColumnVisibility });
+    },
+    setColumnSizing: (columnSizing) => {
+      if (typeof columnSizing === "function") {
+        set((state) => ({
+          columnSizing: columnSizing(state.columnSizing),
+        }));
+      } else {
+        set({ columnSizing });
+      }
     },
   });
   return create<TracingState>()(

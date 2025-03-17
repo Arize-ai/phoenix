@@ -14,6 +14,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   SortingState,
+  Table,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -72,9 +73,65 @@ const PAGE_SIZE = 50;
 
 type RootSpanFilterValue = "root" | "all";
 
+const defaultColumnSettings = {
+  minSize: 100,
+} satisfies Partial<ColumnDef<unknown>>;
+
 function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
   return val === "root" || val === "all";
 }
+
+const TableBody = <T extends { trace: { traceId: string }; id: string }>({
+  table,
+}: {
+  table: Table<T>;
+}) => {
+  const navigate = useNavigate();
+  return (
+    <tbody>
+      {table.getRowModel().rows.map((row) => {
+        return (
+          <tr
+            key={row.id}
+            onClick={() =>
+              navigate(
+                `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
+              )
+            }
+          >
+            {row.getVisibleCells().map((cell) => {
+              return (
+                <td
+                  key={cell.id}
+                  style={{
+                    // the cell still grows to fit, we just need some height declared
+                    // so that height: 100% works in children elements
+                    height: 1,
+                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    // prevent all wrapping, just show an ellipsis and let users expand if necessary
+                    textWrap: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+    </tbody>
+  );
+};
+
+// special memoized wrapper for our table body that we will use during column resizing
+export const MemoizedTableBody = React.memo(
+  TableBody,
+  (prev, next) => prev.table.options.data === next.table.options.data
+) as typeof TableBody;
 
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
@@ -88,7 +145,6 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
-  const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -456,6 +512,8 @@ export function SpansTable(props: SpansTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
+  const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
+  const columnSizing = useTracingContext((state) => state.columnSizing);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -463,11 +521,15 @@ export function SpansTable(props: SpansTableProps) {
       sorting,
       columnVisibility,
       rowSelection,
+      columnSizing,
     },
+    defaultColumn: defaultColumnSettings,
+    columnResizeMode: "onChange",
     manualSorting: true,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -485,6 +547,31 @@ export function SpansTable(props: SpansTableProps) {
     // Filter out columns that are eval groupings
     return column.columns.length === 0;
   });
+
+  const { columnSizingInfo, columnSizing: columnSizingState } =
+    table.getState();
+  const getFlatHeaders = table.getFlatHeaders;
+  const colLength = computedColumns.length;
+  /**
+   * Instead of calling `column.getSize()` on every render for every header
+   * and especially every data cell (very expensive),
+   * we will calculate all column sizes at once at the root table level in a useMemo
+   * and pass the column sizes down as CSS variables to the <table> element.
+   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   */
+  const columnSizeVars = React.useMemo(() => {
+    const headers = getFlatHeaders();
+    const colSizes: { [key: string]: number } = {};
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i]!;
+      colSizes[`--header-${header.id}-size`] = header.getSize();
+      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+    }
+    return colSizes;
+    // Disabled lint as per tanstack docs linked above
+    // eslint-disable-next-line react-compiler/react-compiler
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   return (
     <div css={spansTableCSS}>
@@ -535,42 +622,65 @@ export function SpansTable(props: SpansTableProps) {
         onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
         ref={tableContainerRef}
       >
-        <table css={selectableTableCSS}>
+        <table
+          css={selectableTableCSS}
+          style={{
+            ...columnSizeVars,
+            width: table.getTotalSize(),
+            minWidth: "100%",
+          }}
+        >
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th colSpan={header.colSpan} key={header.id}>
+                  <th
+                    style={{
+                      width: `calc(var(--header-${header.id}-size) * 1px)`,
+                    }}
+                    key={header.id}
+                  >
                     {header.isPlaceholder ? null : (
-                      <div
-                        {...{
-                          className: header.column.getCanSort()
-                            ? "cursor-pointer"
-                            : "",
-                          onClick: header.column.getToggleSortingHandler(),
-                          style: {
-                            left: header.getStart(),
-                            width: header.getSize(),
-                          },
-                        }}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getIsSorted() ? (
-                          <Icon
-                            className="sort-icon"
-                            svg={
-                              header.column.getIsSorted() === "asc" ? (
-                                <Icons.ArrowUpFilled />
-                              ) : (
-                                <Icons.ArrowDownFilled />
-                              )
-                            }
-                          />
-                        ) : null}
-                      </div>
+                      <>
+                        <div
+                          {...{
+                            className: header.column.getCanSort()
+                              ? "cursor-pointer"
+                              : "",
+                            onClick: header.column.getToggleSortingHandler(),
+                            style: {
+                              left: header.getStart(),
+                              width: header.getSize(),
+                            },
+                          }}
+                        >
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          {header.column.getIsSorted() ? (
+                            <Icon
+                              className="sort-icon"
+                              svg={
+                                header.column.getIsSorted() === "asc" ? (
+                                  <Icons.ArrowUpFilled />
+                                ) : (
+                                  <Icons.ArrowDownFilled />
+                                )
+                              }
+                            />
+                          ) : null}
+                        </div>
+                        <div
+                          {...{
+                            onMouseDown: header.getResizeHandler(),
+                            onTouchStart: header.getResizeHandler(),
+                            className: `resizer ${
+                              header.column.getIsResizing() ? "isResizing" : ""
+                            }`,
+                          }}
+                        />
+                      </>
                     )}
                   </th>
                 ))}
@@ -579,32 +689,10 @@ export function SpansTable(props: SpansTableProps) {
           </thead>
           {isEmpty ? (
             <ProjectTableEmpty projectName={data.name} />
+          ) : columnSizingInfo.isResizingColumn ? (
+            <MemoizedTableBody table={table} />
           ) : (
-            <tbody>
-              {rows.map((row) => {
-                return (
-                  <tr
-                    key={row.id}
-                    onClick={() =>
-                      navigate(
-                        `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
-                      )
-                    }
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      return (
-                        <td key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
+            <TableBody table={table} />
           )}
         </table>
       </div>
