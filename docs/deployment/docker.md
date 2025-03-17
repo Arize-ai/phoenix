@@ -96,7 +96,7 @@ docker compose up
 
 For the full details of on how to configure Phoenix, check out the [Configuration section](configuration.md)
 
-## PostGreSQL
+## PostgreSQL
 
 You can quickly launch Phoenix with a PostGreSQL backend using docker compose.
 

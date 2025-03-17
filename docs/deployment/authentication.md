@@ -1,9 +1,5 @@
 # Authentication
 
-{% hint style="info" %}
-Authentication is available in Phoenix 5.0
-{% endhint %}
-
 By default Phoenix deploys with authentication disabled as you may be just trying Phoenix for the very first time or have Phoenix deployed in a VPC. However you might want to further protect access to your data via authentication. Below are the steps.
 
 {% hint style="info" %}
@@ -160,7 +156,7 @@ Phoenix supports login via third-party identity providers (IDPs), including:
 * Google
 * [AWS Cognito](https://aws.amazon.com/cognito/)
 * [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id) (previously known as Azure Active Directory)
-* IDPs that support [OpenID Connect](https://openid.net/developers/how-connect-works/) and a [well-known configuration endpoint](https://openid.net/specs/openid-connect-discovery-1\_0.html#ProviderConfigurationRequest) at `GET /.well-known/openid-configuration`
+* IDPs that support [OpenID Connect](https://openid.net/developers/how-connect-works/) and a [well-known configuration endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfigurationRequest) at `GET /.well-known/openid-configuration`
 
 {% hint style="info" %}
 OAuth2 enables applications such as Phoenix to authorize access to resources via identity providers (IDPs) rather than storing and verifying user credentials locally. OpenID Connect is an extension of OAuth2 that additionally authenticates users by verifying identity and providing Phoenix with user information such as email address, username, etc. Phoenix integrates with OpenID Connect IDPs that have a "well-known configuration endpoint" at `GET /.well-known/openid-configuration`, which provides a standardized way to discover information about the IDP's endpoints and capabilities.
@@ -225,6 +221,7 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
 7. Deploy Phoenix using the three environment variables described above, substituting `MICROSOFT_ENTRA_ID` for `<IDP>`.
 
 ### Keycloak
+
 1. From the Keycloak Console create a **new Realm** or skip this part if you want to reuse a existing Realm
 2. Select **Clients**.
 3. Click on **new Client**
@@ -240,12 +237,10 @@ Users that sign into Phoenix via an OAuth2 IDP are initially added as members. T
    10. Ensure that only **Standard flow** and **Direct access grants** is enabled
    11. Hit the **Save button**
 4. Go to the Client **phoenix** and to the tab credentials and copy the **client-secret**
-     
-4. Deploy Phoenix using the three environment variables described above, substituting `KEYCLOAK` for `<IDP>`.
-    1. PHOENIX_OAUTH2_KEYCLOAK_CLIENT_ID="<client-id>"
-    2. PHOENIX_OAUTH2_KEYCLOAK_OIDC_CONFIG_URL="https://<keycloak-url>/<subpaths>/**realms**/<realm>/**.well-known/openid-configuration**"
-    3. PHOENIX_OAUTH2_KEYCLOAK_CLIENT_SECRET="<client-secret>"
-   
+5. Deploy Phoenix using the three environment variables described above, substituting `KEYCLOAK` for `<IDP>`.
+   1. PHOENIX\_OAUTH2\_KEYCLOAK\_CLIENT\_ID=""
+   2. PHOENIX\_OAUTH2\_KEYCLOAK\_OIDC\_CONFIG\_URL="https:////**realms**//**.well-known/openid-configuration**"
+   3. PHOENIX\_OAUTH2\_KEYCLOAK\_CLIENT\_SECRET=""
 
 ### Other Identity Providers
 

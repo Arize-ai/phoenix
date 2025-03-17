@@ -5,15 +5,11 @@
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 * [Environments](environments.md)
-* [Self-hosting](deployment/README.md)
-  * [Quickstart: Deployment](deployment/deploying-phoenix.md)
-  * [Local instance](deployment/local-instance.md)
-  * [Python notebook](deployment/python-notebook.md)
+* [Self-Hosting](deployment/README.md)
+  * [Configuration](deployment/configuration.md)
   * [Docker](deployment/docker.md)
   * [Kubernetes](deployment/kubernetes.md)
   * [Authentication](deployment/authentication.md)
-  * [Persistence](deployment/persistence.md)
-  * [Configuration](deployment/configuration.md)
 
 ## 🔭 Tracing
 
