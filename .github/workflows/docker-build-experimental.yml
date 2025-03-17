@@ -82,8 +82,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: push_to_registry
     env:
-      COMMIT_HASH: ${{ github.sha::7 }}
-      BRANCH_NAME: update-phoenix-experimental-version-${{ github.sha::7 }}
+      COMMIT_HASH: ${{GITHUB_SHA::7}}
+      BRANCH_NAME: update-phoenix-experimental-version-${{GITHUB_SHA::7}}
     steps:
       - uses: actions/checkout@v4
       - name: Update Kustomize image version
