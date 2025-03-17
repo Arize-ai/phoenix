@@ -15,7 +15,6 @@ import { css } from "@emotion/react";
 
 // eslint-disable-next-line deprecate/import
 import {
-  Alert,
   Card,
   Dialog,
   Item,
@@ -25,6 +24,7 @@ import {
 } from "@arizeai/components";
 
 import {
+  Alert,
   Button,
   Flex,
   Icon,

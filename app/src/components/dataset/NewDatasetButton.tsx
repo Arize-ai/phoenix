@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 
-import { Alert, Card, PopoverTrigger, TriggerWrap } from "@arizeai/components";
+import { Card, PopoverTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Alert, Button, Icon, Icons, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 

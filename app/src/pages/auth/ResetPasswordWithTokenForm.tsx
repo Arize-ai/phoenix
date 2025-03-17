@@ -3,9 +3,10 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, Form } from "@arizeai/components";
+import { Form } from "@arizeai/components";
 
 import {
+  Alert,
   Button,
   FieldError,
   Input,

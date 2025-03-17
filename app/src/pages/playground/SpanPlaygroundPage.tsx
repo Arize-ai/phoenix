@@ -2,9 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Alert } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons } from "@phoenix/components";
+import { Alert, Button, Flex, Icon, Icons } from "@phoenix/components";
 import { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "@phoenix/pages/playground/Playground";
 import { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";

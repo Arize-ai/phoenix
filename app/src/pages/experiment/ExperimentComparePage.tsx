@@ -3,9 +3,9 @@ import { useLoaderData, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Alert, Switch } from "@arizeai/components";
+import { Switch } from "@arizeai/components";
 
-import { Flex, Heading, Loading, View } from "@phoenix/components";
+import { Alert, Flex, Heading, Loading, View } from "@phoenix/components";
 import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
