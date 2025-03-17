@@ -8,3 +8,4 @@ pyright[nodejs]==1.1.394
 deepdiff==8.2.0
 anthropic==0.49.0
 openai==1.62.0
+azure-identity
