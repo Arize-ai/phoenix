@@ -28,10 +28,11 @@ For more details on a quick setup, check out our [docs](../tracing/integrations-
 
 <summary>Improvements and Bug Fixes 🐛</summary>
 
-* **Prompt Playground**: Azure API key optional, specialized UI for thinking budget parameter
-* **Experiments**: Add annotations to experiment JSON download
-* **Traces**: Trace tree more readable on smaller sizes
-* **Components**: react-aria Tabs components
+* **Prompt Playground**: Azure API key made optional, included specialized UI for thinking budget parameter
+* **Experiments**: Added annotations to experiment JSON downloads
+* **Traces**: Trace tree is more readable on smaller sizes
+* **Components**: Added react-aria Tabs components
+* **Python Client**: Included Anthropic thinking configuration parameter
 
 </details>
 
