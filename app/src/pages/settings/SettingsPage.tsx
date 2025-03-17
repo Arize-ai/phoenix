@@ -54,15 +54,12 @@ export function SettingsPage() {
             <Tab id="providers">AI Providers</Tab>
             {/* <Tab id="annotations">Annotations</Tab> */}
           </TabList>
-
           <LazyTabPanel id="general" padded>
             <Outlet />
           </LazyTabPanel>
-
           <LazyTabPanel id="providers" padded>
             <Outlet />
           </LazyTabPanel>
-
           <LazyTabPanel id="annotations" padded>
             <Card title="Annotations Settings" variant="compact">
               <Flex direction="column" gap="size-200">
