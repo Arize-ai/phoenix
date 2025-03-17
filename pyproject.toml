@@ -127,6 +127,7 @@ container = [
   "google-generativeai",
   "prometheus-client",
   "openai>=1.0.0",
+  "azure-identity",
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
