@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d9562447b1ec9aee54d580a20800dfd>>
+ * @generated SignedSource<<c8b2423e06fab062b5127b3ee540e643>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsPageLoaderQuery$variables = Record<PropertyKey, never>;
-export type settingsPageLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"DBUsagePieChart_data" | "GenerativeProvidersCard_data">;
+export type settingsAIProvidersPageLoaderQuery$variables = Record<PropertyKey, never>;
+export type settingsAIProvidersPageLoaderQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"GenerativeProvidersCard_data">;
 };
-export type settingsPageLoaderQuery = {
-  response: settingsPageLoaderQuery$data;
-  variables: settingsPageLoaderQuery$variables;
+export type settingsAIProvidersPageLoaderQuery = {
+  response: settingsAIProvidersPageLoaderQuery$data;
+  variables: settingsAIProvidersPageLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -24,17 +24,12 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsPageLoaderQuery",
+    "name": "settingsAIProvidersPageLoaderQuery",
     "selections": [
       {
         "args": null,
         "kind": "FragmentSpread",
         "name": "GenerativeProvidersCard_data"
-      },
-      {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "DBUsagePieChart_data"
       }
     ],
     "type": "Query",
@@ -44,7 +39,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "settingsPageLoaderQuery",
+    "name": "settingsAIProvidersPageLoaderQuery",
     "selections": [
       {
         "alias": null,
@@ -98,51 +93,19 @@ const node: ConcreteRequest = {
           }
         ],
         "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "DbTableStats",
-        "kind": "LinkedField",
-        "name": "dbTableStats",
-        "plural": true,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "tableName",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "numBytes",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "dbStorageCapacityBytes",
-        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "57e864e0c3d3ad1ca6853bcc545b0b63",
+    "cacheID": "cc6e19e54ea894e905970362ee382e43",
     "id": null,
     "metadata": {},
-    "name": "settingsPageLoaderQuery",
+    "name": "settingsAIProvidersPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n  ...DBUsagePieChart_data\n}\n\nfragment DBUsagePieChart_data on Query {\n  dbTableStats {\n    tableName\n    numBytes\n  }\n  dbStorageCapacityBytes\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
+    "text": "query settingsAIProvidersPageLoaderQuery {\n  ...GenerativeProvidersCard_data\n}\n\nfragment GenerativeProvidersCard_data on Query {\n  modelProviders {\n    name\n    key\n    dependenciesInstalled\n    dependencies\n    apiKeyEnvVar\n    apiKeySet\n  }\n}\n"
   }
 };
 
-(node as any).hash = "69a5a0039a171639cb4817f6d966030c";
+(node as any).hash = "2c8eecb8897f8c7dadfdc3de4e2a41a8";
 
 export default node;

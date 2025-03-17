@@ -2,6 +2,10 @@ import React from "react";
 import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
+import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
+import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
+import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
+
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
@@ -60,8 +64,8 @@ import {
   resetPasswordLoader,
   ResetPasswordPage,
   ResetPasswordWithTokenPage,
+  settingsGeneralPageLoader,
   SettingsPage,
-  settingsPageLoader,
   SpanPlaygroundPage,
   spanPlaygroundPageLoader,
   SupportPage,
@@ -279,11 +283,27 @@ const router = createBrowserRouter(
           <Route
             path="/settings"
             element={<SettingsPage />}
-            loader={settingsPageLoader}
             handle={{
               crumb: () => "settings",
             }}
-          />
+          >
+            <Route
+              path="general"
+              loader={settingsGeneralPageLoader}
+              element={<SettingsGeneralPage />}
+              handle={{
+                crumb: () => "general",
+              }}
+            />
+            <Route
+              path="providers"
+              loader={settingsAIProvidersPageLoader}
+              element={<SettingsAIProvidersPage />}
+              handle={{
+                crumb: () => "providers",
+              }}
+            />
+          </Route>
         </Route>
       </Route>
     </Route>
