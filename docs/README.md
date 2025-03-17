@@ -8,7 +8,7 @@ Phoenix is an open-source observability tool designed for experimentation, evalu
 \
 Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
 
-Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation.
+Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [integrations-tracing](tracing/integrations-tracing/ "mention")for details.
 
 ## Features
 
@@ -74,6 +74,10 @@ Running Phoenix for the first time? Select a quickstart below.
 ### [Try our Tutorials](notebooks.md)
 
 Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more.
+
+### [Add Integrations](tracing/integrations-tracing/)
+
+Add instrumentation for popular packages and libraries such as OpenAI, LangGraph, Vercel AI SDK and more.
 
 ### [Community](https://join.slack.com/t/arize-ai/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw)
 
