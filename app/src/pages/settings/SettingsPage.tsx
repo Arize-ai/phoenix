@@ -9,6 +9,10 @@ import {
   Flex,
   Input,
   Label,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
   Text,
   TextField,
   View,
@@ -24,6 +28,7 @@ import { UsersCard } from "./UsersCard";
 
 const settingsPageCSS = css`
   overflow-y: auto;
+  height: 100%;
 `;
 
 const settingsPageInnerCSS = css`
@@ -34,6 +39,7 @@ const settingsPageInnerCSS = css`
   width: 100%;
   margin-left: auto;
   margin-right: auto;
+  height: 100%;
 `;
 
 const formCSS = css`
@@ -49,67 +55,91 @@ export function SettingsPage() {
   return (
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
-        <Flex direction="column" gap="size-200" width="100%">
-          <Flex direction="row" gap="size-200" alignItems="center">
-            <View flex="2">
-              <Card title="Platform Settings" variant="compact">
-                <form css={formCSS}>
-                  <Flex direction="row" gap="size-100" alignItems="end">
-                    <TextField value={BASE_URL} isReadOnly>
-                      <Label>Hostname</Label>
-                      <Input />
-                      <Text slot="description">
-                        Connect to Phoenix over HTTP
-                      </Text>
-                    </TextField>
-                    <CopyToClipboardButtonWithPadding text={BASE_URL} />
-                  </Flex>
-                  <Flex direction="row" gap="size-100" alignItems="end">
-                    <TextField value={VERSION} isReadOnly>
-                      <Label>Platform Version</Label>
-                      <Input />
-                      <Text slot="description">
-                        The version of the Phoenix server
-                      </Text>
-                    </TextField>
-                    <CopyToClipboardButtonWithPadding text={VERSION} />
-                  </Flex>
-                  <Flex
-                    direction="row"
-                    gap="size-100"
-                    alignItems="end"
-                    justifyContent="center"
-                  >
-                    <TextField
-                      value={`pip install 'arize-phoenix==${VERSION}'`}
-                      isReadOnly
-                    >
-                      <Label>Python Version</Label>
-                      <Input />
-                      <Text slot="description">
-                        The version of the Python client library to use to
-                        connect to this Phoenix
-                      </Text>
-                    </TextField>
-                    <CopyToClipboardButtonWithPadding text={VERSION} />
-                  </Flex>
-                </form>
-              </Card>
-            </View>
-            <View flex="1">
-              <Card title="Database Usage" variant="compact">
-                <DBUsagePieChart query={data} />
-              </Card>
-            </View>
-          </Flex>
-          <IsAdmin>
-            <>
-              <APIKeysCard />
-              <UsersCard />
-            </>
-          </IsAdmin>
-          <GenerativeProvidersCard query={data} />
-        </Flex>
+        <Tabs>
+          <TabList>
+            <Tab id="general">General</Tab>
+            <Tab id="ai-providers">AI Providers</Tab>
+            <Tab id="annotations">Annotations</Tab>
+          </TabList>
+
+          <TabPanel id="general" padded>
+            <Flex direction="column" gap="size-200" width="100%">
+              <Flex direction="row" gap="size-200" alignItems="baseline">
+                <View flex="2">
+                  <Card title="Platform Settings" variant="compact">
+                    <form css={formCSS}>
+                      <Flex direction="row" gap="size-100" alignItems="end">
+                        <TextField value={BASE_URL} isReadOnly>
+                          <Label>Hostname</Label>
+                          <Input />
+                          <Text slot="description">
+                            Connect to Phoenix over HTTP
+                          </Text>
+                        </TextField>
+                        <CopyToClipboardButtonWithPadding text={BASE_URL} />
+                      </Flex>
+                      <Flex direction="row" gap="size-100" alignItems="end">
+                        <TextField value={VERSION} isReadOnly>
+                          <Label>Platform Version</Label>
+                          <Input />
+                          <Text slot="description">
+                            The version of the Phoenix server
+                          </Text>
+                        </TextField>
+                        <CopyToClipboardButtonWithPadding text={VERSION} />
+                      </Flex>
+                      <Flex direction="row" gap="size-100" alignItems="start">
+                        <TextField
+                          value={`pip install 'arize-phoenix==${VERSION}'`}
+                          isReadOnly
+                        >
+                          <Label>Python Version</Label>
+                          <Input />
+                          <Text slot="description">
+                            The version of the Python client library to use to
+                            connect to this Phoenix
+                          </Text>
+                        </TextField>
+                        <View flex="none" paddingTop="size-300">
+                          <CopyToClipboardButton size="M" text={VERSION} />
+                        </View>
+                      </Flex>
+                    </form>
+                  </Card>
+                </View>
+                <View flex="1" minWidth={280}>
+                  <Card title="Database Usage" variant="compact">
+                    <DBUsagePieChart query={data} />
+                  </Card>
+                </View>
+              </Flex>
+              <IsAdmin>
+                <>
+                  <APIKeysCard />
+                  <UsersCard />
+                </>
+              </IsAdmin>
+            </Flex>
+          </TabPanel>
+
+          <TabPanel id="ai-providers" padded>
+            <GenerativeProvidersCard query={data} />
+          </TabPanel>
+
+          <TabPanel id="annotations" padded>
+            <Card title="Annotations Settings" variant="compact">
+              <Flex direction="column" gap="size-200">
+                <Text>
+                  Annotation settings and configurations will be available here.
+                </Text>
+                <Text>
+                  Configure annotation types, labels, and workflows for your
+                  projects.
+                </Text>
+              </Flex>
+            </Card>
+          </TabPanel>
+        </Tabs>
       </div>
     </main>
   );
@@ -117,7 +147,7 @@ export function SettingsPage() {
 
 function CopyToClipboardButtonWithPadding(props: { text: string }) {
   return (
-    <View paddingBottom="19px" flex="none">
+    <View paddingBottom="20px" flex="none">
       <CopyToClipboardButton text={props.text} size="M" />
     </View>
   );
