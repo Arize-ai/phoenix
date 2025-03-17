@@ -42,8 +42,7 @@ export const MetadataTableCell = ({ metadata }: MetadataTableCellProps) => {
   }
 
   return (
-    // TODO(#6588): set this to 100% when cells are resizable and treat cell width as max width
-    <div style={{ maxWidth: "300px" }}>
+    <div style={{ maxWidth: "100%" }}>
       <MetadataTooltip width="800px" metadata={parsedMetadata}>
         <MetadataLabel
           metadata={stringifiedMetadata}
