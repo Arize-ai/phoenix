@@ -2,9 +2,10 @@ import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
-import { Alert, Dialog, DialogContainer } from "@arizeai/components";
+import { Dialog, DialogContainer } from "@arizeai/components";
 
 import {
+  Alert,
   Button,
   FieldError,
   Flex,

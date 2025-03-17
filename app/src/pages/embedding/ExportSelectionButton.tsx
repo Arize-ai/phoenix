@@ -6,7 +6,6 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
-  Alert,
   Dialog,
   DialogContainer,
   Download,
@@ -15,6 +14,7 @@ import {
 } from "@arizeai/components";
 
 import {
+  Alert,
   Button,
   Disclosure,
   DisclosureGroup,

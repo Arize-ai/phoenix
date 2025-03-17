@@ -28,6 +28,7 @@ export * from "./Empty";
 export * from "./exception";
 
 // design system based components
+export * from "./alert";
 export * from "./disclosure";
 export * from "./combobox";
 export * from "./button";
