@@ -14,7 +14,6 @@ import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
-  Alert,
   Card,
   CardProps,
   Content,
@@ -39,6 +38,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import {
+  Alert,
   Button,
   CopyToClipboardButton,
   Counter,

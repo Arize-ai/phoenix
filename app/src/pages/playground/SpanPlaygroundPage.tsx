@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
 
-import { Alert } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons } from "@phoenix/components";
+import { Alert, Button, Flex, Icon, Icons } from "@phoenix/components";
 
 import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { Playground } from "./Playground";
