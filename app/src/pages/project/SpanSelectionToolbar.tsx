@@ -5,7 +5,6 @@ import { css } from "@emotion/react";
 
 // eslint-disable-next-line deprecate/import
 import {
-  Button as LegacyButton,
   Dialog,
   DialogContainer,
   PopoverTrigger,
