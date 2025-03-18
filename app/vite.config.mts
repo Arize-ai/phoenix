@@ -28,6 +28,14 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         "@phoenix": resolve(__dirname, "src"),
+        "@codemirror/state": resolve(
+          __dirname,
+          "./node_modules/@codemirror/state/dist/index.cjs"
+        ),
+        "@codemirror/lang-json": resolve(
+          __dirname,
+          "node_modules/@codemirror/lang-json/dist/index.cjs"
+        ),
       },
     },
     test: {
