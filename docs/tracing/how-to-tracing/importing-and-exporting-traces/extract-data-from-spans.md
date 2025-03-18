@@ -45,7 +45,13 @@ px.Client().get_spans_dataframe("span_kind == 'CHAIN'")
 
 ## Running Span Queries
 
-You can query for data using our query DSL (domain specific language). Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
+You can query for data using our **query DSL** (domain specific language).&#x20;
+
+{% hint style="success" %}
+This **Query DSL** is the same as what is used by the filter bar in the dashboard. It can be helpful to form your query string in the Phoenix dashboard for more immediate feedback, before moving it to code.
+{% endhint %}
+
+Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
 
 ```python
 import phoenix as px
