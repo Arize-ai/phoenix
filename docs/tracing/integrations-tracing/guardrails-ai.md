@@ -1,5 +1,6 @@
 ---
 description: Instrument LLM applications that use the Guardrails AI framework
+hidden: true
 ---
 
 # Guardrails AI

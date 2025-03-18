@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # AutoGen
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/autogen_tutorial.ipynb" %}

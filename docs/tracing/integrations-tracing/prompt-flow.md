@@ -1,5 +1,6 @@
 ---
 description: Create flows using Microsoft PromptFlow and send their traces to Phoenix
+hidden: true
 ---
 
 # Prompt flow
