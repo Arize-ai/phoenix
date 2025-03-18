@@ -1,5 +1,14 @@
 # Changelog
 
+## [8.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.14.0...arize-phoenix-v8.14.1) (2025-03-18)
+
+
+### Bug Fixes
+
+* remove shadow on button group ([#6819](https://github.com/Arize-ai/phoenix/issues/6819)) ([3bfd6b1](https://github.com/Arize-ai/phoenix/commit/3bfd6b14394e38c2f6b6fd83ae164bb15e4ebf1f))
+* styles for markdown ([#6831](https://github.com/Arize-ai/phoenix/issues/6831)) ([29273dc](https://github.com/Arize-ai/phoenix/commit/29273dc0effcd600c017ab6d951c82232230018b))
+* **ui:** broken popovers ([#6830](https://github.com/Arize-ai/phoenix/issues/6830)) ([7eeccb0](https://github.com/Arize-ai/phoenix/commit/7eeccb0604d532fbaa67a54213e12afdf1579f7b))
+
 ## [8.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.13.2...arize-phoenix-v8.14.0) (2025-03-18)
 
 
