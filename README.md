@@ -38,9 +38,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 
 Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy), 🤗[smolagents](https://docs.arize.com/phoenix/tracing/integrations-tracing/hfsmolagents)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
-Phoenix runs practically anywhere, including your Jupyter notebook, local machine, containerized deployment, or in the cloud.
-
-<img alt="phoenix_overview.gif" width="100%" src="https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/phoenix_overview.gif?raw=true">
+Phoenix runs practically anywhere, including your local machine, a Jupyter notebook, a containerized deployment, or in the cloud.
 
 ## Installation
 
