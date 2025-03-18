@@ -14,6 +14,7 @@ export function PrettyText({ children }: { children: string }) {
           white-space: pre-wrap;
           text-wrap: wrap;
           overflow-wrap: anywhere;
+          font-size: var(--ac-global-font-size-s);
           margin: 0;
         `}
       >
