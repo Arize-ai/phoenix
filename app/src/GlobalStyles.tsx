@@ -662,6 +662,7 @@ export const darkThemeCSS = css`
 
     // Link colors
     --ac-global-link-color: rgb(114, 217, 255);
+    --ac-global-link-color-visited: var(--ac-global-color-purple-900);
   }
 `;
 
@@ -905,6 +906,7 @@ export const lightThemeCSS = css`
     --ac-global-text-color-300: rgba(0, 0, 0, 0.3);
 
     --ac-global-link-color: rgb(9, 105, 218);
+    --ac-global-link-color-visited: var(--ac-global-color-purple-900);
   }
 `;
 

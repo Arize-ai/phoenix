@@ -763,7 +763,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 <LLMMessagesList messages={outputMessages} />
               </LazyTabPanel>
             )}
-
             {hasOutput && (
               <LazyTabPanel id="output">
                 <View padding="size-200">
@@ -829,6 +828,7 @@ function RetrieverSpanInfo(props: {
   }, [span.documentEvaluations]);
 
   const hasInput = input != null && input.value != null;
+  const isText = hasInput && input.mimeType === "text";
   const hasDocuments = documents.length > 0;
   const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
@@ -839,9 +839,12 @@ function RetrieverSpanInfo(props: {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
-                <ConnectedMarkdownModeRadioGroup />
-                <CopyToClipboardButton text={input.value} />
+              <Flex direction="row" gap="size-100" alignItems="center">
+                {isText ? (
+                  <ConnectedMarkdownModeRadioGroup />
+                ) : (
+                  <CopyToClipboardButton text={input.value} />
+                )}
               </Flex>
             }
           >
@@ -1119,7 +1122,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
@@ -1137,7 +1140,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             backgroundColor="green-100"
             borderColor="green-700"
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
@@ -1371,7 +1374,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             : "")
         }
         extra={
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeRadioGroup />
             <CopyToClipboardButton
               text={messageContent || JSON.stringify(message)}
@@ -1628,7 +1631,7 @@ function SpanIO({ span }: { span: Span }) {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
@@ -1646,7 +1649,7 @@ function SpanIO({ span }: { span: Span }) {
             backgroundColor="green-100"
             borderColor="green-700"
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
