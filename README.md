@@ -54,9 +54,9 @@ Phoenix container images are available via [Docker Hub](https://hub.docker.com/r
 
 ## Tracing Integrations
 
-Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic.
+Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
-**Python**
+**Python Integrations**
 | Integration | Package | Version Badge |
 |------------------|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
 | [OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai) | `openinference-instrumentation-openai` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-openai.svg)](https://pypi.python.org/pypi/openinference-instrumentation-openai) |
@@ -76,15 +76,18 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [Anthropic](https://docs.arize.com/phoenix/tracing/integrations-tracing/anthropic) | `openinference-instrumentation-anthropic` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-anthropic.svg)](https://pypi.python.org/pypi/openinference-instrumentation-anthropic) |
 | [Smolagents](https://huggingface.co/docs/smolagents/en/tutorials/inspect_runs) | `openinference-instrumentation-smolagents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-smolagents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-smolagents) |
 
-### JavaScript
+### JavaScript Integrations
 
 | Integration                                                                                | Package                                            | Version Badge                                                                                                                                                                       |
 | ------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai-node-sdk)      | `@arizeai/openinference-instrumentation-openai`    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-openai.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-openai)       |
 | [LangChain.js](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain.js)   | `@arizeai/openinference-instrumentation-langchain` | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-instrumentation-langchain.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain) |
 | [Vercel AI SDK](https://docs.arize.com/phoenix/tracing/integrations-tracing/vercel-ai-sdk) | `@arizeai/openinference-vercel`                    | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-vercel)                                           |
+| [BeeAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/beeai)                 | `@arizeai/openinference-instrumentation-beeai`     | [![NPM Version](https://img.shields.io/npm/v/@arizeai/openinference-vercel)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-beeai)                            |
 
-For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
+### Platforms
+
+Phoenix has native integrations with [LangFlow](https://docs.arize.com/phoenix/tracing/integrations-tracing/langflow), LiteLLM Proxy, and [BeeAI](https://docs.beeai.dev/observability/agents-traceability).
 
 ## Community
 
@@ -104,7 +107,7 @@ See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 
 ## Copyright, Patent, and License
 
-Copyright 2024 Arize AI, Inc. All Rights Reserved.
+Copyright 2025 Arize AI, Inc. All Rights Reserved.
 
 Portions of this code are patent protected by one or more U.S. Patents. See the [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
