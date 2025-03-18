@@ -37,16 +37,17 @@ def upgrade() -> None:
             "annotation_type",
             sa.String,
             sa.CheckConstraint(
-                "annotation_type IN ('CATEGORIAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
+                "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
                 name="annotation_type",
             ),
             nullable=False,
         ),
         sa.Column(
-            "score_direction",
+            "optimization_direction",
             sa.String,
             sa.CheckConstraint(
-                "score_direction IN ('MINIMIZE', 'MAXIMIZE')", name="score_direction"
+                "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+                name="valid_optimization_direction",
             ),
             nullable=False,
         ),

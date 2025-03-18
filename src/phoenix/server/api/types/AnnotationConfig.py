@@ -13,11 +13,10 @@ class AnnotationType(str, Enum):
     CATEGORICAL = "CATEGORICAL"
     CONTINUOUS = "CONTINUOUS"
     FREEFORM = "FREEFORM"
-    BINARY = "BINARY"
 
 
 @strawberry.enum
-class ScoreDirection(str, Enum):
+class OptimizationDirection(str, Enum):
     MINIMIZE = "MINIMIZE"
     MAXIMIZE = "MAXIMIZE"
 
@@ -27,7 +26,7 @@ class AnnotationConfigInterface:
     id_attr: NodeID[int]
     name: str
     annotation_type: AnnotationType
-    score_direction: ScoreDirection
+    optimization_direction: OptimizationDirection
     description: Optional[str]
 
 
@@ -76,12 +75,14 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
     try:
         gql_annotation_type = AnnotationType(annotation_config.annotation_type.upper())
     except ValueError:
-        if annotation_config.annotation_type.upper() == "CATEGORIAL":
+        if annotation_config.annotation_type.upper() == "CATEGORICAL":
             gql_annotation_type = AnnotationType.CATEGORICAL
         else:
             raise
 
-    gql_score_direction = ScoreDirection(annotation_config.score_direction.upper())
+    gql_optimization_direction = OptimizationDirection(
+        annotation_config.optimization_direction.upper()
+    )
 
     if gql_annotation_type == AnnotationType.CONTINUOUS:
         continuous = annotation_config.continuous_config
@@ -89,15 +90,12 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            score_direction=gql_score_direction,
+            optimization_direction=gql_optimization_direction,
             description=annotation_config.description,
             lower_bound=continuous.lower_bound if continuous else None,
             upper_bound=continuous.upper_bound if continuous else None,
         )
-    elif (
-        gql_annotation_type == AnnotationType.CATEGORICAL
-        or gql_annotation_type == AnnotationType.BINARY
-    ):
+    elif gql_annotation_type == AnnotationType.CATEGORICAL:
         categorical = annotation_config.categorical_config
         allowed_values = (
             [
@@ -115,7 +113,7 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            score_direction=gql_score_direction,
+            optimization_direction=gql_optimization_direction,
             description=annotation_config.description,
             is_ordinal=categorical.is_ordinal if categorical else False,
             multilabel_allowed=categorical.multilabel_allowed if categorical else False,
@@ -126,6 +124,6 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            score_direction=gql_score_direction,
+            optimization_direction=gql_optimization_direction,
             description=annotation_config.description,
         )

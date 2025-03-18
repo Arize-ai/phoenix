@@ -1284,14 +1284,17 @@ class AnnotationConfig(Base):
     annotation_type: Mapped[str] = mapped_column(
         String,
         CheckConstraint(
-            "annotation_type IN ('CATEGORIAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
-            name="annotation_type",
+            "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
+            name="valid_annotation_type",
         ),
         nullable=False,
     )
-    score_direction: Mapped[str] = mapped_column(
+    optimization_direction: Mapped[str] = mapped_column(
         String,
-        CheckConstraint("score_direction IN ('MINIMIZE', 'MAXIMIZE')", name="score_direction"),
+        CheckConstraint(
+            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+            name="valid_optimization_direction",
+        ),
         nullable=False,
     )
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)

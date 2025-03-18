@@ -2049,9 +2049,9 @@
             "type": "string",
             "title": "Annotation Type"
           },
-          "score_direction": {
+          "optimization_direction": {
             "type": "string",
-            "title": "Score Direction"
+            "title": "Optimization Direction"
           },
           "description": {
             "anyOf": [
@@ -2128,7 +2128,7 @@
           "id",
           "name",
           "annotation_type",
-          "score_direction"
+          "optimization_direction"
         ],
         "title": "AnnotationConfigResponse"
       },
@@ -2138,9 +2138,9 @@
             "type": "string",
             "title": "Name"
           },
-          "score_direction": {
+          "optimization_direction": {
             "type": "string",
-            "title": "Score Direction"
+            "title": "Optimization Direction"
           },
           "description": {
             "anyOf": [
@@ -2174,7 +2174,7 @@
         "type": "object",
         "required": [
           "name",
-          "score_direction",
+          "optimization_direction",
           "allowed_values"
         ],
         "title": "CreateBinaryAnnotationConfigPayload"
@@ -2185,9 +2185,9 @@
             "type": "string",
             "title": "Name"
           },
-          "score_direction": {
+          "optimization_direction": {
             "type": "string",
-            "title": "Score Direction"
+            "title": "Optimization Direction"
           },
           "description": {
             "anyOf": [
@@ -2219,7 +2219,7 @@
         "type": "object",
         "required": [
           "name",
-          "score_direction",
+          "optimization_direction",
           "is_ordinal",
           "multilabel_allowed",
           "allowed_values"
@@ -2256,9 +2256,9 @@
             "type": "string",
             "title": "Name"
           },
-          "score_direction": {
+          "optimization_direction": {
             "type": "string",
-            "title": "Score Direction"
+            "title": "Optimization Direction"
           },
           "description": {
             "anyOf": [
@@ -2297,7 +2297,7 @@
         "type": "object",
         "required": [
           "name",
-          "score_direction"
+          "optimization_direction"
         ],
         "title": "CreateContinuousAnnotationConfigPayload"
       },
@@ -2380,9 +2380,9 @@
             "type": "string",
             "title": "Name"
           },
-          "score_direction": {
+          "optimization_direction": {
             "type": "string",
-            "title": "Score Direction"
+            "title": "Optimization Direction"
           },
           "description": {
             "anyOf": [
@@ -2399,7 +2399,7 @@
         "type": "object",
         "required": [
           "name",
-          "score_direction"
+          "optimization_direction"
         ],
         "title": "CreateFreeformAnnotationConfigPayload"
       },

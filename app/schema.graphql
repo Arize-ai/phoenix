@@ -55,7 +55,7 @@ type AnnotationConfigEdge {
 interface AnnotationConfigInterface {
   name: String!
   annotationType: AnnotationType!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String
 }
 
@@ -72,7 +72,6 @@ enum AnnotationType {
   CATEGORICAL
   CONTINUOUS
   FREEFORM
-  BINARY
 }
 
 enum AnnotatorKind {
@@ -137,7 +136,7 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigInterface {
   id: GlobalID!
   name: String!
   annotationType: AnnotationType!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String
   isOrdinal: Boolean!
   multilabelAllowed: Boolean!
@@ -320,7 +319,7 @@ type ContinuousAnnotationConfig implements Node & AnnotationConfigInterface {
   id: GlobalID!
   name: String!
   annotationType: AnnotationType!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String
   lowerBound: Float
   upperBound: Float
@@ -332,18 +331,9 @@ input CreateApiKeyInput {
   expiresAt: DateTime
 }
 
-input CreateBinaryAnnotationConfigInput {
-  name: String!
-  scoreDirection: ScoreDirection!
-  description: String = null
-  isOrdinal: Boolean! = false
-  multilabelAllowed: Boolean! = false
-  allowedValues: [CreateCategoricalAnnotationValueInput!]!
-}
-
 input CreateCategoricalAnnotationConfigInput {
   name: String!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String = null
   isOrdinal: Boolean!
   multilabelAllowed: Boolean!
@@ -369,7 +359,7 @@ input CreateChatPromptVersionInput {
 
 input CreateContinuousAnnotationConfigInput {
   name: String!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String = null
   lowerBound: Float = null
   upperBound: Float = null
@@ -383,7 +373,7 @@ input CreateDatasetInput {
 
 input CreateFreeformAnnotationConfigInput {
   name: String!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String = null
 }
 
@@ -1120,7 +1110,7 @@ type FreeformAnnotationConfig implements Node & AnnotationConfigInterface {
   id: GlobalID!
   name: String!
   annotationType: AnnotationType!
-  scoreDirection: ScoreDirection!
+  optimizationDirection: OptimizationDirection!
   description: String
 }
 
@@ -1339,15 +1329,14 @@ input ModelsInput {
 }
 
 type Mutation {
-  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): AnnotationConfig!
-  createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): AnnotationConfig!
-  createBinaryAnnotationConfig(input: CreateBinaryAnnotationConfigInput!): AnnotationConfig!
-  createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): AnnotationConfig!
+  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): ContinuousAnnotationConfig!
+  createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): CategoricalAnnotationConfig!
+  createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): FreeformAnnotationConfig!
   patchAnnotationConfig(input: PatchAnnotationConfigInput!): AnnotationConfig!
-  patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): AnnotationConfig!
-  patchCategoricalAnnotationConfig(input: PatchCategoricalAnnotationConfigInput!): AnnotationConfig!
-  patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): AnnotationConfig!
-  patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): AnnotationConfig!
+  patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): ContinuousAnnotationConfig!
+  patchCategoricalAnnotationConfig(input: PatchCategoricalAnnotationConfigInput!): CategoricalAnnotationConfig!
+  patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): CategoricalAnnotationConfig!
+  patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): CategoricalAnnotationConfig!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): Boolean!
   createProjectAnnotationConfig(input: [CreateProjectAnnotationConfigInput!]!): ProjectAnnotationConfig!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
@@ -1415,6 +1404,11 @@ type NumericRange {
   end: Float!
 }
 
+enum OptimizationDirection {
+  MINIMIZE
+  MAXIMIZE
+}
+
 """Information to aid in pagination."""
 type PageInfo {
   """When paginating forwards, are there more items?"""
@@ -1434,7 +1428,7 @@ input PatchAnnotationConfigInput {
   configId: GlobalID!
   name: String = null
   description: String = null
-  scoreDirection: ScoreDirection = null
+  optimizationDirection: OptimizationDirection = null
 }
 
 input PatchAnnotationInput {
@@ -1888,11 +1882,6 @@ enum ScalarDriftMetric {
   psi
   klDivergence
   jsDistance
-}
-
-enum ScoreDirection {
-  MINIMIZE
-  MAXIMIZE
 }
 
 type Segment {

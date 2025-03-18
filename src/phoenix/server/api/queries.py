@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import strawberry
 from sqlalchemy import and_, distinct, func, select, text
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 from starlette.authentication import UnauthenticatedUser
 from strawberry import ID, UNSET
 from strawberry.relay import Connection, GlobalID, Node
@@ -679,10 +679,12 @@ class Query:
         )
         async with info.context.db() as session:
             stmt = select(models.AnnotationConfig).options(
-                selectinload(models.AnnotationConfig.continuous_config),
-                selectinload(models.AnnotationConfig.categorical_config),
+                joinedload(models.AnnotationConfig.continuous_config),
+                joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                    models.CategoricalAnnotationConfig.allowed_values
+                ),
             )
-            configs = await session.stream_scalars(stmt)
+            configs = (await session.stream_scalars(stmt)).unique()
             data = [to_gql_annotation_config(config) async for config in configs]
             return connection_from_list(data=data, args=args)
 
