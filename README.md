@@ -106,30 +106,6 @@ See the [migration guide](./MIGRATION.md) for a list of breaking changes.
 ## Copyright, Patent, and License
 
 Copyright 2025 Arize AI, Inc. All Rights Reserved.
-<Dialog
-                            title="New Dataset"
-                            isDismissable
-                            onDismiss={() => setDialog(null)}
-                          >
-                            <CreateDatasetForm
-                              onDatasetCreateError={(error) => {
-                                const formattedError =
-                                  getErrorMessagesFromRelayMutationError(error);
-                                notifyError({
-                                  title: "Dataset creation failed",
-                                  message: `Failed to create dataset: ${formattedError?.[0] ?? error.message}`,
-                                });
-                              }}
-                              onDatasetCreated={(dataset) => {
-                                setDialog(null);
-                                notifySuccess({
-                                  title: "Dataset created",
-                                  message: `${dataset.name} has been successfully created.`,
-                                });
-                                setIsDatasetPopoverOpen(true);
-                              }}
-                            />
-                          </Dialog>
 Portions of this code are patent protected by one or more U.S. Patents. See the [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
