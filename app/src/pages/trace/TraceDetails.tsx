@@ -67,7 +67,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     spanId
                     name
                     spanKind
-                    statusCode: propagatedStatusCode
+                    statusCode
                     startTime
                     parentId
                     latencyMs

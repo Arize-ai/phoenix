@@ -223,7 +223,7 @@ export function TracesTable(props: TracesTableProps) {
                 spanKind
                 name
                 metadata
-                statusCode: propagatedStatusCode
+                statusCode
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal

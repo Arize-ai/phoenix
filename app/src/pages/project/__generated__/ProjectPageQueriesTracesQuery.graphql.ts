@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a69b8c7ee4317870d112ba05932fa3c0>>
+ * @generated SignedSource<<99b700c3667ef60205c3011eae418a97>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -103,34 +103,27 @@ v7 = {
   "storageKey": null
 },
 v8 = {
-  "alias": "statusCode",
-  "args": null,
-  "kind": "ScalarField",
-  "name": "propagatedStatusCode",
-  "storageKey": null
-},
-v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startTime",
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "latencyMs",
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v12 = [
+v11 = [
   {
     "alias": "value",
     "args": null,
@@ -139,41 +132,41 @@ v12 = [
     "storageKey": null
   }
 ],
-v13 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v12/*: any*/),
+  "selections": (v11/*: any*/),
   "storageKey": null
 },
-v14 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v12/*: any*/),
+  "selections": (v11/*: any*/),
   "storageKey": null
 },
-v15 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanId",
   "storageKey": null
 },
-v16 = {
+v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "traceId",
   "storageKey": null
 },
-v17 = {
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -207,7 +200,7 @@ v17 = {
   ],
   "storageKey": null
 },
-v18 = {
+v17 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -338,9 +331,15 @@ return {
                             "name": "metadata",
                             "storageKey": null
                           },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "statusCode",
+                            "storageKey": null
+                          },
                           (v8/*: any*/),
                           (v9/*: any*/),
-                          (v10/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -362,10 +361,10 @@ return {
                             "name": "cumulativeTokenCountCompletion",
                             "storageKey": null
                           },
-                          (v11/*: any*/),
+                          (v10/*: any*/),
+                          (v12/*: any*/),
                           (v13/*: any*/),
                           (v14/*: any*/),
-                          (v15/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -375,7 +374,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v3/*: any*/),
-                              (v16/*: any*/),
+                              (v15/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -386,8 +385,8 @@ return {
                             ],
                             "storageKey": null
                           },
+                          (v16/*: any*/),
                           (v17/*: any*/),
-                          (v18/*: any*/),
                           {
                             "alias": null,
                             "args": [
@@ -417,10 +416,16 @@ return {
                                       (v3/*: any*/),
                                       (v7/*: any*/),
                                       (v4/*: any*/),
+                                      {
+                                        "alias": "statusCode",
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "propagatedStatusCode",
+                                        "storageKey": null
+                                      },
                                       (v8/*: any*/),
                                       (v9/*: any*/),
                                       (v10/*: any*/),
-                                      (v11/*: any*/),
                                       {
                                         "alias": "cumulativeTokenCountTotal",
                                         "args": null,
@@ -442,9 +447,9 @@ return {
                                         "name": "tokenCountCompletion",
                                         "storageKey": null
                                       },
+                                      (v12/*: any*/),
                                       (v13/*: any*/),
                                       (v14/*: any*/),
-                                      (v15/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -454,12 +459,12 @@ return {
                                         "plural": false,
                                         "selections": [
                                           (v3/*: any*/),
-                                          (v16/*: any*/)
+                                          (v15/*: any*/)
                                         ],
                                         "storageKey": null
                                       },
-                                      (v17/*: any*/),
-                                      (v18/*: any*/)
+                                      (v16/*: any*/),
+                                      (v17/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -546,12 +551,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "efa78bce39bc2b4c09226b7d7b74038e",
+    "cacheID": "6996a7561889a2b24588e77de7391a15",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQueriesTracesQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesTracesQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...TracesTable_spans\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment TracesTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 50, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          numSpans\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              startTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              cumulativeTokenCountPrompt: tokenCountPrompt\n              cumulativeTokenCountCompletion: tokenCountCompletion\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageQueriesTracesQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...TracesTable_spans\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment TracesTable_spans on Project {\n  name\n  ...SpanColumnSelector_annotations\n  rootSpans: spans(first: 50, sort: {col: startTime, dir: desc}, rootSpansOnly: true, timeRange: $timeRange) {\n    edges {\n      rootSpan: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        parentId\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanId\n        trace {\n          id\n          traceId\n          numSpans\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants(first: 50) {\n          edges {\n            node {\n              id\n              spanKind\n              name\n              statusCode: propagatedStatusCode\n              startTime\n              latencyMs\n              parentId\n              cumulativeTokenCountTotal: tokenCountTotal\n              cumulativeTokenCountPrompt: tokenCountPrompt\n              cumulativeTokenCountCompletion: tokenCountCompletion\n              input {\n                value: truncatedValue\n              }\n              output {\n                value: truncatedValue\n              }\n              spanId\n              trace {\n                id\n                traceId\n              }\n              spanAnnotations {\n                id\n                name\n                label\n                score\n                annotatorKind\n              }\n              documentRetrievalMetrics {\n                evaluationName\n                ndcg\n                precision\n                hit\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
