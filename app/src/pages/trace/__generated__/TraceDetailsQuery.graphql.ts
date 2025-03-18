@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<85bf73e07ab7a5ac32add19bc07c03e9>>
+ * @generated SignedSource<<df97ed52d30faec0fd773ea26b0c0bee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -154,10 +154,10 @@ v5 = {
                       "storageKey": null
                     },
                     {
-                      "alias": "statusCode",
+                      "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "propagatedStatusCode",
+                      "name": "statusCode",
                       "storageKey": null
                     },
                     {
@@ -275,16 +275,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ac9147f8bf0ef8c809d19877e0ee5f2c",
+    "cacheID": "9434c8c6e07d5ca4dd3a19286644f369",
     "id": null,
     "metadata": {},
     "name": "TraceDetailsQuery",
     "operationKind": "query",
-    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode: propagatedStatusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceDetailsQuery(\n  $traceId: ID!\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      trace(traceId: $traceId) {\n        projectSessionId\n        spans(first: 1000) {\n          edges {\n            span: node {\n              id\n              spanId\n              name\n              spanKind\n              statusCode\n              startTime\n              parentId\n              latencyMs\n              tokenCountTotal\n              tokenCountPrompt\n              tokenCountCompletion\n            }\n          }\n        }\n        latencyMs\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aedd511ed255adab3a80dde8956a01c4";
+(node as any).hash = "e4165ac98e972c7c7491e1573a1aec1a";
 
 export default node;
