@@ -1,5 +1,27 @@
 # Changelog
 
+## [8.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.13.2...arize-phoenix-v8.14.0) (2025-03-18)
+
+
+### Features
+
+* Add resize capability to Span, Trace, and Session table ([#6796](https://github.com/Arize-ai/phoenix/issues/6796)) ([80a8b64](https://github.com/Arize-ai/phoenix/commit/80a8b6430b08d2bc2bf6dd46074efdf733cda8a3))
+* Split settings page into tabs ([#6792](https://github.com/Arize-ai/phoenix/issues/6792)) ([187c857](https://github.com/Arize-ai/phoenix/commit/187c857dc0fbd692ebadea740f763ac3bb19deac))
+
+
+### Bug Fixes
+
+* **langgraph:** don't aggregate status ([#6814](https://github.com/Arize-ai/phoenix/issues/6814)) ([483a6bc](https://github.com/Arize-ai/phoenix/commit/483a6bcb35b903e7b093cf3db634dd370beff86d))
+* resolve codemirror duplicate package issue ([#6817](https://github.com/Arize-ai/phoenix/issues/6817)) ([c0b60a9](https://github.com/Arize-ai/phoenix/commit/c0b60a911da4efb495995d72572274f79745595c))
+
+
+### Documentation
+
+* add agents sdk to readme ([#6810](https://github.com/Arize-ai/phoenix/issues/6810)) ([860778c](https://github.com/Arize-ai/phoenix/commit/860778c41c7cb1dded9e119343030e6b43b719b0))
+* add beeai to readme ([#6811](https://github.com/Arize-ai/phoenix/issues/6811)) ([c9442e0](https://github.com/Arize-ai/phoenix/commit/c9442e081f10013cac592ad1a467530394fb71a3))
+* remove gif for now ([753c1a9](https://github.com/Arize-ai/phoenix/commit/753c1a9b53e2931165425a03a54ca1faa596af87))
+* Remove the featurs list ([b5a2d57](https://github.com/Arize-ai/phoenix/commit/b5a2d574678903b54893be327ee22b75543976ee))
+
 ## [8.13.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.13.1...arize-phoenix-v8.13.2) (2025-03-17)
 
 
