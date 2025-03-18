@@ -348,7 +348,7 @@ params = CompletionCreateParamsBase(
             "role": "system",
             "content": """
               You are a helpful customer service agent. Carefully analyze the customer’s question to fully understand their request.
-              Step 1: Think step-by-step. Identify the key pieces of information needed to answer the question., Consider any dependencies between these pieces of information.
+              Step 1: Think step-by-step. Identify the key pieces of information needed to answer the question. Consider any dependencies between these pieces of information.
               Step 2: Decide which tools to use. Choose up to 3 tools that will best retrieve the required information. If multiple tools are needed, determine the correct order to call them.
               Step 3: Output the chosen tools and any relevant parameters.
 

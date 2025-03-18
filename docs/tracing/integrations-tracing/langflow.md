@@ -1,12 +1,12 @@
-# LangFlow
+# Langflow
 
-LangFlow is an open-source visual framework that enables developers to rapidly design, prototype, and deploy custom applications powered by large language models (LLMs). Built on top of LangChain,&#x20;
+Langflow is an open-source visual framework that enables developers to rapidly design, prototype, and deploy custom applications powered by large language models (LLMs). Built on top of LangChain,&#x20;
 
-LangFlow users can now seamlessly observe their LLM workflows through Arize Phoenix. This integration allows developers to gain granular visibility into the performance and behavior of their LangFlow applications. By leveraging Arize AI's observability platform, users can capture detailed telemetry data from their LangFlow pipelines, enabling them to identify bottlenecks, trace the flow of requests, and ensure the reliability and efficiency of their LLM-powered systems. This enhanced observability empowers teams to debug issues faster, optimize performance, and maintain high-quality user experiences across their LLM applications.
+Langflow users can now seamlessly observe their LLM workflows through Arize Phoenix. This integration allows developers to gain granular visibility into the performance and behavior of their Langflow applications. By leveraging Arize AI's observability platform, users can capture detailed telemetry data from their Langflow pipelines, enabling them to identify bottlenecks, trace the flow of requests, and ensure the reliability and efficiency of their LLM-powered systems. This enhanced observability empowers teams to debug issues faster, optimize performance, and maintain high-quality user experiences across their LLM applications.
 
-## Pull LangFlow Repo
+## Pull Langflow Repo
 
-Navigate to the LangFlow GitHub repo and pull the project down
+Navigate to the Langflow GitHub repo and pull the project down
 
 {% @github-files/github-code-block url="https://github.com/langflow-ai/langflow" %}
 
@@ -25,19 +25,19 @@ Add the following environment variable to the `.env` file
 PHOENIX_API_KEY="YOUR_PHOENIX_KEY_HERE"
 ```
 
-Note: This LangFlow integration is for [Phoenix](https://app.phoenix.arize.com/login/sign-up)[ Cloud](https://app.phoenix.arize.com/login/sign-up)
+Note: This Langflow integration is for [Phoenix](https://app.phoenix.arize.com/login/sign-up)[ Cloud](https://app.phoenix.arize.com/login/sign-up)
 
 ## Start Docker Desktop
 
 Start Docker Desktop, build the images, and run the container (this will take around 10 minutes the first time)\
 \
-Go into your terminal into the LangFlow directory and run the following commands
+Go into your terminal into the Langflow directory and run the following commands
 
 <pre><code><strong>docker compose -f docker/dev.docker-compose.yml down || true 
 </strong>docker compose -f docker/dev.docker-compose.yml up --remove-orphans
 </code></pre>
 
-## Go to Hosted LangFlow UI
+## Go to Hosted Langflow UI
 
 {% embed url="http://localhost:3000/" %}
 
@@ -49,7 +49,7 @@ In this example, we'll use Simple Agent for this tutorial&#x20;
 
 <figure><img src="../../.gitbook/assets/image (4).png" alt=""><figcaption></figcaption></figure>
 
-Add your OpenAI Key to the Agent component in LangFlow
+Add your OpenAI Key to the Agent component in Langflow
 
 <figure><img src="../../.gitbook/assets/image (5).png" alt=""><figcaption><p>Add your OpenAI Key</p></figcaption></figure>
 
@@ -59,7 +59,7 @@ Go into the Playground and run the Agent
 
 ## Go to Arize Phoenix
 
-Navigate to your project name (should match the name of of your LangFlow Agent name)
+Navigate to your project name (should match the name of of your Langflow Agent name)
 
 [https://app.phoenix.arize.com/](https://app.phoenix.arize.com/)
 
@@ -71,8 +71,8 @@ Navigate to your project name (should match the name of of your LangFlow Agent n
 
 <figure><img src="../../.gitbook/assets/image (10).png" alt=""><figcaption><p>Agent Executor Trace by Arize Phoenix</p></figcaption></figure>
 
-AgentExecutor Trace is Arize Phoenix instrumentation to capture what's happening with the LangChain being ran during the LangFlow components
+AgentExecutor Trace is Arize Phoenix instrumentation to capture what's happening with the LangChain being ran during the Langflow components
 
-<figure><img src="../../.gitbook/assets/image (11).png" alt=""><figcaption><p>Native LangFlow Tracing</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (11).png" alt=""><figcaption><p>Native Langflow Tracing</p></figcaption></figure>
 
-The other UUID trace is the native LangFlow tracing.
+The other UUID trace is the native Langflow tracing.

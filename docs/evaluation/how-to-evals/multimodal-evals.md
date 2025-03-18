@@ -14,19 +14,26 @@ These examples illustrate how multimodal templates can be applied, but their ver
 
 ### **ClassificationTemplate**
 
-`ClassificationTemplate` is a helper class that simplifies the construction of evaluation prompts for classification tasks involving different content types. This includes tasks where inputs or outputs may include text, audio, images, or a combination of these modalities.
+`ClassificationTemplate` is a class used to create evaluation prompts that are more complex than a simple string for classification tasks. We can also build prompts that consist of multiple message parts. We may include text, audio, or images in these messages, enabling us to construct multimodal evals if the LLM supports multimodal inputs.
 
-The `ClassificationTemplate` enables users to:
+By defining a `ClassificationTemplate`  we can construct multi-part and multimodal evaluation templates by combining multiple `PromptPartTemplate`objects.
 
-* Define the structure of evaluation prompts using **PromptPartTemplate** objects.
-* Combine multiple modalities into a single evaluation flow.
-* Optionally include explanation templates for interpretability.
+```python
+from phoenix.evals.templates import (
+    ClassificationTemplate,
+    PromptPartTemplate,
+)
+```
+
+* An evaluation prompt can consist of multiple **PromptPartTemplate** objects
+* Each **PromptPartTemplate** can have a different content type
+* Combine multiple **PromptPartTemplate** with templating variables to evaluate audio or image inputs
 
 #### **Structure of a ClassificationTemplate**
 
 A `ClassificationTemplate` consists of the following components:
 
-1. **Rails**: Guidelines or rules for the evaluation task.
+1. **Rails**: These are the allowed classification labels for this evaluation task
 2. **Template**: A list of `PromptPartTemplate` objects specifying the structure of the evaluation input. Each `PromptPartTemplate` includes:
    * **content\_type**: The type of content (e.g., `TEXT`, `AUDIO`, `IMAGE`).
    * **template**: The string or object defining the content for that part.

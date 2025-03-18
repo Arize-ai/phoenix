@@ -33,7 +33,7 @@ lcInstrumentation.manuallyInstrument(CallbackManagerModule);
 
 ## Support
 
-Instrumentation version >1.0.0 supports both [attribute masking](../how-to-tracing/masking-span-attributes.md) and [context attribute propagation](../how-to-tracing/customize-spans.md) to spans.
+Instrumentation version >1.0.0 supports both [attribute masking](../how-to-tracing/advanced/masking-span-attributes.md) and [context attribute propagation](../how-to-tracing/add-metadata/customize-spans.md) to spans.
 
 <table data-full-width="false"><thead><tr><th width="226">Instrumentation Version</th><th width="177" align="center">LangChain ^0.3.0</th><th width="181" align="center">LangChain ^0.2.0</th><th align="center">LangChain ^0.1.0</th></tr></thead><tbody><tr><td>>1.0.0</td><td align="center">✅</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.2.0</td><td align="center">❌</td><td align="center">✅</td><td align="center">✅</td></tr><tr><td>>0.1.0</td><td align="center">❌</td><td align="center">❌</td><td align="center">✅</td></tr></tbody></table>
 

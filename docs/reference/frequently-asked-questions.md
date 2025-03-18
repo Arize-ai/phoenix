@@ -1,25 +1,34 @@
 # Frequently Asked Questions
 
-## Will Phoenix Developer Edition be on the latest version of Phoenix?
+## Will Phoenix Cloud be on the latest version of Phoenix?
 
-We update the Phoenix version used by Phoenix Developer Edition on a weekly basis.
+## What is the difference between Phoenix and Arize?
 
-## Data retention
+Arize is the company that makes Phoenix. Phoenix is an open source LLM observability tool offered by Arize. It can be access in its Cloud form online, or self-hosted and run on your own machine or server.
 
-We have a 30 day data retention policy. We are working on plans to offer a longer data retention period.
+"Arize" can also refer to Arize's enterprise platform, often called Arize AX, available on arize.com. Arize AX is the enterprise SaaS version of Phoenix that comes with additional features like Copilot, ML and CV support, HIPAA compliance, Security Reviews, a customer success team, and more. See [here for a breakdown](https://phoenix.arize.com/pricing/) of the two tools.
+
+## What is LlamaTrace vs Phoenix Cloud?
+
+LlamaTrace and Phoenix Cloud are the same tool. They are the hosted version of Phoenix provided on app.phoenix.arize.com.
+
+## Will Phoenix Cloud be on the latest version of Phoenix?
+
+We update the Phoenix version used by Phoenix Cloud on a weekly basis.
 
 ## Sharing
 
-Currently accounts are setup to be used specifically for one developer. We will be adding ways to share your traces with other developers on your team shortly!
+Currently Phoenix Cloud accounts are setup to be used specifically for one developer. We will be adding ways to share your traces with other developers on your team shortly!
+
+Self-hosted Phoenix supports multiple user with authentication, roles, and more.
 
 ## Pricing
 
-Phoenix Developer Edition is free up to the following limits, then $50/month.
+Phoenix Cloud is free up to the following limits, then $50/month.
 
-Free tier limits:
-
-* 100K logs (spans)
 * 10gb storage
+
+Self-hosting Phoenix is completely free.
 
 ## Can I use Azure OpenAI?
 
@@ -98,7 +107,7 @@ You can persist data in the notebook by either setting the `use_temp_dir` flag t
 
 Phoenix does natively support gRPC for trace collection post 4.0 release. See [deployment](../deployment/ "mention") for details.
 
-## How do I resolve Phoenix Evals, showing NOT\_PARSABLE?
+## How do I resolve Phoenix Evals showing NOT\_PARSABLE?
 
 `NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON. Here's how to fix it:
 

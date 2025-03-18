@@ -1,5 +1,5 @@
 ---
-description: How to configure Phoenix for your needs
+description: How to customize your self-hosted deployment of Phoenix
 ---
 
 # Configuration
@@ -30,6 +30,16 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_SQL\_DATABASE\_URL:** The SQL database URL to use when logging traces and evals. if you plan on using SQLite, it's advised to to use a persistent volume and simply point the `PHOENIX_WORKING_DIR` to that volume. If URL is not specified, by default Phoenix starts with a file-based SQLite database in a temporary folder, the location of which will be shown at startup. Phoenix also supports PostgresSQL as shown below:
   * PostgreSQL, e.g. `postgresql://@host/dbname?user=user&password=password` or `postgresql://user:password@host/dbname`
   * SQLite, e.g. `sqlite:///path/to/database.db`
+* **PHOENIX\_POSTGRES\_HOST:** As an alternative to setting **PHOENIX\_SQL\_DATABASE\_URL**, you can set the following environment variables to connect to a PostgreSQL database:
+  * PHOENIX\_POSTGRES\_HOST
+  * PHOENIX\_POSTGRES\_PORT
+  * PHOENIX\_POSTGRES\_USER
+  * PHOENIX\_POSTGRES\_PASSWORD
+  * PHOENIX\_POSTGRES\_DB
+* **PHOENIX\_POSTGRES\_PORT:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the port to use for the PostgreSQL database.
+* **PHOENIX\_POSTGRES\_USER:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the user to use for the PostgreSQL database.
+* **PHOENIX\_POSTGRES\_PASSWORD:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the password to use for the PostgreSQL database.
+* **PHOENIX\_POSTGRES\_DB:** Used with **PHOENIX\_POSTGRES\_HOST** to specify the database to use for the PostgreSQL database.
 * **PHOENIX\_SQL\_DATABASE\_SCHEMA:** An optional string specifying the PostgreSQL [schema](https://www.postgresql.org/docs/current/ddl-schemas.html) for the database tables. Similar to folders, schemas help organize tables outside the default `public` schema. If the specified schema does not exist, it will be created. This option is ignored when using SQLite.
 * **PHOENIX\_ENABLE\_PROMETHEUS:** Whether to enable Prometheus metrics at port 9090. Defaults to false.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
@@ -51,7 +61,7 @@ The following environment variables will control your client or notebook environ
 
 * **PHOENIX\_NOTEBOOK\_ENV:** The notebook environment. Typically you do not need to set this but it can be set explicitly (e.x. `sagemaker`)
 * **PHOENIX\_COLLECTOR\_ENDPOINT:** The endpoint traces and evals are sent to. This must be set if the Phoenix server is running on a remote instance. For example if phoenix is running at `http://125.2.3.5:4040` , this environment variable must be set where your LLM application is running and being traced. Note that the endpoint should not contain trailing slashes or slugs.
-* **PHOENIX\_PROJECT\_NAME:** The project under which traces will be sent. See [projects](../tracing/how-to-tracing/setup-tracing-python.md#log-to-a-specific-project).
+* **PHOENIX\_PROJECT\_NAME:** The project under which traces will be sent. See [projects](broken-reference).
 * **PHOENIX\_CLIENT\_HEADERS:** The headers to set when talking to the phoenix server. This might be things like authentication headers for hosted phoenix.
 
 ## FAQs

@@ -12,6 +12,13 @@ Prompt engineering is not just about designing and developing prompts. It encomp
 * [Few Shot Prompting](https://www.promptingguide.ai/techniques/fewshot)&#x20;
 * [ReAct Prompting](https://www.promptingguide.ai/techniques/react)&#x20;
 
+## Prompt Optimization
+
+* Few Shot
+* Meta Prompting
+* Gradient Prompt Optimization
+* DSPy MIPRO Optimizer
+
 ## Evaluation
 
 * Building a prompt for LLM-as-a-judge

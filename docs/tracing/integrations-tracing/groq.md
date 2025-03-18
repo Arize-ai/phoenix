@@ -20,21 +20,15 @@ Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](ht
 pip install arize-phoenix-otel
 ```
 
-**Connect your application to your cloud instance:**
+**Set your Phoenix endpoint and API Key:**
 
 ```python
 import os
-from phoenix.otel import register
 
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-
-# configure the Phoenix tracer
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-) 
 ```
 
 Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
@@ -56,18 +50,15 @@ For details on customizing a local terminal deployment, see [Terminal Setup](htt
 pip install arize-phoenix-otel
 ```
 
-**Connect your application to your instance using:**
+**Set your Phoenix endpoint:**
 
 ```python
-from phoenix.otel import register
+import os
 
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006/v1/traces",
-)
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-See [deploying-phoenix.md](../../deployment/deploying-phoenix.md "mention") for more details
+See [Broken link](broken-reference "mention") for more details
 {% endtab %}
 
 {% tab title="Docker" %}
@@ -91,15 +82,12 @@ This will expose the Phoenix on `localhost:6006`
 pip install arize-phoenix-otel
 ```
 
-**Connect your application to your instance using:**
+**Set your Phoenix endpoint:**
 
 ```python
-from phoenix.otel import register
+import os
 
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-  endpoint="http://localhost:6006/v1/traces",
-)
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
 For more info on using Phoenix with Docker, see [#docker](groq.md#docker "mention")
@@ -119,18 +107,8 @@ import phoenix as px
 px.launch_app()
 ```
 
-**Connect your notebook to Phoenix:**
-
-```python
-from phoenix.otel import register
-
-tracer_provider = register(
-  project_name="my-llm-app", # Default is 'default'
-)
-```
-
 {% hint style="info" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [persistence.md](../../deployment/persistence.md "mention") or use one of the other deployment options to retain traces.
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [Broken link](broken-reference "mention") or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
 {% endtabs %}
@@ -143,12 +121,16 @@ pip install openinference-instrumentation-groq groq
 
 ## Setup
 
-Initialize the GroqInstrumentor before your application code.
+Connect to your Phoenix instance using the register function.
 
 ```python
-from openinference.instrumentation.groq import GroqInstrumentor
+from phoenix.otel import register
 
-GroqInstrumentor().instrument(tracer_provider=tracer_provider)
+# configure the Phoenix tracer
+tracer_provider = register(
+  project_name="my-llm-app", # Default is 'default'
+  auto_instrument=True # Auto-instrument your app based on installed OI dependencies
+)
 ```
 
 ## Run Groq

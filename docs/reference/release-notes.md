@@ -4,21 +4,102 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
-02.19.2025: Prompts 📃
+## 03.14.2025: OpenAI Agents Instrumentation 📡
+
+**Available in Phoenix 8.6+**
+
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/ai_agents_sdk.png)
+
+We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance.&#x20;
+
+This includes an OpenTelemetry Instrumentor that natively traces agents, LLM calls, tool usage, and agent handoffs. With minimal setup, you can enable tracing and gain real-time insights into your agents' workflows.
+
+**Installation**
+
+```bash
+pip install openinference-instrumentation-openai-agents openai-agents
+```
+
+To enable tracing, use the `register` function to connect your application to Phoenix. Once set up, run your agents and view traces directly in Phoenix for real-time insights.
+
+For more details on a quick setup, check out our [docs](../tracing/integrations-tracing/openai-agents-sdk.md)!&#x20;
+
+<details>
+
+<summary>Improvements and Bug Fixes 🐛</summary>
+
+* **Prompt Playground**: Azure API key made optional, included specialized UI for thinking budget parameter
+* **Experiments**: Added annotations to experiment JSON downloads
+* **Traces**: Trace tree is more readable on smaller sizes
+* **Components**: Added react-aria Tabs components
+* **Python Client**: Included Anthropic thinking configuration parameter
+
+</details>
+
+## 03.07.2025: Projects Improvements 📽️
+
+**Available in Phoenix 8.6+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/metadata_projects.png" %}
+
+We’ve introduced several enhancements to **Projects**, providing greater flexibility and control over how you interact with data. These updates include:
+
+* **Persistent Column Selection on Tables**: Your selected columns will now remain consistent across sessions, ensuring a more seamless workflow.
+* **Metadata Filters from the Table:** Easily filter data directly from the table view using metadata attributes.&#x20;
+* **Custom Time Ranges:** You can now specify custom time ranges to filter traces and spans.
+* **Root Span Filter for Spans:** Improved filtering options allow you to filter by root spans, helping to isolate and debug issues more effectively.
+* **Metadata Quick Filters:** Quickly apply common metadata filters for faster navigation.&#x20;
+
+**Improvements & Bug Fixes 🐛**
+
+* **Prompt Playground**: Now supports GPT-4.5 & Anthropic Sonnet 3.7 and Thinking Budgets
+* **Instrumentation**: [SmolagentsInstrumentor](../tracing/integrations-tracing/hfsmolagents.md) to trace smolagents by Hugging Face
+* **Experiments**: Enhanced experiment filtering for better analysis
+* **Performance**: Major speed improvements in project tracing views & visibility into database usage in settings
+* **Evals**: o3 support, Audio &[ Multi-Modal Evaluations](../evaluation/how-to-evals/multimodal-evals.md)
+* **Instrumentation**: Tool call IDs in Llama-Index & deprecation of Langchain v0.1
+* **Integrations**: Phoenix now supports LiteLLM Proxy & Cleanlabs evals
+* **OTEL**: Auto-instrument tag & decorators for streamlined observability
+
+Check out these [docs](../tracing/concepts-tracing/what-are-traces.md#projects) for more!
+
+***
+
+## 02.19.2025: Prompts 📃
 
 **Available in Phoenix 8.0+**
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-prompts.png)
 
-Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications!  These are some more highlights from this release:&#x20;
+Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications! These are some more highlights from this release:
 
-* Native prompt, tool, parameter, and response format normalization for OpenAI, Anthropic, Azure Open AI, Google AI Studio.
-* Prompt metadata propagation on Playground spans and experiment metadata on Playground dataset runs.
-* Playground Hotkeys and major performance optimizations in the template editors.
-* A new TypeScript client for syncing prompts with your JavaScript runtime, including native support for OpenAI, Anthropic, and the Vercel AI SDK.
-* A new Python client for syncing templates and applying them to AI SDKs like OpenAI, Anthropic, and others.
+* **Versioning & Iteration**: Seamlessly manage prompt versions in both Phoenix and your codebase.
+* **New TypeScript Clien**t: Sync prompts with your JavaScript runtime, now with native support for OpenAI, Anthropic, and the Vercel AI SDK.
+* **New Python Clien**t: Sync templates and apply them to AI SDKs like OpenAI, Anthropic, and more.
+* **Standardized Prompt Handling**: Native normalization for OpenAI, Anthropic, Azure OpenAI, and Google AI Studio.
+* **Enhanced Metadata Propagation**: Track prompt metadata on Playground spans and experiment metadata in dataset runs.
 
-Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prompts and other new features! &#x20;
+Check out the [docs](../prompt-engineering/overview-prompts.md) and this [walkthrough](https://youtu.be/qbeohWaRlsM?feature=shared) for more on prompts!📝 &#x20;
+
+***
+
+## 02.18.2025: One-Line Instrumentation⚡️
+
+**Available in Phoenix 8.0+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/trace_details_view.png" %}
+
+Phoenix has made it even simpler to get started with tracing by introducing one-line auto-instrumentation. By using `register(auto_instrument=True)`, you can enable automatic instrumentation in your application, which will set up instrumentors based on your installed packages.
+
+```
+from phoenix.otel import register
+
+register(auto_instrument=True)
+```
+
+For more details, you can check the [docs](../tracing/llm-traces-1.md) and explore further tracing options.&#x20;
+
+***
 
 ## 01.18.2025: Automatic & Manual Span Tracing ⚙️
 
@@ -26,7 +107,7 @@ Check out the [docs](../prompt-engineering/overview-prompts.md) for more on prom
 
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-tracing.png)
 
-In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
+In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/setup-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
 
 You can now access a tracer object with streamlined options to trace functions and code blocks. The main two options are:
 
@@ -34,6 +115,8 @@ You can now access a tracer object with streamlined options to trace functions a
 * Using the tracer in a `with` clause allows you to trace specific code blocks within a function. You manually define the Span name, input, output, and status.
 
 Check out the [docs](https://docs.arize.com/phoenix/tracing/how-to-tracing/instrument-python#using-your-tracer) for more on how to use tracer objects.&#x20;
+
+***
 
 ## 12.09.2024: **Sessions** 💬
 
@@ -60,6 +143,8 @@ Sessions make it easier to visual multi-turn exchanges with your chatbot or agen
 **Bug Fixes**: Changed trace latency to be computed every time, rather than relying on root span latency Added additional type checking to handle non-string values when manually instrumenting (thank you Manuel del Verme!)&#x20;
 
 </details>
+
+***
 
 ## 11.18.2024: Prompt Playground 🛝
 
@@ -88,13 +173,11 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 
 </details>
 
+***
+
 ## 10.01.2024: Improvements & Bug Fixes 🐛
 
-<details>
-
-<summary>Improvements &#x26; Bug Fixes</summary>
-
-## **Improvements & Bug Fixes 🐛**
+We've made several performance enhancements, added new features, and fixed key issues to improve stability, usability, and efficiency across Phoenix.
 
 * Numerous stability improvements to our hosted Phoenix instances accessed on app.phoenix.arize.com&#x20;
 * Added a new command to easily launch a Phoenix client from the cli: `phoenix serve`&#x20;
@@ -104,7 +187,7 @@ Prompt Playground is now available in the Phoenix platform! This new release all
 * Added support for Mistral 1.0&#x20;
 * Fixed an issue that caused px.Client().get\_spans\_dataframe() requests to time out
 
-</details>
+***
 
 ## 09.26.2024: Authentication & RBAC 🔐
 
@@ -123,6 +206,8 @@ The auth feature set includes:&#x20;
 
 For all the details on authentication, view our [docs](https://docs.arize.com/phoenix/deployment/authentication).
 
+***
+
 ## 07.18.2024: Guardrails AI Integrations💂&#x20;
 
 **Available in Phoenix 4.11.0+**
@@ -132,6 +217,8 @@ For all the details on authentication, view our [docs](https://docs.arize.com/ph
 Our integration with Guardrails AI allows you to capture traces on guard usage and create datasets based on these traces. This integration is designed to enhance the safety and reliability of your LLM applications, ensuring they adhere to predefined rules and guidelines.
 
 Check out the [Cookbook ](https://colab.research.google.com/drive/1NDn5jzsW5k0UrwaBjZenRX29l6ocrZ-_?usp=sharing\&utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F)here.&#x20;
+
+***
 
 ## 07.11.2024: Hosted Phoenix 💻
 
@@ -146,6 +233,8 @@ With hosted instances, your data is stored between sessions, and you can easily 
 We are partnering with LlamaIndex to power a new observability platform in LlamaCloud: LlamaTrace. LlamaTrace will automatically capture traces emitted from your LlamaIndex applications, and store them in a persistent, cloud- accessible Phoenix instance.
 
 Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.arize.com/login)!
+
+***
 
 ## 07.03.2024: Datasets & Experiments 🧪
 
@@ -163,6 +252,8 @@ For more details on using datasets see our [documentation](https://docs.arize.co
 **Experiments 🧪:** Our new Datasets and Experiments feature enables you to create and manage datasets for rigorous testing and evaluation of your models. You can now run comprehensive experiments to measure and analyze the performance of your LLMs in various scenarios.&#x20;
 
 For more details, check out our full [walkthrough](https://www.youtube.com/watch?v=rzxN-YV_DbE\&t=25s).&#x20;
+
+***
 
 ## 07.02.2024: Function Call Evaluations ⚒️
 

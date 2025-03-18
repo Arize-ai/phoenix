@@ -63,7 +63,7 @@ Pulling a prompt by name or ID (e.g. the identifier) is the easiest way to pull 
 
 # Initialize a phoenix client with your phoenix endpoint
 # By default it will read from your environment variables
-client = client = Client(
+client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
@@ -99,7 +99,7 @@ Pulling a prompt by version retrieves the content of a prompt at a particular po
 ```python
 # Initialize a phoenix client with your phoenix endpoint
 # By default it will read from your environment variables
-client = client = Client(
+client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
@@ -130,13 +130,13 @@ Pulling by prompt by [tag](../concepts-prompts.md#prompt-version-tag) is most us
 {% tab title="Python" %}
 ```python
 # By default it will read from your environment variables
-client = client = Client(
+client = Client(
  # endpoint="https://my-phoenix.com",
 )
 
 # Since tags don't uniquely identify a prompt version 
 #  it must be paired with the prompt identifier (e.g. name)
-prompt = px.Client().prompts.get(prompt_identifier="my-prompt-name", tag="staging")
+prompt = client.prompts.get(prompt_identifier="my-prompt-name", tag="staging")
 print(prompt.id)
 prompt.dumps()
 ```
@@ -164,8 +164,15 @@ The Phoenix Client libraries make it simple to transform prompts to the SDK that
 
 {% tabs %}
 {% tab title="Python" %}
-```
-// Some codePython
+```python
+from openai import OpenAI
+
+prompt_vars = {"topic": "Sports", "article": "Surrey have signed Australia all-rounder Moises Henriques for this summer's NatWest T20 Blast. Henriques will join Surrey immediately after the Indian Premier League season concludes at the end of next month and will be with them throughout their Blast campaign and also as overseas cover for Kumar Sangakkara - depending on the veteran Sri Lanka batsman's Test commitments in the second half of the summer. Australian all-rounder Moises Henriques has signed a deal to play in the T20 Blast for Surrey . Henriques, pictured in the Big Bash (left) and in ODI action for Australia (right), will join after the IPL . Twenty-eight-year-old Henriques, capped by his country in all formats but not selected for the forthcoming Ashes, said: 'I'm really looking forward to playing for Surrey this season. It's a club with a proud history and an exciting squad, and I hope to play my part in achieving success this summer. 'I've seen some of the names that are coming to England to be involved in the NatWest T20 Blast this summer, so am looking forward to testing myself against some of the best players in the world.' Surrey director of cricket Alec Stewart added: 'Moises is a fine all-round cricketer and will add great depth to our squad.'"}
+formatted_prompt = prompt.format(variables=prompt_vars)
+
+# Make a request with your Prompt
+oai_client = OpenAI()
+resp = oai_client.chat.completions.create(**formatted_prompt)
 ```
 {% endtab %}
 

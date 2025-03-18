@@ -8,7 +8,7 @@ Unlike traditional software, AI applications are non-deterministic and depend on
 
 Optimizing your prompts is typically the highest-leverage way to improve the behavior of your application, but “prompt engineering” comes with its own set of challenges. You want to be confident that changes to your prompts have the intended effect and don’t introduce regressions.
 
-To get started, jump to [quickstart-prompts.md](quickstart-prompts.md "mention").
+To get started, jump to [quickstart-prompts](quickstart-prompts/ "mention").
 
 ## Prompt Engineering Features
 
@@ -16,6 +16,6 @@ Phoenix offers a comprehensive suite of features to streamline your prompt engin
 
 * [Prompt Management](overview-prompts/prompt-management.md) - Create, store, modify, and deploy prompts for interacting with LLMs
 * [Prompt Playground](overview-prompts/prompt-playground.md) - Play with prompts, models, invocation parameters and track your progress via tracing and experiments
-* [Span Replay](overview-prompts.md#span-replay) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
+* [Span Replay](overview-prompts/span-replay.md) - Replay the invocation of an LLM. Whether it's an LLM step in an LLM workflow or a router query, you can step into the LLM invocation and see if any modifications to the invocation would have yielded a better outcome.
 * [Prompts in Code](overview-prompts/prompts-in-code.md) - Phoenix offers client SDKs to keep your prompts in sync across different applications and environments.
 
