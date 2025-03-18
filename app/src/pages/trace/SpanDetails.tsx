@@ -10,7 +10,10 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import CodeMirror, {
+  BasicSetupOptions,
+  EditorView,
+} from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
@@ -141,6 +144,7 @@ const defaultCardProps: Partial<CardProps> = {
   borderColor: "light",
   variant: "compact",
   collapsible: true,
+  bodyStyle: { padding: 0 },
 };
 
 export function SpanDetails({
@@ -759,7 +763,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 <LLMMessagesList messages={outputMessages} />
               </LazyTabPanel>
             )}
-
             {hasOutput && (
               <LazyTabPanel id="output">
                 <View padding="size-200">
@@ -825,6 +828,7 @@ function RetrieverSpanInfo(props: {
   }, [span.documentEvaluations]);
 
   const hasInput = input != null && input.value != null;
+  const isText = hasInput && input.mimeType === "text";
   const hasDocuments = documents.length > 0;
   const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
@@ -835,9 +839,12 @@ function RetrieverSpanInfo(props: {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
-                <ConnectedMarkdownModeRadioGroup />
-                <CopyToClipboardButton text={input.value} />
+              <Flex direction="row" gap="size-100" alignItems="center">
+                {isText ? (
+                  <ConnectedMarkdownModeRadioGroup />
+                ) : (
+                  <CopyToClipboardButton text={input.value} />
+                )}
               </Flex>
             }
           >
@@ -887,6 +894,7 @@ function RetrieverSpanInfo(props: {
                 display: flex;
                 flex-direction: column;
                 gap: var(--ac-global-dimension-static-size-200);
+                padding: var(--ac-global-dimension-static-size-200);
               `}
             >
               {documents.map((document, idx) => {
@@ -1055,6 +1063,7 @@ function EmbeddingSpanInfo(props: {
                 display: flex;
                 flex-direction: column;
                 gap: var(--ac-global-dimension-static-size-200);
+                padding: var(--ac-global-dimension-static-size-200);
               `}
             >
               {embeddings.map((embedding, idx) => {
@@ -1067,9 +1076,11 @@ function EmbeddingSpanInfo(props: {
                         borderColor="purple-700"
                         title="Embedded Text"
                       >
-                        <ConnectedMarkdownBlock>
-                          {embedding[EmbeddingAttributePostfixes.text] || ""}
-                        </ConnectedMarkdownBlock>
+                        <View padding="size-200">
+                          <ConnectedMarkdownBlock>
+                            {embedding[EmbeddingAttributePostfixes.text] || ""}
+                          </ConnectedMarkdownBlock>
+                        </View>
                       </Card>
                     </MarkdownDisplayProvider>
                   </li>
@@ -1111,7 +1122,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
@@ -1129,7 +1140,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             backgroundColor="green-100"
             borderColor="green-700"
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
@@ -1242,7 +1253,17 @@ function DocumentItem({
         {metadata && (
           <>
             <View borderColor={borderColor} borderTopWidth="thin">
-              <JSONBlock>{JSON.stringify(metadata)}</JSONBlock>
+              <View
+                paddingX="size-200"
+                paddingY="size-100"
+                borderColor={borderColor}
+                borderBottomWidth="thin"
+              >
+                <Heading level={4}>Document Metadata</Heading>
+              </View>
+              <JSONBlock basicSetup={{ lineNumbers: false }}>
+                {JSON.stringify(metadata)}
+              </JSONBlock>
             </View>
           </>
         )}
@@ -1353,7 +1374,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             : "")
         }
         extra={
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeRadioGroup />
             <CopyToClipboardButton
               text={messageContent || JSON.stringify(message)}
@@ -1363,12 +1384,16 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <MessageContentsList messageContents={messagesContents} />
+            <View padding="size-200">
+              <MessageContentsList messageContents={messagesContents} />
+            </View>
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
           {messageContent ? (
-            <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
+            <View padding="size-200">
+              <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
+            </View>
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
@@ -1382,6 +1407,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     css={css`
                       text-wrap: wrap;
                       margin: var(--ac-global-dimension-static-size-100) 0;
+                      padding: var(--ac-global-dimension-static-size-200);
                     `}
                   >
                     {toolCall?.function?.name as string}(
@@ -1605,7 +1631,7 @@ function SpanIO({ span }: { span: Span }) {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
@@ -1623,7 +1649,7 @@ function SpanIO({ span }: { span: Span }) {
             backgroundColor="green-100"
             borderColor="green-700"
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
@@ -1685,7 +1711,13 @@ function CopyToClipboard({
 /**
  * A block of JSON content that is not editable.
  */
-function JSONBlock({ children }: { children: string }) {
+function JSONBlock({
+  children,
+  basicSetup = {},
+}: {
+  children: string;
+  basicSetup?: BasicSetupOptions;
+}) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   // We need to make sure that the content can actually be displayed
@@ -1714,6 +1746,7 @@ function JSONBlock({ children }: { children: string }) {
           syntaxHighlighting: true,
           highlightActiveLine: false,
           highlightActiveLineGutter: false,
+          ...basicSetup,
         }}
         extensions={[json(), EditorView.lineWrapping]}
         editable={false}
@@ -1729,9 +1762,11 @@ function JSONBlock({ children }: { children: string }) {
 function PreBlock({ children }: { children: string }) {
   return (
     <pre
+      data-testid="pre-block"
       css={css`
         white-space: pre-wrap;
-        padding: 0;
+        padding: var(--ac-global-dimension-static-size-200);
+        font-size: var(--ac-global-font-size-s);
       `}
     >
       {children}
@@ -1746,7 +1781,11 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
+      content = (
+        <View margin="size-200">
+          <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>
+        </View>
+      );
       break;
     default:
       assertUnreachable(mimeType);

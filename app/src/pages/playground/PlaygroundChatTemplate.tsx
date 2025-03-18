@@ -277,13 +277,6 @@ function MessageEditor({
         aria-label="Message content"
         templateFormat={templateFormat}
         onChange={onChange}
-        placeholder={
-          message.role === "system"
-            ? "You are a helpful assistant"
-            : message.role === "ai"
-              ? "Hello, how can I help you today?"
-              : "What is the weather in San Francisco?"
-        }
       />
     </TemplateEditorWrap>
   );

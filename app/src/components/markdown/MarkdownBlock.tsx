@@ -1,21 +1,13 @@
 import React from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { css } from "@emotion/react";
 
 import { PrettyText } from "../utility";
 
 import { useMarkdownMode } from "./MarkdownDisplayContext";
+import { markdownCSS } from "./styles";
 import { MarkdownDisplayMode } from "./types";
 
-const markdownCSS = css`
-  a {
-    color: var(--ac-global-color-primary);
-    &:visited {
-      color: var(--ac-global-color-purple-900);
-    }
-  }
-`;
 export function MarkdownBlock({
   children,
   mode,
