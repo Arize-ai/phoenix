@@ -21,7 +21,6 @@ const codeEditorFormWrapperCSS = css`
   border-radius: var(--ac-global-rounding-small);
   border: 1px solid var(--ac-global-input-field-border-color);
   width: 100%;
-  .cm-gutters,
   .cm-content,
   .cm-editor {
     border-radius: var(--ac-global-rounding-small);

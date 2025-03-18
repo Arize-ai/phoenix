@@ -18,10 +18,6 @@ export const buttonCSS = css`
   transition: background-color 0.2s ease-in-out;
   cursor: pointer;
 
-  // Fix aliasing on buttons
-  box-shadow:
-    0 0 1px 0px var(--button-border-color) inset,
-    0 0 1px 0px var(--button-border-color);
   /* Disable outline since there are other mechanisms to show focus */
   outline: none;
   &[data-focus-visible] {
