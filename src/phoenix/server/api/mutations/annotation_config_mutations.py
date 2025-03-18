@@ -11,6 +11,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationConfig import (
     AnnotationConfig,
     AnnotationType,
@@ -39,6 +40,12 @@ class CreateContinuousAnnotationConfigInput:
     upper_bound: Optional[float] = None
 
 
+@strawberry.type
+class CreateContinuousAnnotationConfigPayload:
+    query: Query
+    annotation_config: ContinuousAnnotationConfig
+
+
 @strawberry.input
 class CreateCategoricalAnnotationValueInput:
     label: str
@@ -55,11 +62,23 @@ class CreateCategoricalAnnotationConfigInput:
     allowed_values: List[CreateCategoricalAnnotationValueInput]
 
 
+@strawberry.type
+class CreateCategoricalAnnotationConfigPayload:
+    query: Query
+    annotation_config: CategoricalAnnotationConfig
+
+
 @strawberry.input
 class CreateFreeformAnnotationConfigInput:
     name: str
     optimization_direction: OptimizationDirection
     description: Optional[str] = None
+
+
+@strawberry.type
+class CreateFreeformAnnotationConfigPayload:
+    query: Query
+    annotation_config: FreeformAnnotationConfig
 
 
 @strawberry.input
@@ -70,11 +89,23 @@ class PatchAnnotationConfigInput:
     optimization_direction: Optional[OptimizationDirection] = None
 
 
+@strawberry.type
+class PatchAnnotationConfigPayload:
+    query: Query
+    annotation_config: AnnotationConfig
+
+
 @strawberry.input
 class PatchContinuousAnnotationConfigInput:
     config_id: GlobalID
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
+
+
+@strawberry.type
+class PatchContinuousAnnotationConfigPayload:
+    query: Query
+    annotation_config: ContinuousAnnotationConfig
 
 
 @strawberry.input
@@ -84,10 +115,22 @@ class PatchCategoricalAnnotationConfigInput:
     multilabel_allowed: Optional[bool] = None
 
 
+@strawberry.type
+class PatchCategoricalAnnotationConfigPayload:
+    query: Query
+    annotation_config: CategoricalAnnotationConfig
+
+
 @strawberry.input
 class PatchCategoricalAnnotationValuesInput:
     config_id: GlobalID
     allowed_values: List[CreateCategoricalAnnotationValueInput]
+
+
+@strawberry.type
+class PatchCategoricalAnnotationValuesPayload:
+    query: Query
+    annotation_config: CategoricalAnnotationConfig
 
 
 @strawberry.input
@@ -97,9 +140,21 @@ class PatchCategoricalAnnotationValueInput:
     numeric_score: Optional[float] = None
 
 
+@strawberry.type
+class PatchCategoricalAnnotationValuePayload:
+    query: Query
+    annotation_config: CategoricalAnnotationConfig
+
+
 @strawberry.input
 class DeleteAnnotationConfigInput:
     config_id: GlobalID
+
+
+@strawberry.type
+class DeleteAnnotationConfigPayload:
+    query: Query
+    annotation_config: AnnotationConfig
 
 
 @strawberry.input
@@ -109,13 +164,19 @@ class CreateProjectAnnotationConfigInput:
 
 
 @strawberry.type
+class CreateProjectAnnotationConfigPayload:
+    query: Query
+    project_annotation_config: ProjectAnnotationConfig
+
+
+@strawberry.type
 class AnnotationConfigMutationMixin:
     @strawberry.mutation
     async def create_continuous_annotation_config(
         self,
         info: Info[Context, None],
         input: CreateContinuousAnnotationConfigInput,
-    ) -> ContinuousAnnotationConfig:
+    ) -> CreateContinuousAnnotationConfigPayload:
         async with info.context.db() as session:
             config = models.AnnotationConfig(
                 name=input.name,
@@ -135,14 +196,17 @@ class AnnotationConfigMutationMixin:
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
             continuous_config = to_gql_annotation_config(config)
             assert isinstance(continuous_config, ContinuousAnnotationConfig)
-            return continuous_config
+            return CreateContinuousAnnotationConfigPayload(
+                query=Query(),
+                annotation_config=continuous_config,
+            )
 
     @strawberry.mutation
     async def create_categorical_annotation_config(
         self,
         info: Info[Context, None],
         input: CreateCategoricalAnnotationConfigInput,
-    ) -> CategoricalAnnotationConfig:
+    ) -> CreateCategoricalAnnotationConfigPayload:
         async with info.context.db() as session:
             config = models.AnnotationConfig(
                 name=input.name,
@@ -168,14 +232,17 @@ class AnnotationConfigMutationMixin:
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
         categorical_config = to_gql_annotation_config(config)
         assert isinstance(categorical_config, CategoricalAnnotationConfig)
-        return categorical_config
+        return CreateCategoricalAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=categorical_config,
+        )
 
     @strawberry.mutation
     async def create_freeform_annotation_config(
         self,
         info: Info[Context, None],
         input: CreateFreeformAnnotationConfigInput,
-    ) -> FreeformAnnotationConfig:
+    ) -> CreateFreeformAnnotationConfigPayload:
         async with info.context.db() as session:
             config = models.AnnotationConfig(
                 name=input.name,
@@ -190,14 +257,17 @@ class AnnotationConfigMutationMixin:
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
             freeform_config = to_gql_annotation_config(config)
             assert isinstance(freeform_config, FreeformAnnotationConfig)
-            return freeform_config
+            return CreateFreeformAnnotationConfigPayload(
+                query=Query(),
+                annotation_config=freeform_config,
+            )
 
     @strawberry.mutation
     async def patch_annotation_config(
         self,
         info: Info[Context, None],
         input: PatchAnnotationConfigInput,
-    ) -> AnnotationConfig:
+    ) -> PatchAnnotationConfigPayload:
         config_id = int(input.config_id.node_id)
         if (type_name := input.config_id.type_name) not in ANNOTATION_TYPE_NAMES:
             raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
@@ -236,14 +306,17 @@ class AnnotationConfigMutationMixin:
                         f"Annotation configuration with ID '{input.config_id}' not found"
                     )
                 await session.commit()
-            return to_gql_annotation_config(config)
+            return PatchAnnotationConfigPayload(
+                query=Query(),
+                annotation_config=to_gql_annotation_config(config),
+            )
 
     @strawberry.mutation
     async def patch_continuous_annotation_config(
         self,
         info: Info[Context, None],
         input: PatchContinuousAnnotationConfigInput,
-    ) -> ContinuousAnnotationConfig:
+    ) -> PatchContinuousAnnotationConfigPayload:
         config_id = from_global_id_with_expected_type(
             global_id=input.config_id, expected_type_name="ContinuousAnnotationConfig"
         )
@@ -279,14 +352,17 @@ class AnnotationConfigMutationMixin:
                 await session.refresh(config)
             patched_config = to_gql_annotation_config(config)
             assert isinstance(patched_config, ContinuousAnnotationConfig)
-            return patched_config
+            return PatchContinuousAnnotationConfigPayload(
+                query=Query(),
+                annotation_config=patched_config,
+            )
 
     @strawberry.mutation
     async def patch_categorical_annotation_config(
         self,
         info: Info[Context, None],
         input: PatchCategoricalAnnotationConfigInput,
-    ) -> CategoricalAnnotationConfig:
+    ) -> PatchCategoricalAnnotationConfigPayload:
         """
         Update the categorical configuration details (is_ordinal and/or multilabel_allowed)
         for an annotation configuration identified by its base config ID.
@@ -326,14 +402,17 @@ class AnnotationConfigMutationMixin:
                 await session.refresh(config)
         categorical_config = to_gql_annotation_config(config)
         assert isinstance(categorical_config, CategoricalAnnotationConfig)
-        return categorical_config
+        return PatchCategoricalAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=categorical_config,
+        )
 
     @strawberry.mutation
     async def patch_categorical_annotation_values(
         self,
         info: Info[Context, None],
         input: PatchCategoricalAnnotationValuesInput,
-    ) -> CategoricalAnnotationConfig:
+    ) -> PatchCategoricalAnnotationValuesPayload:
         """
         Replace the entire list of allowed values for a categorical annotation
         configuration.
@@ -371,14 +450,17 @@ class AnnotationConfigMutationMixin:
             cat.allowed_values = new_values
             categorical_config = to_gql_annotation_config(config)
             assert isinstance(categorical_config, CategoricalAnnotationConfig)
-            return categorical_config
+            return PatchCategoricalAnnotationValuesPayload(
+                query=Query(),
+                annotation_config=categorical_config,
+            )
 
     @strawberry.mutation
     async def patch_categorical_annotation_value(
         self,
         info: Info[Context, None],
         input: PatchCategoricalAnnotationValueInput,
-    ) -> CategoricalAnnotationConfig:
+    ) -> PatchCategoricalAnnotationValuePayload:
         """
         Patch an individual allowed categorical annotation value without replacing the entire list.
         """
@@ -430,31 +512,47 @@ class AnnotationConfigMutationMixin:
                 raise NotFound(f"Unable to update annotation value with ID '{input.value_id}'")
             patched_config = to_gql_annotation_config(config)
             assert isinstance(patched_config, CategoricalAnnotationConfig)
-            return patched_config
+            return PatchCategoricalAnnotationValuePayload(
+                query=Query(),
+                annotation_config=patched_config,
+            )
 
     @strawberry.mutation
     async def delete_annotation_config(
         self,
         info: Info[Context, None],
         input: DeleteAnnotationConfigInput,
-    ) -> bool:
+    ) -> DeleteAnnotationConfigPayload:
         if (type_name := input.config_id.type_name) not in ANNOTATION_TYPE_NAMES:
             raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
         config_id = int(input.config_id.node_id)
         async with info.context.db() as session:
-            stmt = delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
-            result = await session.execute(stmt)
-            if result.rowcount == 0:
+            annotation_config = await session.scalar(
+                select(models.AnnotationConfig)
+                .where(models.AnnotationConfig.id == config_id)
+                .options(
+                    joinedload(models.AnnotationConfig.continuous_config),
+                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                        models.CategoricalAnnotationConfig.allowed_values
+                    ),
+                )
+            )
+            if annotation_config is None:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-            await session.commit()
-        return True
+            await session.execute(
+                delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
+            )
+        return DeleteAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=to_gql_annotation_config(annotation_config),
+        )
 
     @strawberry.mutation
     async def create_project_annotation_config(
         self,
         info: Info[Context, None],
         input: list[CreateProjectAnnotationConfigInput],
-    ) -> ProjectAnnotationConfig:
+    ) -> CreateProjectAnnotationConfigPayload:
         async with info.context.db() as session:
             for item in input:
                 project_id = from_global_id_with_expected_type(
@@ -469,8 +567,11 @@ class AnnotationConfigMutationMixin:
                 )
                 session.add(project_annotation_config)
             await session.commit()
-            return ProjectAnnotationConfig(
-                id_attr=project_annotation_config.id,
-                project_id=project_id,
-                annotation_config_id=annotation_config_id,
+            return CreateProjectAnnotationConfigPayload(
+                query=Query(),
+                project_annotation_config=ProjectAnnotationConfig(
+                    id_attr=project_annotation_config.id,
+                    project_id=project_id,
+                    annotation_config_id=annotation_config_id,
+                ),
             )

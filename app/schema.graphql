@@ -340,6 +340,11 @@ input CreateCategoricalAnnotationConfigInput {
   allowedValues: [CreateCategoricalAnnotationValueInput!]!
 }
 
+type CreateCategoricalAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: CategoricalAnnotationConfig!
+}
+
 input CreateCategoricalAnnotationValueInput {
   label: String!
   numericScore: Float = null
@@ -365,6 +370,11 @@ input CreateContinuousAnnotationConfigInput {
   upperBound: Float = null
 }
 
+type CreateContinuousAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: ContinuousAnnotationConfig!
+}
+
 input CreateDatasetInput {
   name: String!
   description: String
@@ -377,9 +387,19 @@ input CreateFreeformAnnotationConfigInput {
   description: String = null
 }
 
+type CreateFreeformAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: FreeformAnnotationConfig!
+}
+
 input CreateProjectAnnotationConfigInput {
   projectId: GlobalID!
   annotationConfigId: GlobalID!
+}
+
+type CreateProjectAnnotationConfigPayload {
+  query: Query!
+  projectAnnotationConfig: ProjectAnnotationConfig!
 }
 
 input CreatePromptLabelInput {
@@ -614,6 +634,11 @@ type DbTableStats {
 
 input DeleteAnnotationConfigInput {
   configId: GlobalID!
+}
+
+type DeleteAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: AnnotationConfig!
 }
 
 input DeleteAnnotationsInput {
@@ -1329,16 +1354,16 @@ input ModelsInput {
 }
 
 type Mutation {
-  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): ContinuousAnnotationConfig!
-  createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): CategoricalAnnotationConfig!
-  createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): FreeformAnnotationConfig!
-  patchAnnotationConfig(input: PatchAnnotationConfigInput!): AnnotationConfig!
-  patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): ContinuousAnnotationConfig!
-  patchCategoricalAnnotationConfig(input: PatchCategoricalAnnotationConfigInput!): CategoricalAnnotationConfig!
-  patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): CategoricalAnnotationConfig!
-  patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): CategoricalAnnotationConfig!
-  deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): Boolean!
-  createProjectAnnotationConfig(input: [CreateProjectAnnotationConfigInput!]!): ProjectAnnotationConfig!
+  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): CreateContinuousAnnotationConfigPayload!
+  createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): CreateCategoricalAnnotationConfigPayload!
+  createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): CreateFreeformAnnotationConfigPayload!
+  patchAnnotationConfig(input: PatchAnnotationConfigInput!): PatchAnnotationConfigPayload!
+  patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): PatchContinuousAnnotationConfigPayload!
+  patchCategoricalAnnotationConfig(input: PatchCategoricalAnnotationConfigInput!): PatchCategoricalAnnotationConfigPayload!
+  patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): PatchCategoricalAnnotationValuesPayload!
+  patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): PatchCategoricalAnnotationValuePayload!
+  deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
+  createProjectAnnotationConfig(input: [CreateProjectAnnotationConfigInput!]!): CreateProjectAnnotationConfigPayload!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
@@ -1431,6 +1456,11 @@ input PatchAnnotationConfigInput {
   optimizationDirection: OptimizationDirection = null
 }
 
+type PatchAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: AnnotationConfig!
+}
+
 input PatchAnnotationInput {
   annotationId: GlobalID!
   name: String
@@ -1447,10 +1477,20 @@ input PatchCategoricalAnnotationConfigInput {
   multilabelAllowed: Boolean = null
 }
 
+type PatchCategoricalAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: CategoricalAnnotationConfig!
+}
+
 input PatchCategoricalAnnotationValueInput {
   valueId: GlobalID!
   label: String = null
   numericScore: Float = null
+}
+
+type PatchCategoricalAnnotationValuePayload {
+  query: Query!
+  annotationConfig: CategoricalAnnotationConfig!
 }
 
 input PatchCategoricalAnnotationValuesInput {
@@ -1458,10 +1498,20 @@ input PatchCategoricalAnnotationValuesInput {
   allowedValues: [CreateCategoricalAnnotationValueInput!]!
 }
 
+type PatchCategoricalAnnotationValuesPayload {
+  query: Query!
+  annotationConfig: CategoricalAnnotationConfig!
+}
+
 input PatchContinuousAnnotationConfigInput {
   configId: GlobalID!
   lowerBound: Float = null
   upperBound: Float = null
+}
+
+type PatchContinuousAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: ContinuousAnnotationConfig!
 }
 
 input PatchDatasetExamplesInput {
