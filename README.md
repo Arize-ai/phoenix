@@ -52,33 +52,6 @@ pip install arize-phoenix
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
 
-## Features
-
-| Key Features                                                                                                     | Availability |
-| ---------------------------------------------------------------------------------------------------------------- | ------------ |
-| [Tracing](https://docs.arize.com/phoenix/tracing/concepts-tracing/what-are-traces)                               | ✅           |
-| [Evaluation](https://docs.arize.com/phoenix/evaluation/llm-evals)                                                | ✅           |
-| [Retrieval (RAG) Analysis](https://docs.arize.com/phoenix/tracing/use-cases-tracing/rag-evaluation)              | ✅           |
-| [Datasets](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets)                            | ✅           |
-| [Fine-Tuning Export](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets) | ✅           |
-| [Annotations](https://docs.arize.com/phoenix/tracing/concepts-tracing/how-to-annotate-traces)                    | ✅           |
-| [Human Feedback](https://docs.arize.com/phoenix/tracing/how-to-tracing/capture-feedback)                         | ✅           |
-| [Experiments](https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)        | ✅           |
-| [Embeddings Analysis](https://docs.arize.com/phoenix/inferences/phoenix-inferences)                              | ✅           |
-| [Data Export](https://docs.arize.com/phoenix/tracing/how-to-tracing/extract-data-from-spans)                     | ✅           |
-| REST API                                                                                                         | ✅           |
-| GraphQL API                                                                                                      | ✅           |
-| Data Retention                                                                                                   | Customizable |
-| [Authentication](https://docs.arize.com/phoenix/deployment/authentication)                                       | ✅           |
-| [Social Login](https://docs.arize.com/phoenix/deployment/authentication#configuring-oauth2-identity-providers)   | ✅           |
-| [RBAC](https://docs.arize.com/phoenix/deployment/authentication#permissions)                                     | ✅           |
-| Projects                                                                                                         | ✅           |
-| [Self-Hosting](https://docs.arize.com/phoenix/deployment)                                                        | ✅           |
-| Jupyter Notebooks                                                                                                | ✅           |
-| [Prompt Playground](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)                          | ✅           |
-| [Sessions](https://docs.arize.com/phoenix/tracing/how-to-tracing/setup-sessions)                                 | ✅           |
-| [Prompt Management](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)                          | ✅           |
-
 ## Tracing Integrations
 
 Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic.
