@@ -1,21 +1,3 @@
-```python
-
-```
-
-<center>
-<p style="text-align:center">
-<img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
-<br>
-<br>
-<a href="https://docs.arize.com/phoenix/">Docs</a>
-|
-<a href="https://github.com/Arize-ai/phoenix">GitHub</a>
-|
-<a href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">Community</a>
-</p>
-</center>
-<h1 align="center">Chain-of-Thought Prompting Tutorial</h1>
-
 LLMs excel at text generation, but their reasoning abilities depend on how we prompt them. **Chain of Thought (CoT)** prompting enhances logical reasoning by guiding the model to think step by step, improving accuracy in tasks like math, logic, and multi-step problem solving.
 
 In this tutorial, you will:
@@ -122,7 +104,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
-![Baseline Prompt in UI](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_1.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_1.png)
 
 Next, we will define a task and evaluator for the experiment. Then, we run our experiment.
 
@@ -174,7 +156,7 @@ We can review the results of the experiment in Phoenix. We achieved ~75% accurac
 
 
 
-![Baseline Experiement](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_2.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_2.png)
 
 # **Zero-Shot CoT Prompting**
 
@@ -253,9 +235,9 @@ initial_experiment = run_experiment(
 
 By clicking into the experiement in Phoenix, you can take a look at the steps the model took the reach the answer. By telling the model to think through the problem and output reasoning, we see a performance improvement.
 
-![Experiment Details](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_3.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_3.png)
 
-![Experiment 2 Outcome](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_4.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_4.png)
 
 # **Self-Consistency CoT Prompting**
 
@@ -335,9 +317,9 @@ We've observed a significant improvement in performance! Since the prompt instru
 
 
 
-![Exp 2 Results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_6.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_6.png)
 
-![Experiment 2](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_5.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_5.png)
 
 # Few Shot CoT Prompting
 
@@ -385,7 +367,7 @@ few_shot_COT = PhoenixClient().prompts.create(
 )
 ```
 
-![Few Shot Prompt](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_8.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_8.png)
 
 
 ```python
@@ -433,6 +415,6 @@ You can review your prompt version history in the **Prompts tab** and explore th
 To refine and test these prompts against other datasets, experiment with Chain of Thought (CoT) prompting to see its relevance to your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using the TypeScript and Python Clients.
 
 
-![Final Run Results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_7.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_7.png)
 
 From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️

@@ -1,17 +1,3 @@
-<center>
-<p style="text-align:center">
-<img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
-<br>
-<br>
-<a href="https://docs.arize.com/phoenix/">Docs</a>
-|
-<a href="https://github.com/Arize-ai/phoenix">GitHub</a>
-|
-<a href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">Community</a>
-</p>
-</center>
-<h1 align="center">Few-Shot Prompting Tutorial</h1>
-
 Few-shot prompting is a powerful technique in prompt engineering that helps LLMs perform tasks more effectively by providing a few examples within the prompt.
 
 Unlike zero-shot prompting, where the model must infer the task with no prior context, or one-shot prompting, where a single example is provided, few-shot prompting leverages multiple examples to guide the model’s responses more accurately.
@@ -123,7 +109,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
 
-![Prompt v1](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-6.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-6.png)
 
 Next we will define a task and evaluator for the experiment.
 
@@ -175,7 +161,7 @@ initial_experiment = run_experiment(
 
 In the following sections, we refine the prompt to enhance the model's performance and improve the evaluation results on our dataset.
 
-![First Run](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-5.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-5.png)
 
 # One-Shot Prompting
 
@@ -217,7 +203,7 @@ one_shot_prompt = PhoenixClient().prompts.create(
 
 Under the prompts tab in Phoenix, we can see that our prompt has an updated version. The prompt includes one random example from the test dataset to help the model make its classification.
 
-![Second Ver](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-3.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-3.png)
 
 Similar to the previous step, we will define the task and run the evaluator. This time, we will be using our updated prompt for One Shot Prompting and see how the evaluation changes.
 
@@ -247,7 +233,7 @@ In this run, we observe a slight improvement in the evaluation results. Let’s 
 
 **Note**: You may sometimes see a decline in performance, which is not necessarily "wrong." Results can vary due to factors such as the choice of LLM, the randomness of selected test examples, and other inherent model behaviors.
 
-![One Shot Result](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-2.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-2.png)
 
 # Few-Shot Prompting
 
@@ -288,7 +274,7 @@ few_shot_prompt = PhoenixClient().prompts.create(
 
 Our updated prompt also lives in Phoenix. We can clearly see how the linear version history of our prompt was built.
 
-![Few Shot Ver](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-4.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-4.png)
 
 Just like previous steps, we run our task and evaluation.
 
@@ -320,7 +306,7 @@ In this final run, we observe the most significant improvement in evaluation res
 
 Note: Performance may still vary, and in some cases, results might decline. Like before, this is not necessarily "wrong," as factors like the choice of LLM, the randomness of selected test examples, and inherent model behaviors can all influence outcomes.
 
-![Final Result](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-1.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/s-few-shot-1.png)
 
 From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
 

@@ -1,17 +1,3 @@
-<center>
-<p style="text-align:center">
-<img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
-<br>
-<br>
-<a href="https://docs.arize.com/phoenix/">Docs</a>
-|
-<a href="https://github.com/Arize-ai/phoenix">GitHub</a>
-|
-<a href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">Community</a>
-</p>
-</center>
-<h1 align="center">ReAct Prompting Tutorial</h1>
-
 **ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking action. Unlike traditional prompting, where a model directly provides an answer, ReAct prompts guide the model to reason through a problem first, then decide which tools or actions are necessary to reach the best solution.
 
 ReAct is ideal for situations that require **multi-step problem-solving with external tools**. It also improves **transparency** by clearly showing the reasoning behind each tool choice, making it easier to understand and refine the model's actions.
@@ -250,7 +236,7 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
-![Prompt](https://storage.googleapis.com/arize-phoenix-assets/assets/images/react_prompt1.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/react_prompt1.png)
 
 Next, we will define the Tool Calling Prompt Template. In this step, we use **[LLM as a Judge](https://docs.arize.com/phoenix/evaluation/concepts-evals/llm-as-a-judge)** to evaluate the output. LLM as a Judge is a technique where one LLM assesses the performance of another LLM.
 
@@ -328,7 +314,7 @@ initial_experiment = run_experiment(
 
 After running our experiment and evaluation, we can dive deeper into the results. By clicking into the experiment, we can explore the tools that the LLM selected for the specific input. Next, if we click on the trace for the evaluation, we can see the reasoning behind the score assigned by LLM as a Judge for the output.
 
-![Run 1](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/react_prompt.gif)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/react_prompt.gif)
 
 # **ReAct Prompt**
 
@@ -369,7 +355,7 @@ prompt = PhoenixClient().prompts.create(
 
 In the Prompts tab, you will see the updated prompt. As you iterate, you can build a version history.
 
-![Prompt 2](https://storage.googleapis.com/arize-phoenix-assets/assets/images/react_prompt2.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/react_prompt2.png)
 
 Just like above, we define our task, construct the evaluator, and run the experiment.
 
@@ -416,7 +402,7 @@ You can explore the evaluators outputs to better understand the improvements in 
 Keep in mind that results may vary due to randomness and the model's non-deterministic behavior.
 
 
-![Evaluation](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/react_prompts2.gif)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/react_prompts2.gif)
 
 To refine and test these prompts against other datasets, experiment with alternative techniques like Chain of Thought (CoT) prompting to assess how they complement or contrast with ReAct in your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using both the TypeScript and Python Clients.
 

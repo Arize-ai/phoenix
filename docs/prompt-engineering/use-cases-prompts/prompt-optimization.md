@@ -1,17 +1,3 @@
-<center>
-<p style="text-align:center">
-<img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
-<br>
-<br>
-<a href="https://docs.arize.com/phoenix/">Docs</a>
-|
-<a href="https://github.com/Arize-ai/phoenix">GitHub</a>
-|
-<a href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">Community</a>
-</p>
-</center>
-<h1 align="center">Comparing Prompt Optimization Techniques</h1>
-
 This tutorial will use Phoenix to compare the performance of different prompt optimization techniques.
 
 You'll start by creating an experiment in Phoenix that can house the results of each of your resulting prompts. Next you'll use a series of prompt optimization techniques to improve the performance of a jailbreak classification task. Each technique will be applied to the same base prompt, and the results will be compared using Phoenix.
@@ -164,7 +150,7 @@ initial_experiment = run_experiment(
 
 You should now see the initial experiment results in Phoenix:
 
-![1st experiment results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompts-nb-experiment.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompts-nb-experiment.png)
 
 # Prompt Optimization Technique #1: Few Shot Examples
 
@@ -212,7 +198,7 @@ few_shot_prompt = PhoenixClient().prompts.create(
 
 You'll notice you now have a new version of the prompt in Phoenix:
 
-![Few shot prompt in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-versioning-nb.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-versioning-nb.png)
 
 Define a new task with your new prompt:
 
