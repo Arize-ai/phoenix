@@ -1,41 +1,27 @@
-<center>
-<p style="text-align:center">
-<img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
-<br>
-<br>
-<a href="https://docs.arize.com/phoenix/">Docs</a>
-|
-<a href="https://github.com/Arize-ai/phoenix">GitHub</a>
-|
-<a href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">Community</a>
-</p>
-</center>
-<h1 align="center">Comparing Prompt Optimization Techniques</h1>
+# Prompt Optimization
 
 This tutorial will use Phoenix to compare the performance of different prompt optimization techniques.
 
 You'll start by creating an experiment in Phoenix that can house the results of each of your resulting prompts. Next you'll use a series of prompt optimization techniques to improve the performance of a jailbreak classification task. Each technique will be applied to the same base prompt, and the results will be compared using Phoenix.
 
 The techniques you'll use are:
-- **Few Shot Examples**: Adding a few examples to the prompt to help the model understand the task.
-- **Meta Prompting**: Prompting a model to generate a better prompt based on previous inputs, outputs, and expected outputs.
-- **Prompt Gradients**: Using the gradient of the prompt to optimize individual components of the prompt using embeddings.
-- **DSPy Prompt Tuning**: Using DSPy, an automated prompt tuning library, to optimize the prompt.
+
+* **Few Shot Examples**: Adding a few examples to the prompt to help the model understand the task.
+* **Meta Prompting**: Prompting a model to generate a better prompt based on previous inputs, outputs, and expected outputs.
+* **Prompt Gradients**: Using the gradient of the prompt to optimize individual components of the prompt using embeddings.
+* **DSPy Prompt Tuning**: Using DSPy, an automated prompt tuning library, to optimize the prompt.
 
 ⚠️ This tutorial requires and OpenAI API key.
 
 Let's get started!
 
-
-### Setup Dependencies & Keys
-
+#### Setup Dependencies & Keys
 
 ```python
 !pip install -q "arize-phoenix>=8.0.0" datasets
 ```
 
 Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
-
 
 ```python
 import os
@@ -49,10 +35,9 @@ if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
 ```
 
-### Load Dataset into Phoenix
+#### Load Dataset into Phoenix
 
 Since we'll be running a series of experiments, we'll need a dataset of test cases that we can run each time. This dataset will be used to test the performance of each prompt optimization technique.
-
 
 ```python
 from datasets import load_dataset
@@ -61,7 +46,6 @@ ds = load_dataset("jackhhao/jailbreak-classification")["train"]
 ds = ds.to_pandas().sample(50)
 ds.head()
 ```
-
 
 ```python
 import uuid
@@ -81,7 +65,6 @@ dataset = px.Client().upload_dataset(
 ```
 
 Next, you can define a base template for the prompt. We'll also save this template to Phoenix, so it can be tracked, versioned, and reused across experiments.
-
 
 ```python
 from openai import OpenAI
@@ -112,12 +95,11 @@ prompt = PhoenixClient().prompts.create(
 
 You should now see that prompt in Phoenix:
 
-![Prompt in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompts-screenshot-prompt-optimization-2.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompts-screenshot-prompt-optimization-2.png)
 
 Next you'll need a task and evaluator for the experiment. A task is a function that will be run across each example in the dataset. The task is also the piece of your code that you'll change between each run of the experiment. To start off, the task is simply a call to GPT 3.5 Turbo with a basic prompt.
 
 You'll also need an evaluator that will be used to test the performance of the task. The evaluator will be run across each example in the dataset after the task has been run. Here, because you have ground truth labels, you can use a simple function to check if the output of the task matches the expected output.
-
 
 ```python
 def test_prompt(input):
@@ -132,7 +114,6 @@ def evaluate_response(output, expected):
 
 You can also instrument your code to send all models calls to Phoenix. This isn't necessary for the experiment to run, but it does mean all your experiment task runs will be tracked in Phoenix. The overall experiment score and evaluator runs will be tracked regardless of whether you instrument your code or not.
 
-
 ```python
 from openinference.instrumentation.openai import OpenAIInstrumentor
 
@@ -143,7 +124,6 @@ OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 Now you can run the initial experiment. This will be the base prompt that you'll be optimizing.
-
 
 ```python
 import nest_asyncio
@@ -166,12 +146,11 @@ You should now see the initial experiment results in Phoenix:
 
 ![1st experiment results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompts-nb-experiment.png)
 
-# Prompt Optimization Technique #1: Few Shot Examples
+## Prompt Optimization Technique #1: Few Shot Examples
 
 One common prompt optimization technique is to use few shot examples to guide the model's behavior.
 
 Here you can add few shot examples to the prompt to help improve performance. Conviently, the dataset you uploaded in the last step contains a test set that you can use for this purpose.
-
 
 ```python
 from datasets import load_dataset
@@ -183,7 +162,6 @@ few_shot_examples = ds_test.to_pandas().sample(10)
 ```
 
 Define a new prompt that includes the few shot examples. Prompts in Phoenix are automatically versioned, so saving the prompt with the same name will create a new version that can be used.
-
 
 ```python
 few_shot_template = """
@@ -212,10 +190,9 @@ few_shot_prompt = PhoenixClient().prompts.create(
 
 You'll notice you now have a new version of the prompt in Phoenix:
 
-![Few shot prompt in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-versioning-nb.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-versioning-nb.png)
 
 Define a new task with your new prompt:
-
 
 ```python
 def test_prompt(input):
@@ -226,7 +203,6 @@ def test_prompt(input):
 ```
 
 Now you can run another experiment with the new prompt. The dataset of test cases and the evaluator will be the same as the previous experiment.
-
 
 ```python
 few_shot_experiment = run_experiment(
@@ -239,12 +215,11 @@ few_shot_experiment = run_experiment(
 )
 ```
 
-# Prompt Optimization Technique #2: Meta Prompting
+## Prompt Optimization Technique #2: Meta Prompting
 
 Meta prompting involves prompting a model to generate a better prompt, based on previous inputs, outputs, and expected outputs.
 
 The experiment from round 1 serves as a great starting point for this technique, since it has each of those components.
-
 
 ```python
 # Access the experiment results from the first round as a dataframe
@@ -262,7 +237,6 @@ ground_truth_df.head()
 ```
 
 Now construct a new prompt that will be used to generate a new prompt.
-
 
 ```python
 meta_prompt = """
@@ -300,13 +274,11 @@ response = client.chat.completions.create(
 new_prompt = response.choices[0].message.content.strip()
 ```
 
-
 ```python
 new_prompt
 ```
 
 Now save that as a prompt in Phoenix:
-
 
 ```python
 if r"\{examples\}" in new_prompt:
@@ -328,9 +300,9 @@ meta_prompt_result = PhoenixClient().prompts.create(
 )
 ```
 
-### Run this new prompt through the same experiment
-Redefine the task, using the new prompt.
+#### Run this new prompt through the same experiment
 
+Redefine the task, using the new prompt.
 
 ```python
 def test_prompt(input):
@@ -340,7 +312,6 @@ def test_prompt(input):
     )
     return resp.choices[0].message.content.strip()
 ```
-
 
 ```python
 meta_prompting_experiment = run_experiment(
@@ -353,15 +324,15 @@ meta_prompting_experiment = run_experiment(
 )
 ```
 
-# Prompt Optimization Technique #3: Prompt Gradient Optimization
+## Prompt Optimization Technique #3: Prompt Gradient Optimization
 
 Prompt gradient optimization is a technique that uses the gradient of the prompt to optimize individual components of the prompt using embeddings. It involves:
+
 1. Converting the prompt into an embedding.
 2. Comparing the outputs of successful and failed prompts to find the gradient direction.
 3. Moving in the gradient direction to optimize the prompt.
 
 Here you'll define a function to get embeddings for prompts, and then use that function to calculate the gradient direction between successful and failed prompts.
-
 
 ```python
 import numpy as np
@@ -435,11 +406,9 @@ def optimize_prompt(base_prompt, gradient, step_size=0.1):
 gradient_prompt = optimize_prompt(original_base_prompt, gradient)
 ```
 
-
 ```python
 gradient_prompt
 ```
-
 
 ```python
 if r"\{examples\}" in gradient_prompt:
@@ -464,9 +433,9 @@ gradient_prompt = PhoenixClient().prompts.create(
 )
 ```
 
-### Run experiment with gradient-optimized prompt
-Redefine the task, using the new prompt.
+#### Run experiment with gradient-optimized prompt
 
+Redefine the task, using the new prompt.
 
 ```python
 def test_gradient_prompt(input):
@@ -476,7 +445,6 @@ def test_gradient_prompt(input):
     )
     return resp.choices[0].message.content.strip()
 ```
-
 
 ```python
 gradient_experiment = run_experiment(
@@ -489,17 +457,15 @@ gradient_experiment = run_experiment(
 )
 ```
 
-# Prompt Optimization Technique #4: Prompt Tuning with DSPy
+## Prompt Optimization Technique #4: Prompt Tuning with DSPy
 
 Finally, you can use an optimization library to optimize the prompt, like DSPy. [DSPy](https://github.com/stanfordnlp/dspy) supports each of the techniques you've used so far, and more.
-
 
 ```python
 !pip install -q dspy openinference-instrumentation-dspy
 ```
 
 DSPy makes a series of calls to optimize the prompt. It can be useful to see these calls in action. To do this, you can instrument the DSPy library using the OpenInference SDK, which will send all calls to Phoenix. This is optional, but it can be useful to have.
-
 
 ```python
 from openinference.instrumentation.dspy import DSPyInstrumentor
@@ -508,7 +474,6 @@ DSPyInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
 Now you'll setup the DSPy language model and define a prompt classification task.
-
 
 ```python
 # Import DSPy and set up the language model
@@ -533,7 +498,6 @@ classifier = dspy.Predict(PromptClassifier)
 
 Your classifier can now be used to make predictions as you would a normal LLM. It will expect a `prompt` input and will output a `label` prediction.
 
-
 ```python
 classifier(prompt=ds.iloc[0].prompt)
 ```
@@ -541,7 +505,6 @@ classifier(prompt=ds.iloc[0].prompt)
 However, DSPy really shines when it comes to optimizing prompts. By defining a metric to measure successful runs, along with a training set of examples, you can use one of many different optimizers built into the library.
 
 In this case, you'll use the `MIPROv2` optimizer to find the best prompt for your task.
-
 
 ```python
 def validate_classification(example, prediction, trace=None):
@@ -561,7 +524,6 @@ optimized_classifier = tp.compile(classifier, trainset=train_data)
 ```
 
 DSPy takes care of our prompts in this case, however you could still save the resulting prompt value in Phoenix:
-
 
 ```python
 params = CompletionCreateParamsBase(
@@ -583,9 +545,9 @@ dspy_prompt = PhoenixClient().prompts.create(
 )
 ```
 
-### Run experiment with DSPy-optimized classifier
-Redefine the task, using the new prompt.
+#### Run experiment with DSPy-optimized classifier
 
+Redefine the task, using the new prompt.
 
 ```python
 # Create evaluation function using optimized classifier
@@ -593,7 +555,6 @@ def test_dspy_prompt(input):
     result = optimized_classifier(prompt=input["prompt"])
     return result.label
 ```
-
 
 ```python
 # Run experiment with DSPy-optimized classifier
@@ -607,14 +568,13 @@ dspy_experiment = run_experiment(
 )
 ```
 
-# Prompt Optimization Technique #5: DSPy with GPT-4o
+## Prompt Optimization Technique #5: DSPy with GPT-4o
 
 In the last example, you used GPT-3.5 Turbo to both run your pipeline, and optimize the prompt. However, you can also use a different model to optimize the prompt, and a different model to run your pipeline.
 
 It can be useful to use a more powerful model for your optimization step, and a cheaper or faster model for your pipeline.
 
 Here you'll use GPT-4o to optimize the prompt, and keep GPT-3.5 Turbo as your pipeline model.
-
 
 ```python
 prompt_gen_lm = dspy.LM("gpt-4o")
@@ -624,9 +584,9 @@ tp = dspy.MIPROv2(
 optimized_classifier_using_gpt_4o = tp.compile(classifier, trainset=train_data)
 ```
 
-### Run experiment with DSPy-optimized classifier using GPT-4o
-Redefine the task, using the new prompt.
+#### Run experiment with DSPy-optimized classifier using GPT-4o
 
+Redefine the task, using the new prompt.
 
 ```python
 # Create evaluation function using optimized classifier
@@ -634,7 +594,6 @@ def test_dspy_prompt(input):
     result = optimized_classifier_using_gpt_4o(prompt=input["prompt"])
     return result.label
 ```
-
 
 ```python
 # Run experiment with DSPy-optimized classifier
@@ -648,12 +607,12 @@ dspy_experiment_using_gpt_4o = run_experiment(
 )
 ```
 
-# You're done!
+## Results
 
 And just like that, you've run a series of prompt optimization techniques to improve the performance of a jailbreak classification task, and compared the results using Phoenix.
 
 You should have a set of experiments that looks like this:
 
-![Experiment Results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-optimization-experiment-screenshot.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt-optimization-experiment-screenshot.png)
 
 From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
