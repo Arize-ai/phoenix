@@ -16,7 +16,7 @@ const baseToggleButtonCSS = css(
   `
     &[data-selected="true"] {
       background-color: var(--ac-global-button-primary-background-color);
-      border-color: var(--ac-global-button-primary-background-color);
+      --button-border-color: var(--ac-global-button-primary-border-color);
       color: var(--ac-global-button-primary-foreground-color);
       &:hover:not([data-disabled]) {
         background-color: var(--ac-global-button-primary-background-color-hover);
