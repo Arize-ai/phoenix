@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.14.1...arize-phoenix-v8.15.0) (2025-03-19)
+
+
+### Features
+
+* add integrations ([#6844](https://github.com/Arize-ai/phoenix/issues/6844)) ([6e3983e](https://github.com/Arize-ai/phoenix/commit/6e3983e120cc6b2dabb5b45cba508d22af5f5e44))
+
+
+### Bug Fixes
+
+* temporarily stop grouping by table names in db stats for SQLite ([#6846](https://github.com/Arize-ai/phoenix/issues/6846)) ([2d29236](https://github.com/Arize-ai/phoenix/commit/2d29236b0fa6d843ec38956800d078fa59cf8e8b))
+* **ui:** cleanup query block ([#6835](https://github.com/Arize-ai/phoenix/issues/6835)) ([5225361](https://github.com/Arize-ai/phoenix/commit/52253613ec201931549fbddebff7be27d4174ebc))
+
 ## [8.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.14.0...arize-phoenix-v8.14.1) (2025-03-18)
 
 
