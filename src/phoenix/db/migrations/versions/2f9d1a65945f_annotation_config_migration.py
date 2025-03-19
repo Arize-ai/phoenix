@@ -78,8 +78,6 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
-        sa.Column("is_ordinal", sa.Boolean, nullable=False),
-        sa.Column("multilabel_allowed", sa.Boolean, nullable=False),
     )
 
     op.create_table(

@@ -57,8 +57,6 @@ class CreateCategoricalAnnotationConfigInput:
     name: str
     optimization_direction: OptimizationDirection
     description: Optional[str] = None
-    is_ordinal: bool
-    multilabel_allowed: bool
     allowed_values: List[CreateCategoricalAnnotationValueInput]
 
 
@@ -106,13 +104,6 @@ class PatchContinuousAnnotationConfigInput:
 class PatchContinuousAnnotationConfigPayload:
     query: Query
     annotation_config: ContinuousAnnotationConfig
-
-
-@strawberry.input
-class PatchCategoricalAnnotationConfigInput:
-    config_id: GlobalID
-    is_ordinal: Optional[bool] = None
-    multilabel_allowed: Optional[bool] = None
 
 
 @strawberry.type
@@ -214,10 +205,7 @@ class AnnotationConfigMutationMixin:
                 optimization_direction=input.optimization_direction.upper(),
                 description=input.description,
             )
-            cat = models.CategoricalAnnotationConfig(
-                is_ordinal=input.is_ordinal,
-                multilabel_allowed=input.multilabel_allowed,
-            )
+            cat = models.CategoricalAnnotationConfig()
             for val in input.allowed_values:
                 allowed_value = models.CategoricalAnnotationValue(
                     label=val.label,
@@ -356,56 +344,6 @@ class AnnotationConfigMutationMixin:
                 query=Query(),
                 annotation_config=patched_config,
             )
-
-    @strawberry.mutation
-    async def patch_categorical_annotation_config(
-        self,
-        info: Info[Context, None],
-        input: PatchCategoricalAnnotationConfigInput,
-    ) -> PatchCategoricalAnnotationConfigPayload:
-        """
-        Update the categorical configuration details (is_ordinal and/or multilabel_allowed)
-        for an annotation configuration identified by its base config ID.
-        """
-        config_id = from_global_id_with_expected_type(
-            global_id=input.config_id, expected_type_name="CategoricalAnnotationConfig"
-        )
-        async with info.context.db() as session:
-            stmt = (
-                select(models.AnnotationConfig)
-                .options(
-                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                        models.CategoricalAnnotationConfig.allowed_values
-                    ),
-                    joinedload(models.AnnotationConfig.continuous_config),
-                )
-                .where(models.AnnotationConfig.id == config_id)
-            )
-            config = await session.scalar(stmt)
-            if not config or not config.categorical_config:
-                raise NotFound(
-                    f"Categorical annotation configuration with ID '{input.config_id}' not found"
-                )
-            values = {}
-            if input.is_ordinal is not None:
-                values["is_ordinal"] = input.is_ordinal
-            if input.multilabel_allowed is not None:
-                values["multilabel_allowed"] = input.multilabel_allowed
-            if values:
-                update_stmt = (
-                    update(models.CategoricalAnnotationConfig)
-                    .where(models.CategoricalAnnotationConfig.annotation_config_id == config_id)
-                    .values(**values)
-                    .returning(models.CategoricalAnnotationConfig)
-                )
-                await session.execute(update_stmt)
-                await session.refresh(config)
-        categorical_config = to_gql_annotation_config(config)
-        assert isinstance(categorical_config, CategoricalAnnotationConfig)
-        return PatchCategoricalAnnotationConfigPayload(
-            query=Query(),
-            annotation_config=categorical_config,
-        )
 
     @strawberry.mutation
     async def patch_categorical_annotation_values(

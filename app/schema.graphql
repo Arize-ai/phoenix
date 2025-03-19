@@ -138,8 +138,6 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigInterface {
   annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   description: String
-  isOrdinal: Boolean!
-  multilabelAllowed: Boolean!
   allowedValues: [CategoricalAnnotationValue!]!
 }
 
@@ -335,8 +333,6 @@ input CreateCategoricalAnnotationConfigInput {
   name: String!
   optimizationDirection: OptimizationDirection!
   description: String = null
-  isOrdinal: Boolean!
-  multilabelAllowed: Boolean!
   allowedValues: [CreateCategoricalAnnotationValueInput!]!
 }
 
@@ -1359,7 +1355,6 @@ type Mutation {
   createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): CreateFreeformAnnotationConfigPayload!
   patchAnnotationConfig(input: PatchAnnotationConfigInput!): PatchAnnotationConfigPayload!
   patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): PatchContinuousAnnotationConfigPayload!
-  patchCategoricalAnnotationConfig(input: PatchCategoricalAnnotationConfigInput!): PatchCategoricalAnnotationConfigPayload!
   patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): PatchCategoricalAnnotationValuesPayload!
   patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): PatchCategoricalAnnotationValuePayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
@@ -1469,17 +1464,6 @@ input PatchAnnotationInput {
   score: Float
   explanation: String
   metadata: JSON
-}
-
-input PatchCategoricalAnnotationConfigInput {
-  configId: GlobalID!
-  isOrdinal: Boolean = null
-  multilabelAllowed: Boolean = null
-}
-
-type PatchCategoricalAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: CategoricalAnnotationConfig!
 }
 
 input PatchCategoricalAnnotationValueInput {

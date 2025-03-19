@@ -1331,8 +1331,6 @@ class CategoricalAnnotationConfig(Base):
         nullable=False,
         index=True,
     )
-    is_ordinal: Mapped[bool]
-    multilabel_allowed: Mapped[bool]
 
     annotation_config = relationship("AnnotationConfig", back_populates="categorical_config")
     allowed_values = relationship(

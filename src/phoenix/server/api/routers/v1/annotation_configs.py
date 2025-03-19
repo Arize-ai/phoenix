@@ -40,8 +40,6 @@ class AnnotationConfigResponse(BaseModel):
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
     # Categorical config fields:
-    is_ordinal: Optional[bool] = None
-    multilabel_allowed: Optional[bool] = None
     allowed_values: Optional[List[AllowedValue]] = None
 
     class Config:
@@ -62,8 +60,6 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
         base["upper_bound"] = config.continuous_config.upper_bound
     elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_config:
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
-        base["is_ordinal"] = config.categorical_config.is_ordinal
-        base["multilabel_allowed"] = config.categorical_config.multilabel_allowed
         base["allowed_values"] = [
             AllowedValue(label=val.label, numeric_score=val.numeric_score)
             for val in config.categorical_config.allowed_values
@@ -90,17 +86,6 @@ class CreateCategoricalAnnotationConfigPayload(BaseModel):
     name: str
     optimization_direction: str
     description: Optional[str] = None
-    is_ordinal: bool
-    multilabel_allowed: bool
-    allowed_values: List[CreateCategoricalAnnotationValuePayload]
-
-
-class CreateBinaryAnnotationConfigPayload(BaseModel):
-    name: str
-    optimization_direction: str
-    description: Optional[str] = None
-    is_ordinal: bool = False
-    multilabel_allowed: bool = False
     allowed_values: List[CreateCategoricalAnnotationValuePayload]
 
 
@@ -222,10 +207,7 @@ async def create_categorical_annotation_config(
             optimization_direction=payload.optimization_direction.upper(),
             description=payload.description,
         )
-        cat = models.CategoricalAnnotationConfig(
-            is_ordinal=payload.is_ordinal,
-            multilabel_allowed=payload.multilabel_allowed,
-        )
+        cat = models.CategoricalAnnotationConfig()
         for val in payload.allowed_values:
             allowed_value = models.CategoricalAnnotationValue(
                 label=val.label,

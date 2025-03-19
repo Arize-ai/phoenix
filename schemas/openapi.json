@@ -1819,57 +1819,6 @@
         }
       }
     },
-    "/v1/annotation_configs/binary": {
-      "post": {
-        "tags": [
-          "annotation_configs"
-        ],
-        "summary": "Create a binary annotation configuration",
-        "operationId": "create_binary_annotation_config_v1_annotation_configs_binary_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateBinaryAnnotationConfigPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnnotationConfigResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/annotation_configs/freeform": {
       "post": {
         "tags": [
@@ -1934,7 +1883,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": "string",
               "description": "ID of the annotation configuration",
               "title": "Config Id"
             },
@@ -2038,7 +1987,7 @@
       "AnnotationConfigResponse": {
         "properties": {
           "id": {
-            "type": "integer",
+            "type": "string",
             "title": "Id"
           },
           "name": {
@@ -2086,28 +2035,6 @@
             ],
             "title": "Upper Bound"
           },
-          "is_ordinal": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Ordinal"
-          },
-          "multilabel_allowed": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Multilabel Allowed"
-          },
           "allowed_values": {
             "anyOf": [
               {
@@ -2132,53 +2059,6 @@
         ],
         "title": "AnnotationConfigResponse"
       },
-      "CreateBinaryAnnotationConfigPayload": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "optimization_direction": {
-            "type": "string",
-            "title": "Optimization Direction"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "is_ordinal": {
-            "type": "boolean",
-            "title": "Is Ordinal",
-            "default": false
-          },
-          "multilabel_allowed": {
-            "type": "boolean",
-            "title": "Multilabel Allowed",
-            "default": false
-          },
-          "allowed_values": {
-            "items": {
-              "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
-            },
-            "type": "array",
-            "title": "Allowed Values"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "optimization_direction",
-          "allowed_values"
-        ],
-        "title": "CreateBinaryAnnotationConfigPayload"
-      },
       "CreateCategoricalAnnotationConfigPayload": {
         "properties": {
           "name": {
@@ -2200,14 +2080,6 @@
             ],
             "title": "Description"
           },
-          "is_ordinal": {
-            "type": "boolean",
-            "title": "Is Ordinal"
-          },
-          "multilabel_allowed": {
-            "type": "boolean",
-            "title": "Multilabel Allowed"
-          },
           "allowed_values": {
             "items": {
               "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
@@ -2220,8 +2092,6 @@
         "required": [
           "name",
           "optimization_direction",
-          "is_ordinal",
-          "multilabel_allowed",
           "allowed_values"
         ],
         "title": "CreateCategoricalAnnotationConfigPayload"

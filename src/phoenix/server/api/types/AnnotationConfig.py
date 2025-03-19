@@ -45,8 +45,6 @@ class CategoricalAnnotationValue(Node):
 
 @strawberry.type
 class CategoricalAnnotationConfig(Node, AnnotationConfigInterface):
-    is_ordinal: bool
-    multilabel_allowed: bool
     allowed_values: List[CategoricalAnnotationValue]
 
 
@@ -115,8 +113,6 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             annotation_type=gql_annotation_type,
             optimization_direction=gql_optimization_direction,
             description=annotation_config.description,
-            is_ordinal=categorical.is_ordinal if categorical else False,
-            multilabel_allowed=categorical.multilabel_allowed if categorical else False,
             allowed_values=allowed_values,
         )
     else:
