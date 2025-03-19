@@ -4,10 +4,12 @@ import { css } from "@emotion/react";
 import {
   AnthropicSVG,
   BedrockSVG,
+  BeeAISVG,
   CrewAISVG,
   DSPYSVG,
   GroqSVG,
   HaystackSVG,
+  HuggingFaceSVG,
   IntegrationSVG,
   LangChainSVG,
   LlamaIndexSVG,
@@ -161,6 +163,22 @@ const PYTHON_INTEGRATIONS: IntegrationLinkProps[] = [
     icon: <AnthropicSVG />,
   },
   {
+    name: "Smolagents",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/hfsmolagents",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-smolagents",
+    icon: <HuggingFaceSVG />,
+  },
+  {
+    name: "OpenAI Agents",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/openai-agents-sdk",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents",
+    icon: <OpenAISVG />,
+  },
+  {
     name: "Bedrock",
     docsHref:
       "https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock",
@@ -265,6 +283,14 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
     githubHref:
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-vercel",
     icon: <VercelSVG />,
+  },
+  {
+    name: "BeeAI",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/beeai",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
+    icon: <BeeAISVG />,
   },
 ];
 export function TypeScriptIntegrations() {
