@@ -191,6 +191,20 @@ class UpdateContinuousAnnotationConfigPayload:
     annotation_config: ContinuousAnnotationConfig
 
 
+@strawberry.input
+class UpdateFreeformAnnotationConfigInput:
+    config_id: GlobalID
+    name: str
+    optimization_direction: OptimizationDirection
+    description: Optional[str] = None
+
+
+@strawberry.type
+class UpdateFreeformAnnotationConfigPayload:
+    query: Query
+    annotation_config: FreeformAnnotationConfig
+
+
 @strawberry.type
 class AnnotationConfigMutationMixin:
     @strawberry.mutation
@@ -377,6 +391,36 @@ class AnnotationConfigMutationMixin:
                 query=Query(),
                 annotation_config=categorical_config,
             )
+
+    @strawberry.mutation
+    async def update_freeform_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: UpdateFreeformAnnotationConfigInput,
+    ) -> UpdateFreeformAnnotationConfigPayload:
+        config_id = from_global_id_with_expected_type(
+            global_id=input.config_id, expected_type_name=FreeformAnnotationConfig.__name__
+        )
+        async with info.context.db() as session:
+            existing_config = await session.scalar(
+                select(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
+            )
+            if not existing_config:
+                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
+
+            existing_config.name = input.name
+            existing_config.description = input.description
+            existing_config.optimization_direction = input.optimization_direction.value
+
+            session.add(existing_config)
+            await session.commit()
+
+        freeform_config = to_gql_annotation_config(existing_config)
+        assert isinstance(freeform_config, FreeformAnnotationConfig)
+        return UpdateFreeformAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=freeform_config,
+        )
 
     @strawberry.mutation
     async def patch_annotation_config(

@@ -1355,6 +1355,7 @@ type Mutation {
   createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): CreateFreeformAnnotationConfigPayload!
   updateContinuousAnnotationConfig(input: UpdateContinuousAnnotationConfigInput!): UpdateContinuousAnnotationConfigPayload!
   updateCategoricalAnnotationConfig(input: UpdateCategoricalAnnotationConfigInput!): UpdateCategoricalAnnotationConfigPayload!
+  updateFreeformAnnotationConfig(input: UpdateFreeformAnnotationConfigInput!): UpdateFreeformAnnotationConfigPayload!
   patchAnnotationConfig(input: PatchAnnotationConfigInput!): PatchAnnotationConfigPayload!
   patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): PatchContinuousAnnotationConfigPayload!
   patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): PatchCategoricalAnnotationValuesPayload!
@@ -2400,6 +2401,18 @@ input UpdateContinuousAnnotationConfigInput {
 type UpdateContinuousAnnotationConfigPayload {
   query: Query!
   annotationConfig: ContinuousAnnotationConfig!
+}
+
+input UpdateFreeformAnnotationConfigInput {
+  configId: GlobalID!
+  name: String!
+  optimizationDirection: OptimizationDirection!
+  description: String = null
+}
+
+type UpdateFreeformAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: FreeformAnnotationConfig!
 }
 
 type User implements Node {
