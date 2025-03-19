@@ -3,59 +3,61 @@ from typing import Annotated, List, Optional, Union
 
 import strawberry
 from strawberry.relay import Node, NodeID
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 
 
 @strawberry.enum
-class AnnotationType(str, Enum):
+class AnnotationType(Enum):
     CATEGORICAL = "CATEGORICAL"
     CONTINUOUS = "CONTINUOUS"
     FREEFORM = "FREEFORM"
 
 
 @strawberry.enum
-class OptimizationDirection(str, Enum):
+class OptimizationDirection(Enum):
     MINIMIZE = "MINIMIZE"
     MAXIMIZE = "MAXIMIZE"
 
 
-@strawberry.interface
-class AnnotationConfigInterface:
+@strawberry.type
+class CategoricalAnnotationValue:
+    label: str
+    numeric_score: Optional[float]
+
+
+@strawberry.type
+class CategoricalAnnotationConfig(Node):
     id_attr: NodeID[int]
     name: str
     annotation_type: AnnotationType
     description: Optional[str]
+    optimization_direction: OptimizationDirection
+    values: List[CategoricalAnnotationValue]
 
 
 @strawberry.type
-class ContinuousAnnotationConfig(Node, AnnotationConfigInterface):
+class ContinuousAnnotationConfig(Node):
+    id_attr: NodeID[int]
+    name: str
+    annotation_type: AnnotationType
+    description: Optional[str]
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float]
     upper_bound: Optional[float]
 
 
 @strawberry.type
-class CategoricalAnnotationValue(Node):
+class FreeformAnnotationConfig(Node):
     id_attr: NodeID[int]
-    label: str
-    numeric_score: Optional[float]
-
-
-@strawberry.type
-class CategoricalAnnotationConfig(Node, AnnotationConfigInterface):
-    optimization_direction: OptimizationDirection
-    values: List[CategoricalAnnotationValue]
-
-
-@strawberry.type
-class FreeformAnnotationConfig(Node, AnnotationConfigInterface):
-    pass
+    name: str
+    annotation_type: AnnotationType
+    description: Optional[str]
 
 
 AnnotationConfig: TypeAlias = Annotated[
-    Union[ContinuousAnnotationConfig, CategoricalAnnotationConfig, FreeformAnnotationConfig],
+    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
     strawberry.union("AnnotationConfig"),
 ]
 
@@ -64,51 +66,42 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
     """
     Convert an SQLAlchemy AnnotationConfig instance to one of the GraphQL types.
     """
-    try:
-        gql_annotation_type = AnnotationType(annotation_config.annotation_type.upper())
-    except ValueError:
-        if annotation_config.annotation_type.upper() == "CATEGORICAL":
-            gql_annotation_type = AnnotationType.CATEGORICAL
-        else:
-            raise
-
-    if gql_annotation_type == AnnotationType.CONTINUOUS:
-        continuous = annotation_config.continuous_config
+    gql_annotation_type = AnnotationType(annotation_config.annotation_type)
+    if gql_annotation_type is AnnotationType.CONTINUOUS:
+        continuous_config = annotation_config.continuous_config
+        assert continuous_config is not None
         return ContinuousAnnotationConfig(
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            optimization_direction=OptimizationDirection(continuous.optimization_direction),
+            optimization_direction=OptimizationDirection(continuous_config.optimization_direction),
             description=annotation_config.description,
-            lower_bound=continuous.lower_bound if continuous else None,
-            upper_bound=continuous.upper_bound if continuous else None,
+            lower_bound=continuous_config.lower_bound,
+            upper_bound=continuous_config.upper_bound,
         )
     elif gql_annotation_type == AnnotationType.CATEGORICAL:
-        categorical = annotation_config.categorical_config
-        values = (
-            [
-                CategoricalAnnotationValue(
-                    id_attr=val.id,
-                    label=val.label,
-                    numeric_score=val.numeric_score,
-                )
-                for val in categorical.values
-            ]
-            if categorical and categorical.values
-            else []
-        )
+        categorical_config = annotation_config.categorical_config
+        assert categorical_config is not None
+        values = [
+            CategoricalAnnotationValue(
+                label=val.label,
+                numeric_score=val.numeric_score,
+            )
+            for val in categorical_config.values
+        ]
         return CategoricalAnnotationConfig(
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            optimization_direction=OptimizationDirection(categorical.optimization_direction),
+            optimization_direction=OptimizationDirection(categorical_config.optimization_direction),
             description=annotation_config.description,
             values=values,
         )
-    else:
+    elif gql_annotation_type is AnnotationType.FREEFORM:
         return FreeformAnnotationConfig(
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
             description=annotation_config.description,
         )
+    assert_never(annotation_config)

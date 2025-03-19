@@ -56,6 +56,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
             ]
         ),
     )
+    router.include_router(annotation_configs_router)
     router.include_router(datasets_router)
     router.include_router(experiments_router)
     router.include_router(experiment_runs_router)
@@ -64,5 +65,4 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
     router.include_router(spans_router)
     router.include_router(evaluations_router)
     router.include_router(prompts_router)
-    router.include_router(annotation_configs_router)
     return router

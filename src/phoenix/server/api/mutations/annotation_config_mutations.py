@@ -148,36 +148,6 @@ class UpdateFreeformAnnotationConfigPayload:
 @strawberry.type
 class AnnotationConfigMutationMixin:
     @strawberry.mutation
-    async def create_continuous_annotation_config(
-        self,
-        info: Info[Context, None],
-        input: CreateContinuousAnnotationConfigInput,
-    ) -> CreateContinuousAnnotationConfigPayload:
-        async with info.context.db() as session:
-            config = models.AnnotationConfig(
-                name=input.name,
-                annotation_type=AnnotationType.CONTINUOUS,
-                description=input.description,
-            )
-            cont = models.ContinuousAnnotationConfig(
-                optimization_direction=input.optimization_direction.upper(),
-                lower_bound=input.lower_bound,
-                upper_bound=input.upper_bound,
-            )
-            config.continuous_config = cont
-            session.add(config)
-            try:
-                await session.commit()
-            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-                raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
-            continuous_config = to_gql_annotation_config(config)
-            assert isinstance(continuous_config, ContinuousAnnotationConfig)
-            return CreateContinuousAnnotationConfigPayload(
-                query=Query(),
-                annotation_config=continuous_config,
-            )
-
-    @strawberry.mutation
     async def create_categorical_annotation_config(
         self,
         info: Info[Context, None],
@@ -186,11 +156,11 @@ class AnnotationConfigMutationMixin:
         async with info.context.db() as session:
             config = models.AnnotationConfig(
                 name=input.name,
-                annotation_type=AnnotationType.CATEGORICAL,
+                annotation_type=AnnotationType.CATEGORICAL.value,
                 description=input.description,
             )
             cat = models.CategoricalAnnotationConfig(
-                optimization_direction=input.optimization_direction.upper(),
+                optimization_direction=input.optimization_direction.value,
             )
             for val in input.values:
                 allowed_value = models.CategoricalAnnotationValue(
@@ -210,6 +180,36 @@ class AnnotationConfigMutationMixin:
             query=Query(),
             annotation_config=categorical_config,
         )
+
+    @strawberry.mutation
+    async def create_continuous_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: CreateContinuousAnnotationConfigInput,
+    ) -> CreateContinuousAnnotationConfigPayload:
+        async with info.context.db() as session:
+            config = models.AnnotationConfig(
+                name=input.name,
+                annotation_type=AnnotationType.CONTINUOUS.value,
+                description=input.description,
+            )
+            cont = models.ContinuousAnnotationConfig(
+                optimization_direction=input.optimization_direction.value,
+                lower_bound=input.lower_bound,
+                upper_bound=input.upper_bound,
+            )
+            config.continuous_config = cont
+            session.add(config)
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("The annotation config has a conflict")
+            continuous_config = to_gql_annotation_config(config)
+            assert isinstance(continuous_config, ContinuousAnnotationConfig)
+            return CreateContinuousAnnotationConfigPayload(
+                query=Query(),
+                annotation_config=continuous_config,
+            )
 
     @strawberry.mutation
     async def create_freeform_annotation_config(
@@ -234,44 +234,6 @@ class AnnotationConfigMutationMixin:
                 query=Query(),
                 annotation_config=freeform_config,
             )
-
-    @strawberry.mutation
-    async def update_continuous_annotation_config(
-        self,
-        info: Info[Context, None],
-        input: UpdateContinuousAnnotationConfigInput,
-    ) -> UpdateContinuousAnnotationConfigPayload:
-        config_id = from_global_id_with_expected_type(
-            global_id=input.config_id, expected_type_name=ContinuousAnnotationConfig.__name__
-        )
-        async with info.context.db() as session:
-            existing_config = await session.scalar(
-                select(models.AnnotationConfig)
-                .options(joinedload(models.AnnotationConfig.continuous_config))
-                .where(models.AnnotationConfig.id == config_id)
-            )
-            if not existing_config:
-                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-
-            existing_config.name = input.name
-            existing_config.description = input.description
-
-            assert existing_config.continuous_config is not None
-            existing_config.continuous_config.optimization_direction = (
-                input.optimization_direction.value
-            )
-            existing_config.continuous_config.lower_bound = input.lower_bound
-            existing_config.continuous_config.upper_bound = input.upper_bound
-
-            session.add(existing_config)
-            await session.commit()
-
-        continuous_config = to_gql_annotation_config(existing_config)
-        assert isinstance(continuous_config, ContinuousAnnotationConfig)
-        return UpdateContinuousAnnotationConfigPayload(
-            query=Query(),
-            annotation_config=continuous_config,
-        )
 
     @strawberry.mutation
     async def update_categorical_annotation_config(
@@ -327,6 +289,44 @@ class AnnotationConfigMutationMixin:
         return UpdateCategoricalAnnotationConfigPayload(
             query=Query(),
             annotation_config=categorical_config,
+        )
+
+    @strawberry.mutation
+    async def update_continuous_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: UpdateContinuousAnnotationConfigInput,
+    ) -> UpdateContinuousAnnotationConfigPayload:
+        config_id = from_global_id_with_expected_type(
+            global_id=input.config_id, expected_type_name=ContinuousAnnotationConfig.__name__
+        )
+        async with info.context.db() as session:
+            existing_config = await session.scalar(
+                select(models.AnnotationConfig)
+                .options(joinedload(models.AnnotationConfig.continuous_config))
+                .where(models.AnnotationConfig.id == config_id)
+            )
+            if not existing_config:
+                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
+
+            existing_config.name = input.name
+            existing_config.description = input.description
+
+            assert existing_config.continuous_config is not None
+            existing_config.continuous_config.optimization_direction = (
+                input.optimization_direction.value
+            )
+            existing_config.continuous_config.lower_bound = input.lower_bound
+            existing_config.continuous_config.upper_bound = input.upper_bound
+
+            session.add(existing_config)
+            await session.commit()
+
+        continuous_config = to_gql_annotation_config(existing_config)
+        assert isinstance(continuous_config, ContinuousAnnotationConfig)
+        return UpdateContinuousAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=continuous_config,
         )
 
     @strawberry.mutation

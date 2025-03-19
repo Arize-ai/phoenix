@@ -1284,7 +1284,7 @@ class AnnotationConfig(Base):
     annotation_type: Mapped[str] = mapped_column(
         String,
         CheckConstraint(
-            "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
+            "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM')",
             name="valid_annotation_type",
         ),
         nullable=False,
@@ -1361,6 +1361,8 @@ class CategoricalAnnotationValue(Base):
     numeric_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     categorical_config = relationship("CategoricalAnnotationConfig", back_populates="values")
+
+    __table_args__ = (UniqueConstraint("categorical_annotation_config_id", "label"),)
 
 
 class ProjectAnnotationConfig(Base):

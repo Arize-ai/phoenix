@@ -42,7 +42,7 @@ interface Annotation {
   explanation: String
 }
 
-union AnnotationConfig = ContinuousAnnotationConfig | CategoricalAnnotationConfig | FreeformAnnotationConfig
+union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
 """A connection to a list of items."""
 type AnnotationConfigConnection {
@@ -60,12 +60,6 @@ type AnnotationConfigEdge {
 
   """The item at the end of the edge"""
   node: AnnotationConfig!
-}
-
-interface AnnotationConfigInterface {
-  name: String!
-  annotationType: AnnotationType!
-  description: String
 }
 
 type AnnotationSummary {
@@ -140,7 +134,7 @@ enum CanonicalParameterName {
   REASONING_EFFORT
 }
 
-type CategoricalAnnotationConfig implements Node & AnnotationConfigInterface {
+type CategoricalAnnotationConfig implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
@@ -150,9 +144,7 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigInterface {
   values: [CategoricalAnnotationValue!]!
 }
 
-type CategoricalAnnotationValue implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
+type CategoricalAnnotationValue {
   label: String!
   numericScore: Float
 }
@@ -326,7 +318,7 @@ input ContentPartInput @oneOf {
   toolResult: ToolResultContentValueInput
 }
 
-type ContinuousAnnotationConfig implements Node & AnnotationConfigInterface {
+type ContinuousAnnotationConfig implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
@@ -1124,7 +1116,7 @@ type FloatInvocationParameter implements InvocationParameterBase {
   defaultValue: Float
 }
 
-type FreeformAnnotationConfig implements Node & AnnotationConfigInterface {
+type FreeformAnnotationConfig implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
@@ -1347,11 +1339,11 @@ input ModelsInput {
 }
 
 type Mutation {
-  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): CreateContinuousAnnotationConfigPayload!
   createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): CreateCategoricalAnnotationConfigPayload!
+  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): CreateContinuousAnnotationConfigPayload!
   createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): CreateFreeformAnnotationConfigPayload!
-  updateContinuousAnnotationConfig(input: UpdateContinuousAnnotationConfigInput!): UpdateContinuousAnnotationConfigPayload!
   updateCategoricalAnnotationConfig(input: UpdateCategoricalAnnotationConfigInput!): UpdateCategoricalAnnotationConfigPayload!
+  updateContinuousAnnotationConfig(input: UpdateContinuousAnnotationConfigInput!): UpdateContinuousAnnotationConfigPayload!
   updateFreeformAnnotationConfig(input: UpdateFreeformAnnotationConfigInput!): UpdateFreeformAnnotationConfigPayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
   addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
@@ -1548,7 +1540,7 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
-  annotationConfigs: [AnnotationConfig!]!
+  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
 }
 
 """A connection to a list of items."""

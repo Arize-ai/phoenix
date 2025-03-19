@@ -678,11 +678,15 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            stmt = select(models.AnnotationConfig).options(
-                joinedload(models.AnnotationConfig.continuous_config),
-                joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                    models.CategoricalAnnotationConfig.values
-                ),
+            stmt = (
+                select(models.AnnotationConfig)
+                .order_by(models.AnnotationConfig.name)
+                .options(
+                    joinedload(models.AnnotationConfig.continuous_config),
+                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                        models.CategoricalAnnotationConfig.values
+                    ),
+                )
             )
             configs = (await session.stream_scalars(stmt)).unique()
             data = [to_gql_annotation_config(config) async for config in configs]

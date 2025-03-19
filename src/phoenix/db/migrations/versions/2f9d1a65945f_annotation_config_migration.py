@@ -37,8 +37,8 @@ def upgrade() -> None:
             "annotation_type",
             sa.String,
             sa.CheckConstraint(
-                "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM', 'BINARY')",
-                name="annotation_type",
+                "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM')",
+                name="valid_annotation_type",
             ),
             nullable=False,
         ),
@@ -101,6 +101,10 @@ def upgrade() -> None:
         ),
         sa.Column("label", sa.String, nullable=False),
         sa.Column("numeric_score", sa.Float, nullable=True),
+        sa.UniqueConstraint(
+            "categorical_annotation_config_id",
+            "label",
+        ),
     )
 
     op.create_table(
@@ -124,11 +128,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_table("project_annotation_configs")
     op.drop_table("categorical_annotation_values")
     op.drop_table("categorical_annotation_configs")
     op.drop_table("continuous_annotation_configs")
     op.drop_table("annotation_configs")
-    op.drop_table("project_annotation_configs")
 
     with op.batch_alter_table("span_annotations", recreate="auto") as batch_op:
         batch_op.create_unique_constraint(

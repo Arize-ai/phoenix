@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["annotation_configs"])
 
 
-class AllowedValue(BaseModel):
+class CategoricalAnnotationValue(BaseModel):
     label: str
     numeric_score: Optional[float] = None
 
@@ -40,7 +40,7 @@ class AnnotationConfigResponse(BaseModel):
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
     # Categorical config fields:
-    values: Optional[List[AllowedValue]] = None
+    values: Optional[List[CategoricalAnnotationValue]] = None
 
     class Config:
         orm_mode = True
@@ -62,7 +62,7 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
         base["optimization_direction"] = config.categorical_config.optimization_direction
         base["values"] = [
-            AllowedValue(label=val.label, numeric_score=val.numeric_score)
+            CategoricalAnnotationValue(label=val.label, numeric_score=val.numeric_score)
             for val in config.categorical_config.values
         ]
     elif config.annotation_type.upper() == "FREEFORM":

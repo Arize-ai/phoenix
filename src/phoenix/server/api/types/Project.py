@@ -27,10 +27,12 @@ from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_a
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
     Cursor,
     CursorSortColumn,
     CursorString,
     connection_from_cursors_and_nodes,
+    connection_from_list,
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
@@ -526,28 +528,41 @@ class Project(Node):
             )
 
     @strawberry.field
-    async def annotation_configs(self, info: Info[Context, None]) -> list[AnnotationConfig]:
-        stmt = (
-            select(models.AnnotationConfig)
-            .join(
-                models.ProjectAnnotationConfig,
-                models.AnnotationConfig.id == models.ProjectAnnotationConfig.annotation_config_id,
-            )
-            .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
-            .order_by(models.AnnotationConfig.name)
-            .options(
-                joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                    models.CategoricalAnnotationConfig.values
-                ),
-                joinedload(models.AnnotationConfig.continuous_config),
-            )
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            annotation_configs = [
-                to_gql_annotation_config(annotation_config)
-                for annotation_config in (await session.scalars(stmt)).unique()
-            ]
-        return annotation_configs
+            annotation_configs = (
+                await session.stream_scalars(
+                    select(models.AnnotationConfig)
+                    .join(
+                        models.ProjectAnnotationConfig,
+                        models.AnnotationConfig.id
+                        == models.ProjectAnnotationConfig.annotation_config_id,
+                    )
+                    .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
+                    .order_by(models.AnnotationConfig.name)
+                    .options(
+                        joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                            models.CategoricalAnnotationConfig.values
+                        ),
+                        joinedload(models.AnnotationConfig.continuous_config),
+                    )
+                )
+            ).unique()
+            data = [to_gql_annotation_config(config) async for config in annotation_configs]
+        return connection_from_list(data=data, args=args)
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
