@@ -1289,14 +1289,6 @@ class AnnotationConfig(Base):
         ),
         nullable=False,
     )
-    optimization_direction: Mapped[str] = mapped_column(
-        String,
-        CheckConstraint(
-            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
-            name="valid_optimization_direction",
-        ),
-        nullable=False,
-    )
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     continuous_config = relationship(
@@ -1316,6 +1308,14 @@ class ContinuousAnnotationConfig(Base):
         nullable=False,
         index=True,
     )
+    optimization_direction: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+            name="valid_optimization_direction",
+        ),
+        nullable=False,
+    )
     lower_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     upper_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
@@ -1330,6 +1330,14 @@ class CategoricalAnnotationConfig(Base):
         ForeignKey("annotation_configs.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
+    )
+    optimization_direction: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+            name="valid_optimization_direction",
+        ),
+        nullable=False,
     )
 
     annotation_config = relationship("AnnotationConfig", back_populates="categorical_config")

@@ -1,9 +1,9 @@
 from typing import List, Optional
 
 import strawberry
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -69,7 +69,6 @@ class CreateCategoricalAnnotationConfigPayload:
 @strawberry.input
 class CreateFreeformAnnotationConfigInput:
     name: str
-    optimization_direction: OptimizationDirection
     description: Optional[str] = None
 
 
@@ -137,7 +136,6 @@ class UpdateContinuousAnnotationConfigPayload:
 class UpdateFreeformAnnotationConfigInput:
     config_id: GlobalID
     name: str
-    optimization_direction: OptimizationDirection
     description: Optional[str] = None
 
 
@@ -159,10 +157,10 @@ class AnnotationConfigMutationMixin:
             config = models.AnnotationConfig(
                 name=input.name,
                 annotation_type=AnnotationType.CONTINUOUS,
-                optimization_direction=input.optimization_direction.upper(),
                 description=input.description,
             )
             cont = models.ContinuousAnnotationConfig(
+                optimization_direction=input.optimization_direction.upper(),
                 lower_bound=input.lower_bound,
                 upper_bound=input.upper_bound,
             )
@@ -189,10 +187,11 @@ class AnnotationConfigMutationMixin:
             config = models.AnnotationConfig(
                 name=input.name,
                 annotation_type=AnnotationType.CATEGORICAL,
-                optimization_direction=input.optimization_direction.upper(),
                 description=input.description,
             )
-            cat = models.CategoricalAnnotationConfig()
+            cat = models.CategoricalAnnotationConfig(
+                optimization_direction=input.optimization_direction.upper(),
+            )
             for val in input.values:
                 allowed_value = models.CategoricalAnnotationValue(
                     label=val.label,
@@ -222,7 +221,6 @@ class AnnotationConfigMutationMixin:
             config = models.AnnotationConfig(
                 name=input.name,
                 annotation_type="FREEFORM",
-                optimization_direction=input.optimization_direction.upper(),
                 description=input.description,
             )
             session.add(config)
@@ -257,9 +255,11 @@ class AnnotationConfigMutationMixin:
 
             existing_config.name = input.name
             existing_config.description = input.description
-            existing_config.optimization_direction = input.optimization_direction.value
 
             assert existing_config.continuous_config is not None
+            existing_config.continuous_config.optimization_direction = (
+                input.optimization_direction.value
+            )
             existing_config.continuous_config.lower_bound = input.lower_bound
             existing_config.continuous_config.upper_bound = input.upper_bound
 
@@ -283,41 +283,7 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name=CategoricalAnnotationConfig.__name__
         )
         async with info.context.db() as session:
-            update_stmt = (
-                update(models.AnnotationConfig)
-                .where(models.AnnotationConfig.id == config_id)
-                .values(
-                    name=input.name,
-                    description=input.description,
-                    optimization_direction=input.optimization_direction.value,
-                )
-                .returning(models.AnnotationConfig)
-                .options(selectinload(models.AnnotationConfig.categorical_config))
-            )
-            config = await session.scalar(update_stmt)
-            if config is None:
-                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-
-            categorical_config_id = config.categorical_config.id
-            await session.execute(
-                delete(models.CategoricalAnnotationValue).where(
-                    models.CategoricalAnnotationValue.categorical_annotation_config_id
-                    == categorical_config_id
-                )
-            )
-            await session.execute(
-                insert(models.CategoricalAnnotationValue).values(
-                    [
-                        {
-                            "categorical_annotation_config_id": categorical_config_id,
-                            "label": value.label,
-                            "numeric_score": value.numeric_score,
-                        }
-                        for value in input.values
-                    ]
-                )
-            )
-            config = await session.scalar(
+            existing_config = await session.scalar(
                 select(models.AnnotationConfig)
                 .options(
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
@@ -326,13 +292,42 @@ class AnnotationConfigMutationMixin:
                 )
                 .where(models.AnnotationConfig.id == config_id)
             )
-            assert config is not None
-            categorical_config = to_gql_annotation_config(config)
-            assert isinstance(categorical_config, CategoricalAnnotationConfig)
-            return UpdateCategoricalAnnotationConfigPayload(
-                query=Query(),
-                annotation_config=categorical_config,
+            if not existing_config:
+                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
+
+            # Update the main config and categorical config
+            existing_config.name = input.name
+            existing_config.description = input.description
+
+            assert existing_config.categorical_config is not None
+            existing_config.categorical_config.optimization_direction = (
+                input.optimization_direction.value
             )
+
+            await session.execute(
+                delete(models.CategoricalAnnotationValue).where(
+                    models.CategoricalAnnotationValue.categorical_annotation_config_id
+                    == existing_config.categorical_config.id
+                )
+            )
+
+            existing_config.categorical_config.values.clear()
+            for val in input.values:
+                allowed_value = models.CategoricalAnnotationValue(
+                    label=val.label,
+                    numeric_score=val.numeric_score,
+                )
+                existing_config.categorical_config.values.append(allowed_value)
+
+            session.add(existing_config)
+            await session.commit()
+
+        categorical_config = to_gql_annotation_config(existing_config)
+        assert isinstance(categorical_config, CategoricalAnnotationConfig)
+        return UpdateCategoricalAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=categorical_config,
+        )
 
     @strawberry.mutation
     async def update_freeform_annotation_config(
@@ -352,7 +347,6 @@ class AnnotationConfigMutationMixin:
 
             existing_config.name = input.name
             existing_config.description = input.description
-            existing_config.optimization_direction = input.optimization_direction.value
 
             session.add(existing_config)
             await session.commit()

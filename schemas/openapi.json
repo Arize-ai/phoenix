@@ -1999,7 +1999,14 @@
             "title": "Annotation Type"
           },
           "optimization_direction": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Optimization Direction"
           },
           "description": {
@@ -2054,8 +2061,7 @@
         "required": [
           "id",
           "name",
-          "annotation_type",
-          "optimization_direction"
+          "annotation_type"
         ],
         "title": "AnnotationConfigResponse"
       },
@@ -2250,10 +2256,6 @@
             "type": "string",
             "title": "Name"
           },
-          "optimization_direction": {
-            "type": "string",
-            "title": "Optimization Direction"
-          },
           "description": {
             "anyOf": [
               {
@@ -2268,8 +2270,7 @@
         },
         "type": "object",
         "required": [
-          "name",
-          "optimization_direction"
+          "name"
         ],
         "title": "CreateFreeformAnnotationConfigPayload"
       },

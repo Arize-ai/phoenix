@@ -26,12 +26,12 @@ class AnnotationConfigInterface:
     id_attr: NodeID[int]
     name: str
     annotation_type: AnnotationType
-    optimization_direction: OptimizationDirection
     description: Optional[str]
 
 
 @strawberry.type
 class ContinuousAnnotationConfig(Node, AnnotationConfigInterface):
+    optimization_direction: OptimizationDirection
     lower_bound: Optional[float]
     upper_bound: Optional[float]
 
@@ -45,6 +45,7 @@ class CategoricalAnnotationValue(Node):
 
 @strawberry.type
 class CategoricalAnnotationConfig(Node, AnnotationConfigInterface):
+    optimization_direction: OptimizationDirection
     values: List[CategoricalAnnotationValue]
 
 
@@ -71,17 +72,13 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
         else:
             raise
 
-    gql_optimization_direction = OptimizationDirection(
-        annotation_config.optimization_direction.upper()
-    )
-
     if gql_annotation_type == AnnotationType.CONTINUOUS:
         continuous = annotation_config.continuous_config
         return ContinuousAnnotationConfig(
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            optimization_direction=gql_optimization_direction,
+            optimization_direction=OptimizationDirection(continuous.optimization_direction),
             description=annotation_config.description,
             lower_bound=continuous.lower_bound if continuous else None,
             upper_bound=continuous.upper_bound if continuous else None,
@@ -104,7 +101,7 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            optimization_direction=gql_optimization_direction,
+            optimization_direction=OptimizationDirection(categorical.optimization_direction),
             description=annotation_config.description,
             values=values,
         )
@@ -113,6 +110,5 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             id_attr=annotation_config.id,
             name=annotation_config.name,
             annotation_type=gql_annotation_type,
-            optimization_direction=gql_optimization_direction,
             description=annotation_config.description,
         )

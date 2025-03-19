@@ -42,15 +42,6 @@ def upgrade() -> None:
             ),
             nullable=False,
         ),
-        sa.Column(
-            "optimization_direction",
-            sa.String,
-            sa.CheckConstraint(
-                "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
-                name="valid_optimization_direction",
-            ),
-            nullable=False,
-        ),
         sa.Column("description", sa.String, nullable=True),
     )
 
@@ -63,6 +54,15 @@ def upgrade() -> None:
             sa.ForeignKey("annotation_configs.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
+        ),
+        sa.Column(
+            "optimization_direction",
+            sa.String,
+            sa.CheckConstraint(
+                "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+                name="valid_optimization_direction",
+            ),
+            nullable=False,
         ),
         sa.Column("lower_bound", sa.Float, nullable=True),
         sa.Column("upper_bound", sa.Float, nullable=True),
@@ -77,6 +77,15 @@ def upgrade() -> None:
             sa.ForeignKey("annotation_configs.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
+        ),
+        sa.Column(
+            "optimization_direction",
+            sa.String,
+            sa.CheckConstraint(
+                "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+                name="valid_optimization_direction",
+            ),
+            nullable=False,
         ),
     )
 

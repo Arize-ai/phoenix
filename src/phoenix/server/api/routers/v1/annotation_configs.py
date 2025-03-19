@@ -34,7 +34,7 @@ class AnnotationConfigResponse(BaseModel):
     id: str
     name: str
     annotation_type: str
-    optimization_direction: str
+    optimization_direction: Optional[str] = None
     description: Optional[str] = None
     # Continuous config fields:
     lower_bound: Optional[float] = None
@@ -51,21 +51,24 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
     base: dict[str, Any] = {
         "name": config.name,
         "annotation_type": config.annotation_type,
-        "optimization_direction": config.optimization_direction,
         "description": config.description,
     }
     if config.annotation_type.upper() == "CONTINUOUS" and config.continuous_config:
         base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(config.id)))
+        base["optimization_direction"] = config.continuous_config.optimization_direction
         base["lower_bound"] = config.continuous_config.lower_bound
         base["upper_bound"] = config.continuous_config.upper_bound
     elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_config:
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
+        base["optimization_direction"] = config.categorical_config.optimization_direction
         base["values"] = [
             AllowedValue(label=val.label, numeric_score=val.numeric_score)
             for val in config.categorical_config.values
         ]
     elif config.annotation_type.upper() == "FREEFORM":
         base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
+    else:
+        assert False
     return AnnotationConfigResponse(**base)
 
 
@@ -91,7 +94,6 @@ class CreateCategoricalAnnotationConfigPayload(BaseModel):
 
 class CreateFreeformAnnotationConfigPayload(BaseModel):
     name: str
-    optimization_direction: str
     description: Optional[str] = None
 
 
@@ -175,10 +177,10 @@ async def create_continuous_annotation_config(
         config = models.AnnotationConfig(
             name=payload.name,
             annotation_type="CONTINUOUS",
-            optimization_direction=payload.optimization_direction.upper(),
             description=payload.description,
         )
         cont = models.ContinuousAnnotationConfig(
+            optimization_direction=payload.optimization_direction.upper(),
             lower_bound=payload.lower_bound,
             upper_bound=payload.upper_bound,
         )
@@ -204,10 +206,11 @@ async def create_categorical_annotation_config(
         config = models.AnnotationConfig(
             name=payload.name,
             annotation_type="CATEGORICAL",
-            optimization_direction=payload.optimization_direction.upper(),
             description=payload.description,
         )
-        cat = models.CategoricalAnnotationConfig()
+        cat = models.CategoricalAnnotationConfig(
+            optimization_direction=payload.optimization_direction.upper(),
+        )
         for val in payload.values:
             allowed_value = models.CategoricalAnnotationValue(
                 label=val.label,
@@ -236,7 +239,6 @@ async def create_freeform_annotation_config(
         config = models.AnnotationConfig(
             name=payload.name,
             annotation_type="FREEFORM",
-            optimization_direction=payload.optimization_direction.upper(),
             description=payload.description,
         )
         session.add(config)
