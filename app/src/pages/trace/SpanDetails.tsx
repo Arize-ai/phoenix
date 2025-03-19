@@ -957,7 +957,9 @@ function RerankerSpanInfo(props: {
       <MarkdownDisplayProvider>
         {query && (
           <Card title="Query" {...defaultCardProps}>
-            <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
+            <View padding="size-200">
+              <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
+            </View>
           </Card>
         )}
       </MarkdownDisplayProvider>
