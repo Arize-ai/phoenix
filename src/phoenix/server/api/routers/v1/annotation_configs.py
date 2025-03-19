@@ -6,7 +6,11 @@ from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import (
+    HTTP_400_BAD_REQUEST,
+    HTTP_404_NOT_FOUND,
+    HTTP_422_UNPROCESSABLE_ENTITY,
+)
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -27,7 +31,7 @@ class AllowedValue(BaseModel):
 
 
 class AnnotationConfigResponse(BaseModel):
-    id: int
+    id: str
     name: str
     annotation_type: str
     optimization_direction: str
@@ -47,22 +51,25 @@ class AnnotationConfigResponse(BaseModel):
 def annotation_config_to_response(config: models.AnnotationConfig) -> AnnotationConfigResponse:
     """Convert an AnnotationConfig SQLAlchemy model instance to our response model."""
     base = {
-        "id": config.id,
         "name": config.name,
         "annotation_type": config.annotation_type,
         "optimization_direction": config.optimization_direction,
         "description": config.description,
     }
     if config.annotation_type.upper() == "CONTINUOUS" and config.continuous_config:
+        base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(config.id)))
         base["lower_bound"] = config.continuous_config.lower_bound
         base["upper_bound"] = config.continuous_config.upper_bound
-    elif config.annotation_type.upper() in ("CATEGORICAL", "BINARY") and config.categorical_config:
+    elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_config:
+        base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
         base["is_ordinal"] = config.categorical_config.is_ordinal
         base["multilabel_allowed"] = config.categorical_config.multilabel_allowed
         base["allowed_values"] = [
             AllowedValue(label=val.label, numeric_score=val.numeric_score)
             for val in config.categorical_config.allowed_values
         ]
+    elif config.annotation_type.upper() == "FREEFORM":
+        base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
     return AnnotationConfigResponse(**base)
 
 
@@ -235,46 +242,6 @@ async def create_categorical_annotation_config(
 
 
 @router.post(
-    "/annotation_configs/binary",
-    response_model=AnnotationConfigResponse,
-    summary="Create a binary annotation configuration",
-)
-async def create_binary_annotation_config(
-    request: Request,
-    payload: CreateBinaryAnnotationConfigPayload,
-) -> AnnotationConfigResponse:
-    if len(payload.allowed_values) != 2:
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Binary annotation configuration must have exactly two allowed values",
-        )
-    async with request.app.state.db() as session:
-        config = models.AnnotationConfig(
-            name=payload.name,
-            annotation_type="BINARY",
-            optimization_direction=payload.optimization_direction.upper(),
-            description=payload.description,
-        )
-        cat = models.CategoricalAnnotationConfig(
-            is_ordinal=payload.is_ordinal,
-            multilabel_allowed=payload.multilabel_allowed,
-        )
-        for val in payload.allowed_values:
-            allowed_value = models.CategoricalAnnotationValue(
-                label=val.label,
-                numeric_score=val.numeric_score,
-            )
-            cat.allowed_values.append(allowed_value)
-        config.categorical_config = cat
-        session.add(config)
-        try:
-            await session.commit()
-        except Exception as e:
-            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-        return annotation_config_to_response(config)
-
-
-@router.post(
     "/annotation_configs/freeform",
     response_model=AnnotationConfigResponse,
     summary="Create a freeform annotation configuration",
@@ -305,10 +272,20 @@ async def create_freeform_annotation_config(
 )
 async def delete_annotation_config(
     request: Request,
-    config_id: int = Path(..., description="ID of the annotation configuration"),
+    config_id: str = Path(..., description="ID of the annotation configuration"),
 ) -> bool:
+    config_gid = GlobalID.from_id(config_id)
+    if config_gid.type_name not in (
+        CategoricalAnnotationConfig.__name__,
+        ContinuousAnnotationConfig.__name__,
+        FreeformAnnotationConfig.__name__,
+    ):
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="Invalid annotation configuration ID"
+        )
+    config_rowid = int(config_gid.node_id)
     async with request.app.state.db() as session:
-        stmt = delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
+        stmt = delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_rowid)
         result = await session.execute(stmt)
         if result.rowcount == 0:
             raise HTTPException(
