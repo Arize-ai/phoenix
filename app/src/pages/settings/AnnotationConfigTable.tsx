@@ -8,6 +8,8 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+
 import {
   Button,
   DialogTrigger,
@@ -52,6 +54,7 @@ const makeColumns = ({
       id: "type",
       header: "Type",
       accessorKey: "type",
+      size: 10,
       cell: ({ row }) => {
         return (
           <Text>
@@ -67,10 +70,36 @@ const makeColumns = ({
       enableSorting: false,
       accessorFn: (row) => {
         switch (row.type) {
-          case "categorical":
-            return row.values.map((value, index) => (
+          case "categorical": {
+            let tokens = row.values.map((value, index) => (
               <Token key={index}>{value.label}</Token>
             ));
+            if (row.values.length > 5) {
+              tokens = [
+                ...tokens.slice(-4),
+                <TooltipTrigger
+                  key="ellipsis"
+                  delay={64}
+                  placement="bottom right"
+                >
+                  <TriggerWrap>
+                    <Token
+                      key="ellipsis"
+                      css={css`
+                        white-space: nowrap;
+                      `}
+                    >
+                      + {row.values.length - 5} more
+                    </Token>
+                  </TriggerWrap>
+                  <Tooltip>
+                    {row.values.map((value) => value.label).join(", ")}
+                  </Tooltip>
+                </TooltipTrigger>,
+              ];
+            }
+            return tokens;
+          }
           case "continuous":
             return `Range: ${row.min} - ${row.max}`;
           case "text":

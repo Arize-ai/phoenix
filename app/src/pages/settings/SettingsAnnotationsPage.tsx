@@ -45,7 +45,7 @@ export const SettingsAnnotationsPage = () => {
   >([
     {
       id: "1",
-      name: "foo",
+      name: "fooooooooooooooooooooooooooooooooooooooooooooo",
       type: "categorical",
       values: [
         { label: "foo" },
