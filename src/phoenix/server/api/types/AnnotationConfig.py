@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Annotated, List, Optional, Union
 
 import strawberry
-from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.relay import Node, NodeID
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
@@ -51,13 +51,6 @@ class CategoricalAnnotationConfig(Node, AnnotationConfigInterface):
 @strawberry.type
 class FreeformAnnotationConfig(Node, AnnotationConfigInterface):
     pass
-
-
-@strawberry.type
-class ProjectAnnotationConfig(Node):
-    id_attr: NodeID[int]
-    project_id: GlobalID
-    annotation_config_id: GlobalID
 
 
 AnnotationConfig: TypeAlias = Annotated[

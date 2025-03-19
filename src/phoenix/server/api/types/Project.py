@@ -6,6 +6,7 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, distinct, func, or_, select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET, Private
@@ -22,6 +23,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
@@ -522,6 +524,30 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
+
+    @strawberry.field
+    async def annotation_configs(self, info: Info[Context, None]) -> list[AnnotationConfig]:
+        stmt = (
+            select(models.AnnotationConfig)
+            .join(
+                models.ProjectAnnotationConfig,
+                models.AnnotationConfig.id == models.ProjectAnnotationConfig.annotation_config_id,
+            )
+            .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
+            .order_by(models.AnnotationConfig.name)
+            .options(
+                joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                    models.CategoricalAnnotationConfig.values
+                ),
+                joinedload(models.AnnotationConfig.continuous_config),
+            )
+        )
+        async with info.context.db() as session:
+            annotation_configs = [
+                to_gql_annotation_config(annotation_config)
+                for annotation_config in (await session.scalars(stmt)).unique()
+            ]
+        return annotation_configs
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

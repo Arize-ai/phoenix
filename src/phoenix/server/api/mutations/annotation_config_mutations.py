@@ -19,10 +19,10 @@ from phoenix.server.api.types.AnnotationConfig import (
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
     OptimizationDirection,
-    ProjectAnnotationConfig,
     to_gql_annotation_config,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Project import Project
 
 ANNOTATION_TYPE_NAMES = (
     CategoricalAnnotationConfig.__name__,
@@ -149,15 +149,15 @@ class DeleteAnnotationConfigPayload:
 
 
 @strawberry.input
-class CreateProjectAnnotationConfigInput:
+class AddAnnotationConfigToProjectInput:
     project_id: GlobalID
     annotation_config_id: GlobalID
 
 
 @strawberry.type
-class CreateProjectAnnotationConfigPayload:
+class AddAnnotationConfigToProjectPayload:
     query: Query
-    project_annotation_config: ProjectAnnotationConfig
+    project: Project
 
 
 @strawberry.type
@@ -486,11 +486,11 @@ class AnnotationConfigMutationMixin:
         )
 
     @strawberry.mutation
-    async def create_project_annotation_config(
+    async def add_annotation_config_to_project(
         self,
         info: Info[Context, None],
-        input: list[CreateProjectAnnotationConfigInput],
-    ) -> CreateProjectAnnotationConfigPayload:
+        input: list[AddAnnotationConfigToProjectInput],
+    ) -> AddAnnotationConfigToProjectPayload:
         async with info.context.db() as session:
             for item in input:
                 project_id = from_global_id_with_expected_type(
@@ -505,11 +505,7 @@ class AnnotationConfigMutationMixin:
                 )
                 session.add(project_annotation_config)
             await session.commit()
-            return CreateProjectAnnotationConfigPayload(
+            return AddAnnotationConfigToProjectPayload(
                 query=Query(),
-                project_annotation_config=ProjectAnnotationConfig(
-                    id_attr=project_annotation_config.id,
-                    project_id=item.project_id,
-                    annotation_config_id=item.annotation_config_id,
-                ),
+                project=Project(project_rowid=project_id),
             )

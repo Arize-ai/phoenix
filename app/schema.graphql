@@ -1,5 +1,15 @@
 directive @oneOf on INPUT_OBJECT
 
+input AddAnnotationConfigToProjectInput {
+  projectId: GlobalID!
+  annotationConfigId: GlobalID!
+}
+
+type AddAnnotationConfigToProjectPayload {
+  query: Query!
+  project: Project!
+}
+
 input AddExamplesToDatasetInput {
   datasetId: GlobalID!
   examples: [DatasetExampleInput!]!
@@ -386,16 +396,6 @@ input CreateFreeformAnnotationConfigInput {
 type CreateFreeformAnnotationConfigPayload {
   query: Query!
   annotationConfig: FreeformAnnotationConfig!
-}
-
-input CreateProjectAnnotationConfigInput {
-  projectId: GlobalID!
-  annotationConfigId: GlobalID!
-}
-
-type CreateProjectAnnotationConfigPayload {
-  query: Query!
-  projectAnnotationConfig: ProjectAnnotationConfig!
 }
 
 input CreatePromptLabelInput {
@@ -1358,7 +1358,7 @@ type Mutation {
   patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): PatchCategoricalAnnotationValuesPayload!
   patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): PatchCategoricalAnnotationValuePayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
-  createProjectAnnotationConfig(input: [CreateProjectAnnotationConfigInput!]!): CreateProjectAnnotationConfigPayload!
+  addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
@@ -1596,13 +1596,7 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
-}
-
-type ProjectAnnotationConfig implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
-  projectId: GlobalID!
-  annotationConfigId: GlobalID!
+  annotationConfigs: [AnnotationConfig!]!
 }
 
 """A connection to a list of items."""
