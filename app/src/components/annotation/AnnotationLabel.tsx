@@ -1,14 +1,15 @@
-import React from "react";
+import React, { forwardRef, Ref } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { StylableProps } from "@phoenix/components/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { Annotation } from "./types";
 
-type AnnotationDisplayPreference = "label" | "score";
+type AnnotationDisplayPreference = "label" | "score" | "none";
 
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--ac-global-dimension-size-50);
@@ -55,25 +56,31 @@ const getAnnotationDisplayValue = (
         annotation.label ||
         "n/a"
       );
+    case "none":
+      return "";
     default:
       assertUnreachable(displayPreference);
   }
 };
 
-export function AnnotationLabel({
-  annotation,
-  onClick,
-  annotationDisplayPreference = "score",
-}: {
-  annotation: Annotation;
-  onClick?: () => void;
-  /**
-   * The preferred value to display in the annotation label.
-   * If the provided value is not available, it will fallback to an available value.
-   * @default "score"
-   */
-  annotationDisplayPreference?: AnnotationDisplayPreference;
-}) {
+export function _AnnotationLabel(
+  {
+    annotation,
+    onClick,
+    annotationDisplayPreference = "score",
+    css: _css,
+  }: {
+    annotation: Annotation;
+    onClick?: () => void;
+    /**
+     * The preferred value to display in the annotation label.
+     * If the provided value is not available, it will fallback to an available value.
+     * @default "score"
+     */
+    annotationDisplayPreference?: AnnotationDisplayPreference;
+  } & StylableProps,
+  ref: Ref<HTMLDivElement>
+) {
   const clickable = typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
     annotation,
@@ -82,8 +89,9 @@ export function AnnotationLabel({
 
   return (
     <div
+      ref={ref}
       role={clickable ? "button" : undefined}
-      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
+      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`, _css)}
       aria-label={
         clickable
           ? "Click to view the annotation trace"
@@ -117,3 +125,6 @@ export function AnnotationLabel({
     </div>
   );
 }
+
+export const AnnotationLabel = forwardRef(_AnnotationLabel);
+AnnotationLabel.displayName = "AnnotationLabel";
