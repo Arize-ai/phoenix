@@ -6,11 +6,319 @@
     "version": "1.0"
   },
   "paths": {
+    "/v1/annotation_configs": {
+      "get": {
+        "tags": ["annotation_configs"],
+        "summary": "List annotation configurations",
+        "operationId": "list_annotation_configs_v1_annotation_configs_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of configs to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of configs to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnnotationConfigResponse"
+                  },
+                  "title": "Response List Annotation Configs V1 Annotation Configs Get"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/{config_identifier}": {
+      "get": {
+        "tags": ["annotation_configs"],
+        "summary": "Get an annotation configuration by ID or name",
+        "operationId": "get_annotation_config_by_name_or_id_v1_annotation_configs__config_identifier__get",
+        "parameters": [
+          {
+            "name": "config_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID or name of the annotation configuration",
+              "title": "Config Identifier"
+            },
+            "description": "ID or name of the annotation configuration"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/continuous": {
+      "post": {
+        "tags": ["annotation_configs"],
+        "summary": "Create a continuous annotation configuration",
+        "operationId": "create_continuous_annotation_config_v1_annotation_configs_continuous_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContinuousAnnotationConfigPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/categorical": {
+      "post": {
+        "tags": ["annotation_configs"],
+        "summary": "Create a categorical annotation configuration",
+        "operationId": "create_categorical_annotation_config_v1_annotation_configs_categorical_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoricalAnnotationConfigPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/freeform": {
+      "post": {
+        "tags": ["annotation_configs"],
+        "summary": "Create a freeform annotation configuration",
+        "operationId": "create_freeform_annotation_config_v1_annotation_configs_freeform_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFreeformAnnotationConfigPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/annotation_configs/{config_id}": {
+      "delete": {
+        "tags": ["annotation_configs"],
+        "summary": "Delete an annotation configuration",
+        "operationId": "delete_annotation_config_v1_annotation_configs__config_id__delete",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the annotation configuration",
+              "title": "Config Id"
+            },
+            "description": "ID of the annotation configuration"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean",
+                  "title": "Response Delete Annotation Config V1 Annotation Configs  Config Id  Delete"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/datasets": {
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "List datasets",
         "operationId": "listDatasets",
         "parameters": [
@@ -100,9 +408,7 @@
     },
     "/v1/datasets/{id}": {
       "delete": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Delete dataset by ID",
         "operationId": "deleteDatasetById",
         "parameters": [
@@ -155,9 +461,7 @@
         }
       },
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Get dataset by ID",
         "operationId": "getDataset",
         "parameters": [
@@ -219,9 +523,7 @@
     },
     "/v1/datasets/{id}/versions": {
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "List dataset versions",
         "operationId": "listDatasetVersionsByDatasetId",
         "parameters": [
@@ -304,9 +606,7 @@
     },
     "/v1/datasets/upload": {
       "post": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Upload dataset from JSON, CSV, or PyArrow",
         "operationId": "uploadDataset",
         "parameters": [
@@ -378,17 +678,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "inputs"
-                ],
+                "required": ["name", "inputs"],
                 "properties": {
                   "action": {
                     "type": "string",
-                    "enum": [
-                      "create",
-                      "append"
-                    ]
+                    "enum": ["create", "append"]
                   },
                   "name": {
                     "type": "string"
@@ -420,19 +714,11 @@
             "multipart/form-data": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "input_keys[]",
-                  "output_keys[]",
-                  "file"
-                ],
+                "required": ["name", "input_keys[]", "output_keys[]", "file"],
                 "properties": {
                   "action": {
                     "type": "string",
-                    "enum": [
-                      "create",
-                      "append"
-                    ]
+                    "enum": ["create", "append"]
                   },
                   "name": {
                     "type": "string"
@@ -474,9 +760,7 @@
     },
     "/v1/datasets/{id}/examples": {
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Get examples from a dataset",
         "operationId": "getDatasetExamples",
         "parameters": [
@@ -556,9 +840,7 @@
     },
     "/v1/datasets/{id}/csv": {
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Download dataset examples as CSV file",
         "operationId": "getDatasetCsv",
         "parameters": [
@@ -629,9 +911,7 @@
     },
     "/v1/datasets/{id}/jsonl/openai_ft": {
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Download dataset examples as OpenAI fine-tuning JSONL file",
         "operationId": "getDatasetJSONLOpenAIFineTuning",
         "parameters": [
@@ -701,9 +981,7 @@
     },
     "/v1/datasets/{id}/jsonl/openai_evals": {
       "get": {
-        "tags": [
-          "datasets"
-        ],
+        "tags": ["datasets"],
         "summary": "Download dataset examples as OpenAI evals JSONL file",
         "operationId": "getDatasetJSONLOpenAIEvals",
         "parameters": [
@@ -773,9 +1051,7 @@
     },
     "/v1/datasets/{dataset_id}/experiments": {
       "post": {
-        "tags": [
-          "experiments"
-        ],
+        "tags": ["experiments"],
         "summary": "Create experiment on a dataset",
         "operationId": "createExperiment",
         "parameters": [
@@ -843,9 +1119,7 @@
         }
       },
       "get": {
-        "tags": [
-          "experiments"
-        ],
+        "tags": ["experiments"],
         "summary": "List experiments by dataset",
         "operationId": "listExperiments",
         "parameters": [
@@ -895,9 +1169,7 @@
     },
     "/v1/experiments/{experiment_id}": {
       "get": {
-        "tags": [
-          "experiments"
-        ],
+        "tags": ["experiments"],
         "summary": "Get experiment by ID",
         "operationId": "getExperiment",
         "parameters": [
@@ -957,9 +1229,7 @@
     },
     "/v1/experiments/{experiment_id}/json": {
       "get": {
-        "tags": [
-          "experiments"
-        ],
+        "tags": ["experiments"],
         "summary": "Download experiment runs as a JSON file",
         "operationId": "getExperimentJSON",
         "parameters": [
@@ -1019,9 +1289,7 @@
     },
     "/v1/experiments/{experiment_id}/csv": {
       "get": {
-        "tags": [
-          "experiments"
-        ],
+        "tags": ["experiments"],
         "summary": "Download experiment runs as a CSV file",
         "operationId": "getExperimentCSV",
         "parameters": [
@@ -1075,9 +1343,7 @@
     },
     "/v1/span_annotations": {
       "post": {
-        "tags": [
-          "spans"
-        ],
+        "tags": ["spans"],
         "summary": "Create span annotations",
         "operationId": "annotateSpans",
         "parameters": [
@@ -1150,9 +1416,7 @@
     },
     "/v1/evaluations": {
       "post": {
-        "tags": [
-          "traces"
-        ],
+        "tags": ["traces"],
         "summary": "Add span, trace, or document evaluations",
         "operationId": "addEvaluations",
         "parameters": [
@@ -1243,9 +1507,7 @@
         }
       },
       "get": {
-        "tags": [
-          "traces"
-        ],
+        "tags": ["traces"],
         "summary": "Get span, trace, or document evaluations from a project",
         "operationId": "getEvaluations",
         "parameters": [
@@ -1312,9 +1574,7 @@
     },
     "/v1/prompts": {
       "get": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "List all prompts",
         "description": "Retrieve a paginated list of all prompts in the system. A prompt can have multiple versions.",
         "operationId": "getPrompts",
@@ -1385,9 +1645,7 @@
         }
       },
       "post": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "Create a new prompt",
         "description": "Create a new prompt and its initial version. A prompt can have multiple versions.",
         "operationId": "postPromptVersion",
@@ -1437,9 +1695,7 @@
     },
     "/v1/prompts/{prompt_identifier}/versions": {
       "get": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "List prompt versions",
         "description": "Retrieve all versions of a specific prompt with pagination support. Each prompt can have multiple versions with different configurations.",
         "operationId": "listPromptVersions",
@@ -1533,9 +1789,7 @@
     },
     "/v1/prompt_versions/{prompt_version_id}": {
       "get": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "Get prompt version by ID",
         "description": "Retrieve a specific prompt version using its unique identifier. A prompt version contains the actual template and configuration.",
         "operationId": "getPromptVersionByPromptVersionId",
@@ -1598,9 +1852,7 @@
     },
     "/v1/prompts/{prompt_identifier}/tags/{tag_name}": {
       "get": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "Get prompt version by tag",
         "description": "Retrieve a specific prompt version using its tag name. Tags are used to identify specific versions of a prompt.",
         "operationId": "getPromptVersionByTagName",
@@ -1674,9 +1926,7 @@
     },
     "/v1/prompts/{prompt_identifier}/latest": {
       "get": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "Get latest prompt version",
         "description": "Retrieve the most recent version of a specific prompt.",
         "operationId": "getPromptVersionLatest",
@@ -1739,9 +1989,7 @@
     },
     "/v1/prompt_versions/{prompt_version_id}/tags": {
       "get": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "List prompt version tags",
         "description": "Retrieve all tags associated with a specific prompt version. Tags are used to identify and categorize different versions of a prompt.",
         "operationId": "getPromptVersionTags",
@@ -1833,9 +2081,7 @@
         }
       },
       "post": {
-        "tags": [
-          "prompts"
-        ],
+        "tags": ["prompts"],
         "summary": "Add tag to prompt version",
         "description": "Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.",
         "operationId": "createPromptVersionTag",
@@ -1901,9 +2147,7 @@
     },
     "/v1/projects": {
       "get": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "summary": "List all projects",
         "description": "Retrieve a paginated list of all projects in the system.",
         "operationId": "getProjects",
@@ -1986,9 +2230,7 @@
         }
       },
       "post": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "summary": "Create a new project",
         "description": "Create a new project with the specified configuration.",
         "operationId": "createProject",
@@ -2038,9 +2280,7 @@
     },
     "/v1/projects/{project_identifier}": {
       "get": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "summary": "Get project by ID or name",
         "description": "Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "getProject",
@@ -2101,9 +2341,7 @@
         }
       },
       "put": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "summary": "Update a project by ID or name",
         "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "updateProject",
@@ -2174,9 +2412,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "projects"
-        ],
+        "tags": ["projects"],
         "summary": "Delete a project by ID or name",
         "description": "Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "deleteProject",
@@ -2244,9 +2480,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "AnnotateSpansRequestBody"
       },
       "AnnotateSpansResponseBody": {
@@ -2260,10 +2494,211 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "AnnotateSpansResponseBody"
+      },
+      "AnnotationConfigResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "annotation_type": {
+            "$ref": "#/components/schemas/AnnotationType"
+          },
+          "optimization_direction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OptimizationDirection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CategoricalAnnotationValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "annotation_type"],
+        "title": "AnnotationConfigResponse"
+      },
+      "AnnotationType": {
+        "type": "string",
+        "enum": ["CONTINUOUS", "CATEGORICAL", "FREEFORM"],
+        "title": "AnnotationType"
+      },
+      "CategoricalAnnotationValue": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": ["label"],
+        "title": "CategoricalAnnotationValue"
+      },
+      "CreateCategoricalAnnotationConfigPayload": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": ["name", "optimization_direction", "values"],
+        "title": "CreateCategoricalAnnotationConfigPayload"
+      },
+      "CreateCategoricalAnnotationValuePayload": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": ["label"],
+        "title": "CreateCategoricalAnnotationValuePayload"
+      },
+      "CreateContinuousAnnotationConfigPayload": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          }
+        },
+        "type": "object",
+        "required": ["name", "optimization_direction"],
+        "title": "CreateContinuousAnnotationConfigPayload"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -2334,16 +2769,13 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "CreateExperimentResponseBody"
       },
-      "CreateProjectRequestBody": {
+      "CreateFreeformAnnotationConfigPayload": {
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 1,
             "title": "Name"
           },
           "description": {
@@ -2359,22 +2791,8 @@
           }
         },
         "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "CreateProjectRequestBody"
-      },
-      "CreateProjectResponseBody": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/Project"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "CreateProjectResponseBody"
+        "required": ["name"],
+        "title": "CreateFreeformAnnotationConfigPayload"
       },
       "CreatePromptRequestBody": {
         "properties": {
@@ -2386,10 +2804,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "prompt",
-          "version"
-        ],
+        "required": ["prompt", "version"],
         "title": "CreatePromptRequestBody"
       },
       "CreatePromptResponseBody": {
@@ -2399,9 +2814,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "CreatePromptResponseBody"
       },
       "Dataset": {
@@ -2480,13 +2893,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "input",
-          "output",
-          "metadata",
-          "updated_at"
-        ],
+        "required": ["id", "input", "output", "metadata", "updated_at"],
         "title": "DatasetExample"
       },
       "DatasetVersion": {
@@ -2518,12 +2925,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "version_id",
-          "description",
-          "metadata",
-          "created_at"
-        ],
+        "required": ["version_id", "description", "metadata", "created_at"],
         "title": "DatasetVersion"
       },
       "DatasetWithExampleCount": {
@@ -2652,9 +3054,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "GetDatasetResponseBody"
       },
       "GetExperimentResponseBody": {
@@ -2664,9 +3064,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "GetExperimentResponseBody"
       },
       "GetProjectResponseBody": {
@@ -2676,9 +3074,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "GetProjectResponseBody"
       },
       "GetProjectsResponseBody": {
@@ -2703,10 +3099,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
+        "required": ["data", "next_cursor"],
         "title": "GetProjectsResponseBody"
       },
       "GetPromptResponseBody": {
@@ -2716,9 +3109,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "GetPromptResponseBody"
       },
       "GetPromptVersionTagsResponseBody": {
@@ -2743,10 +3134,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
+        "required": ["data", "next_cursor"],
         "title": "GetPromptVersionTagsResponseBody"
       },
       "GetPromptVersionsResponseBody": {
@@ -2771,10 +3159,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
+        "required": ["data", "next_cursor"],
         "title": "GetPromptVersionsResponseBody"
       },
       "GetPromptsResponseBody": {
@@ -2799,10 +3184,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
+        "required": ["data", "next_cursor"],
         "title": "GetPromptsResponseBody"
       },
       "HTTPValidationError": {
@@ -2832,9 +3214,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "title": "InsertedSpanAnnotation"
       },
       "ListDatasetExamplesData": {
@@ -2856,11 +3236,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "dataset_id",
-          "version_id",
-          "examples"
-        ],
+        "required": ["dataset_id", "version_id", "examples"],
         "title": "ListDatasetExamplesData"
       },
       "ListDatasetExamplesResponseBody": {
@@ -2870,9 +3246,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "ListDatasetExamplesResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
@@ -2897,10 +3271,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
+        "required": ["data", "next_cursor"],
         "title": "ListDatasetVersionsResponseBody"
       },
       "ListDatasetsResponseBody": {
@@ -2925,10 +3296,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data",
-          "next_cursor"
-        ],
+        "required": ["data", "next_cursor"],
         "title": "ListDatasetsResponseBody"
       },
       "ListExperimentsResponseBody": {
@@ -2942,50 +3310,18 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "ListExperimentsResponseBody"
       },
       "ModelProvider": {
         "type": "string",
-        "enum": [
-          "OPENAI",
-          "AZURE_OPENAI",
-          "ANTHROPIC",
-          "GOOGLE"
-        ],
+        "enum": ["OPENAI", "AZURE_OPENAI", "ANTHROPIC", "GOOGLE"],
         "title": "ModelProvider"
       },
-      "Project": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "id"
-        ],
-        "title": "Project"
+      "OptimizationDirection": {
+        "type": "string",
+        "enum": ["MINIMIZE", "MAXIMIZE"],
+        "title": "OptimizationDirection"
       },
       "Prompt": {
         "properties": {
@@ -3020,10 +3356,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name",
-          "id"
-        ],
+        "required": ["name", "id"],
         "title": "Prompt"
       },
       "PromptAnthropicInvocationParameters": {
@@ -3039,10 +3372,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "anthropic"
-        ],
+        "required": ["type", "anthropic"],
         "title": "PromptAnthropicInvocationParameters"
       },
       "PromptAnthropicInvocationParametersContent": {
@@ -3087,9 +3417,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "max_tokens"
-        ],
+        "required": ["max_tokens"],
         "title": "PromptAnthropicInvocationParametersContent"
       },
       "PromptAnthropicThinkingConfigDisabled": {
@@ -3102,9 +3430,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "title": "PromptAnthropicThinkingConfigDisabled"
       },
       "PromptAnthropicThinkingConfigEnabled": {
@@ -3122,10 +3448,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "budget_tokens"
-        ],
+        "required": ["type", "budget_tokens"],
         "title": "PromptAnthropicThinkingConfigEnabled"
       },
       "PromptAzureOpenAIInvocationParameters": {
@@ -3141,10 +3464,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "azure_openai"
-        ],
+        "required": ["type", "azure_openai"],
         "title": "PromptAzureOpenAIInvocationParameters"
       },
       "PromptAzureOpenAIInvocationParametersContent": {
@@ -3179,11 +3499,7 @@
           },
           "reasoning_effort": {
             "type": "string",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ],
+            "enum": ["low", "medium", "high"],
             "title": "Reasoning Effort"
           }
         },
@@ -3208,10 +3524,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "messages"
-        ],
+        "required": ["type", "messages"],
         "title": "PromptChatTemplate"
       },
       "PromptData": {
@@ -3243,9 +3556,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "PromptData"
       },
       "PromptGoogleInvocationParameters": {
@@ -3261,10 +3572,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "google"
-        ],
+        "required": ["type", "google"],
         "title": "PromptGoogleInvocationParameters"
       },
       "PromptGoogleInvocationParametersContent": {
@@ -3356,10 +3664,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "role",
-          "content"
-        ],
+        "required": ["role", "content"],
         "title": "PromptMessage"
       },
       "PromptOpenAIInvocationParameters": {
@@ -3375,10 +3680,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "openai"
-        ],
+        "required": ["type", "openai"],
         "title": "PromptOpenAIInvocationParameters"
       },
       "PromptOpenAIInvocationParametersContent": {
@@ -3413,11 +3715,7 @@
           },
           "reasoning_effort": {
             "type": "string",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ],
+            "enum": ["low", "medium", "high"],
             "title": "Reasoning Effort"
           }
         },
@@ -3438,10 +3736,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "json_schema"
-        ],
+        "required": ["type", "json_schema"],
         "title": "PromptResponseFormatJSONSchema"
       },
       "PromptResponseFormatJSONSchemaDefinition": {
@@ -3466,9 +3761,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "PromptResponseFormatJSONSchemaDefinition"
       },
       "PromptStringTemplate": {
@@ -3485,27 +3778,17 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "template"
-        ],
+        "required": ["type", "template"],
         "title": "PromptStringTemplate"
       },
       "PromptTemplateFormat": {
         "type": "string",
-        "enum": [
-          "MUSTACHE",
-          "F_STRING",
-          "NONE"
-        ],
+        "enum": ["MUSTACHE", "F_STRING", "NONE"],
         "title": "PromptTemplateFormat"
       },
       "PromptTemplateType": {
         "type": "string",
-        "enum": [
-          "STR",
-          "CHAT"
-        ],
+        "enum": ["STR", "CHAT"],
         "title": "PromptTemplateType"
       },
       "PromptToolChoiceNone": {
@@ -3518,9 +3801,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "title": "PromptToolChoiceNone"
       },
       "PromptToolChoiceOneOrMore": {
@@ -3533,9 +3814,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "title": "PromptToolChoiceOneOrMore"
       },
       "PromptToolChoiceSpecificFunctionTool": {
@@ -3552,10 +3831,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "function_name"
-        ],
+        "required": ["type", "function_name"],
         "title": "PromptToolChoiceSpecificFunctionTool"
       },
       "PromptToolChoiceZeroOrMore": {
@@ -3568,9 +3844,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type"
-        ],
+        "required": ["type"],
         "title": "PromptToolChoiceZeroOrMore"
       },
       "PromptToolFunction": {
@@ -3586,10 +3860,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "function"
-        ],
+        "required": ["type", "function"],
         "title": "PromptToolFunction"
       },
       "PromptToolFunctionDefinition": {
@@ -3614,9 +3885,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "PromptToolFunctionDefinition"
       },
       "PromptTools": {
@@ -3677,10 +3946,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "tools"
-        ],
+        "required": ["type", "tools"],
         "title": "PromptTools"
       },
       "PromptVersion": {
@@ -3936,10 +4202,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name",
-          "id"
-        ],
+        "required": ["name", "id"],
         "title": "PromptVersionTag"
       },
       "PromptVersionTagData": {
@@ -3960,9 +4223,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "PromptVersionTagData"
       },
       "SpanAnnotation": {
@@ -3979,10 +4240,7 @@
           },
           "annotator_kind": {
             "type": "string",
-            "enum": [
-              "LLM",
-              "HUMAN"
-            ],
+            "enum": ["LLM", "HUMAN"],
             "title": "Annotator Kind",
             "description": "The kind of annotator used for the annotation"
           },
@@ -4012,11 +4270,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "span_id",
-          "name",
-          "annotator_kind"
-        ],
+        "required": ["span_id", "name", "annotator_kind"],
         "title": "SpanAnnotation"
       },
       "SpanAnnotationResult": {
@@ -4075,10 +4329,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "text"
-        ],
+        "required": ["type", "text"],
         "title": "TextContentPart"
       },
       "ToolCallContentPart": {
@@ -4109,11 +4360,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "tool_call_id",
-          "tool_call"
-        ],
+        "required": ["type", "tool_call_id", "tool_call"],
         "title": "ToolCallContentPart"
       },
       "ToolCallFunction": {
@@ -4134,11 +4381,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "name",
-          "arguments"
-        ],
+        "required": ["type", "name", "arguments"],
         "title": "ToolCallFunction"
       },
       "ToolResultContentPart": {
@@ -4183,11 +4426,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "type",
-          "tool_call_id",
-          "tool_result"
-        ],
+        "required": ["type", "tool_call_id", "tool_result"],
         "title": "ToolResultContentPart"
       },
       "UpdateProjectRequestBody": {
@@ -4214,9 +4453,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "UpdateProjectResponseBody"
       },
       "UploadDatasetData": {
@@ -4227,9 +4464,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "dataset_id"
-        ],
+        "required": ["dataset_id"],
         "title": "UploadDatasetData"
       },
       "UploadDatasetResponseBody": {
@@ -4239,9 +4474,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "data"
-        ],
+        "required": ["data"],
         "title": "UploadDatasetResponseBody"
       },
       "ValidationError": {
@@ -4270,11 +4503,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError"
       }
     }
