@@ -2054,7 +2054,7 @@
             "type": "string",
             "title": "Label"
           },
-          "numeric_score": {
+          "score": {
             "anyOf": [
               {
                 "type": "number"
@@ -2063,7 +2063,7 @@
                 "type": "null"
               }
             ],
-            "title": "Numeric Score"
+            "title": "Score"
           }
         },
         "type": "object",
@@ -2114,7 +2114,7 @@
             "type": "string",
             "title": "Label"
           },
-          "numeric_score": {
+          "score": {
             "anyOf": [
               {
                 "type": "number"
@@ -2123,7 +2123,7 @@
                 "type": "null"
               }
             ],
-            "title": "Numeric Score"
+            "title": "Score"
           }
         },
         "type": "object",

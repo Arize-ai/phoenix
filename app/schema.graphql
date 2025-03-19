@@ -146,12 +146,12 @@ type CategoricalAnnotationConfig implements Node {
 
 type CategoricalAnnotationValue {
   label: String!
-  numericScore: Float
+  score: Float
 }
 
 input CategoricalAnnotationValueInput {
   label: String!
-  numericScore: Float = null
+  score: Float = null
 }
 
 type ChatCompletionFunctionCall {

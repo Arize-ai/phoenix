@@ -439,8 +439,8 @@ export interface components {
         CategoricalAnnotationValue: {
             /** Label */
             label: string;
-            /** Numeric Score */
-            numeric_score?: number | null;
+            /** Score */
+            score?: number | null;
         };
         /** CreateCategoricalAnnotationConfigPayload */
         CreateCategoricalAnnotationConfigPayload: {
@@ -456,8 +456,8 @@ export interface components {
         CreateCategoricalAnnotationValuePayload: {
             /** Label */
             label: string;
-            /** Numeric Score */
-            numeric_score?: number | null;
+            /** Score */
+            score?: number | null;
         };
         /** CreateContinuousAnnotationConfigPayload */
         CreateContinuousAnnotationConfigPayload: {
