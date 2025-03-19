@@ -681,7 +681,7 @@ class Query:
             stmt = select(models.AnnotationConfig).options(
                 joinedload(models.AnnotationConfig.continuous_config),
                 joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                    models.CategoricalAnnotationConfig.allowed_values
+                    models.CategoricalAnnotationConfig.values
                 ),
             )
             configs = (await session.stream_scalars(stmt)).unique()

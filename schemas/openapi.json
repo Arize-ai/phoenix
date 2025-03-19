@@ -2035,7 +2035,7 @@
             ],
             "title": "Upper Bound"
           },
-          "allowed_values": {
+          "values": {
             "anyOf": [
               {
                 "items": {
@@ -2047,7 +2047,7 @@
                 "type": "null"
               }
             ],
-            "title": "Allowed Values"
+            "title": "Values"
           }
         },
         "type": "object",
@@ -2080,19 +2080,19 @@
             ],
             "title": "Description"
           },
-          "allowed_values": {
+          "values": {
             "items": {
               "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
             },
             "type": "array",
-            "title": "Allowed Values"
+            "title": "Values"
           }
         },
         "type": "object",
         "required": [
           "name",
           "optimization_direction",
-          "allowed_values"
+          "values"
         ],
         "title": "CreateCategoricalAnnotationConfigPayload"
       },

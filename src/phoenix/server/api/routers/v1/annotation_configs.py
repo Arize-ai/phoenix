@@ -40,7 +40,7 @@ class AnnotationConfigResponse(BaseModel):
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
     # Categorical config fields:
-    allowed_values: Optional[List[AllowedValue]] = None
+    values: Optional[List[AllowedValue]] = None
 
     class Config:
         orm_mode = True
@@ -60,9 +60,9 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
         base["upper_bound"] = config.continuous_config.upper_bound
     elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_config:
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
-        base["allowed_values"] = [
+        base["values"] = [
             AllowedValue(label=val.label, numeric_score=val.numeric_score)
-            for val in config.categorical_config.allowed_values
+            for val in config.categorical_config.values
         ]
     elif config.annotation_type.upper() == "FREEFORM":
         base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
@@ -86,7 +86,7 @@ class CreateCategoricalAnnotationConfigPayload(BaseModel):
     name: str
     optimization_direction: str
     description: Optional[str] = None
-    allowed_values: List[CreateCategoricalAnnotationValuePayload]
+    values: List[CreateCategoricalAnnotationValuePayload]
 
 
 class CreateFreeformAnnotationConfigPayload(BaseModel):
@@ -110,7 +110,7 @@ async def list_annotation_configs(
             .options(
                 selectinload(models.AnnotationConfig.continuous_config),
                 selectinload(models.AnnotationConfig.categorical_config).selectinload(
-                    models.CategoricalAnnotationConfig.allowed_values
+                    models.CategoricalAnnotationConfig.values
                 ),
             )
             .limit(limit)
@@ -145,7 +145,7 @@ async def get_annotation_config_by_name_or_id(
         query = select(models.AnnotationConfig).options(
             selectinload(models.AnnotationConfig.continuous_config),
             selectinload(models.AnnotationConfig.categorical_config).selectinload(
-                models.CategoricalAnnotationConfig.allowed_values
+                models.CategoricalAnnotationConfig.values
             ),
         )
         # Try to interpret the identifier as an integer ID; if not, use it as a name.
@@ -208,12 +208,12 @@ async def create_categorical_annotation_config(
             description=payload.description,
         )
         cat = models.CategoricalAnnotationConfig()
-        for val in payload.allowed_values:
+        for val in payload.values:
             allowed_value = models.CategoricalAnnotationValue(
                 label=val.label,
                 numeric_score=val.numeric_score,
             )
-            cat.allowed_values.append(allowed_value)
+            cat.values.append(allowed_value)
         config.categorical_config = cat
         session.add(config)
         try:

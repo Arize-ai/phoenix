@@ -138,7 +138,7 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigInterface {
   annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   description: String
-  allowedValues: [CategoricalAnnotationValue!]!
+  values: [CategoricalAnnotationValue!]!
 }
 
 type CategoricalAnnotationValue implements Node {
@@ -333,7 +333,7 @@ input CreateCategoricalAnnotationConfigInput {
   name: String!
   optimizationDirection: OptimizationDirection!
   description: String = null
-  allowedValues: [CreateCategoricalAnnotationValueInput!]!
+  values: [CreateCategoricalAnnotationValueInput!]!
 }
 
 type CreateCategoricalAnnotationConfigPayload {
@@ -1479,7 +1479,7 @@ type PatchCategoricalAnnotationValuePayload {
 
 input PatchCategoricalAnnotationValuesInput {
   configId: GlobalID!
-  allowedValues: [CreateCategoricalAnnotationValueInput!]!
+  values: [CreateCategoricalAnnotationValueInput!]!
 }
 
 type PatchCategoricalAnnotationValuesPayload {

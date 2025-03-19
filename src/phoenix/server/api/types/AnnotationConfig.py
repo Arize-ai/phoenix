@@ -45,7 +45,7 @@ class CategoricalAnnotationValue(Node):
 
 @strawberry.type
 class CategoricalAnnotationConfig(Node, AnnotationConfigInterface):
-    allowed_values: List[CategoricalAnnotationValue]
+    values: List[CategoricalAnnotationValue]
 
 
 @strawberry.type
@@ -95,16 +95,16 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
         )
     elif gql_annotation_type == AnnotationType.CATEGORICAL:
         categorical = annotation_config.categorical_config
-        allowed_values = (
+        values = (
             [
                 CategoricalAnnotationValue(
                     id_attr=val.id,
                     label=val.label,
                     numeric_score=val.numeric_score,
                 )
-                for val in categorical.allowed_values
+                for val in categorical.values
             ]
-            if categorical and categorical.allowed_values
+            if categorical and categorical.values
             else []
         )
         return CategoricalAnnotationConfig(
@@ -113,7 +113,7 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
             annotation_type=gql_annotation_type,
             optimization_direction=gql_optimization_direction,
             description=annotation_config.description,
-            allowed_values=allowed_values,
+            values=values,
         )
     else:
         return FreeformAnnotationConfig(

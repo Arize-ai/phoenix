@@ -57,7 +57,7 @@ class CreateCategoricalAnnotationConfigInput:
     name: str
     optimization_direction: OptimizationDirection
     description: Optional[str] = None
-    allowed_values: List[CreateCategoricalAnnotationValueInput]
+    values: List[CreateCategoricalAnnotationValueInput]
 
 
 @strawberry.type
@@ -115,7 +115,7 @@ class PatchCategoricalAnnotationConfigPayload:
 @strawberry.input
 class PatchCategoricalAnnotationValuesInput:
     config_id: GlobalID
-    allowed_values: List[CreateCategoricalAnnotationValueInput]
+    values: List[CreateCategoricalAnnotationValueInput]
 
 
 @strawberry.type
@@ -206,12 +206,12 @@ class AnnotationConfigMutationMixin:
                 description=input.description,
             )
             cat = models.CategoricalAnnotationConfig()
-            for val in input.allowed_values:
+            for val in input.values:
                 allowed_value = models.CategoricalAnnotationValue(
                     label=val.label,
                     numeric_score=val.numeric_score,
                 )
-                cat.allowed_values.append(allowed_value)
+                cat.values.append(allowed_value)
             config.categorical_config = cat
             session.add(config)
             try:
@@ -265,7 +265,7 @@ class AnnotationConfigMutationMixin:
                 .options(
                     joinedload(models.AnnotationConfig.continuous_config),
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                        models.CategoricalAnnotationConfig.allowed_values
+                        models.CategoricalAnnotationConfig.values
                     ),
                 )
                 .where(models.AnnotationConfig.id == config_id)
@@ -314,7 +314,7 @@ class AnnotationConfigMutationMixin:
                 .options(
                     joinedload(models.AnnotationConfig.continuous_config),
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                        models.CategoricalAnnotationConfig.allowed_values
+                        models.CategoricalAnnotationConfig.values
                     ),
                 )
                 .where(models.AnnotationConfig.id == config_id)
@@ -363,7 +363,7 @@ class AnnotationConfigMutationMixin:
                 select(models.AnnotationConfig)
                 .options(
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                        models.CategoricalAnnotationConfig.allowed_values
+                        models.CategoricalAnnotationConfig.values
                     ),
                     joinedload(models.AnnotationConfig.continuous_config),
                 )
@@ -376,16 +376,16 @@ class AnnotationConfigMutationMixin:
                 )
             cat = config.categorical_config
 
-            for old_value in list(cat.allowed_values):
+            for old_value in list(cat.values):
                 await session.delete(old_value)
             new_values = []
-            for val in input.allowed_values:
+            for val in input.values:
                 new_val = models.CategoricalAnnotationValue(
                     label=val.label,
                     numeric_score=val.numeric_score,
                 )
                 new_values.append(new_val)
-            cat.allowed_values = new_values
+            cat.values = new_values
             categorical_config = to_gql_annotation_config(config)
             assert isinstance(categorical_config, CategoricalAnnotationConfig)
             return PatchCategoricalAnnotationValuesPayload(
@@ -436,7 +436,7 @@ class AnnotationConfigMutationMixin:
                 select(models.AnnotationConfig)
                 .options(
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                        models.CategoricalAnnotationConfig.allowed_values
+                        models.CategoricalAnnotationConfig.values
                     ),
                     joinedload(models.AnnotationConfig.continuous_config),
                 )
@@ -471,7 +471,7 @@ class AnnotationConfigMutationMixin:
                 .options(
                     joinedload(models.AnnotationConfig.continuous_config),
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                        models.CategoricalAnnotationConfig.allowed_values
+                        models.CategoricalAnnotationConfig.values
                     ),
                 )
             )

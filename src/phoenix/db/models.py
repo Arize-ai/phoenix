@@ -1333,7 +1333,7 @@ class CategoricalAnnotationConfig(Base):
     )
 
     annotation_config = relationship("AnnotationConfig", back_populates="categorical_config")
-    allowed_values = relationship(
+    values = relationship(
         "CategoricalAnnotationValue",
         back_populates="categorical_config",
         cascade="all, delete-orphan",
@@ -1352,9 +1352,7 @@ class CategoricalAnnotationValue(Base):
     label: Mapped[str] = mapped_column(String, nullable=False)
     numeric_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    categorical_config = relationship(
-        "CategoricalAnnotationConfig", back_populates="allowed_values"
-    )
+    categorical_config = relationship("CategoricalAnnotationConfig", back_populates="values")
 
 
 class ProjectAnnotationConfig(Base):
