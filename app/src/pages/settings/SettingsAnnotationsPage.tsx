@@ -84,7 +84,7 @@ export const SettingsAnnotationsPage = () => {
 
   return (
     <Card
-      title="Annotations Settings"
+      title="Annotation Configs"
       variant="compact"
       bodyStyle={{ padding: 0 }}
       extra={
