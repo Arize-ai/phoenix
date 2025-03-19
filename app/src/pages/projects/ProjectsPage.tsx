@@ -5,7 +5,12 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import {
+  graphql,
+  useLazyLoadQuery,
+  usePaginationFragment,
+  useRefetchableFragment,
+} from "react-relay";
 import { formatDistance } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -19,6 +24,8 @@ import {
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
+import { ProjectsPageProjectMetricsFragment$key } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsFragment.graphql";
+import { ProjectsPageProjectMetricsQuery } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -63,13 +70,11 @@ export function ProjectsPageContent({
 
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
-      query ProjectsPageQuery($timeRange: TimeRange!) {
+      query ProjectsPageQuery {
         ...ProjectsPageProjectsFragment
       }
     `,
-    {
-      timeRange: timeRangeVariable,
-    }
+    {}
   );
   const {
     data: projectsData,
@@ -96,13 +101,7 @@ export function ProjectsPageContent({
               name
               gradientStartColor
               gradientEndColor
-              traceCount(timeRange: $timeRange)
               endTime
-              latencyMsP50: latencyMsQuantile(
-                probability: 0.5
-                timeRange: $timeRange
-              )
-              tokenCountTotal(timeRange: $timeRange)
             }
           }
         }
@@ -231,6 +230,7 @@ export function ProjectsPageContent({
               >
                 <ProjectItem
                   project={project}
+                  timeRange={timeRangeVariable}
                   onProjectDelete={() => onDelete(project.name)}
                   onProjectClear={() => onClear(project.name)}
                   onProjectRemoveData={() => onRemove(project.name)}
@@ -273,21 +273,20 @@ type ProjectItemProps = {
   onProjectDelete: () => void;
   onProjectClear: () => void;
   onProjectRemoveData: () => void;
+  timeRange: {
+    start: string | undefined;
+    end: string | undefined;
+  };
 };
+
 function ProjectItem({
   project,
   onProjectDelete,
   onProjectClear,
   onProjectRemoveData,
+  timeRange,
 }: ProjectItemProps) {
-  const {
-    endTime,
-    traceCount,
-    tokenCountTotal,
-    latencyMsP50,
-    gradientStartColor,
-    gradientEndColor,
-  } = project;
+  const { gradientStartColor, gradientEndColor, endTime } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
       return `Last updated  ${formatDistance(new Date(endTime), new Date(), { addSuffix: true })}`;
@@ -345,30 +344,95 @@ function ProjectItem({
           onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
-      <Flex direction="row" justifyContent="space-between">
-        <Flex direction="column" flex="none">
-          <Text elementType="h3" size="S" color="text-700">
-            Total Traces
-          </Text>
-          <Text size="L">{intFormatter(traceCount)}</Text>
-        </Flex>
-        <Flex direction="column" flex="none">
-          <Text elementType="h3" size="S" color="text-700">
-            Total Tokens
-          </Text>
-          <Text size="L">{intFormatter(tokenCountTotal)}</Text>
-        </Flex>
-        <Flex direction="column" flex="none">
-          <Text elementType="h3" size="S" color="text-700">
-            Latency P50
-          </Text>
-          {latencyMsP50 != null ? (
-            <LatencyText latencyMs={latencyMsP50} size="L" />
-          ) : (
-            <Text size="L">--</Text>
-          )}
-        </Flex>
-      </Flex>
+      <Suspense fallback={<Loading />}>
+        <ProjectMetrics projectId={project.id} timeRange={timeRange} />
+      </Suspense>
     </div>
+  );
+}
+
+function ProjectMetrics({
+  projectId,
+  timeRange,
+}: {
+  projectId: string;
+  timeRange: {
+    start: string | undefined;
+    end: string | undefined;
+  };
+}) {
+  const autoRefreshEnabled = usePreferencesContext(
+    (state) => state.projectsAutoRefreshEnabled
+  );
+  const { project } = useLazyLoadQuery<ProjectsPageProjectMetricsQuery>(
+    graphql`
+      query ProjectsPageProjectMetricsQuery(
+        $id: GlobalID!
+        $timeRange: TimeRange!
+      ) {
+        project: node(id: $id) {
+          ... on Project {
+            ...ProjectsPageProjectMetricsFragment
+          }
+        }
+      }
+    `,
+    {
+      id: projectId,
+      timeRange,
+    }
+  );
+  const [{ latencyMsP50, tokenCountTotal, traceCount }, refetch] =
+    useRefetchableFragment<
+      ProjectsPageProjectMetricsQuery,
+      ProjectsPageProjectMetricsFragment$key
+    >(
+      graphql`
+        fragment ProjectsPageProjectMetricsFragment on Project
+        @refetchable(queryName: "ProjectsPageProjectMetricsRefetchQuery") {
+          traceCount(timeRange: $timeRange)
+          latencyMsP50: latencyMsQuantile(
+            probability: 0.5
+            timeRange: $timeRange
+          )
+          tokenCountTotal(timeRange: $timeRange)
+        }
+      `,
+      project
+    );
+  useInterval(
+    () => {
+      startTransition(() => {
+        refetch({}, { fetchPolicy: "store-and-network" });
+      });
+    },
+    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
+  );
+
+  return (
+    <Flex direction="row" justifyContent="space-between">
+      <Flex direction="column" flex="none">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Traces
+        </Text>
+        <Text size="L">{intFormatter(traceCount)}</Text>
+      </Flex>
+      <Flex direction="column" flex="none">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Tokens
+        </Text>
+        <Text size="L">{intFormatter(tokenCountTotal)}</Text>
+      </Flex>
+      <Flex direction="column" flex="none">
+        <Text elementType="h3" size="S" color="text-700">
+          Latency P50
+        </Text>
+        {latencyMsP50 != null ? (
+          <LatencyText latencyMs={latencyMsP50} size="L" />
+        ) : (
+          <Text size="L">--</Text>
+        )}
+      </Flex>
+    </Flex>
   );
 }

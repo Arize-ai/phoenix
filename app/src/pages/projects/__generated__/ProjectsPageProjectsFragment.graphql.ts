@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4096df704ab4fccfe42206b52b87b878>>
+ * @generated SignedSource<<759a4ac691f2100edae77023a43bd862>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,10 +18,7 @@ export type ProjectsPageProjectsFragment$data = {
         readonly gradientEndColor: string;
         readonly gradientStartColor: string;
         readonly id: string;
-        readonly latencyMsP50: number | null;
         readonly name: string;
-        readonly tokenCountTotal: number;
-        readonly traceCount: number;
       };
     }>;
   };
@@ -37,14 +34,6 @@ import ProjectsPageProjectsQuery_graphql from './ProjectsPageProjectsQuery.graph
 const node: ReaderFragment = (function(){
 var v0 = [
   "projects"
-],
-v1 = {
-  "kind": "Variable",
-  "name": "timeRange",
-  "variableName": "timeRange"
-},
-v2 = [
-  (v1/*: any*/)
 ];
 return {
   "argumentDefinitions": [
@@ -57,10 +46,6 @@ return {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
-    },
-    {
-      "kind": "RootArgument",
-      "name": "timeRange"
     }
   ],
   "kind": "Fragment",
@@ -142,37 +127,9 @@ return {
                 },
                 {
                   "alias": null,
-                  "args": (v2/*: any*/),
-                  "kind": "ScalarField",
-                  "name": "traceCount",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
                   "args": null,
                   "kind": "ScalarField",
                   "name": "endTime",
-                  "storageKey": null
-                },
-                {
-                  "alias": "latencyMsP50",
-                  "args": [
-                    {
-                      "kind": "Literal",
-                      "name": "probability",
-                      "value": 0.5
-                    },
-                    (v1/*: any*/)
-                  ],
-                  "kind": "ScalarField",
-                  "name": "latencyMsQuantile",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": (v2/*: any*/),
-                  "kind": "ScalarField",
-                  "name": "tokenCountTotal",
                   "storageKey": null
                 }
               ],
@@ -240,6 +197,6 @@ return {
 };
 })();
 
-(node as any).hash = "56c501357948255461a24411fb6b5847";
+(node as any).hash = "d16c129ec8d3d2eb1509dc95e45334fd";
 
 export default node;
