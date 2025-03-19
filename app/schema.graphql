@@ -158,6 +158,11 @@ type CategoricalAnnotationValue implements Node {
   numericScore: Float
 }
 
+input CategoricalAnnotationValueInput {
+  label: String!
+  numericScore: Float = null
+}
+
 type ChatCompletionFunctionCall {
   name: String!
   arguments: String!
@@ -343,17 +348,12 @@ input CreateCategoricalAnnotationConfigInput {
   name: String!
   optimizationDirection: OptimizationDirection!
   description: String = null
-  values: [CreateCategoricalAnnotationValueInput!]!
+  values: [CategoricalAnnotationValueInput!]!
 }
 
 type CreateCategoricalAnnotationConfigPayload {
   query: Query!
   annotationConfig: CategoricalAnnotationConfig!
-}
-
-input CreateCategoricalAnnotationValueInput {
-  label: String!
-  numericScore: Float = null
 }
 
 input CreateChatPromptInput {
@@ -1353,6 +1353,7 @@ type Mutation {
   createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): CreateContinuousAnnotationConfigPayload!
   createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): CreateCategoricalAnnotationConfigPayload!
   createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): CreateFreeformAnnotationConfigPayload!
+  updateCategoricalAnnotationConfig(input: UpdateCategoricalAnnotationConfigInput!): UpdateCategoricalAnnotationConfigPayload!
   patchAnnotationConfig(input: PatchAnnotationConfigInput!): PatchAnnotationConfigPayload!
   patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): PatchContinuousAnnotationConfigPayload!
   patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): PatchCategoricalAnnotationValuesPayload!
@@ -1479,7 +1480,7 @@ type PatchCategoricalAnnotationValuePayload {
 
 input PatchCategoricalAnnotationValuesInput {
   configId: GlobalID!
-  values: [CreateCategoricalAnnotationValueInput!]!
+  values: [CategoricalAnnotationValueInput!]!
 }
 
 type PatchCategoricalAnnotationValuesPayload {
@@ -2371,6 +2372,19 @@ type UMAPPoints {
 input UnsetPromptLabelInput {
   promptId: GlobalID!
   promptLabelId: GlobalID!
+}
+
+input UpdateCategoricalAnnotationConfigInput {
+  configId: GlobalID!
+  name: String!
+  optimizationDirection: OptimizationDirection!
+  description: String = null
+  values: [CategoricalAnnotationValueInput!]!
+}
+
+type UpdateCategoricalAnnotationConfigPayload {
+  query: Query!
+  annotationConfig: CategoricalAnnotationConfig!
 }
 
 type User implements Node {

@@ -1,9 +1,9 @@
 from typing import Any, List, Optional
 
 import strawberry
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
@@ -47,7 +47,7 @@ class CreateContinuousAnnotationConfigPayload:
 
 
 @strawberry.input
-class CreateCategoricalAnnotationValueInput:
+class CategoricalAnnotationValueInput:
     label: str
     numeric_score: Optional[float] = None
 
@@ -57,7 +57,7 @@ class CreateCategoricalAnnotationConfigInput:
     name: str
     optimization_direction: OptimizationDirection
     description: Optional[str] = None
-    values: List[CreateCategoricalAnnotationValueInput]
+    values: List[CategoricalAnnotationValueInput]
 
 
 @strawberry.type
@@ -77,6 +77,21 @@ class CreateFreeformAnnotationConfigInput:
 class CreateFreeformAnnotationConfigPayload:
     query: Query
     annotation_config: FreeformAnnotationConfig
+
+
+@strawberry.input
+class UpdateCategoricalAnnotationConfigInput:
+    config_id: GlobalID
+    name: str
+    optimization_direction: OptimizationDirection
+    description: Optional[str] = None
+    values: List[CategoricalAnnotationValueInput]
+
+
+@strawberry.type
+class UpdateCategoricalAnnotationConfigPayload:
+    query: Query
+    annotation_config: CategoricalAnnotationConfig
 
 
 @strawberry.input
@@ -115,7 +130,7 @@ class PatchCategoricalAnnotationConfigPayload:
 @strawberry.input
 class PatchCategoricalAnnotationValuesInput:
     config_id: GlobalID
-    values: List[CreateCategoricalAnnotationValueInput]
+    values: List[CategoricalAnnotationValueInput]
 
 
 @strawberry.type
@@ -248,6 +263,67 @@ class AnnotationConfigMutationMixin:
             return CreateFreeformAnnotationConfigPayload(
                 query=Query(),
                 annotation_config=freeform_config,
+            )
+
+    @strawberry.mutation
+    async def update_categorical_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: UpdateCategoricalAnnotationConfigInput,
+    ) -> UpdateCategoricalAnnotationConfigPayload:
+        config_id = from_global_id_with_expected_type(
+            global_id=input.config_id, expected_type_name=CategoricalAnnotationConfig.__name__
+        )
+        async with info.context.db() as session:
+            update_stmt = (
+                update(models.AnnotationConfig)
+                .where(models.AnnotationConfig.id == config_id)
+                .values(
+                    name=input.name,
+                    description=input.description,
+                    optimization_direction=input.optimization_direction.value,
+                )
+                .returning(models.AnnotationConfig)
+                .options(selectinload(models.AnnotationConfig.categorical_config))
+            )
+            config = await session.scalar(update_stmt)
+            if config is None:
+                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
+
+            categorical_config_id = config.categorical_config.id
+            await session.execute(
+                delete(models.CategoricalAnnotationValue).where(
+                    models.CategoricalAnnotationValue.categorical_annotation_config_id
+                    == categorical_config_id
+                )
+            )
+            await session.execute(
+                insert(models.CategoricalAnnotationValue).values(
+                    [
+                        {
+                            "categorical_annotation_config_id": categorical_config_id,
+                            "label": value.label,
+                            "numeric_score": value.numeric_score,
+                        }
+                        for value in input.values
+                    ]
+                )
+            )
+            config = await session.scalar(
+                select(models.AnnotationConfig)
+                .options(
+                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                        models.CategoricalAnnotationConfig.values
+                    )
+                )
+                .where(models.AnnotationConfig.id == config_id)
+            )
+            assert config is not None
+            categorical_config = to_gql_annotation_config(config)
+            assert isinstance(categorical_config, CategoricalAnnotationConfig)
+            return UpdateCategoricalAnnotationConfigPayload(
+                query=Query(),
+                annotation_config=categorical_config,
             )
 
     @strawberry.mutation
