@@ -24,7 +24,7 @@ class OptimizationDirection(Enum):
 @strawberry.type
 class CategoricalAnnotationValue:
     label: str
-    numeric_score: Optional[float]
+    score: Optional[float]
 
 
 @strawberry.type
@@ -72,7 +72,7 @@ def to_gql_categorical_annotation_config(
     values = [
         CategoricalAnnotationValue(
             label=val.label,
-            numeric_score=val.numeric_score,
+            score=val.score,
         )
         for val in categorical_config.values
     ]

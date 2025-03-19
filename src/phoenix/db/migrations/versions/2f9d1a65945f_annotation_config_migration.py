@@ -100,7 +100,7 @@ def upgrade() -> None:
             index=True,
         ),
         sa.Column("label", sa.String, nullable=False),
-        sa.Column("numeric_score", sa.Float, nullable=True),
+        sa.Column("score", sa.Float, nullable=True),
         sa.UniqueConstraint(
             "categorical_annotation_config_id",
             "label",

@@ -29,7 +29,7 @@ router = APIRouter(tags=["annotation_configs"])
 
 class CategoricalAnnotationValue(BaseModel):
     label: str
-    numeric_score: Optional[float] = None
+    score: Optional[float] = None
 
 
 class OptimizationDirection(Enum):
@@ -71,7 +71,7 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
         base["optimization_direction"] = config.categorical_annotation_config.optimization_direction
         base["values"] = [
-            CategoricalAnnotationValue(label=val.label, numeric_score=val.numeric_score)
+            CategoricalAnnotationValue(label=val.label, score=val.score)
             for val in config.categorical_annotation_config.values
         ]
     elif annotation_type is AnnotationType.FREEFORM:
@@ -91,7 +91,7 @@ class CreateContinuousAnnotationConfigPayload(BaseModel):
 
 class CreateCategoricalAnnotationValuePayload(BaseModel):
     label: str
-    numeric_score: Optional[float] = None
+    score: Optional[float] = None
 
 
 class CreateCategoricalAnnotationConfigPayload(BaseModel):
@@ -212,7 +212,7 @@ async def create_categorical_annotation_config(
             categorical_annotation_config.values.append(
                 models.CategoricalAnnotationValue(
                     label=value.label,
-                    numeric_score=value.numeric_score,
+                    score=value.score,
                 )
             )
         annotation_config.categorical_annotation_config = categorical_annotation_config

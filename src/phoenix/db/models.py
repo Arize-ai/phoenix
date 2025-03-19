@@ -1362,7 +1362,7 @@ class CategoricalAnnotationValue(Base):
         index=True,
     )
     label: Mapped[str] = mapped_column(String, nullable=False)
-    numeric_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     categorical_annotation_config = relationship(
         "CategoricalAnnotationConfig", back_populates="values"

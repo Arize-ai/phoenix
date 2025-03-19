@@ -52,7 +52,7 @@ class CreateContinuousAnnotationConfigPayload:
 @strawberry.input
 class CategoricalAnnotationValueInput:
     label: str
-    numeric_score: Optional[float] = None
+    score: Optional[float] = None
 
 
 @strawberry.input
@@ -169,7 +169,7 @@ class AnnotationConfigMutationMixin:
                 categorical_annotation_config.values.append(
                     models.CategoricalAnnotationValue(
                         label=value.label,
-                        numeric_score=value.numeric_score,
+                        score=value.score,
                     )
                 )
             annotation_config.categorical_annotation_config = categorical_annotation_config
@@ -275,7 +275,7 @@ class AnnotationConfigMutationMixin:
                 annotation_config.categorical_annotation_config.values.append(
                     models.CategoricalAnnotationValue(
                         label=val.label,
-                        numeric_score=val.numeric_score,
+                        score=val.score,
                     )
                 )
 
