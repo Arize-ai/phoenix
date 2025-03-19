@@ -1,8 +1,7 @@
-import React, { forwardRef, Ref } from "react";
+import React from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
-import { StylableProps } from "@phoenix/components/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
@@ -63,24 +62,22 @@ const getAnnotationDisplayValue = (
   }
 };
 
-export function _AnnotationLabel(
-  {
-    annotation,
-    onClick,
-    annotationDisplayPreference = "score",
-    css: _css,
-  }: {
-    annotation: Annotation;
-    onClick?: () => void;
-    /**
-     * The preferred value to display in the annotation label.
-     * If the provided value is not available, it will fallback to an available value.
-     * @default "score"
-     */
-    annotationDisplayPreference?: AnnotationDisplayPreference;
-  } & StylableProps,
-  ref: Ref<HTMLDivElement>
-) {
+export function AnnotationLabel({
+  annotation,
+  onClick,
+  annotationDisplayPreference = "score",
+  className,
+}: {
+  annotation: Annotation;
+  onClick?: () => void;
+  /**
+   * The preferred value to display in the annotation label.
+   * If the provided value is not available, it will fallback to an available value.
+   * @default "score"
+   */
+  annotationDisplayPreference?: AnnotationDisplayPreference;
+  className?: string;
+}) {
   const clickable = typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
     annotation,
@@ -89,9 +86,9 @@ export function _AnnotationLabel(
 
   return (
     <div
-      ref={ref}
       role={clickable ? "button" : undefined}
-      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`, _css)}
+      className={className}
+      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
       aria-label={
         clickable
           ? "Click to view the annotation trace"
@@ -125,6 +122,3 @@ export function _AnnotationLabel(
     </div>
   );
 }
-
-export const AnnotationLabel = forwardRef(_AnnotationLabel);
-AnnotationLabel.displayName = "AnnotationLabel";

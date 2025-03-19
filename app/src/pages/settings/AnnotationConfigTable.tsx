@@ -3,6 +3,7 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
@@ -31,21 +32,24 @@ const makeColumns = ({
 }) =>
   [
     {
+      id: "name",
       header: "Name",
       accessorKey: "name",
       cell: ({ row }) => {
         return (
           <AnnotationLabel
+            key={row.original.id}
             annotation={row.original}
             annotationDisplayPreference="none"
             css={css`
-              max-width: 20px;
+              width: fit-content;
             `}
           />
         );
       },
     },
     {
+      id: "type",
       header: "Type",
       accessorKey: "type",
       cell: ({ row }) => {
@@ -58,12 +62,14 @@ const makeColumns = ({
       },
     },
     {
+      id: "values",
       header: "Values",
+      enableSorting: false,
       accessorFn: (row) => {
         switch (row.type) {
           case "categorical":
-            return row.values.map((value) => (
-              <Token key={value.label}>{value.label}</Token>
+            return row.values.map((value, index) => (
+              <Token key={index}>{value.label}</Token>
             ));
           case "continuous":
             return `Range: ${row.min} - ${row.max}`;
@@ -123,6 +129,7 @@ export const AnnotationConfigTable = ({
     data: annotationConfigs,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
   const isEmpty = table.getRowCount() === 0;
   const rows = table.getRowModel().rows;
