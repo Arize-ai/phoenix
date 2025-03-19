@@ -1375,3 +1375,5 @@ class ProjectAnnotationConfig(Base):
     annotation_config_id: Mapped[int] = mapped_column(
         ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
     )
+
+    __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)

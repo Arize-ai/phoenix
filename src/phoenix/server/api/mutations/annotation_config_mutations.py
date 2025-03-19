@@ -157,29 +157,30 @@ class AnnotationConfigMutationMixin:
         input: CreateCategoricalAnnotationConfigInput,
     ) -> CreateCategoricalAnnotationConfigPayload:
         async with info.context.db() as session:
-            config = models.AnnotationConfig(
+            annotation_config = models.AnnotationConfig(
                 name=input.name,
                 annotation_type=AnnotationType.CATEGORICAL.value,
                 description=input.description,
             )
-            cat = models.CategoricalAnnotationConfig(
+            categorical_annotation_config = models.CategoricalAnnotationConfig(
                 optimization_direction=input.optimization_direction.value,
             )
-            for val in input.values:
-                allowed_value = models.CategoricalAnnotationValue(
-                    label=val.label,
-                    numeric_score=val.numeric_score,
+            for value in input.values:
+                categorical_annotation_config.values.append(
+                    models.CategoricalAnnotationValue(
+                        label=value.label,
+                        numeric_score=value.numeric_score,
+                    )
                 )
-                cat.values.append(allowed_value)
-            config.categorical_config = cat
-            session.add(config)
+            annotation_config.categorical_config = categorical_annotation_config
+            session.add(annotation_config)
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
         return CreateCategoricalAnnotationConfigPayload(
             query=Query(),
-            annotation_config=to_gql_categorical_annotation_config(config),
+            annotation_config=to_gql_categorical_annotation_config(annotation_config),
         )
 
     @strawberry.mutation
@@ -189,25 +190,25 @@ class AnnotationConfigMutationMixin:
         input: CreateContinuousAnnotationConfigInput,
     ) -> CreateContinuousAnnotationConfigPayload:
         async with info.context.db() as session:
-            config = models.AnnotationConfig(
+            annotation_config = models.AnnotationConfig(
                 name=input.name,
                 annotation_type=AnnotationType.CONTINUOUS.value,
                 description=input.description,
             )
-            cont = models.ContinuousAnnotationConfig(
+            continuous_annotation_config = models.ContinuousAnnotationConfig(
                 optimization_direction=input.optimization_direction.value,
                 lower_bound=input.lower_bound,
                 upper_bound=input.upper_bound,
             )
-            config.continuous_config = cont
-            session.add(config)
+            annotation_config.continuous_config = continuous_annotation_config
+            session.add(annotation_config)
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("The annotation config has a conflict")
             return CreateContinuousAnnotationConfigPayload(
                 query=Query(),
-                annotation_config=to_gql_continuous_annotation_config(config),
+                annotation_config=to_gql_continuous_annotation_config(annotation_config),
             )
 
     @strawberry.mutation
@@ -242,7 +243,7 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name=CategoricalAnnotationConfig.__name__
         )
         async with info.context.db() as session:
-            existing_config = await session.scalar(
+            annotation_config = await session.scalar(
                 select(models.AnnotationConfig)
                 .options(
                     joinedload(models.AnnotationConfig.categorical_config).joinedload(
@@ -251,39 +252,42 @@ class AnnotationConfigMutationMixin:
                 )
                 .where(models.AnnotationConfig.id == config_id)
             )
-            if not existing_config:
+            if not annotation_config:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
 
-            # Update the main config and categorical config
-            existing_config.name = input.name
-            existing_config.description = input.description
+            annotation_config.name = input.name
+            annotation_config.description = input.description
 
-            assert existing_config.categorical_config is not None
-            existing_config.categorical_config.optimization_direction = (
+            assert annotation_config.categorical_config is not None
+            annotation_config.categorical_config.optimization_direction = (
                 input.optimization_direction.value
             )
 
             await session.execute(
                 delete(models.CategoricalAnnotationValue).where(
                     models.CategoricalAnnotationValue.categorical_annotation_config_id
-                    == existing_config.categorical_config.id
+                    == annotation_config.categorical_config.id
                 )
             )
 
-            existing_config.categorical_config.values.clear()
+            annotation_config.categorical_config.values.clear()
             for val in input.values:
-                allowed_value = models.CategoricalAnnotationValue(
-                    label=val.label,
-                    numeric_score=val.numeric_score,
+                annotation_config.categorical_config.values.append(
+                    models.CategoricalAnnotationValue(
+                        label=val.label,
+                        numeric_score=val.numeric_score,
+                    )
                 )
-                existing_config.categorical_config.values.append(allowed_value)
 
-            session.add(existing_config)
-            await session.commit()
+            session.add(annotation_config)
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("The annotation config has a conflict")
 
         return UpdateCategoricalAnnotationConfigPayload(
             query=Query(),
-            annotation_config=to_gql_categorical_annotation_config(existing_config),
+            annotation_config=to_gql_categorical_annotation_config(annotation_config),
         )
 
     @strawberry.mutation
@@ -296,30 +300,33 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name=ContinuousAnnotationConfig.__name__
         )
         async with info.context.db() as session:
-            existing_config = await session.scalar(
+            annotation_config = await session.scalar(
                 select(models.AnnotationConfig)
                 .options(joinedload(models.AnnotationConfig.continuous_config))
                 .where(models.AnnotationConfig.id == config_id)
             )
-            if not existing_config:
+            if not annotation_config:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
 
-            existing_config.name = input.name
-            existing_config.description = input.description
+            annotation_config.name = input.name
+            annotation_config.description = input.description
 
-            assert existing_config.continuous_config is not None
-            existing_config.continuous_config.optimization_direction = (
+            assert annotation_config.continuous_config is not None
+            annotation_config.continuous_config.optimization_direction = (
                 input.optimization_direction.value
             )
-            existing_config.continuous_config.lower_bound = input.lower_bound
-            existing_config.continuous_config.upper_bound = input.upper_bound
+            annotation_config.continuous_config.lower_bound = input.lower_bound
+            annotation_config.continuous_config.upper_bound = input.upper_bound
 
-            session.add(existing_config)
-            await session.commit()
+            session.add(annotation_config)
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
 
         return UpdateContinuousAnnotationConfigPayload(
             query=Query(),
-            annotation_config=to_gql_continuous_annotation_config(existing_config),
+            annotation_config=to_gql_continuous_annotation_config(annotation_config),
         )
 
     @strawberry.mutation
@@ -332,21 +339,24 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name=FreeformAnnotationConfig.__name__
         )
         async with info.context.db() as session:
-            existing_config = await session.scalar(
+            annotation_config = await session.scalar(
                 select(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
             )
-            if not existing_config:
+            if not annotation_config:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
 
-            existing_config.name = input.name
-            existing_config.description = input.description
+            annotation_config.name = input.name
+            annotation_config.description = input.description
 
-            session.add(existing_config)
-            await session.commit()
+            session.add(annotation_config)
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
 
         return UpdateFreeformAnnotationConfigPayload(
             query=Query(),
-            annotation_config=to_gql_freeform_annotation_config(existing_config),
+            annotation_config=to_gql_freeform_annotation_config(annotation_config),
         )
 
     @strawberry.mutation
@@ -398,7 +408,10 @@ class AnnotationConfigMutationMixin:
                     annotation_config_id=annotation_config_id,
                 )
                 session.add(project_annotation_config)
-            await session.commit()
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("The annotation config has already been added to the project")
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
                 project=Project(project_rowid=project_id),

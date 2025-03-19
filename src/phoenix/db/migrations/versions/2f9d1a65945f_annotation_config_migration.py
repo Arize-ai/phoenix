@@ -124,6 +124,10 @@ def upgrade() -> None:
             nullable=False,
             index=True,
         ),
+        sa.UniqueConstraint(
+            "project_id",
+            "annotation_config_id",
+        ),
     )
 
 
