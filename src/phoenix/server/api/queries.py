@@ -42,6 +42,7 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -656,6 +657,36 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            stmt = (
+                select(models.AnnotationConfig)
+                .order_by(models.AnnotationConfig.name)
+                .options(
+                    joinedload(models.AnnotationConfig.continuous_annotation_config),
+                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
+                        models.CategoricalAnnotationConfig.values
+                    ),
+                )
+            )
+            configs = (await session.stream_scalars(stmt)).unique()
+            data = [to_gql_annotation_config(config) async for config in configs]
+            return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def clusters(
