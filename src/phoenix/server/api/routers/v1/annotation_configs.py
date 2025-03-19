@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel
@@ -48,7 +48,7 @@ class AnnotationConfigResponse(BaseModel):
 
 def annotation_config_to_response(config: models.AnnotationConfig) -> AnnotationConfigResponse:
     """Convert an AnnotationConfig SQLAlchemy model instance to our response model."""
-    base = {
+    base: dict[str, Any] = {
         "name": config.name,
         "annotation_type": config.annotation_type,
         "optimization_direction": config.optimization_direction,

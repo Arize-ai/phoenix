@@ -509,7 +509,7 @@ class AnnotationConfigMutationMixin:
                 query=Query(),
                 project_annotation_config=ProjectAnnotationConfig(
                     id_attr=project_annotation_config.id,
-                    project_id=project_id,
-                    annotation_config_id=annotation_config_id,
+                    project_id=item.project_id,
+                    annotation_config_id=item.annotation_config_id,
                 ),
             )
