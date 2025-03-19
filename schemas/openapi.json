@@ -22,7 +22,7 @@
               "type": "integer",
               "exclusiveMinimum": 0,
               "description": "Maximum number of configs to return",
-              "default": 100,
+              "default": 50,
               "title": "Limit"
             },
             "description": "Maximum number of configs to return"
@@ -1971,19 +1971,17 @@
             "title": "Name"
           },
           "annotation_type": {
-            "type": "string",
-            "title": "Annotation Type"
+            "$ref": "#/components/schemas/AnnotationType"
           },
           "optimization_direction": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/OptimizationDirection"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Optimization Direction"
+            ]
           },
           "description": {
             "anyOf": [
@@ -2041,6 +2039,15 @@
         ],
         "title": "AnnotationConfigResponse"
       },
+      "AnnotationType": {
+        "type": "string",
+        "enum": [
+          "CONTINUOUS",
+          "CATEGORICAL",
+          "FREEFORM"
+        ],
+        "title": "AnnotationType"
+      },
       "CategoricalAnnotationValue": {
         "properties": {
           "label": {
@@ -2072,8 +2079,7 @@
             "title": "Name"
           },
           "optimization_direction": {
-            "type": "string",
-            "title": "Optimization Direction"
+            "$ref": "#/components/schemas/OptimizationDirection"
           },
           "description": {
             "anyOf": [
@@ -2133,8 +2139,7 @@
             "title": "Name"
           },
           "optimization_direction": {
-            "type": "string",
-            "title": "Optimization Direction"
+            "$ref": "#/components/schemas/OptimizationDirection"
           },
           "description": {
             "anyOf": [
@@ -2755,6 +2760,14 @@
           "GOOGLE"
         ],
         "title": "ModelProvider"
+      },
+      "OptimizationDirection": {
+        "type": "string",
+        "enum": [
+          "MINIMIZE",
+          "MAXIMIZE"
+        ],
+        "title": "OptimizationDirection"
       },
       "Prompt": {
         "properties": {

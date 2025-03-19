@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
@@ -12,6 +13,7 @@ from starlette.status import (
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.server.api.types.AnnotationConfig import (
@@ -30,20 +32,26 @@ class CategoricalAnnotationValue(BaseModel):
     numeric_score: Optional[float] = None
 
 
+class OptimizationDirection(Enum):
+    MINIMIZE = "MINIMIZE"
+    MAXIMIZE = "MAXIMIZE"
+
+
+class AnnotationType(Enum):
+    CONTINUOUS = "CONTINUOUS"
+    CATEGORICAL = "CATEGORICAL"
+    FREEFORM = "FREEFORM"
+
+
 class AnnotationConfigResponse(BaseModel):
     id: str
     name: str
-    annotation_type: str
-    optimization_direction: Optional[str] = None
+    annotation_type: AnnotationType
+    optimization_direction: Optional[OptimizationDirection] = None
     description: Optional[str] = None
-    # Continuous config fields:
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
-    # Categorical config fields:
     values: Optional[List[CategoricalAnnotationValue]] = None
-
-    class Config:
-        orm_mode = True
 
 
 def annotation_config_to_response(config: models.AnnotationConfig) -> AnnotationConfigResponse:
@@ -53,28 +61,29 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
         "annotation_type": config.annotation_type,
         "description": config.description,
     }
-    if config.annotation_type.upper() == "CONTINUOUS" and config.continuous_annotation_config:
+    annotation_type = AnnotationType(config.annotation_type)
+    if annotation_type is AnnotationType.CONTINUOUS:
         base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(config.id)))
         base["optimization_direction"] = config.continuous_annotation_config.optimization_direction
         base["lower_bound"] = config.continuous_annotation_config.lower_bound
         base["upper_bound"] = config.continuous_annotation_config.upper_bound
-    elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_annotation_config:
+    elif annotation_type is AnnotationType.CATEGORICAL:
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
         base["optimization_direction"] = config.categorical_annotation_config.optimization_direction
         base["values"] = [
             CategoricalAnnotationValue(label=val.label, numeric_score=val.numeric_score)
             for val in config.categorical_annotation_config.values
         ]
-    elif config.annotation_type.upper() == "FREEFORM":
+    elif annotation_type is AnnotationType.FREEFORM:
         base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
     else:
-        assert False
+        assert_never(annotation_type)
     return AnnotationConfigResponse(**base)
 
 
 class CreateContinuousAnnotationConfigPayload(BaseModel):
     name: str
-    optimization_direction: str
+    optimization_direction: OptimizationDirection
     description: Optional[str] = None
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
@@ -87,7 +96,7 @@ class CreateCategoricalAnnotationValuePayload(BaseModel):
 
 class CreateCategoricalAnnotationConfigPayload(BaseModel):
     name: str
-    optimization_direction: str
+    optimization_direction: OptimizationDirection
     description: Optional[str] = None
     values: List[CreateCategoricalAnnotationValuePayload]
 
@@ -104,10 +113,10 @@ class CreateFreeformAnnotationConfigPayload(BaseModel):
 )
 async def list_annotation_configs(
     request: Request,
-    limit: int = Query(100, gt=0, description="Maximum number of configs to return"),
+    limit: int = Query(50, gt=0, description="Maximum number of configs to return"),
 ) -> List[AnnotationConfigResponse]:
     async with request.app.state.db() as session:
-        query = (
+        result = await session.execute(
             select(models.AnnotationConfig)
             .options(
                 selectinload(models.AnnotationConfig.continuous_annotation_config),
@@ -115,23 +124,11 @@ async def list_annotation_configs(
                     models.CategoricalAnnotationConfig.values
                 ),
             )
+            .order_by(models.AnnotationConfig.name)
             .limit(limit)
         )
-        result = await session.execute(query)
         configs = result.scalars().all()
         return [annotation_config_to_response(config) for config in configs]
-
-
-def _get_annotation_config_db_id(config_gid: str) -> int:
-    gid = GlobalID.from_id(config_gid)
-    type_name, node_id = gid.type_name, int(gid.node_id)
-    if type_name not in (
-        CategoricalAnnotationConfig.__name__,
-        ContinuousAnnotationConfig.__name__,
-        FreeformAnnotationConfig.__name__,
-    ):
-        raise ValueError(f"Invalid annotation configuration ID: {config_gid}")
-    return node_id
 
 
 @router.get(
@@ -174,23 +171,23 @@ async def create_continuous_annotation_config(
     payload: CreateContinuousAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
-        config = models.AnnotationConfig(
+        annotation_config = models.AnnotationConfig(
             name=payload.name,
             annotation_type="CONTINUOUS",
             description=payload.description,
         )
-        cont = models.ContinuousAnnotationConfig(
-            optimization_direction=payload.optimization_direction.upper(),
+        continuous_annotation_config = models.ContinuousAnnotationConfig(
+            optimization_direction=payload.optimization_direction.value,
             lower_bound=payload.lower_bound,
             upper_bound=payload.upper_bound,
         )
-        config.continuous_annotation_config = cont
-        session.add(config)
+        annotation_config.continuous_annotation_config = continuous_annotation_config
+        session.add(annotation_config)
         try:
             await session.commit()
         except Exception as e:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-        return annotation_config_to_response(config)
+        return annotation_config_to_response(annotation_config)
 
 
 @router.post(
@@ -203,27 +200,28 @@ async def create_categorical_annotation_config(
     payload: CreateCategoricalAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
-        config = models.AnnotationConfig(
+        annotation_config = models.AnnotationConfig(
             name=payload.name,
             annotation_type="CATEGORICAL",
             description=payload.description,
         )
-        cat = models.CategoricalAnnotationConfig(
-            optimization_direction=payload.optimization_direction.upper(),
+        categorical_annotation_config = models.CategoricalAnnotationConfig(
+            optimization_direction=payload.optimization_direction.value,
         )
-        for val in payload.values:
-            allowed_value = models.CategoricalAnnotationValue(
-                label=val.label,
-                numeric_score=val.numeric_score,
+        for value in payload.values:
+            categorical_annotation_config.values.append(
+                models.CategoricalAnnotationValue(
+                    label=value.label,
+                    numeric_score=value.numeric_score,
+                )
             )
-            cat.values.append(allowed_value)
-        config.categorical_annotation_config = cat
-        session.add(config)
+        annotation_config.categorical_annotation_config = categorical_annotation_config
+        session.add(annotation_config)
         try:
             await session.commit()
         except Exception as e:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-        return annotation_config_to_response(config)
+        return annotation_config_to_response(annotation_config)
 
 
 @router.post(
@@ -236,17 +234,17 @@ async def create_freeform_annotation_config(
     payload: CreateFreeformAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
-        config = models.AnnotationConfig(
+        annotation_config = models.AnnotationConfig(
             name=payload.name,
             annotation_type="FREEFORM",
             description=payload.description,
         )
-        session.add(config)
+        session.add(annotation_config)
         try:
             await session.commit()
         except Exception as e:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-        return annotation_config_to_response(config)
+        return annotation_config_to_response(annotation_config)
 
 
 @router.delete(
@@ -277,3 +275,15 @@ async def delete_annotation_config(
             )
         await session.commit()
     return True
+
+
+def _get_annotation_config_db_id(config_gid: str) -> int:
+    gid = GlobalID.from_id(config_gid)
+    type_name, node_id = gid.type_name, int(gid.node_id)
+    if type_name not in (
+        CategoricalAnnotationConfig.__name__,
+        ContinuousAnnotationConfig.__name__,
+        FreeformAnnotationConfig.__name__,
+    ):
+        raise ValueError(f"Invalid annotation configuration ID: {config_gid}")
+    return node_id
