@@ -4,6 +4,7 @@ from starlette.status import HTTP_403_FORBIDDEN
 
 from phoenix.server.bearer_auth import is_authenticated
 
+from .annotation_configs import router as annotation_configs_router
 from .datasets import router as datasets_router
 from .evaluations import router as evaluations_router
 from .experiment_evaluations import router as experiment_evaluations_router
@@ -55,6 +56,7 @@ def create_v1_router(authentication_enabled: bool) -> APIRouter:
             ]
         ),
     )
+    router.include_router(annotation_configs_router)
     router.include_router(datasets_router)
     router.include_router(experiments_router)
     router.include_router(experiment_runs_router)
