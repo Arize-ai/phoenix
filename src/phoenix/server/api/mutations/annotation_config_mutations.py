@@ -20,6 +20,9 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
     OptimizationDirection,
     to_gql_annotation_config,
+    to_gql_categorical_annotation_config,
+    to_gql_continuous_annotation_config,
+    to_gql_freeform_annotation_config,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
@@ -174,11 +177,9 @@ class AnnotationConfigMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
-        categorical_config = to_gql_annotation_config(config)
-        assert isinstance(categorical_config, CategoricalAnnotationConfig)
         return CreateCategoricalAnnotationConfigPayload(
             query=Query(),
-            annotation_config=categorical_config,
+            annotation_config=to_gql_categorical_annotation_config(config),
         )
 
     @strawberry.mutation
@@ -204,11 +205,9 @@ class AnnotationConfigMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict("The annotation config has a conflict")
-            continuous_config = to_gql_annotation_config(config)
-            assert isinstance(continuous_config, ContinuousAnnotationConfig)
             return CreateContinuousAnnotationConfigPayload(
                 query=Query(),
-                annotation_config=continuous_config,
+                annotation_config=to_gql_continuous_annotation_config(config),
             )
 
     @strawberry.mutation
@@ -228,11 +227,9 @@ class AnnotationConfigMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
-            freeform_config = to_gql_annotation_config(config)
-            assert isinstance(freeform_config, FreeformAnnotationConfig)
             return CreateFreeformAnnotationConfigPayload(
                 query=Query(),
-                annotation_config=freeform_config,
+                annotation_config=to_gql_freeform_annotation_config(config),
             )
 
     @strawberry.mutation
@@ -284,11 +281,9 @@ class AnnotationConfigMutationMixin:
             session.add(existing_config)
             await session.commit()
 
-        categorical_config = to_gql_annotation_config(existing_config)
-        assert isinstance(categorical_config, CategoricalAnnotationConfig)
         return UpdateCategoricalAnnotationConfigPayload(
             query=Query(),
-            annotation_config=categorical_config,
+            annotation_config=to_gql_categorical_annotation_config(existing_config),
         )
 
     @strawberry.mutation
@@ -322,11 +317,9 @@ class AnnotationConfigMutationMixin:
             session.add(existing_config)
             await session.commit()
 
-        continuous_config = to_gql_annotation_config(existing_config)
-        assert isinstance(continuous_config, ContinuousAnnotationConfig)
         return UpdateContinuousAnnotationConfigPayload(
             query=Query(),
-            annotation_config=continuous_config,
+            annotation_config=to_gql_continuous_annotation_config(existing_config),
         )
 
     @strawberry.mutation
@@ -351,11 +344,9 @@ class AnnotationConfigMutationMixin:
             session.add(existing_config)
             await session.commit()
 
-        freeform_config = to_gql_annotation_config(existing_config)
-        assert isinstance(freeform_config, FreeformAnnotationConfig)
         return UpdateFreeformAnnotationConfigPayload(
             query=Query(),
-            annotation_config=freeform_config,
+            annotation_config=to_gql_freeform_annotation_config(existing_config),
         )
 
     @strawberry.mutation
