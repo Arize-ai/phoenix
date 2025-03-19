@@ -682,8 +682,8 @@ class Query:
                 select(models.AnnotationConfig)
                 .order_by(models.AnnotationConfig.name)
                 .options(
-                    joinedload(models.AnnotationConfig.continuous_config),
-                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                    joinedload(models.AnnotationConfig.continuous_annotation_config),
+                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
                         models.CategoricalAnnotationConfig.values
                     ),
                 )

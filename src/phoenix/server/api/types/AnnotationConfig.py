@@ -67,7 +67,7 @@ def to_gql_categorical_annotation_config(
 ) -> CategoricalAnnotationConfig:
     gql_annotation_type = AnnotationType(annotation_config.annotation_type)
     assert gql_annotation_type is AnnotationType.CATEGORICAL
-    categorical_config = annotation_config.categorical_config
+    categorical_config = annotation_config.categorical_annotation_config
     assert categorical_config is not None
     values = [
         CategoricalAnnotationValue(
@@ -91,7 +91,7 @@ def to_gql_continuous_annotation_config(
 ) -> ContinuousAnnotationConfig:
     gql_annotation_type = AnnotationType(annotation_config.annotation_type)
     assert gql_annotation_type is AnnotationType.CONTINUOUS
-    continuous_config = annotation_config.continuous_config
+    continuous_config = annotation_config.continuous_annotation_config
     assert continuous_config is not None
     return ContinuousAnnotationConfig(
         id_attr=annotation_config.id,

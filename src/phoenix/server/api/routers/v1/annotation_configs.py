@@ -53,17 +53,17 @@ def annotation_config_to_response(config: models.AnnotationConfig) -> Annotation
         "annotation_type": config.annotation_type,
         "description": config.description,
     }
-    if config.annotation_type.upper() == "CONTINUOUS" and config.continuous_config:
+    if config.annotation_type.upper() == "CONTINUOUS" and config.continuous_annotation_config:
         base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(config.id)))
-        base["optimization_direction"] = config.continuous_config.optimization_direction
-        base["lower_bound"] = config.continuous_config.lower_bound
-        base["upper_bound"] = config.continuous_config.upper_bound
-    elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_config:
+        base["optimization_direction"] = config.continuous_annotation_config.optimization_direction
+        base["lower_bound"] = config.continuous_annotation_config.lower_bound
+        base["upper_bound"] = config.continuous_annotation_config.upper_bound
+    elif config.annotation_type.upper() == "CATEGORICAL" and config.categorical_annotation_config:
         base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
-        base["optimization_direction"] = config.categorical_config.optimization_direction
+        base["optimization_direction"] = config.categorical_annotation_config.optimization_direction
         base["values"] = [
             CategoricalAnnotationValue(label=val.label, numeric_score=val.numeric_score)
-            for val in config.categorical_config.values
+            for val in config.categorical_annotation_config.values
         ]
     elif config.annotation_type.upper() == "FREEFORM":
         base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
@@ -110,8 +110,8 @@ async def list_annotation_configs(
         query = (
             select(models.AnnotationConfig)
             .options(
-                selectinload(models.AnnotationConfig.continuous_config),
-                selectinload(models.AnnotationConfig.categorical_config).selectinload(
+                selectinload(models.AnnotationConfig.continuous_annotation_config),
+                selectinload(models.AnnotationConfig.categorical_annotation_config).selectinload(
                     models.CategoricalAnnotationConfig.values
                 ),
             )
@@ -145,8 +145,8 @@ async def get_annotation_config_by_name_or_id(
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
         query = select(models.AnnotationConfig).options(
-            selectinload(models.AnnotationConfig.continuous_config),
-            selectinload(models.AnnotationConfig.categorical_config).selectinload(
+            selectinload(models.AnnotationConfig.continuous_annotation_config),
+            selectinload(models.AnnotationConfig.categorical_annotation_config).selectinload(
                 models.CategoricalAnnotationConfig.values
             ),
         )
@@ -184,7 +184,7 @@ async def create_continuous_annotation_config(
             lower_bound=payload.lower_bound,
             upper_bound=payload.upper_bound,
         )
-        config.continuous_config = cont
+        config.continuous_annotation_config = cont
         session.add(config)
         try:
             await session.commit()
@@ -217,7 +217,7 @@ async def create_categorical_annotation_config(
                 numeric_score=val.numeric_score,
             )
             cat.values.append(allowed_value)
-        config.categorical_config = cat
+        config.categorical_annotation_config = cat
         session.add(config)
         try:
             await session.commit()

@@ -1291,10 +1291,10 @@ class AnnotationConfig(Base):
     )
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    continuous_config = relationship(
+    continuous_annotation_config = relationship(
         "ContinuousAnnotationConfig", back_populates="annotation_config", uselist=False
     )
-    categorical_config = relationship(
+    categorical_annotation_config = relationship(
         "CategoricalAnnotationConfig", back_populates="annotation_config", uselist=False
     )
 
@@ -1319,7 +1319,9 @@ class ContinuousAnnotationConfig(Base):
     lower_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     upper_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    annotation_config = relationship("AnnotationConfig", back_populates="continuous_config")
+    annotation_config = relationship(
+        "AnnotationConfig", back_populates="continuous_annotation_config"
+    )
 
 
 class CategoricalAnnotationConfig(Base):
@@ -1340,10 +1342,12 @@ class CategoricalAnnotationConfig(Base):
         nullable=False,
     )
 
-    annotation_config = relationship("AnnotationConfig", back_populates="categorical_config")
+    annotation_config = relationship(
+        "AnnotationConfig", back_populates="categorical_annotation_config"
+    )
     values = relationship(
         "CategoricalAnnotationValue",
-        back_populates="categorical_config",
+        back_populates="categorical_annotation_config",
         cascade="all, delete-orphan",
     )
 
@@ -1360,7 +1364,9 @@ class CategoricalAnnotationValue(Base):
     label: Mapped[str] = mapped_column(String, nullable=False)
     numeric_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    categorical_config = relationship("CategoricalAnnotationConfig", back_populates="values")
+    categorical_annotation_config = relationship(
+        "CategoricalAnnotationConfig", back_populates="values"
+    )
 
     __table_args__ = (UniqueConstraint("categorical_annotation_config_id", "label"),)
 

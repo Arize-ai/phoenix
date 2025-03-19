@@ -554,10 +554,10 @@ class Project(Node):
                     .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
                     .order_by(models.AnnotationConfig.name)
                     .options(
-                        joinedload(models.AnnotationConfig.categorical_config).joinedload(
-                            models.CategoricalAnnotationConfig.values
-                        ),
-                        joinedload(models.AnnotationConfig.continuous_config),
+                        joinedload(
+                            models.AnnotationConfig.categorical_annotation_config
+                        ).joinedload(models.CategoricalAnnotationConfig.values),
+                        joinedload(models.AnnotationConfig.continuous_annotation_config),
                     )
                 )
             ).unique()

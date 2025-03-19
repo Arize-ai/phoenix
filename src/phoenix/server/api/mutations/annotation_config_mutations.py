@@ -172,7 +172,7 @@ class AnnotationConfigMutationMixin:
                         numeric_score=value.numeric_score,
                     )
                 )
-            annotation_config.categorical_config = categorical_annotation_config
+            annotation_config.categorical_annotation_config = categorical_annotation_config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -200,7 +200,7 @@ class AnnotationConfigMutationMixin:
                 lower_bound=input.lower_bound,
                 upper_bound=input.upper_bound,
             )
-            annotation_config.continuous_config = continuous_annotation_config
+            annotation_config.continuous_annotation_config = continuous_annotation_config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -246,7 +246,7 @@ class AnnotationConfigMutationMixin:
             annotation_config = await session.scalar(
                 select(models.AnnotationConfig)
                 .options(
-                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
                         models.CategoricalAnnotationConfig.values
                     )
                 )
@@ -258,21 +258,21 @@ class AnnotationConfigMutationMixin:
             annotation_config.name = input.name
             annotation_config.description = input.description
 
-            assert annotation_config.categorical_config is not None
-            annotation_config.categorical_config.optimization_direction = (
+            assert annotation_config.categorical_annotation_config is not None
+            annotation_config.categorical_annotation_config.optimization_direction = (
                 input.optimization_direction.value
             )
 
             await session.execute(
                 delete(models.CategoricalAnnotationValue).where(
                     models.CategoricalAnnotationValue.categorical_annotation_config_id
-                    == annotation_config.categorical_config.id
+                    == annotation_config.categorical_annotation_config.id
                 )
             )
 
-            annotation_config.categorical_config.values.clear()
+            annotation_config.categorical_annotation_config.values.clear()
             for val in input.values:
-                annotation_config.categorical_config.values.append(
+                annotation_config.categorical_annotation_config.values.append(
                     models.CategoricalAnnotationValue(
                         label=val.label,
                         numeric_score=val.numeric_score,
@@ -302,7 +302,7 @@ class AnnotationConfigMutationMixin:
         async with info.context.db() as session:
             annotation_config = await session.scalar(
                 select(models.AnnotationConfig)
-                .options(joinedload(models.AnnotationConfig.continuous_config))
+                .options(joinedload(models.AnnotationConfig.continuous_annotation_config))
                 .where(models.AnnotationConfig.id == config_id)
             )
             if not annotation_config:
@@ -311,12 +311,12 @@ class AnnotationConfigMutationMixin:
             annotation_config.name = input.name
             annotation_config.description = input.description
 
-            assert annotation_config.continuous_config is not None
-            annotation_config.continuous_config.optimization_direction = (
+            assert annotation_config.continuous_annotation_config is not None
+            annotation_config.continuous_annotation_config.optimization_direction = (
                 input.optimization_direction.value
             )
-            annotation_config.continuous_config.lower_bound = input.lower_bound
-            annotation_config.continuous_config.upper_bound = input.upper_bound
+            annotation_config.continuous_annotation_config.lower_bound = input.lower_bound
+            annotation_config.continuous_annotation_config.upper_bound = input.upper_bound
 
             session.add(annotation_config)
             try:
@@ -373,8 +373,8 @@ class AnnotationConfigMutationMixin:
                 select(models.AnnotationConfig)
                 .where(models.AnnotationConfig.id == config_id)
                 .options(
-                    joinedload(models.AnnotationConfig.continuous_config),
-                    joinedload(models.AnnotationConfig.categorical_config).joinedload(
+                    joinedload(models.AnnotationConfig.continuous_annotation_config),
+                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
                         models.CategoricalAnnotationConfig.values
                     ),
                 )
