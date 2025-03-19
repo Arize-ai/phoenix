@@ -9,8 +9,6 @@ import CodeMirror, {
 
 import { useTheme } from "@phoenix/contexts";
 
-import { readOnlyCodeMirrorCSS } from "./styles";
-
 type JSONBlockProps = Omit<
   ReactCodeMirrorProps,
   "theme" | "extensions" | "editable" | "basicSetup"
@@ -34,7 +32,6 @@ export function JSONBlock(props: JSONBlockProps) {
         highlightActiveLine: false,
         highlightActiveLineGutter: false,
       }}
-      css={readOnlyCodeMirrorCSS}
     />
   );
 }
