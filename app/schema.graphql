@@ -1356,10 +1356,6 @@ type Mutation {
   updateContinuousAnnotationConfig(input: UpdateContinuousAnnotationConfigInput!): UpdateContinuousAnnotationConfigPayload!
   updateCategoricalAnnotationConfig(input: UpdateCategoricalAnnotationConfigInput!): UpdateCategoricalAnnotationConfigPayload!
   updateFreeformAnnotationConfig(input: UpdateFreeformAnnotationConfigInput!): UpdateFreeformAnnotationConfigPayload!
-  patchAnnotationConfig(input: PatchAnnotationConfigInput!): PatchAnnotationConfigPayload!
-  patchContinuousAnnotationConfig(input: PatchContinuousAnnotationConfigInput!): PatchContinuousAnnotationConfigPayload!
-  patchCategoricalAnnotationValues(input: PatchCategoricalAnnotationValuesInput!): PatchCategoricalAnnotationValuesPayload!
-  patchCategoricalAnnotationValue(input: PatchCategoricalAnnotationValueInput!): PatchCategoricalAnnotationValuePayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
   addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
@@ -1447,18 +1443,6 @@ type PageInfo {
   endCursor: String
 }
 
-input PatchAnnotationConfigInput {
-  configId: GlobalID!
-  name: String = null
-  description: String = null
-  optimizationDirection: OptimizationDirection = null
-}
-
-type PatchAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: AnnotationConfig!
-}
-
 input PatchAnnotationInput {
   annotationId: GlobalID!
   name: String
@@ -1467,38 +1451,6 @@ input PatchAnnotationInput {
   score: Float
   explanation: String
   metadata: JSON
-}
-
-input PatchCategoricalAnnotationValueInput {
-  valueId: GlobalID!
-  label: String = null
-  numericScore: Float = null
-}
-
-type PatchCategoricalAnnotationValuePayload {
-  query: Query!
-  annotationConfig: CategoricalAnnotationConfig!
-}
-
-input PatchCategoricalAnnotationValuesInput {
-  configId: GlobalID!
-  values: [CategoricalAnnotationValueInput!]!
-}
-
-type PatchCategoricalAnnotationValuesPayload {
-  query: Query!
-  annotationConfig: CategoricalAnnotationConfig!
-}
-
-input PatchContinuousAnnotationConfigInput {
-  configId: GlobalID!
-  lowerBound: Float = null
-  upperBound: Float = null
-}
-
-type PatchContinuousAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: ContinuousAnnotationConfig!
 }
 
 input PatchDatasetExamplesInput {
