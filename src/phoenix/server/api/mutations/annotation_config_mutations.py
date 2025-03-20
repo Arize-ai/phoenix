@@ -9,6 +9,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
@@ -150,7 +151,7 @@ class UpdateFreeformAnnotationConfigPayload:
 
 @strawberry.type
 class AnnotationConfigMutationMixin:
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def create_categorical_annotation_config(
         self,
         info: Info[Context, None],
@@ -183,7 +184,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_categorical_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def create_continuous_annotation_config(
         self,
         info: Info[Context, None],
@@ -211,7 +212,7 @@ class AnnotationConfigMutationMixin:
                 annotation_config=to_gql_continuous_annotation_config(annotation_config),
             )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def create_freeform_annotation_config(
         self,
         info: Info[Context, None],
@@ -233,7 +234,7 @@ class AnnotationConfigMutationMixin:
                 annotation_config=to_gql_freeform_annotation_config(config),
             )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def update_categorical_annotation_config(
         self,
         info: Info[Context, None],
@@ -290,7 +291,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_categorical_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def update_continuous_annotation_config(
         self,
         info: Info[Context, None],
@@ -329,7 +330,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_continuous_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def update_freeform_annotation_config(
         self,
         info: Info[Context, None],
@@ -359,7 +360,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_freeform_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def delete_annotation_config(
         self,
         info: Info[Context, None],
@@ -389,7 +390,7 @@ class AnnotationConfigMutationMixin:
             annotation_config=to_gql_annotation_config(annotation_config),
         )
 
-    @strawberry.mutation
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def add_annotation_config_to_project(
         self,
         info: Info[Context, None],
