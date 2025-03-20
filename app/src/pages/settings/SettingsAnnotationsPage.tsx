@@ -4,16 +4,12 @@ import { useLoaderData, useRevalidator } from "react-router-dom";
 
 import { Card } from "@arizeai/components";
 
-import {
-  Button,
-  DialogTrigger,
-  Popover,
-  PopoverArrow,
-} from "@phoenix/components";
+import { Button, DialogTrigger, Modal } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/pages/settings/AnnotationConfigDialog";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import { SettingsAnnotationsPageLoaderData } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { AnnotationConfig } from "@phoenix/pages/settings/types";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import { SettingsAnnotationsPageFragment$key } from "./__generated__/SettingsAnnotationsPageFragment.graphql";
 
@@ -73,18 +69,41 @@ const SettingsAnnotations = ({
     }
   `);
 
-  const handleAddAnnotationConfig = (_config: AnnotationConfig) => {
+  const parseError = (callback?: (error: string) => void) => (error: Error) => {
+    const formattedError = getErrorMessagesFromRelayMutationError(error);
+    callback?.(formattedError?.[0] ?? "Failed to create annotation config");
+  };
+
+  const handleAddAnnotationConfig = (
+    _config: AnnotationConfig,
+    {
+      onCompleted,
+      onError,
+    }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
+  ) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _, annotationType, ...config } = _config;
     switch (annotationType) {
       case "CONTINUOUS":
-        createContinuousAnnotationConfig({ variables: { input: config } });
+        createContinuousAnnotationConfig({
+          variables: { input: config },
+          onCompleted,
+          onError: parseError(onError),
+        });
         break;
       case "CATEGORICAL":
-        createCategoricalAnnotationConfig({ variables: { input: config } });
+        createCategoricalAnnotationConfig({
+          variables: { input: config },
+          onCompleted,
+          onError: parseError(onError),
+        });
         break;
       case "FREEFORM":
-        createFreeformAnnotationConfig({ variables: { input: config } });
+        createFreeformAnnotationConfig({
+          variables: { input: config },
+          onCompleted,
+          onError: parseError(onError),
+        });
         break;
     }
     revalidate();
@@ -126,7 +145,13 @@ const SettingsAnnotations = ({
     }
   `);
 
-  const handleEditAnnotationConfig = (_config: AnnotationConfig) => {
+  const handleEditAnnotationConfig = (
+    _config: AnnotationConfig,
+    {
+      onCompleted,
+      onError,
+    }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
+  ) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, annotationType, ...config } = _config;
     switch (annotationType) {
@@ -138,6 +163,8 @@ const SettingsAnnotations = ({
               configId: id,
             },
           },
+          onCompleted,
+          onError: parseError(onError),
         });
         break;
       case "CATEGORICAL":
@@ -148,6 +175,8 @@ const SettingsAnnotations = ({
               configId: id,
             },
           },
+          onCompleted,
+          onError: parseError(onError),
         });
         break;
       case "FREEFORM":
@@ -158,6 +187,8 @@ const SettingsAnnotations = ({
               configId: id,
             },
           },
+          onCompleted,
+          onError: parseError(onError),
         });
         break;
     }
@@ -172,12 +203,11 @@ const SettingsAnnotations = ({
       extra={
         <DialogTrigger>
           <Button size="S">New Annotation Config</Button>
-          <Popover placement="bottom end">
-            <PopoverArrow />
+          <Modal>
             <AnnotationConfigDialog
               onAddAnnotationConfig={handleAddAnnotationConfig}
             />
-          </Popover>
+          </Modal>
         </DialogTrigger>
       }
     >

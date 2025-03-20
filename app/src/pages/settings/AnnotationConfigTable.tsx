@@ -17,8 +17,7 @@ import {
   Flex,
   Icon,
   Icons,
-  Popover,
-  PopoverArrow,
+  Modal,
   Text,
   Token,
 } from "@phoenix/components";
@@ -134,13 +133,12 @@ const makeColumns = ({
               <Button size="S" variant="quiet">
                 <Icon svg={<Icons.EditOutline />} />
               </Button>
-              <Popover placement="bottom end">
-                <PopoverArrow />
+              <Modal>
                 <AnnotationConfigDialog
                   initialAnnotationConfig={row.original}
                   onAddAnnotationConfig={onEditAnnotationConfig}
                 />
-              </Popover>
+              </Modal>
             </DialogTrigger>
           </Flex>
         );
@@ -153,7 +151,13 @@ export const AnnotationConfigTable = ({
   onEditAnnotationConfig,
 }: {
   annotationConfigs: AnnotationConfigTableFragment$key;
-  onEditAnnotationConfig: (annotationConfig: AnnotationConfig) => void;
+  onEditAnnotationConfig: (
+    annotationConfig: AnnotationConfig,
+    {
+      onCompleted,
+      onError,
+    }?: { onCompleted?: () => void; onError?: () => void }
+  ) => void;
 }) => {
   const data = useFragment(
     graphql`
