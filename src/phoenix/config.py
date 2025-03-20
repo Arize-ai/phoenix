@@ -163,16 +163,16 @@ password reset emails. If this variable is left unspecified or contains no origi
 protection will not be enabled. In such cases, when a request includes `origin` or `referer`
 headers, those values will not be validated.
 """
-ENV_PHOENIX_STARTUP_ADMINS = "PHOENIX_STARTUP_ADMINS"
+ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
 """
 A semicolon-separated list of username and email address pairs to create as admin users on startup.
-The format is `username=email`, e.g., `George Washington=g@w.com`. Usernames can contain spaces,
-commas, and equal signs (the last equal sign separates username from email). The password for each
-user will be randomly generated and will need to be reset. The application will not start if this
-environment variable is set but cannot be parsed or contains invalid emails. If the username or
-email address already exists in the database, the user record will not be modified, e.g., changed
-from non-admin to admin. Changing this environment variable for the next startup will not undo any
-records created in previous startups.
+The format is `username=email`, e.g.,
+`Washington, George=george@example.com;Benjamin Franklin=ben@example.com`.
+The password for each user will be randomly generated and will need to be reset. The application
+will not start if this environment variable is set but cannot be parsed or contains invalid emails.
+If the username or email address already exists in the database, the user record will not be
+modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
+startup will not undo any records created in previous startups.
 """
 
 
@@ -443,9 +443,9 @@ def get_env_csrf_trusted_origins() -> list[str]:
     return sorted(set(origins))
 
 
-def get_env_startup_admins() -> dict[str, str]:
+def get_env_admins() -> dict[str, str]:
     """
-    Parse the PHOENIX_STARTUP_ADMINS environment variable to extract the comma separated pairs of
+    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
     username and email. The last equal sign (=) in each pair is used to separate the username from
     the email.
 
@@ -455,7 +455,7 @@ def get_env_startup_admins() -> dict[str, str]:
     Raises:
         ValueError: If the environment variable cannot be parsed or contains invalid email addresses
     """
-    if not (env_value := getenv(ENV_PHOENIX_STARTUP_ADMINS)):
+    if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
     usernames = set()
     emails = set()
@@ -469,7 +469,7 @@ def get_env_startup_admins() -> dict[str, str]:
         last_equals_pos = pair.rfind("=")
         if last_equals_pos == -1:
             raise ValueError(
-                f"Invalid format in {ENV_PHOENIX_STARTUP_ADMINS}: '{pair}'. "
+                f"Invalid format in {ENV_PHOENIX_ADMINS}: '{pair}'. "
                 f"Expected format: 'username=email'"
             )
         username = pair[:last_equals_pos].strip()
@@ -477,11 +477,11 @@ def get_env_startup_admins() -> dict[str, str]:
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
-            raise ValueError(f"Invalid email in {ENV_PHOENIX_STARTUP_ADMINS}: '{email_addr}'")
+            raise ValueError(f"Invalid email in {ENV_PHOENIX_ADMINS}: '{email_addr}'")
         if username in usernames:
-            raise ValueError(f"Duplicate username in {ENV_PHOENIX_STARTUP_ADMINS}: '{username}'")
+            raise ValueError(f"Duplicate username in {ENV_PHOENIX_ADMINS}: '{username}'")
         if email_addr in emails:
-            raise ValueError(f"Duplicate email in {ENV_PHOENIX_STARTUP_ADMINS}: '{email_addr}'")
+            raise ValueError(f"Duplicate email in {ENV_PHOENIX_ADMINS}: '{email_addr}'")
         usernames.add(username)
         emails.add(email_addr)
         ans[email_addr] = username

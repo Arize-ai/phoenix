@@ -4,9 +4,9 @@ import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
 from phoenix.config import (
-    ENV_PHOENIX_STARTUP_ADMINS,
+    ENV_PHOENIX_ADMINS,
+    get_env_admins,
     get_env_postgres_connection_str,
-    get_env_startup_admins,
 )
 
 
@@ -173,10 +173,10 @@ class TestGetEnvStartupAdmins:
         expected_result: dict[str, str],
     ) -> None:
         if env_value:
-            monkeypatch.setenv(ENV_PHOENIX_STARTUP_ADMINS, env_value)
+            monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
         else:
-            monkeypatch.delenv(ENV_PHOENIX_STARTUP_ADMINS, raising=False)
-        result = get_env_startup_admins()
+            monkeypatch.delenv(ENV_PHOENIX_ADMINS, raising=False)
+        result = get_env_admins()
         assert result == expected_result
 
     @pytest.mark.parametrize(
@@ -239,7 +239,7 @@ class TestGetEnvStartupAdmins:
         env_value: str,
         expected_error_msg: str,
     ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_STARTUP_ADMINS, env_value)
+        monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
         with pytest.raises(ValueError) as e:
-            get_env_startup_admins()
+            get_env_admins()
         assert expected_error_msg in str(e.value)

@@ -3,7 +3,7 @@ from secrets import token_bytes
 from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 
-from phoenix.config import ENV_PHOENIX_STARTUP_ADMINS
+from phoenix.config import ENV_PHOENIX_ADMINS
 from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.db.facilitator import _ensure_enums, _ensure_startup_admins
@@ -17,7 +17,7 @@ class TestEnsureStartupAdmins:
         monkeypatch: MonkeyPatch,
     ) -> None:
         monkeypatch.setenv(
-            ENV_PHOENIX_STARTUP_ADMINS,
+            ENV_PHOENIX_ADMINS,
             (
                 "Washington, George, Jr.=george@example.com;"
                 "Franklin, Benjamin=benjamin@example.com;"

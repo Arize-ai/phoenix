@@ -20,8 +20,8 @@ from phoenix.auth import (
     compute_password_hash,
 )
 from phoenix.config import (
+    get_env_admins,
     get_env_default_admin_initial_password,
-    get_env_startup_admins,
 )
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
@@ -121,7 +121,7 @@ async def _ensure_startup_admins(session: AsyncSession) -> None:
     Ensure that all startup admin users are present in the database. If any are missing, they will
     be added. Existing records will not be modified.
     """
-    if not (admins := get_env_startup_admins()):
+    if not (admins := get_env_admins()):
         return
     existing_emails = set(
         await session.scalars(select(models.User.email).where(models.User.email.in_(admins.keys())))
