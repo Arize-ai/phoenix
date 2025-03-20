@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.15.0...arize-phoenix-v8.16.0) (2025-03-20)
+
+
+### Features
+
+* add delete experiment to action menu ([#6754](https://github.com/Arize-ai/phoenix/issues/6754)) ([b6b1181](https://github.com/Arize-ai/phoenix/commit/b6b11812a1f9b4e56e73e7f5761f31441fffb2f1))
+* **ui:** show the date format in the explanation ([#6848](https://github.com/Arize-ai/phoenix/issues/6848)) ([4235cc1](https://github.com/Arize-ai/phoenix/commit/4235cc1a9967790cab55c98572964b414c2ae763))
+
 ## [8.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.14.1...arize-phoenix-v8.15.0) (2025-03-19)
 
 
