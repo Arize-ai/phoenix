@@ -171,7 +171,7 @@ class TestGetEnvStartupAdmins:
         monkeypatch: MonkeyPatch,
         env_value: str,
         expected_result: dict[str, str],
-    ):
+    ) -> None:
         if env_value:
             monkeypatch.setenv(ENV_PHOENIX_STARTUP_ADMINS, env_value)
         else:
@@ -238,7 +238,7 @@ class TestGetEnvStartupAdmins:
         monkeypatch: MonkeyPatch,
         env_value: str,
         expected_error_msg: str,
-    ):
+    ) -> None:
         monkeypatch.setenv(ENV_PHOENIX_STARTUP_ADMINS, env_value)
         with pytest.raises(ValueError) as e:
             get_env_startup_admins()
