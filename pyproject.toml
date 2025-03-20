@@ -59,6 +59,7 @@ dependencies = [
   "authlib",
   "websockets",
   "arize-phoenix-client",
+  "email-validator",
 ]
 dynamic = ["version"]
 
