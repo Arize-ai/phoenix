@@ -6,6 +6,7 @@ export {
   Dialog,
   DialogTrigger,
   Form,
+  I18nProvider,
 } from "react-aria-components";
 export type {
   InputProps,

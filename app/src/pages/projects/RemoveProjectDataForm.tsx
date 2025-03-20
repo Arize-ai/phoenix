@@ -23,6 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
+import { useLocalTimeFormatPattern } from "@phoenix/hooks";
 
 import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
@@ -37,6 +38,7 @@ type RemoveProjectDataFormParams = {
 
 export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { projectId } = props;
+  const dateFormatPattern = useLocalTimeFormatPattern();
   const formRef = useRef<HTMLFormElement>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
@@ -127,7 +129,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
                 <FieldError>{error.message}</FieldError>
               ) : (
                 <Text slot="description">
-                  The date up to which you want to remove data
+                  {`The date up to which you want to remove data. The format is ${dateFormatPattern}.`}
                 </Text>
               )}
             </DateField>
