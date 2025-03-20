@@ -1,4 +1,5 @@
 import React, { ReactNode, useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
@@ -24,8 +25,9 @@ import {
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
 import { AnnotationConfigDialog } from "@phoenix/pages/settings/AnnotationConfigDialog";
-import { AnnotationConfig } from "@phoenix/pages/settings/SettingsAnnotationsPage";
+import { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 const makeColumns = ({
   onEditAnnotationConfig,
@@ -58,8 +60,8 @@ const makeColumns = ({
       cell: ({ row }) => {
         return (
           <Text>
-            {row.original.type.charAt(0).toUpperCase() +
-              row.original.type.slice(1)}
+            {row.original.annotationType.charAt(0).toUpperCase() +
+              row.original.annotationType.slice(1).toLowerCase()}
           </Text>
         );
       },
@@ -69,8 +71,11 @@ const makeColumns = ({
       header: "Values",
       enableSorting: false,
       accessorFn: (row) => {
-        switch (row.type) {
-          case "categorical": {
+        switch (row.annotationType) {
+          case "CATEGORICAL": {
+            if (!row.values) {
+              return "";
+            }
             let tokens = row.values.map((value, index) => (
               <Token key={index}>{value.label}</Token>
             ));
@@ -100,9 +105,9 @@ const makeColumns = ({
             }
             return tokens;
           }
-          case "continuous":
-            return `Range: ${row.min} - ${row.max}`;
-          case "text":
+          case "CONTINUOUS":
+            return `Range: ${row.lowerBound} - ${row.upperBound}`;
+          case "FREEFORM":
             return "";
           default:
             return "";
@@ -147,15 +152,58 @@ export const AnnotationConfigTable = ({
   annotationConfigs,
   onEditAnnotationConfig,
 }: {
-  annotationConfigs: AnnotationConfig[];
+  annotationConfigs: AnnotationConfigTableFragment$key;
   onEditAnnotationConfig: (annotationConfig: AnnotationConfig) => void;
 }) => {
+  const data = useFragment(
+    graphql`
+      fragment AnnotationConfigTableFragment on Query {
+        annotationConfigs {
+          edges {
+            annotationConfig: node {
+              ... on CategoricalAnnotationConfig {
+                id
+                name
+                description
+                annotationType
+                optimizationDirection
+                values {
+                  label
+                  score
+                }
+              }
+              ... on ContinuousAnnotationConfig {
+                id
+                name
+                description
+                annotationType
+                optimizationDirection
+                upperBound
+                lowerBound
+              }
+              ... on FreeformAnnotationConfig {
+                id
+                name
+                description
+                annotationType
+              }
+            }
+          }
+        }
+      }
+    `,
+    annotationConfigs
+  );
+  const configs = useMemo(
+    () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
+    [data.annotationConfigs.edges]
+  ) as AnnotationConfig[]; // cast to AnnotationConfig[] because otherwise 'name' and 'annotationType' are optional
   const columns = useMemo(
     () => makeColumns({ onEditAnnotationConfig }),
     [onEditAnnotationConfig]
   );
   const table = useReactTable({
-    data: annotationConfigs,
+    data: configs,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

@@ -5,6 +5,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 import { SettingsAnnotationsPage } from "@phoenix/pages/settings/SettingsAnnotationsPage";
+import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
@@ -306,6 +307,7 @@ const router = createBrowserRouter(
             />
             <Route
               path="annotations"
+              loader={settingsAnnotationsPageLoader}
               element={<SettingsAnnotationsPage />}
               handle={{
                 crumb: () => "annotations",

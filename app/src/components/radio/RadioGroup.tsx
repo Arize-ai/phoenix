@@ -51,6 +51,16 @@ const baseRadioGroupCSS = css(`
     }
   }
 
+  &[data-disabled] {
+    opacity: 0.5;
+  }
+
+  &[data-readonly] {
+    .ac-radio:before {
+      opacity: 0.5;
+    }
+  }
+
   &:has(.ac-radio[data-focus-visible]) {
     border-radius: var(--ac-global-rounding-small);
     outline: 1px solid var(--ac-global-input-field-border-color-active);

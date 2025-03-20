@@ -20,14 +20,21 @@ import {
   AnnotationConfig,
   AnnotationConfigCategorical,
   AnnotationConfigContinuous,
-  AnnotationConfigText,
-} from "@phoenix/pages/settings/SettingsAnnotationsPage";
+  AnnotationConfigFreeform,
+  AnnotationConfigOptimizationDirection,
+  AnnotationConfigType,
+} from "@phoenix/pages/settings/types";
+
+const optimizationDirections = [
+  "MAXIMIZE",
+  "MINIMIZE",
+] satisfies AnnotationConfigOptimizationDirection[];
 
 const types = [
-  "categorical",
-  "continuous",
-  "text",
-] satisfies AnnotationConfig["type"][];
+  "CATEGORICAL",
+  "CONTINUOUS",
+  "FREEFORM",
+] satisfies AnnotationConfigType[];
 
 export const AnnotationConfigDialog = ({
   onAddAnnotationConfig,
@@ -39,8 +46,9 @@ export const AnnotationConfigDialog = ({
   const mode: "new" | "edit" = initialAnnotationConfig ? "edit" : "new";
   const { control, handleSubmit, watch } = useForm<AnnotationConfig>({
     defaultValues: initialAnnotationConfig || {
-      type: "categorical",
-      values: [{ label: "" }],
+      annotationType: "CATEGORICAL",
+      values: [{ label: "", score: 0 }],
+      optimizationDirection: "MAXIMIZE",
     },
   });
   const { fields, append, remove } = useFieldArray({
@@ -48,31 +56,33 @@ export const AnnotationConfigDialog = ({
     name: "values",
   });
   const onSubmit = (data: AnnotationConfig) => {
-    switch (data.type) {
-      case "categorical": {
+    switch (data.annotationType) {
+      case "CATEGORICAL": {
         const config: AnnotationConfigCategorical = {
-          type: "categorical",
+          annotationType: "CATEGORICAL",
           name: data.name,
           values: data.values,
           id: initialAnnotationConfig?.id || "",
+          optimizationDirection: data.optimizationDirection,
         };
         onAddAnnotationConfig(config);
         break;
       }
-      case "continuous": {
+      case "CONTINUOUS": {
         const config: AnnotationConfigContinuous = {
-          type: "continuous",
+          annotationType: "CONTINUOUS",
           name: data.name,
-          min: data.min,
-          max: data.max,
+          lowerBound: data.lowerBound,
+          upperBound: data.upperBound,
           id: initialAnnotationConfig?.id || "",
+          optimizationDirection: data.optimizationDirection,
         };
         onAddAnnotationConfig(config);
         break;
       }
-      case "text": {
-        const config: AnnotationConfigText = {
-          type: "text",
+      case "FREEFORM": {
+        const config: AnnotationConfigFreeform = {
+          annotationType: "FREEFORM",
           name: data.name,
           id: initialAnnotationConfig?.id || "",
         };
@@ -81,7 +91,7 @@ export const AnnotationConfigDialog = ({
       }
     }
   };
-  const type = watch("type");
+  const annotationType = watch("annotationType");
   return (
     <Dialog>
       {({ close }) => (
@@ -95,7 +105,6 @@ export const AnnotationConfigDialog = ({
         >
           <View
             minWidth="200px"
-            minHeight="300px"
             padding="size-200"
             maxHeight="600px"
             overflow="auto"
@@ -121,33 +130,69 @@ export const AnnotationConfigDialog = ({
               />
               <Controller
                 control={control}
-                name="type"
+                name="annotationType"
                 render={({ field }) => (
                   <RadioGroup
                     {...field}
                     aria-label="Type"
                     data-testid="type-picker"
                     direction="column"
+                    isReadOnly={mode === "edit"}
                   >
                     <Label>Type</Label>
-                    {types.map((type) => (
-                      <Radio key={type} value={type}>
-                        {type}
-                      </Radio>
-                    ))}
+                    {types
+                      .filter((type) =>
+                        mode === "edit" ? type === field.value : type
+                      )
+                      .map((type) => (
+                        <Radio key={type} value={type}>
+                          {type.charAt(0).toUpperCase() +
+                            type.slice(1).toLowerCase()}
+                        </Radio>
+                      ))}
                   </RadioGroup>
                 )}
               />
-              {type === "continuous" && (
+              {(annotationType === "CONTINUOUS" ||
+                annotationType === "CATEGORICAL") && (
+                <Controller
+                  control={control}
+                  name="optimizationDirection"
+                  render={({ field }) => (
+                    <RadioGroup
+                      {...field}
+                      aria-label="Optimization Direction"
+                      data-testid="optimization-direction-picker"
+                      direction="column"
+                    >
+                      <Label>Optimization Direction</Label>
+                      {optimizationDirections.map((direction) => (
+                        <Radio key={direction} value={direction}>
+                          {direction.charAt(0).toUpperCase() +
+                            direction.slice(1).toLowerCase()}
+                        </Radio>
+                      ))}
+                    </RadioGroup>
+                  )}
+                />
+              )}
+              {annotationType === "CONTINUOUS" && (
                 <>
                   <Controller
                     control={control}
-                    name="min"
+                    name="lowerBound"
                     rules={{
                       required: "Min is required",
                     }}
-                    render={({ field, fieldState: { error } }) => (
-                      <NumberField {...field} isInvalid={!!error}>
+                    render={({
+                      field: { value, ...field },
+                      fieldState: { error },
+                    }) => (
+                      <NumberField
+                        {...field}
+                        value={typeof value === "number" ? value : undefined}
+                        isInvalid={!!error}
+                      >
                         <Label>Min</Label>
                         <Input placeholder="0" />
                         <FieldError>{error?.message}</FieldError>
@@ -156,72 +201,122 @@ export const AnnotationConfigDialog = ({
                   />
                   <Controller
                     control={control}
-                    name="max"
+                    name="upperBound"
                     rules={{
                       validate: (value) => {
-                        if (value <= watch("min")) {
+                        const lowerBound = watch("lowerBound");
+                        if (
+                          lowerBound != null &&
+                          value != null &&
+                          value <= lowerBound
+                        ) {
                           return "Max must be greater than min";
                         }
-                        if (isNaN(value)) {
+                        if (value != null && isNaN(value)) {
                           return "Max is required";
                         }
                         return true;
                       },
                     }}
-                    render={({ field, fieldState: { error } }) => (
-                      <NumberField
-                        {...field}
-                        isInvalid={!!error}
-                        minValue={watch("min")}
-                      >
-                        <Label>Max</Label>
-                        <Input placeholder="1" />
-                        <FieldError>{error?.message}</FieldError>
-                      </NumberField>
-                    )}
+                    render={({
+                      field: { value, ...field },
+                      fieldState: { error },
+                    }) => {
+                      const lowerBound = watch("lowerBound");
+                      return (
+                        <NumberField
+                          {...field}
+                          value={typeof value === "number" ? value : undefined}
+                          isInvalid={!!error}
+                          minValue={
+                            typeof lowerBound === "number"
+                              ? lowerBound
+                              : undefined
+                          }
+                        >
+                          <Label>Max</Label>
+                          <Input placeholder="1" />
+                          <FieldError>{error?.message}</FieldError>
+                        </NumberField>
+                      );
+                    }}
                   />
                 </>
               )}
-              {type === "categorical" && (
+              {annotationType === "CATEGORICAL" && (
                 <>
                   {fields.map((item, index) => (
-                    <Controller
+                    <Flex
                       key={item.id}
-                      control={control}
-                      name={`values.${index}.label`}
-                      rules={{
-                        required: "Category label is required",
-                      }}
-                      render={({ field, fieldState: { error } }) => (
-                        <TextField
-                          {...field}
-                          aria-label={`Value ${index + 1}`}
-                          isInvalid={!!error}
-                        >
-                          <Flex
-                            direction="row"
-                            gap="size-100"
-                            alignItems="center"
+                      direction="row"
+                      gap="size-100"
+                      alignItems="center"
+                    >
+                      <Controller
+                        control={control}
+                        name={`values.${index}.label`}
+                        rules={{
+                          required: "Category label is required",
+                        }}
+                        render={({ field, fieldState: { error } }) => (
+                          <TextField
+                            {...field}
+                            aria-label={`Value ${index + 1}`}
+                            isInvalid={!!error}
                           >
-                            <Input placeholder={`${index}`} />
-                            <Button
-                              type="button"
-                              onPress={() => remove(index)}
-                              variant="quiet"
-                              size="S"
+                            <Flex
+                              direction="row"
+                              gap="size-100"
+                              alignItems="center"
                             >
-                              <Icon svg={<Icons.TrashOutline />} />
-                            </Button>
-                          </Flex>
-                          <FieldError>{error?.message}</FieldError>
-                        </TextField>
-                      )}
-                    />
+                              <Input placeholder="Category label" />
+                            </Flex>
+                            <FieldError>{error?.message}</FieldError>
+                          </TextField>
+                        )}
+                      />
+                      <Controller
+                        control={control}
+                        name={`values.${index}.score`}
+                        rules={{
+                          required: "Score is required",
+                        }}
+                        render={({ field, fieldState: { error } }) => (
+                          <NumberField
+                            {...field}
+                            value={
+                              typeof field.value === "number"
+                                ? field.value
+                                : undefined
+                            }
+                            aria-label={`Score ${index + 1}`}
+                            isInvalid={!!error}
+                          >
+                            <Flex
+                              direction="row"
+                              gap="size-100"
+                              alignItems="center"
+                            >
+                              <Input placeholder={`${index}`} />
+                            </Flex>
+                            <FieldError>{error?.message}</FieldError>
+                          </NumberField>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        onPress={() => remove(index)}
+                        variant="quiet"
+                        size="S"
+                      >
+                        <Icon svg={<Icons.TrashOutline />} />
+                      </Button>
+                    </Flex>
                   ))}
                   <Button
                     type="button"
                     onPress={() => {
-                      append({ label: "" });
+                      append({ label: "", score: fields.length });
                     }}
                   >
                     Add category
