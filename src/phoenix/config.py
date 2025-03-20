@@ -166,8 +166,7 @@ headers, those values will not be validated.
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
 """
 A semicolon-separated list of username and email address pairs to create as admin users on startup.
-The format is `username=email`, e.g.,
-`Washington, George=george@example.com;Benjamin Franklin=ben@example.com`.
+The format is `username=email`, e.g., `John Doe=john@example.com;Doe, Jane=jane@example.com`.
 The password for each user will be randomly generated and will need to be reset. The application
 will not start if this environment variable is set but cannot be parsed or contains invalid emails.
 If the username or email address already exists in the database, the user record will not be
