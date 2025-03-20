@@ -43,7 +43,7 @@ class Facilitator:
         for fn in (
             _ensure_enums,
             _ensure_user_roles,
-            _ensure_startup_admins,
+            _ensure_admins,
         ):
             async with self._db() as session:
                 await fn(session)
@@ -116,7 +116,7 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
     await session.flush()
 
 
-async def _ensure_startup_admins(session: AsyncSession) -> None:
+async def _ensure_admins(session: AsyncSession) -> None:
     """
     Ensure that all startup admin users are present in the database. If any are missing, they will
     be added. Existing records will not be modified.

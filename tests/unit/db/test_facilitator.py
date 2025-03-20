@@ -6,7 +6,7 @@ from sqlalchemy import select
 from phoenix.config import ENV_PHOENIX_ADMINS
 from phoenix.db import models
 from phoenix.db.enums import UserRole
-from phoenix.db.facilitator import _ensure_enums, _ensure_startup_admins
+from phoenix.db.facilitator import _ensure_admins, _ensure_enums
 from phoenix.server.types import DbSessionFactory
 
 
@@ -58,7 +58,7 @@ class TestEnsureStartupAdmins:
             session.add_all(existing_users.values())
             await session.flush()
         async with db() as session:
-            await _ensure_startup_admins(session)
+            await _ensure_admins(session)
         async with db() as session:
             users = {user.email: user for user in await session.scalars(select(models.User))}
         assert len(users) == 3
