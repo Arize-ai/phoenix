@@ -1,5 +1,5 @@
 ---
-description: Phoenix and Cleanlab work hand-in-hand
+description: Phoenix and Cleanlab complement each other seamlessly
 ---
 
 # Cleanlab
