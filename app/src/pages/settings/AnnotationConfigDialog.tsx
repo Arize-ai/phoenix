@@ -73,13 +73,19 @@ export const AnnotationConfigDialog = ({
   const onSubmit = (data: AnnotationConfig, close: () => void) => {
     const onCompleted = () => {
       notifySuccess({
-        title: "Annotation config created!",
+        title:
+          mode === "new"
+            ? "Annotation config created!"
+            : "Annotation config updated!",
       });
       close();
     };
     const onError = (error: string) => {
       notifyError({
-        title: "Failed to create annotation config",
+        title:
+          mode === "new"
+            ? "Failed to create annotation config"
+            : "Failed to update annotation config",
         message: error,
       });
     };
@@ -199,7 +205,7 @@ export const AnnotationConfigDialog = ({
                     >
                       <Label>Description</Label>
                       <TextArea
-                        rows={1}
+                        rows={2}
                         placeholder="A description of the annotation configuration"
                       />
                     </TextField>

@@ -33,6 +33,18 @@ const SettingsAnnotations = ({
     annotations
   );
 
+  const [deleteAnnotationConfig] = useMutation(graphql`
+    mutation SettingsAnnotationsPageDeleteAnnotationConfigMutation(
+      $input: DeleteAnnotationConfigInput!
+    ) {
+      deleteAnnotationConfig(input: $input) {
+        annotationConfig {
+          __typename
+        }
+      }
+    }
+  `);
+
   const [createContinuousAnnotationConfig] = useMutation(graphql`
     mutation SettingsAnnotationsPageCreateContinuousAnnotationConfigMutation(
       $input: CreateContinuousAnnotationConfigInput!
@@ -195,6 +207,21 @@ const SettingsAnnotations = ({
     revalidate();
   };
 
+  const handleDeleteAnnotationConfig = (
+    id: string,
+    {
+      onCompleted,
+      onError,
+    }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
+  ) => {
+    deleteAnnotationConfig({
+      variables: { input: { configId: id } },
+      onCompleted,
+      onError: parseError(onError),
+    });
+    revalidate();
+  };
+
   return (
     <Card
       title="Annotation Configs"
@@ -214,6 +241,7 @@ const SettingsAnnotations = ({
       <AnnotationConfigTable
         annotationConfigs={data}
         onEditAnnotationConfig={handleEditAnnotationConfig}
+        onDeleteAnnotationConfig={handleDeleteAnnotationConfig}
       />
     </Card>
   );
