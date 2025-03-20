@@ -8,7 +8,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { Annotation } from "./types";
 
-type AnnotationDisplayPreference = "label" | "score";
+type AnnotationDisplayPreference = "label" | "score" | "none";
 
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--ac-global-dimension-size-50);
@@ -55,6 +55,8 @@ const getAnnotationDisplayValue = (
         annotation.label ||
         "n/a"
       );
+    case "none":
+      return "";
     default:
       assertUnreachable(displayPreference);
   }
@@ -64,6 +66,7 @@ export function AnnotationLabel({
   annotation,
   onClick,
   annotationDisplayPreference = "score",
+  className,
 }: {
   annotation: Annotation;
   onClick?: () => void;
@@ -73,6 +76,7 @@ export function AnnotationLabel({
    * @default "score"
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
+  className?: string;
 }) {
   const clickable = typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
@@ -83,6 +87,7 @@ export function AnnotationLabel({
   return (
     <div
       role={clickable ? "button" : undefined}
+      className={className}
       css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
       aria-label={
         clickable
