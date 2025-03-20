@@ -9,6 +9,8 @@ jobs:
   push_to_registry:
     name: Push Docker images to Docker Hub
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.VERSION }}
     strategy:
       matrix:
         variant: [root, nonroot, debug]
