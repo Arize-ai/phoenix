@@ -35,11 +35,11 @@ export function getLocaleDateFormatPattern(locale: string) {
     .map((part) => {
       switch (part.type) {
         case "day":
-          return "DD";
+          return "dd";
         case "month":
-          return "MM";
+          return "mm";
         case "year":
-          return "YYYY";
+          return "yyyy";
         case "literal":
           return part.value;
         default:

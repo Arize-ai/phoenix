@@ -23,8 +23,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
-import { useLocale } from "@phoenix/hooks";
-import { getLocaleDateFormatPattern } from "@phoenix/utils/timeFormatUtils";
+import { useLocalTimeFormatPattern } from "@phoenix/hooks";
 
 import { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
@@ -39,8 +38,7 @@ type RemoveProjectDataFormParams = {
 
 export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { projectId } = props;
-  const { locale } = useLocale();
-  const dateFormatPattern = getLocaleDateFormatPattern(locale);
+  const dateFormatPattern = useLocalTimeFormatPattern();
   const formRef = useRef<HTMLFormElement>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
