@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.17.0...arize-phoenix-v8.17.1) (2025-03-21)
+
+
+### Bug Fixes
+
+* **annotations:** show metadata ([#6886](https://github.com/Arize-ai/phoenix/issues/6886)) ([435d139](https://github.com/Arize-ai/phoenix/commit/435d1399e8f311a83d1f0609e4ed863f5e35d9ce))
+* **feedback:** show full metadata ([#6887](https://github.com/Arize-ai/phoenix/issues/6887)) ([a0fbd15](https://github.com/Arize-ai/phoenix/commit/a0fbd15350e5c34298cccebdca33fda55355f1e3))
+* Improve performance on projects page ([#6847](https://github.com/Arize-ai/phoenix/issues/6847)) ([e8c4e23](https://github.com/Arize-ai/phoenix/commit/e8c4e236a6df59ef8d95a70fafaba176c8cd3416))
+* **UI:** close time selector on duplicate selection ([#6882](https://github.com/Arize-ai/phoenix/issues/6882)) ([822bc39](https://github.com/Arize-ai/phoenix/commit/822bc391cf7ce9d9f62a68cb10a51a76f8134da5))
+
 ## [8.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.16.0...arize-phoenix-v8.17.0) (2025-03-21)
 
 
