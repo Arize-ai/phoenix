@@ -1,6 +1,10 @@
 import React from "react";
-import { createRoutesFromElements, Route, RouterProvider } from "react-router";
-import { createBrowserRouter } from "react-router-dom";
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Route,
+} from "react-router";
+import { RouterProvider } from "react-router/dom";
 
 import { SettingsAIProvidersPage } from "@phoenix/pages/settings/SettingsAIProvidersPage";
 import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";

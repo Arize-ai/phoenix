@@ -1,5 +1,5 @@
 import React, { startTransition, Suspense, useState } from "react";
-import { useLoaderData, useSearchParams } from "react-router-dom";
+import { useLoaderData, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Alert, Switch } from "@arizeai/components";

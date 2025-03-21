@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, LinkButton, Loading, Text, View } from "@phoenix/components";

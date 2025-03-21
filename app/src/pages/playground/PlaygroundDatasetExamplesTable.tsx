@@ -17,7 +17,7 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
