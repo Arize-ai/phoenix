@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00e1a12bb6cd7dcb2712038f6aa1271b>>
+ * @generated SignedSource<<d59dfed2c507c0f5cb5d43b5a7145f67>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,14 +10,9 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type TimeRange = {
-  end?: string | null;
-  start?: string | null;
-};
 export type ProjectsPageProjectsQuery$variables = {
   after?: string | null;
   first?: number | null;
-  timeRange?: TimeRange | null;
 };
 export type ProjectsPageProjectsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
@@ -38,11 +33,6 @@ var v0 = [
     "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "timeRange"
   }
 ],
 v1 = [
@@ -56,14 +46,6 @@ v1 = [
     "name": "first",
     "variableName": "first"
   }
-],
-v2 = {
-  "kind": "Variable",
-  "name": "timeRange",
-  "variableName": "timeRange"
-},
-v3 = [
-  (v2/*: any*/)
 ];
 return {
   "fragment": {
@@ -141,37 +123,9 @@ return {
                   },
                   {
                     "alias": null,
-                    "args": (v3/*: any*/),
-                    "kind": "ScalarField",
-                    "name": "traceCount",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
                     "args": null,
                     "kind": "ScalarField",
                     "name": "endTime",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": "latencyMsP50",
-                    "args": [
-                      {
-                        "kind": "Literal",
-                        "name": "probability",
-                        "value": 0.5
-                      },
-                      (v2/*: any*/)
-                    ],
-                    "kind": "ScalarField",
-                    "name": "latencyMsQuantile",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": (v3/*: any*/),
-                    "kind": "ScalarField",
-                    "name": "tokenCountTotal",
                     "storageKey": null
                   }
                 ],
@@ -245,16 +199,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ead527a5c3ddda0f6c906c99183edf06",
+    "cacheID": "41a1a825d696f9bc4ab50131829ff347",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n  $timeRange: TimeRange\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        traceCount(timeRange: $timeRange)\n        endTime\n        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n        tokenCountTotal(timeRange: $timeRange)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...ProjectsPageProjectsFragment_2HEEH6\n}\n\nfragment ProjectsPageProjectsFragment_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "56c501357948255461a24411fb6b5847";
+(node as any).hash = "d16c129ec8d3d2eb1509dc95e45334fd";
 
 export default node;
