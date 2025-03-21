@@ -70,7 +70,7 @@ type TracesTableProps = {
   project: TracesTable_spans$key;
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 // The number of descendants that's loaded from the server
 // NB: this number is hard coded in the query below but should be kept in sync
 const NUM_DESCENDANTS = 50;
@@ -200,7 +200,7 @@ export function TracesTable(props: TracesTableProps) {
         @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 50 }
+          first: { type: "Int", defaultValue: 25 }
           sort: {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }

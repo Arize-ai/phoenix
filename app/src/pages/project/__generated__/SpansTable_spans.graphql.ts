@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d3e5880d722a2958a3015bccd909ba51>>
+ * @generated SignedSource<<2a7c1355bb907cf8a21865d82f750de7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -108,7 +108,7 @@ return {
       "name": "filterCondition"
     },
     {
-      "defaultValue": 50,
+      "defaultValue": 25,
       "kind": "LocalArgument",
       "name": "first"
     },
@@ -475,6 +475,6 @@ return {
 };
 })();
 
-(node as any).hash = "aafd0f4f7a46cdc47d1768cea97c46c8";
+(node as any).hash = "6aeb0a0b7b8cdd8350820b58dbea45dc";
 
 export default node;

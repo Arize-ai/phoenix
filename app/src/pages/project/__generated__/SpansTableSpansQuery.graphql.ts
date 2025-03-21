@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b96291e288982b43086de9a04b90c420>>
+ * @generated SignedSource<<b10c810d6360504f60cd770dfe32fd97>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -57,7 +57,7 @@ v1 = {
   "name": "filterCondition"
 },
 v2 = {
-  "defaultValue": 50,
+  "defaultValue": 25,
   "kind": "LocalArgument",
   "name": "first"
 },
@@ -536,16 +536,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0e53c2b004dd5a80a82aea6ca38e4caa",
+    "cacheID": "fbbdf85a1f9418a5eda23bb38d8a8fed",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 50\n  $rootSpansOnly: Boolean = true\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpansTable_spans_xYL0c\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTable_spans_xYL0c on Project {\n  name\n  ...SpanColumnSelector_annotations\n  spans(first: $first, after: $after, sort: $sort, rootSpansOnly: $rootSpansOnly, filterCondition: $filterCondition, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        spanId\n        trace {\n          id\n          traceId\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 25\n  $rootSpansOnly: Boolean = true\n  $sort: SpanSort = {col: startTime, dir: desc}\n  $timeRange: TimeRange\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpansTable_spans_xYL0c\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpansTable_spans_xYL0c on Project {\n  name\n  ...SpanColumnSelector_annotations\n  spans(first: $first, after: $after, sort: $sort, rootSpansOnly: $rootSpansOnly, filterCondition: $filterCondition, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        cumulativeTokenCountTotal\n        cumulativeTokenCountPrompt\n        cumulativeTokenCountCompletion\n        spanId\n        trace {\n          id\n          traceId\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          name\n          label\n          score\n          annotatorKind\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aafd0f4f7a46cdc47d1768cea97c46c8";
+(node as any).hash = "6aeb0a0b7b8cdd8350820b58dbea45dc";
 
 export default node;
