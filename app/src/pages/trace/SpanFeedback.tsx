@@ -12,7 +12,10 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
 } from "@phoenix/components";
-import { PreformattedTextCell } from "@phoenix/components/table";
+import {
+  CompactJSONCell,
+  PreformattedTextCell,
+} from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
@@ -43,6 +46,12 @@ const columns = [
     accessorKey: "explanation",
     cell: PreformattedTextCell,
     size: 400,
+  },
+  {
+    header: "metadata",
+    accessorKey: "metadata",
+    minSize: 100,
+    cell: CompactJSONCell,
   },
 ];
 
@@ -114,6 +123,7 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
           label
           score
           explanation
+          metadata
           annotatorKind
         }
       }

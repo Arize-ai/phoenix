@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<288de4e0ae930aec2042df9b1ff847f4>>
+ * @generated SignedSource<<82404c4648cab0654a599034f98506fe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type SpanFeedback_annotations$data = {
     readonly explanation: string | null;
     readonly id: string;
     readonly label: string | null;
+    readonly metadata: any;
     readonly name: string;
     readonly score: number | null;
   }>;
@@ -80,6 +81,13 @@ const node: ReaderFragment = {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "metadata",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "annotatorKind",
           "storageKey": null
         }
@@ -91,6 +99,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "6cde9ca22bfc99084304e3e817be01dc";
+(node as any).hash = "24bc78a9b98c345bac80f7e3d0652963";
 
 export default node;
