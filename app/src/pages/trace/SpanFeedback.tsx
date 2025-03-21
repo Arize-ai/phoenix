@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -12,10 +13,8 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
 } from "@phoenix/components";
-import {
-  CompactJSONCell,
-  PreformattedTextCell,
-} from "@phoenix/components/table";
+import { JSONText } from "@phoenix/components/code/JSONText";
+import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 
@@ -25,7 +24,9 @@ import {
 } from "./__generated__/SpanFeedback_annotations.graphql";
 import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
-const columns = [
+const columns: ColumnDef<
+  SpanFeedback_annotations$data["spanAnnotations"][number]
+>[] = [
   {
     header: "name",
     accessorKey: "name",
@@ -51,7 +52,14 @@ const columns = [
     header: "metadata",
     accessorKey: "metadata",
     minSize: 100,
-    cell: CompactJSONCell,
+    cell: ({ row }) => {
+      const metadata = row.original.metadata;
+      return metadata ? (
+        <JSONText json={metadata} collapseSingleKey={false} />
+      ) : (
+        "--"
+      );
+    },
   },
 ];
 
