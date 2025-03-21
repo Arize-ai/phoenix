@@ -909,6 +909,18 @@ class ProjectTraceRetentionPolicy(Node):
     ]
 
 
+class ProjectTraceRetentionPolicyConnection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    edges: list[ProjectTraceRetentionPolicyEdge] = Field(...)
+    pageInfo: PageInfo = Field(...)
+
+
+class ProjectTraceRetentionPolicyEdge(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cursor: str = Field(...)
+    node: ProjectTraceRetentionPolicy = Field(...)
+
+
 class ProjectTraceRetentionPolicyMutationPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
     node: ProjectTraceRetentionPolicy

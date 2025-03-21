@@ -92,7 +92,7 @@ class ProjectTraceRetentionPolicy(Node):
     async def projects(
         self,
         info: Info[Context, None],
-        first: Optional[int] = 50,
+        first: Optional[int] = 100,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,

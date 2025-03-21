@@ -1645,6 +1645,24 @@ type ProjectTraceRetentionPolicy implements Node {
   projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
 }
 
+"""A connection to a list of items."""
+type ProjectTraceRetentionPolicyConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectTraceRetentionPolicyEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectTraceRetentionPolicyEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectTraceRetentionPolicy!
+}
+
 type ProjectTraceRetentionPolicyMutationPayload {
   query: Query!
   node: ProjectTraceRetentionPolicy!
@@ -1883,6 +1901,8 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+  defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
+  projectTraceRetentionPolicies(first: Int = 50, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
   """
   The allocated storage capacity of the database in bytes. Return None if this information is unavailable.

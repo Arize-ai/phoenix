@@ -19,6 +19,7 @@ from phoenix.config import (
     getenv,
 )
 from phoenix.db import enums, models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import DatasetExample as OrmExample
 from phoenix.db.models import DatasetExampleRevision as OrmRevision
@@ -832,6 +833,45 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field
+    async def default_project_trace_retention_policy(
+        self,
+        info: Info[Context, None],
+    ) -> ProjectTraceRetentionPolicy:
+        stmt = select(models.ProjectTraceRetentionPolicy).filter_by(
+            id=DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+        )
+        async with info.context.db() as session:
+            db_policy = await session.scalar(stmt)
+        assert db_policy
+        return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+
+    @strawberry.field
+    async def project_trace_retention_policies(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[ProjectTraceRetentionPolicy]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.ProjectTraceRetentionPolicy).order_by(
+            models.ProjectTraceRetentionPolicy.id
+        )
+        async with info.context.db() as session:
+            result = await session.stream_scalars(stmt)
+            data = [
+                ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+                async for db_policy in result
+            ]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field(
         description="The allocated storage capacity of the database in bytes. "
