@@ -15,7 +15,7 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
-from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.api.queries import Query
@@ -145,7 +145,7 @@ class ProjectTraceRetentionPolicyMutationMixin:
             node=ProjectTraceRetentionPolicy(id=policy.id, db_policy=policy),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdminIfAuthEnabled, IsLocked])  # type: ignore
     async def patch_project_trace_retention_policy(
         self,
         info: Info[Context, None],
@@ -199,7 +199,7 @@ class ProjectTraceRetentionPolicyMutationMixin:
             node=ProjectTraceRetentionPolicy(id=policy.id, db_policy=policy),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdminIfAuthEnabled])  # type: ignore
     async def delete_project_trace_retention_policy(
         self,
         info: Info[Context, None],
