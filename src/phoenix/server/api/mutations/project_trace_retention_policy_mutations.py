@@ -112,7 +112,7 @@ class ProjectTraceRetentionPolicyMutationPayload:
 
 @strawberry.type
 class ProjectTraceRetentionPolicyMutationMixin:
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdminIfAuthEnabled, IsLocked])  # type: ignore
     async def create_project_trace_retention_policy(
         self,
         info: Info[Context, None],
