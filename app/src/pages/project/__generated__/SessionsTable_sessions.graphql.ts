@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d055b199b36d23365c61da023386d1b4>>
+ * @generated SignedSource<<d8ffc05d16e320703b1fced6251b209f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,7 +32,7 @@ export type SessionsTable_sessions$data = {
           readonly prompt: number;
           readonly total: number;
         };
-        readonly traceLatencyMsP20: number | null;
+        readonly traceLatencyMsP50: number | null;
         readonly traceLatencyMsP99: number | null;
       };
     }>;
@@ -256,7 +256,7 @@ return {
                   "storageKey": null
                 },
                 {
-                  "alias": "traceLatencyMsP20",
+                  "alias": "traceLatencyMsP50",
                   "args": [
                     {
                       "kind": "Literal",
@@ -347,6 +347,6 @@ return {
 };
 })();
 
-(node as any).hash = "dd513b9c5b4c8df527ff8175b8ec2298";
+(node as any).hash = "36dfca4fe1c2c0f19a1fd0e2ac1c6316";
 
 export default node;

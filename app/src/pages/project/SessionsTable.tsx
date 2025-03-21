@@ -141,7 +141,7 @@ export function SessionsTable(props: SessionsTableProps) {
                   completion
                   total
                 }
-                traceLatencyMsP20: traceLatencyMsQuantile(probability: 0.5)
+                traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
                 traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)
               }
             }
