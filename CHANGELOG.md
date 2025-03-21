@@ -1,5 +1,19 @@
 # Changelog
 
+## [8.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.16.0...arize-phoenix-v8.17.0) (2025-03-21)
+
+
+### Features
+
+* environment variable for inserting admin users at startup ([#6851](https://github.com/Arize-ai/phoenix/issues/6851)) ([77bd4f0](https://github.com/Arize-ai/phoenix/commit/77bd4f0e260a085932f73b67acbbf86c6a9902ae))
+* **perf:** smaller page sizes ([#6858](https://github.com/Arize-ai/phoenix/issues/6858)) ([7b529f7](https://github.com/Arize-ai/phoenix/commit/7b529f73b5a32a4ae5b29d1f917e3003c50aff24))
+
+
+### Bug Fixes
+
+* Allow hover anywhere on experiment cell ([#6865](https://github.com/Arize-ai/phoenix/issues/6865)) ([2ec2a17](https://github.com/Arize-ai/phoenix/commit/2ec2a173693dc59d8de9c1293e292990571b9dbd))
+* Remove sticky project nav history ([#6867](https://github.com/Arize-ai/phoenix/issues/6867)) ([d4adb44](https://github.com/Arize-ai/phoenix/commit/d4adb443c03dc33918255820ac68f6f8660700e3))
+
 ## [8.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.15.0...arize-phoenix-v8.16.0) (2025-03-20)
 
 
