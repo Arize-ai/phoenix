@@ -1642,7 +1642,7 @@ type ProjectTraceRetentionPolicy implements Node {
   name: String!
   cronExpression: CronExpression!
   rule: TraceRetentionRule!
-  projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  projects(first: Int = 100, last: Int, after: String, before: String): ProjectConnection!
 }
 
 """A connection to a list of items."""
@@ -1902,7 +1902,7 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
-  projectTraceRetentionPolicies(first: Int = 50, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
+  projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
   """
   The allocated storage capacity of the database in bytes. Return None if this information is unavailable.
