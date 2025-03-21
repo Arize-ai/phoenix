@@ -400,14 +400,12 @@ function ProjectMetrics({
       `,
       project
     );
-  useInterval(
-    () => {
-      startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
-      });
-    },
-    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
-  );
+  const refetchCallback = useCallback(() => {
+    startTransition(() => {
+      refetch({ timeRange }, { fetchPolicy: "store-and-network" });
+    });
+  }, [refetch, timeRange]);
+  useInterval(refetchCallback, autoRefreshEnabled ? REFRESH_INTERVAL_MS : null);
 
   return (
     <Flex direction="row" justifyContent="space-between">
