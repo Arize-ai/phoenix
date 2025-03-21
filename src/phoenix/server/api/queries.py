@@ -67,6 +67,7 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
@@ -597,6 +598,14 @@ class Query:
                 ):
                     raise NotFound(f"Unknown prompt label: {id}")
             return to_gql_prompt_label(prompt_label)
+        if type_name == ProjectTraceRetentionPolicy.__name__:
+            async with info.context.db() as session:
+                db_policy = await session.scalar(
+                    select(models.ProjectTraceRetentionPolicy).filter_by(id=node_id)
+                )
+                if not db_policy:
+                    raise NotFound(f"Unknown project trace retention policy: {id}")
+            return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
