@@ -88,7 +88,7 @@ class TestMaxCountMixin:
 
 class TestTraceRetentionRuleMaxDays:
     async def test_delete_traces(self, db: DbSessionFactory) -> None:
-        projects: defaultdict[int, list] = defaultdict(list)
+        projects: defaultdict[int, list[int]] = defaultdict(list)
         start_time = datetime.now(timezone.utc)
         async with db() as session:
             for _ in range(5):
@@ -118,7 +118,7 @@ class TestTraceRetentionRuleMaxDays:
 
 class TestTraceRetentionRuleMaxCount:
     async def test_delete_traces(self, db: DbSessionFactory) -> None:
-        projects: defaultdict[int, list] = defaultdict(list)
+        projects: defaultdict[int, list[int]] = defaultdict(list)
         start_time = datetime.now(timezone.utc)
         async with db() as session:
             for _ in range(5):
