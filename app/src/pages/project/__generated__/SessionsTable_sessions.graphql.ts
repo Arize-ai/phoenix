@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<440949ad95b44d134e9e32c99c17f02d>>
+ * @generated SignedSource<<da483f7f14c9e250aff08e1bce88384b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,7 +32,7 @@ export type SessionsTable_sessions$data = {
           readonly prompt: number;
           readonly total: number;
         };
-        readonly traceLatencyMsP50: number | null;
+        readonly traceLatencyMsP20: number | null;
         readonly traceLatencyMsP99: number | null;
       };
     }>;
@@ -79,7 +79,7 @@ return {
       "name": "filterIoSubstring"
     },
     {
-      "defaultValue": 50,
+      "defaultValue": 20,
       "kind": "LocalArgument",
       "name": "first"
     },
@@ -256,7 +256,7 @@ return {
                   "storageKey": null
                 },
                 {
-                  "alias": "traceLatencyMsP50",
+                  "alias": "traceLatencyMsP20",
                   "args": [
                     {
                       "kind": "Literal",
@@ -347,6 +347,6 @@ return {
 };
 })();
 
-(node as any).hash = "73d205acbb256ea1f2cf68875634a21b";
+(node as any).hash = "041969e03f67df11f8519f92acd47162";
 
 export default node;

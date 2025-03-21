@@ -45,7 +45,7 @@ type SessionsTableProps = {
   project: SessionsTable_sessions$key;
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -108,7 +108,7 @@ export function SessionsTable(props: SessionsTableProps) {
         @refetchable(queryName: "SessionsTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 50 }
+          first: { type: "Int", defaultValue: 20 }
           sort: {
             type: "ProjectSessionSort"
             defaultValue: { col: startTime, dir: desc }
@@ -141,7 +141,7 @@ export function SessionsTable(props: SessionsTableProps) {
                   completion
                   total
                 }
-                traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)
+                traceLatencyMsP20: traceLatencyMsQuantile(probability: 0.5)
                 traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)
               }
             }
