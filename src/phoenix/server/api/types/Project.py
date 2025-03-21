@@ -37,7 +37,7 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
-DEFAULT_PAGE_SIZE = 25
+DEFAULT_PAGE_SIZE = 30
 
 
 @strawberry.type
