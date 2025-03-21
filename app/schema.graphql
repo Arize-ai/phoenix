@@ -379,11 +379,6 @@ input CreateDatasetInput {
   metadata: JSON
 }
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
 input CreateFreeformAnnotationConfigInput {
   name: String!
   description: String = null
@@ -394,8 +389,6 @@ type CreateFreeformAnnotationConfigPayload {
   annotationConfig: FreeformAnnotationConfig!
 }
 
-<<<<<<< Updated upstream
-=======
 input CreateProjectTraceRetentionPolicyInput {
   name: String!
   cronExpression: CronExpression!
@@ -403,8 +396,6 @@ input CreateProjectTraceRetentionPolicyInput {
   addProjects: [GlobalID!]
 }
 
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 input CreatePromptLabelInput {
   name: Identifier!
   description: String = null
@@ -1576,15 +1567,8 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
-<<<<<<< Updated upstream
-  annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
-=======
-<<<<<<< Updated upstream
-=======
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
->>>>>>> Stashed changes
->>>>>>> Stashed changes
 }
 
 """A connection to a list of items."""
