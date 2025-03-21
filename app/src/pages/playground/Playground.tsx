@@ -1,7 +1,7 @@
 import React, { Fragment, Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { BlockerFunction, useBlocker, useSearchParams } from "react-router-dom";
+import { BlockerFunction, useBlocker, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {

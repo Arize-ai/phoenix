@@ -1,5 +1,5 @@
 import React from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@phoenix/components";
