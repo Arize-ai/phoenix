@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8e9a427ab9cd7efb853767f72ee0f94>>
+ * @generated SignedSource<<a20d3fb8be0236b9a4b73801a0913fb9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -66,7 +66,7 @@ v4 = [
   {
     "kind": "Literal",
     "name": "first",
-    "value": 50
+    "value": 30
   },
   {
     "kind": "Literal",
@@ -355,12 +355,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3113f90b0217915c17fd7eb691c130bc",
+    "cacheID": "7e0aa57c32efe05d9b7824e47dfe9ffd",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQueriesSessionsQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 50, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query ProjectPageQueriesSessionsQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionsTable_sessions\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SessionsTable_sessions on Project {\n  name\n  sessions(first: 30, sort: {col: startTime, dir: desc}, timeRange: $timeRange) {\n    edges {\n      session: node {\n        id\n        sessionId\n        numTraces\n        startTime\n        endTime\n        firstInput {\n          value\n        }\n        lastOutput {\n          value\n        }\n        tokenUsage {\n          prompt\n          completion\n          total\n        }\n        traceLatencyMsP50: traceLatencyMsQuantile(probability: 0.5)\n        traceLatencyMsP99: traceLatencyMsQuantile(probability: 0.99)\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

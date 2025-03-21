@@ -36,16 +36,16 @@ import {
   ProjectSessionColumn,
   SessionsTableQuery,
 } from "./__generated__/SessionsTableQuery.graphql";
+import { DEFAULT_PAGE_SIZE } from "./constants";
 import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
-
 type SessionsTableProps = {
   project: SessionsTable_sessions$key;
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 const TableBody = <T extends { id: string }>({
   table,
@@ -108,7 +108,7 @@ export function SessionsTable(props: SessionsTableProps) {
         @refetchable(queryName: "SessionsTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 50 }
+          first: { type: "Int", defaultValue: 30 }
           sort: {
             type: "ProjectSessionSort"
             defaultValue: { col: startTime, dir: desc }

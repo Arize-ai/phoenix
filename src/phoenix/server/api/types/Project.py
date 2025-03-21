@@ -37,6 +37,8 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
+DEFAULT_PAGE_SIZE = 30
+
 
 @strawberry.type
 class Project(Node):
@@ -215,7 +217,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = 50,
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
@@ -299,7 +301,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = 50,
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,
