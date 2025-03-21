@@ -224,7 +224,7 @@ export function ProjectsPageContent({
           {projects.map((project) => (
             <li key={project.id}>
               <Link
-                to={`/projects/${project.id}`}
+                to={`/projects/${project.id}/spans`}
                 css={css`
                   text-decoration: none;
                 `}
