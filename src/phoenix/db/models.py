@@ -8,7 +8,6 @@ from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
-    Boolean,
     CheckConstraint,
     ColumnElement,
     Dialect,
@@ -401,7 +400,6 @@ class ProjectTraceRetentionPolicy(Base):
     __tablename__ = "project_trace_retention_policies"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
         _TraceRetentionCronExpression, nullable=False
     )
