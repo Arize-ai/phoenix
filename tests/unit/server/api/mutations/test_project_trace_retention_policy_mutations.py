@@ -14,20 +14,20 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 
 class TestProjectTraceRetentionPolicyMutations:
-    QUERY = """
-        query ProjectNode($id: GlobalID!) {
-            node(id: $id) {
-                ... on Project {
-                    traceRetentionPolicy {
-                        ... PolicyFragment
-                    }
-                }
-            }
-        }
+    CRUD = """
         mutation Create($input: CreateProjectTraceRetentionPolicyInput!) {
             createProjectTraceRetentionPolicy(input: $input) {
                 node {
                     ... PolicyFragment
+                }
+            }
+        }
+        query Read {
+            projectTraceRetentionPolicies {
+                edges {
+                    node {
+                        ... PolicyFragment
+                    }
                 }
             }
         }
@@ -41,6 +41,18 @@ class TestProjectTraceRetentionPolicyMutations:
         mutation Delete($input: DeleteProjectTraceRetentionPolicyInput!) {
             deleteProjectTraceRetentionPolicy(input: $input) {
                 node {
+                    ... PolicyFragment
+                }
+            }
+        }
+        query GetNode($id: GlobalID!) {
+            node(id: $id) {
+                ... on Project {
+                    traceRetentionPolicy {
+                        ... PolicyFragment
+                    }
+                }
+                ... on ProjectTraceRetentionPolicy {
                     ... PolicyFragment
                 }
             }
@@ -127,7 +139,7 @@ class TestProjectTraceRetentionPolicyMutations:
 
         # Execute the Create mutation
         resp = await gql_client.execute(
-            self.QUERY,
+            self.CRUD,
             operation_name="Create",
             variables={
                 "input": {
@@ -156,10 +168,41 @@ class TestProjectTraceRetentionPolicyMutations:
             stmt = sa.select(models.ProjectTraceRetentionPolicy).filter_by(id=id_)
             assert await session.scalar(stmt)
 
+        # Verify policy can be read
+        resp = await gql_client.execute(
+            self.CRUD,
+            operation_name="Read",
+            variables={"id": project1_gid},
+        )
+        assert not resp.errors
+        assert resp.data
+        policies = [
+            e["node"]
+            for e in resp.data["projectTraceRetentionPolicies"]["edges"]
+            if e["node"]["id"] == policy["id"]
+        ]
+        assert len(policies) == 1
+        assert policies[0]["name"] == name1
+        assert policies[0]["cronExpression"] == cron_expression1
+        assert policies[0]["rule"] == initial_rule_output
+
+        # Verify the policy is a Node
+        resp = await gql_client.execute(
+            self.CRUD,
+            operation_name="GetNode",
+            variables={"id": policy["id"]},
+        )
+        assert not resp.errors
+        assert resp.data
+        policy = resp.data["node"]
+        assert policy["name"] == name1
+        assert policy["cronExpression"] == cron_expression1
+        assert policy["rule"] == initial_rule_output
+
         # Verify the policy is associated with project1
         resp = await gql_client.execute(
-            self.QUERY,
-            operation_name="ProjectNode",
+            self.CRUD,
+            operation_name="GetNode",
             variables={"id": project1_gid},
         )
         assert not resp.errors
@@ -175,7 +218,7 @@ class TestProjectTraceRetentionPolicyMutations:
 
         # Execute the Update mutation
         resp = await gql_client.execute(
-            self.QUERY,
+            self.CRUD,
             operation_name="Update",
             variables={
                 "input": {
@@ -199,8 +242,8 @@ class TestProjectTraceRetentionPolicyMutations:
 
         # Verify project1 now uses the default policy
         resp = await gql_client.execute(
-            self.QUERY,
-            operation_name="ProjectNode",
+            self.CRUD,
+            operation_name="GetNode",
             variables={"id": project1_gid},
         )
         assert not resp.errors
@@ -210,8 +253,8 @@ class TestProjectTraceRetentionPolicyMutations:
 
         # Verify project2 now uses the updated policy
         resp = await gql_client.execute(
-            self.QUERY,
-            operation_name="ProjectNode",
+            self.CRUD,
+            operation_name="GetNode",
             variables={"id": project2_gid},
         )
         assert not resp.errors
@@ -223,7 +266,7 @@ class TestProjectTraceRetentionPolicyMutations:
 
         # Delete the policy
         resp = await gql_client.execute(
-            self.QUERY,
+            self.CRUD,
             operation_name="Delete",
             variables={"input": {"id": policy["id"]}},
         )
@@ -237,8 +280,8 @@ class TestProjectTraceRetentionPolicyMutations:
         # Verify both projects now use the default policy
         # Check project1
         resp = await gql_client.execute(
-            self.QUERY,
-            operation_name="ProjectNode",
+            self.CRUD,
+            operation_name="GetNode",
             variables={"id": project1_gid},
         )
         assert not resp.errors
@@ -248,8 +291,8 @@ class TestProjectTraceRetentionPolicyMutations:
 
         # Check project2
         resp = await gql_client.execute(
-            self.QUERY,
-            operation_name="ProjectNode",
+            self.CRUD,
+            operation_name="GetNode",
             variables={"id": project2_gid},
         )
         assert not resp.errors
