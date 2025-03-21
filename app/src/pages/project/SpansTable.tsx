@@ -69,7 +69,7 @@ type SpansTableProps = {
   project: SpansTable_spans$key;
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 type RootSpanFilterValue = "root" | "all";
 
@@ -152,7 +152,7 @@ export function SpansTable(props: SpansTableProps) {
         @refetchable(queryName: "SpansTableSpansQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 25 }
+          first: { type: "Int", defaultValue: 20 }
           rootSpansOnly: { type: "Boolean", defaultValue: true }
           sort: {
             type: "SpanSort"
