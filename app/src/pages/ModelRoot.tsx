@@ -1,6 +1,6 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 
 import { InferencesProvider, TimeRangeProvider } from "@phoenix/contexts";
 

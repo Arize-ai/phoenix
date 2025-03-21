@@ -1676,6 +1676,7 @@ function SpanIO({ span }: { span: Span }) {
 }
 
 const codeMirrorCSS = css`
+  width: 100%;
   .cm-editor,
   .cm-gutters {
     background-color: transparent;
