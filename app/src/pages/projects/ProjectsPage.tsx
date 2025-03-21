@@ -2,16 +2,20 @@ import React, {
   startTransition,
   Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import {
+  fetchQuery,
   graphql,
   useLazyLoadQuery,
   usePaginationFragment,
-  useRefetchableFragment,
+  useRelayEnvironment,
 } from "react-relay";
 import { formatDistance } from "date-fns";
+import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
@@ -24,8 +28,10 @@ import {
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
-import { ProjectsPageProjectMetricsFragment$key } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsFragment.graphql";
-import { ProjectsPageProjectMetricsQuery } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
+import {
+  ProjectsPageProjectMetricsQuery,
+  ProjectsPageProjectMetricsQuery$data,
+} from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -351,6 +357,21 @@ function ProjectItem({
   );
 }
 
+const PROJECT_METRICS_QUERY = graphql`
+  query ProjectsPageProjectMetricsQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+  ) {
+    project: node(id: $id) {
+      ... on Project {
+        traceCount(timeRange: $timeRange)
+        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
+        tokenCountTotal(timeRange: $timeRange)
+      }
+    }
+  }
+`;
+
 function ProjectMetrics({
   projectId,
   timeRange,
@@ -361,52 +382,74 @@ function ProjectMetrics({
     end: string | undefined;
   };
 }) {
+  const environment = useRelayEnvironment();
+  // ref to the current running "subscription", a.k.a. the current running query request
+  const subscriptionRef = useRef<Subscription | null>(null);
+  // state to hold the result of the project metrics query
+  const [projectMetrics, setProjectMetrics] =
+    useState<ProjectsPageProjectMetricsQuery$data | null>(null);
   const autoRefreshEnabled = usePreferencesContext(
     (state) => state.projectsAutoRefreshEnabled
   );
-  const { project } = useLazyLoadQuery<ProjectsPageProjectMetricsQuery>(
-    graphql`
-      query ProjectsPageProjectMetricsQuery(
-        $id: GlobalID!
-        $timeRange: TimeRange!
-      ) {
-        project: node(id: $id) {
-          ... on Project {
-            ...ProjectsPageProjectMetricsFragment
-          }
-        }
-      }
-    `,
-    {
-      id: projectId,
-      timeRange,
-    }
-  );
-  const [{ latencyMsP50, tokenCountTotal, traceCount }, refetch] =
-    useRefetchableFragment<
-      ProjectsPageProjectMetricsQuery,
-      ProjectsPageProjectMetricsFragment$key
-    >(
-      graphql`
-        fragment ProjectsPageProjectMetricsFragment on Project
-        @refetchable(queryName: "ProjectsPageProjectMetricsRefetchQuery") {
-          traceCount(timeRange: $timeRange)
-          latencyMsP50: latencyMsQuantile(
-            probability: 0.5
-            timeRange: $timeRange
-          )
-          tokenCountTotal(timeRange: $timeRange)
-        }
-      `,
-      project
+  /**
+   * fetchProject is a function that fetches the project metrics for the given project id and time range
+   * it clears the current project metrics and then fetches the new project metrics
+   * it returns a "subscription" object that can be used to unsubscribe from the query
+   * It is NOT websockets, polling, or streaming, it is a normal fetch wrapped in a relay subscription provided by the relay environment
+   * this works because the relay environment is configured to abort the underlying fetch if the subscription is unsubscribed from
+   */
+  const fetchProject = useCallback(() => {
+    setProjectMetrics(null);
+    const observable = fetchQuery<ProjectsPageProjectMetricsQuery>(
+      environment,
+      PROJECT_METRICS_QUERY,
+      { id: projectId, timeRange },
+      { fetchPolicy: "network-only" }
     );
+    const subscription = observable.subscribe({
+      next: (data) => {
+        setProjectMetrics(data);
+      },
+      error: () => {
+        setProjectMetrics(null);
+      },
+    });
+    subscriptionRef.current = subscription;
+    return subscription;
+  }, [projectId, timeRange, environment]);
+  // when the component mounts, or the time range changes, we fetch the project metrics
+  useEffect(() => {
+    subscriptionRef.current = fetchProject();
+    return () => {
+      subscriptionRef.current?.unsubscribe();
+    };
+  }, [fetchProject]);
+  // when the auto refresh is enabled, we refetch the project metrics every REFRESH_INTERVAL_MS
+  // NOTE: this is bad, if the request takes longer than REFRESH_INTERVAL_MS, we can get into a loop of
+  // refetching, cancelling, refetching, cancelling, etc.
   const refetchCallback = useCallback(() => {
     startTransition(() => {
-      refetch({ timeRange }, { fetchPolicy: "store-and-network" });
+      subscriptionRef.current?.unsubscribe();
+      fetchProject();
     });
-  }, [refetch, timeRange]);
+  }, [fetchProject]);
   useInterval(refetchCallback, autoRefreshEnabled ? REFRESH_INTERVAL_MS : null);
+  // if the project metrics are not loaded yet, we show a loading indicator
+  if (projectMetrics == null) {
+    return <Loading />;
+  }
+  // if the project metrics are loaded, we show the project metrics
+  return <ProjectMetricsRow project={projectMetrics} />;
+}
 
+function ProjectMetricsRow({
+  project,
+}: {
+  project: ProjectsPageProjectMetricsQuery$data;
+}) {
+  const {
+    project: { traceCount, tokenCountTotal, latencyMsP50 },
+  } = project;
   return (
     <Flex direction="row" justifyContent="space-between">
       <Flex direction="column" flex="none">
