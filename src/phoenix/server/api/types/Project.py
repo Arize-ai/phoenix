@@ -1,6 +1,5 @@
 import operator
 from datetime import datetime
-from time import sleep
 from typing import Any, ClassVar, Optional
 
 import strawberry
@@ -127,7 +126,6 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
     ) -> int:
-        sleep(3)
         return await info.context.data_loaders.record_counts.load(
             ("trace", self.project_rowid, time_range, None),
         )

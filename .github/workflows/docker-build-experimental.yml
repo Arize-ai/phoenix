@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - span-query-optimization
-      # - cephalization/split-projects-query-metrics
 
 jobs:
   push_to_registry:

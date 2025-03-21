@@ -44,7 +44,9 @@ import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
 
-const REFRESH_INTERVAL_MS = 10000;
+// 3 minutes
+// just in case the queries take longer than 1 minute to complete
+const REFRESH_INTERVAL_MS = 60 * 3 * 1000;
 const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
@@ -436,7 +438,14 @@ function ProjectMetrics({
   useInterval(refetchCallback, autoRefreshEnabled ? REFRESH_INTERVAL_MS : null);
   // if the project metrics are not loaded yet, we show a loading indicator
   if (projectMetrics == null) {
-    return <Loading />;
+    return (
+      <Loading
+        css={css`
+          // stable height to avoid layout shifts
+          min-height: var(--ac-global-dimension-size-600);
+        `}
+      />
+    );
   }
   // if the project metrics are loaded, we show the project metrics
   return <ProjectMetricsRow project={projectMetrics} />;
@@ -451,7 +460,7 @@ function ProjectMetricsRow({
     project: { traceCount, tokenCountTotal, latencyMsP50 },
   } = project;
   return (
-    <Flex direction="row" justifyContent="space-between">
+    <Flex direction="row" justifyContent="space-between" minHeight="size-600">
       <Flex direction="column" flex="none">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
