@@ -7,7 +7,7 @@ import { ConnectedDimensionPicker } from "@phoenix/components/form";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { useInferences, usePointCloudContext } from "@phoenix/contexts";
 
-import { Loading } from "../Loading";
+import { Loading } from "../loading/Loading";
 
 import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { InferencesVisibilitySettings } from "./InferencesVisibilitySettings";

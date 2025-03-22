@@ -10,6 +10,7 @@ type LoadingProps = {
   size?: ComponentProps<typeof ProgressCircle>["size"];
   className?: string;
 };
+
 export const Loading = ({ message, size, className }: LoadingProps) => {
   return (
     <div
