@@ -1015,6 +1015,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
+    --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
     --ac-global-rounding-large: var(--ac-global-dimension-static-size-200);

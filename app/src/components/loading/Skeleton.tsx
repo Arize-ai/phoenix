@@ -60,7 +60,7 @@ const waveKeyframes = keyframes`
 
 const skeletonStyles = css`
   display: block;
-  background-color: var(--ac-global-color-grey-300);
+  background-color: var(--ac-global-color-grey-200);
 `;
 
 const pulseAnimation = css`
@@ -100,6 +100,8 @@ const getBorderRadius = (radius: SkeletonProps["borderRadius"]) => {
     switch (radius) {
       case "none":
         return "0";
+      case "XS":
+        return "var(--ac-global-rounding-xsmall)";
       case "S":
         return "var(--ac-global-rounding-small)";
       case "M":
@@ -119,7 +121,7 @@ const getBorderRadius = (radius: SkeletonProps["borderRadius"]) => {
 export function Skeleton({
   width = "100%",
   height = "1.2em",
-  borderRadius = "M",
+  borderRadius = "S",
   animation = "pulse",
   className,
 }: SkeletonProps) {

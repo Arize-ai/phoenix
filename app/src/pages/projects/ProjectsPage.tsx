@@ -20,7 +20,15 @@ import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
 
-import { Flex, Heading, Link, Loading, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Link,
+  Loading,
+  Skeleton,
+  Text,
+  View,
+} from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
@@ -374,6 +382,31 @@ const PROJECT_METRICS_QUERY = graphql`
   }
 `;
 
+function ProjectMetricsLoadingSkeleton() {
+  return (
+    <Flex direction="row" justifyContent="space-between" minHeight="size-600">
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Traces
+        </Text>
+        <Skeleton width={60} height={20} />
+      </Flex>
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Tokens
+        </Text>
+        <Skeleton width={60} height={20} />
+      </Flex>
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Latency P50
+        </Text>
+        <Skeleton width={60} height={20} />
+      </Flex>
+    </Flex>
+  );
+}
+
 function ProjectMetrics({
   projectId,
   timeRange,
@@ -438,14 +471,7 @@ function ProjectMetrics({
   useInterval(refetchCallback, autoRefreshEnabled ? REFRESH_INTERVAL_MS : null);
   // if the project metrics are not loaded yet, we show a loading indicator
   if (projectMetrics == null) {
-    return (
-      <Loading
-        css={css`
-          // stable height to avoid layout shifts
-          min-height: var(--ac-global-dimension-size-600);
-        `}
-      />
-    );
+    return <ProjectMetricsLoadingSkeleton />;
   }
   // if the project metrics are loaded, we show the project metrics
   return <ProjectMetricsRow project={projectMetrics} />;
