@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.17.1...arize-phoenix-v8.18.0) (2025-03-22)
+
+
+### Features
+
+* **ui:** use skeleton loader ([#6891](https://github.com/Arize-ai/phoenix/issues/6891)) ([4ac4373](https://github.com/Arize-ai/phoenix/commit/4ac4373138d12e1f95571f9376c52cf6a577a4e1))
+
 ## [8.17.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.17.0...arize-phoenix-v8.17.1) (2025-03-21)
 
 
