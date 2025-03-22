@@ -21,7 +21,7 @@ export { classNames } from "@arizeai/components";
 export * from "./Link";
 export * from "./ExternalLink";
 export * from "./LoadingMask";
-export * from "./Loading";
+export * from "./loading/Loading";
 export * from "./ViewSummaryAside";
 export * from "./CopyToClipboardButton";
 export * from "./SectionHeading";
