@@ -739,12 +739,6 @@ class SpanAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "span_rowid",
-        ),
-    )
 
 
 class TraceAnnotation(Base):
@@ -764,12 +758,6 @@ class TraceAnnotation(Base):
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
-    )
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "trace_rowid",
-        ),
     )
 
 
@@ -793,14 +781,6 @@ class DocumentAnnotation(Base):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
-
-    __table_args__ = (
-        UniqueConstraint(
-            "name",
-            "span_rowid",
-            "document_position",
-        ),
-    )
 
 
 class Dataset(Base):
@@ -1301,3 +1281,112 @@ class PromptVersionTag(Base):
     )
 
     __table_args__ = (UniqueConstraint("name", "prompt_id"),)
+
+
+class AnnotationConfig(Base):
+    __tablename__ = "annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    annotation_type: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM')",
+            name="valid_annotation_type",
+        ),
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    continuous_annotation_config = relationship(
+        "ContinuousAnnotationConfig", back_populates="annotation_config", uselist=False
+    )
+    categorical_annotation_config = relationship(
+        "CategoricalAnnotationConfig", back_populates="annotation_config", uselist=False
+    )
+
+
+class ContinuousAnnotationConfig(Base):
+    __tablename__ = "continuous_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    optimization_direction: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+            name="valid_optimization_direction",
+        ),
+        nullable=False,
+    )
+    lower_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    upper_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    annotation_config = relationship(
+        "AnnotationConfig", back_populates="continuous_annotation_config"
+    )
+
+
+class CategoricalAnnotationConfig(Base):
+    __tablename__ = "categorical_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    optimization_direction: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint(
+            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
+            name="valid_optimization_direction",
+        ),
+        nullable=False,
+    )
+
+    annotation_config = relationship(
+        "AnnotationConfig", back_populates="categorical_annotation_config"
+    )
+    values = relationship(
+        "CategoricalAnnotationValue",
+        back_populates="categorical_annotation_config",
+        cascade="all, delete-orphan",
+    )
+
+
+class CategoricalAnnotationValue(Base):
+    __tablename__ = "categorical_annotation_values"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    categorical_annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("categorical_annotation_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    categorical_annotation_config = relationship(
+        "CategoricalAnnotationConfig", back_populates="values"
+    )
+
+    __table_args__ = (UniqueConstraint("categorical_annotation_config_id", "label"),)
+
+
+class ProjectAnnotationConfig(Base):
+    __tablename__ = "project_annotation_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    annotation_config_id: Mapped[int] = mapped_column(
+        ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    __table_args__ = (UniqueConstraint("project_id", "annotation_config_id"),)
