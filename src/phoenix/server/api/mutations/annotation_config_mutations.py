@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 import strawberry
 from sqlalchemy import delete, select
@@ -20,6 +20,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
     OptimizationDirection,
+    ProjectAnnotationConfigAssociation,
     to_gql_annotation_config,
     to_gql_categorical_annotation_config,
     to_gql_continuous_annotation_config,
@@ -61,7 +62,7 @@ class CreateCategoricalAnnotationConfigInput:
     name: str
     optimization_direction: OptimizationDirection
     description: Optional[str] = None
-    values: List[CategoricalAnnotationValueInput]
+    values: list[CategoricalAnnotationValueInput]
 
 
 @strawberry.type
@@ -88,7 +89,7 @@ class UpdateCategoricalAnnotationConfigInput:
     name: str
     optimization_direction: OptimizationDirection
     description: Optional[str] = None
-    values: List[CategoricalAnnotationValueInput]
+    values: list[CategoricalAnnotationValueInput]
 
 
 @strawberry.type
@@ -118,6 +119,19 @@ class AddAnnotationConfigToProjectInput:
 class AddAnnotationConfigToProjectPayload:
     query: Query
     project: Project
+
+
+@strawberry.input
+class RemoveAnnotationConfigFromProjectInput:
+    project_id: GlobalID
+    annotation_config_id: GlobalID
+
+
+@strawberry.type
+class RemoveAnnotationConfigFromProjectPayload:
+    query: Query
+    project: Project
+    project_annotation_config_associations: list[ProjectAnnotationConfigAssociation]
 
 
 @strawberry.input
@@ -412,8 +426,49 @@ class AnnotationConfigMutationMixin:
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                await session.rollback()
                 raise Conflict("The annotation config has already been added to the project")
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
                 project=Project(project_rowid=project_id),
             )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    async def remove_annotation_config_from_project(
+        self,
+        info: Info[Context, None],
+        input: list[RemoveAnnotationConfigFromProjectInput],
+    ) -> RemoveAnnotationConfigFromProjectPayload:
+        project_annotation_config_associations = set()
+        for item in input:
+            project_id = from_global_id_with_expected_type(
+                global_id=item.project_id, expected_type_name="Project"
+            )
+            if (type_name := item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
+                raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
+            project_annotation_config_associations.add(project_id)
+        async with info.context.db() as session:
+            result = await session.scalars(
+                delete(models.ProjectAnnotationConfig)
+                .where(
+                    models.ProjectAnnotationConfig.project_id.in_(
+                        project_annotation_config_associations
+                    )
+                )
+                .returning(models.ProjectAnnotationConfig)
+            )
+            annotation_configs = result.all()
+            if len(annotation_configs) < len(project_annotation_config_associations):
+                await session.rollback()
+                raise NotFound("Could not find one or more input project annotation configs")
+        return RemoveAnnotationConfigFromProjectPayload(
+            query=Query(),
+            project=Project(project_rowid=project_id),
+            project_annotation_config_associations=[
+                ProjectAnnotationConfigAssociation(
+                    project_id=item.project_id,
+                    annotation_config_id=item.annotation_config_id,
+                )
+                for item in input
+            ],
+        )
