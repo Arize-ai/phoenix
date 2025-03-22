@@ -389,19 +389,19 @@ function ProjectMetricsLoadingSkeleton() {
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
         </Text>
-        <Skeleton width={60} height={20} />
+        <Skeleton width={60} height={20} animation="wave" />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Total Tokens
         </Text>
-        <Skeleton width={60} height={20} />
+        <Skeleton width={60} height={20} animation="wave" />
       </Flex>
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Latency P50
         </Text>
-        <Skeleton width={60} height={20} />
+        <Skeleton width={60} height={20} animation="wave" />
       </Flex>
     </Flex>
   );

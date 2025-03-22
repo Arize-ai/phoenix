@@ -78,7 +78,7 @@ const waveAnimation = css`
     background: linear-gradient(
       90deg,
       transparent,
-      var(--ac-global-color-grey-400),
+      var(--ac-global-color-grey-300),
       transparent
     );
     content: "";
