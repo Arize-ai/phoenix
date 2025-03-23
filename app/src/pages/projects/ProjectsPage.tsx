@@ -10,10 +10,10 @@ import React, {
 import {
   fetchQuery,
   graphql,
-  useLazyLoadQuery,
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
+import { useLoaderData } from "react-router-dom";
 import { formatDistance } from "date-fns";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
@@ -42,12 +42,12 @@ import {
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { projectsPageLoaderQuery$data } from "./__generated__/projectsPageLoaderQuery.graphql";
 import {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
-import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
@@ -84,14 +84,7 @@ export function ProjectsPageContent({
     };
   }, [timeRange]);
 
-  const data = useLazyLoadQuery<ProjectsPageQuery>(
-    graphql`
-      query ProjectsPageQuery {
-        ...ProjectsPageProjectsFragment
-      }
-    `,
-    {}
-  );
+  const loaderData = useLoaderData() as projectsPageLoaderQuery$data;
   const {
     data: projectsData,
     loadNext,
@@ -123,7 +116,7 @@ export function ProjectsPageContent({
         }
       }
     `,
-    data
+    loaderData
   );
   const projects = projectsData.projects.edges.map((p) => p.project);
 
