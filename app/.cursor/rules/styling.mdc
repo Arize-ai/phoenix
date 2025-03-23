@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Styling
+
+- Use css variables in [GlobalStyles.tsx](mdc:src/GlobalStyles.tsx)
+- Ensure that styles look good in both light and dark mode
