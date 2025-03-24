@@ -16,9 +16,13 @@ export const baseAnnotationLabelCSS = css`
   padding: var(--ac-global-dimension-size-50)
     var(--ac-global-dimension-size-100);
   transition: background-color 0.2s;
-  &:hover {
-    background-color: var(--ac-global-color-grey-300);
+  &[data-clickable="true"] {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--ac-global-color-grey-300);
+    }
   }
+
   .ac-icon-wrap {
     font-size: 12px;
   }
@@ -90,8 +94,9 @@ export function AnnotationLabel({
   return (
     <div
       role={clickable ? "button" : undefined}
+      data-clickable={clickable}
       className={className}
-      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
+      css={css(baseAnnotationLabelCSS)}
       aria-label={
         clickable
           ? "Click to view the annotation trace"
