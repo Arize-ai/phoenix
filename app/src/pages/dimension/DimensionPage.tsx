@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
@@ -8,8 +9,8 @@ import { Dialog, DialogContainer } from "@arizeai/components";
 import { Flex, Loading, View, ViewSummaryAside } from "@phoenix/components";
 import { useInferences, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
+import { dimensionLoader } from "@phoenix/pages/dimension/dimensionLoader";
 
-import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
 import { DimensionPageQuery } from "./__generated__/DimensionPageQuery.graphql";
 import { DimensionCardinalityStats } from "./DimensionCardinalityStats";
 import { DimensionCardinalityTimeSeries } from "./DimensionCardinalityTimeSeries";
@@ -27,7 +28,8 @@ import { DimensionSegmentsBarChart } from "./DimensionSegmentsBarChart";
 export function DimensionPage() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
-  const loaderData = useLoaderData() as dimensionLoaderQuery$data;
+  const loaderData = useLoaderData<typeof dimensionLoader>();
+  invariant(loaderData, "loaderData is required");
   const { referenceInferences } = useInferences();
   const hasReference = referenceInferences !== null;
   const showDrift = hasReference;
