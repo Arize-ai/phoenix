@@ -73,6 +73,9 @@ export function AnnotationLabel({
   /**
    * The preferred value to display in the annotation label.
    * If the provided value is not available, it will fallback to an available value.
+   * - "label": Display the annotation label.
+   * - "score": Display the annotation score.
+   * - "none": Do not display the annotation label or score.
    * @default "score"
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
@@ -107,16 +110,18 @@ export function AnnotationLabel({
             {annotation.name}
           </Text>
         </div>
-        <div
-          css={css(
-            textCSS,
-            css`
-              margin-left: var(--ac-global-dimension-100);
-            `
-          )}
-        >
-          <Text size="XS">{labelValue}</Text>
-        </div>
+        {labelValue && (
+          <div
+            css={css(
+              textCSS,
+              css`
+                margin-left: var(--ac-global-dimension-100);
+              `
+            )}
+          >
+            <Text size="XS">{labelValue}</Text>
+          </div>
+        )}
         {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
       </Flex>
     </div>
