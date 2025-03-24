@@ -304,7 +304,16 @@ class PostgresQueryAnalyzer:
         """Print the table header and separator line."""
         columns = ["Query #", "Median (ms)", "Ratio", "P90 (ms)", "N Runs", "Rows Returned"]
         header = "| " + " | ".join(col.ljust(col_widths[col]) for col in columns) + " |"
-        separator = "|" + "|".join("-" * (col_widths[col] + 2) for col in columns) + "|"
+        separator = (
+            "|"
+            + "|".join(
+                "-" * (col_widths[col] + 1) + ":"
+                if col != "Query #"
+                else "-" * (col_widths[col] + 2)
+                for col in columns
+            )
+            + "|"
+        )
         self.console.print(header)
         self.console.print(separator)
 
