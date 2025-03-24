@@ -20,6 +20,7 @@ from phoenix.config import (
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
+    get_env_disable_migrations,
     get_env_enable_prometheus,
     get_env_enable_websockets,
     get_env_grpc_port,
@@ -39,7 +40,6 @@ from phoenix.config import (
     get_env_smtp_username,
     get_env_smtp_validate_certs,
     get_pids_path,
-    get_env_disable_migrations,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url

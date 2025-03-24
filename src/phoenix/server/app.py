@@ -46,7 +46,6 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
-from phoenix.settings import Settings
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
@@ -132,6 +131,7 @@ from phoenix.server.types import (
     LastUpdatedAt,
     TokenStore,
 )
+from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
     get_dataset_fixtures,
