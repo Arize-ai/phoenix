@@ -1349,6 +1349,7 @@ type Mutation {
   updateFreeformAnnotationConfig(input: UpdateFreeformAnnotationConfigInput!): UpdateFreeformAnnotationConfigPayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
   addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
+  removeAnnotationConfigFromProject(input: [RemoveAnnotationConfigFromProjectInput!]!): RemoveAnnotationConfigFromProjectPayload!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
@@ -1544,6 +1545,11 @@ type Project implements Node {
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+}
+
+type ProjectAnnotationConfigAssociation {
+  projectId: GlobalID!
+  annotationConfigId: GlobalID!
 }
 
 """A connection to a list of items."""
@@ -1832,6 +1838,17 @@ type Query {
   """
   dbStorageCapacityBytes: Float
   dbTableStats: [DbTableStats!]!
+}
+
+input RemoveAnnotationConfigFromProjectInput {
+  projectId: GlobalID!
+  annotationConfigId: GlobalID!
+}
+
+type RemoveAnnotationConfigFromProjectPayload {
+  query: Query!
+  project: Project!
+  projectAnnotationConfigAssociations: [ProjectAnnotationConfigAssociation!]!
 }
 
 type ResponseFormat {
