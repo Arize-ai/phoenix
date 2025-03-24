@@ -64,7 +64,7 @@ def get_async_db_url(connection_str: str) -> URL:
 
 def create_engine(
     connection_str: str,
-    migrate: bool = True,
+    migrate: bool = not Settings.disable_migrations,
     log_to_stdout: bool = False,
 ) -> AsyncEngine:
     """

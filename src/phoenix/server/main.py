@@ -39,6 +39,7 @@ from phoenix.config import (
     get_env_smtp_username,
     get_env_smtp_validate_certs,
     get_pids_path,
+    get_env_disable_migrations,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import get_printable_db_url
@@ -431,6 +432,7 @@ def initialize_settings() -> None:
     Settings.logging_level = get_env_logging_level()
     Settings.db_logging_level = get_env_db_logging_level()
     Settings.log_migrations = get_env_log_migrations()
+    Settings.disable_migrations = get_env_disable_migrations()
 
 
 if __name__ == "__main__":
