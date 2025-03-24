@@ -8,7 +8,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { Annotation } from "./types";
 
-type AnnotationDisplayPreference = "label" | "score";
+type AnnotationDisplayPreference = "label" | "score" | "none";
 
 export const baseAnnotationLabelCSS = css`
   border-radius: var(--ac-global-dimension-size-50);
@@ -16,9 +16,13 @@ export const baseAnnotationLabelCSS = css`
   padding: var(--ac-global-dimension-size-50)
     var(--ac-global-dimension-size-100);
   transition: background-color 0.2s;
-  &:hover {
-    background-color: var(--ac-global-color-grey-300);
+  &[data-clickable="true"] {
+    cursor: pointer;
+    &:hover {
+      background-color: var(--ac-global-color-grey-300);
+    }
   }
+
   .ac-icon-wrap {
     font-size: 12px;
   }
@@ -55,6 +59,8 @@ const getAnnotationDisplayValue = (
         annotation.label ||
         "n/a"
       );
+    case "none":
+      return "";
     default:
       assertUnreachable(displayPreference);
   }
@@ -64,15 +70,20 @@ export function AnnotationLabel({
   annotation,
   onClick,
   annotationDisplayPreference = "score",
+  className,
 }: {
   annotation: Annotation;
   onClick?: () => void;
   /**
    * The preferred value to display in the annotation label.
    * If the provided value is not available, it will fallback to an available value.
+   * - "label": Display the annotation label.
+   * - "score": Display the annotation score.
+   * - "none": Do not display the annotation label or score.
    * @default "score"
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
+  className?: string;
 }) {
   const clickable = typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
@@ -83,7 +94,9 @@ export function AnnotationLabel({
   return (
     <div
       role={clickable ? "button" : undefined}
-      css={css(baseAnnotationLabelCSS, clickable && `cursor: pointer;`)}
+      data-clickable={clickable}
+      className={className}
+      css={css(baseAnnotationLabelCSS)}
       aria-label={
         clickable
           ? "Click to view the annotation trace"
@@ -102,16 +115,18 @@ export function AnnotationLabel({
             {annotation.name}
           </Text>
         </div>
-        <div
-          css={css(
-            textCSS,
-            css`
-              margin-left: var(--ac-global-dimension-100);
-            `
-          )}
-        >
-          <Text size="XS">{labelValue}</Text>
-        </div>
+        {labelValue && (
+          <div
+            css={css(
+              textCSS,
+              css`
+                margin-left: var(--ac-global-dimension-100);
+              `
+            )}
+          >
+            <Text size="XS">{labelValue}</Text>
+          </div>
+        )}
         {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
       </Flex>
     </div>
