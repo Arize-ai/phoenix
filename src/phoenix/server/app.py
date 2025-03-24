@@ -46,6 +46,7 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
 from typing_extensions import TypeAlias
 
+from phoenix.settings import Settings
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     DEFAULT_PROJECT_NAME,
@@ -669,7 +670,11 @@ def create_engine_and_run_migrations(
     database_url: str,
 ) -> AsyncEngine:
     try:
-        return create_engine(connection_str=database_url, migrate=True, log_to_stdout=False)
+        return create_engine(
+            connection_str=database_url,
+            migrate=not Settings.disable_migrations,
+            log_to_stdout=False,
+        )
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"

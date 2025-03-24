@@ -16,6 +16,8 @@ class _Settings:
     logging_level: int = field(default=logging.INFO)
     # By default, log level is WARNING
     db_logging_level: int = field(default=logging.WARNING)
+    # By default, migrations are enabled
+    disable_migrations: bool = field(default=False)
 
 
 # Singleton instance of the settings

@@ -122,6 +122,14 @@ ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
 Whether or not to enable websockets. Defaults to None.
 """
 
+ENV_PHOENIX_DISABLE_MIGRATIONS = "PHOENIX_DISABLE_MIGRATIONS"
+"""
+Whether or not to disable migrations. Defaults to None / False.
+
+This should only be used by developers working on the Phoenix server that need to be
+switching between branches without having to run migrations.
+"""
+
 # Phoenix server OpenTelemetry instrumentation environment variables
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT"
@@ -931,6 +939,10 @@ def _get_default_idp_display_name(idp_name: str) -> str:
     if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
         return "Microsoft Entra ID"
     return idp_name.replace("_", " ").title()
+
+
+def get_env_disable_migrations() -> bool:
+    return _bool_val(ENV_PHOENIX_DISABLE_MIGRATIONS, False)
 
 
 DEFAULT_PROJECT_NAME = "default"
