@@ -217,17 +217,21 @@ class PostgresQueryAnalyzer:
     ) -> str:
         """Format a row for the results table."""
 
-        def format_col(value: Any, width: int, right_align: bool = True) -> str:
+        def format_col(
+            value: Any, width: int, right_align: bool = True, is_ratio: bool = False
+        ) -> str:
             if value is None:
                 return "N/A".rjust(width) if right_align else "N/A".ljust(width)
-            return (
-                f"{value:.1f}".rjust(width) if isinstance(value, float) else str(value).rjust(width)
-            )
+            if isinstance(value, float):
+                if is_ratio and value > 100:
+                    return ">100".rjust(width)
+                return f"{value:.1f}".rjust(width)
+            return str(value).rjust(width)
 
         return (
             f"| {result.query_name.ljust(col_widths['Query #'])} | "
             f"{format_col(median_time, col_widths['Median (ms)'])} | "
-            f"{format_col(ratio, col_widths['Ratio'])} | "
+            f"{format_col(ratio, col_widths['Ratio'], is_ratio=True)} | "
             f"{format_col(p90_time, col_widths['P90 (ms)'])} | "
             f"{n_runs.rjust(col_widths['N Runs'])} | "
             f"{format_col(result.row_count, col_widths['Rows Returned'])} |"
