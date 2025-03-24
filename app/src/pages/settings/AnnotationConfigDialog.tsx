@@ -141,20 +141,6 @@ export const AnnotationConfigDialog = ({
           }
           variant="compact"
           bodyStyle={{ padding: 0 }}
-          extra={
-            <Button
-              onPress={close}
-              size="S"
-              css={css`
-                & {
-                  padding-left: var(--ac-global-dimension-size-50) !important;
-                  padding-right: var(--ac-global-dimension-size-50) !important;
-                }
-              `}
-            >
-              <Icon svg={<Icons.CloseOutline />} />
-            </Button>
-          }
         >
           <Form
             onSubmit={(e) => {
@@ -409,6 +395,9 @@ export const AnnotationConfigDialog = ({
               borderTopWidth="thin"
             >
               <Flex gap="size-100" justifyContent="end">
+                <Button type="button" onPress={close} variant="quiet">
+                  Cancel
+                </Button>
                 <Button type="submit" variant="primary">
                   {mode === "new"
                     ? "Create Annotation Config"

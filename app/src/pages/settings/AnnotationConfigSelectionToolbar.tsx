@@ -96,24 +96,6 @@ export const AnnotationConfigSelectionToolbar = ({
                       title="Delete Annotation Config"
                       bodyStyle={{ padding: 0 }}
                       variant="compact"
-                      extra={
-                        <Button
-                          onPress={close}
-                          size="S"
-                          css={css`
-                            & {
-                              padding-left: var(
-                                --ac-global-dimension-size-50
-                              ) !important;
-                              padding-right: var(
-                                --ac-global-dimension-size-50
-                              ) !important;
-                            }
-                          `}
-                        >
-                          <Icon svg={<Icons.CloseOutline />} />
-                        </Button>
-                      }
                     >
                       <View padding="size-200">
                         <Text>
