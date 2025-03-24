@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Flex, Skeleton } from "@phoenix/components";
 
 const meta: Meta<typeof Skeleton> = {
-  title: "Components/Skeleton",
+  title: "Skeleton",
   component: Skeleton,
   parameters: {
     layout: "centered",
