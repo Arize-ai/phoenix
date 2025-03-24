@@ -13,7 +13,7 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useLoaderData } from "react-router-dom";
+import { useLoaderData } from "react-router";
 import { formatDistance } from "date-fns";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
