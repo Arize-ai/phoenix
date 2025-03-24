@@ -122,11 +122,7 @@ ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
 Whether or not to enable websockets. Defaults to None.
 """
 
-<<<<<<< HEAD
 ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
-=======
-ENV_PHOENIX_DISABLE_MIGRATIONS = "PHOENIX_DISABLE_MIGRATIONS"
->>>>>>> f75deba792e0e2216268138454568883258c91e4
 """
 Whether or not to disable migrations. Defaults to None / False.
 
@@ -946,11 +942,7 @@ def _get_default_idp_display_name(idp_name: str) -> str:
 
 
 def get_env_disable_migrations() -> bool:
-<<<<<<< HEAD
     return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
-=======
-    return _bool_val(ENV_PHOENIX_DISABLE_MIGRATIONS, False)
->>>>>>> f75deba792e0e2216268138454568883258c91e4
 
 
 DEFAULT_PROJECT_NAME = "default"
