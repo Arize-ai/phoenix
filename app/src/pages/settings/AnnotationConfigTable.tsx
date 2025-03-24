@@ -129,7 +129,7 @@ const columns = [
           return tokens;
         }
         case "CONTINUOUS":
-          return `Range: ${row.lowerBound} - ${row.upperBound}`;
+          return `${row.lowerBound} - ${row.upperBound}`;
         case "FREEFORM":
           return "";
         default:

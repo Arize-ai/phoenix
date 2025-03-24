@@ -4,7 +4,7 @@ import { useLoaderData, useRevalidator } from "react-router-dom";
 
 import { Card } from "@arizeai/components";
 
-import { Button, DialogTrigger, Modal } from "@phoenix/components";
+import { Button, DialogTrigger, Icon, Icons, Modal } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/pages/settings/AnnotationConfigDialog";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import { SettingsAnnotationsPageLoaderData } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -229,7 +229,10 @@ const SettingsAnnotations = ({
       bodyStyle={{ padding: 0 }}
       extra={
         <DialogTrigger>
-          <Button size="S">New Annotation Config</Button>
+          <Button size="S">
+            <Icon svg={<Icons.PlusOutline />} />
+            New Configuration
+          </Button>
           <Modal>
             <AnnotationConfigDialog
               onAddAnnotationConfig={handleAddAnnotationConfig}

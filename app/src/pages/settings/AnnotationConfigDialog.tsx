@@ -17,11 +17,13 @@ import {
   NumberField,
   Radio,
   RadioGroup,
+  Text,
   TextArea,
   TextField,
   View,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+
 import {
   AnnotationConfig,
   AnnotationConfigCategorical,
@@ -29,7 +31,9 @@ import {
   AnnotationConfigFreeform,
   AnnotationConfigOptimizationDirection,
   AnnotationConfigType,
-} from "@phoenix/pages/settings/types";
+} from "./types";
+
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const optimizationDirections = [
   "MAXIMIZE",
@@ -131,7 +135,8 @@ export const AnnotationConfigDialog = ({
     <Dialog
       css={css`
         border: none;
-        min-width: 700px;
+        width: 700px;
+        max-width: 90%;
       `}
     >
       {({ close }) => (
@@ -152,7 +157,7 @@ export const AnnotationConfigDialog = ({
             <View
               minWidth="200px"
               padding="size-200"
-              maxHeight="600px"
+              maxHeight="620px"
               overflow="auto"
             >
               <Flex
@@ -169,7 +174,7 @@ export const AnnotationConfigDialog = ({
                   render={({ field, fieldState: { error } }) => (
                     <TextField {...field} isInvalid={!!error}>
                       <Label>Annotation Name</Label>
-                      <Input placeholder="correctness" />
+                      <Input placeholder="e.g. correctness" />
                       <FieldError>{error?.message}</FieldError>
                     </TextField>
                   )}
@@ -204,10 +209,9 @@ export const AnnotationConfigDialog = ({
                       {...field}
                       aria-label="Type"
                       data-testid="type-picker"
-                      direction="column"
                       isReadOnly={mode === "edit"}
                     >
-                      <Label>Type</Label>
+                      <Label>Annotation Type</Label>
                       {types
                         .filter((type) =>
                           mode === "edit" ? type === field.value : type
@@ -218,6 +222,15 @@ export const AnnotationConfigDialog = ({
                               type.slice(1).toLowerCase()}
                           </Radio>
                         ))}
+                      <Text slot="description">
+                        Categorical - assign a category - e.g. grade, A, B, C
+                        <br />
+                        Continuous - assign a score within a range - e.g. 0-1,
+                        0.5
+                        <br />
+                        Freeform - assign a freeform text comment, e.g.
+                        &quot;good&quot;
+                      </Text>
                     </RadioGroup>
                   )}
                 />
@@ -231,7 +244,9 @@ export const AnnotationConfigDialog = ({
                         {...field}
                         aria-label="Optimization Direction"
                         data-testid="optimization-direction-picker"
-                        direction="column"
+                        css={css`
+                          height: 100%;
+                        `}
                       >
                         <Label>Optimization Direction</Label>
                         {optimizationDirections.map((direction) => (
@@ -240,12 +255,27 @@ export const AnnotationConfigDialog = ({
                               direction.slice(1).toLowerCase()}
                           </Radio>
                         ))}
+                        <Text marginTop="auto" slot="description">
+                          Maximize - higher the score the better - e.g.
+                          correctness
+                          <br />
+                          Minimize - lower the score the better - e.g.
+                          hallucinations
+                        </Text>
                       </RadioGroup>
                     )}
                   />
                 )}
                 {annotationType === "CONTINUOUS" && (
-                  <>
+                  <Flex
+                    gap="size-800"
+                    css={css`
+                      // prevent input from growing when sibling inputs have errors
+                      & input {
+                        max-height: fit-content;
+                      }
+                    `}
+                  >
                     <Controller
                       control={control}
                       name="lowerBound"
@@ -311,10 +341,13 @@ export const AnnotationConfigDialog = ({
                         );
                       }}
                     />
-                  </>
+                  </Flex>
                 )}
                 {annotationType === "CATEGORICAL" && (
                   <>
+                    <Text size="XS" weight="heavy">
+                      Categories
+                    </Text>
                     {fields.map((item, index) => (
                       <Flex
                         key={item.id}
@@ -334,7 +367,9 @@ export const AnnotationConfigDialog = ({
                               aria-label={`Value ${index + 1}`}
                               isInvalid={!!error}
                             >
-                              <Input placeholder="Category label" />
+                              <Input
+                                placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
+                              />
                               <FieldError>{error?.message}</FieldError>
                             </TextField>
                           )}
@@ -367,35 +402,34 @@ export const AnnotationConfigDialog = ({
                             </NumberField>
                           )}
                         />
-                        <Button
-                          type="button"
-                          onPress={() => remove(index)}
-                          variant="quiet"
-                        >
+                        <Button type="button" onPress={() => remove(index)}>
                           <Icon svg={<Icons.TrashOutline />} />
                         </Button>
                       </Flex>
                     ))}
-                    <Button
-                      type="button"
-                      onPress={() => {
-                        append({ label: "", score: fields.length });
-                      }}
-                    >
-                      Add category
-                    </Button>
+                    <Flex justifyContent="end" width="100%">
+                      <Button
+                        type="button"
+                        onPress={() => {
+                          append({ label: "", score: fields.length });
+                        }}
+                      >
+                        <Icon svg={<Icons.PlusOutline />} />
+                        Add category
+                      </Button>
+                    </Flex>
                   </>
                 )}
               </Flex>
             </View>
             <View
               paddingX="size-200"
-              paddingY="size-100"
+              paddingY="size-200"
               borderTopColor="dark"
               borderTopWidth="thin"
             >
               <Flex gap="size-100" justifyContent="end">
-                <Button type="button" onPress={close} variant="quiet">
+                <Button type="button" onPress={close}>
                   Cancel
                 </Button>
                 <Button type="submit" variant="primary">

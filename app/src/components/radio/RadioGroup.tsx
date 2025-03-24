@@ -34,6 +34,19 @@ const baseRadioGroupCSS = css(`
     border-radius: 0 var(--ac-global-rounding-small) var(--ac-global-rounding-small) 0;
   }
 
+  &[data-direction="row"] {
+    flex-direction: row;
+    flex-wrap: wrap;
+
+    .react-aria-Label {
+      flex-basis: 100%;
+    }
+
+    [slot="description"] {
+      flex-basis: 100%;
+    }
+  }
+
   &[data-direction="column"] {
     flex-direction: column;
     align-items: flex-start;
@@ -75,7 +88,7 @@ export const RadioGroup = ({
   size,
   css: cssProp,
   className,
-  direction,
+  direction = "row",
   ...props
 }: RadioGroupProps &
   SizingProps &
