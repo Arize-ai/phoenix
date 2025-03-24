@@ -1,22 +1,25 @@
 import React, { useMemo, useState } from "react";
 import { useLoaderData, useNavigate } from "react-router";
+import invariant from "tiny-invariant";
 
 import { Alert } from "@arizeai/components";
 
 import { Button, Flex, Icon, Icons } from "@phoenix/components";
+import { spanPlaygroundPageLoaderQuery$data } from "@phoenix/pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
+import { Playground } from "@phoenix/pages/playground/Playground";
+import { spanPlaygroundPageLoader } from "@phoenix/pages/playground/spanPlaygroundPageLoader";
 
-import { spanPlaygroundPageLoaderQuery$data } from "./__generated__/spanPlaygroundPageLoaderQuery.graphql";
-import { Playground } from "./Playground";
 import { transformSpanAttributesToPlaygroundInstance } from "./playgroundUtils";
 
 export function SpanPlaygroundPage() {
-  const data = useLoaderData() as spanPlaygroundPageLoaderQuery$data;
+  const loaderData = useLoaderData<typeof spanPlaygroundPageLoader>();
+  invariant(loaderData, "loaderData is required");
   const span = useMemo(() => {
-    if (data.span.__typename === "Span") {
-      return data.span;
+    if (loaderData.span.__typename === "Span") {
+      return loaderData.span;
     }
     return null;
-  }, [data.span]);
+  }, [loaderData.span]);
 
   if (!span) {
     throw new Error("Span not found");

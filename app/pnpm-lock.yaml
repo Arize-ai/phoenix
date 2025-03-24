@@ -162,6 +162,9 @@ importers:
       three-stdlib:
         specifier: ^2.30.4
         version: 2.30.4(three@0.139.2)
+      tiny-invariant:
+        specifier: ^1.3.3
+        version: 1.3.3
       use-deep-compare-effect:
         specifier: ^1.8.1
         version: 1.8.1(react@18.3.1)

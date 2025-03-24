@@ -1,11 +1,13 @@
 import React, { Suspense } from "react";
 import { Outlet, useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
-import { examplesLoaderQuery$data } from "./__generated__/examplesLoaderQuery.graphql";
+import { examplesLoader } from "./examplesLoader";
 import { ExamplesTable } from "./ExamplesTable";
 
 export function ExamplesPage() {
-  const loaderData = useLoaderData() as examplesLoaderQuery$data;
+  const loaderData = useLoaderData<typeof examplesLoader>();
+  invariant(loaderData, "loaderData is required");
   return (
     <>
       <ExamplesTable dataset={loaderData.dataset} />{" "}

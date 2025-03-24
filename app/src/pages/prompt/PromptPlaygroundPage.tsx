@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useLoaderData } from "react-router";
 
-import { PromptPlaygroundLoaderData } from "@phoenix/pages/prompt/promptPlaygroundLoader";
+import { promptPlaygroundLoader } from "@phoenix/pages/prompt/promptPlaygroundLoader";
 import {
   createNormalizedPlaygroundInstance,
   PlaygroundInstance,
@@ -11,7 +11,7 @@ import { Playground } from "../playground/Playground";
 
 export function PromptPlaygroundPage() {
   const { instanceWithPrompt, templateFormat } =
-    useLoaderData() as PromptPlaygroundLoaderData;
+    useLoaderData<typeof promptPlaygroundLoader>();
 
   // create a playground instance with the prompt details configured
   // When the playground component mounts and sees the prompt id in the instance,

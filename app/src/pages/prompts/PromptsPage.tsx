@@ -1,5 +1,6 @@
 import React from "react";
 import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import {
   Flex,
@@ -9,12 +10,13 @@ import {
   LinkButton,
   View,
 } from "@phoenix/components";
+import { promptsLoader } from "@phoenix/pages/prompts/promptsLoader";
 
-import { promptsLoaderQuery$data } from "./__generated__/promptsLoaderQuery.graphql";
 import { PromptsTable } from "./PromptsTable";
 
 export function PromptsPage() {
-  const loaderData = useLoaderData() as promptsLoaderQuery$data;
+  const loaderData = useLoaderData<typeof promptsLoader>();
+  invariant(loaderData, "loaderData is required");
   return (
     <Flex direction="column" height="100%">
       <View

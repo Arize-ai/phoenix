@@ -1,5 +1,6 @@
 import React, { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { ActionMenu, Item } from "@arizeai/components";
@@ -23,6 +24,7 @@ import {
   DatasetProvider,
   useDatasetContext,
 } from "@phoenix/contexts/DatasetContext";
+import { datasetLoader } from "@phoenix/pages/dataset/datasetLoader";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { datasetLoaderQuery$data } from "./__generated__/datasetLoaderQuery.graphql";
@@ -32,7 +34,8 @@ import { DatasetHistoryButton } from "./DatasetHistoryButton";
 import { RunExperimentButton } from "./RunExperimentButton";
 
 export function DatasetPage() {
-  const loaderData = useLoaderData() as datasetLoaderQuery$data;
+  const loaderData = useLoaderData<typeof datasetLoader>();
+  invariant(loaderData, "loaderData is required");
   const latestVersion = useMemo(() => {
     const versions = loaderData.dataset.latestVersions;
     if (versions?.edges && versions.edges.length) {
