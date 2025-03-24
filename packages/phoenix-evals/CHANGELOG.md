@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.20.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.3...arize-phoenix-evals-v0.20.4) (2025-03-24)
+
+
+### Bug Fixes
+
+* Migrate from Bedrock invoke_model API to converse API ([#6503](https://github.com/Arize-ai/phoenix/issues/6503)) ([a393dc9](https://github.com/Arize-ai/phoenix/commit/a393dc9ce864cfb2ce06296e70f39459b195053a))
+
+
+### Documentation
+
+* fix image (GITBOOK-1022) ([171c65e](https://github.com/Arize-ai/phoenix/commit/171c65e95053aece8ed182cfd1547cb2cf4df0f7))
+* Fixing community link (GITBOOK-1026) ([432ed92](https://github.com/Arize-ai/phoenix/commit/432ed9297533edbef73c8c58ae4af098d5ff94b1))
+* No subject (GITBOOK-1020) ([6c0ef74](https://github.com/Arize-ai/phoenix/commit/6c0ef74930c7ee0baa38659e21524b25b5b5fd71))
+* No subject (GITBOOK-1038) ([812ea2c](https://github.com/Arize-ai/phoenix/commit/812ea2caaee1889741bb893995fb89b4653430d7))
+* No subject (GITBOOK-1040) ([1d31ae8](https://github.com/Arize-ai/phoenix/commit/1d31ae8de6c924f9ecd0d3c77f77fef033320c86))
+* No subject (GITBOOK-1045) ([0aa0301](https://github.com/Arize-ai/phoenix/commit/0aa03011bda53faad35267facc73047e4be35142))
+* No subject (GITBOOK-1087) ([6fa5fd7](https://github.com/Arize-ai/phoenix/commit/6fa5fd71cdf57a9a5a7efc3e2822ad57497f3b5a))
+* No subject (GITBOOK-1090) ([024c49f](https://github.com/Arize-ai/phoenix/commit/024c49fe57487ee816317f798ec648331a866ae4))
+* No subject (GITBOOK-1099) ([b4357e3](https://github.com/Arize-ai/phoenix/commit/b4357e324a9444704fbf85370c193ef2ee59495f))
+* Wording updates (GITBOOK-1030) ([9e9142b](https://github.com/Arize-ai/phoenix/commit/9e9142be0cbc6d5cc08cc373ce1c14eee0479b00))
+
 ## [0.20.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.2...arize-phoenix-evals-v0.20.3) (2025-02-13)
 
 
