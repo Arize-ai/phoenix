@@ -131,6 +131,7 @@ from phoenix.server.types import (
     LastUpdatedAt,
     TokenStore,
 )
+from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
     TracesFixture,
     get_dataset_fixtures,
@@ -669,7 +670,11 @@ def create_engine_and_run_migrations(
     database_url: str,
 ) -> AsyncEngine:
     try:
-        return create_engine(connection_str=database_url, migrate=True, log_to_stdout=False)
+        return create_engine(
+            connection_str=database_url,
+            migrate=not Settings.disable_migrations,
+            log_to_stdout=False,
+        )
     except PhoenixMigrationError as e:
         msg = (
             "\n\n⚠️⚠️ Phoenix failed to migrate the database to the latest version. ⚠️⚠️\n\n"
