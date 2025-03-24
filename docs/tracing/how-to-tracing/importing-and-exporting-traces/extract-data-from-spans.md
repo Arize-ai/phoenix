@@ -225,7 +225,7 @@ Span attributes can be selected by simply listing them inside `.select()` method
 ```python
 query = SpanQuery().select(
     "input.value",
-    "output.value,
+    "output.value",
 )
 ```
 
@@ -236,7 +236,7 @@ Keyword-argument style can be used to rename the columns in the dataframe. The e
 ```python
 query = SpanQuery().select(
     input="input.value",
-    output="output.value,
+    output="output.value",
 )
 ```
 
@@ -247,7 +247,7 @@ If arbitrary output names are desired, e.g. names with spaces and symbols, we ca
 ```python
 query = SpanQuery().select(**{
     "Value (Input)": "input.value",
-    "Value (Output)": "output.value,
+    "Value (Output)": "output.value",
 })
 ```
 
@@ -284,7 +284,7 @@ This is useful for joining a span to its parent span. To do that we would first 
 ```python
 query = SpanQuery().select(
     span_id="parent_id",
-    output="output.value,
+    output="output.value",
 )
 ```
 
