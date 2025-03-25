@@ -50,7 +50,7 @@ const alertCSS = css`
 
   padding: var(--ac-global-dimension-static-size-100)
     var(--ac-global-dimension-static-size-200);
-  border-radius: var(--ac-global-rounding-medium);
+  border-radius: var(--ac-global-rounding-small);
   color: var(--alert-text-color);
   display: flex;
   flex-direction: row;
@@ -85,14 +85,15 @@ const alertCSS = css`
     --alert-bg-color: var(--ac-global-color-success-700);
   }
 
-  .ac-alert__icon-title-wrap .ac-icon-wrap {
-    margin-right: var(--ac-global-dimension-static-size-200);
-    font-size: var(--ac-global-dimension-font-size-300);
-    margin-top: 2px;
-  }
+  .ac-alert__icon-title-wrap {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
 
-  &[data-has-title="true"] .ac-alert__icon-title-wrap .ac-icon-wrap {
-    margin-top: 3px;
+    .ac-icon-wrap {
+      margin-right: var(--ac-global-dimension-static-size-200);
+      font-size: var(--ac-global-font-size-xl);
+    }
   }
 `;
 
