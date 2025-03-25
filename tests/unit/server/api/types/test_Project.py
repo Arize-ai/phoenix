@@ -1,7 +1,9 @@
 # ruff: noqa: E501
 import base64
+from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, NamedTuple
+from secrets import token_hex
+from typing import Any
 
 import httpx
 import pytest
@@ -1138,11 +1140,12 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
         )
 
 
-class _Data(NamedTuple):
-    spans: list[models.Span]
-    traces: list[models.Trace]
-    project_sessions: list[models.ProjectSession]
-    projects: list[models.Project]
+@dataclass
+class _Data:
+    spans: list[models.Span] = field(default_factory=list)
+    traces: list[models.Trace] = field(default_factory=list)
+    project_sessions: list[models.ProjectSession] = field(default_factory=list)
+    projects: list[models.Project] = field(default_factory=list)
 
 
 class TestProject:
@@ -1211,6 +1214,71 @@ class TestProject:
             spans=spans,
             traces=traces,
             project_sessions=project_sessions,
+            projects=projects,
+        )
+
+    @pytest.fixture
+    async def _orphan_spans(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        # Creates spans with missing parent references to test orphan span handling
+        projects, traces, spans = [], [], []
+        async with db() as session:
+            projects.append(models.Project(name=token_hex(8)))
+            session.add(projects[-1])
+            await session.flush()
+            traces.append(
+                models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=projects[-1].id,
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:00:01+00:00"),
+                )
+            )
+            session.add(traces[-1])
+            await session.flush()
+            spans.append(
+                models.Span(
+                    trace_rowid=traces[-1].id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name="root",
+                    span_kind="CHAIN",
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:00:01+00:00"),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            spans.append(
+                models.Span(
+                    trace_rowid=traces[-1].id,
+                    span_id=token_hex(8),
+                    parent_id=token_hex(8),
+                    name="orphan",
+                    span_kind="LLM",
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:00:01+00:00"),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            session.add_all(spans)
+            await session.flush()
+        return _Data(
+            spans=spans,
+            traces=traces,
             projects=projects,
         )
 
@@ -1412,3 +1480,32 @@ class TestProject:
         field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
+
+    async def test_root_spans_only_without_orphan_spans(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _orphan_spans.projects[0]
+        field = "spans(rootSpansOnly: true, orphanSpanAsRootSpan: false){edges{node{id}}}"
+        res = await self._node(field, project, httpx_client)
+        # Only spans with parent_id = NULL should be included
+        root_spans = {e["node"]["id"] for e in res["edges"]}
+        assert root_spans == {
+            _gid(_orphan_spans.spans[0]),
+        }
+
+    async def test_root_spans_only_with_orphan_spans(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        project = _orphan_spans.projects[0]
+        field = "spans(rootSpansOnly: true){edges{node{id}}}"
+        res = await self._node(field, project, httpx_client)
+        # Both root spans and orphan spans should be included
+        root_spans = {e["node"]["id"] for e in res["edges"]}
+        assert root_spans == {
+            _gid(_orphan_spans.spans[0]),
+            _gid(_orphan_spans.spans[1]),
+        }

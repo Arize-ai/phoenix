@@ -224,6 +224,7 @@ class Project(Node):
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
         stmt = (
             select(models.Span.id)
@@ -236,13 +237,20 @@ class Project(Node):
             if time_range.end:
                 stmt = stmt.where(models.Span.start_time < time_range.end)
         if root_spans_only:
-            # A root span is any span whose parent span is missing in the
-            # database, even if its `parent_span_id` may not be NULL.
-            parent = select(models.Span.span_id).alias()
-            stmt = stmt.outerjoin(
-                parent,
-                models.Span.parent_id == parent.c.span_id,
-            ).where(parent.c.span_id.is_(None))
+            # A root span is either a span with no parent_id or an orphan span
+            # (a span whose parent_id references a span that doesn't exist in the database)
+            if orphan_span_as_root_span:
+                # Include both types of root spans
+                parent_spans = select(models.Span.span_id).alias("parent_spans")
+                stmt = stmt.where(
+                    ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists()
+                    # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
+                    # because it significantly degraded PostgreSQL performance (>10x worse)
+                    # during testing.
+                )
+            else:
+                # Only include explicit root spans (spans with parent_id = NULL)
+                stmt = stmt.where(models.Span.parent_id.is_(None))
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
