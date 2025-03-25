@@ -6,6 +6,8 @@ description: >-
 
 # Quickstart: Prompts (Python)
 
+{% embed url="https://youtu.be/qbeohWaRlsM?si=5XL5cF9VoeckKG4q" %}
+
 ## Installation
 
 Start out by installing the Phoenix library:
