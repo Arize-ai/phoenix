@@ -124,6 +124,7 @@ from phoenix.server.email.types import EmailSender
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -478,6 +479,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
+    trace_data_sweeper: Optional[TraceDataSweeper],
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -510,6 +512,8 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            if trace_data_sweeper:
+                await stack.enter_async_context(trace_data_sweeper)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -833,6 +837,10 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
     )
+    trace_data_sweeper = TraceDataSweeper(
+        db=db,
+        dml_event_handler=dml_event_handler,
+    )
     bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
@@ -890,6 +898,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
+            trace_data_sweeper=trace_data_sweeper,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
