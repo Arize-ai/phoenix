@@ -1,9 +1,10 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Alert, Dialog } from "@arizeai/components";
+import { Dialog } from "@arizeai/components";
 
 import {
+  Alert,
   ExternalLink,
   Flex,
   Heading,

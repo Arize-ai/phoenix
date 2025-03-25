@@ -1,9 +1,8 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Alert } from "@arizeai/components";
-
 import {
+  Alert,
   Icon,
   Icons,
   LazyTabPanel,
