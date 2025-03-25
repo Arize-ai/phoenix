@@ -1,6 +1,8 @@
 import React, { ReactNode, SyntheticEvent } from "react";
 import { css } from "@emotion/react";
 
+import { useTheme } from "@phoenix/contexts";
+
 import { Text } from "../content";
 import { CloseOutline, Icon } from "../icon";
 import { SeverityLevel } from "../types";
@@ -44,9 +46,12 @@ export interface AlertProps {
 }
 
 const alertCSS = css`
-  --alert-border-color: var(--ac-global-color-info);
-  --alert-bg-color: var(--ac-global-color-info-700);
-  --alert-text-color: var(--ac-global-static-color-white-900);
+  --alert-base-color: var(--ac-global-color-info);
+  --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.1);
+  --alert-border-color: lch(from var(--alert-base-color) l c h / 0.3);
+  --alert-text-color: lch(
+    from var(--alert-base-color) calc((50 - l) * infinity) 0 0
+  );
 
   padding: var(--ac-global-dimension-static-size-100)
     var(--ac-global-dimension-static-size-200);
@@ -66,23 +71,33 @@ const alertCSS = css`
   }
 
   &[data-variant="warning"] {
-    --alert-border-color: var(--ac-global-color-warning);
-    --alert-bg-color: var(--ac-global-color-warning-700);
+    --alert-base-color: var(--ac-global-color-warning);
   }
 
   &[data-variant="info"] {
-    --alert-border-color: var(--ac-global-color-info);
-    --alert-bg-color: var(--ac-global-color-info-700);
+    --alert-base-color: var(--ac-global-color-info);
   }
 
   &[data-variant="danger"] {
-    --alert-border-color: var(--ac-global-color-danger);
-    --alert-bg-color: var(--ac-global-color-danger-700);
+    --alert-base-color: var(--ac-global-color-danger);
   }
 
   &[data-variant="success"] {
-    --alert-border-color: var(--ac-global-color-success);
-    --alert-bg-color: var(--ac-global-color-success-700);
+    --alert-base-color: var(--ac-global-color-success);
+  }
+
+  &[data-theme="light"] {
+    --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.1);
+    --alert-border-color: lch(from var(--alert-base-color) l c h / 0.3);
+    --alert-text-color: var(--alert-base-color);
+  }
+
+  &[data-theme="dark"] {
+    --alert-bg-color: lch(from var(--alert-base-color) l c h / 0.2);
+    --alert-border-color: lch(from var(--alert-base-color) l c h / 0.4);
+    --alert-text-color: lch(
+      from var(--alert-base-color) calc((l) * infinity) c h / 1
+    );
   }
 
   .ac-alert__icon-title-wrap {
@@ -92,7 +107,7 @@ const alertCSS = css`
 
     .ac-icon-wrap {
       margin-right: var(--ac-global-dimension-static-size-200);
-      font-size: var(--ac-global-font-size-xl);
+      font-size: var(--ac-global-font-size-l);
     }
   }
 `;
@@ -127,6 +142,8 @@ export const Alert = ({
   extra,
   ...otherProps
 }: AlertProps) => {
+  const { theme } = useTheme();
+
   if (!icon && showIcon) {
     icon = getSeverityIcon(variant);
   }
@@ -138,6 +155,7 @@ export const Alert = ({
       data-variant={variant}
       data-banner={banner}
       data-has-title={!!title}
+      data-theme={theme}
     >
       <div css={iconTitleWrapCSS} className="ac-alert__icon-title-wrap">
         {icon}
