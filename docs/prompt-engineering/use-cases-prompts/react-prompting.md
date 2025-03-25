@@ -1,5 +1,7 @@
 # ReAct Prompting
 
+{% embed url="https://youtu.be/PB7hrp0mz54?si=GyAsMG5Ym8JcGUmx" %}
+
 **ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking action. Unlike traditional prompting, where a model directly provides an answer, ReAct prompts guide the model to reason through a problem first, then decide which tools or actions are necessary to reach the best solution.
 
 ReAct is ideal for situations that require **multi-step problem-solving with external tools**. It also improves **transparency** by clearly showing the reasoning behind each tool choice, making it easier to understand and refine the model's actions.

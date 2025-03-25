@@ -1,5 +1,7 @@
 # Few Shot Prompting
 
+{% embed url="https://youtu.be/ggXckjI_w-w?si=LKvCy2HxTR3z27j4" %}
+
 Few-shot prompting is a powerful technique in prompt engineering that helps LLMs perform tasks more effectively by providing a few examples within the prompt.
 
 Unlike zero-shot prompting, where the model must infer the task with no prior context, or one-shot prompting, where a single example is provided, few-shot prompting leverages multiple examples to guide the model’s responses more accurately.

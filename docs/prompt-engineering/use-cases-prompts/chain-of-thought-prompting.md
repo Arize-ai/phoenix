@@ -1,5 +1,7 @@
 # Chain-of-Thought Prompting
 
+{% embed url="https://youtu.be/Ys6aQjSioyk?si=MXgYt0JCIzcpkPke" %}
+
 LLMs excel at text generation, but their reasoning abilities depend on how we prompt them. **Chain of Thought (CoT)** prompting enhances logical reasoning by guiding the model to think step by step, improving accuracy in tasks like math, logic, and multi-step problem solving.
 
 In this tutorial, you will:
