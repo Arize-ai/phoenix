@@ -61,7 +61,7 @@ function SpanPlaygroundBanners({
   const [showParsingErrorsBanner, setShowParsingErrorsBanner] =
     useState(hasParsingErrors);
   return (
-    <Flex direction={"column"} gap={"size-50"}>
+    <Flex direction={"column"}>
       {showBackBanner && (
         <Alert
           variant="info"
