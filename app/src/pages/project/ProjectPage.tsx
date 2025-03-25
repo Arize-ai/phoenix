@@ -24,6 +24,7 @@ import {
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
+import { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
@@ -160,12 +161,17 @@ export function ProjectPageContent({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
+    } else if (tabIndex === 3) {
+      loadProjectConfigQuery({
+        id: projectId as string,
+      });
     }
 
     return () => {
       disposeSpansQuery();
       disposeSessionsQuery();
       disposeTracesQuery();
+      disposeProjectConfigQuery();
     };
   }, [
     loadTracesQuery,
@@ -177,6 +183,8 @@ export function ProjectPageContent({
     disposeTracesQuery,
     loadSpansQuery,
     loadSessionsQuery,
+    loadProjectConfigQuery,
+    disposeProjectConfigQuery,
   ]);
 
   const onTabChange = useCallback(

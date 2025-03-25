@@ -3,15 +3,15 @@ import { PreloadedQuery, usePreloadedQuery } from "react-relay";
 import { Outlet } from "react-router";
 
 import { Loading } from "@phoenix/components";
-import {
-  ProjectPageQueriesSpansQuery,
-  useProjectPageQueryReferenceContext,
-} from "@phoenix/pages/project/ProjectPageQueries";
 import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
 import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
+import {
+  ProjectPageQueriesSpansQuery,
+  useProjectPageQueryReferenceContext,
+} from "./ProjectPageQueries";
 
 function SpansTabContent({
   queryReference,

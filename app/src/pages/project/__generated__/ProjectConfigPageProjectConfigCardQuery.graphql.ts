@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a440cbc319fc3ad5ca2a7acdcefa9a9>>
+ * @generated SignedSource<<9240e863423fc1dc81715d6c3bc685ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,17 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectPageQueriesProjectConfigQuery$variables = {
+export type ProjectConfigPageProjectConfigCardQuery$variables = {
   id: string;
 };
-export type ProjectPageQueriesProjectConfigQuery$data = {
-  readonly project: {
+export type ProjectConfigPageProjectConfigCardQuery$data = {
+  readonly node: {
     readonly " $fragmentSpreads": FragmentRefs<"ProjectConfigPage_projectConfigCard">;
   };
 };
-export type ProjectPageQueriesProjectConfigQuery = {
-  response: ProjectPageQueriesProjectConfigQuery$data;
-  variables: ProjectPageQueriesProjectConfigQuery$variables;
+export type ProjectConfigPageProjectConfigCardQuery = {
+  response: ProjectConfigPageProjectConfigCardQuery$data;
+  variables: ProjectConfigPageProjectConfigCardQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -43,10 +43,10 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectPageQueriesProjectConfigQuery",
+    "name": "ProjectConfigPageProjectConfigCardQuery",
     "selections": [
       {
-        "alias": "project",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -69,10 +69,10 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectPageQueriesProjectConfigQuery",
+    "name": "ProjectConfigPageProjectConfigCardQuery",
     "selections": [
       {
-        "alias": "project",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -131,16 +131,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "92a104050258aeb9404066cf783b1888",
+    "cacheID": "73f41a4d1a52207ec36287e8c6c527cc",
     "id": null,
     "metadata": {},
-    "name": "ProjectPageQueriesProjectConfigQuery",
+    "name": "ProjectConfigPageProjectConfigCardQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesProjectConfigQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    ...ProjectConfigPage_projectConfigCard\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n"
+    "text": "query ProjectConfigPageProjectConfigCardQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectConfigPage_projectConfigCard\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fe300a92a7895152ba48a9cf2ed207ee";
+(node as any).hash = "3bd54e77e19bb08ca53696b5fc9a5c22";
 
 export default node;

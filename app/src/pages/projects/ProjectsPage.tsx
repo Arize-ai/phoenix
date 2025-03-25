@@ -42,7 +42,6 @@ import {
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { projectsPageLoaderQuery$data } from "./__generated__/projectsPageLoaderQuery.graphql";
 import {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
@@ -51,6 +50,7 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
+import { projectsLoader } from "./projectsLoader";
 
 // 3 minutes
 // just in case the queries take longer than 1 minute to complete
@@ -84,7 +84,7 @@ export function ProjectsPageContent({
     };
   }, [timeRange]);
 
-  const loaderData = useLoaderData() as projectsPageLoaderQuery$data;
+  const loaderData = useLoaderData<typeof projectsLoader>();
   const {
     data: projectsData,
     loadNext,
@@ -118,7 +118,8 @@ export function ProjectsPageContent({
     `,
     loaderData
   );
-  const projects = projectsData.projects.edges.map((p) => p.project);
+
+  const projects = projectsData?.projects.edges.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -232,7 +233,7 @@ export function ProjectsPageContent({
           {projects.map((project) => (
             <li key={project.id}>
               <Link
-                to={`/projects/${project.id}/spans`}
+                to={`/projects/${project.id}`}
                 css={css`
                   text-decoration: none;
                 `}

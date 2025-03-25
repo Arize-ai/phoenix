@@ -35,7 +35,7 @@ export const ProjectPageQueriesSessionsQuery = graphql`
 export const ProjectPageQueriesProjectConfigQuery = graphql`
   query ProjectPageQueriesProjectConfigQuery($id: GlobalID!) {
     project: node(id: $id) {
-      ...ProjectConfigPage_project
+      ...ProjectConfigPage_projectConfigCard
     }
   }
 `;

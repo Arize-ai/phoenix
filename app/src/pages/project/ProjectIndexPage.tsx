@@ -1,7 +1,10 @@
 import React from "react";
 import { Navigate } from "react-router";
 
+import { useProjectContext } from "@phoenix/contexts/ProjectContext";
+
 export const ProjectIndexPage = () => {
-  // redirect to /spans
-  return <Navigate to="spans" replace />;
+  const defaultTab = useProjectContext((state) => state.defaultTab);
+  console.log("defaultTab", defaultTab);
+  return <Navigate to={defaultTab} replace />;
 };
