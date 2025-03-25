@@ -39,7 +39,6 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
-import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
 
 const PAGE_SIZE = 50;
 
@@ -196,7 +195,6 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <ProjectsAutoRefreshToggle />
           <NewProjectButton />
           <ConnectedLastNTimeRangePicker />
         </Flex>
