@@ -423,8 +423,8 @@ function ProjectMetrics({
   useEffect(() => {
     subscriptionRef.current = fetchProject();
     return () => {
-      // subscriptionRef.current?.unsubscribe();
-      // subscriptionRef.current = null;
+      subscriptionRef.current?.unsubscribe();
+      subscriptionRef.current = null;
     };
   }, [fetchProject]);
   // if the project metrics are not loaded yet, we show a loading indicator
