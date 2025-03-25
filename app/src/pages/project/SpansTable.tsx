@@ -54,6 +54,7 @@ import {
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
+import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -170,6 +171,7 @@ export function SpansTable(props: SpansTableProps) {
             sort: $sort
             rootSpansOnly: $rootSpansOnly
             filterCondition: $filterCondition
+            orphanSpanAsRootSpan: $orphanSpanAsRootSpan
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
@@ -588,6 +590,7 @@ export function SpansTable(props: SpansTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
+
           <ToggleButtonGroup
             aria-label="Toggle between root and all spans"
             selectionMode="single"
@@ -613,6 +616,7 @@ export function SpansTable(props: SpansTableProps) {
               All
             </ToggleButton>
           </ToggleButtonGroup>
+          <ProjectFilterConfigButton />
           <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>

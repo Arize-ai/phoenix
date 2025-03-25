@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78d153705911957b05cb83181bea563a>>
+ * @generated SignedSource<<15d6b44453b1e7aa781b5edd07316779>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -113,6 +113,10 @@ return {
       "name": "first"
     },
     {
+      "kind": "RootArgument",
+      "name": "orphanSpanAsRootSpan"
+    },
+    {
       "defaultValue": true,
       "kind": "LocalArgument",
       "name": "rootSpansOnly"
@@ -174,6 +178,11 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "orphanSpanAsRootSpan",
+          "variableName": "orphanSpanAsRootSpan"
         },
         {
           "kind": "Variable",
@@ -475,6 +484,6 @@ return {
 };
 })();
 
-(node as any).hash = "8f991e4edeea0af9ef62e623be424c50";
+(node as any).hash = "3abfb2f2fae91e346221687ee5213714";
 
 export default node;

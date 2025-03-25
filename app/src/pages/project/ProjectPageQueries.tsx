@@ -14,7 +14,11 @@ export const ProjectPageQueriesTracesQuery = graphql`
 `;
 
 export const ProjectPageQueriesSpansQuery = graphql`
-  query ProjectPageQueriesSpansQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query ProjectPageQueriesSpansQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+    $orphanSpanAsRootSpan: Boolean!
+  ) {
     project: node(id: $id) {
       ...SpansTable_spans
     }
