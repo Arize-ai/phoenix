@@ -616,8 +616,8 @@ export function SpansTable(props: SpansTableProps) {
               All
             </ToggleButton>
           </ToggleButtonGroup>
-          <ProjectFilterConfigButton />
           <SpanColumnSelector columns={computedColumns} query={data} />
+          <ProjectFilterConfigButton />
         </Flex>
       </View>
       <div
