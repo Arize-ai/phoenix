@@ -88,6 +88,7 @@ from phoenix.server.api.dataloaders import (
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
@@ -103,6 +104,7 @@ from phoenix.server.api.dataloaders import (
     TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
@@ -637,6 +639,9 @@ def create_graphql_router(
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
+                projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
+                    db
+                ),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
@@ -660,6 +665,12 @@ def create_graphql_router(
                 ),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
+                trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
+                    db
+                ),
+                project_trace_retention_policy_fields=TableFieldsDataLoader(
+                    db, models.ProjectTraceRetentionPolicy
+                ),
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
