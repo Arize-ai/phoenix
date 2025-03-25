@@ -1,5 +1,4 @@
 import React from "react";
-import { css } from "@emotion/react";
 
 import { Switch } from "@arizeai/components";
 
@@ -16,11 +15,6 @@ import {
 } from "@phoenix/components";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 
-const buttonCSS = css`
-  padding: var(--ac-global-dimension-static-size-100);
-  border-radius: var(--ac-global-rounding-small);
-`;
-
 /**
  * A button that opens a configuration popover for project filters.
  * Currently allows configuring how orphan spans are treated in the trace view.
@@ -36,7 +30,6 @@ export function ProjectFilterConfigButton() {
     <DialogTrigger>
       <Button
         size="M"
-        css={buttonCSS}
         aria-label="Filter Configuration"
         leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
       />
