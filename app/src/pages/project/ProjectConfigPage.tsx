@@ -1,4 +1,5 @@
 import React, { Suspense } from "react";
+<<<<<<< HEAD
 import {
   graphql,
   PreloadedQuery,
@@ -32,12 +33,32 @@ const projectConfigPageCSS = css`
 
 const projectConfigPageInnerCSS = css`
   padding: var(--ac-global-dimension-size-400);
+=======
+import { graphql, PreloadedQuery, useRefetchableFragment } from "react-relay";
+import { css } from "@emotion/react";
+
+import { Card } from "@arizeai/components";
+
+import { Flex, Loading } from "@phoenix/components";
+
+import { ProjectPageProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageProjectConfigQuery.graphql";
+import { useProjectPageQueryReferenceContext } from "./ProjectPageQueries";
+
+const projectConfigPageCSS = css`
+  overflow-y: auto;
+  height: 100%;
+`;
+
+const projectConfigPageInnerCSS = css`
+  padding: var(--ac-global-dimension-size-200);
+>>>>>>> 9b20ee5ffb12d884793bb8e87f17e610c1bc2408
   max-width: 800px;
   min-width: 500px;
   box-sizing: border-box;
   width: 100%;
   margin-left: auto;
   margin-right: auto;
+<<<<<<< HEAD
 `;
 
 const gradientPreviewCSS = css`
@@ -46,6 +67,9 @@ const gradientPreviewCSS = css`
   flex: none;
   border-radius: 50%;
   margin-top: var(--ac-global-dimension-size-100);
+=======
+  height: 100%;
+>>>>>>> 9b20ee5ffb12d884793bb8e87f17e610c1bc2408
 `;
 
 export const ProjectConfigPage = () => {
@@ -69,6 +93,7 @@ const ProjectConfigContent = ({
 }: {
   project: PreloadedQuery<ProjectPageProjectConfigQueryType>;
 }) => {
+<<<<<<< HEAD
   const data = usePreloadedQuery(ProjectPageQueriesProjectConfigQuery, project);
   return (
     <Flex direction="column" gap="size-200">
@@ -90,10 +115,18 @@ const ProjectConfigCard = ({
         name
         gradientStartColor
         gradientEndColor
+=======
+  const [data, refetch] = useRefetchableFragment(
+    graphql`
+      fragment ProjectConfigPage_project on Project
+      @refetchable(queryName: "ProjectConfigPageRefetchQuery") {
+        name
+>>>>>>> 9b20ee5ffb12d884793bb8e87f17e610c1bc2408
       }
     `,
     project
   );
+<<<<<<< HEAD
 
   const { defaultTab, setDefaultTab } = useProjectContext((state) => ({
     defaultTab: state.defaultTab,
@@ -153,5 +186,13 @@ const ProjectConfigCard = ({
         </div>
       </Flex>
     </Card>
+=======
+  return (
+    <Flex direction="column" gap="size-200">
+      <Card title="Project Settings" variant="compact">
+        Project settings here
+      </Card>
+    </Flex>
+>>>>>>> 9b20ee5ffb12d884793bb8e87f17e610c1bc2408
   );
 };
