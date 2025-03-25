@@ -14,6 +14,7 @@ import { useSize } from "@phoenix/contexts";
 const baseToggleButtonCSS = css(
   buttonCSS,
   `
+    text-wrap: nowrap;
     &[data-selected="true"] {
       background-color: var(--ac-global-button-primary-background-color);
       --button-border-color: var(--ac-global-button-primary-border-color);
