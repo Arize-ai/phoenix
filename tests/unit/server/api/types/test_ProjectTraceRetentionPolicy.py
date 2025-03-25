@@ -115,12 +115,28 @@ class TestProjectTraceRetentionPolicy:
         assert not resp.errors
         assert resp.data
         assert resp.data["node"]["traceRetentionPolicy"]["id"] == str(
-            str(
-                GlobalID(
-                    ProjectTraceRetentionPolicy.__name__,
-                    str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID),
-                )
+            GlobalID(
+                ProjectTraceRetentionPolicy.__name__,
+                str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID),
             )
+        )
+
+        # Test: Projects associated with default trace retention policy
+        resp = await gql_client.execute(
+            node_query,
+            variables={
+                "id": str(
+                    GlobalID(
+                        ProjectTraceRetentionPolicy.__name__,
+                        str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID),
+                    )
+                )
+            },
+        )
+        assert not resp.errors
+        assert resp.data
+        assert sorted(e["node"]["id"] for e in resp.data["node"]["projects"]["edges"]) == sorted(
+            str(GlobalID(Project.__name__, str(p.id))) for p in _data.projects[:1]
         )
 
         # Test: Project with custom trace retention policy
@@ -133,11 +149,9 @@ class TestProjectTraceRetentionPolicy:
         assert not resp.errors
         assert resp.data
         assert resp.data["node"]["traceRetentionPolicy"]["id"] == str(
-            str(
-                GlobalID(
-                    ProjectTraceRetentionPolicy.__name__,
-                    str(_data.project_trace_retention_policies[0].id),
-                )
+            GlobalID(
+                ProjectTraceRetentionPolicy.__name__,
+                str(_data.project_trace_retention_policies[0].id),
             )
         )
 
@@ -155,7 +169,6 @@ class TestProjectTraceRetentionPolicy:
         )
         assert not resp.errors
         assert resp.data
-        # Verify that both projects using the custom policy are returned
         assert sorted(e["node"]["id"] for e in resp.data["node"]["projects"]["edges"]) == sorted(
             str(GlobalID(Project.__name__, str(p.id))) for p in _data.projects[1:]
         )
