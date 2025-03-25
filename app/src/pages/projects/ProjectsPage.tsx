@@ -1,6 +1,5 @@
 import React, {
   startTransition,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -10,71 +9,61 @@ import React, {
 import {
   fetchQuery,
   graphql,
+  useLazyLoadQuery,
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useLoaderData } from "react-router";
 import { formatDistance } from "date-fns";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
 
-import {
-  Flex,
-  Heading,
-  Link,
-  Loading,
-  Skeleton,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Flex, Heading, Link, Skeleton, Text, View } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { useInterval } from "@phoenix/hooks/useInterval";
 import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { projectsPageLoaderQuery$data } from "./__generated__/projectsPageLoaderQuery.graphql";
 import {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
+import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
-import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
 
-// 3 minutes
-// just in case the queries take longer than 1 minute to complete
-const REFRESH_INTERVAL_MS = 60 * 3 * 1000;
 const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
   const { timeRange } = useTimeRange();
 
-  return (
-    <Suspense fallback={<Loading />}>
-      <ProjectsPageContent timeRange={timeRange} />
-    </Suspense>
+  const data = useLazyLoadQuery<ProjectsPageQuery>(
+    graphql`
+      query ProjectsPageQuery {
+        ...ProjectsPageProjectsFragment
+      }
+    `,
+    {}
   );
+
+  return <ProjectsPageContent timeRange={timeRange} query={data} />;
 }
 
 export function ProjectsPageContent({
   timeRange,
+  query,
 }: {
   timeRange: OpenTimeRange;
+  query: ProjectsPageProjectsFragment$key;
 }) {
-  const autoRefreshEnabled = usePreferencesContext(
-    (state) => state.projectsAutoRefreshEnabled
-  );
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
@@ -84,7 +73,6 @@ export function ProjectsPageContent({
     };
   }, [timeRange]);
 
-  const loaderData = useLoaderData() as projectsPageLoaderQuery$data;
   const {
     data: projectsData,
     loadNext,
@@ -116,9 +104,10 @@ export function ProjectsPageContent({
         }
       }
     `,
-    loaderData
+    query
   );
-  const projects = projectsData.projects.edges.map((p) => p.project);
+
+  const projects = projectsData?.projects.edges.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -136,15 +125,6 @@ export function ProjectsPageContent({
       }
     },
     [hasNext, isLoadingNext, loadNext]
-  );
-
-  useInterval(
-    () => {
-      startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
-      });
-    },
-    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
   );
 
   const onDelete = useCallback(
@@ -215,7 +195,6 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <ProjectsAutoRefreshToggle />
           <NewProjectButton />
           <ConnectedLastNTimeRangePicker />
         </Flex>
@@ -229,10 +208,10 @@ export function ProjectsPageContent({
             flex-wrap: wrap;
           `}
         >
-          {projects.map((project) => (
+          {projects?.map((project) => (
             <li key={project.id}>
               <Link
-                to={`/projects/${project.id}/spans`}
+                to={`/projects/${project.id}`}
                 css={css`
                   text-decoration: none;
                 `}
@@ -353,9 +332,7 @@ function ProjectItem({
           onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
-      <Suspense fallback={<Loading />}>
-        <ProjectMetrics projectId={project.id} timeRange={timeRange} />
-      </Suspense>
+      <ProjectMetrics projectId={project.id} timeRange={timeRange} />
     </div>
   );
 }
@@ -416,9 +393,6 @@ function ProjectMetrics({
   // state to hold the result of the project metrics query
   const [projectMetrics, setProjectMetrics] =
     useState<ProjectsPageProjectMetricsQuery$data | null>(null);
-  const autoRefreshEnabled = usePreferencesContext(
-    (state) => state.projectsAutoRefreshEnabled
-  );
   /**
    * fetchProject is a function that fetches the project metrics for the given project id and time range
    * it clears the current project metrics and then fetches the new project metrics
@@ -431,8 +405,7 @@ function ProjectMetrics({
     const observable = fetchQuery<ProjectsPageProjectMetricsQuery>(
       environment,
       PROJECT_METRICS_QUERY,
-      { id: projectId, timeRange },
-      { fetchPolicy: "network-only" }
+      { id: projectId, timeRange }
     );
     const subscription = observable.subscribe({
       next: (data) => {
@@ -442,7 +415,6 @@ function ProjectMetrics({
         setProjectMetrics(null);
       },
     });
-    subscriptionRef.current = subscription;
     return subscription;
   }, [projectId, timeRange, environment]);
   // when the component mounts, or the time range changes, we fetch the project metrics
@@ -450,18 +422,9 @@ function ProjectMetrics({
     subscriptionRef.current = fetchProject();
     return () => {
       subscriptionRef.current?.unsubscribe();
+      subscriptionRef.current = null;
     };
   }, [fetchProject]);
-  // when the auto refresh is enabled, we refetch the project metrics every REFRESH_INTERVAL_MS
-  // NOTE: this is bad, if the request takes longer than REFRESH_INTERVAL_MS, we can get into a loop of
-  // refetching, cancelling, refetching, cancelling, etc.
-  const refetchCallback = useCallback(() => {
-    startTransition(() => {
-      subscriptionRef.current?.unsubscribe();
-      fetchProject();
-    });
-  }, [fetchProject]);
-  useInterval(refetchCallback, autoRefreshEnabled ? REFRESH_INTERVAL_MS : null);
   // if the project metrics are not loaded yet, we show a loading indicator
   if (projectMetrics == null) {
     return <ProjectMetricsLoadingSkeleton />;

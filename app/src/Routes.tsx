@@ -15,6 +15,8 @@ import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embed
 import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
+import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
+import { ProjectRoot } from "./pages/project/ProjectRoot";
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";
@@ -58,7 +60,6 @@ import {
   ProjectPage,
   ProjectSessionsPage,
   ProjectsPage,
-  projectsPageLoader,
   ProjectSpansPage,
   ProjectsRoot,
   ProjectTracesPage,
@@ -135,17 +136,14 @@ const router = createBrowserRouter(
             handle={{ crumb: () => "projects" }}
             element={<ProjectsRoot />}
           >
-            <Route
-              index
-              element={<ProjectsPage />}
-              loader={projectsPageLoader}
-            />
+            <Route index element={<ProjectsPage />} />
             <Route
               path=":projectId"
               loader={projectLoader}
               handle={{
                 crumb: (data: projectLoaderQuery$data) => data.project.name,
               }}
+              element={<ProjectRoot />}
             >
               <Route index element={<ProjectIndexPage />} />
               <Route element={<ProjectPage />}>
@@ -162,6 +160,7 @@ const router = createBrowserRouter(
                     loader={sessionLoader}
                   />
                 </Route>
+                <Route path="config" element={<ProjectConfigPage />} />
               </Route>
             </Route>
           </Route>
