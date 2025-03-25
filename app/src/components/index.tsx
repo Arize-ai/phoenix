@@ -48,3 +48,4 @@ export * from "./slider";
 export * from "./counter";
 export * from "./tabs";
 export * from "./loading";
+export * from "./alert";

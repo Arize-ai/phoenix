@@ -1,14 +1,12 @@
 import React, { ReactNode, SyntheticEvent } from "react";
 import { css } from "@emotion/react";
 
-import { classNames } from "@phoenix/components";
-
 import { Text } from "../content";
 import { CloseOutline, Icon } from "../icon";
 import { SeverityLevel } from "../types";
 
 import { getSeverityIcon } from "./getSeverityIcon";
-import { useSeverityStyle } from "./useSeverityStyle";
+
 export interface AlertProps {
   variant: SeverityLevel;
   children?: ReactNode;
@@ -45,6 +43,77 @@ export interface AlertProps {
   extra?: ReactNode;
 }
 
+const alertCSS = css`
+  --alert-border-color: var(--ac-global-color-info);
+  --alert-bg-color: var(--ac-global-color-info-700);
+  --alert-text-color: var(--ac-global-static-color-white-900);
+
+  padding: var(--ac-global-dimension-static-size-100)
+    var(--ac-global-dimension-static-size-200);
+  border-radius: var(--ac-global-rounding-medium);
+  color: var(--alert-text-color);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--alert-border-color);
+  background-color: var(--alert-bg-color);
+
+  &[data-banner="true"] {
+    border-radius: 0;
+    border-left: 0px;
+    border-right: 0px;
+  }
+
+  &[data-variant="warning"] {
+    --alert-border-color: var(--ac-global-color-warning);
+    --alert-bg-color: var(--ac-global-color-warning-700);
+  }
+
+  &[data-variant="info"] {
+    --alert-border-color: var(--ac-global-color-info);
+    --alert-bg-color: var(--ac-global-color-info-700);
+  }
+
+  &[data-variant="danger"] {
+    --alert-border-color: var(--ac-global-color-danger);
+    --alert-bg-color: var(--ac-global-color-danger-700);
+  }
+
+  &[data-variant="success"] {
+    --alert-border-color: var(--ac-global-color-success);
+    --alert-bg-color: var(--ac-global-color-success-700);
+  }
+
+  .ac-alert__icon-title-wrap .ac-icon-wrap {
+    margin-right: var(--ac-global-dimension-static-size-200);
+    font-size: var(--ac-global-dimension-font-size-300);
+    margin-top: 2px;
+  }
+
+  &[data-has-title="true"] .ac-alert__icon-title-wrap .ac-icon-wrap {
+    margin-top: 3px;
+  }
+`;
+
+const iconTitleWrapCSS = css`
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex: 1 1 auto;
+`;
+
+const dismissButtonCSS = css`
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  margin-left: var(--ac-global-dimension-static-size-200);
+`;
+
 export const Alert = ({
   variant,
   title,
@@ -57,53 +126,19 @@ export const Alert = ({
   extra,
   ...otherProps
 }: AlertProps) => {
-  const variantStyle = useSeverityStyle(variant);
-
   if (!icon && showIcon) {
     icon = getSeverityIcon(variant);
   }
+
   return (
     <div
       {...otherProps}
-      css={css`
-        padding: var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-200);
-        border-radius: 4px;
-        color: var(--ac-global-text-color-900);
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        &.ac-alert--banner {
-          border-radius: 0;
-          border-left: 0px;
-          border-right: 0px;
-        }
-        ${variantStyle}
-        .ac-alert__icon-title-wrap .ac-icon-wrap {
-          margin-right: var(--ac-global-dimension-static-size-200);
-          font-size: var(--ac-global-dimension-font-size-300);
-          margin-top: 2px;
-        }
-        &.ac-alert--with-title .ac-alert__icon-title-wrap .ac-icon-wrap {
-          /* The line height with the title is different so accommodate for it */
-          margin-top: 3px;
-        }
-      `}
-      className={classNames(
-        "ac-alert",
-        title ? "ac-alert--with-title" : null,
-        banner ? "ac-alert--banner" : null
-      )}
+      css={alertCSS}
+      data-variant={variant}
+      data-banner={banner}
+      data-has-title={!!title}
     >
-      <div
-        className="ac-alert__icon-title-wrap"
-        css={css`
-          display: flex;
-          flex-direction: row;
-          align-items: flex-start;
-          flex: 1 1 auto;
-        `}
-      >
+      <div css={iconTitleWrapCSS} className="ac-alert__icon-title-wrap">
         {icon}
         <div>
           {title ? (
@@ -118,19 +153,7 @@ export const Alert = ({
       </div>
       {extra}
       {dismissable ? (
-        <button
-          css={css`
-            background-color: transparent;
-            color: inherit;
-            padding: 0;
-            border: none;
-            cursor: pointer;
-            width: 20px;
-            height: 20px;
-            margin-left: var(--ac-global-dimension-static-size-200);
-          `}
-          onClick={onDismissClick}
-        >
+        <button css={dismissButtonCSS} onClick={onDismissClick}>
           {<Icon svg={<CloseOutline />} />}
         </button>
       ) : null}
