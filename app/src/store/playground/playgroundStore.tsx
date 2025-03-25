@@ -141,7 +141,6 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     output: undefined,
     spanId: null,
     activeRunId: null,
-    dirty: false,
   }) satisfies Partial<PlaygroundInstance>;
 
 /**
@@ -243,6 +242,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     streaming: true,
     operationType: "chat",
     inputMode: "manual",
+    dirtyInstances: {},
     input: {
       // variablesValueCache is used to store the values of variables for the
       // manual input mode. It is indexed by the variable key. It keeps old
@@ -459,12 +459,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           ...get().allInstanceMessages,
           ...messageMapPatch,
         },
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: true,
+        },
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
               ...patch,
-              dirty: true,
             };
           }
           return instance;
@@ -478,11 +481,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         return;
       }
       set({
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: true,
+        },
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
-              dirty: true,
               model: {
                 ...instance.model,
                 ...patch,
@@ -497,6 +503,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       const instances = get().instances;
       set({
         instances: instances.filter((instance) => instance.id !== instanceId),
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: false,
+        },
       });
     },
     addMessage: ({ playgroundInstanceId, messages }) => {
@@ -528,6 +538,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             {} as Record<number, ChatMessage>
           ),
         },
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [playgroundInstanceId]: true,
+        },
         instances: instances.map((instance) => {
           if (
             instance.id === playgroundInstanceId &&
@@ -536,7 +550,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           ) {
             return {
               ...instance,
-              dirty: true,
               template: {
                 ...instance.template,
                 messageIds: [
@@ -560,11 +573,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ...patch,
           },
         },
-      });
-      get().updateInstance({
-        instanceId,
-        patch: {},
-        dirty: true,
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: true,
+        },
       });
     },
     deleteMessage: ({ instanceId, messageId }) => {
@@ -576,6 +588,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             ([, { id }]) => id !== messageId
           )
         ),
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: true,
+        },
         instances: instances.map((instance) => {
           if (
             instance.id === instanceId &&
@@ -584,7 +600,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           ) {
             return {
               ...instance,
-              dirty: true,
               template: {
                 ...instance.template,
                 messageIds: instance.template.messageIds.filter(
@@ -600,12 +615,15 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     updateInstance: ({ instanceId, patch, dirty }) => {
       const instances = get().instances;
       set({
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          ...(dirty != undefined ? { [instanceId]: dirty } : {}),
+        },
         instances: instances.map((instance) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
               ...patch,
-              ...(dirty != undefined ? { dirty } : {}),
             };
           }
           return instance;
@@ -670,11 +688,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         return;
       }
       set({
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: true,
+        },
         instances: get().instances.map((instance) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
-              dirty: true,
               model: { ...instance.model, invocationParameters },
             };
           }
@@ -697,11 +718,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
       if (currentInvocationParameterInput) {
         set({
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
           instances: get().instances.map((instance) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
-                dirty: true,
                 model: {
                   ...instance.model,
                   invocationParameters: instance.model.invocationParameters.map(
@@ -718,11 +742,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         });
       } else {
         set({
+          dirtyInstances: {
+            ...get().dirtyInstances,
+            [instanceId]: true,
+          },
           instances: get().instances.map((instance) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
-                dirty: true,
                 model: {
                   ...instance.model,
                   invocationParameters: [
@@ -746,11 +773,14 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         return;
       }
       set({
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: true,
+        },
         instances: get().instances.map((instance) => {
           if (instance.id === instanceId) {
             return {
               ...instance,
-              dirty: true,
               model: {
                 ...instance.model,
                 invocationParameters:
@@ -767,17 +797,11 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       });
     },
     setDirty: (instanceId: number, dirty: boolean) => {
-      const instances = get().instances;
       set({
-        instances: instances.map((instance) => {
-          if (instance.id === instanceId) {
-            return {
-              ...instance,
-              dirty,
-            };
-          }
-          return instance;
-        }),
+        dirtyInstances: {
+          ...get().dirtyInstances,
+          [instanceId]: dirty,
+        },
       });
     },
   });

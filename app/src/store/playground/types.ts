@@ -127,10 +127,6 @@ export interface PlaygroundInstance {
    * Details about the prompt hub prompt associated with the instance, if any
    */
   prompt?: PlaygroundInstancePrompt | null;
-  /**
-   * Whether the instance has been modified since the instance was created
-   */
-  dirty: boolean;
 }
 
 /**
@@ -211,6 +207,11 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * message ids must be globally unique across all instances
    */
   allInstanceMessages: Record<number, ChatMessage>;
+
+  /**
+   * A map of instance id to whether the instance is dirty
+   */
+  dirtyInstances: Record<number, boolean>;
 
   /**
    * Setter for the invocation mode
