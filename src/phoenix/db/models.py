@@ -47,6 +47,7 @@ from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
 from phoenix.server.api.helpers.prompts.models import (
     PromptInvocationParameters,
     PromptInvocationParametersRootModel,
@@ -332,6 +333,44 @@ class _TemplateFormat(TypeDecorator[PromptTemplateFormat]):
         return None if value is None else PromptTemplateFormat(value)
 
 
+class _TraceRetentionCronExpression(TypeDecorator[TraceRetentionCronExpression]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = String
+
+    def process_bind_param(
+        self, value: Optional[TraceRetentionCronExpression], _: Dialect
+    ) -> Optional[str]:
+        assert isinstance(value, TraceRetentionCronExpression)
+        assert isinstance(ans := value.model_dump(), str)
+        return ans
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[TraceRetentionCronExpression]:
+        assert value and isinstance(value, str)
+        return TraceRetentionCronExpression.model_validate(value)
+
+
+class _TraceRetentionRule(TypeDecorator[TraceRetentionRule]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[TraceRetentionRule], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        assert isinstance(value, TraceRetentionRule)
+        assert isinstance(ans := value.model_dump(), dict)
+        return ans
+
+    def process_result_value(
+        self, value: Optional[dict[str, Any]], _: Dialect
+    ) -> Optional[TraceRetentionRule]:
+        assert value and isinstance(value, dict)
+        return TraceRetentionRule.model_validate(value)
+
+
 class ExperimentRunOutput(TypedDict, total=False):
     task_output: Any
 
@@ -357,6 +396,19 @@ class Base(DeclarativeBase):
     }
 
 
+class ProjectTraceRetentionPolicy(Base):
+    __tablename__ = "project_trace_retention_policies"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
+        _TraceRetentionCronExpression, nullable=False
+    )
+    rule: Mapped[TraceRetentionRule] = mapped_column(_TraceRetentionRule, nullable=False)
+    projects: Mapped[list["Project"]] = relationship(
+        "Project", back_populates="trace_retention_policy", uselist=True
+    )
+
+
 class Project(Base):
     __tablename__ = "projects"
     name: Mapped[str]
@@ -374,7 +426,15 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-
+    trace_retention_policy_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("project_trace_retention_policies.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    trace_retention_policy: Mapped[Optional[ProjectTraceRetentionPolicy]] = relationship(
+        "ProjectTraceRetentionPolicy",
+        back_populates="projects",
+    )
     traces: WriteOnlyMapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project",
