@@ -21,6 +21,7 @@ import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
@@ -103,6 +104,9 @@ export function ProjectPageContent({
   projectId: string;
   timeRange: OpenTimeRange;
 }) {
+  const treatOrphansAsRoots = useProjectContext(
+    (state) => state.treatOrphansAsRoots
+  );
   const timeRangeVariable = useMemo(() => {
     return {
       start: timeRange?.start?.toISOString(),
@@ -150,6 +154,7 @@ export function ProjectPageContent({
       loadSpansQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
+        orphanSpanAsRootSpan: treatOrphansAsRoots,
       });
     } else if (tabIndex === 1) {
       loadTracesQuery({
@@ -185,6 +190,7 @@ export function ProjectPageContent({
     loadSessionsQuery,
     loadProjectConfigQuery,
     disposeProjectConfigQuery,
+    treatOrphansAsRoots,
   ]);
 
   const onTabChange = useCallback(
