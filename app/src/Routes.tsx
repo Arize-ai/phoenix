@@ -16,10 +16,7 @@ import { Layout } from "./pages/Layout";
 import { spanPlaygroundPageLoaderQuery$data } from "./pages/playground/__generated__/spanPlaygroundPageLoaderQuery.graphql";
 import { projectLoaderQuery$data } from "./pages/project/__generated__/projectLoaderQuery.graphql";
 import { ProjectConfigPage } from "./pages/project/ProjectConfigPage";
-<<<<<<< HEAD
 import { ProjectRoot } from "./pages/project/ProjectRoot";
-=======
->>>>>>> 9b20ee5ffb12d884793bb8e87f17e610c1bc2408
 import { promptLoaderQuery$data } from "./pages/prompt/__generated__/promptLoaderQuery.graphql";
 import { promptConfigLoader } from "./pages/prompt/promptConfigLoader";
 import { PromptIndexPage } from "./pages/prompt/PromptIndexPage";

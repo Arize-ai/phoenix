@@ -35,11 +35,7 @@ export const ProjectPageQueriesSessionsQuery = graphql`
 export const ProjectPageQueriesProjectConfigQuery = graphql`
   query ProjectPageQueriesProjectConfigQuery($id: GlobalID!) {
     project: node(id: $id) {
-<<<<<<< HEAD
       ...ProjectConfigPage_projectConfigCard
-=======
-      ...ProjectConfigPage_project
->>>>>>> 9b20ee5ffb12d884793bb8e87f17e610c1bc2408
     }
   }
 `;
