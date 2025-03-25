@@ -1,5 +1,19 @@
 # Changelog
 
+## [8.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.18.0...arize-phoenix-v8.19.0) (2025-03-25)
+
+
+### Features
+
+* **tracing:** add a config tab ([#6857](https://github.com/Arize-ai/phoenix/issues/6857)) ([65f5cfa](https://github.com/Arize-ai/phoenix/commit/65f5cfaf9606107f8a818bd19e0749f03546147d))
+* Upgrade react-router, vite, vitest ([#6896](https://github.com/Arize-ai/phoenix/issues/6896)) ([3e9dc43](https://github.com/Arize-ai/phoenix/commit/3e9dc43bcc686e8ff3d57a028a9fcc15f3935490))
+
+
+### Bug Fixes
+
+* Rename missing import ([#6901](https://github.com/Arize-ai/phoenix/issues/6901)) ([28d03ed](https://github.com/Arize-ai/phoenix/commit/28d03edfb3bcb5f493c9695c5f85c61b1874d345))
+* use correlated subquery for orphan spans ([#6904](https://github.com/Arize-ai/phoenix/issues/6904)) ([6ac67b6](https://github.com/Arize-ai/phoenix/commit/6ac67b6e6e35c14573a43bf2347294f8c236400e))
+
 ## [8.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.17.1...arize-phoenix-v8.18.0) (2025-03-22)
 
 
