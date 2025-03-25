@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Alert, Button, Icon, Icons } from "@phoenix/components";
 
 const meta: Meta<typeof Alert> = {
-  title: "Components/Alert",
+  title: "Alert",
   component: Alert,
   parameters: {
     layout: "centered",
