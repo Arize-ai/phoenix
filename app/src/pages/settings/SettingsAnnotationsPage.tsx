@@ -1,6 +1,6 @@
 import React from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
-import { useLoaderData, useRevalidator } from "react-router-dom";
+import { useLoaderData, useRevalidator } from "react-router";
 
 import { Card } from "@arizeai/components";
 
