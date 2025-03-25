@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.19.0...arize-phoenix-v8.19.1) (2025-03-25)
+
+
+### Bug Fixes
+
+* **perf:** add a toggle to treat orphans as root ([#6922](https://github.com/Arize-ai/phoenix/issues/6922)) ([2aa65b3](https://github.com/Arize-ai/phoenix/commit/2aa65b3f522f028b04843b69f538256325e02df5))
+* Prevent toggle button text from wrapping ([#6909](https://github.com/Arize-ai/phoenix/issues/6909)) ([7298c8d](https://github.com/Arize-ai/phoenix/commit/7298c8d64a9d5f75f93e00583239a7317e34bf4d))
+
 ## [8.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.18.0...arize-phoenix-v8.19.0) (2025-03-25)
 
 
