@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
@@ -38,12 +38,6 @@ export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
   const { jsonSchema, optionalLint, basicSetup, ...restProps } = props;
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
-  // Force a refresh of the editor when the jsonSchema changes
-  // Code mirror does not automatically refresh when the extensions change
-  const [schemaKey, setSchemaKey] = React.useState(0);
-  useEffect(() => {
-    setSchemaKey((prev) => prev + 1);
-  }, [jsonSchema]);
   const contentLength = props.value?.length;
   // When optionalLint is false, this value will always be true
   // If optionalLint is true, we only lint when there is content to allow for empty json values
@@ -77,7 +71,6 @@ export function JSONEditor(props: JSONEditorProps) {
 
   return (
     <CodeMirror
-      key={schemaKey}
       value={props.value}
       extensions={extensions}
       editable

@@ -49,7 +49,7 @@ import {
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import {
@@ -68,7 +68,6 @@ import { PlaygroundTools } from "./PlaygroundTools";
 import {
   areInvocationParamsEqual,
   createToolCallForProvider,
-  normalizeMessageContent,
 } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
 
@@ -225,7 +224,6 @@ function MessageEditor({
     );
   }
   if (message.role === "tool") {
-    const toolMessageContent = normalizeMessageContent(message.content);
     return (
       <Form
         onSubmit={(e) => {
@@ -249,7 +247,7 @@ function MessageEditor({
           </TextField>
         </View>
         <JSONEditor
-          value={toolMessageContent}
+          value={message.content ?? '""'}
           aria-label="tool message content"
           height={"100%"}
           onChange={(val) => updateMessage({ content: val })}
@@ -374,6 +372,7 @@ function SortableMessageItem({
               includeLabel={false}
               role={message.role}
               onChange={(role) => {
+                let content = message.content;
                 let toolCalls = message.toolCalls;
                 // Tool calls should only be attached to ai messages
                 // Clear tools from the message and reset the message mode when switching away form ai
@@ -381,12 +380,16 @@ function SortableMessageItem({
                   toolCalls = undefined;
                   setAIMessageMode("text");
                 }
+                if (role === "tool") {
+                  content = `""`;
+                }
                 updateMessage({
                   instanceId: playgroundInstanceId,
                   messageId,
                   patch: {
                     role,
                     toolCalls,
+                    content,
                   },
                 });
               }}
@@ -445,8 +448,8 @@ function SortableMessageItem({
             <CopyToClipboardButton
               text={
                 aiMessageMode === "toolCalls"
-                  ? JSON.stringify(message.toolCalls)
-                  : normalizeMessageContent(message.content)
+                  ? (safelyStringifyJSON(message.toolCalls).json ?? "")
+                  : (message.content ?? "")
               }
             />
             <Button
