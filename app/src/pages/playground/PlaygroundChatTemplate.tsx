@@ -369,6 +369,8 @@ function SortableMessageItem({
                   toolCalls = undefined;
                   setAIMessageMode("text");
                 }
+                // Tool role messages should contain tool result content
+                // Reset the content to an empty json string
                 if (role === "tool") {
                   content = `""`;
                 }
