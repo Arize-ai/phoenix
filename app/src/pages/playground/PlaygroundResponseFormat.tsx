@@ -68,6 +68,8 @@ export function PlaygroundResponseFormat({
   const currentValueRef = useRef(initialResponseFormatDefinition);
   const store = usePlaygroundStore();
 
+  // when the instance provider changes, we need to update the editor value
+  // to reflect the new response format schema
   useEffect(() => {
     const state = store.getState();
     const instance = state.instances.find((i) => i.id === playgroundInstanceId);

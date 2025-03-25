@@ -49,7 +49,7 @@ import {
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { safelyParseJSON, safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
+import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import { ChatMessageToolCallsEditor } from "./ChatMessageToolCallsEditor";
 import {
@@ -251,17 +251,6 @@ function MessageEditor({
           aria-label="tool message content"
           height={"100%"}
           onChange={(val) => updateMessage({ content: val })}
-          onBlur={() => {
-            if (message.content == null) {
-              return;
-            }
-            if (typeof message.content === "string") {
-              const { json: parsedContent } = safelyParseJSON(message.content);
-              updateMessage({
-                content: JSON.stringify(parsedContent, null, 2),
-              });
-            }
-          }}
         />
       </Form>
     );
