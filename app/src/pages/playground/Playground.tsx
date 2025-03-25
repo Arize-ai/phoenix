@@ -222,6 +222,7 @@ function PlaygroundContent() {
   );
   const instanceIds = usePlaygroundContext(
     (state) => state.instances.map((instance) => instance.id),
+    // only re-render when the instance ids change, not when the array is re-created
     (left, right) =>
       left.length === right.length &&
       left.every((id, index) => id === right[index])

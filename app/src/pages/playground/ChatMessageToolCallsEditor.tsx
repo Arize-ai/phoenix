@@ -14,7 +14,7 @@ import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * Editor for message tool calls
@@ -64,7 +64,7 @@ export function ChatMessageToolCallsEditor({
     }
     const newToolCalls = message.toolCalls;
     const newEditorValue = JSON.stringify(newToolCalls, null, 2);
-    if (newEditorValue != null && newEditorValue !== "null") {
+    if (isJSONString({ str: newEditorValue, excludeNull: true })) {
       setInitialEditorValue(newEditorValue);
     }
   }, [instanceProvider, store, playgroundInstanceId, messageId]);

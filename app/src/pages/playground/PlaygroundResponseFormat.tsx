@@ -20,7 +20,7 @@ import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
@@ -89,10 +89,7 @@ export function PlaygroundResponseFormat({
       null,
       2
     );
-    if (
-      newResponseFormatDefinition != null &&
-      newResponseFormatDefinition !== "null"
-    ) {
+    if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
       setInitialResponseFormatDefinition(newResponseFormatDefinition);
     }
   }, [instanceProvider, store, playgroundInstanceId]);

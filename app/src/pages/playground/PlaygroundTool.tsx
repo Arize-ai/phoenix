@@ -30,7 +30,7 @@ import {
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
@@ -90,7 +90,7 @@ export function PlaygroundTool({
       return;
     }
     const newDefinition = JSON.stringify(tool.definition, null, 2);
-    if (newDefinition != null && newDefinition !== "null") {
+    if (isJSONString({ str: newDefinition, excludeNull: true })) {
       setInitialEditorValue(newDefinition);
     }
   }, [instanceProvider, store, playgroundInstanceId, toolId]);
