@@ -389,6 +389,13 @@ type CreateFreeformAnnotationConfigPayload {
   annotationConfig: FreeformAnnotationConfig!
 }
 
+input CreateProjectTraceRetentionPolicyInput {
+  name: String!
+  cronExpression: CronExpression!
+  rule: ProjectTraceRetentionRuleInput!
+  addProjects: [GlobalID!]
+}
+
 input CreatePromptLabelInput {
   name: Identifier!
   description: String = null
@@ -438,6 +445,8 @@ input CreateUserInput {
   password: String!
   role: UserRoleInput!
 }
+
+scalar CronExpression
 
 enum DataQualityMetric {
   cardinality
@@ -653,6 +662,10 @@ input DeleteDatasetInput {
 
 input DeleteExperimentsInput {
   experimentIds: [GlobalID!]!
+}
+
+input DeleteProjectTraceRetentionPolicyInput {
+  id: GlobalID!
 }
 
 input DeletePromptInput {
@@ -1375,6 +1388,9 @@ type Mutation {
   exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
   deleteProject(id: GlobalID!): Query!
   clearProject(input: ClearProjectInput!): Query!
+  createProjectTraceRetentionPolicy(input: CreateProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  patchProjectTraceRetentionPolicy(input: PatchProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
+  deleteProjectTraceRetentionPolicy(input: DeleteProjectTraceRetentionPolicyInput!): ProjectTraceRetentionPolicyMutationPayload!
   createChatPrompt(input: CreateChatPromptInput!): Prompt!
   createChatPromptVersion(input: CreateChatPromptVersionInput!): Prompt!
   deletePrompt(input: DeletePromptInput!): DeletePromptMutationPayload!
@@ -1456,6 +1472,15 @@ input PatchDatasetInput {
   name: String
   description: String
   metadata: JSON
+}
+
+input PatchProjectTraceRetentionPolicyInput {
+  id: GlobalID!
+  name: String
+  cronExpression: CronExpression
+  rule: ProjectTraceRetentionRuleInput
+  addProjects: [GlobalID!]
+  removeProjects: [GlobalID!]
 }
 
 input PatchPromptInput {
@@ -1544,6 +1569,7 @@ type Project implements Node {
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
+  traceRetentionPolicy: ProjectTraceRetentionPolicy!
 }
 
 type ProjectAnnotationConfigAssociation {
@@ -1614,6 +1640,57 @@ type ProjectSessionEdge {
 input ProjectSessionSort {
   col: ProjectSessionColumn!
   dir: SortDir!
+}
+
+type ProjectTraceRetentionPolicy implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  name: String!
+  cronExpression: CronExpression!
+  rule: TraceRetentionRule!
+  projects(first: Int = 100, last: Int, after: String, before: String): ProjectConnection!
+}
+
+"""A connection to a list of items."""
+type ProjectTraceRetentionPolicyConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [ProjectTraceRetentionPolicyEdge!]!
+}
+
+"""An edge in a connection."""
+type ProjectTraceRetentionPolicyEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: ProjectTraceRetentionPolicy!
+}
+
+type ProjectTraceRetentionPolicyMutationPayload {
+  query: Query!
+  node: ProjectTraceRetentionPolicy!
+}
+
+input ProjectTraceRetentionRuleInput @oneOf {
+  maxDays: ProjectTraceRetentionRuleMaxDaysInput
+  maxCount: ProjectTraceRetentionRuleMaxCountInput
+  maxDaysOrCount: ProjectTraceRetentionRuleMaxDaysOrCountInput
+}
+
+input ProjectTraceRetentionRuleMaxCountInput {
+  maxCount: Int!
+}
+
+input ProjectTraceRetentionRuleMaxDaysInput {
+  maxDays: Float!
+}
+
+input ProjectTraceRetentionRuleMaxDaysOrCountInput {
+  maxDays: Float!
+  maxCount: Int!
 }
 
 type Prompt implements Node {
@@ -1830,6 +1907,8 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+  defaultProjectTraceRetentionPolicy: ProjectTraceRetentionPolicy!
+  projectTraceRetentionPolicies(first: Int = 100, last: Int, after: String, before: String): ProjectTraceRetentionPolicyConnection!
 
   """
   The allocated storage capacity of the database in bytes. Return None if this information is unavailable.
@@ -2316,6 +2395,21 @@ type TraceEdge {
 
   """The item at the end of the edge"""
   node: Trace!
+}
+
+union TraceRetentionRule = TraceRetentionRuleMaxDays | TraceRetentionRuleMaxCount | TraceRetentionRuleMaxDaysOrCount
+
+type TraceRetentionRuleMaxCount {
+  maxCount: Int!
+}
+
+type TraceRetentionRuleMaxDays {
+  maxDays: Float!
+}
+
+type TraceRetentionRuleMaxDaysOrCount {
+  maxDays: Float!
+  maxCount: Int!
 }
 
 type UMAPPoint {

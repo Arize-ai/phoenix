@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import operator
 from datetime import datetime
-from typing import Any, ClassVar, Optional
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional
 
 import strawberry
 from aioitertools.itertools import islice
@@ -9,7 +11,7 @@ from sqlalchemy import desc, distinct, func, or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
-from strawberry import ID, UNSET, Private
+from strawberry import ID, UNSET, Private, lazy
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -42,6 +44,8 @@ from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
+if TYPE_CHECKING:
+    from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
 
 @strawberry.type
@@ -576,6 +580,18 @@ class Project(Node):
             ).unique()
             data = [to_gql_annotation_config(config) async for config in annotation_configs]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def trace_retention_policy(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated[ProjectTraceRetentionPolicy, lazy(".ProjectTraceRetentionPolicy")]:
+        from .ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+
+        id_ = await info.context.data_loaders.trace_retention_policy_id_by_project_id.load(
+            self.project_rowid
+        )
+        return ProjectTraceRetentionPolicy(id=id_)
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
