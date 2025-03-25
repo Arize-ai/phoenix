@@ -27,5 +27,8 @@ class TraceRetentionPolicyIdByProjectIdDataLoader(DataLoader[Key, Result]):
         )
         async with self._db() as session:
             data = await session.execute(stmt)
-        result = {id_: policy_id for id_, policy_id in data.all()}
-        return [result.get(id_, DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID) for id_ in keys]
+        result = {project_rowid: policy_id for project_rowid, policy_id in data.all()}
+        return [
+            result.get(project_rowid, DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID)
+            for project_rowid in keys
+        ]

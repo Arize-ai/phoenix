@@ -17,7 +17,7 @@ from phoenix.db.types.trace_retention import (
 )
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.CronExpression import CronExpression
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -63,7 +63,7 @@ class ProjectTraceRetentionRuleInput:
             )
             != 1
         ):
-            raise ValueError("Exactly one rule must be provided")
+            raise BadRequest("Exactly one rule must be provided")
 
 
 @strawberry.input
@@ -75,9 +75,9 @@ class CreateProjectTraceRetentionPolicyInput:
 
     def __post_init__(self) -> None:
         if not self.name.strip():
-            raise ValueError("Name cannot be empty")
+            raise BadRequest("Name cannot be empty")
         if not self.cron_expression.strip():
-            raise ValueError("Cron expression cannot be empty")
+            raise BadRequest("Cron expression cannot be empty")
 
 
 @strawberry.input
@@ -91,12 +91,12 @@ class PatchProjectTraceRetentionPolicyInput:
 
     def __post_init__(self) -> None:
         if isinstance(self.name, str) and not self.name.strip():
-            raise ValueError("Name cannot be empty")
+            raise BadRequest("Name cannot be empty")
         if isinstance(self.cron_expression, str) and not self.cron_expression.strip():
-            raise ValueError("Cron expression cannot be empty")
+            raise BadRequest("Cron expression cannot be empty")
         if isinstance(self.add_projects, list) and isinstance(self.remove_projects, list):
             if set(self.add_projects) & set(self.remove_projects):
-                raise ValueError("A project cannot be in both add and remove lists")
+                raise BadRequest("A project cannot be in both add and remove lists")
 
 
 @strawberry.input
