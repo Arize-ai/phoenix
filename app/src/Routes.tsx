@@ -59,7 +59,6 @@ import {
   projectLoader,
   ProjectPage,
   ProjectSessionsPage,
-  projectsLoader,
   ProjectsPage,
   ProjectSpansPage,
   ProjectsRoot,
@@ -137,7 +136,7 @@ const router = createBrowserRouter(
             handle={{ crumb: () => "projects" }}
             element={<ProjectsRoot />}
           >
-            <Route index element={<ProjectsPage />} loader={projectsLoader} />
+            <Route index element={<ProjectsPage />} />
             <Route
               path=":projectId"
               loader={projectLoader}

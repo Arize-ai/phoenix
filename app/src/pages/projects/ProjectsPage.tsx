@@ -1,6 +1,5 @@
 import React, {
   startTransition,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -10,25 +9,17 @@ import React, {
 import {
   fetchQuery,
   graphql,
+  useLazyLoadQuery,
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
-import { useLoaderData } from "react-router";
 import { formatDistance } from "date-fns";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
 
-import {
-  Flex,
-  Heading,
-  Link,
-  Loading,
-  Skeleton,
-  Text,
-  View,
-} from "@phoenix/components";
+import { Flex, Heading, Link, Skeleton, Text, View } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
@@ -45,27 +36,34 @@ import {
   ProjectsPageProjectsFragment$key,
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
+import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
-import { projectsLoader } from "./projectsLoader";
 
 const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
   const { timeRange } = useTimeRange();
 
-  return (
-    <Suspense fallback={<Loading />}>
-      <ProjectsPageContent timeRange={timeRange} />
-    </Suspense>
+  const data = useLazyLoadQuery<ProjectsPageQuery>(
+    graphql`
+      query ProjectsPageQuery {
+        ...ProjectsPageProjectsFragment
+      }
+    `,
+    {}
   );
+
+  return <ProjectsPageContent timeRange={timeRange} query={data} />;
 }
 
 export function ProjectsPageContent({
   timeRange,
+  query,
 }: {
   timeRange: OpenTimeRange;
+  query: ProjectsPageProjectsFragment$key;
 }) {
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
@@ -76,7 +74,6 @@ export function ProjectsPageContent({
     };
   }, [timeRange]);
 
-  const loaderData = useLoaderData<typeof projectsLoader>();
   const {
     data: projectsData,
     loadNext,
@@ -108,7 +105,7 @@ export function ProjectsPageContent({
         }
       }
     `,
-    loaderData
+    query
   );
 
   const projects = projectsData?.projects.edges.map((p) => p.project);
@@ -426,7 +423,8 @@ function ProjectMetrics({
   useEffect(() => {
     subscriptionRef.current = fetchProject();
     return () => {
-      subscriptionRef.current?.unsubscribe();
+      // subscriptionRef.current?.unsubscribe();
+      // subscriptionRef.current = null;
     };
   }, [fetchProject]);
   // if the project metrics are not loaded yet, we show a loading indicator
