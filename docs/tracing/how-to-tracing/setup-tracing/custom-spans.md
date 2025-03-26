@@ -158,8 +158,8 @@ pip install openinference-semantic-conventions
 Then you can use it in code:
 
 ```python
-from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
+from openinference.semconv.trace import SpanAttributes
 
 # ...
 
