@@ -23,9 +23,6 @@ const baseToggleButtonCSS = css(
         background-color: var(--ac-global-button-primary-background-color-hover);
       }
     }
-    &[data-selected="true"]:not(:first-child) {
-      margin-left: -1px;
-    }
     &[data-hovered]:not([data-disabled]):not([data-selected="true"]) {
       background-color: var(--ac-global-input-field-border-color-hover);
     }
