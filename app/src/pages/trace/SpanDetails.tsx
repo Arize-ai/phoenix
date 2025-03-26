@@ -235,7 +235,6 @@ export function SpanDetails({
     return spanHasException(span);
   }, [span]);
 
-  const [showAnnotationEditor, setShowAnnotationEditor] = useState(false);
   return (
     <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
       <Panel>
@@ -273,15 +272,6 @@ export function SpanDetails({
                   size="S"
                   spanNodeId={span.id}
                   projectId={projectId}
-                />
-                <ToggleButton
-                  size="S"
-                  isSelected={showAnnotationEditor}
-                  onPress={() => {
-                    setShowAnnotationEditor(!showAnnotationEditor);
-                  }}
-                  aria-label="Toggle on the annotation editor"
-                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
                 />
                 <SpanActionMenu
                   traceId={span.trace.traceId}
