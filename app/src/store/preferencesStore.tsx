@@ -32,11 +32,6 @@ export interface PreferencesProps {
    */
   projectsAutoRefreshEnabled: boolean;
   /**
-   * Whether or not to show the span aside that contains details about timing, status, etc.
-   * @default true
-   */
-  showSpanAside: boolean;
-  /**
    * Whether or not the trace tree shows metrics
    */
   showMetricsInTraceTree: boolean;
@@ -71,11 +66,6 @@ export interface PreferencesState extends PreferencesProps {
    * @param projectsAutoRefreshEnabled
    */
   setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled: boolean) => void;
-  /**
-   * Setter for enabling/disabling the span aside
-   * @param showSpanAside
-   */
-  setShowSpanAside: (showSpanAside: boolean) => void;
   /**
    * Setter for enabling/disabling metrics in the trace tree
    * @param showMetricsInTraceTree
@@ -116,10 +106,6 @@ export const createPreferencesStore = (
     projectsAutoRefreshEnabled: true,
     setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {
       set({ projectsAutoRefreshEnabled });
-    },
-    showSpanAside: true,
-    setShowSpanAside: (showSpanAside) => {
-      set({ showSpanAside });
     },
     showMetricsInTraceTree: true,
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {

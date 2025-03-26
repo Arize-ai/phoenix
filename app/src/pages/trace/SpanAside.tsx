@@ -45,15 +45,7 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
   const annotations = data.spanAnnotations;
   const hasAnnotations = annotations.length > 0;
   return (
-    <View
-      padding="size-200"
-      borderColor="dark"
-      backgroundColor="dark"
-      borderLeftWidth="thin"
-      width="230px"
-      flex="none"
-      minHeight="100%"
-    >
+    <View padding="size-200" width="100%" flex="none" minHeight="100%">
       <Flex direction="column" gap="size-200">
         <LabeledValue label="Feedback">
           {hasAnnotations ? (

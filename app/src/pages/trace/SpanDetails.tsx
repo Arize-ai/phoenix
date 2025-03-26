@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
@@ -26,8 +27,6 @@ import {
   List,
   ListItem,
   TabbedCard,
-  Tooltip,
-  TooltipTrigger,
 } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
@@ -68,9 +67,9 @@ import {
   ConnectedMarkdownModeRadioGroup,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -234,111 +233,107 @@ export function SpanDetails({
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
-  const showSpanAside = usePreferencesContext((store) => store.showSpanAside);
-  const setShowSpanAside = usePreferencesContext(
-    (store) => store.setShowSpanAside
-  );
+
   return (
-    <Flex direction="column" flex="1 1 auto" height="100%">
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-50"
-        paddingStart="size-150"
-        paddingEnd="size-200"
-        flex="none"
-      >
-        <Flex direction="row" alignItems="center">
-          <SpanHeader span={span} />
-          <Flex flex="none" direction="row" alignItems="center" gap="size-100">
-            <LinkButton
-              variant={span.spanKind !== "llm" ? "default" : "primary"}
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              isDisabled={span.spanKind !== "llm"}
-              to={`/playground/spans/${span.id}`}
-              size="S"
-            >
-              Playground
-            </LinkButton>
-            <AddSpanToDatasetButton span={span} />
-            <EditSpanAnnotationsButton
-              size="S"
-              spanNodeId={span.id}
-              projectId={projectId}
-            />
-            <SpanActionMenu traceId={span.trace.traceId} spanId={span.spanId} />
-            <TooltipTrigger placement="top" offset={5}>
-              <Button
-                size="S"
-                aria-label="Toggle showing span details"
-                onPress={() => {
-                  setShowSpanAside(!showSpanAside);
-                }}
-                leadingVisual={
-                  <Icon
-                    svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
-                  />
-                }
-              />
-              <Tooltip>
-                {showSpanAside ? "Hide Span Details" : "Show Span Details"}
-              </Tooltip>
-            </TooltipTrigger>
-          </Flex>
-        </Flex>
-      </View>
-      <Tabs>
-        <TabList>
-          <Tab id="info">Info</Tab>
-          <Tab id="feedback">
-            Feedback <Counter>{span.spanAnnotations.length}</Counter>
-          </Tab>
-          <Tab id="attributes">Attributes</Tab>
-          <Tab id="events">
-            Events{" "}
-            <Counter variant={hasExceptions ? "danger" : "default"}>
-              {span.events.length}
-            </Counter>
-          </Tab>
-        </TabList>
-
-        <LazyTabPanel id="info">
-          <Flex direction="row" height="100%">
-            <SpanInfoWrap>
-              <ErrorBoundary>
-                <SpanInfo span={span} />
-              </ErrorBoundary>
-            </SpanInfoWrap>
-            {showSpanAside ? <SpanAside span={span} /> : null}
-          </Flex>
-        </LazyTabPanel>
-
-        <LazyTabPanel id="feedback">
-          <SpanFeedback span={span} />
-        </LazyTabPanel>
-
-        <LazyTabPanel id="attributes">
+    <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
+      <Panel>
+        <Flex direction="column" flex="1 1 auto" height="100%">
           <View
-            padding="size-200"
-            height="100%"
-            maxHeight="100%"
-            overflow="auto"
+            paddingTop="size-100"
+            paddingBottom="size-50"
+            paddingStart="size-150"
+            paddingEnd="size-200"
+            flex="none"
           >
-            <Card
-              title="All Attributes"
-              {...defaultCardProps}
-              titleExtra={attributesContextualHelp}
-              extra={<CopyToClipboardButton text={span.attributes} />}
+            <Flex
+              direction="row"
+              alignItems="center"
+              data-testid="span-header-row"
             >
-              <JSONBlock>{span.attributes}</JSONBlock>
-            </Card>
+              <SpanHeader span={span} />
+              <Flex
+                flex="none"
+                direction="row"
+                alignItems="center"
+                gap="size-100"
+              >
+                <LinkButton
+                  variant={span.spanKind !== "llm" ? "default" : "primary"}
+                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  isDisabled={span.spanKind !== "llm"}
+                  to={`/playground/spans/${span.id}`}
+                  size="S"
+                >
+                  Playground
+                </LinkButton>
+                <AddSpanToDatasetButton span={span} />
+                <EditSpanAnnotationsButton
+                  size="S"
+                  spanNodeId={span.id}
+                  projectId={projectId}
+                />
+                <SpanActionMenu
+                  traceId={span.trace.traceId}
+                  spanId={span.spanId}
+                />
+              </Flex>
+            </Flex>
           </View>
-        </LazyTabPanel>
+          <Tabs>
+            <TabList>
+              <Tab id="info">Info</Tab>
+              <Tab id="feedback">
+                Feedback <Counter>{span.spanAnnotations.length}</Counter>
+              </Tab>
+              <Tab id="attributes">Attributes</Tab>
+              <Tab id="events">
+                Events{" "}
+                <Counter variant={hasExceptions ? "danger" : "default"}>
+                  {span.events.length}
+                </Counter>
+              </Tab>
+            </TabList>
+            <LazyTabPanel id="info">
+              <Flex direction="row" height="100%">
+                <SpanInfoWrap>
+                  <ErrorBoundary>
+                    <SpanInfo span={span} />
+                  </ErrorBoundary>
+                </SpanInfoWrap>
+              </Flex>
+            </LazyTabPanel>
+            <LazyTabPanel id="feedback">
+              <SpanFeedback span={span} />
+            </LazyTabPanel>
+            <LazyTabPanel id="attributes">
+              <View
+                padding="size-200"
+                height="100%"
+                maxHeight="100%"
+                overflow="auto"
+              >
+                <Card
+                  title="All Attributes"
+                  {...defaultCardProps}
+                  titleExtra={attributesContextualHelp}
+                  extra={<CopyToClipboardButton text={span.attributes} />}
+                >
+                  <JSONBlock>{span.attributes}</JSONBlock>
+                </Card>
+              </View>
+            </LazyTabPanel>
 
-        <LazyTabPanel id="events">
-          <SpanEventsList events={span.events} />
-        </LazyTabPanel>
-      </Tabs>
-    </Flex>
+            <LazyTabPanel id="events">
+              <SpanEventsList events={span.events} />
+            </LazyTabPanel>
+          </Tabs>
+        </Flex>
+      </Panel>
+      <PanelResizeHandle css={compactResizeHandleCSS} />
+      <Panel defaultSize={20}>
+        <SpanAside span={span} />
+      </Panel>
+    </PanelGroup>
   );
 }
 
