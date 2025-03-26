@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43621190348252b447c705609085561b>>
+ * @generated SignedSource<<624d6246d09cc1e153a6134f528ff78f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,12 +10,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type SpanAnnotationActionMenuDeleteMutation$variables = {
+export type SpanAnnotationsEditorEditAnnotationMutation$variables = {
   annotationId: string;
+  explanation?: string | null;
+  label?: string | null;
+  name: string;
+  score?: number | null;
   spanId: string;
 };
-export type SpanAnnotationActionMenuDeleteMutation$data = {
-  readonly deleteSpanAnnotations: {
+export type SpanAnnotationsEditorEditAnnotationMutation$data = {
+  readonly patchSpanAnnotations: {
     readonly query: {
       readonly node: {
         readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations">;
@@ -23,51 +27,94 @@ export type SpanAnnotationActionMenuDeleteMutation$data = {
     };
   };
 };
-export type SpanAnnotationActionMenuDeleteMutation = {
-  response: SpanAnnotationActionMenuDeleteMutation$data;
-  variables: SpanAnnotationActionMenuDeleteMutation$variables;
+export type SpanAnnotationsEditorEditAnnotationMutation = {
+  response: SpanAnnotationsEditorEditAnnotationMutation$data;
+  variables: SpanAnnotationsEditorEditAnnotationMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "annotationId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "explanation"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "label"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "name"
+},
+v4 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "score"
+},
+v5 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "spanId"
+},
+v6 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "annotationId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "spanId"
-  }
-],
-v1 = [
-  {
-    "fields": [
+    "items": [
       {
-        "items": [
+        "fields": [
           {
             "kind": "Variable",
-            "name": "annotationIds.0",
+            "name": "annotationId",
             "variableName": "annotationId"
+          },
+          {
+            "kind": "Literal",
+            "name": "annotatorKind",
+            "value": "HUMAN"
+          },
+          {
+            "kind": "Variable",
+            "name": "explanation",
+            "variableName": "explanation"
+          },
+          {
+            "kind": "Variable",
+            "name": "label",
+            "variableName": "label"
+          },
+          {
+            "kind": "Variable",
+            "name": "name",
+            "variableName": "name"
+          },
+          {
+            "kind": "Variable",
+            "name": "score",
+            "variableName": "score"
           }
         ],
-        "kind": "ListValue",
-        "name": "annotationIds"
+        "kind": "ObjectValue",
+        "name": "input.0"
       }
     ],
-    "kind": "ObjectValue",
+    "kind": "ListValue",
     "name": "input"
   }
 ],
-v2 = [
+v7 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "spanId"
   }
 ],
-v3 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -76,17 +123,24 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v3/*: any*/),
+      (v4/*: any*/),
+      (v5/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanAnnotationActionMenuDeleteMutation",
+    "name": "SpanAnnotationsEditorEditAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
-        "name": "deleteSpanAnnotations",
+        "name": "patchSpanAnnotations",
         "plural": false,
         "selections": [
           {
@@ -99,7 +153,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v7/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -132,16 +186,23 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v5/*: any*/),
+      (v0/*: any*/),
+      (v3/*: any*/),
+      (v2/*: any*/),
+      (v4/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
-    "name": "SpanAnnotationActionMenuDeleteMutation",
+    "name": "SpanAnnotationsEditorEditAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
-        "name": "deleteSpanAnnotations",
+        "name": "patchSpanAnnotations",
         "plural": false,
         "selections": [
           {
@@ -154,7 +215,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v7/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -171,7 +232,7 @@ return {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isNode"
                   },
-                  (v3/*: any*/),
+                  (v8/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -183,7 +244,7 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v3/*: any*/),
+                          (v8/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -238,16 +299,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1ad21da2e4edf61876579ebc3fbc4443",
+    "cacheID": "a88e5e8c3112712826128575a7e9ab1d",
     "id": null,
     "metadata": {},
-    "name": "SpanAnnotationActionMenuDeleteMutation",
+    "name": "SpanAnnotationsEditorEditAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: GlobalID!\n  $spanId: GlobalID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation SpanAnnotationsEditorEditAnnotationMutation(\n  $spanId: GlobalID!\n  $annotationId: GlobalID!\n  $name: String!\n  $label: String\n  $score: Float\n  $explanation: String\n) {\n  patchSpanAnnotations(input: [{annotationId: $annotationId, name: $name, label: $label, score: $score, explanation: $explanation, annotatorKind: HUMAN}]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "43544621e6f7772b43f67ebf95f80505";
+(node as any).hash = "555706c51818de72c69ed7855296dcab";
 
 export default node;

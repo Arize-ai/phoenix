@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad5fb0e53951bb75aeb156d374165de3>>
+ * @generated SignedSource<<acb6f3a3bc21507fc7712af0f29e3063>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,7 +28,7 @@ export type NewSpanAnnotationFormMutation$data = {
   readonly createSpanAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"EditSpanAnnotationsDialog_spanAnnotations">;
+        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations">;
       };
     };
   };
@@ -115,7 +115,7 @@ return {
                       {
                         "args": null,
                         "kind": "FragmentSpread",
-                        "name": "EditSpanAnnotationsDialog_spanAnnotations"
+                        "name": "SpanAnnotationsEditor_spanAnnotations"
                       }
                     ],
                     "type": "Span",
@@ -242,16 +242,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d6f016f4dfb0c142854c3ecd840b09f5",
+    "cacheID": "5fd2a41b2892f32d1bfb9c613543b337",
     "id": null,
     "metadata": {},
     "name": "NewSpanAnnotationFormMutation",
     "operationKind": "mutation",
-    "text": "mutation NewSpanAnnotationFormMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: GlobalID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...EditSpanAnnotationsDialog_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment EditSpanAnnotationsDialog_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation NewSpanAnnotationFormMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: GlobalID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ded0a7a64a2706f6ec472a63c1c57eca";
+(node as any).hash = "acaf5ff43538a6846f388c51e176a2a6";
 
 export default node;
