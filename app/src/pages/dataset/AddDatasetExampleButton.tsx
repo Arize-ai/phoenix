@@ -32,6 +32,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
         leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
         size="S"
         onPress={onAddExample}
+        aria-label="Add Dataset Example"
       >
         Add Example
       </Button>
