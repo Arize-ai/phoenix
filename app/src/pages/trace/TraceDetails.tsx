@@ -156,10 +156,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
-                <SpanDetails
-                  spanNodeId={selectedSpanNodeId}
-                  projectId={projectId}
-                />
+                <SpanDetails spanNodeId={selectedSpanNodeId} />
               </Suspense>
             ) : null}
           </ScrollingTabsWrapper>
