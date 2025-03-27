@@ -26,6 +26,7 @@ import {
   Alert,
   Button,
   Flex,
+  Form,
   Icon,
   Icons,
   Input,
@@ -63,20 +64,8 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   );
   const notifySuccess = useNotifySuccess();
   return (
-    <Flex
-      direction="column"
-      height="100%"
-      css={css`
-        overflow: hidden;
-      `}
-    >
-      <View
-        paddingX="size-200"
-        paddingY="size-100"
-        borderBottomWidth="thin"
-        borderColor="dark"
-        flex="none"
-      >
+    <View padding="size-200" height="100%" maxHeight="100%" overflow="auto">
+      <Flex direction="column" gap="size-200">
         <Flex direction="row" alignItems="center" justifyContent="end">
           <NewAnnotationButton
             projectId={projectId}
@@ -85,15 +74,6 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
             onAnnotationNameSelect={setNewAnnotationName}
           />
         </Flex>
-      </View>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          height: 100%;
-          overflow-y: auto;
-          padding: var(--ac-global-dimension-size-200);
-        `}
-      >
         {newAnnotationName && (
           <View paddingBottom="size-200">
             <NewSpanAnnotationCard
@@ -115,8 +95,8 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
         <Suspense>
           <EditSpanAnnotations {...props} />
         </Suspense>
-      </div>
-    </Flex>
+      </Flex>
+    </View>
   );
 }
 
@@ -490,25 +470,27 @@ function NewAnnotationPopoverContent(props: {
   return (
     <>
       <View padding="size-200">
-        <Flex direction="row" gap="size-100" alignItems="end">
-          <TextField
-            value={newName}
-            onChange={(newName) => {
-              setNewName(newName);
-            }}
-          >
-            <Label>Annotation Name</Label>
-            <Input placeholder="e.x. correctness" />
-          </TextField>
-          <Button
-            variant="primary"
-            onPress={() => {
-              onAnnotationNameSelect(newName);
-            }}
-          >
-            Create
-          </Button>
-        </Flex>
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onAnnotationNameSelect(newName);
+          }}
+        >
+          <Flex direction="row" gap="size-100" alignItems="end">
+            <TextField
+              value={newName}
+              onChange={(newName) => {
+                setNewName(newName);
+              }}
+            >
+              <Label>Annotation Name</Label>
+              <Input placeholder="e.x. correctness" />
+            </TextField>
+            <Button variant="primary" type="submit">
+              Create
+            </Button>
+          </Flex>
+        </Form>
       </View>
       {hasAvailableNames && (
         <>

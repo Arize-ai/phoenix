@@ -1,9 +1,18 @@
-import React, { PropsWithChildren } from "react";
+import React, { useEffect, useState } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+  Text,
+  View,
+} from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
@@ -19,12 +28,18 @@ const annotationListCSS = css`
 /**
  * A component that shows the details of a span that is supplementary to the main span details
  */
-export function SpanAside(props: { span: SpanAside_span$key }) {
+export function SpanAside(props: {
+  span: SpanAside_span$key;
+  defaultTab?: "feedback" | "annotations";
+}) {
   const [data] = useRefetchableFragment<SpanAsideSpanQuery, SpanAside_span$key>(
     graphql`
       fragment SpanAside_span on Span
       @refetchable(queryName: "SpanAsideSpanQuery") {
         id
+        project {
+          id
+        }
         code: statusCode
         startTime
         endTime
@@ -44,44 +59,55 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
   );
   const annotations = data.spanAnnotations;
   const hasAnnotations = annotations.length > 0;
-  return (
-    <View padding="size-200" width="100%" flex="none" minHeight="100%">
-      <Flex direction="column" gap="size-200">
-        <LabeledValue label="Feedback">
-          {hasAnnotations ? (
-            <ul css={annotationListCSS}>
-              {annotations.map((annotation) => (
-                <li key={annotation.id}>
-                  <AnnotationLabel
-                    annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <View padding="size-200">
-              <Flex direction="row" alignItems="center" justifyContent="center">
-                <Text color="text-300">No Annotations</Text>
-              </Flex>
-            </View>
-          )}
-        </LabeledValue>
-      </Flex>
-    </View>
+  const [tab, setTab] = useState<"feedback" | "annotations">(
+    props.defaultTab ?? "feedback"
   );
-}
 
-function LabeledValue({
-  label,
-  children,
-}: PropsWithChildren<{ label: string }>) {
+  useEffect(() => {
+    if (props.defaultTab) {
+      setTab(props.defaultTab);
+    }
+  }, [props.defaultTab]);
+
   return (
-    <Flex direction="column">
-      <Text elementType="h3" size="S" color="text-700">
-        {label}
-      </Text>
-      {children}
-    </Flex>
+    <Tabs
+      selectedKey={tab}
+      onSelectionChange={(key) => {
+        if (key === "feedback" || key === "annotations") {
+          setTab(key);
+        }
+      }}
+    >
+      <TabList>
+        <Tab id="feedback">Feedback</Tab>
+        <Tab id="annotations">Annotate</Tab>
+      </TabList>
+      <TabPanel id="feedback">
+        {hasAnnotations ? (
+          <ul css={annotationListCSS}>
+            {annotations.map((annotation) => (
+              <li key={annotation.id}>
+                <AnnotationLabel
+                  annotation={annotation}
+                  annotationDisplayPreference="label"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <View padding="size-200">
+            <Flex direction="row" alignItems="center" justifyContent="center">
+              <Text color="text-300">No Annotations</Text>
+            </Flex>
+          </View>
+        )}
+      </TabPanel>
+      <TabPanel id="annotations">
+        <SpanAnnotationsEditor
+          projectId={data.project.id}
+          spanNodeId={data.id}
+        />
+      </TabPanel>
+    </Tabs>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72f71ab2a306ed90250e9e5fc6072754>>
+ * @generated SignedSource<<d74524b311d6220a50d1755d0d66c9c3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -102,6 +102,18 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
+                "alias": null,
+                "args": null,
+                "concreteType": "Project",
+                "kind": "LinkedField",
+                "name": "project",
+                "plural": false,
+                "selections": [
+                  (v2/*: any*/)
+                ],
+                "storageKey": null
+              },
+              {
                 "alias": "code",
                 "args": null,
                 "kind": "ScalarField",
@@ -193,16 +205,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "878027b90513af8f947e6aa408450057",
+    "cacheID": "1a86b74a3488b1d784333546762802fa",
     "id": null,
     "metadata": {},
     "name": "SpanAsideSpanQuery",
     "operationKind": "query",
-    "text": "query SpanAsideSpanQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpanAside_span\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n"
+    "text": "query SpanAsideSpanQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...SpanAside_span\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  project {\n    id\n  }\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cb5cab60889623d77ad0c96c98b3f8ac";
+(node as any).hash = "40874c824cdcd1a4790f1960b840457c";
 
 export default node;

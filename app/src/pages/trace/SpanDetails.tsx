@@ -100,7 +100,6 @@ import {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
-import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
 import { SpanFeedback } from "./SpanFeedback";
@@ -150,13 +149,11 @@ const defaultCardProps: Partial<CardProps> = {
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
 export function SpanDetails({
   spanNodeId,
-  projectId,
 }: {
   /**
    * The Global ID of the span
    */
   spanNodeId: string;
-  projectId: string;
 }) {
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
@@ -242,6 +239,10 @@ export function SpanDetails({
     return spanHasException(span);
   }, [span]);
 
+  const [asideTab, setAsideTab] = useState<
+    "feedback" | "annotations" | undefined
+  >(undefined);
+
   return (
     <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
       <Panel>
@@ -284,12 +285,14 @@ export function SpanDetails({
                   span={span}
                   buttonText={isCondensedView ? null : "Add to Dataset"}
                 />
-                <EditSpanAnnotationsButton
+                <Button
                   size="S"
-                  spanNodeId={span.id}
-                  projectId={projectId}
-                  buttonText={isCondensedView ? null : "Annotate"}
-                />
+                  variant="default"
+                  onPress={() => setAsideTab("annotations")}
+                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                >
+                  {isCondensedView ? null : "Annotate"}
+                </Button>
                 <SpanActionMenu
                   traceId={span.trace.traceId}
                   spanId={span.spanId}
@@ -349,7 +352,9 @@ export function SpanDetails({
       </Panel>
       <PanelResizeHandle css={compactResizeHandleCSS} />
       <Panel defaultSize={20}>
-        <SpanAside span={span} />
+        <View height="100%">
+          <SpanAside span={span} defaultTab={asideTab} />
+        </View>
       </Panel>
     </PanelGroup>
   );
