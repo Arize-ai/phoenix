@@ -2,6 +2,14 @@ import React from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
+import {
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
+  Flex,
+  View,
+} from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
 
@@ -11,7 +19,6 @@ import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
 const annotationListCSS = css`
   display: flex;
   width: 100%;
-  padding: var(--ac-global-dimension-size-200);
   flex-direction: row;
   gap: var(--ac-global-dimension-size-100);
   flex-wrap: wrap;
@@ -51,20 +58,64 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
   const hasAnnotations = annotations.length > 0;
 
   return (
-    <>
+    <Flex direction="column" flex="1 1 auto" height="100%">
       {hasAnnotations && (
-        <ul css={annotationListCSS}>
-          {annotations.map((annotation) => (
-            <li key={annotation.id}>
-              <AnnotationLabel
-                annotation={annotation}
-                annotationDisplayPreference="label"
-              />
-            </li>
-          ))}
-        </ul>
+        <Flex flexShrink={1}>
+          <View padding="size-200">
+            <ul css={annotationListCSS}>
+              {annotations.map((annotation) => (
+                <li key={annotation.id}>
+                  <AnnotationLabel
+                    annotation={annotation}
+                    annotationDisplayPreference="label"
+                  />
+                </li>
+              ))}
+            </ul>
+          </View>
+        </Flex>
       )}
-      <SpanAnnotationsEditor projectId={data.project.id} spanNodeId={data.id} />
-    </>
+      <DisclosureGroup
+        css={css`
+          display: flex;
+          flex-direction: column;
+          flex: 1 1 auto;
+          height: 1px;
+
+          .ac-disclosure {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            height: 1px;
+          }
+
+          .ac-disclosure-panel {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            height: 1px;
+          }
+        `}
+      >
+        <Disclosure
+          id="edit-annotations"
+          css={css`
+            border-top: 1px solid var(--ac-global-border-color-default);
+
+            .ac-disclosure-trigger {
+              width: 100%;
+            }
+          `}
+        >
+          <DisclosureTrigger>Edit annotations</DisclosureTrigger>
+          <DisclosurePanel>
+            <SpanAnnotationsEditor
+              projectId={data.project.id}
+              spanNodeId={data.id}
+            />
+          </DisclosurePanel>
+        </Disclosure>
+      </DisclosureGroup>
+    </Flex>
   );
 }

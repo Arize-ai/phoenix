@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import React, { CSSProperties, PropsWithChildren } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -82,6 +82,7 @@ export type DisclosureTriggerProps = PropsWithChildren<{
   arrowPosition?: "start" | "end";
   justifyContent?: FlexStyleProps["justifyContent"];
   asHeading?: boolean;
+  width?: CSSProperties["width"];
 }>;
 
 /**
@@ -93,10 +94,15 @@ export const DisclosureTrigger = ({
   children,
   arrowPosition,
   justifyContent,
+  width,
 }: DisclosureTriggerProps) => {
   return (
     <Heading>
-      <Button slot="trigger" data-arrow-position={arrowPosition}>
+      <Button
+        slot="trigger"
+        data-arrow-position={arrowPosition}
+        style={{ width }}
+      >
         <Flex
           justifyContent={justifyContent}
           alignItems="center"

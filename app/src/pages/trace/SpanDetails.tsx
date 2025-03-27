@@ -386,9 +386,7 @@ export function SpanDetails({
             setIsAnnotatingSpans(false);
           }}
         >
-          <View height="100%">
-            <SpanAside span={span} />
-          </View>
+          <SpanAside span={span} />
         </Panel>
       )}
     </PanelGroup>
