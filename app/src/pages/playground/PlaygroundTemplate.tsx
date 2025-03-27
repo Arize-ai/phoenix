@@ -34,7 +34,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
   const index = instances.findIndex((instance) => instance.id === instanceId);
   const prompt = instance?.prompt;
   const promptId = prompt?.id;
-  const dirty = instance?.dirty;
+  const dirty = usePlaygroundContext(
+    (state) => state.dirtyInstances[instanceId]
+  );
 
   const onChangePrompt = useCallback(
     async (promptId: string | null) => {

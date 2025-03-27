@@ -20,15 +20,17 @@ import {
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
 import {
   anthropicToolDefinitionJSONSchema,
-  llmProviderToolDefinitionSchema,
   openAIToolDefinitionJSONSchema,
 } from "@phoenix/schemas";
 import { findToolChoiceName } from "@phoenix/schemas/toolChoiceSchemas";
 import { Tool } from "@phoenix/store";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { getToolName } from "./playgroundUtils";
 import { PlaygroundInstanceProps } from "./types";
@@ -52,9 +54,8 @@ export function PlaygroundTool({
 }: PlaygroundInstanceProps & {
   toolId: Tool["id"];
 }) {
-  const [version, setVersion] = useState(0);
+  const store = usePlaygroundStore();
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
-
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
   );
@@ -63,60 +64,41 @@ export function PlaygroundTool({
     throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
 
+  const instanceProvider = instance.model.provider;
   const instanceTools = instance.tools;
-
   const tool = instanceTools.find((t) => t.id === toolId);
 
   if (tool == null) {
     throw new Error(`Tool ${toolId} not found`);
   }
 
-  const [initialEditorValue, setEditorValue] = useState(
+  const [initialEditorValue, setInitialEditorValue] = useState(() =>
     JSON.stringify(tool.definition, null, 2)
   );
+  const editorValueRef = useRef(initialEditorValue);
 
-  // track the current value of the editor, even when it is invalid
-  const currentValueRef = useRef(initialEditorValue);
-
-  const [lastValidDefinition, setLastValidDefinition] = useState(
-    tool.definition
-  );
-
-  // Update editor when tool definition changes externally this can happen when switching between providers
+  // when the instance provider changes, we need to update the editor value
+  // to reflect the new tool definition schema
   useEffect(() => {
-    if (
-      JSON.stringify(tool.definition) !== JSON.stringify(lastValidDefinition)
-    ) {
-      setLastValidDefinition(tool.definition);
-      setEditorValue(JSON.stringify(tool.definition, null, 2));
-      setVersion((prev) => prev + 1);
+    const state = store.getState();
+    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
+    if (instance == null) {
+      return;
     }
-  }, [tool.definition, lastValidDefinition]);
+    const tool = instance.tools.find((t) => t.id === toolId);
+    if (tool == null) {
+      return;
+    }
+    const newDefinition = JSON.stringify(tool.definition, null, 2);
+    if (isJSONString({ str: newDefinition, excludeNull: true })) {
+      setInitialEditorValue(newDefinition);
+    }
+  }, [instanceProvider, store, playgroundInstanceId, toolId]);
 
   const onChange = useCallback(
     (value: string) => {
-      // track the current value of the editor, even when it is invalid
-      currentValueRef.current = value;
-      // note that we do not update initialEditorValue here, we only want to update it when
-      // we are okay with the editor state resetting, which is basically only when the provider
-      // changes
+      editorValueRef.current = value;
       const { json: definition } = safelyParseJSON(value);
-      if (definition == null) {
-        return;
-      }
-      // Don't use data here returned by safeParse, as we want to allow for extra keys,
-      // there is no "deepPassthrough" to allow for extra keys
-      // at all levels of the schema, so we just use the json parsed value here,
-      // knowing that it is valid with potentially extra keys
-      const { success } = llmProviderToolDefinitionSchema.safeParse(definition);
-      if (!success) {
-        return;
-      }
-
-      // @todo: Reconsider this approach, as it may lead to a situation where the editor
-      // reflects one definition while what gets saved is another (the last valid one).
-      setLastValidDefinition(definition);
-
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
@@ -166,7 +148,7 @@ export function PlaygroundTool({
       bodyStyle={{ padding: 0 }}
       extra={
         <Flex direction="row" gap="size-100">
-          <CopyToClipboardButton text={currentValueRef} />
+          <CopyToClipboardButton text={editorValueRef} />
           <Button
             aria-label="Delete tool"
             leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
@@ -201,9 +183,6 @@ export function PlaygroundTool({
         preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
       >
         <JSONEditor
-          // force remount of the editor when the tool definition changes externally
-          // usually when switching between providers
-          key={version}
           value={initialEditorValue}
           onChange={onChange}
           jsonSchema={toolDefinitionJSONSchema}

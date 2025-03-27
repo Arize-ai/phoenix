@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { Card } from "@arizeai/components";
@@ -16,14 +16,17 @@ import {
 } from "@phoenix/components";
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import {
   RESPONSE_FORMAT_PARAM_CANONICAL_NAME,
   RESPONSE_FORMAT_PARAM_NAME,
 } from "./constants";
-import { jsonObjectSchema, openAIResponseFormatJSONSchema } from "./schemas";
+import { openAIResponseFormatJSONSchema } from "./schemas";
 import { PlaygroundInstanceProps } from "./types";
 
 /**
@@ -46,6 +49,7 @@ export function PlaygroundResponseFormat({
   const instance = usePlaygroundContext((state) =>
     state.instances.find((i) => i.id === playgroundInstanceId)
   );
+  const instanceProvider = instance?.model.provider;
   const upsertInvocationParameterInput = usePlaygroundContext(
     (state) => state.upsertInvocationParameterInput
   );
@@ -59,29 +63,42 @@ export function PlaygroundResponseFormat({
       p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
       p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
   );
-
-  const [initialResponseFormatDefinition] = useState(
-    JSON.stringify(responseFormat?.valueJson ?? {}, null, 2)
-  );
-
+  const [initialResponseFormatDefinition, setInitialResponseFormatDefinition] =
+    useState(() => JSON.stringify(responseFormat?.valueJson ?? {}, null, 2));
   const currentValueRef = useRef(initialResponseFormatDefinition);
+  const store = usePlaygroundStore();
+
+  // when the instance provider changes, we need to update the editor value
+  // to reflect the new response format schema
+  useEffect(() => {
+    const state = store.getState();
+    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
+    if (instance == null) {
+      return;
+    }
+    const responseFormat = instance.model.invocationParameters.find(
+      (p) =>
+        p.invocationName === RESPONSE_FORMAT_PARAM_NAME ||
+        p.canonicalName === RESPONSE_FORMAT_PARAM_CANONICAL_NAME
+    );
+    if (responseFormat == null) {
+      return;
+    }
+    const newResponseFormatDefinition = JSON.stringify(
+      responseFormat.valueJson,
+      null,
+      2
+    );
+    if (isJSONString({ str: newResponseFormatDefinition, excludeNull: true })) {
+      setInitialResponseFormatDefinition(newResponseFormatDefinition);
+    }
+  }, [instanceProvider, store, playgroundInstanceId]);
 
   const onChange = useCallback(
     (value: string) => {
       // track the current value of the editor, even when it is invalid
       currentValueRef.current = value;
       const { json: format } = safelyParseJSON(value);
-      if (format == null) {
-        return;
-      }
-      // Don't use data here returned by safeParse, as we want to allow for extra keys,
-      // there is no "deepPassthrough" to allow for extra keys
-      // at all levels of the schema, so we just use the json parsed value here,
-      // knowing that it is valid with potentially extra keys
-      const { success } = jsonObjectSchema.safeParse(format);
-      if (!success) {
-        return;
-      }
       upsertInvocationParameterInput({
         instanceId: playgroundInstanceId,
         invocationParameterInput: {
