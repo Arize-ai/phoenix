@@ -102,11 +102,12 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               overflow: hidden;
               gap: var(--ac-global-dimension-size-100);
               & > * {
-                flex: 1 1 auto;
+                flex-basis: calc(50% - var(--ac-global-dimension-size-100));
+                min-width: 200px;
+                flex-grow: 1;
               }
-              .ac-textfield {
-                min-width: 0;
-              }
+
+              flex-wrap: wrap;
             `}
           >
             <Controller
