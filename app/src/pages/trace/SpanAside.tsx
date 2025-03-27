@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -17,6 +17,42 @@ import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotations
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
 
+export const SpanAsideContext = createContext<{
+  tab: "feedback" | "annotate";
+  setTab: (tab: string) => void;
+}>({
+  tab: "feedback",
+  setTab: () => {},
+});
+
+export const useSpanAsideState = (
+  defaultTab: "feedback" | "annotate" = "feedback"
+) => {
+  const [tab, _setTab] = useState<"feedback" | "annotate">(defaultTab);
+
+  const setTab = useCallback(
+    (tab: string) => {
+      if (tab === "feedback" || tab === "annotate") {
+        _setTab(tab);
+      }
+    },
+    [_setTab]
+  );
+
+  return {
+    tab,
+    setTab,
+  };
+};
+
+const useSpanAsideContext = () => {
+  const context = useContext(SpanAsideContext);
+  if (!context) {
+    throw new Error("SpanAsideContext not found");
+  }
+  return context;
+};
+
 const annotationListCSS = css`
   display: flex;
   padding-top: var(--ac-global-dimension-size-50);
@@ -28,10 +64,8 @@ const annotationListCSS = css`
 /**
  * A component that shows the details of a span that is supplementary to the main span details
  */
-export function SpanAside(props: {
-  span: SpanAside_span$key;
-  defaultTab?: "feedback" | "annotations";
-}) {
+export function SpanAside(props: { span: SpanAside_span$key }) {
+  const { tab, setTab } = useSpanAsideContext();
   const [data] = useRefetchableFragment<SpanAsideSpanQuery, SpanAside_span$key>(
     graphql`
       fragment SpanAside_span on Span
@@ -59,28 +93,19 @@ export function SpanAside(props: {
   );
   const annotations = data.spanAnnotations;
   const hasAnnotations = annotations.length > 0;
-  const [tab, setTab] = useState<"feedback" | "annotations">(
-    props.defaultTab ?? "feedback"
-  );
-
-  useEffect(() => {
-    if (props.defaultTab) {
-      setTab(props.defaultTab);
-    }
-  }, [props.defaultTab]);
 
   return (
     <Tabs
       selectedKey={tab}
       onSelectionChange={(key) => {
-        if (key === "feedback" || key === "annotations") {
+        if (key === "feedback" || key === "annotate") {
           setTab(key);
         }
       }}
     >
       <TabList>
         <Tab id="feedback">Feedback</Tab>
-        <Tab id="annotations">Annotate</Tab>
+        <Tab id="annotate">Annotate</Tab>
       </TabList>
       <TabPanel id="feedback">
         {hasAnnotations ? (
@@ -102,7 +127,7 @@ export function SpanAside(props: {
           </View>
         )}
       </TabPanel>
-      <TabPanel id="annotations">
+      <TabPanel id="annotate">
         <SpanAnnotationsEditor
           projectId={data.project.id}
           spanNodeId={data.id}

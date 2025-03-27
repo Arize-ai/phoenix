@@ -8,7 +8,12 @@ import React, {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import {
+  type ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
@@ -101,7 +106,7 @@ import {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanActionMenu } from "./SpanActionMenu";
-import { SpanAside } from "./SpanAside";
+import { SpanAside, SpanAsideContext, useSpanAsideState } from "./SpanAside";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -147,6 +152,8 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
+const ASIDE_PANEL_DEFAULT_SIZE = 25;
+
 export function SpanDetails({
   spanNodeId,
 }: {
@@ -155,6 +162,7 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
+  const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView =
@@ -239,9 +247,7 @@ export function SpanDetails({
     return spanHasException(span);
   }, [span]);
 
-  const [asideTab, setAsideTab] = useState<
-    "feedback" | "annotations" | undefined
-  >(undefined);
+  const asideState = useSpanAsideState();
 
   return (
     <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
@@ -288,7 +294,17 @@ export function SpanDetails({
                 <Button
                   size="S"
                   variant="default"
-                  onPress={() => setAsideTab("annotations")}
+                  onPress={() => {
+                    asideState.setTab("annotate");
+                    const asidePanel = asidePanelRef.current;
+                    // expand the panel if it is not the minimum size already
+                    if (asidePanel) {
+                      const size = asidePanel.getSize();
+                      if (size < ASIDE_PANEL_DEFAULT_SIZE) {
+                        asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
+                      }
+                    }
+                  }}
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
                 >
                   {isCondensedView ? null : "Annotate"}
@@ -351,10 +367,12 @@ export function SpanDetails({
         </Flex>
       </Panel>
       <PanelResizeHandle css={compactResizeHandleCSS} />
-      <Panel defaultSize={20}>
-        <View height="100%">
-          <SpanAside span={span} defaultTab={asideTab} />
-        </View>
+      <Panel ref={asidePanelRef} defaultSize={ASIDE_PANEL_DEFAULT_SIZE}>
+        <SpanAsideContext.Provider value={asideState}>
+          <View height="100%">
+            <SpanAside span={span} />
+          </View>
+        </SpanAsideContext.Provider>
       </Panel>
     </PanelGroup>
   );
