@@ -1,5 +1,6 @@
 import React, { startTransition, useCallback, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { useLocation } from "react-router";
 
 import { Switch } from "@arizeai/components";
 
@@ -13,8 +14,24 @@ import { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql
  */
 const REFRESH_INTERVAL_MS = 2000;
 
+/**
+ * Routes where streaming is enabled
+ */
+const STREAMING_ENABLED_ROUTES = ["/spans", "/traces", "/sessions"];
+
 export function StreamToggle(props: { project: StreamToggle_data$key }) {
-  const { isStreaming, setIsStreaming, setFetchKey } = useStreamState();
+  const {
+    isStreaming: isStreamingState,
+    setIsStreaming,
+    setFetchKey,
+  } = useStreamState();
+  const location = useLocation();
+  const currentPathTail = location.pathname.split("/").pop() || "";
+  // Take into account both the current path and the streaming state for whether streaming is enabled
+  // E.g. we don't want to stream when there is a sub-route active
+  const isStreamingEnabled =
+    STREAMING_ENABLED_ROUTES.includes(`/${currentPathTail}`) &&
+    isStreamingState;
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
@@ -32,12 +49,12 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
 
   // Refetch lastUpdatedAt if the streaming toggle is on to detect when the underlying data changes
   const refetchCountsIfStreaming = useCallback(() => {
-    if (isStreaming) {
+    if (isStreamingEnabled) {
       startTransition(() => {
         refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
     }
-  }, [isStreaming, refetchLastUpdatedAt]);
+  }, [isStreamingEnabled, refetchLastUpdatedAt]);
 
   // We want to refetch higher up the render tree when lastUpdatedAt changes
   const currentLastUpdatedAt = lastUpdatedAt.streamingLastUpdatedAt;
@@ -58,10 +75,11 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
   return (
     <Switch
       labelPlacement="start"
-      isSelected={isStreaming}
+      isSelected={isStreamingState}
       onChange={() => {
-        setIsStreaming(!isStreaming);
+        setIsStreaming(!isStreamingState);
       }}
+      isDisabled={!isStreamingEnabled}
     >
       Stream
     </Switch>
