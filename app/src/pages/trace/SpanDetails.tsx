@@ -4,6 +4,7 @@ import React, {
   Suspense,
   useCallback,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -70,6 +71,7 @@ import {
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { useNotifySuccess, useTheme } from "@phoenix/contexts";
+import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -104,7 +106,6 @@ import { SpanAside } from "./SpanAside";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
-
 /**
  * A span attribute object that is a map of string to an unknown value
  */
@@ -146,6 +147,7 @@ const defaultCardProps: Partial<CardProps> = {
   bodyStyle: { padding: 0 },
 };
 
+const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
 export function SpanDetails({
   spanNodeId,
   projectId,
@@ -156,6 +158,12 @@ export function SpanDetails({
   spanNodeId: string;
   projectId: string;
 }) {
+  const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
+  const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
+  const isCondensedView =
+    spanDetailsContainerDimensions?.width &&
+    spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
       query SpanDetailsQuery($id: GlobalID!) {
@@ -237,7 +245,12 @@ export function SpanDetails({
   return (
     <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
       <Panel>
-        <Flex direction="column" flex="1 1 auto" height="100%">
+        <Flex
+          direction="column"
+          flex="1 1 auto"
+          height="100%"
+          ref={spanDetailsContainerRef}
+        >
           <View
             paddingTop="size-100"
             paddingBottom="size-50"
@@ -263,14 +276,19 @@ export function SpanDetails({
                   isDisabled={span.spanKind !== "llm"}
                   to={`/playground/spans/${span.id}`}
                   size="S"
+                  aria-label="Prompt Playground"
                 >
-                  Playground
+                  {isCondensedView ? null : "Playground"}
                 </LinkButton>
-                <AddSpanToDatasetButton span={span} />
+                <AddSpanToDatasetButton
+                  span={span}
+                  buttonText={isCondensedView ? null : "Add to Dataset"}
+                />
                 <EditSpanAnnotationsButton
                   size="S"
                   spanNodeId={span.id}
                   projectId={projectId}
+                  buttonText={isCondensedView ? null : "Annotate"}
                 />
                 <SpanActionMenu
                   traceId={span.trace.traceId}
@@ -359,7 +377,13 @@ function SpanInfoWrap({ children }: PropsWithChildren) {
   );
 }
 
-function AddSpanToDatasetButton({ span }: { span: Span }) {
+function AddSpanToDatasetButton({
+  span,
+  buttonText,
+}: {
+  span: Span;
+  buttonText: string | null;
+}) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
@@ -391,7 +415,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={onAddSpanToDataset}
       >
-        Add to Dataset
+        {buttonText}
       </Button>
       <Suspense>
         <DialogContainer
