@@ -17,7 +17,7 @@ const REFRESH_INTERVAL_MS = 2000;
 /**
  * Routes where streaming is enabled
  */
-const STREAMING_ENABLED_ROUTES = ["/spans", "/traces", "/sessions"];
+const STREAMING_ENABLED_ROUTE_TAILS = ["/spans", "/traces", "/sessions"];
 
 export function StreamToggle(props: { project: StreamToggle_data$key }) {
   const {
@@ -30,8 +30,7 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
   // Take into account both the current path and the streaming state for whether streaming is enabled
   // E.g. we don't want to stream when there is a sub-route active
   const isStreamingEnabled =
-    STREAMING_ENABLED_ROUTES.includes(`/${currentPathTail}`) &&
-    isStreamingState;
+    STREAMING_ENABLED_ROUTE_TAILS.includes(currentPathTail) && isStreamingState;
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
