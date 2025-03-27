@@ -19,6 +19,97 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.add_column(
+        "span_annotations",
+        sa.Column(
+            "identifier",
+            sa.String,
+            nullable=True,
+            index=True,
+            unique=True,
+        ),
+    )
+    op.add_column(
+        "span_annotations",
+        sa.Column(
+            "source",
+            sa.String,
+            sa.CheckConstraint(
+                "source IN ('API', 'APP')",
+                name="valid_source",
+            ),
+            nullable=False,
+        ),
+    )
+    op.add_column(
+        "span_annotations",
+        sa.Column(
+            "user_id",
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    op.add_column(
+        "trace_annotations",
+        sa.Column(
+            "identifier",
+            sa.String,
+            nullable=True,
+            index=True,
+            unique=True,
+        ),
+    )
+    op.add_column(
+        "trace_annotations",
+        sa.Column(
+            "source",
+            sa.String,
+            sa.CheckConstraint(
+                "source IN ('API', 'APP')",
+                name="valid_source",
+            ),
+            nullable=False,
+        ),
+    )
+    op.add_column(
+        "trace_annotations",
+        sa.Column(
+            "user_id",
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+    op.add_column(
+        "document_annotations",
+        sa.Column(
+            "identifier",
+            sa.String,
+            nullable=True,
+            index=True,
+            unique=True,
+        ),
+    )
+    op.add_column(
+        "document_annotations",
+        sa.Column(
+            "source",
+            sa.String,
+            sa.CheckConstraint(
+                "source IN ('API', 'APP')",
+                name="valid_source",
+            ),
+            nullable=False,
+        ),
+    )
+    op.add_column(
+        "document_annotations",
+        sa.Column(
+            "user_id",
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
+
     with op.batch_alter_table("span_annotations", recreate="auto") as batch_op:
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
     with op.batch_alter_table("trace_annotations", recreate="auto") as batch_op:
@@ -153,3 +244,13 @@ def downgrade() -> None:
             "uq_document_annotations_name_span_rowid_document_position",
             ["name", "span_rowid", "document_position"],
         )
+
+    op.drop_column("document_annotations", "user_id")
+    op.drop_column("document_annotations", "source")
+    op.drop_column("document_annotations", "identifier")
+    op.drop_column("trace_annotations", "user_id")
+    op.drop_column("trace_annotations", "source")
+    op.drop_column("trace_annotations", "identifier")
+    op.drop_column("span_annotations", "user_id")
+    op.drop_column("span_annotations", "source")
+    op.drop_column("span_annotations", "identifier")
