@@ -60,6 +60,9 @@ async def data_for_testing_dataloaders(
                                 score=random(),
                                 metadata_={},
                                 annotator_kind="LLM",
+                                identifier=None,
+                                source="APP",
+                                user_id=None,
                             )
                         )
                     for k in range(num_spans_per_trace):
@@ -106,6 +109,9 @@ async def data_for_testing_dataloaders(
                                     score=random(),
                                     metadata_={},
                                     annotator_kind="LLM",
+                                    identifier=None,
+                                    source="APP",
+                                    user_id=None,
                                 )
                             )
 
@@ -170,6 +176,9 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.85,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.execute(
@@ -180,6 +189,9 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.95,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.execute(
@@ -190,6 +202,9 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.3,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         # Span 2 annotations
@@ -201,6 +216,9 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.85,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.execute(
@@ -211,6 +229,9 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.3,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         # Span 3 annotations
@@ -222,6 +243,9 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.85,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.commit()
@@ -288,6 +312,9 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.execute(
@@ -298,6 +325,9 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.execute(
@@ -308,6 +338,9 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.6,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         # Span 2: only "X"
@@ -319,6 +352,9 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         # Span 3: only "X"
@@ -330,6 +366,9 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
+                identifier=None,
+                source="APP",
+                user_id=None,
             )
         )
         await session.commit()

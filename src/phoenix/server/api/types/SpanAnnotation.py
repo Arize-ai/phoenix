@@ -8,6 +8,7 @@ from strawberry.scalars import JSON
 from phoenix.db import models
 
 from .Annotation import Annotation
+from .AnnotationSource import AnnotationSource
 from .AnnotatorKind import AnnotatorKind
 
 
@@ -17,6 +18,8 @@ class SpanAnnotation(Node, Annotation):
     annotator_kind: AnnotatorKind
     metadata: JSON
     span_rowid: Private[Optional[int]]
+    source: AnnotationSource
+    identifier: Optional[str]
 
     @strawberry.field
     async def span_id(self) -> GlobalID:
@@ -40,4 +43,6 @@ def to_gql_span_annotation(
         score=annotation.score,
         explanation=annotation.explanation,
         metadata=annotation.metadata_,
+        source=AnnotationSource(annotation.source),
+        identifier=annotation.identifier,
     )

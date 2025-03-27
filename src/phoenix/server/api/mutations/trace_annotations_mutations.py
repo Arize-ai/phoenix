@@ -40,6 +40,9 @@ class TraceAnnotationMutationMixin:
                     explanation=annotation.explanation,
                     annotator_kind=annotation.annotator_kind.value,
                     metadata_=annotation.metadata,
+                    identifier=annotation.identifier,
+                    source=annotation.source.value,
+                    user_id=None,
                 )
                 for annotation in input
             ]
@@ -84,6 +87,7 @@ class TraceAnnotationMutationMixin:
                         (models.TraceAnnotation.score, annotation.score, True),
                         (models.TraceAnnotation.explanation, annotation.explanation, True),
                         (models.TraceAnnotation.metadata_, annotation.metadata, False),
+                        (models.TraceAnnotation.identifier, annotation.identifier, True),
                     )
                     if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
                 }

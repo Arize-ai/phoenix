@@ -45,6 +45,7 @@ def upgrade() -> None:
         "span_annotations",
         sa.Column(
             "user_id",
+            sa.Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
@@ -75,6 +76,7 @@ def upgrade() -> None:
         "trace_annotations",
         sa.Column(
             "user_id",
+            sa.Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
@@ -105,6 +107,7 @@ def upgrade() -> None:
         "document_annotations",
         sa.Column(
             "user_id",
+            sa.Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
