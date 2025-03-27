@@ -4,15 +4,61 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
+## 03.24.2025: Tracing Configuration Tab 🖌️
+
+**Available in Phoenix 8.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing_config.gif" %}
+
+Within each project, there is now a **Config** tab to enhance customization. The default tab can now be set per project, ensuring the preferred view is displayed.
+
+Learn more in [projects docs](../tracing/features-tracing/projects.md).
+
+<details>
+
+<summary>Improvements and Bug Fixes 🐛</summary>
+
+* **Experiments**: Included delete experiment option to action menu
+* **Feature:** Added support for specifying admin users via an environment variable at startup
+* **Annotation:** Now displays metadata
+* **Settings Page:** Now split across tabs for improved navigation and easier access
+* **Feedback:** Added full metadata&#x20;
+* **Projects:** Improved performance
+* **UI:** Added date format descriptions to explanations
+
+</details>
+
+***
+
+## 03.19.2025: Access to New Integrations in Projects 🔌
+
+**Available in Phoenix 8.15+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/new_integrations.gif" %}
+
+In the New Project tab, we've added quick setup to instrument your application for [**BeeAI**](../tracing/integrations-tracing/beeai.md), [**SmolAgents**](../tracing/integrations-tracing/hfsmolagents.md), and the [**OpenAI Agents SDK**](../tracing/integrations-tracing/openai-agents-sdk.md). Easily configure these integrations with streamlined instructions.
+
+Check out all Phoenix tracing integrations [here](../tracing/integrations-tracing/).
+
+***
+
+## 03.18.2025: Resize Span, Trace, and Session Tables 🔀
+
+**Available in Phoenix 8.14+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/resizeabletables.gif" %}
+
+We've added the ability to resize Span, Trace, and Session tables. Resizing preferences are now persisted in the tracing store, ensuring settings are maintained per-project and per-table.
+
+***
+
 ## 03.14.2025: OpenAI Agents Instrumentation 📡
 
-**Available in Phoenix 8.6+**
+**Available in Phoenix 8.13+**
 
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/ai_agents_sdk.png)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/openai_sdk_rn.gif" %}
 
 We've introduced the **OpenAI Agents SDK** for Python which provides enhanced visibility into agent behavior and performance.&#x20;
-
-This includes an OpenTelemetry Instrumentor that natively traces agents, LLM calls, tool usage, and agent handoffs. With minimal setup, you can enable tracing and gain real-time insights into your agents' workflows.
 
 **Installation**
 
@@ -20,27 +66,47 @@ This includes an OpenTelemetry Instrumentor that natively traces agents, LLM cal
 pip install openinference-instrumentation-openai-agents openai-agents
 ```
 
-To enable tracing, use the `register` function to connect your application to Phoenix. Once set up, run your agents and view traces directly in Phoenix for real-time insights.
+* Includes an OpenTelemetry Instrumentor that traces agents, LLM calls, tool usage, and handoffs.&#x20;
+* With minimal setup, use the `register` function to connect your app to Phoenix and view real-time traces of agent workflows.
 
-For more details on a quick setup, check out our [docs](../tracing/integrations-tracing/openai-agents-sdk.md)!&#x20;
+For more details on a quick setup, check out our [docs](../tracing/integrations-tracing/openai-agents-sdk.md).&#x20;
 
 <details>
 
 <summary>Improvements and Bug Fixes 🐛</summary>
 
 * **Prompt Playground**: Azure API key made optional, included specialized UI for thinking budget parameter
-* **Experiments**: Added annotations to experiment JSON downloads
+
+- **Experiments**: Added annotations to experiment JSON downloads
+
 * **Traces**: Trace tree is more readable on smaller sizes
-* **Components**: Added react-aria Tabs components
+
+- **Components**: Added react-aria Tabs components
+
 * **Python Client**: Included Anthropic thinking configuration parameter
 
 </details>
 
-## 03.07.2025: Projects Improvements 📽️
+***
 
-**Available in Phoenix 8.6+**
+## 03.07.2025: New Prompt Playground, Evals, and Integration Support 🦾
 
-{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/metadata_projects.png" %}
+**Available in Phoenix 8.9+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/added_support_release_notes.gif" %}
+
+* **Prompt Playground**: Now supports GPT-4.5 & Anthropic Sonnet 3.7 and Thinking Budgets
+* **Instrumentation**: [SmolagentsInstrumentor](../tracing/integrations-tracing/hfsmolagents.md) to trace smolagents by Hugging Face
+* **Evals**: o3 support, Audio &[ Multi-Modal Evaluations](../evaluation/how-to-evals/multimodal-evals.md)
+* **Integrations**: Phoenix now supports LiteLLM Proxy & Cleanlabs evals
+
+***
+
+## 03.06.2025: Project Improvements 📽️
+
+**Available in Phoenix 8.8+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/projects.gif" %}
 
 We’ve introduced several enhancements to **Projects**, providing greater flexibility and control over how you interact with data. These updates include:
 
@@ -49,19 +115,19 @@ We’ve introduced several enhancements to **Projects**, providing greater flexi
 * **Custom Time Ranges:** You can now specify custom time ranges to filter traces and spans.
 * **Root Span Filter for Spans:** Improved filtering options allow you to filter by root spans, helping to isolate and debug issues more effectively.
 * **Metadata Quick Filters:** Quickly apply common metadata filters for faster navigation.&#x20;
-
-**Improvements & Bug Fixes 🐛**
-
-* **Prompt Playground**: Now supports GPT-4.5 & Anthropic Sonnet 3.7 and Thinking Budgets
-* **Instrumentation**: [SmolagentsInstrumentor](../tracing/integrations-tracing/hfsmolagents.md) to trace smolagents by Hugging Face
-* **Experiments**: Enhanced experiment filtering for better analysis
 * **Performance**: Major speed improvements in project tracing views & visibility into database usage in settings
-* **Evals**: o3 support, Audio &[ Multi-Modal Evaluations](../evaluation/how-to-evals/multimodal-evals.md)
-* **Instrumentation**: Tool call IDs in Llama-Index & deprecation of Langchain v0.1
-* **Integrations**: Phoenix now supports LiteLLM Proxy & Cleanlabs evals
-* **OTEL**: Auto-instrument tag & decorators for streamlined observability
 
-Check out these [docs](../tracing/concepts-tracing/what-are-traces.md#projects) for more!
+Check out [projects docs](../tracing/features-tracing/projects.md) for more!
+
+<details>
+
+<summary>Improvements and Bug Fixes 🐛</summary>
+
+* **OTEL**: Auto-instrument tag & decorators for streamlined observability
+* **Instrumentation**: Tool call IDs in Llama-Index & deprecation of Langchain v0.1
+* **Experiments**: Enhanced experiment filtering for better analysis
+
+</details>
 
 ***
 
@@ -69,9 +135,9 @@ Check out these [docs](../tracing/concepts-tracing/what-are-traces.md#projects) 
 
 **Available in Phoenix 8.0+**
 
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-prompts.png)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompts_release_notes.gif" %}
 
-Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications! These are some more highlights from this release:
+Phoenix prompt management will now let you create, modify, tag, and version control prompts for your applications. Some key highlights from this release:
 
 * **Versioning & Iteration**: Seamlessly manage prompt versions in both Phoenix and your codebase.
 * **New TypeScript Clien**t: Sync prompts with your JavaScript runtime, now with native support for OpenAI, Anthropic, and the Vercel AI SDK.
@@ -105,7 +171,7 @@ For more details, you can check the [docs](../tracing/llm-traces-1.md) and explo
 
 **Available in Phoenix 7.9+**
 
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-tracing.png)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/tracing.gif" %}
 
 In addition to using our [automatic instrumentors](../tracing/integrations-tracing/) and [tracing directly using OTEL](../tracing/how-to-tracing/setup-tracing/custom-spans.md), we've now added our  own layer to let you have the granularity of manual instrumentation without as much boilerplate code.
 
@@ -150,7 +216,7 @@ Sessions make it easier to visual multi-turn exchanges with your chatbot or agen
 
 **Available in Phoenix 6.0+**
 
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-playground.png)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/playground_3.gif" %}
 
 Prompt Playground is now available in the Phoenix platform! This new release allows you to test the effects of different prompts, tools, and structured output formats to see which performs best.&#x20;
 
@@ -193,16 +259,16 @@ We've made several performance enhancements, added new features, and fixed key i
 
 **Available in Phoenix 5.0+**
 
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-login-page.png)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/Screenshot%202025-03-27%20at%204.19.39%E2%80%AFPM.png" %}
 
 We've added Authentication and Rules-based Access Controls to Phoenix. This was a long-requested feature set, and we're excited for the new uses of Phoenix this will unlock!&#x20;
 
 The auth feature set includes:&#x20;
 
-* 🔒 Secure Access: All of Phoenix’s UI & APIs (REST, GraphQL, gRPC) now require access tokens or API keys. Keep your data safe!&#x20;
-* 👥 RBAC (Role-Based Access Control): Admins can manage users; members can update their profiles—simple & secure.
-* 🔑 API Keys: Now available for seamless, secure data ingestion & querying.&#x20;
-* 🌐 OAuth2 Support: Easily integrate with Google, AWS Cognito, or Auth0. ✉ Password Resets via SMTP to make security a breeze.&#x20;
+* **Secure Access**: All of Phoenix’s UI & APIs (REST, GraphQL, gRPC) now require access tokens or API keys. Keep your data safe!&#x20;
+* **RBAC (Role-Based Access Control)**: Admins can manage users; members can update their profiles—simple & secure.
+* **API Keys**: Now available for seamless, secure data ingestion & querying.&#x20;
+* **OAuth2 Support**: Easily integrate with Google, AWS Cognito, or Auth0. ✉ Password Resets via SMTP to make security a breeze.&#x20;
 
 For all the details on authentication, view our [docs](https://docs.arize.com/phoenix/deployment/authentication).
 
@@ -212,7 +278,7 @@ For all the details on authentication, view our [docs](https://docs.arize.com/ph
 
 **Available in Phoenix 4.11.0+**
 
-![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/s-guardrails.png)
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/guardrails.png" %}
 
 Our integration with Guardrails AI allows you to capture traces on guard usage and create datasets based on these traces. This integration is designed to enhance the safety and reliability of your LLM applications, ensuring they adhere to predefined rules and guidelines.
 
@@ -240,16 +306,16 @@ Hosted Phoenix is 100% free-to-use, [check it out today](https://app.phoenix.ari
 
 **Available in Phoenix 4.6+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.34.07 PM.png" alt=""><figcaption></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/experiments.gif" %}
 
-**Datasets** 📊: Datasets are a new core feature in Phoenix that live alongside your projects. They can be imported, exported, created, curated, manipulated, and viewed within the platform, and should make a few flows much easier:
+**Datasets**: Datasets are a new core feature in Phoenix that live alongside your projects. They can be imported, exported, created, curated, manipulated, and viewed within the platform, and should make a few flows much easier:
 
 * Fine-tuning: You can now create a dataset based on conditions in the UI, or by manually choosing examples, then export these into csv or jsonl formats readymade for fine-tuning APIs.
 * Experimentation: External datasets can be uploaded into Phoenix to serve as the test cases for experiments run in the platform.
 
 For more details on using datasets see our [documentation](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets?utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F) or [example notebook](https://colab.research.google.com/drive/1e4vZR5VPelXXYGtWfvM3CErPhItHAIp2?usp=sharing\&utm_campaign=Phoenix%20Newsletter\&utm_source=hs_email\&utm_medium=email&_hsenc=p2ANqtz-9Tx_lYbuasbD3Mzdwl0VNPcvy_YcbPudxu1qwBZ3T7Mh---A4PO-OJfhas-RR4Ys_IEb0F).
 
-**Experiments 🧪:** Our new Datasets and Experiments feature enables you to create and manage datasets for rigorous testing and evaluation of your models. You can now run comprehensive experiments to measure and analyze the performance of your LLMs in various scenarios.&#x20;
+**Experiments:** Our new Datasets and Experiments feature enables you to create and manage datasets for rigorous testing and evaluation of your models. You can now run comprehensive experiments to measure and analyze the performance of your LLMs in various scenarios.&#x20;
 
 For more details, check out our full [walkthrough](https://www.youtube.com/watch?v=rzxN-YV_DbE\&t=25s).&#x20;
 
@@ -259,7 +325,7 @@ For more details, check out our full [walkthrough](https://www.youtube.com/watch
 
 **Available in Phoenix 4.6+**
 
-<figure><img src="../.gitbook/assets/Screenshot 2025-02-18 at 2.45.33 PM.png" alt=""><figcaption></figcaption></figure>
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/evals-docs.gif" %}
 
 We are introducing a new built-in function call evaluator that scores the function/tool-calling capabilities of your LLMs. This off-the-shelf evaluator will help you ensure that your models are not just generating text but also effectively interacting with tools and functions as intended.
 
