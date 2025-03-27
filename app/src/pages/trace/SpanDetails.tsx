@@ -62,6 +62,7 @@ import {
   TabList,
   Tabs,
   Text,
+  ToggleButton,
   Token,
   TokenProps,
   View,
@@ -75,7 +76,11 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { useNotifySuccess, useTheme } from "@phoenix/contexts";
+import {
+  useNotifySuccess,
+  usePreferencesContext,
+  useTheme,
+} from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -106,7 +111,7 @@ import {
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
 import { SpanActionMenu } from "./SpanActionMenu";
-import { SpanAside, SpanAsideContext, useSpanAsideState } from "./SpanAside";
+import { SpanAside } from "./SpanAside";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
@@ -162,6 +167,13 @@ export function SpanDetails({
    */
   spanNodeId: string;
 }) {
+  const isAnnotatingSpans = usePreferencesContext(
+    (state) => state.isAnnotatingSpans
+  );
+  const setIsAnnotatingSpans = usePreferencesContext(
+    (state) => state.setIsAnnotatingSpans
+  );
+
   const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
@@ -247,11 +259,9 @@ export function SpanDetails({
     return spanHasException(span);
   }, [span]);
 
-  const asideState = useSpanAsideState();
-
   return (
     <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
-      <Panel>
+      <Panel order={1}>
         <Flex
           direction="column"
           flex="1 1 auto"
@@ -291,10 +301,11 @@ export function SpanDetails({
                   span={span}
                   buttonText={isCondensedView ? null : "Add to Dataset"}
                 />
-                <Button
+                <ToggleButton
                   size="S"
+                  isSelected={isAnnotatingSpans}
                   onPress={() => {
-                    asideState.setTab("annotate");
+                    setIsAnnotatingSpans(!isAnnotatingSpans);
                     const asidePanel = asidePanelRef.current;
                     // expand the panel if it is not the minimum size already
                     if (asidePanel) {
@@ -307,7 +318,7 @@ export function SpanDetails({
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
                 >
                   {isCondensedView ? null : "Annotate"}
-                </Button>
+                </ToggleButton>
                 <SpanActionMenu
                   traceId={span.trace.traceId}
                   spanId={span.spanId}
@@ -365,14 +376,21 @@ export function SpanDetails({
           </Tabs>
         </Flex>
       </Panel>
-      <PanelResizeHandle css={compactResizeHandleCSS} />
-      <Panel ref={asidePanelRef} defaultSize={ASIDE_PANEL_DEFAULT_SIZE}>
-        <SpanAsideContext.Provider value={asideState}>
+      {isAnnotatingSpans && <PanelResizeHandle css={compactResizeHandleCSS} />}
+      {isAnnotatingSpans && (
+        <Panel
+          order={2}
+          ref={asidePanelRef}
+          defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          onCollapse={() => {
+            setIsAnnotatingSpans(false);
+          }}
+        >
           <View height="100%">
             <SpanAside span={span} />
           </View>
-        </SpanAsideContext.Provider>
-      </Panel>
+        </Panel>
+      )}
     </PanelGroup>
   );
 }
