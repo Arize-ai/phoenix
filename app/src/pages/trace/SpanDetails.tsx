@@ -293,7 +293,6 @@ export function SpanDetails({
                 />
                 <Button
                   size="S"
-                  variant="default"
                   onPress={() => {
                     asideState.setTab("annotate");
                     const asidePanel = asidePanelRef.current;
