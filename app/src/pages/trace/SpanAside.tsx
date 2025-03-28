@@ -57,9 +57,9 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
       {hasAnnotations && (
         <TitledPanel
           title="Annotations"
-          panelProps={{ order: 1, defaultSize: 25 }}
+          panelProps={{ order: 1, defaultSize: 65 }}
         >
-          <View padding="size-200">
+          <View paddingY="size-100" paddingX="size-100">
             <ul css={annotationListCSS}>
               {annotations.map((annotation) => (
                 <li key={annotation.id}>
@@ -73,15 +73,13 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
           </View>
         </TitledPanel>
       )}
-      <TitledPanel
-        resizable
-        title="Edit annotations"
-        panelProps={{ order: 2, defaultSize: 75 }}
-      >
-        <SpanAnnotationsEditor
-          projectId={data.project.id}
-          spanNodeId={data.id}
-        />
+      <TitledPanel resizable title="Edit annotations" panelProps={{ order: 2 }}>
+        <View height="100%" maxHeight="100%">
+          <SpanAnnotationsEditor
+            projectId={data.project.id}
+            spanNodeId={data.id}
+          />
+        </View>
       </TitledPanel>
     </PanelGroup>
   );

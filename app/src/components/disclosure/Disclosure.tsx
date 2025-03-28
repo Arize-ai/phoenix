@@ -17,7 +17,9 @@ import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
-export type DisclosureGroupProps = AriaDisclosureGroupProps & StylableProps;
+export type DisclosureGroupProps = AriaDisclosureGroupProps &
+  StylableProps &
+  SizingProps;
 
 /**
  * Wrap multiple Disclosure components in a DisclosureGroup to control
@@ -28,6 +30,7 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps & StylableProps;
 export const DisclosureGroup = ({
   className,
   css: propCSS,
+  size,
   ...props
 }: DisclosureGroupProps) => {
   return (
@@ -35,6 +38,7 @@ export const DisclosureGroup = ({
       allowsMultipleExpanded
       className={classNames("ac-disclosure-group", className)}
       css={css(disclosureGroupCSS, propCSS)}
+      data-size={size}
       {...props}
     />
   );

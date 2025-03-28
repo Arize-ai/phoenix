@@ -157,7 +157,7 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
-const ASIDE_PANEL_DEFAULT_SIZE = 25;
+const ASIDE_PANEL_DEFAULT_SIZE = 33;
 
 export function SpanDetails({
   spanNodeId,

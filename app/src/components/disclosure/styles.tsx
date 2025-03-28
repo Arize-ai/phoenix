@@ -17,6 +17,14 @@ export const disclosureGroupCSS = css`
       border-bottom: 1px solid var(--ac-global-border-color-default);
     }
   }
+
+  &[data-size="S"] > * {
+    .react-aria-Heading {
+      .react-aria-Button[slot="trigger"] {
+        padding: var(--ac-global-dimension-static-size-50);
+      }
+    }
+  }
 `;
 
 export const disclosureCSS = css`

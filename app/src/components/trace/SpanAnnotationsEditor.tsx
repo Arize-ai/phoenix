@@ -25,6 +25,10 @@ import {
 import {
   Alert,
   Button,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Flex,
   Form,
   Icon,
@@ -37,7 +41,6 @@ import {
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import {
   AnnotatorKind,
@@ -64,18 +67,10 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   );
   const notifySuccess = useNotifySuccess();
   return (
-    <View padding="size-200" height="100%" maxHeight="100%" overflow="auto">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="row" alignItems="center" justifyContent="end">
-          <NewAnnotationButton
-            projectId={projectId}
-            spanNodeId={spanNodeId}
-            disabled={newAnnotationName !== null}
-            onAnnotationNameSelect={setNewAnnotationName}
-          />
-        </Flex>
+    <View height="100%" maxHeight="100%" overflow="auto">
+      <Flex direction="column" height="100%">
         {newAnnotationName && (
-          <View paddingBottom="size-200">
+          <View padding="size-200">
             <NewSpanAnnotationCard
               spanNodeId={spanNodeId}
               name={newAnnotationName}
@@ -95,6 +90,28 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
         <Suspense>
           <EditSpanAnnotations {...props} />
         </Suspense>
+        <View
+          paddingY="size-100"
+          paddingX="size-300"
+          borderTopWidth="thin"
+          borderColor="dark"
+          width="100%"
+          flex="none"
+        >
+          <Flex
+            direction="row"
+            alignItems="center"
+            justifyContent="end"
+            width="100%"
+          >
+            <NewAnnotationButton
+              projectId={projectId}
+              spanNodeId={spanNodeId}
+              disabled={newAnnotationName !== null}
+              onAnnotationNameSelect={setNewAnnotationName}
+            />
+          </Flex>
+        </View>
       </Flex>
     </View>
   );
@@ -223,24 +240,23 @@ function SpanAnnotationsList(props: {
   const annotations = data.spanAnnotations || [];
   const hasAnnotations = annotations.length > 0;
   return (
-    <div>
+    <View height="100%" maxHeight="100%" overflow="auto">
       {!hasAnnotations && (
         <Empty graphicKey="documents" message="No annotations for this span" />
       )}
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: column;
-          gap: var(--ac-global-dimension-size-200);
-        `}
+      <DisclosureGroup
+        defaultExpandedKeys={annotations.map((annotation) => annotation.id)}
+        size="S"
       >
         {annotations.map((annotation, idx) => (
-          <li key={`${idx}_${annotation.name}`}>
-            <SpanAnnotationCard annotation={annotation} spanNodeId={data.id} />
-          </li>
+          <SpanAnnotationCard
+            key={`${idx}_${annotation.name}`}
+            annotation={annotation}
+            spanNodeId={data.id}
+          />
         ))}
-      </ul>
-    </div>
+      </DisclosureGroup>
+    </View>
   );
 }
 
@@ -355,48 +371,51 @@ function SpanAnnotationCard(props: {
     [annotation.id, annotation.name, commitEdit, notifySuccess, spanNodeId]
   );
   return (
-    <Card
-      variant="compact"
-      title={annotation.name}
-      titleExtra={
-        annotation.label ||
-        (typeof annotation.score == "number" &&
-          formatFloat(annotation.score)) ||
-        null
-      }
-      collapsible
-      bodyStyle={{ padding: 0 }}
-      extra={
-        <Flex gap="size-100" alignItems="center">
-          <AnnotatorKindLabel kind={annotation.annotatorKind} />
-          <SpanAnnotationActionMenu
-            annotationId={annotation.id}
-            spanNodeId={spanNodeId}
-            annotationName={annotation.name}
-            onSpanAnnotationActionSuccess={(notifyProps) => {
-              notifySuccess(notifyProps);
-            }}
-            onSpanAnnotationActionError={(error: Error) => {
-              setError(error);
-            }}
-          />
-        </Flex>
-      }
-    >
-      {error && (
-        <Alert variant="danger" banner>
-          {error.message}
-        </Alert>
-      )}
-      <SpanAnnotationForm
-        initialData={annotation}
-        isReadOnly={annotation.annotatorKind === "LLM"}
-        isSubmitting={isCommittingEdit}
-        onSubmit={(data) => {
-          handleEdit(data);
-        }}
-      />
-    </Card>
+    <Disclosure id={annotation.id}>
+      <DisclosureTrigger arrowPosition="start">
+        <View paddingEnd="size-200" width="100%">
+          <Flex
+            gap="size-100"
+            alignItems="center"
+            width="100%"
+            justifyContent="space-between"
+            css={css`
+              .ac-button[data-size="compact"] {
+                padding: 0;
+              }
+            `}
+          >
+            {annotation.name}
+            <SpanAnnotationActionMenu
+              annotationId={annotation.id}
+              spanNodeId={spanNodeId}
+              annotationName={annotation.name}
+              onSpanAnnotationActionSuccess={(notifyProps) => {
+                notifySuccess(notifyProps);
+              }}
+              onSpanAnnotationActionError={(error: Error) => {
+                setError(error);
+              }}
+            />
+          </Flex>
+        </View>
+      </DisclosureTrigger>
+      <DisclosurePanel>
+        {error && (
+          <Alert variant="danger" banner>
+            {error.message}
+          </Alert>
+        )}
+        <SpanAnnotationForm
+          initialData={annotation}
+          isReadOnly={annotation.annotatorKind === "LLM"}
+          isSubmitting={isCommittingEdit}
+          onSubmit={(data) => {
+            handleEdit(data);
+          }}
+        />
+      </DisclosurePanel>
+    </Disclosure>
   );
 }
 

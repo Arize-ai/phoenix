@@ -206,12 +206,9 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
       <>
         {!isReadOnly ? (
           <View
-            paddingTop="size-100"
-            paddingBottom="size-100"
+            paddingBottom="size-200"
             paddingEnd="size-200"
             paddingStart="size-200"
-            borderTopWidth="thin"
-            borderColor="dark"
           >
             <Flex direction="row" justifyContent="end">
               <Button

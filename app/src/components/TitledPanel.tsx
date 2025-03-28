@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import {
   ImperativePanelHandle,
   Panel,
@@ -30,10 +31,21 @@ export const TitledPanel = forwardRef<
     panelProps?: PanelProps;
     panelResizeHandleProps?: PanelResizeHandleProps;
     resizable?: boolean;
+    bordered?: boolean;
+    expandSizeFallback?: number;
+    fullSize?: boolean;
   }>
 >(
   (
-    { children, title, panelProps, panelResizeHandleProps, resizable = false },
+    {
+      children,
+      title,
+      panelProps,
+      panelResizeHandleProps,
+      fullSize = false,
+      resizable = false,
+      bordered = true,
+    },
     ref
   ) => {
     const panelRef = useRef<ImperativePanelHandle | null>(null);
@@ -46,10 +58,12 @@ export const TitledPanel = forwardRef<
     const handleClick = () => {
       const panel = panelRef.current;
       if (panel?.isCollapsed()) {
+        setCollapsed(false);
         // if the panel is collapsed when its size is below 35%, it will be expanded to at least 35%
         // otherwise it will return to its pre-collapse size
-        panel?.expand(35);
+        panel?.expand(fullSize ? 100 : 35);
       } else {
+        setCollapsed(true);
         panel?.collapse();
       }
     };
@@ -59,39 +73,55 @@ export const TitledPanel = forwardRef<
         {resizable && (
           <PanelResizeHandle
             {...panelResizeHandleProps}
+            data-bordered={bordered}
             css={css(
               compactResizeHandleCSS,
               css`
                 border-radius: var(--ac-global-rounding-small);
-                opacity: 0;
+                opacity: 1;
+                background-color: unset;
+                &[data-bordered="true"] {
+                  background-color: var(--ac-global-border-color-default);
+                }
+                &[data-panel-group-direction="vertical"] {
+                  height: 1px;
+                }
                 &:hover,
                 &:focus,
                 &:active,
                 &:focus-visible {
-                  background-color: var(--ac-global-color-grey-200);
-                  opacity: 1;
+                  // Make hover target bigger
+                  background-color: var(--ac-global-color-primary);
                 }
-                &:not([data-resize-handle-state="drag"]) + [data-panel] {
-                  transition: flex 0.2s ease-in-out;
+                &:not([data-resize-handle-state="drag"]) ~ [data-panel] {
+                  // transition: flex 0.2s ease-in-out;
                 }
               `
             )}
           />
         )}
-        <PanelTitle onClick={handleClick} collapsed={collapsed}>
+        <PanelTitle
+          onClick={handleClick}
+          collapsed={collapsed}
+          bordered={bordered}
+        >
           {title}
         </PanelTitle>
         <Panel
-          minSize={0}
+          maxSize={100}
           {...panelProps}
           ref={panelRef}
           collapsible
           onCollapse={() => {
-            setCollapsed(true);
+            flushSync(() => {
+              setCollapsed(true);
+            });
             panelProps?.onCollapse?.();
           }}
           onExpand={() => {
-            setCollapsed(false);
+            flushSync(() => {
+              setCollapsed(false);
+            });
             panelProps?.onExpand?.();
           }}
         >
@@ -106,41 +136,53 @@ TitledPanel.displayName = "TitledPanel";
 
 const panelTitleCSS = css`
   all: unset;
+  width: 100%;
   &:hover {
     cursor: pointer;
+    background-color: var(--ac-global-input-field-background-color-active);
   }
   &:hover[disabled] {
     cursor: default;
   }
   display: flex;
   align-items: center;
-  padding: var(--ac-global-dimension-size-50) 0;
+  gap: var(--ac-global-dimension-size-100);
+  padding: var(--ac-global-dimension-size-100)
+    var(--ac-global-dimension-size-50);
   font-weight: var(--px-font-weight-heavy);
   font-size: var(--ac-global-font-size-s);
+  &[data-bordered="true"] {
+    border-bottom: 1px solid var(--ac-global-border-color-default);
+  }
+  &[data-collapsed="true"] {
+    border-bottom: none;
+  }
 `;
 
 export const PanelTitle = ({
   children,
   collapsed,
+  bordered,
   ...props
 }: {
   children: React.ReactNode;
   collapsed?: boolean;
+  bordered?: boolean;
 } & React.HTMLProps<HTMLButtonElement>) => {
   return (
     <button
       {...props}
       type="button"
       data-collapsed={collapsed}
+      data-bordered={bordered}
       css={panelTitleCSS}
       disabled={collapsed === undefined}
     >
       {collapsed !== undefined && (
         <Icon
           data-collapsed={collapsed}
-          svg={<Icons.ChevronDown />}
+          svg={<Icons.ArrowIosDownwardOutline />}
           css={css`
-            font-size: var(--ac-global-font-size-xl);
             transition: transform 0.2s ease-in-out;
             &[data-collapsed="true"] {
               transform: rotate(-90deg);
