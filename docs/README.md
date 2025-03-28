@@ -8,7 +8,7 @@ Phoenix is an open-source observability tool designed for experimentation, evalu
 \
 Phoenix is built by [Arize AI](https://www.arize.com), the company behind the industry-leading AI observability platform, and a set of core contributors.
 
-Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [integrations-tracing](tracing/integrations-tracing/ "mention")for details.
+Phoenix works with OpenTelemetry and [OpenInference](https://github.com/Arize-ai/openinference) instrumentation. See [integrations-tracing](tracing/integrations-tracing/ "mention") for details.
 
 ## Features
 
