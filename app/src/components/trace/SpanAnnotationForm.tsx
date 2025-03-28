@@ -92,7 +92,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
   const defaultDetailsCollapsed = !initialData.explanation;
   return (
     <Form onSubmit={handleSubmit(_onSubmit)}>
-      <View padding="size-200">
+      <View padding="size-100">
         <Flex direction="column" gap="size-100">
           <div
             css={css`
@@ -100,7 +100,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               flex-direction: row;
               width: 100%;
               overflow: hidden;
-              --gap: var(--ac-global-dimension-size-200);
+              --gap: var(--ac-global-dimension-size-100);
               --input-width: 100px;
 
               gap: var(--gap);
@@ -206,9 +206,9 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
       <>
         {!isReadOnly ? (
           <View
-            paddingBottom="size-200"
-            paddingEnd="size-200"
-            paddingStart="size-200"
+            paddingBottom="size-100"
+            paddingEnd="size-100"
+            paddingStart="size-100"
           >
             <Flex direction="row" justifyContent="end">
               <Button

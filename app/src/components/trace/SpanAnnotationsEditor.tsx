@@ -94,7 +94,7 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
         </Suspense>
         <View
           paddingY="size-100"
-          paddingX="size-300"
+          paddingX="size-100"
           borderTopWidth="thin"
           borderColor="dark"
           width="100%"
@@ -290,30 +290,28 @@ function NewSpanAnnotationDisclosure(props: {
   return (
     <Disclosure id={`new-annotation`}>
       <DisclosureTrigger arrowPosition="start">
-        <View paddingEnd="size-200" width="100%">
-          <Flex
-            gap="size-100"
-            alignItems="center"
-            width="100%"
-            justifyContent="space-between"
-            css={css`
-              .ac-button[data-size="compact"] {
-                padding: 0;
-              }
-            `}
-          >
-            {name}
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <Button
-                size="S"
-                aria-label="delete annotation"
-                variant="quiet"
-                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-                onPress={onDelete}
-              />
-            </Flex>
+        <Flex
+          gap="size-100"
+          alignItems="center"
+          width="100%"
+          justifyContent="space-between"
+          css={css`
+            .ac-button[data-size="compact"] {
+              padding: 0;
+            }
+          `}
+        >
+          {name}
+          <Flex direction="row" alignItems="center" gap="size-100">
+            <Button
+              size="S"
+              aria-label="delete annotation"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+              onPress={onDelete}
+            />
           </Flex>
-        </View>
+        </Flex>
       </DisclosureTrigger>
       <DisclosurePanel>
         <Alert variant="info" banner>
@@ -400,38 +398,36 @@ function SpanAnnotationDisclosure(props: {
   return (
     <Disclosure id={annotation.id}>
       <DisclosureTrigger arrowPosition="start">
-        <View paddingEnd="size-200" width="100%">
-          <Flex
-            gap="size-100"
-            alignItems="center"
-            width="100%"
-            justifyContent="space-between"
-            css={css`
-              button[data-size="compact"],
-              button {
-                padding: 0;
-              }
-            `}
-          >
-            {annotation.name}
-            <Flex direction="row" alignItems="center" gap="size-100">
-              {annotation.annotatorKind === "HUMAN" && (
-                <AnnotatorKindLabel kind={annotation.annotatorKind} />
-              )}
-              <SpanAnnotationActionMenu
-                annotationId={annotation.id}
-                spanNodeId={spanNodeId}
-                annotationName={annotation.name}
-                onSpanAnnotationActionSuccess={(notifyProps) => {
-                  notifySuccess(notifyProps);
-                }}
-                onSpanAnnotationActionError={(error: Error) => {
-                  setError(error);
-                }}
-              />
-            </Flex>
+        <Flex
+          gap="size-100"
+          alignItems="center"
+          width="100%"
+          justifyContent="space-between"
+          css={css`
+            button[data-size="compact"],
+            button {
+              padding: 0;
+            }
+          `}
+        >
+          {annotation.name}
+          <Flex direction="row" alignItems="center" gap="size-100">
+            {annotation.annotatorKind === "HUMAN" && (
+              <AnnotatorKindLabel kind={annotation.annotatorKind} />
+            )}
+            <SpanAnnotationActionMenu
+              annotationId={annotation.id}
+              spanNodeId={spanNodeId}
+              annotationName={annotation.name}
+              onSpanAnnotationActionSuccess={(notifyProps) => {
+                notifySuccess(notifyProps);
+              }}
+              onSpanAnnotationActionError={(error: Error) => {
+                setError(error);
+              }}
+            />
           </Flex>
-        </View>
+        </Flex>
       </DisclosureTrigger>
       <DisclosurePanel>
         {error && (
