@@ -69,26 +69,28 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   return (
     <View height="100%" maxHeight="100%" overflow="auto">
       <Flex direction="column" height="100%">
-        {newAnnotationName && (
-          <View padding="size-200">
-            <NewSpanAnnotationCard
-              spanNodeId={spanNodeId}
-              name={newAnnotationName}
-              onDelete={() => {
-                setNewAnnotationName(null);
-              }}
-              onCreated={() => {
-                setNewAnnotationName(null);
-                notifySuccess({
-                  title: `New Span Annotation`,
-                  message: `Annotation ${newAnnotationName} has been created.`,
-                });
-              }}
-            />
-          </View>
-        )}
         <Suspense>
-          <EditSpanAnnotations {...props} />
+          <EditSpanAnnotations
+            extraAnnotationCards={
+              newAnnotationName ? (
+                <NewSpanAnnotationCard
+                  spanNodeId={spanNodeId}
+                  name={newAnnotationName}
+                  onDelete={() => {
+                    setNewAnnotationName(null);
+                  }}
+                  onCreated={() => {
+                    setNewAnnotationName(null);
+                    notifySuccess({
+                      title: `New Span Annotation`,
+                      message: `Annotation ${newAnnotationName} has been created.`,
+                    });
+                  }}
+                />
+              ) : null
+            }
+            {...props}
+          />
         </Suspense>
         <View
           paddingY="size-100"
@@ -192,7 +194,9 @@ function NewAnnotationPopover(props: NewAnnotationPopoverProps) {
     </Card>
   );
 }
-type EditSpanAnnotationsProps = SpanAnnotationsEditorProps;
+type EditSpanAnnotationsProps = SpanAnnotationsEditorProps & {
+  extraAnnotationCards?: React.ReactNode;
+};
 
 function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
   const data = useLazyLoadQuery<SpanAnnotationsEditorQuery>(
@@ -209,13 +213,19 @@ function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
     { spanId: props.spanNodeId },
     { fetchPolicy: "store-and-network" }
   );
-  return <SpanAnnotationsList span={data.span} />;
+  return (
+    <SpanAnnotationsList
+      span={data.span}
+      extraAnnotationCards={props.extraAnnotationCards}
+    />
+  );
 }
 
 function SpanAnnotationsList(props: {
   span: SpanAnnotationsEditor_spanAnnotations$key;
+  extraAnnotationCards?: React.ReactNode;
 }) {
-  const { span } = props;
+  const { span, extraAnnotationCards } = props;
   const [data] = useRefetchableFragment<
     SpanAnnotationsEditorSpanAnnotationsQuery,
     SpanAnnotationsEditor_spanAnnotations$key
@@ -239,13 +249,18 @@ function SpanAnnotationsList(props: {
 
   const annotations = data.spanAnnotations || [];
   const hasAnnotations = annotations.length > 0;
+  const annotationLength = annotations.length;
   return (
     <View height="100%" maxHeight="100%" overflow="auto">
-      {!hasAnnotations && (
+      {!hasAnnotations && !extraAnnotationCards && (
         <Empty graphicKey="documents" message="No annotations for this span" />
       )}
       <DisclosureGroup
-        defaultExpandedKeys={annotations.map((annotation) => annotation.id)}
+        key={annotationLength}
+        defaultExpandedKeys={[
+          ...annotations.map((annotation) => annotation.id),
+          "new-annotation",
+        ]}
         size="S"
       >
         {annotations.map((annotation, idx) => (
@@ -255,6 +270,7 @@ function SpanAnnotationsList(props: {
             spanNodeId={data.id}
           />
         ))}
+        {extraAnnotationCards}
       </DisclosureGroup>
     </View>
   );
@@ -272,33 +288,44 @@ function NewSpanAnnotationCard(props: {
   const { spanNodeId, name, onDelete, onCreated } = props;
 
   return (
-    <Card
-      variant="compact"
-      title={name}
-      borderColor="orange-900"
-      extra={
-        <Flex direction="row" alignItems="center" gap="size-100">
-          <AnnotatorKindLabel kind="HUMAN" />
-          <Button
-            size="S"
-            isDisabled
-            aria-label="delete annotation"
-            leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-            onPress={onDelete}
-          />
-        </Flex>
-      }
-      bodyStyle={{ padding: 0 }}
-    >
-      <Alert variant="info" banner>
-        Fill out the fields below and click save to create a new annotation.
-      </Alert>
-      <NewSpanAnnotationForm
-        annotationName={name}
-        spanNodeId={spanNodeId}
-        onCreated={onCreated}
-      />
-    </Card>
+    <Disclosure id={`new-annotation`}>
+      <DisclosureTrigger arrowPosition="start">
+        <View paddingEnd="size-200" width="100%">
+          <Flex
+            gap="size-100"
+            alignItems="center"
+            width="100%"
+            justifyContent="space-between"
+            css={css`
+              .ac-button[data-size="compact"] {
+                padding: 0;
+              }
+            `}
+          >
+            {name}
+            <Flex direction="row" alignItems="center" gap="size-100">
+              <Button
+                size="S"
+                aria-label="delete annotation"
+                variant="quiet"
+                leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                onPress={onDelete}
+              />
+            </Flex>
+          </Flex>
+        </View>
+      </DisclosureTrigger>
+      <DisclosurePanel>
+        <Alert variant="info" banner>
+          Fill out the fields below and click save to create a new annotation.
+        </Alert>
+        <NewSpanAnnotationForm
+          annotationName={name}
+          spanNodeId={spanNodeId}
+          onCreated={onCreated}
+        />
+      </DisclosurePanel>
+    </Disclosure>
   );
 }
 
@@ -380,23 +407,29 @@ function SpanAnnotationCard(props: {
             width="100%"
             justifyContent="space-between"
             css={css`
-              .ac-button[data-size="compact"] {
+              button[data-size="compact"],
+              button {
                 padding: 0;
               }
             `}
           >
             {annotation.name}
-            <SpanAnnotationActionMenu
-              annotationId={annotation.id}
-              spanNodeId={spanNodeId}
-              annotationName={annotation.name}
-              onSpanAnnotationActionSuccess={(notifyProps) => {
-                notifySuccess(notifyProps);
-              }}
-              onSpanAnnotationActionError={(error: Error) => {
-                setError(error);
-              }}
-            />
+            <Flex direction="row" alignItems="center" gap="size-100">
+              {annotation.annotatorKind === "HUMAN" && (
+                <AnnotatorKindLabel kind={annotation.annotatorKind} />
+              )}
+              <SpanAnnotationActionMenu
+                annotationId={annotation.id}
+                spanNodeId={spanNodeId}
+                annotationName={annotation.name}
+                onSpanAnnotationActionSuccess={(notifyProps) => {
+                  notifySuccess(notifyProps);
+                }}
+                onSpanAnnotationActionError={(error: Error) => {
+                  setError(error);
+                }}
+              />
+            </Flex>
           </Flex>
         </View>
       </DisclosureTrigger>
@@ -423,6 +456,7 @@ function AnnotatorKindLabel(props: { kind: AnnotatorKind }) {
   const { kind } = props;
   return (
     <Token
+      size="S"
       color={
         kind === "HUMAN"
           ? "var(--ac-global-color-blue-500) "

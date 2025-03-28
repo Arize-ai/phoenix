@@ -100,7 +100,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               flex-direction: row;
               width: 100%;
               overflow: hidden;
-              --gap: var(--ac-global-dimension-size-100);
+              --gap: var(--ac-global-dimension-size-200);
               --input-width: 100px;
 
               gap: var(--gap);
