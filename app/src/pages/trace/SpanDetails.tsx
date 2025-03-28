@@ -8,7 +8,12 @@ import React, {
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import {
+  type ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
@@ -57,6 +62,7 @@ import {
   TabList,
   Tabs,
   Text,
+  ToggleButton,
   Token,
   TokenProps,
   View,
@@ -70,7 +76,11 @@ import {
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { useNotifySuccess, useTheme } from "@phoenix/contexts";
+import {
+  useNotifySuccess,
+  usePreferencesContext,
+  useTheme,
+} from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -100,7 +110,6 @@ import {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
-import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
 import { SpanFeedback } from "./SpanFeedback";
@@ -148,16 +157,24 @@ const defaultCardProps: Partial<CardProps> = {
 };
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
+const ASIDE_PANEL_DEFAULT_SIZE = 33;
+
 export function SpanDetails({
   spanNodeId,
-  projectId,
 }: {
   /**
    * The Global ID of the span
    */
   spanNodeId: string;
-  projectId: string;
 }) {
+  const isAnnotatingSpans = usePreferencesContext(
+    (state) => state.isAnnotatingSpans
+  );
+  const setIsAnnotatingSpans = usePreferencesContext(
+    (state) => state.setIsAnnotatingSpans
+  );
+
+  const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
   const isCondensedView =
@@ -244,7 +261,7 @@ export function SpanDetails({
 
   return (
     <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
-      <Panel>
+      <Panel order={1}>
         <Flex
           direction="column"
           flex="1 1 auto"
@@ -284,12 +301,24 @@ export function SpanDetails({
                   span={span}
                   buttonText={isCondensedView ? null : "Add to Dataset"}
                 />
-                <EditSpanAnnotationsButton
+                <ToggleButton
                   size="S"
-                  spanNodeId={span.id}
-                  projectId={projectId}
-                  buttonText={isCondensedView ? null : "Annotate"}
-                />
+                  isSelected={isAnnotatingSpans}
+                  onPress={() => {
+                    setIsAnnotatingSpans(!isAnnotatingSpans);
+                    const asidePanel = asidePanelRef.current;
+                    // expand the panel if it is not the minimum size already
+                    if (asidePanel) {
+                      const size = asidePanel.getSize();
+                      if (size < ASIDE_PANEL_DEFAULT_SIZE) {
+                        asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
+                      }
+                    }
+                  }}
+                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                >
+                  {isCondensedView ? null : "Annotate"}
+                </ToggleButton>
                 <SpanActionMenu
                   traceId={span.trace.traceId}
                   spanId={span.spanId}
@@ -347,10 +376,19 @@ export function SpanDetails({
           </Tabs>
         </Flex>
       </Panel>
-      <PanelResizeHandle css={compactResizeHandleCSS} />
-      <Panel defaultSize={20}>
-        <SpanAside span={span} />
-      </Panel>
+      {isAnnotatingSpans && <PanelResizeHandle css={compactResizeHandleCSS} />}
+      {isAnnotatingSpans && (
+        <Panel
+          order={2}
+          ref={asidePanelRef}
+          defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          onCollapse={() => {
+            setIsAnnotatingSpans(false);
+          }}
+        >
+          <SpanAside span={span} />
+        </Panel>
+      )}
     </PanelGroup>
   );
 }

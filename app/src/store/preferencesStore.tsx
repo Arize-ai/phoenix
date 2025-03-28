@@ -44,6 +44,11 @@ export interface PreferencesProps {
    * Note: this is always false in environments that do not support streaming
    */
   playgroundStreamingEnabled: boolean;
+
+  /**
+   * Whether or not the span details are in annotating mode
+   */
+  isAnnotatingSpans: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -85,6 +90,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling playground streaming
    */
   setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
+  /**
+   * Setter for enabling/disabling span annotating
+   */
+  setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -125,6 +134,10 @@ export const createPreferencesStore = (
     playgroundStreamingEnabled: true,
     setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
       set({ playgroundStreamingEnabled });
+    },
+    isAnnotatingSpans: true,
+    setIsAnnotatingSpans: (isAnnotatingSpans) => {
+      set({ isAnnotatingSpans });
     },
     ...initialProps,
   });

@@ -21,6 +21,7 @@ const tabsCSS = css`
   --ac-tab-border-color: var(--ac-global-border-color-default);
 
   flex-direction: column;
+  height: 100%;
 
   &[data-orientation="horizontal"] {
     flex: 1 1 auto;

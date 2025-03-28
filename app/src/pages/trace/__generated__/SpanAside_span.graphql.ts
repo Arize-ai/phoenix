@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6c924c62daf5ef3873092f1da2b378f>>
+ * @generated SignedSource<<258b2ed39a2e2a1ee47bad48c1e1eb48>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,9 @@ export type SpanAside_span$data = {
   readonly code: SpanStatusCode;
   readonly endTime: string | null;
   readonly id: string;
+  readonly project: {
+    readonly id: string;
+  };
   readonly spanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly id: string;
@@ -63,6 +66,18 @@ return {
   "name": "SpanAside_span",
   "selections": [
     (v0/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
+      "kind": "LinkedField",
+      "name": "project",
+      "plural": false,
+      "selections": [
+        (v0/*: any*/)
+      ],
+      "storageKey": null
+    },
     {
       "alias": "code",
       "args": null,
@@ -151,6 +166,6 @@ return {
 };
 })();
 
-(node as any).hash = "cb5cab60889623d77ad0c96c98b3f8ac";
+(node as any).hash = "40874c824cdcd1a4790f1960b840457c";
 
 export default node;
