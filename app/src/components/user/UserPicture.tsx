@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
-import { darken } from "polished";
 import { css } from "@emotion/react";
 
+import { useTheme } from "@phoenix/contexts";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 
 export function UserPicture({
@@ -18,36 +18,55 @@ export function UserPicture({
 }) {
   const firstLetter = name.length ? name[0].toUpperCase() : "?";
   const wordColor = useWordColor(name);
-  const gradientColors: [string, string] = useMemo(() => {
-    const wordColorTransparent = darken(0.3, wordColor);
-    return [wordColor, wordColorTransparent];
-  }, [wordColor]);
-  return (
-    <div
-      css={css`
-        width: ${size}px;
-        height: ${size}px;
-        border-radius: 50%;
-        font-size: ${Math.floor(size / 2)}px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        border: 1px solid var(--ac-global-color-grey-300);
-        color: white;
+  const { theme } = useTheme();
+
+  const styles = useMemo(() => {
+    return css`
+      width: ${size}px;
+      height: ${size}px;
+      border-radius: 50%;
+      font-size: ${Math.floor(size / 2)}px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      flex: none;
+      overflow: hidden;
+      --ac-internal-avatar-color: ${wordColor};
+
+      &[data-theme="light"] {
+        background: var(--ac-internal-avatar-color);
+        border: 1px solid
+          lch(from var(--ac-internal-avatar-color) calc(l * infinity) c h / 0.3);
+        color: lch(
+          from var(--ac-internal-avatar-color) calc((50 - l) * infinity) 0 0
+        );
+      }
+
+      &[data-theme="dark"] {
+        --scoped-avatar-dark-bg: lch(
+          from var(--ac-internal-avatar-color) calc(l * 0.7) c h
+        );
         background: linear-gradient(
           120deg,
-          ${gradientColors[0]},
-          ${gradientColors[1]}
+          var(--scoped-avatar-dark-bg),
+          lch(from var(--scoped-avatar-dark-bg) calc(l * 0.6) c h)
         );
-        overflow: hidden;
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-      `}
-    >
+        border: 1px solid
+          lch(from var(--scoped-avatar-dark-bg) calc(l * infinity) c h / 0.2);
+        color: lch(from var(--scoped-avatar-dark-bg) calc(l * infinity) c h);
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    `;
+  }, [size, wordColor]);
+
+  return (
+    <div css={styles} data-theme={theme}>
       {profilePictureUrl ? <img src={profilePictureUrl} /> : firstLetter}
     </div>
   );
