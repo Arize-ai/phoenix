@@ -16,6 +16,11 @@ interface MessageBarProps {
    * @example (message) => console.log('New message:', message)
    */
   onSendMessage: (message: string) => void;
+
+  /** Whether the message is currently being sent. Controls the button's loading state.
+   * @default false
+   */
+  isSending?: boolean;
 }
 
 /**
@@ -24,7 +29,8 @@ interface MessageBarProps {
  *
  * Features:
  * - Text input field that supports multi-line input with shift+enter
- * - Send button that is disabled when the input is empty
+ * - Send button that is disabled when the input is empty or while sending
+ * - Loading state while message is being sent (controlled via isSending prop)
  * - Enter key shortcut for sending messages
  * - Automatic trimming of whitespace
  *
@@ -34,10 +40,14 @@ interface MessageBarProps {
  *   onSendMessage={(message) => {
  *     sendMessageToServer(message);
  *   }}
+ *   isSending={isLoading}
  * />
  * ```
  */
-export function MessageBar({ onSendMessage }: MessageBarProps) {
+export function MessageBar({
+  onSendMessage,
+  isSending = false,
+}: MessageBarProps) {
   const [message, setMessage] = useState("");
 
   const handleSend = () => {
@@ -63,16 +73,23 @@ export function MessageBar({ onSendMessage }: MessageBarProps) {
           onChange={setMessage}
           onKeyDown={handleKeyDown}
           aria-label="Message input"
+          isDisabled={isSending}
         >
           <Input placeholder="Type a message" />
         </TextField>
         <Button
           size="M"
           variant="primary"
-          isDisabled={!message.trim()}
+          isDisabled={!message.trim() || isSending}
           onPress={handleSend}
-          aria-label="Send"
-          leadingVisual={<Icon svg={<Icons.PaperPlaneOutline />} />}
+          aria-label={isSending ? "Sending message..." : "Send"}
+          leadingVisual={
+            isSending ? (
+              <Icon svg={<Icons.LoadingOutline />} />
+            ) : (
+              <Icon svg={<Icons.PaperPlaneOutline />} />
+            )
+          }
         />
       </Flex>
     </View>

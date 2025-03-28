@@ -91,17 +91,33 @@ const DEMO_MESSAGES: Message[] = [
   },
 ];
 
+/**
+ * Simulates sending a message to a server with a random delay
+ */
+const simulateMessageSend = async (_text: string): Promise<void> => {
+  // Random delay between 1-3 seconds
+  const delay = Math.random() * 2000 + 1000;
+  await new Promise((resolve) => setTimeout(resolve, delay));
+};
+
 function ChatUI() {
   const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
+  const [isSending, setIsSending] = useState(false);
 
-  const handleSendMessage = (text: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text,
-      timestamp: new Date(),
-      isOutgoing: true,
-    };
-    setMessages((prev) => [...prev, newMessage]);
+  const handleSendMessage = async (text: string) => {
+    setIsSending(true);
+    try {
+      await simulateMessageSend(text);
+      const newMessage: Message = {
+        id: Date.now().toString(),
+        text,
+        timestamp: new Date(),
+        isOutgoing: true,
+      };
+      setMessages((prev) => [...prev, newMessage]);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -113,11 +129,11 @@ function ChatUI() {
             text={message.text}
             timestamp={message.timestamp}
             isOutgoing={message.isOutgoing}
-            userName={message.isOutgoing ? "You" : "User"}
+            userName={message.isOutgoing ? "You" : "Assistant"}
           />
         ))}
       </div>
-      <MessageBar onSendMessage={handleSendMessage} />
+      <MessageBar onSendMessage={handleSendMessage} isSending={isSending} />
     </div>
   );
 }
@@ -127,6 +143,20 @@ const meta = {
   component: ChatUI,
   parameters: {
     layout: "centered",
+    docs: {
+      description: {
+        component: `
+A complete chat interface that demonstrates the MessageBar and MessageBubble components working together.
+The interface simulates async message sending with a random delay between 1-3 seconds to showcase loading states.
+
+Features:
+- Message composition with loading states
+- Message history display
+- Proper message threading and timestamps
+- Visual distinction between sent and received messages
+`,
+      },
+    },
   },
 } satisfies Meta<typeof ChatUI>;
 
