@@ -178,7 +178,7 @@ class BedrockModel(BaseModel):
         }
 
         # Add any extra parameters that aren't part of the Converse inferenceConfig parameter
-        additional_model_request_fields = {}
+        additional_model_request_fields: Dict[str, Union[int, Dict[str, Any]]] = {}
         # Meta Llama and Titan models do not support the topK parameter
         # Only add if different from default
         if self.top_k != 256 and "meta.llama" not in self.model_id and "titan" not in self.model_id:
