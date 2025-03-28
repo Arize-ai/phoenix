@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.20.0...arize-phoenix-v8.21.0) (2025-03-28)
+
+
+### Features
+
+* Move Span Annotation Editor into Span Aside ([#6937](https://github.com/Arize-ai/phoenix/issues/6937)) ([9dc2dc7](https://github.com/Arize-ai/phoenix/commit/9dc2dc7e526e67140009398014166d04eb528a15))
+* **ui:** add chat / message components for note taking ([#6940](https://github.com/Arize-ai/phoenix/issues/6940)) ([d3af052](https://github.com/Arize-ai/phoenix/commit/d3af052c2d26a4ee3d82014e7b16cb029518a16d))
+
 ## [8.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.19.1...arize-phoenix-v8.20.0) (2025-03-28)
 
 
