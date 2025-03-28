@@ -364,7 +364,9 @@ export interface components {
              * Metadata
              * @description Metadata for the experiment
              */
-            metadata?: Record<string, unknown> | null;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Version Id
              * @description ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)
@@ -399,7 +401,9 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, unknown>;
+            metadata: {
+                [key: string]: unknown;
+            };
             /**
              * Created At
              * Format: date-time
@@ -416,11 +420,17 @@ export interface components {
             /** Id */
             id: string;
             /** Input */
-            input: Record<string, unknown>;
+            input: {
+                [key: string]: unknown;
+            };
             /** Output */
-            output: Record<string, unknown>;
+            output: {
+                [key: string]: unknown;
+            };
             /** Metadata */
-            metadata: Record<string, unknown>;
+            metadata: {
+                [key: string]: unknown;
+            };
             /**
              * Updated At
              * Format: date-time
@@ -434,7 +444,9 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, unknown>;
+            metadata: {
+                [key: string]: unknown;
+            };
             /**
              * Created At
              * Format: date-time
@@ -450,7 +462,9 @@ export interface components {
             /** Description */
             description: string | null;
             /** Metadata */
-            metadata: Record<string, unknown>;
+            metadata: {
+                [key: string]: unknown;
+            };
             /**
              * Created At
              * Format: date-time
@@ -490,7 +504,9 @@ export interface components {
              * Metadata
              * @description Metadata of the experiment
              */
-            metadata: Record<string, unknown>;
+            metadata: {
+                [key: string]: unknown;
+            };
             /**
              * Project Name
              * @description The name of the project associated with the experiment
@@ -765,7 +781,9 @@ export interface components {
             /** Description */
             description?: string;
             /** Schema */
-            schema?: Record<string, unknown>;
+            schema?: {
+                [key: string]: unknown;
+            };
             /** Strict */
             strict?: boolean;
         };
@@ -839,7 +857,9 @@ export interface components {
             /** Description */
             description?: string;
             /** Parameters */
-            parameters?: Record<string, unknown>;
+            parameters?: {
+                [key: string]: unknown;
+            };
             /** Strict */
             strict?: boolean;
         };
@@ -917,7 +937,9 @@ export interface components {
              * Metadata
              * @description Metadata for the annotation
              */
-            metadata?: Record<string, unknown> | null;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
@@ -981,7 +1003,9 @@ export interface components {
             /** Tool Call Id */
             tool_call_id: string;
             /** Tool Result */
-            tool_result: boolean | number | string | Record<string, unknown> | unknown[] | null;
+            tool_result: boolean | number | string | {
+                [key: string]: unknown;
+            } | unknown[] | null;
         };
         /** UploadDatasetData */
         UploadDatasetData: {
