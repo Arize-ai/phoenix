@@ -33,6 +33,10 @@ const popoverCSS = css`
     stroke-width: 1px;
   }
 
+  &[data-trigger="Select"] {
+    min-width: var(--trigger-width);
+  }
+
   &[data-placement="top"] {
     --origin: translateY(8px);
 
@@ -91,7 +95,9 @@ const popoverCSS = css`
 `;
 
 function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
-  return <AriaPopover {...props} ref={ref} css={popoverCSS} />;
+  return (
+    <AriaPopover {...props} ref={ref} className="ac-popover" css={popoverCSS} />
+  );
 }
 popoverCSS;
 

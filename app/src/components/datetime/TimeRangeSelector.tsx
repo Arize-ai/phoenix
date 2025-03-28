@@ -29,7 +29,6 @@ export type TimeRangeSelectorProps = {
 
 const listBoxCSS = css`
   width: 120px;
-  padding: var(--ac-global-dimension-size-50);
 `;
 
 /**
