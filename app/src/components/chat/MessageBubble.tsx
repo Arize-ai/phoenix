@@ -2,6 +2,7 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 const USER_PICTURE_SIZE = 24;
 
@@ -111,14 +112,9 @@ export function MessageBubble({
         </div>
       </div>
       <div css={timestampCSS} data-outgoing={isOutgoing}>
-        {timestamp.toLocaleDateString([], {
-          month: "short",
-          day: "numeric",
-        })}{" "}
-        {timestamp.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
+        <time dateTime={timestamp.toISOString()}>
+          {fullTimeFormatter(timestamp)}
+        </time>
       </div>
     </div>
   );
