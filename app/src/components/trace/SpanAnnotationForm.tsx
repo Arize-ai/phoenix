@@ -89,7 +89,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
     [onSubmit, setError, reset]
   );
 
-  const defaultDetailsCollapsed = isReadOnly;
+  const defaultDetailsCollapsed = !initialData.explanation;
   return (
     <Form onSubmit={handleSubmit(_onSubmit)}>
       <View padding="size-200">
@@ -100,11 +100,18 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               flex-direction: row;
               width: 100%;
               overflow: hidden;
-              gap: var(--ac-global-dimension-size-100);
+              --gap: var(--ac-global-dimension-size-100);
+              --input-width: 100px;
+
+              gap: var(--gap);
               & > * {
-                flex-basis: calc(50% - var(--ac-global-dimension-size-100));
-                min-width: 200px;
+                flex-basis: calc(50% - var(--gap));
+                min-width: var(--input-width);
                 flex-grow: 1;
+              }
+
+              input.react-aria-Input {
+                min-width: var(--input-width);
               }
 
               flex-wrap: wrap;
@@ -130,9 +137,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
                   {error ? (
                     <FieldError>{error.message}</FieldError>
                   ) : (
-                    <Text slot="description">
-                      A categorical label like good or bad
-                    </Text>
+                    <Text slot="description">A categorical label</Text>
                   )}
                 </TextField>
               )}
