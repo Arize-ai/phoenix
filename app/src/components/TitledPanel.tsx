@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
 import {
   ImperativePanelHandle,
   Panel,
@@ -32,8 +31,6 @@ export const TitledPanel = forwardRef<
     panelResizeHandleProps?: PanelResizeHandleProps;
     resizable?: boolean;
     bordered?: boolean;
-    expandSizeFallback?: number;
-    fullSize?: boolean;
   }>
 >(
   (
@@ -42,7 +39,6 @@ export const TitledPanel = forwardRef<
       title,
       panelProps,
       panelResizeHandleProps,
-      fullSize = false,
       resizable = false,
       bordered = true,
     },
@@ -58,12 +54,10 @@ export const TitledPanel = forwardRef<
     const handleClick = () => {
       const panel = panelRef.current;
       if (panel?.isCollapsed()) {
-        setCollapsed(false);
         // if the panel is collapsed when its size is below 35%, it will be expanded to at least 35%
         // otherwise it will return to its pre-collapse size
-        panel?.expand(fullSize ? 100 : 35);
+        panel?.expand(35);
       } else {
-        setCollapsed(true);
         panel?.collapse();
       }
     };
@@ -113,15 +107,11 @@ export const TitledPanel = forwardRef<
           ref={panelRef}
           collapsible
           onCollapse={() => {
-            flushSync(() => {
-              setCollapsed(true);
-            });
+            setCollapsed(true);
             panelProps?.onCollapse?.();
           }}
           onExpand={() => {
-            flushSync(() => {
-              setCollapsed(false);
-            });
+            setCollapsed(false);
             panelProps?.onExpand?.();
           }}
         >
