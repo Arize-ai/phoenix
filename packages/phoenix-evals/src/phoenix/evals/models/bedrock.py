@@ -179,8 +179,13 @@ class BedrockModel(BaseModel):
 
         # Add any extra parameters that aren't part of the Converse inferenceConfig parameter
         additional_model_request_fields = {}
-        if self.top_k != 256:  # Only add if different from default
-            additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
+        # Meta Llama and Titan models do not support the topK parameter
+        # Only add if different from default
+        if self.top_k != 256 and "meta.llama" not in self.model_id and "titan" not in self.model_id:
+            if "nova" in self.model_id:
+                additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
+            else:
+                additional_model_request_fields["top_k"] = self.top_k
 
         # Add any remaining extra parameters
         additional_model_request_fields.update(self.extra_parameters)
