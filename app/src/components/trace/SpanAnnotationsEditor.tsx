@@ -73,7 +73,7 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
           <EditSpanAnnotations
             extraAnnotationCards={
               newAnnotationName ? (
-                <NewSpanAnnotationCard
+                <NewSpanAnnotationDisclosure
                   spanNodeId={spanNodeId}
                   name={newAnnotationName}
                   onDelete={() => {
@@ -264,7 +264,7 @@ function SpanAnnotationsList(props: {
         size="S"
       >
         {annotations.map((annotation, idx) => (
-          <SpanAnnotationCard
+          <SpanAnnotationDisclosure
             key={`${idx}_${annotation.name}`}
             annotation={annotation}
             spanNodeId={data.id}
@@ -276,7 +276,7 @@ function SpanAnnotationsList(props: {
   );
 }
 
-function NewSpanAnnotationCard(props: {
+function NewSpanAnnotationDisclosure(props: {
   spanNodeId: string;
   name: string;
   onDelete: () => void;
@@ -333,7 +333,7 @@ type Annotation = NonNullable<
   SpanAnnotationsEditor_spanAnnotations$data["spanAnnotations"]
 >[number];
 
-function SpanAnnotationCard(props: {
+function SpanAnnotationDisclosure(props: {
   annotation: Annotation;
   spanNodeId: string;
 }) {
