@@ -1,5 +1,24 @@
 # Changelog
 
+## [8.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.19.1...arize-phoenix-v8.20.0) (2025-03-28)
+
+
+### Features
+
+* **UI:** use icon only buttons in span details when view is small ([#6931](https://github.com/Arize-ai/phoenix/issues/6931)) ([258aa5b](https://github.com/Arize-ai/phoenix/commit/258aa5bcce15a0773fd1ef921223dc96a086969c))
+
+
+### Bug Fixes
+
+* **perf:** disable streaming when dialog is open ([#6936](https://github.com/Arize-ai/phoenix/issues/6936)) ([f5510bd](https://github.com/Arize-ai/phoenix/commit/f5510bdf5a60fdb1affece91a4787691f284828d))
+* Remove unpredictable playground transformations ([#6914](https://github.com/Arize-ai/phoenix/issues/6914)) ([7ff1dbc](https://github.com/Arize-ai/phoenix/commit/7ff1dbc84fe1c3421a1a9d0cfe486f8121eeabb7))
+* use CTE for orphan span query ([#6939](https://github.com/Arize-ai/phoenix/issues/6939)) ([977b3f2](https://github.com/Arize-ai/phoenix/commit/977b3f2501d2ae267465aad8dd98af6b746eb35c))
+
+
+### Documentation
+
+* Update stories.mdc ([8ac711b](https://github.com/Arize-ai/phoenix/commit/8ac711b14cc42492b1d4a89b61f82336706b964f))
+
 ## [8.19.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.19.0...arize-phoenix-v8.19.1) (2025-03-25)
 
 
