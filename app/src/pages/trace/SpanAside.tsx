@@ -5,7 +5,7 @@ import { css } from "@emotion/react";
 
 import { View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
-import { TitledPanel } from "@phoenix/components/TitledPanel";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";

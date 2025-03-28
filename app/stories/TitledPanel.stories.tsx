@@ -5,7 +5,7 @@ import { Meta, StoryFn } from "@storybook/react";
 import { Card } from "@arizeai/components";
 
 import { Text, Token, View } from "@phoenix/components";
-import { TitledPanel } from "@phoenix/components/TitledPanel";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 
 const meta: Meta = {
   title: "TitledPanel",
