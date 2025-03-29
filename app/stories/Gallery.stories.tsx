@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
-import { Item, Picker } from "@arizeai/components";
-
 import {
   Button,
   ComboBox,
@@ -17,6 +15,12 @@ import {
   Flex,
   Input,
   Label,
+  ListBox,
+  ListBoxItem,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectValue,
   Tag,
   TagGroup,
   TagList,
@@ -37,6 +41,32 @@ const meta: Meta = {
 };
 
 export default meta;
+
+const options = [
+  { id: "chocolate", name: "Chocolate" },
+  { id: "mint", name: "Mint" },
+  { id: "strawberry", name: "Strawberry" },
+  { id: "vanilla", name: "Vanilla" },
+];
+
+const SelectContent = () => (
+  <>
+    <Label>Toppings</Label>
+    <Button>
+      <SelectValue />
+      <SelectChevronUpDownIcon />
+    </Button>
+    <Popover>
+      <ListBox>
+        {options.map((option) => (
+          <ListBoxItem key={option.id} id={option.id}>
+            {option.name}
+          </ListBoxItem>
+        ))}
+      </ListBox>
+    </Popover>
+  </>
+);
 
 const Template: StoryFn = () => {
   const [direction, setDirection] = useState<"row" | "column">("row");
@@ -106,12 +136,9 @@ const Template: StoryFn = () => {
             </DateInput>
             <Text slot="description">the time of your event</Text>
           </TimeField>
-          <Picker label="Toppings" size="compact" description={"pick a flavor"}>
-            <Item key="chocolate">Chocolate</Item>
-            <Item key="mint">Mint</Item>
-            <Item key="strawberry">Strawberry</Item>
-            <Item key="vanilla">Vanilla</Item>
-          </Picker>
+          <Select size="S">
+            <SelectContent />
+          </Select>
           <View minWidth="300px">
             <TagGroup selectionMode="multiple">
               <Label>Categories</Label>
@@ -150,17 +177,9 @@ const Template: StoryFn = () => {
               Vanilla
             </ComboBoxItem>
           </ComboBox>
-          <Picker label="Toppings" size="default" description={"pick a flavor"}>
-            <Item key="chocolate">Chocolate</Item>
-            <Item key="mint">Mint</Item>
-            <Item key="strawberry">Strawberry</Item>
-            <Item key="vanilla">Vanilla</Item>
-          </Picker>
-          <TextField size="L">
-            <Label>Label</Label>
-            <Input type="text" />
-            <Text slot="description">some description</Text>
-          </TextField>
+          <Select size="L">
+            <SelectContent />
+          </Select>
           <Button size="M">Button</Button>
         </Flex>
       </View>
@@ -186,12 +205,9 @@ const Template: StoryFn = () => {
               Vanilla
             </ComboBoxItem>
           </ComboBox>
-          <Picker label="Toppings" size="compact">
-            <Item key="chocolate">Chocolate</Item>
-            <Item key="mint">Mint</Item>
-            <Item key="strawberry">Strawberry</Item>
-            <Item key="vanilla">Vanilla</Item>
-          </Picker>
+          <Select size="S">
+            <SelectContent />
+          </Select>
           <ComboBox label="Ice cream flavor" size="L">
             <ComboBoxItem textValue="Chocolate" key={"chocolate"}>
               Chocolate
@@ -206,12 +222,9 @@ const Template: StoryFn = () => {
               Vanilla
             </ComboBoxItem>
           </ComboBox>
-          <Picker label="Toppings" size="default">
-            <Item key="chocolate">Chocolate</Item>
-            <Item key="mint">Mint</Item>
-            <Item key="strawberry">Strawberry</Item>
-            <Item key="vanilla">Vanilla</Item>
-          </Picker>
+          <Select size="M">
+            <SelectContent />
+          </Select>
         </Flex>
       </View>
       <View

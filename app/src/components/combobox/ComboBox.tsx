@@ -20,7 +20,10 @@ import { Icon, Icons } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps } from "@phoenix/components/types";
 
+import { SelectChevronUpDownIcon } from "../select";
+
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
+
 export interface ComboBoxProps<T extends object>
   extends Omit<AriaComboBoxProps<T>, "children">,
     SizingProps,
@@ -91,7 +94,7 @@ export function ComboBox<T extends object>({
       >
         <Input placeholder={placeholder} />
         <Button>
-          <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+          <SelectChevronUpDownIcon />
         </Button>
       </div>
       {description && !errorMessage ? (

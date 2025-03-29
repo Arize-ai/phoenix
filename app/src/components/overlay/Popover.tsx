@@ -17,20 +17,33 @@ const popoverSlideKeyframes = keyframes`
 `;
 
 const popoverCSS = css`
+  box-sizing: border-box;
   --background-color: var(--ac-global-background-color-light);
-
+  transition:
+    transform 200ms,
+    opacity 200ms;
   border: 1px solid var(--ac-global-border-color-light);
-  box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
+  box-shadow: 3px 5px 10px rgba(0 0 0 / 0.2);
   border-radius: var(--ac-global-rounding-small);
   background: var(--background-color);
   color: var(--ac-global-text-color-900);
   outline: none;
+
+  &[data-entering],
+  &[data-exiting] {
+    transform: var(--origin);
+    opacity: 0;
+  }
 
   .react-aria-OverlayArrow svg {
     display: block;
     fill: var(--ac-global-background-color-light);
     stroke: var(--ac-global-border-color-light);
     stroke-width: 1px;
+  }
+
+  &[data-trigger="Select"] {
+    min-width: var(--trigger-width);
   }
 
   &[data-placement="top"] {
@@ -88,10 +101,16 @@ const popoverCSS = css`
   .react-aria-Dialog {
     outline: none;
   }
+
+  & div[role="listbox"] {
+    padding: var(--ac-global-dimension-size-25);
+  }
 `;
 
 function Popover(props: PopoverProps, ref: Ref<HTMLDivElement>) {
-  return <AriaPopover {...props} ref={ref} css={popoverCSS} />;
+  return (
+    <AriaPopover {...props} ref={ref} className="ac-popover" css={popoverCSS} />
+  );
 }
 popoverCSS;
 

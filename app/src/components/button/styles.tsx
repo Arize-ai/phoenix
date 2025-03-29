@@ -6,6 +6,7 @@ export const buttonCSS = css`
   font-size: var(--ac-global-dimension-static-font-size-100);
   line-height: 20px; // TODO(mikeldking): move this into a consistent variable
   margin: 0;
+  transition: all 0.2s ease-in-out;
 
   display: flex;
   gap: var(--ac-global-dimension-static-size-100);
@@ -27,7 +28,6 @@ export const buttonCSS = css`
   }
   &:not([disabled]) {
     transition: all 0.2s ease-in-out;
-    transition: outline 0s;
   }
   &[disabled] {
     cursor: default;
