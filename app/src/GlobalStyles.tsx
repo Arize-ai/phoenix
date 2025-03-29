@@ -963,7 +963,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-border-color-dark: var(--ac-global-color-grey-300);
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
-    --ac-highlight-background: var(--ac-global-color-primary-300);
+    --ac-highlight-background: var(--ac-global-color-primary-200);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text

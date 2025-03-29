@@ -12,6 +12,7 @@ import {
   ListBoxItem,
   Popover,
   PopoverArrow,
+  SelectChevronUpDownIcon,
   TimeRangeForm,
   View,
 } from "@phoenix/components";
@@ -28,7 +29,7 @@ export type TimeRangeSelectorProps = {
 };
 
 const listBoxCSS = css`
-  width: 120px;
+  width: 130px;
 `;
 
 /**
@@ -61,6 +62,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         onPress={() => setOpen(true)}
       >
         {getDisplayText(value)}
+        <SelectChevronUpDownIcon />
       </Button>
       <Popover placement="bottom end" isOpen={isOpen}>
         <Dialog>
