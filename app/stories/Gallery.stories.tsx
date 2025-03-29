@@ -180,11 +180,6 @@ const Template: StoryFn = () => {
           <Select size="L">
             <SelectContent />
           </Select>
-          <TextField size="L">
-            <Label>Large Text Field</Label>
-            <Input type="text" />
-            <Text slot="description">some description</Text>
-          </TextField>
           <Button size="M">Button</Button>
         </Flex>
       </View>

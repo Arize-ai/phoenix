@@ -2,12 +2,12 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import { Icon } from "../icon/Icon";
-import { ChevronUpDownIcon } from "../icon/Icons";
+import { ChevronUpDown } from "../icon/Icons";
 
 export const SelectChevronUpDownIcon = () => {
   return (
     <Icon
-      svg={<ChevronUpDownIcon />}
+      svg={<ChevronUpDown />}
       css={css`
         font-size: 0.8rem;
       `}
