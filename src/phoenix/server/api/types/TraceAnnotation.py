@@ -8,6 +8,8 @@ from strawberry.scalars import JSON
 from phoenix.db import models
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
+from .AnnotationSource import AnnotationSource
+
 
 @strawberry.type
 class TraceAnnotation(Node):
@@ -19,6 +21,8 @@ class TraceAnnotation(Node):
     explanation: Optional[str]
     metadata: JSON
     trace_rowid: Private[Optional[int]]
+    identifier: Optional[str]
+    source: AnnotationSource
 
     @strawberry.field
     async def trace_id(self) -> GlobalID:
@@ -42,4 +46,6 @@ def to_gql_trace_annotation(
         score=annotation.score,
         explanation=annotation.explanation,
         metadata=annotation.metadata_,
+        identifier=annotation.identifier,
+        source=AnnotationSource(annotation.source),
     )
