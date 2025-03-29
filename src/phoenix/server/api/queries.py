@@ -19,6 +19,7 @@ from phoenix.config import (
     getenv,
 )
 from phoenix.db import enums, models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import DatasetExample as OrmExample
 from phoenix.db.models import DatasetExampleRevision as OrmRevision
@@ -43,6 +44,7 @@ from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputC
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -66,6 +68,7 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.pagination import ConnectionArgs, CursorString, connection_from_list
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
+from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
@@ -596,6 +599,14 @@ class Query:
                 ):
                     raise NotFound(f"Unknown prompt label: {id}")
             return to_gql_prompt_label(prompt_label)
+        if type_name == ProjectTraceRetentionPolicy.__name__:
+            async with info.context.db() as session:
+                db_policy = await session.scalar(
+                    select(models.ProjectTraceRetentionPolicy).filter_by(id=node_id)
+                )
+                if not db_policy:
+                    raise NotFound(f"Unknown project trace retention policy: {id}")
+            return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field
@@ -664,6 +675,36 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            stmt = (
+                select(models.AnnotationConfig)
+                .order_by(models.AnnotationConfig.name)
+                .options(
+                    joinedload(models.AnnotationConfig.continuous_annotation_config),
+                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
+                        models.CategoricalAnnotationConfig.values
+                    ),
+                )
+            )
+            configs = (await session.stream_scalars(stmt)).unique()
+            data = [to_gql_annotation_config(config) async for config in configs]
+            return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def clusters(
@@ -792,6 +833,45 @@ class Query:
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
+
+    @strawberry.field
+    async def default_project_trace_retention_policy(
+        self,
+        info: Info[Context, None],
+    ) -> ProjectTraceRetentionPolicy:
+        stmt = select(models.ProjectTraceRetentionPolicy).filter_by(
+            id=DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+        )
+        async with info.context.db() as session:
+            db_policy = await session.scalar(stmt)
+        assert db_policy
+        return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+
+    @strawberry.field
+    async def project_trace_retention_policies(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 100,
+        last: Optional[int] = UNSET,
+        after: Optional[CursorString] = UNSET,
+        before: Optional[CursorString] = UNSET,
+    ) -> Connection[ProjectTraceRetentionPolicy]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = select(models.ProjectTraceRetentionPolicy).order_by(
+            models.ProjectTraceRetentionPolicy.id
+        )
+        async with info.context.db() as session:
+            result = await session.stream_scalars(stmt)
+            data = [
+                ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+                async for db_policy in result
+            ]
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field(
         description="The allocated storage capacity of the database in bytes. "
