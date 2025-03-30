@@ -29,18 +29,19 @@ def upgrade() -> None:
             unique=True,
         ),
     )
-    with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "source",
-                sa.String,
-                sa.CheckConstraint(
-                    "source IN ('API', 'APP')",
-                    name="valid_source",
-                ),
-                nullable=False,
+    op.add_column(
+        "span_annotations",
+        sa.Column(
+            "source",
+            sa.String,
+            sa.CheckConstraint(
+                "source IN ('API', 'APP')",
+                name="valid_source",
             ),
-        )
+            nullable=False,
+        ),
+    )
+    with op.batch_alter_table("span_annotations") as batch_op:
         batch_op.add_column(
             sa.Column(
                 "user_id",
@@ -60,18 +61,19 @@ def upgrade() -> None:
             unique=True,
         ),
     )
-    with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "source",
-                sa.String,
-                sa.CheckConstraint(
-                    "source IN ('API', 'APP')",
-                    name="valid_source",
-                ),
-                nullable=False,
+    op.add_column(
+        "trace_annotations",
+        sa.Column(
+            "source",
+            sa.String,
+            sa.CheckConstraint(
+                "source IN ('API', 'APP')",
+                name="valid_source",
             ),
-        )
+            nullable=False,
+        ),
+    )
+    with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.add_column(
             sa.Column(
                 "user_id",
@@ -91,18 +93,19 @@ def upgrade() -> None:
             unique=True,
         ),
     )
-    with op.batch_alter_table("document_annotations") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "source",
-                sa.String,
-                sa.CheckConstraint(
-                    "source IN ('API', 'APP')",
-                    name="valid_source",
-                ),
-                nullable=False,
+    op.add_column(
+        "document_annotations",
+        sa.Column(
+            "source",
+            sa.String,
+            sa.CheckConstraint(
+                "source IN ('API', 'APP')",
+                name="valid_source",
             ),
-        )
+            nullable=False,
+        ),
+    )
+    with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.add_column(
             sa.Column(
                 "user_id",
