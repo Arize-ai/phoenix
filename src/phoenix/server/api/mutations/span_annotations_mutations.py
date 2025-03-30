@@ -73,29 +73,36 @@ class SpanAnnotationMutationMixin:
     async def patch_span_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+
         patch_by_id = {}
         for patch in input:
             try:
                 span_annotation_id = from_global_id_with_expected_type(
                     patch.annotation_id, SpanAnnotation.__name__
                 )
-            except ValueError as e:
-                raise BadRequest(f"Invalid span annotation ID: {e}")
+            except ValueError:
+                raise BadRequest(f"Invalid span annotation ID: {patch.annotation_id}")
             if span_annotation_id in patch_by_id:
                 raise BadRequest(f"Duplicate patch for span annotation ID: {span_annotation_id}")
             patch_by_id[span_annotation_id] = patch
 
         async with info.context.db() as session:
-            span_annotations_by_id = {
-                span_annotation.id: span_annotation
-                for span_annotation in (
-                    await session.scalars(
-                        select(models.SpanAnnotation).where(
-                            models.SpanAnnotation.id.in_(patch_by_id.keys())
-                        )
-                    )
+            span_annotations_by_id = {}
+            for span_annotation in await session.scalars(
+                select(models.SpanAnnotation).where(
+                    models.SpanAnnotation.id.in_(patch_by_id.keys())
                 )
-            }
+            ):
+                if span_annotation.user_id != user_id:
+                    raise BadRequest(
+                        f"Cannot patch span annotation '{span_annotation.id}' "
+                        "because it is not associated with the current user."
+                    )
+                span_annotations_by_id[span_annotation.id] = span_annotation
             missing_span_annotation_ids = set(patch_by_id) - set(span_annotations_by_id.keys())
             if missing_span_annotation_ids:
                 raise BadRequest(
