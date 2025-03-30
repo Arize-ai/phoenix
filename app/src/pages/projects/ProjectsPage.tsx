@@ -1,24 +1,34 @@
 import React, {
   startTransition,
-  Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
-import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
+import {
+  fetchQuery,
+  graphql,
+  useLazyLoadQuery,
+  usePaginationFragment,
+  useRelayEnvironment,
+} from "react-relay";
 import { formatDistance } from "date-fns";
+import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
 
-import { Flex, Heading, Link, Loading, Text, View } from "@phoenix/components";
+import { Flex, Heading, Link, Skeleton, Text, View } from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { useInterval } from "@phoenix/hooks/useInterval";
+import {
+  ProjectsPageProjectMetricsQuery,
+  ProjectsPageProjectMetricsQuery$data,
+} from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -29,29 +39,31 @@ import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQ
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
-import { ProjectsAutoRefreshToggle } from "./ProjectsAutoRefreshToggle";
 
-const REFRESH_INTERVAL_MS = 10000;
 const PAGE_SIZE = 50;
 
 export function ProjectsPage() {
   const { timeRange } = useTimeRange();
 
-  return (
-    <Suspense fallback={<Loading />}>
-      <ProjectsPageContent timeRange={timeRange} />
-    </Suspense>
+  const data = useLazyLoadQuery<ProjectsPageQuery>(
+    graphql`
+      query ProjectsPageQuery {
+        ...ProjectsPageProjectsFragment
+      }
+    `,
+    {}
   );
+
+  return <ProjectsPageContent timeRange={timeRange} query={data} />;
 }
 
 export function ProjectsPageContent({
   timeRange,
+  query,
 }: {
   timeRange: OpenTimeRange;
+  query: ProjectsPageProjectsFragment$key;
 }) {
-  const autoRefreshEnabled = usePreferencesContext(
-    (state) => state.projectsAutoRefreshEnabled
-  );
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
@@ -61,16 +73,6 @@ export function ProjectsPageContent({
     };
   }, [timeRange]);
 
-  const data = useLazyLoadQuery<ProjectsPageQuery>(
-    graphql`
-      query ProjectsPageQuery($timeRange: TimeRange!) {
-        ...ProjectsPageProjectsFragment
-      }
-    `,
-    {
-      timeRange: timeRangeVariable,
-    }
-  );
   const {
     data: projectsData,
     loadNext,
@@ -96,21 +98,16 @@ export function ProjectsPageContent({
               name
               gradientStartColor
               gradientEndColor
-              traceCount(timeRange: $timeRange)
               endTime
-              latencyMsP50: latencyMsQuantile(
-                probability: 0.5
-                timeRange: $timeRange
-              )
-              tokenCountTotal(timeRange: $timeRange)
             }
           }
         }
       }
     `,
-    data
+    query
   );
-  const projects = projectsData.projects.edges.map((p) => p.project);
+
+  const projects = projectsData?.projects.edges.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -128,15 +125,6 @@ export function ProjectsPageContent({
       }
     },
     [hasNext, isLoadingNext, loadNext]
-  );
-
-  useInterval(
-    () => {
-      startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
-      });
-    },
-    autoRefreshEnabled ? REFRESH_INTERVAL_MS : null
   );
 
   const onDelete = useCallback(
@@ -207,7 +195,6 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <ProjectsAutoRefreshToggle />
           <NewProjectButton />
           <ConnectedLastNTimeRangePicker />
         </Flex>
@@ -221,7 +208,7 @@ export function ProjectsPageContent({
             flex-wrap: wrap;
           `}
         >
-          {projects.map((project) => (
+          {projects?.map((project) => (
             <li key={project.id}>
               <Link
                 to={`/projects/${project.id}`}
@@ -231,6 +218,7 @@ export function ProjectsPageContent({
               >
                 <ProjectItem
                   project={project}
+                  timeRange={timeRangeVariable}
                   onProjectDelete={() => onDelete(project.name)}
                   onProjectClear={() => onClear(project.name)}
                   onProjectRemoveData={() => onRemove(project.name)}
@@ -273,21 +261,20 @@ type ProjectItemProps = {
   onProjectDelete: () => void;
   onProjectClear: () => void;
   onProjectRemoveData: () => void;
+  timeRange: {
+    start: string | undefined;
+    end: string | undefined;
+  };
 };
+
 function ProjectItem({
   project,
   onProjectDelete,
   onProjectClear,
   onProjectRemoveData,
+  timeRange,
 }: ProjectItemProps) {
-  const {
-    endTime,
-    traceCount,
-    tokenCountTotal,
-    latencyMsP50,
-    gradientStartColor,
-    gradientEndColor,
-  } = project;
+  const { gradientStartColor, gradientEndColor, endTime } = project;
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
       return `Last updated  ${formatDistance(new Date(endTime), new Date(), { addSuffix: true })}`;
@@ -345,30 +332,139 @@ function ProjectItem({
           onProjectRemoveData={onProjectRemoveData}
         />
       </Flex>
-      <Flex direction="row" justifyContent="space-between">
-        <Flex direction="column" flex="none">
-          <Text elementType="h3" size="S" color="text-700">
-            Total Traces
-          </Text>
-          <Text size="L">{intFormatter(traceCount)}</Text>
-        </Flex>
-        <Flex direction="column" flex="none">
-          <Text elementType="h3" size="S" color="text-700">
-            Total Tokens
-          </Text>
-          <Text size="L">{intFormatter(tokenCountTotal)}</Text>
-        </Flex>
-        <Flex direction="column" flex="none">
-          <Text elementType="h3" size="S" color="text-700">
-            Latency P50
-          </Text>
-          {latencyMsP50 != null ? (
-            <LatencyText latencyMs={latencyMsP50} size="L" />
-          ) : (
-            <Text size="L">--</Text>
-          )}
-        </Flex>
-      </Flex>
+      <ProjectMetrics projectId={project.id} timeRange={timeRange} />
     </div>
+  );
+}
+
+const PROJECT_METRICS_QUERY = graphql`
+  query ProjectsPageProjectMetricsQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+  ) {
+    project: node(id: $id) {
+      ... on Project {
+        traceCount(timeRange: $timeRange)
+        latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
+        tokenCountTotal(timeRange: $timeRange)
+      }
+    }
+  }
+`;
+
+function ProjectMetricsLoadingSkeleton() {
+  return (
+    <Flex direction="row" justifyContent="space-between" minHeight="size-600">
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Traces
+        </Text>
+        <Skeleton width={60} height={20} animation="wave" />
+      </Flex>
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Tokens
+        </Text>
+        <Skeleton width={60} height={20} animation="wave" />
+      </Flex>
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Latency P50
+        </Text>
+        <Skeleton width={60} height={20} animation="wave" />
+      </Flex>
+    </Flex>
+  );
+}
+
+function ProjectMetrics({
+  projectId,
+  timeRange,
+}: {
+  projectId: string;
+  timeRange: {
+    start: string | undefined;
+    end: string | undefined;
+  };
+}) {
+  const environment = useRelayEnvironment();
+  // ref to the current running "subscription", a.k.a. the current running query request
+  const subscriptionRef = useRef<Subscription | null>(null);
+  // state to hold the result of the project metrics query
+  const [projectMetrics, setProjectMetrics] =
+    useState<ProjectsPageProjectMetricsQuery$data | null>(null);
+  /**
+   * fetchProject is a function that fetches the project metrics for the given project id and time range
+   * it clears the current project metrics and then fetches the new project metrics
+   * it returns a "subscription" object that can be used to unsubscribe from the query
+   * It is NOT websockets, polling, or streaming, it is a normal fetch wrapped in a relay subscription provided by the relay environment
+   * this works because the relay environment is configured to abort the underlying fetch if the subscription is unsubscribed from
+   */
+  const fetchProject = useCallback(() => {
+    setProjectMetrics(null);
+    const observable = fetchQuery<ProjectsPageProjectMetricsQuery>(
+      environment,
+      PROJECT_METRICS_QUERY,
+      { id: projectId, timeRange }
+    );
+    const subscription = observable.subscribe({
+      next: (data) => {
+        setProjectMetrics(data);
+      },
+      error: () => {
+        setProjectMetrics(null);
+      },
+    });
+    return subscription;
+  }, [projectId, timeRange, environment]);
+  // when the component mounts, or the time range changes, we fetch the project metrics
+  useEffect(() => {
+    subscriptionRef.current = fetchProject();
+    return () => {
+      subscriptionRef.current?.unsubscribe();
+      subscriptionRef.current = null;
+    };
+  }, [fetchProject]);
+  // if the project metrics are not loaded yet, we show a loading indicator
+  if (projectMetrics == null) {
+    return <ProjectMetricsLoadingSkeleton />;
+  }
+  // if the project metrics are loaded, we show the project metrics
+  return <ProjectMetricsRow project={projectMetrics} />;
+}
+
+function ProjectMetricsRow({
+  project,
+}: {
+  project: ProjectsPageProjectMetricsQuery$data;
+}) {
+  const {
+    project: { traceCount, tokenCountTotal, latencyMsP50 },
+  } = project;
+  return (
+    <Flex direction="row" justifyContent="space-between" minHeight="size-600">
+      <Flex direction="column" flex="none">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Traces
+        </Text>
+        <Text size="L">{intFormatter(traceCount)}</Text>
+      </Flex>
+      <Flex direction="column" flex="none">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Tokens
+        </Text>
+        <Text size="L">{intFormatter(tokenCountTotal)}</Text>
+      </Flex>
+      <Flex direction="column" flex="none">
+        <Text elementType="h3" size="S" color="text-700">
+          Latency P50
+        </Text>
+        {latencyMsP50 != null ? (
+          <LatencyText latencyMs={latencyMsP50} size="L" />
+        ) : (
+          <Text size="L">--</Text>
+        )}
+      </Flex>
+    </Flex>
   );
 }

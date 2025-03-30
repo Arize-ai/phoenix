@@ -29,5 +29,6 @@ export async function authenticatedRootLoader() {
     });
     return redirect(redirectUrl);
   }
+
   return loaderData;
 }

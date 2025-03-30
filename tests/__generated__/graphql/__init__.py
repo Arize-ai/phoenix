@@ -39,6 +39,7 @@ class InvocationParameterBase(BaseModel):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -78,6 +79,7 @@ class BooleanInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -107,6 +109,7 @@ class BoundedFloatInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -558,6 +561,7 @@ class FloatInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -625,6 +629,7 @@ class IntInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -659,6 +664,7 @@ class JSONInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -1079,6 +1085,7 @@ class StringInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -1108,6 +1115,7 @@ class StringListInvocationParameter(InvocationParameterBase):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",
@@ -1638,6 +1646,7 @@ class InvocationParameterInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     canonicalName: Optional[
         Literal[
+            "ANTHROPIC_EXTENDED_THINKING",
             "MAX_COMPLETION_TOKENS",
             "RANDOM_SEED",
             "REASONING_EFFORT",

@@ -1,9 +1,8 @@
 import React from "react";
-import { useNavigate } from "react-router";
 
 import { Dialog } from "@arizeai/components";
 
-import { Button } from "@phoenix/components";
+import { LinkButton } from "@phoenix/components";
 import { TraceDetails } from "@phoenix/pages/trace";
 
 export function PlaygroundRunTraceDetailsDialog({
@@ -15,17 +14,14 @@ export function PlaygroundRunTraceDetailsDialog({
   projectId: string;
   title: string;
 }) {
-  const navigate = useNavigate();
   return (
     <Dialog
       title={title}
       size="fullscreen"
       extra={
-        <Button
-          onPress={() => navigate(`/projects/${projectId}/traces/${traceId}`)}
-        >
+        <LinkButton size="S" to={`/projects/${projectId}/traces/${traceId}`}>
           View Trace in Project
-        </Button>
+        </LinkButton>
       }
     >
       <TraceDetails traceId={traceId} projectId={projectId} />

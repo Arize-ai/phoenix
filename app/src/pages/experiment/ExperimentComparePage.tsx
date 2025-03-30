@@ -1,18 +1,20 @@
 import React, { startTransition, Suspense, useState } from "react";
-import { useLoaderData, useSearchParams } from "react-router-dom";
+import { useLoaderData, useSearchParams } from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
-import { Alert, Switch } from "@arizeai/components";
+import { Switch } from "@arizeai/components";
 
-import { Flex, Heading, Loading, View } from "@phoenix/components";
+import { Alert, Flex, Heading, Loading, View } from "@phoenix/components";
+import { experimentCompareLoader } from "@phoenix/pages/experiment/experimentCompareLoader";
 
-import { experimentCompareLoaderQuery$data } from "./__generated__/experimentCompareLoaderQuery.graphql";
 import { ExperimentCompareTable } from "./ExperimentCompareTable";
 import { ExperimentMultiSelector } from "./ExperimentMultiSelector";
 import { ExperimentRunFilterConditionProvider } from "./ExperimentRunFilterConditionContext";
 
 export function ExperimentComparePage() {
-  const data = useLoaderData() as experimentCompareLoaderQuery$data;
+  const loaderData = useLoaderData<typeof experimentCompareLoader>();
+  invariant(loaderData, "loaderData is required");
   // The text of most IO is too long so default to showing truncated text
   const [displayFullText, setDisplayFullText] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,7 +39,7 @@ export function ExperimentComparePage() {
           <Heading level={1}>Compare Experiments</Heading>
           <Flex direction="row" justifyContent="space-between" alignItems="end">
             <ExperimentMultiSelector
-              dataset={data.dataset}
+              dataset={loaderData.dataset}
               selectedExperimentIds={experimentIds}
               label="experiments"
               onChange={(newExperimentIds) => {
@@ -66,7 +68,7 @@ export function ExperimentComparePage() {
         <ExperimentRunFilterConditionProvider>
           <Suspense fallback={<Loading />}>
             <ExperimentCompareTable
-              datasetId={data.dataset.id}
+              datasetId={loaderData.dataset.id}
               experimentIds={experimentIds}
               displayFullText={displayFullText}
             />

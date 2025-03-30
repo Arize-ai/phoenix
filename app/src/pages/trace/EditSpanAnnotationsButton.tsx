@@ -9,6 +9,7 @@ export function EditSpanAnnotationsButton({
   spanNodeId,
   projectId,
   size = "M",
+  buttonText = "Annotate",
 }: {
   spanNodeId: string;
   projectId: string;
@@ -17,12 +18,18 @@ export function EditSpanAnnotationsButton({
    * @default M
    */
   size?: ButtonProps["size"];
+  /**
+   * The text of the button
+   * @default "Annotate"
+   */
+  buttonText: string | null;
 }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   return (
     <>
       <Button
         size={size}
+        aria-label="Edit Span Annotations"
         leadingVisual={<Icon svg={<Icons.EditOutline />} />}
         onPress={() =>
           setDialog(
@@ -33,7 +40,7 @@ export function EditSpanAnnotationsButton({
           )
         }
       >
-        Annotate
+        {buttonText}
       </Button>
       <DialogContainer
         type="slideOver"

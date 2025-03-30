@@ -1,5 +1,5 @@
 import React, { Ref } from "react";
-import { Link, LinkProps } from "react-router-dom";
+import { Link, LinkProps } from "react-router";
 import { css } from "@emotion/react";
 
 import { buttonCSS } from "./styles";

@@ -1,5 +1,6 @@
 import React from "react";
 import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import { Card } from "@arizeai/components";
@@ -15,9 +16,9 @@ import {
 } from "@phoenix/components";
 import { IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
-import { settingsGeneralPageLoaderQuery$data } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
+import { settingsGeneralPageLoader } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
 const formCSS = css`
@@ -28,8 +29,8 @@ const formCSS = css`
 `;
 
 export function SettingsGeneralPage() {
-  const data = useLoaderData() as settingsGeneralPageLoaderQuery$data;
-
+  const loaderData = useLoaderData<typeof settingsGeneralPageLoader>();
+  invariant(loaderData, "loaderData is required");
   return (
     <Flex direction="column" gap="size-200" width="100%">
       <Flex direction="row" gap="size-200" alignItems="baseline">
@@ -75,7 +76,7 @@ export function SettingsGeneralPage() {
         </View>
         <View flex="1" minWidth={280}>
           <Card title="Database Usage" variant="compact">
-            <DBUsagePieChart query={data} />
+            <DBUsagePieChart query={loaderData} />
           </Card>
         </View>
       </Flex>

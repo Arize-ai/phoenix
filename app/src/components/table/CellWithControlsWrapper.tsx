@@ -3,7 +3,8 @@ import { css } from "@emotion/react";
 
 const cellWithControlsWrapCSS = css`
   position: relative;
-  min-height: 75px;
+  height: 100%;
+  min-height: 100%;
   .controls {
     transition: opacity 0.2s ease-in-out;
     opacity: 0;

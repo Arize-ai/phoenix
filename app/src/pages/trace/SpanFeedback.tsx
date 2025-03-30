@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import {
+  ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
@@ -12,6 +13,7 @@ import {
   DisclosurePanel,
   DisclosureTrigger,
 } from "@phoenix/components";
+import { JSONText } from "@phoenix/components/code/JSONText";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
@@ -22,7 +24,9 @@ import {
 } from "./__generated__/SpanFeedback_annotations.graphql";
 import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
-const columns = [
+const columns: ColumnDef<
+  SpanFeedback_annotations$data["spanAnnotations"][number]
+>[] = [
   {
     header: "name",
     accessorKey: "name",
@@ -43,6 +47,19 @@ const columns = [
     accessorKey: "explanation",
     cell: PreformattedTextCell,
     size: 400,
+  },
+  {
+    header: "metadata",
+    accessorKey: "metadata",
+    minSize: 100,
+    cell: ({ row }) => {
+      const metadata = row.original.metadata;
+      return metadata ? (
+        <JSONText json={metadata} collapseSingleKey={false} />
+      ) : (
+        "--"
+      );
+    },
   },
 ];
 
@@ -114,6 +131,7 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
           label
           score
           explanation
+          metadata
           annotatorKind
         }
       }

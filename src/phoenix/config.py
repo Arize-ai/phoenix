@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, cast, overload
 from urllib.parse import quote_plus, urlparse
 
+from email_validator import EmailNotValidError, validate_email
+
 from phoenix.utilities.logging import log_a_list
 
 from .utilities.re import parse_env_headers
@@ -120,6 +122,14 @@ ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
 Whether or not to enable websockets. Defaults to None.
 """
 
+ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
+"""
+Whether or not to disable migrations. Defaults to None / False.
+
+This should only be used by developers working on the Phoenix server that need to be
+switching between branches without having to run migrations.
+"""
+
 # Phoenix server OpenTelemetry instrumentation environment variables
 ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT = (
     "PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT"
@@ -161,6 +171,17 @@ password reset emails. If this variable is left unspecified or contains no origi
 protection will not be enabled. In such cases, when a request includes `origin` or `referer`
 headers, those values will not be validated.
 """
+ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
+"""
+A semicolon-separated list of username and email address pairs to create as admin users on startup.
+The format is `username=email`, e.g., `John Doe=john@example.com;Doe, Jane=jane@example.com`.
+The password for each user will be randomly generated and will need to be reset. The application
+will not start if this environment variable is set but cannot be parsed or contains invalid emails.
+If the username or email address already exists in the database, the user record will not be
+modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
+startup will not undo any records created in previous startups.
+"""
+
 
 # SMTP settings
 ENV_PHOENIX_SMTP_HOSTNAME = "PHOENIX_SMTP_HOSTNAME"
@@ -427,6 +448,51 @@ def get_env_csrf_trusted_origins() -> list[str]:
             )
         origins.append(origin)
     return sorted(set(origins))
+
+
+def get_env_admins() -> dict[str, str]:
+    """
+    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
+    username and email. The last equal sign (=) in each pair is used to separate the username from
+    the email.
+
+    Returns:
+        dict: A dictionary mapping email addresses to usernames
+
+    Raises:
+        ValueError: If the environment variable cannot be parsed or contains invalid email addresses
+    """
+    if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
+        return {}
+    usernames = set()
+    emails = set()
+    ans = {}
+    for pair in env_value.split(";"):
+        pair = pair.strip()
+        if not pair:
+            continue
+        # Find the last equals sign to separate username from email
+        # This allows usernames to contain equals signs
+        last_equals_pos = pair.rfind("=")
+        if last_equals_pos == -1:
+            raise ValueError(
+                f"Invalid format in {ENV_PHOENIX_ADMINS}: '{pair}'. "
+                f"Expected format: 'username=email'"
+            )
+        username = pair[:last_equals_pos].strip()
+        email_addr = pair[last_equals_pos + 1 :].strip()
+        try:
+            email_addr = validate_email(email_addr, check_deliverability=False).normalized
+        except EmailNotValidError:
+            raise ValueError(f"Invalid email in {ENV_PHOENIX_ADMINS}: '{email_addr}'")
+        if username in usernames:
+            raise ValueError(f"Duplicate username in {ENV_PHOENIX_ADMINS}: '{username}'")
+        if email_addr in emails:
+            raise ValueError(f"Duplicate email in {ENV_PHOENIX_ADMINS}: '{email_addr}'")
+        usernames.add(username)
+        emails.add(email_addr)
+        ans[email_addr] = username
+    return ans
 
 
 def get_env_smtp_username() -> str:
@@ -873,6 +939,10 @@ def _get_default_idp_display_name(idp_name: str) -> str:
     if idp_name == OAuth2Idp.MICROSOFT_ENTRA_ID.value:
         return "Microsoft Entra ID"
     return idp_name.replace("_", " ").title()
+
+
+def get_env_disable_migrations() -> bool:
+    return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
 
 
 DEFAULT_PROJECT_NAME = "default"

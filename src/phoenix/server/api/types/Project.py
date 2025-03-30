@@ -37,6 +37,8 @@ from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
+DEFAULT_PAGE_SIZE = 30
+
 
 @strawberry.type
 class Project(Node):
@@ -215,13 +217,14 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = 50,
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
+        orphan_span_as_root_span: Optional[bool] = True,
     ) -> Connection[Span]:
         stmt = (
             select(models.Span.id)
@@ -233,14 +236,6 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Span.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Span.start_time < time_range.end)
-        if root_spans_only:
-            # A root span is any span whose parent span is missing in the
-            # database, even if its `parent_span_id` may not be NULL.
-            parent = select(models.Span.span_id).alias()
-            stmt = stmt.outerjoin(
-                parent,
-                models.Span.parent_id == parent.c.span_id,
-            ).where(parent.c.span_id.is_(None))
         if filter_condition:
             span_filter = SpanFilter(condition=filter_condition)
             stmt = span_filter(stmt)
@@ -264,11 +259,29 @@ class Project(Node):
                 )
             else:
                 stmt = stmt.where(models.Span.id > cursor.rowid)
+        stmt = stmt.order_by(cursor_rowid_column)
+        if root_spans_only:
+            # A root span is either a span with no parent_id or an orphan span
+            # (a span whose parent_id references a span that doesn't exist in the database)
+            if orphan_span_as_root_span:
+                # Include both types of root spans
+                parent_spans = select(models.Span.span_id).alias("parent_spans")
+                candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
+                stmt = select(candidate_spans).where(
+                    or_(
+                        candidate_spans.c.parent_id.is_(None),
+                        ~select(1)
+                        .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                        .exists(),
+                    )
+                )
+            else:
+                # Only include explicit root spans (spans with parent_id = NULL)
+                stmt = stmt.where(models.Span.parent_id.is_(None))
         if first:
             stmt = stmt.limit(
                 first + 1  # overfetch by one to determine whether there's a next page
             )
-        stmt = stmt.order_by(cursor_rowid_column)
         cursors_and_nodes = []
         async with info.context.db() as session:
             span_records = await session.stream(stmt)
@@ -299,7 +312,7 @@ class Project(Node):
         self,
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
-        first: Optional[int] = 50,
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
         after: Optional[CursorString] = UNSET,
         sort: Optional[ProjectSessionSort] = UNSET,
         filter_io_substring: Optional[str] = UNSET,

@@ -4,17 +4,26 @@ import React, {
   Suspense,
   useCallback,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  type ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { useNavigate } from "react-router";
 import { json } from "@codemirror/lang-json";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
-import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import CodeMirror, {
+  BasicSetupOptions,
+  EditorView,
+} from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
-  Alert,
   Card,
   CardProps,
   Content,
@@ -24,8 +33,6 @@ import {
   List,
   ListItem,
   TabbedCard,
-  Tooltip,
-  TooltipTrigger,
 } from "@arizeai/components";
 import {
   DocumentAttributePostfixes,
@@ -39,6 +46,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import {
+  Alert,
   Button,
   CopyToClipboardButton,
   Counter,
@@ -54,6 +62,7 @@ import {
   TabList,
   Tabs,
   Text,
+  ToggleButton,
   Token,
   TokenProps,
   View,
@@ -65,9 +74,14 @@ import {
   ConnectedMarkdownModeRadioGroup,
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { SpanKindIcon } from "@phoenix/components/trace";
-import { useNotifySuccess, useTheme } from "@phoenix/contexts";
-import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import {
+  useNotifySuccess,
+  usePreferencesContext,
+  useTheme,
+} from "@phoenix/contexts";
+import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
   AttributeDocument,
@@ -96,13 +110,11 @@ import {
   SpanDetailsQuery,
   SpanDetailsQuery$data,
 } from "./__generated__/SpanDetailsQuery.graphql";
-import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
 import { SpanActionMenu } from "./SpanActionMenu";
 import { SpanAside } from "./SpanAside";
 import { SpanFeedback } from "./SpanFeedback";
 import { SpanImage } from "./SpanImage";
 import { SpanToDatasetExampleDialog } from "./SpanToDatasetExampleDialog";
-
 /**
  * A span attribute object that is a map of string to an unknown value
  */
@@ -141,18 +153,34 @@ const defaultCardProps: Partial<CardProps> = {
   borderColor: "light",
   variant: "compact",
   collapsible: true,
+  bodyStyle: { padding: 0 },
 };
+
+const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
+const ASIDE_PANEL_DEFAULT_SIZE = 33;
 
 export function SpanDetails({
   spanNodeId,
-  projectId,
 }: {
   /**
    * The Global ID of the span
    */
   spanNodeId: string;
-  projectId: string;
 }) {
+  const isAnnotatingSpans = usePreferencesContext(
+    (state) => state.isAnnotatingSpans
+  );
+  const setIsAnnotatingSpans = usePreferencesContext(
+    (state) => state.setIsAnnotatingSpans
+  );
+
+  const asidePanelRef = useRef<ImperativePanelHandle>(null);
+  const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
+  const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
+  const isCondensedView =
+    spanDetailsContainerDimensions?.width &&
+    spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
       query SpanDetailsQuery($id: GlobalID!) {
@@ -230,111 +258,138 @@ export function SpanDetails({
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
-  const showSpanAside = usePreferencesContext((store) => store.showSpanAside);
-  const setShowSpanAside = usePreferencesContext(
-    (store) => store.setShowSpanAside
-  );
+
   return (
-    <Flex direction="column" flex="1 1 auto" height="100%">
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-50"
-        paddingStart="size-150"
-        paddingEnd="size-200"
-        flex="none"
-      >
-        <Flex direction="row" alignItems="center">
-          <SpanHeader span={span} />
-          <Flex flex="none" direction="row" alignItems="center" gap="size-100">
-            <LinkButton
-              variant={span.spanKind !== "llm" ? "default" : "primary"}
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              isDisabled={span.spanKind !== "llm"}
-              to={`/playground/spans/${span.id}`}
-              size="S"
-            >
-              Playground
-            </LinkButton>
-            <AddSpanToDatasetButton span={span} />
-            <EditSpanAnnotationsButton
-              size="S"
-              spanNodeId={span.id}
-              projectId={projectId}
-            />
-            <SpanActionMenu traceId={span.trace.traceId} spanId={span.spanId} />
-            <TooltipTrigger placement="top" offset={5}>
-              <Button
-                size="S"
-                aria-label="Toggle showing span details"
-                onPress={() => {
-                  setShowSpanAside(!showSpanAside);
-                }}
-                leadingVisual={
-                  <Icon
-                    svg={showSpanAside ? <Icons.SlideIn /> : <Icons.SlideOut />}
-                  />
-                }
-              />
-              <Tooltip>
-                {showSpanAside ? "Hide Span Details" : "Show Span Details"}
-              </Tooltip>
-            </TooltipTrigger>
-          </Flex>
-        </Flex>
-      </View>
-      <Tabs>
-        <TabList>
-          <Tab id="info">Info</Tab>
-          <Tab id="feedback">
-            Feedback <Counter>{span.spanAnnotations.length}</Counter>
-          </Tab>
-          <Tab id="attributes">Attributes</Tab>
-          <Tab id="events">
-            Events{" "}
-            <Counter variant={hasExceptions ? "danger" : "default"}>
-              {span.events.length}
-            </Counter>
-          </Tab>
-        </TabList>
-
-        <LazyTabPanel id="info">
-          <Flex direction="row" height="100%">
-            <SpanInfoWrap>
-              <ErrorBoundary>
-                <SpanInfo span={span} />
-              </ErrorBoundary>
-            </SpanInfoWrap>
-            {showSpanAside ? <SpanAside span={span} /> : null}
-          </Flex>
-        </LazyTabPanel>
-
-        <LazyTabPanel id="feedback">
-          <SpanFeedback span={span} />
-        </LazyTabPanel>
-
-        <LazyTabPanel id="attributes">
+    <PanelGroup direction="horizontal" autoSaveId="span-details-layout">
+      <Panel order={1}>
+        <Flex
+          direction="column"
+          flex="1 1 auto"
+          height="100%"
+          ref={spanDetailsContainerRef}
+        >
           <View
-            padding="size-200"
-            height="100%"
-            maxHeight="100%"
-            overflow="auto"
+            paddingTop="size-100"
+            paddingBottom="size-50"
+            paddingStart="size-150"
+            paddingEnd="size-200"
+            flex="none"
           >
-            <Card
-              title="All Attributes"
-              {...defaultCardProps}
-              titleExtra={attributesContextualHelp}
-              extra={<CopyToClipboardButton text={span.attributes} />}
+            <Flex
+              direction="row"
+              alignItems="center"
+              data-testid="span-header-row"
             >
-              <JSONBlock>{span.attributes}</JSONBlock>
-            </Card>
+              <SpanHeader span={span} />
+              <Flex
+                flex="none"
+                direction="row"
+                alignItems="center"
+                gap="size-100"
+              >
+                <LinkButton
+                  variant={span.spanKind !== "llm" ? "default" : "primary"}
+                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  isDisabled={span.spanKind !== "llm"}
+                  to={`/playground/spans/${span.id}`}
+                  size="S"
+                  aria-label="Prompt Playground"
+                >
+                  {isCondensedView ? null : "Playground"}
+                </LinkButton>
+                <AddSpanToDatasetButton
+                  span={span}
+                  buttonText={isCondensedView ? null : "Add to Dataset"}
+                />
+                <ToggleButton
+                  size="S"
+                  isSelected={isAnnotatingSpans}
+                  onPress={() => {
+                    setIsAnnotatingSpans(!isAnnotatingSpans);
+                    const asidePanel = asidePanelRef.current;
+                    // expand the panel if it is not the minimum size already
+                    if (asidePanel) {
+                      const size = asidePanel.getSize();
+                      if (size < ASIDE_PANEL_DEFAULT_SIZE) {
+                        asidePanel.resize(ASIDE_PANEL_DEFAULT_SIZE);
+                      }
+                    }
+                  }}
+                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                >
+                  {isCondensedView ? null : "Annotate"}
+                </ToggleButton>
+                <SpanActionMenu
+                  traceId={span.trace.traceId}
+                  spanId={span.spanId}
+                />
+              </Flex>
+            </Flex>
           </View>
-        </LazyTabPanel>
+          <Tabs>
+            <TabList>
+              <Tab id="info">Info</Tab>
+              <Tab id="feedback">
+                Feedback <Counter>{span.spanAnnotations.length}</Counter>
+              </Tab>
+              <Tab id="attributes">Attributes</Tab>
+              <Tab id="events">
+                Events{" "}
+                <Counter variant={hasExceptions ? "danger" : "default"}>
+                  {span.events.length}
+                </Counter>
+              </Tab>
+            </TabList>
+            <LazyTabPanel id="info">
+              <Flex direction="row" height="100%">
+                <SpanInfoWrap>
+                  <ErrorBoundary>
+                    <SpanInfo span={span} />
+                  </ErrorBoundary>
+                </SpanInfoWrap>
+              </Flex>
+            </LazyTabPanel>
+            <LazyTabPanel id="feedback">
+              <SpanFeedback span={span} />
+            </LazyTabPanel>
+            <LazyTabPanel id="attributes">
+              <View
+                padding="size-200"
+                height="100%"
+                maxHeight="100%"
+                overflow="auto"
+              >
+                <Card
+                  title="All Attributes"
+                  {...defaultCardProps}
+                  titleExtra={attributesContextualHelp}
+                  extra={<CopyToClipboardButton text={span.attributes} />}
+                >
+                  <JSONBlock>{span.attributes}</JSONBlock>
+                </Card>
+              </View>
+            </LazyTabPanel>
 
-        <LazyTabPanel id="events">
-          <SpanEventsList events={span.events} />
-        </LazyTabPanel>
-      </Tabs>
-    </Flex>
+            <LazyTabPanel id="events">
+              <SpanEventsList events={span.events} />
+            </LazyTabPanel>
+          </Tabs>
+        </Flex>
+      </Panel>
+      {isAnnotatingSpans && <PanelResizeHandle css={compactResizeHandleCSS} />}
+      {isAnnotatingSpans && (
+        <Panel
+          order={2}
+          ref={asidePanelRef}
+          defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          onCollapse={() => {
+            setIsAnnotatingSpans(false);
+          }}
+        >
+          <SpanAside span={span} />
+        </Panel>
+      )}
+    </PanelGroup>
   );
 }
 
@@ -360,7 +415,13 @@ function SpanInfoWrap({ children }: PropsWithChildren) {
   );
 }
 
-function AddSpanToDatasetButton({ span }: { span: Span }) {
+function AddSpanToDatasetButton({
+  span,
+  buttonText,
+}: {
+  span: Span;
+  buttonText: string | null;
+}) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const notifySuccess = useNotifySuccess();
   const navigate = useNavigate();
@@ -392,7 +453,7 @@ function AddSpanToDatasetButton({ span }: { span: Span }) {
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={onAddSpanToDataset}
       >
-        Add to Dataset
+        {buttonText}
       </Button>
       <Suspense>
         <DialogContainer
@@ -759,7 +820,6 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                 <LLMMessagesList messages={outputMessages} />
               </LazyTabPanel>
             )}
-
             {hasOutput && (
               <LazyTabPanel id="output">
                 <View padding="size-200">
@@ -825,6 +885,7 @@ function RetrieverSpanInfo(props: {
   }, [span.documentEvaluations]);
 
   const hasInput = input != null && input.value != null;
+  const isText = hasInput && input.mimeType === "text";
   const hasDocuments = documents.length > 0;
   const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
@@ -835,9 +896,12 @@ function RetrieverSpanInfo(props: {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
-                <ConnectedMarkdownModeRadioGroup />
-                <CopyToClipboardButton text={input.value} />
+              <Flex direction="row" gap="size-100" alignItems="center">
+                {isText ? (
+                  <ConnectedMarkdownModeRadioGroup />
+                ) : (
+                  <CopyToClipboardButton text={input.value} />
+                )}
               </Flex>
             }
           >
@@ -887,6 +951,7 @@ function RetrieverSpanInfo(props: {
                 display: flex;
                 flex-direction: column;
                 gap: var(--ac-global-dimension-static-size-200);
+                padding: var(--ac-global-dimension-static-size-200);
               `}
             >
               {documents.map((document, idx) => {
@@ -949,7 +1014,9 @@ function RerankerSpanInfo(props: {
       <MarkdownDisplayProvider>
         {query && (
           <Card title="Query" {...defaultCardProps}>
-            <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
+            <View padding="size-200">
+              <ConnectedMarkdownBlock>{query}</ConnectedMarkdownBlock>
+            </View>
           </Card>
         )}
       </MarkdownDisplayProvider>
@@ -1055,6 +1122,7 @@ function EmbeddingSpanInfo(props: {
                 display: flex;
                 flex-direction: column;
                 gap: var(--ac-global-dimension-static-size-200);
+                padding: var(--ac-global-dimension-static-size-200);
               `}
             >
               {embeddings.map((embedding, idx) => {
@@ -1067,9 +1135,11 @@ function EmbeddingSpanInfo(props: {
                         borderColor="purple-700"
                         title="Embedded Text"
                       >
-                        <ConnectedMarkdownBlock>
-                          {embedding[EmbeddingAttributePostfixes.text] || ""}
-                        </ConnectedMarkdownBlock>
+                        <View padding="size-200">
+                          <ConnectedMarkdownBlock>
+                            {embedding[EmbeddingAttributePostfixes.text] || ""}
+                          </ConnectedMarkdownBlock>
+                        </View>
                       </Card>
                     </MarkdownDisplayProvider>
                   </li>
@@ -1111,7 +1181,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
@@ -1129,7 +1199,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             backgroundColor="green-100"
             borderColor="green-700"
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
@@ -1242,7 +1312,17 @@ function DocumentItem({
         {metadata && (
           <>
             <View borderColor={borderColor} borderTopWidth="thin">
-              <JSONBlock>{JSON.stringify(metadata)}</JSONBlock>
+              <View
+                paddingX="size-200"
+                paddingY="size-100"
+                borderColor={borderColor}
+                borderBottomWidth="thin"
+              >
+                <Heading level={4}>Document Metadata</Heading>
+              </View>
+              <JSONBlock basicSetup={{ lineNumbers: false }}>
+                {JSON.stringify(metadata)}
+              </JSONBlock>
             </View>
           </>
         )}
@@ -1353,7 +1433,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             : "")
         }
         extra={
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
             <ConnectedMarkdownModeRadioGroup />
             <CopyToClipboardButton
               text={messageContent || JSON.stringify(message)}
@@ -1363,12 +1443,16 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <MessageContentsList messageContents={messagesContents} />
+            <View padding="size-200">
+              <MessageContentsList messageContents={messagesContents} />
+            </View>
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
           {messageContent ? (
-            <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
+            <View padding="size-200">
+              <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
+            </View>
           ) : null}
           {toolCalls.length > 0
             ? toolCalls.map((toolCall, idx) => {
@@ -1382,6 +1466,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                     css={css`
                       text-wrap: wrap;
                       margin: var(--ac-global-dimension-static-size-100) 0;
+                      padding: var(--ac-global-dimension-static-size-200);
                     `}
                   >
                     {toolCall?.function?.name as string}(
@@ -1605,7 +1690,7 @@ function SpanIO({ span }: { span: Span }) {
             title="Input"
             {...defaultCardProps}
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {inputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={input.value} />
               </Flex>
@@ -1623,7 +1708,7 @@ function SpanIO({ span }: { span: Span }) {
             backgroundColor="green-100"
             borderColor="green-700"
             extra={
-              <Flex direction="row" gap="size-100">
+              <Flex direction="row" gap="size-100" alignItems="center">
                 {outputIsText ? <ConnectedMarkdownModeRadioGroup /> : null}
                 <CopyToClipboardButton text={output.value} />
               </Flex>
@@ -1648,6 +1733,7 @@ function SpanIO({ span }: { span: Span }) {
 }
 
 const codeMirrorCSS = css`
+  width: 100%;
   .cm-editor,
   .cm-gutters {
     background-color: transparent;
@@ -1685,7 +1771,13 @@ function CopyToClipboard({
 /**
  * A block of JSON content that is not editable.
  */
-function JSONBlock({ children }: { children: string }) {
+function JSONBlock({
+  children,
+  basicSetup = {},
+}: {
+  children: string;
+  basicSetup?: BasicSetupOptions;
+}) {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
   // We need to make sure that the content can actually be displayed
@@ -1714,6 +1806,7 @@ function JSONBlock({ children }: { children: string }) {
           syntaxHighlighting: true,
           highlightActiveLine: false,
           highlightActiveLineGutter: false,
+          ...basicSetup,
         }}
         extensions={[json(), EditorView.lineWrapping]}
         editable={false}
@@ -1729,9 +1822,11 @@ function JSONBlock({ children }: { children: string }) {
 function PreBlock({ children }: { children: string }) {
   return (
     <pre
+      data-testid="pre-block"
       css={css`
         white-space: pre-wrap;
-        padding: 0;
+        padding: var(--ac-global-dimension-static-size-200);
+        font-size: var(--ac-global-font-size-s);
       `}
     >
       {children}
@@ -1746,7 +1841,11 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
+      content = (
+        <View margin="size-200">
+          <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>
+        </View>
+      );
       break;
     default:
       assertUnreachable(mimeType);

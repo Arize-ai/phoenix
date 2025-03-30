@@ -1,7 +1,3 @@
-// TODO(apowell): we need to follow the vite tsconfig convention: tsconfig.json, tsconfig.node.json, tsconfig.app.json
-// tsconfig.json references tsconfig.app.json and tsconfig.node.json, each of which include react src and node src respectively
-// this current file being a part of tsconfig.node.json scope in particular
-// @ts-expect-error we need a separate tsconfig for vite
 import { lezer } from "@lezer/generator/rollup";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
@@ -28,6 +24,14 @@ export default defineConfig(() => {
     resolve: {
       alias: {
         "@phoenix": resolve(__dirname, "src"),
+        "@codemirror/state": resolve(
+          __dirname,
+          "./node_modules/@codemirror/state/dist/index.cjs"
+        ),
+        "@codemirror/lang-json": resolve(
+          __dirname,
+          "node_modules/@codemirror/lang-json/dist/index.cjs"
+        ),
       },
     },
     test: {

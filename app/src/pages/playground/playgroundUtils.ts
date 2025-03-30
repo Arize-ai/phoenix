@@ -588,10 +588,11 @@ export function transformSpanAttributesToPlaygroundInstance(
     getBaseModelConfigFromAttributes(parsedAttributes);
   let { modelConfig } = baseModelConfigResult;
   const { parsingErrors: modelConfigParsingErrors } = baseModelConfigResult;
-  const { messages, messageParsingErrors } = getTemplateMessagesFromAttributes({
-    provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
-    parsedAttributes,
-  });
+  const { messages: rawMessages, messageParsingErrors } =
+    getTemplateMessagesFromAttributes({
+      provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
+      parsedAttributes,
+    });
   const { output, outputParsingErrors } = getOutputFromAttributes({
     provider: modelConfig?.provider ?? basePlaygroundInstance.model.provider,
     parsedAttributes,
@@ -630,6 +631,17 @@ export function transformSpanAttributesToPlaygroundInstance(
 
   const { tools, parsingErrors: toolsParsingErrors } =
     getToolsFromAttributes(parsedAttributes);
+
+  const messages = rawMessages?.map((message) => {
+    return {
+      ...message,
+      // If the message is a tool message, we need to normalize the content
+      content:
+        message.role === "tool"
+          ? normalizeMessageContent(message.content)
+          : message.content,
+    };
+  });
 
   // TODO(parker): add support for prompt template variables
   // https://github.com/Arize-ai/phoenix/issues/4886
@@ -1154,10 +1166,6 @@ export const getChatCompletionOverDatasetInput = ({
  * @returns a normalized json string
  */
 export function normalizeMessageContent(content?: unknown): string {
-  if (content === "" || typeof content === "undefined") {
-    return "{}";
-  }
-
   if (typeof content === "string") {
     const isDoubleStringified =
       content.startsWith('"{') ||

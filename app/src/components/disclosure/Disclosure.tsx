@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import React, { CSSProperties, PropsWithChildren } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -17,7 +17,9 @@ import { FlexStyleProps, SizingProps, StylableProps } from "../types";
 
 import { disclosureCSS, disclosureGroupCSS } from "./styles";
 
-export type DisclosureGroupProps = AriaDisclosureGroupProps & StylableProps;
+export type DisclosureGroupProps = AriaDisclosureGroupProps &
+  StylableProps &
+  SizingProps;
 
 /**
  * Wrap multiple Disclosure components in a DisclosureGroup to control
@@ -28,6 +30,7 @@ export type DisclosureGroupProps = AriaDisclosureGroupProps & StylableProps;
 export const DisclosureGroup = ({
   className,
   css: propCSS,
+  size,
   ...props
 }: DisclosureGroupProps) => {
   return (
@@ -35,6 +38,7 @@ export const DisclosureGroup = ({
       allowsMultipleExpanded
       className={classNames("ac-disclosure-group", className)}
       css={css(disclosureGroupCSS, propCSS)}
+      data-size={size}
       {...props}
     />
   );
@@ -82,6 +86,7 @@ export type DisclosureTriggerProps = PropsWithChildren<{
   arrowPosition?: "start" | "end";
   justifyContent?: FlexStyleProps["justifyContent"];
   asHeading?: boolean;
+  width?: CSSProperties["width"];
 }>;
 
 /**
@@ -93,10 +98,15 @@ export const DisclosureTrigger = ({
   children,
   arrowPosition,
   justifyContent,
+  width,
 }: DisclosureTriggerProps) => {
   return (
     <Heading>
-      <Button slot="trigger" data-arrow-position={arrowPosition}>
+      <Button
+        slot="trigger"
+        data-arrow-position={arrowPosition}
+        style={{ width }}
+      >
         <Flex
           justifyContent={justifyContent}
           alignItems="center"

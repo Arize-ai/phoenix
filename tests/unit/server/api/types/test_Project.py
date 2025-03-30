@@ -1,7 +1,9 @@
 # ruff: noqa: E501
 import base64
-from datetime import datetime
-from typing import Any, NamedTuple
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from secrets import token_hex
+from typing import Any
 
 import httpx
 import pytest
@@ -1138,11 +1140,12 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
         )
 
 
-class _Data(NamedTuple):
-    spans: list[models.Span]
-    traces: list[models.Trace]
-    project_sessions: list[models.ProjectSession]
-    projects: list[models.Project]
+@dataclass
+class _Data:
+    spans: list[models.Span] = field(default_factory=list)
+    traces: list[models.Trace] = field(default_factory=list)
+    project_sessions: list[models.ProjectSession] = field(default_factory=list)
+    projects: list[models.Project] = field(default_factory=list)
 
 
 class TestProject:
@@ -1211,6 +1214,86 @@ class TestProject:
             spans=spans,
             traces=traces,
             project_sessions=project_sessions,
+            projects=projects,
+        )
+
+    @pytest.fixture
+    async def _orphan_spans(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        """Creates spans with missing parent references to test orphan span handling.
+
+        This fixture creates a test dataset with spans that have various parent-child relationships:
+        - Some spans have no parent (parent_id=None) - these are true root spans
+        - Some spans have parent_ids that don't exist - these are orphan spans
+        - Some spans have valid parent references
+
+        The fixture is used to test how the API handles orphan spans in different configurations.
+        """
+        projects, traces = [], []
+        spans: list[models.Span] = []
+        async with db() as session:
+            # Create a test project
+            projects.append(models.Project(name=token_hex(8)))
+            session.add(projects[-1])
+            await session.flush()
+
+            start_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+            for i in range(2):
+                # Create two traces with different start times
+                trace_start_time = start_time + timedelta(seconds=i)
+                traces.append(
+                    models.Trace(
+                        trace_id=token_hex(16),
+                        project_rowid=projects[-1].id,
+                        start_time=trace_start_time,
+                        end_time=trace_start_time + timedelta(seconds=1),
+                    )
+                )
+                session.add(traces[-1])
+                await session.flush()
+
+                n = 7
+                for j in range(n):
+                    # Create spans with different parent relationships:
+                    if j % 2:
+                        # Odd-indexed spans have non-existent parent IDs (orphan spans)
+                        parent_id = token_hex(8)
+                    elif j and j == n - 1:
+                        # The last span (when j is even and non-zero) references the previous span
+                        parent_id = spans[-1].span_id
+                    else:
+                        # Even-indexed spans (except the last) have no parent (root spans)
+                        parent_id = None
+
+                    span_start_time = trace_start_time + timedelta(seconds=j)
+                    spans.append(
+                        models.Span(
+                            trace_rowid=traces[-1].id,
+                            span_id=token_hex(8),
+                            parent_id=parent_id,
+                            name=token_hex(8),
+                            span_kind="CHAIN",
+                            start_time=span_start_time,
+                            end_time=span_start_time + timedelta(seconds=1),
+                            # Input value contains sequential digits (0, 01, 012, etc.)
+                            # This is used for filtering in tests
+                            attributes={"input": {"value": "".join(map(str, range(j)))}},
+                            events=[],
+                            status_code="OK",
+                            status_message="",
+                            cumulative_error_count=0,
+                            cumulative_llm_token_count_prompt=0,
+                            cumulative_llm_token_count_completion=0,
+                        )
+                    )
+            session.add_all(spans)
+            await session.flush()
+
+        return _Data(
+            spans=spans,
+            traces=traces,
             projects=projects,
         )
 
@@ -1412,3 +1495,59 @@ class TestProject:
         field = 'sessions(filterIoSubstring:"\\"\'j"){edges{node{id}}}'
         res = await self._node(field, project, httpx_client)
         assert {e["node"]["id"] for e in res["edges"]} == set()
+
+    @pytest.mark.parametrize("orphan_span_as_root_span", [False, True])
+    async def test_root_spans_only_with_orphan_spans(
+        self,
+        _orphan_spans: _Data,
+        httpx_client: httpx.AsyncClient,
+        orphan_span_as_root_span: bool,
+    ) -> None:
+        """Test pagination of root spans with orphan span handling.
+
+        This test verifies that:
+        1. Root spans are correctly identified based on orphan_span_as_root_span setting
+        2. Pagination works correctly when fetching spans in chunks
+        3. Spans are properly filtered and sorted
+        """
+        project = _orphan_spans.projects[0]
+
+        # Filter spans containing "2" in their input value
+        filtered_spans = [s for s in _orphan_spans.spans if "2" in s.attributes["input"]["value"]]
+
+        # Determine root spans based on configuration
+        if orphan_span_as_root_span:
+            existing_span_ids = {s.span_id for s in _orphan_spans.spans}
+            root_spans = [s for s in filtered_spans if s.parent_id not in existing_span_ids]
+        else:
+            root_spans = [s for s in filtered_spans if s.parent_id is None]
+
+        # Sort spans by start time and ID
+        sorted_spans = sorted(root_spans, key=lambda t: (t.start_time, t.id), reverse=True)
+
+        # Convert to global IDs for comparison
+        gids = list(map(_gid, sorted_spans))
+        n = len(gids)
+        first = n // 2 + 1  # Request half the spans plus one
+
+        # Test pagination
+        cursor = ""
+        for i in range(n):
+            expected = gids[i : i + first]
+
+            # Construct GraphQL query
+            field = (
+                "spans("
+                f"rootSpansOnly:true,"
+                f"orphanSpanAsRootSpan:{str(orphan_span_as_root_span).lower()},"
+                "sort:{col:startTime,dir:desc},"
+                "filterCondition:\"'2' in input.value\","
+                f"first:{str(first)},"
+                f'after:"{cursor}"'
+                "){edges{node{id}cursor}}"
+            )
+
+            # Execute query and verify results
+            res = await self._node(field, project, httpx_client)
+            assert [e["node"]["id"] for e in res["edges"]] == expected
+            cursor = res["edges"][0]["cursor"]

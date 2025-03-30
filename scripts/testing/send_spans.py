@@ -294,3 +294,11 @@ def run_test(request_rate: int = 10, test_duration: int = 60):
             time.sleep(sleep_time)
     logging.info(f"Generated {counter} spans")
     eval_queue.put(END_OF_QUEUE)
+
+
+def main():
+    run_test()
+
+
+if __name__ == "__main__":
+    main()

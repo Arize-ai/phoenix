@@ -16,21 +16,25 @@ const baseToggleButtonGroupCSS = css(`
   align-items: center;
   width: fit-content;
   & > button {
-      border-radius: 0;
-      z-index: 1;
+    border-radius: 0;
+    z-index: 1;
 
-      &[data-disabled] {
-        z-index: 0;
-      }
-
-      &[data-selected],
-      &[data-focus-visible] {
-        z-index: 2;
-      }
+    &[data-disabled] {
+      z-index: 0;
     }
+
+    &[data-selected],
+    &[data-focus-visible] {
+      z-index: 2;
+    }
+  }
 
   & > .ac-toggle-button:not(:first-child):not([data-selected="true"]) {
     border-left: none;
+  }
+    
+  & > .ac-toggle-button[data-selected="true"]:not(:first-child) {
+    margin-left: -1px;
   }
 
   & > .ac-toggle-button:first-child {

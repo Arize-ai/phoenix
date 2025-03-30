@@ -182,7 +182,7 @@ export function ProjectActionMenu({
         }}
         disabledKeys={canDelete ? [] : [ProjectAction.DELETE]}
       >
-        <Item key={ProjectAction.CLEAR} textValue="Clear Traces">
+        <Item key={ProjectAction.CLEAR} textValue="Clear All Traces">
           <Flex
             direction={"row"}
             gap="size-75"
@@ -190,7 +190,7 @@ export function ProjectActionMenu({
             alignItems={"center"}
           >
             <Icon svg={<Icons.Refresh />} />
-            <Text>Clear Data</Text>
+            <Text>Clear All Data</Text>
           </Flex>
         </Item>
         <Item key={ProjectAction.REMOVE_DATA} textValue="Remove Data">

@@ -278,13 +278,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 </TooltipTrigger>
               }
             >
-              <LargeTextWrap>
-                <JSONText
-                  json={row.original.input}
-                  disableTitle
-                  space={displayFullText ? 2 : 0}
-                />
-              </LargeTextWrap>
+              <PaddedCell>
+                <LargeTextWrap>
+                  <JSONText
+                    json={row.original.input}
+                    disableTitle
+                    space={displayFullText ? 2 : 0}
+                  />
+                </LargeTextWrap>
+              </PaddedCell>
             </CellWithControlsWrap>
           );
         },
@@ -293,7 +295,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
         header: "reference output",
         accessorKey: "referenceOutput",
         minWidth: 500,
-        cell: displayFullText ? JSONCell : CompactJSONCell,
+        cell: (props) => (
+          <PaddedCell>
+            {displayFullText ? JSONCell(props) : CompactJSONCell(props)}
+          </PaddedCell>
+        ),
       },
     ];
   }, [displayFullText]);
@@ -323,6 +329,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               metadata={metadata}
               isQuiet={true}
               projectId={projectId}
+              canDeleteExperiment={false}
             />
           </Flex>
         );
@@ -398,14 +405,18 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
         return run ? (
           <CellWithControlsWrap controls={runControls}>
-            <ExperimentRunOutput
-              {...run}
-              displayFullText={displayFullText}
-              setDialog={setDialog}
-            />
+            <PaddedCell>
+              <ExperimentRunOutput
+                {...run}
+                displayFullText={displayFullText}
+                setDialog={setDialog}
+              />
+            </PaddedCell>
           </CellWithControlsWrap>
         ) : (
-          <NotRunText />
+          <PaddedCell>
+            <NotRunText />
+          </PaddedCell>
         );
       },
     }));
@@ -535,8 +546,9 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
+                  height: 1,
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                  wordBreak: "break-all",
+                  padding: 0,
                 }}
               >
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -958,5 +970,13 @@ function TraceDetailsDialog({
     >
       <TraceDetails traceId={traceId} projectId={projectId} />
     </Dialog>
+  );
+}
+
+function PaddedCell({ children }: { children: ReactNode }) {
+  return (
+    <View paddingX="size-200" paddingY="size-100">
+      {children}
+    </View>
   );
 }

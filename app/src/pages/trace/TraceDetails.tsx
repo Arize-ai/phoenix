@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Flex, LinkButton, Loading, Text, View } from "@phoenix/components";
@@ -67,7 +67,7 @@ export function TraceDetails(props: TraceDetailsProps) {
                     spanId
                     name
                     spanKind
-                    statusCode: propagatedStatusCode
+                    statusCode
                     startTime
                     parentId
                     latencyMs
@@ -156,10 +156,7 @@ export function TraceDetails(props: TraceDetailsProps) {
           <ScrollingTabsWrapper>
             {selectedSpanNodeId ? (
               <Suspense fallback={<Loading />}>
-                <SpanDetails
-                  spanNodeId={selectedSpanNodeId}
-                  projectId={projectId}
-                />
+                <SpanDetails spanNodeId={selectedSpanNodeId} />
               </Suspense>
             ) : null}
           </ScrollingTabsWrapper>

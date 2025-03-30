@@ -43,7 +43,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
           query {
             node(id: $spanId) {
               ... on Span {
-                ...EditSpanAnnotationsDialog_spanAnnotations
+                ...SpanAnnotationsEditor_spanAnnotations
               }
             }
           }

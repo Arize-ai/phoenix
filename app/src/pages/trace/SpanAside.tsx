@@ -1,18 +1,22 @@
-import React, { PropsWithChildren } from "react";
+import React from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Flex, Text, View } from "@phoenix/components";
+import { View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { TitledPanel } from "@phoenix/components/react-resizable-panels";
+import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
 
 const annotationListCSS = css`
   display: flex;
-  padding-top: var(--ac-global-dimension-size-50);
-  flex-direction: column;
+  width: 100%;
+  flex-direction: row;
   gap: var(--ac-global-dimension-size-100);
+  flex-wrap: wrap;
   align-items: flex-start;
 `;
 
@@ -25,6 +29,9 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
       fragment SpanAside_span on Span
       @refetchable(queryName: "SpanAsideSpanQuery") {
         id
+        project {
+          id
+        }
         code: statusCode
         startTime
         endTime
@@ -44,19 +51,15 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
   );
   const annotations = data.spanAnnotations;
   const hasAnnotations = annotations.length > 0;
+
   return (
-    <View
-      padding="size-200"
-      borderColor="dark"
-      backgroundColor="dark"
-      borderLeftWidth="thin"
-      width="230px"
-      flex="none"
-      minHeight="100%"
-    >
-      <Flex direction="column" gap="size-200">
-        <LabeledValue label="Feedback">
-          {hasAnnotations ? (
+    <PanelGroup direction="vertical" autoSaveId="span-aside-layout">
+      {hasAnnotations && (
+        <TitledPanel
+          title="Annotations"
+          panelProps={{ order: 1, defaultSize: 65 }}
+        >
+          <View paddingY="size-100" paddingX="size-100">
             <ul css={annotationListCSS}>
               {annotations.map((annotation) => (
                 <li key={annotation.id}>
@@ -67,29 +70,17 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
                 </li>
               ))}
             </ul>
-          ) : (
-            <View padding="size-200">
-              <Flex direction="row" alignItems="center" justifyContent="center">
-                <Text color="text-300">No Annotations</Text>
-              </Flex>
-            </View>
-          )}
-        </LabeledValue>
-      </Flex>
-    </View>
-  );
-}
-
-function LabeledValue({
-  label,
-  children,
-}: PropsWithChildren<{ label: string }>) {
-  return (
-    <Flex direction="column">
-      <Text elementType="h3" size="S" color="text-700">
-        {label}
-      </Text>
-      {children}
-    </Flex>
+          </View>
+        </TitledPanel>
+      )}
+      <TitledPanel resizable title="Edit annotations" panelProps={{ order: 2 }}>
+        <View height="100%" maxHeight="100%">
+          <SpanAnnotationsEditor
+            projectId={data.project.id}
+            spanNodeId={data.id}
+          />
+        </View>
+      </TitledPanel>
+    </PanelGroup>
   );
 }

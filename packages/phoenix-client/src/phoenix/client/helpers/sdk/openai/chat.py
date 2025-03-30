@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.chat.chat_completion_assistant_message_param import ContentArrayOfContentPart
+    from openai.types.chat.chat_completion_content_part_param import File
     from openai.types.chat.chat_completion_named_tool_choice_param import Function
     from openai.types.chat.completion_create_params import (
         CompletionCreateParamsBase,
@@ -912,6 +913,7 @@ class _ContentPartsConversion:
                     ChatCompletionContentPartImageParam,
                     ChatCompletionContentPartInputAudioParam,
                     ChatCompletionContentPartRefusalParam,
+                    File,
                 ]
             ],
             None,
@@ -928,6 +930,8 @@ class _ContentPartsConversion:
             elif part["type"] == "input_audio":
                 continue
             elif part["type"] == "refusal":
+                continue
+            elif part["type"] == "file":
                 continue
             elif TYPE_CHECKING:
                 assert_never(part["type"])

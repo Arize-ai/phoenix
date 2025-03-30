@@ -22,7 +22,7 @@ export function NewSpanAnnotationForm(props: NewSpanAnnotationFormProps) {
           query {
             node(id: $spanId) {
               ... on Span {
-                ...EditSpanAnnotationsDialog_spanAnnotations
+                ...SpanAnnotationsEditor_spanAnnotations
               }
             }
           }

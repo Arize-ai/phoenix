@@ -2,17 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { JSONSchema7 } from "json-schema";
 
 import { JSONEditor } from "@phoenix/components/code";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  usePlaygroundContext,
+  usePlaygroundStore,
+} from "@phoenix/contexts/PlaygroundContext";
 import {
   anthropicToolCallsJSONSchema,
-  llmProviderToolCallsSchema,
   openAIToolCallsJSONSchema,
 } from "@phoenix/schemas/toolCallSchemas";
 import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
-import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
+import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
  * Editor for message tool calls
@@ -32,6 +34,8 @@ export function ChatMessageToolCallsEditor({
   if (instance == null) {
     throw new Error(`Instance ${playgroundInstanceId} not found`);
   }
+  const instanceProvider = instance.model.provider;
+  const store = usePlaygroundStore();
   const messageSelector = useMemo(
     () => selectPlaygroundInstanceMessage(messageId),
     [messageId]
@@ -42,36 +46,33 @@ export function ChatMessageToolCallsEditor({
   }
   const toolCalls = message.toolCalls;
   const updateMessage = usePlaygroundContext((state) => state.updateMessage);
-  const [editorValue, setEditorValue] = useState(() =>
+  const [initialEditorValue, setInitialEditorValue] = useState(() =>
     JSON.stringify(toolCalls, null, 2)
   );
 
-  const [lastValidToolCalls, setLastValidToolCalls] = useState(toolCalls);
-
-  // Update editor when tool calls changes externally, this can happen when switching between providers
+  // when the instance provider changes, we need to update the editor value
+  // to reflect the new tool calls schema
   useEffect(() => {
-    if (JSON.stringify(toolCalls) !== JSON.stringify(lastValidToolCalls)) {
-      setEditorValue(JSON.stringify(toolCalls, null, 2));
-      setLastValidToolCalls(toolCalls);
+    const state = store.getState();
+    const instance = state.instances.find((i) => i.id === playgroundInstanceId);
+    if (instance == null) {
+      return;
     }
-  }, [lastValidToolCalls, toolCalls]);
+    const message = selectPlaygroundInstanceMessage(messageId)(state);
+    if (message == null) {
+      return;
+    }
+    const newToolCalls = message.toolCalls;
+    const newEditorValue = JSON.stringify(newToolCalls, null, 2);
+    if (isJSONString({ str: newEditorValue, excludeNull: true })) {
+      setInitialEditorValue(newEditorValue);
+    }
+  }, [instanceProvider, store, playgroundInstanceId, messageId]);
 
   const onChange = useCallback(
     (value: string) => {
-      setEditorValue(value);
       const { json: toolCalls } = safelyParseJSON(value);
-      if (toolCalls == null) {
-        return;
-      }
-      // Don't use data here returned by safeParse, as we want to allow for extra keys,
-      // there is no "deepPassthrough" to allow for extra keys
-      // at all levels of the schema, so we just use the json parsed value here,
-      // knowing that it is valid with potentially extra keys
-      const { success } = llmProviderToolCallsSchema.safeParse(toolCalls);
-      if (!success) {
-        return;
-      }
-      setLastValidToolCalls(toolCalls);
+
       updateMessage({
         instanceId: playgroundInstanceId,
         messageId,
@@ -98,7 +99,7 @@ export function ChatMessageToolCallsEditor({
 
   return (
     <JSONEditor
-      value={editorValue}
+      value={initialEditorValue}
       jsonSchema={toolCallsJSONSchema}
       onChange={onChange}
     />

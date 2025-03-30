@@ -1,18 +1,27 @@
 import { css } from "@emotion/react";
 
-export const readOnlyCodeMirrorCSS = css`
-  .cm-editor,
-  .cm-gutters {
-    background-color: transparent;
-  }
-`;
-
 export const codeBlockWithCopyCSS = css`
   position: relative;
-  min-height: 47px;
+  --code-block-min-height: 40px;
+  min-height: var(--code-block-min-height);
   display: flex;
   flex-direction: row;
   align-items: center;
+  .cm-theme,
+  .cm-editor {
+    width: 100%;
+    min-height: var(--code-block-min-height);
+  }
+  .cm-editor {
+    padding-top: var(--ac-global-dimension-size-100);
+    padding-bottom: var(--ac-global-dimension-size-100);
+  }
+  .cm-gutters,
+  .cm-gutters * {
+    background: none;
+    background-color: transparent !important;
+    border-right: none;
+  }
   .copy-to-clipboard-button {
     position: absolute;
     top: var(--ac-global-dimension-size-100);

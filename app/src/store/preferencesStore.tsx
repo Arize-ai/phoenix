@@ -32,11 +32,6 @@ export interface PreferencesProps {
    */
   projectsAutoRefreshEnabled: boolean;
   /**
-   * Whether or not to show the span aside that contains details about timing, status, etc.
-   * @default true
-   */
-  showSpanAside: boolean;
-  /**
    * Whether or not the trace tree shows metrics
    */
   showMetricsInTraceTree: boolean;
@@ -49,6 +44,11 @@ export interface PreferencesProps {
    * Note: this is always false in environments that do not support streaming
    */
   playgroundStreamingEnabled: boolean;
+
+  /**
+   * Whether or not the span details are in annotating mode
+   */
+  isAnnotatingSpans: boolean;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -72,11 +72,6 @@ export interface PreferencesState extends PreferencesProps {
    */
   setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled: boolean) => void;
   /**
-   * Setter for enabling/disabling the span aside
-   * @param showSpanAside
-   */
-  setShowSpanAside: (showSpanAside: boolean) => void;
-  /**
    * Setter for enabling/disabling metrics in the trace tree
    * @param showMetricsInTraceTree
    */
@@ -95,6 +90,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling playground streaming
    */
   setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
+  /**
+   * Setter for enabling/disabling span annotating
+   */
+  setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
 }
 
 export const createPreferencesStore = (
@@ -117,10 +116,6 @@ export const createPreferencesStore = (
     setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {
       set({ projectsAutoRefreshEnabled });
     },
-    showSpanAside: true,
-    setShowSpanAside: (showSpanAside) => {
-      set({ showSpanAside });
-    },
     showMetricsInTraceTree: true,
     setShowMetricsInTraceTree: (showMetricsInTraceTree) => {
       set({ showMetricsInTraceTree });
@@ -139,6 +134,10 @@ export const createPreferencesStore = (
     playgroundStreamingEnabled: true,
     setPlaygroundStreamingEnabled: (playgroundStreamingEnabled) => {
       set({ playgroundStreamingEnabled });
+    },
+    isAnnotatingSpans: true,
+    setIsAnnotatingSpans: (isAnnotatingSpans) => {
+      set({ isAnnotatingSpans });
     },
     ...initialProps,
   });

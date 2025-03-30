@@ -662,6 +662,7 @@ export const darkThemeCSS = css`
 
     // Link colors
     --ac-global-link-color: rgb(114, 217, 255);
+    --ac-global-link-color-visited: var(--ac-global-color-purple-900);
   }
 `;
 
@@ -905,6 +906,7 @@ export const lightThemeCSS = css`
     --ac-global-text-color-300: rgba(0, 0, 0, 0.3);
 
     --ac-global-link-color: rgb(9, 105, 218);
+    --ac-global-link-color-visited: var(--ac-global-color-purple-900);
   }
 `;
 
@@ -1013,6 +1015,7 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-tooltip-background-color: var(--ac-global-color-grey-100);
     --ac-global-tooltip-border-color: var(--ac-global-color-grey-300);
 
+    --ac-global-rounding-xsmall: var(--ac-global-dimension-static-size-25);
     --ac-global-rounding-small: var(--ac-global-dimension-static-size-50);
     --ac-global-rounding-medium: var(--ac-global-dimension-static-size-100);
     --ac-global-rounding-large: var(--ac-global-dimension-static-size-200);

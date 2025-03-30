@@ -13,7 +13,7 @@ import pandas as pd
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -508,6 +508,8 @@ class SpanQuery(_HasTmpSuffix):
         root_spans_only: Optional[bool] = None,
         # Deprecated
         stop_time: Optional[datetime] = None,
+        *,
+        orphan_span_as_root_span: bool = True,
     ) -> pd.DataFrame:
         if not project_name:
             project_name = DEFAULT_PROJECT_NAME
@@ -546,11 +548,20 @@ class SpanQuery(_HasTmpSuffix):
         if limit is not None:
             stmt = stmt.limit(limit)
         if root_spans_only:
-            parent = aliased(models.Span)
-            stmt = stmt.outerjoin(
-                parent,
-                models.Span.parent_id == parent.span_id,
-            ).where(parent.span_id == None)  # noqa E711
+            # A root span is either a span with no parent_id or an orphan span
+            # (a span whose parent_id references a span that doesn't exist in the database)
+            if orphan_span_as_root_span:
+                # Include both types of root spans:
+                parent_spans = select(models.Span.span_id).alias("parent_spans")
+                stmt = stmt.where(
+                    ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
+                    # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
+                    # because it significantly degraded PostgreSQL performance (>10x worse)
+                    # during testing.
+                )
+            else:
+                # Only include explicit root spans (spans with parent_id = NULL)
+                stmt = stmt.where(models.Span.parent_id.is_(None))
         stmt0_orig: Select[Any] = stmt
         stmt1_filter: Optional[Select[Any]] = None
         if self._filter:
@@ -690,6 +701,7 @@ def _get_spans_dataframe(
     root_spans_only: Optional[bool] = None,
     # Deprecated
     stop_time: Optional[datetime] = None,
+    orphan_span_as_root_span: bool = True,
 ) -> pd.DataFrame:
     # use legacy labels for backward-compatibility
     span_id_label = "context.span_id"
@@ -728,11 +740,20 @@ def _get_spans_dataframe(
     if limit is not None:
         stmt = stmt.limit(limit)
     if root_spans_only:
-        parent = aliased(models.Span)
-        stmt = stmt.outerjoin(
-            parent,
-            models.Span.parent_id == parent.span_id,
-        ).where(parent.span_id == None)  # noqa E711
+        # A root span is either a span with no parent_id or an orphan span
+        # (a span whose parent_id references a span that doesn't exist in the database)
+        if orphan_span_as_root_span:
+            # Include both types of root spans:
+            parent_spans = select(models.Span.span_id).alias("parent_spans")
+            stmt = stmt.where(
+                ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
+                # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
+                # because it significantly degraded PostgreSQL performance (>10x worse)
+                # during testing.
+            )
+        else:
+            # Only include explicit root spans (spans with parent_id = NULL)
+            stmt = stmt.where(models.Span.parent_id.is_(None))
     conn = session.connection()
     # set `drop=False` for backward-compatibility
     df = pd.read_sql_query(stmt, conn).set_index(span_id_label, drop=False)

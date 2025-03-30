@@ -54,6 +54,7 @@ import {
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
+import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -66,11 +67,12 @@ import {
   DEFAULT_SORT,
   getGqlSort,
 } from "./tableUtils";
+
 type TracesTableProps = {
   project: TracesTable_spans$key;
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 // The number of descendants that's loaded from the server
 // NB: this number is hard coded in the query below but should be kept in sync
 const NUM_DESCENDANTS = 50;
@@ -200,7 +202,7 @@ export function TracesTable(props: TracesTableProps) {
         @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 50 }
+          first: { type: "Int", defaultValue: 30 }
           sort: {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
@@ -223,7 +225,7 @@ export function TracesTable(props: TracesTableProps) {
                 spanKind
                 name
                 metadata
-                statusCode: propagatedStatusCode
+                statusCode
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal

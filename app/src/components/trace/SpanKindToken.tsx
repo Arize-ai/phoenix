@@ -8,7 +8,7 @@ export function SpanKindToken(props: {
 }) {
   const { spanKind, size = "M" } = props;
   const color = useMemo<TokenProps["color"]>(() => {
-    let color: TokenProps["color"] = "var(--ac-global-color-grey-500)";
+    let color: TokenProps["color"] = "var(--ac-global-color-grey-300)";
     switch (spanKind) {
       case "llm":
         color = "var(--ac-global-color-orange-500)";

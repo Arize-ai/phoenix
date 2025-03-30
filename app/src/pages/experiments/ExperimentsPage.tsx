@@ -1,11 +1,14 @@
 import React, { Suspense } from "react";
 import { Outlet, useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
-import { experimentsLoaderQuery$data } from "./__generated__/experimentsLoaderQuery.graphql";
+import { experimentsLoader } from "@phoenix/pages/experiments/experimentsLoader";
+
 import { ExperimentsTable } from "./ExperimentsTable";
 
 export function ExperimentsPage() {
-  const loaderData = useLoaderData() as experimentsLoaderQuery$data;
+  const loaderData = useLoaderData<typeof experimentsLoader>();
+  invariant(loaderData, "loaderData is required");
   return (
     <>
       <ExperimentsTable dataset={loaderData.dataset} />

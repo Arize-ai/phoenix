@@ -37,13 +37,13 @@ export function SettingsPage() {
   const onChangeTab = useCallback(
     (tab: Key) => {
       if (typeof tab === "string") {
-        navigate(`/settings/${tab}`);
+        navigate(`/settings/${tab}`, { replace: true });
       }
     },
     [navigate]
   );
   if (!tab) {
-    return <Navigate to="/settings/general" />;
+    return <Navigate to="/settings/general" replace />;
   }
   return (
     <main css={settingsPageCSS}>

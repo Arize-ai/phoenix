@@ -53,6 +53,14 @@ export function ThemeProvider(
     }
   }, [props.theme, setTheme]);
 
+  useEffect(() => {
+    // When the theme changes, set a class on the body to override the default theme
+    document.body.classList.add(`ac-theme--${theme}`);
+    return () => {
+      document.body.classList.remove(`ac-theme--${theme}`);
+    };
+  }, [theme]);
+
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
       {props.children}

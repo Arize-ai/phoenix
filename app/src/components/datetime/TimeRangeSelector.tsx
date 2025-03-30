@@ -100,6 +100,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
               css={listBoxCSS}
               onSelectionChange={(selection) => {
                 if (selection === "all" || selection.size === 0) {
+                  setOpen(false);
                   return;
                 }
                 const timeRangeKey = selection.keys().next().value;

@@ -4,7 +4,12 @@ import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 // eslint-disable-next-line deprecate/import
-import { Dialog, DialogContainer, PopoverTrigger } from "@arizeai/components";
+import {
+  Dialog,
+  DialogContainer,
+  PopoverTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
 import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { CreateDatasetForm } from "@phoenix/components/dataset/CreateDatasetForm";
@@ -195,24 +200,25 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 setIsDatasetPopoverOpen(isOpen);
               }}
             >
-              <Button
-                variant="primary"
-                size="S"
-                leadingVisual={
-                  <Icon
-                    svg={
-                      isAddingSpansToDataset ? (
-                        <Icons.LoadingOutline />
-                      ) : (
-                        <Icons.DatabaseOutline />
-                      )
-                    }
-                  />
-                }
-                isDisabled={isAddingSpansToDataset}
-              >
-                {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
-              </Button>
+              <TriggerWrap>
+                <Button
+                  variant="default"
+                  size="S"
+                  leadingVisual={
+                    isAddingSpansToDataset ? (
+                      <Icons.LoadingOutline />
+                    ) : (
+                      <Icons.DatabaseOutline />
+                    )
+                  }
+                  onPress={() => {
+                    setIsDatasetPopoverOpen(true);
+                  }}
+                  isDisabled={isAddingSpansToDataset}
+                >
+                  {isAddingSpansToDataset ? "Adding..." : "Add to Dataset"}
+                </Button>
+              </TriggerWrap>
               <Suspense>
                 <DatasetSelectorPopoverContent
                   onDatasetSelected={(datasetId) => {

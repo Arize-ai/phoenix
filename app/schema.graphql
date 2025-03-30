@@ -1390,8 +1390,8 @@ type Project implements Node {
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace
-  spans(timeRange: TimeRange, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
-  sessions(timeRange: TimeRange, first: Int = 50, after: String, sort: ProjectSessionSort, filterIoSubstring: String): ProjectSessionConnection!
+  spans(timeRange: TimeRange, first: Int = 30, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String, orphanSpanAsRootSpan: Boolean = true): SpanConnection!
+  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String): ProjectSessionConnection!
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)

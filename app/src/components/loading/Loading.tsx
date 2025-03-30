@@ -8,10 +8,13 @@ import { Text } from "@phoenix/components";
 type LoadingProps = {
   message?: string;
   size?: ComponentProps<typeof ProgressCircle>["size"];
+  className?: string;
 };
-export const Loading = ({ message, size }: LoadingProps) => {
+
+export const Loading = ({ message, size, className }: LoadingProps) => {
   return (
     <div
+      className={className}
       css={css`
         display: flex;
         flex-direction: column;

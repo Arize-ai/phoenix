@@ -808,14 +808,18 @@ class Query:
         info: Info[Context, None],
     ) -> list[DbTableStats]:
         if info.context.db.dialect is SupportedSQLDialect.SQLITE:
-            stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
-            try:
-                async with info.context.db() as session:
-                    stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
-                stats = _consolidate_sqlite_db_table_stats(stats)
-            except Exception:
-                # TODO: temporary workaround until we can reproduce the error
-                return []
+            # TODO: temporary workaround until we can figure out why
+            # the dbstat query takes longer than expected
+            async with info.context.db() as session:
+                page_count = await session.scalar(text("PRAGMA page_count;"))
+                free_pages = await session.scalar(text("PRAGMA freelist_count;"))
+                page_size = await session.scalar(text("PRAGMA page_size;"))
+            num_bytes = (page_count - free_pages) * page_size
+            return [DbTableStats(table_name="SQLite", num_bytes=num_bytes)]
+            # stmt = text("SELECT name, sum(pgsize) FROM dbstat group by name;")
+            # async with info.context.db() as session:
+            #     stats = cast(Iterable[tuple[str, int]], await session.execute(stmt))
+            # stats = _consolidate_sqlite_db_table_stats(stats)
         elif info.context.db.dialect is SupportedSQLDialect.POSTGRESQL:
             stmt = text(f"""\
                 SELECT c.relname, pg_total_relation_size(c.oid)

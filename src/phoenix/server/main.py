@@ -20,6 +20,7 @@ from phoenix.config import (
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
+    get_env_disable_migrations,
     get_env_enable_prometheus,
     get_env_enable_websockets,
     get_env_grpc_port,
@@ -431,6 +432,7 @@ def initialize_settings() -> None:
     Settings.logging_level = get_env_logging_level()
     Settings.db_logging_level = get_env_db_logging_level()
     Settings.log_migrations = get_env_log_migrations()
+    Settings.disable_migrations = get_env_disable_migrations()
 
 
 if __name__ == "__main__":

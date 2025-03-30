@@ -1,12 +1,12 @@
 import React from "react";
 import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import { GenerativeProvidersCard } from "@phoenix/pages/settings/GenerativeProvidersCard";
-
-import { settingsAIProvidersPageLoaderQuery$data } from "./__generated__/settingsAIProvidersPageLoaderQuery.graphql";
+import { settingsAIProvidersPageLoader } from "@phoenix/pages/settings/settingsAIProvidersPageLoader";
 
 export function SettingsAIProvidersPage() {
-  const data = useLoaderData() as settingsAIProvidersPageLoaderQuery$data;
-
-  return <GenerativeProvidersCard query={data} />;
+  const loaderData = useLoaderData<typeof settingsAIProvidersPageLoader>();
+  invariant(loaderData, "loaderData is required");
+  return <GenerativeProvidersCard query={loaderData} />;
 }

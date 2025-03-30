@@ -22,6 +22,8 @@ IS_ROOT = "parent_id is None"
 IS_LLM = "span_kind == 'LLM'"
 IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 
+DEFAULT_TIMEOUT_IN_SECONDS = 5
+
 
 class CanQuerySpans(Protocol):
     # Implemented by phoenix.session.client.Client
@@ -31,6 +33,7 @@ class CanQuerySpans(Protocol):
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         project_name: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]: ...
 
 
@@ -41,6 +44,7 @@ def get_retrieved_documents(
     project_name: Optional[str] = None,
     # Deprecated
     stop_time: Optional[datetime] = None,
+    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
 ) -> pd.DataFrame:
     project_name = project_name or get_env_project_name()
     if stop_time is not None:
@@ -64,6 +68,7 @@ def get_retrieved_documents(
             start_time=start_time,
             end_time=end_time,
             project_name=project_name,
+            timeout=timeout,
         ),
     )
 
@@ -75,6 +80,7 @@ def get_qa_with_reference(
     project_name: Optional[str] = None,
     # Deprecated
     stop_time: Optional[datetime] = None,
+    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
 ) -> Optional[pd.DataFrame]:
     project_name = project_name or get_env_project_name()
     if stop_time:
@@ -101,6 +107,7 @@ def get_qa_with_reference(
             start_time=start_time,
             end_time=end_time,
             project_name=project_name,
+            timeout=timeout,
         ),
     )
     if df_qa is None or df_qa.empty:

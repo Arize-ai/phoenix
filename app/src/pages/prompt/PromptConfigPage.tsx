@@ -1,13 +1,15 @@
 import React from "react";
 import { useLoaderData } from "react-router";
+import invariant from "tiny-invariant";
 
 import { Flex, View } from "@phoenix/components";
+import { promptConfigLoader } from "@phoenix/pages/prompt/promptConfigLoader";
 
-import { promptConfigLoaderQuery$data } from "./__generated__/promptConfigLoaderQuery.graphql";
 import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
 
 export function PromptConfigPage() {
-  const data = useLoaderData() as promptConfigLoaderQuery$data;
+  const loaderData = useLoaderData<typeof promptConfigLoader>();
+  invariant(loaderData, "loaderData is required");
 
   return (
     <Flex direction="row" height="100%">
@@ -25,7 +27,7 @@ export function PromptConfigPage() {
             marginEnd="auto"
             maxWidth={900}
           >
-            <PromptVersionTagsConfigCard prompt={data.prompt} />
+            <PromptVersionTagsConfigCard prompt={loaderData.prompt} />
           </Flex>
         </View>
       </View>

@@ -8,7 +8,6 @@ import CodeMirror, {
 
 import { useTheme } from "@phoenix/contexts";
 
-import { readOnlyCodeMirrorCSS } from "./styles";
 type PythonBlockProps = Omit<
   ReactCodeMirrorProps,
   "theme" | "extensions" | "editable"
@@ -40,7 +39,6 @@ export function PythonBlock(props: PythonBlockProps) {
       theme={codeMirrorTheme}
       {...props}
       basicSetup={basicSetup}
-      css={readOnlyCodeMirrorCSS}
     />
   );
 }

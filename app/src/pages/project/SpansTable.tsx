@@ -53,6 +53,8 @@ import {
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
+import { DEFAULT_PAGE_SIZE } from "./constants";
+import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -65,11 +67,12 @@ import {
   DEFAULT_SORT,
   getGqlSort,
 } from "./tableUtils";
+
 type SpansTableProps = {
   project: SpansTable_spans$key;
 };
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 type RootSpanFilterValue = "root" | "all";
 
@@ -152,7 +155,7 @@ export function SpansTable(props: SpansTableProps) {
         @refetchable(queryName: "SpansTableSpansQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
-          first: { type: "Int", defaultValue: 50 }
+          first: { type: "Int", defaultValue: 30 }
           rootSpansOnly: { type: "Boolean", defaultValue: true }
           sort: {
             type: "SpanSort"
@@ -168,6 +171,7 @@ export function SpansTable(props: SpansTableProps) {
             sort: $sort
             rootSpansOnly: $rootSpansOnly
             filterCondition: $filterCondition
+            orphanSpanAsRootSpan: $orphanSpanAsRootSpan
             timeRange: $timeRange
           ) @connection(key: "SpansTable_spans") {
             edges {
@@ -586,6 +590,7 @@ export function SpansTable(props: SpansTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
+
           <ToggleButtonGroup
             aria-label="Toggle between root and all spans"
             selectionMode="single"
@@ -612,6 +617,7 @@ export function SpansTable(props: SpansTableProps) {
             </ToggleButton>
           </ToggleButtonGroup>
           <SpanColumnSelector columns={computedColumns} query={data} />
+          <ProjectFilterConfigButton />
         </Flex>
       </View>
       <div

@@ -171,6 +171,7 @@ function RootSpanDetails({
               size="S"
               spanNodeId={rootSpan.id}
               projectId={rootSpan.project.id}
+              buttonText="Annotate"
             />
           </span>
         </Flex>

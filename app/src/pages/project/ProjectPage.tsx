@@ -21,15 +21,18 @@ import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
+import { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
 import { ProjectPageHeader } from "./ProjectPageHeader";
 import {
+  ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
   ProjectPageQueriesSpansQuery,
   ProjectPageQueriesTracesQuery,
@@ -78,7 +81,7 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions"] as const;
+const TABS = ["spans", "traces", "sessions", "config"] as const;
 
 /**
  * Type guard for the tab path in the URL
@@ -91,6 +94,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   spans: 0,
   traces: 1,
   sessions: 2,
+  config: 3,
 };
 
 export function ProjectPageContent({
@@ -100,6 +104,9 @@ export function ProjectPageContent({
   projectId: string;
   timeRange: OpenTimeRange;
 }) {
+  const treatOrphansAsRoots = useProjectContext(
+    (state) => state.treatOrphansAsRoots
+  );
   const timeRangeVariable = useMemo(() => {
     return {
       start: timeRange?.start?.toISOString(),
@@ -134,12 +141,20 @@ export function ProjectPageContent({
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
+  const [
+    projectConfigQueryReference,
+    loadProjectConfigQuery,
+    disposeProjectConfigQuery,
+  ] = useQueryLoader<ProjectPageProjectConfigQueryType>(
+    ProjectPageQueriesProjectConfigQuery
+  );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
     if (tabIndex === 0) {
       loadSpansQuery({
         id: projectId as string,
         timeRange: timeRangeVariable,
+        orphanSpanAsRootSpan: treatOrphansAsRoots,
       });
     } else if (tabIndex === 1) {
       loadTracesQuery({
@@ -151,12 +166,17 @@ export function ProjectPageContent({
         id: projectId as string,
         timeRange: timeRangeVariable,
       });
+    } else if (tabIndex === 3) {
+      loadProjectConfigQuery({
+        id: projectId as string,
+      });
     }
 
     return () => {
       disposeSpansQuery();
       disposeSessionsQuery();
       disposeTracesQuery();
+      disposeProjectConfigQuery();
     };
   }, [
     loadTracesQuery,
@@ -168,6 +188,9 @@ export function ProjectPageContent({
     disposeTracesQuery,
     loadSpansQuery,
     loadSessionsQuery,
+    loadProjectConfigQuery,
+    disposeProjectConfigQuery,
+    treatOrphansAsRoots,
   ]);
 
   const onTabChange = useCallback(
@@ -179,6 +202,9 @@ export function ProjectPageContent({
         } else if (index === 2) {
           // navigate to the sessions tab
           navigate(`${rootPath}/sessions`);
+        } else if (index === 3) {
+          // navigate to the config tab
+          navigate(`${rootPath}/config`);
         } else {
           // navigate to the spans tab
           navigate(`${rootPath}/spans`);
@@ -205,6 +231,7 @@ export function ProjectPageContent({
             spansQueryReference: spansQueryReference ?? null,
             sessionsQueryReference: sessionsQueryReference ?? null,
             tracesQueryReference: tracesQueryReference ?? null,
+            projectConfigQueryReference: projectConfigQueryReference ?? null,
           }}
         >
           <Tabs
@@ -219,6 +246,7 @@ export function ProjectPageContent({
               <Tab id="spans">Spans</Tab>
               <Tab id="traces">Traces</Tab>
               <Tab id="sessions">Sessions</Tab>
+              <Tab id="config">Config</Tab>
             </TabList>
             <LazyTabPanel padded={false} id="spans">
               <Outlet />
@@ -227,6 +255,9 @@ export function ProjectPageContent({
               <Outlet />
             </LazyTabPanel>
             <LazyTabPanel padded={false} id="sessions">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="config">
               <Outlet />
             </LazyTabPanel>
           </Tabs>

@@ -10,6 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.types.ProjectSession import ProjectSession
+from phoenix.server.api.types.Span import Span
 
 
 @singledispatch
@@ -20,6 +21,11 @@ def _gid(_: models.Base) -> str:
 @_gid.register
 def _(obj: models.ProjectSession) -> str:
     return str(GlobalID(ProjectSession.__name__, str(obj.id)))
+
+
+@_gid.register
+def _(obj: models.Span) -> str:
+    return str(GlobalID(Span.__name__, str(obj.id)))
 
 
 async def _node(

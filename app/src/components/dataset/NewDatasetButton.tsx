@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 
-import { Alert, Card, PopoverTrigger } from "@arizeai/components";
+import { Card, PopoverTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Button, Icon, Icons, View } from "@phoenix/components";
+import { Alert, Button, Icon, Icons, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -25,11 +25,17 @@ export function NewDatasetButton({
         setIsOpen(isOpen);
       }}
     >
-      <Button
-        variant="default"
-        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-        aria-label="Create a new dataset"
-      />
+      <TriggerWrap>
+        <Button
+          variant="default"
+          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          aria-label="Create a new dataset"
+          onPress={() => {
+            setError(null);
+            setIsOpen(true);
+          }}
+        />
+      </TriggerWrap>
       <Card
         title="Create New Dataset"
         bodyStyle={{ padding: 0 }}

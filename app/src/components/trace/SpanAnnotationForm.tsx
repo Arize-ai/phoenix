@@ -89,10 +89,10 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
     [onSubmit, setError, reset]
   );
 
-  const defaultDetailsCollapsed = isReadOnly;
+  const defaultDetailsCollapsed = !initialData.explanation;
   return (
     <Form onSubmit={handleSubmit(_onSubmit)}>
-      <View padding="size-200">
+      <View padding="size-100">
         <Flex direction="column" gap="size-100">
           <div
             css={css`
@@ -100,13 +100,21 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
               flex-direction: row;
               width: 100%;
               overflow: hidden;
-              gap: var(--ac-global-dimension-size-100);
+              --gap: var(--ac-global-dimension-size-100);
+              --input-width: 100px;
+
+              gap: var(--gap);
               & > * {
-                flex: 1 1 auto;
+                flex-basis: calc(50% - var(--gap));
+                min-width: var(--input-width);
+                flex-grow: 1;
               }
-              .ac-textfield {
-                min-width: 0;
+
+              input.react-aria-Input {
+                min-width: var(--input-width);
               }
+
+              flex-wrap: wrap;
             `}
           >
             <Controller
@@ -129,9 +137,7 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
                   {error ? (
                     <FieldError>{error.message}</FieldError>
                   ) : (
-                    <Text slot="description">
-                      A categorical label like good or bad
-                    </Text>
+                    <Text slot="description">A categorical label</Text>
                   )}
                 </TextField>
               )}
@@ -200,12 +206,9 @@ export function SpanAnnotationForm(props: SpanAnnotationFormProps) {
       <>
         {!isReadOnly ? (
           <View
-            paddingTop="size-100"
             paddingBottom="size-100"
-            paddingEnd="size-200"
-            paddingStart="size-200"
-            borderTopWidth="thin"
-            borderColor="dark"
+            paddingEnd="size-100"
+            paddingStart="size-100"
           >
             <Flex direction="row" justifyContent="end">
               <Button

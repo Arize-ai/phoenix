@@ -30,6 +30,7 @@ export function AnnotationActionMenu(props: AnnotationActionMenuProps) {
     >
       <ActionMenu
         align="end"
+        buttonVariant="quiet"
         buttonSize="compact"
         isDisabled={isDisabled}
         onAction={(action) => {

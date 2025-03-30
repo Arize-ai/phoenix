@@ -1,7 +1,7 @@
 import React, { Fragment, Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { BlockerFunction, useBlocker, useSearchParams } from "react-router-dom";
+import { BlockerFunction, useBlocker, useSearchParams } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -208,17 +208,25 @@ const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
 const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
-  const instances = usePlaygroundContext((state) => state.instances);
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams] = useSearchParams();
   const datasetId = searchParams.get("datasetId");
   const isDatasetMode = datasetId != null;
-  const numInstances = instances.length;
+  const numInstances = usePlaygroundContext((state) => state.instances.length);
   const isSingleInstance = numInstances === 1;
-  const isRunning = instances.some((instance) => instance.activeRunId != null);
-  const anyDirtyPromptInstances = instances
-    .filter((i) => i.prompt)
-    .some((instance) => instance.dirty);
+  const isRunning = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.activeRunId != null)
+  );
+  const anyDirtyPromptInstances = usePlaygroundContext((state) =>
+    Object.values(state.dirtyInstances).some((dirty) => dirty)
+  );
+  const instanceIds = usePlaygroundContext(
+    (state) => state.instances.map((instance) => instance.id),
+    // only re-render when the instance ids change, not when the array is re-created
+    (left, right) =>
+      left.length === right.length &&
+      left.every((id, index) => id === right[index])
+  );
 
   // Soft block at the router level when a run is in progress or there are dirty instances
   // Handles blocking navigation when a run is in progress
@@ -278,14 +286,14 @@ function PlaygroundContent() {
                 <DisclosurePanel>
                   <div css={promptsWrapCSS}>
                     <Flex direction="row" gap="size-200" maxWidth="100%">
-                      {instances.map((instance) => (
+                      {instanceIds.map((instanceId) => (
                         <View
                           flex="1 1 0px"
-                          key={`${instance.id}-prompt`}
+                          key={`${instanceId}-prompt`}
                           minWidth={PLAYGROUND_PROMPT_PANEL_MIN_WIDTH}
                         >
                           <PlaygroundTemplate
-                            playgroundInstanceId={instance.id}
+                            playgroundInstanceId={instanceId}
                           />
                         </View>
                       ))}
@@ -324,10 +332,10 @@ function PlaygroundContent() {
                   <DisclosurePanel>
                     <View padding="size-200" height="100%">
                       <Flex direction="row" gap="size-200">
-                        {instances.map((instance) => (
-                          <View key={`${instance.id}-output`} flex="1 1 0px">
+                        {instanceIds.map((instanceId) => (
+                          <View key={`${instanceId}-output`} flex="1 1 0px">
                             <PlaygroundOutput
-                              playgroundInstanceId={instance.id}
+                              playgroundInstanceId={instanceId}
                             />
                           </View>
                         ))}

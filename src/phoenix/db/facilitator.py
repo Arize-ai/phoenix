@@ -19,7 +19,10 @@ from phoenix.auth import (
     DEFAULT_SYSTEM_USERNAME,
     compute_password_hash,
 )
-from phoenix.config import get_env_default_admin_initial_password
+from phoenix.config import (
+    get_env_admins,
+    get_env_default_admin_initial_password,
+)
 from phoenix.db import models
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
 from phoenix.server.types import DbSessionFactory
@@ -37,13 +40,13 @@ class Facilitator:
         self._db = db
 
     async def __call__(self) -> None:
-        async with self._db() as session:
-            for fn in (
-                _ensure_enums,
-                _ensure_user_roles,
-            ):
-                async with session.begin_nested():
-                    await fn(session)
+        for fn in (
+            _ensure_enums,
+            _ensure_user_roles,
+            _ensure_admins,
+        ):
+            async with self._db() as session:
+                await fn(session)
 
 
 async def _ensure_enums(session: AsyncSession) -> None:
@@ -111,3 +114,42 @@ async def _ensure_user_roles(session: AsyncSession) -> None:
         )
         session.add(admin_user)
     await session.flush()
+
+
+async def _ensure_admins(session: AsyncSession) -> None:
+    """
+    Ensure that all startup admin users are present in the database. If any are missing, they will
+    be added. Existing records will not be modified.
+    """
+    if not (admins := get_env_admins()):
+        return
+    existing_emails = set(
+        await session.scalars(select(models.User.email).where(models.User.email.in_(admins.keys())))
+    )
+    admins = {email: username for email, username in admins.items() if email not in existing_emails}
+    if not admins:
+        return
+    existing_usernames = set(
+        await session.scalars(
+            select(models.User.username).where(models.User.username.in_(admins.values()))
+        )
+    )
+    admins = {
+        email: username for email, username in admins.items() if username not in existing_usernames
+    }
+    if not admins:
+        return
+    admin_role_id = await session.scalar(
+        select(models.UserRole.id).filter_by(name=UserRole.ADMIN.value)
+    )
+    assert admin_role_id is not None, "Admin role not found in database"
+    for email, username in admins.items():
+        values = dict(
+            user_role_id=admin_role_id,
+            username=username,
+            email=email,
+            password_salt=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+            password_hash=secrets.token_bytes(DEFAULT_SECRET_LENGTH),
+            reset_password=True,
+        )
+        await session.execute(insert(models.User).values(values))

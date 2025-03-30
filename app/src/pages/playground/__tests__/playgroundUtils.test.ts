@@ -70,7 +70,6 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   tools: [],
   toolChoice: "auto",
   spanId: null,
-  dirty: false,
   template: {
     __type: "chat",
     messages: [],
@@ -89,7 +88,6 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   tools: [],
   toolChoice: "auto",
   spanId: "fake-span-global-id",
-  dirty: false,
   template: {
     __type: "chat",
     // These id's are not 0, 1, 2, because we create a playground instance (including messages) at the top of the transformSpanAttributesToPlaygroundInstance function
@@ -1091,7 +1089,6 @@ describe("getVariablesMapFromInstances", () => {
     tools: [],
     toolChoice: "auto",
     spanId: null,
-    dirty: false,
     template: {
       __type: "chat",
       messages: [],
