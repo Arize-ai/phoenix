@@ -1462,12 +1462,12 @@ type PageInfo {
 
 input PatchAnnotationInput {
   annotationId: GlobalID!
-  name: String
-  annotatorKind: AnnotatorKind
+  name: String!
+  annotatorKind: AnnotatorKind!
   label: String
   score: Float
   explanation: String
-  metadata: JSON
+  metadata: JSON!
   identifier: String
 }
 
