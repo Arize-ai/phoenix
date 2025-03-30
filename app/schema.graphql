@@ -62,6 +62,11 @@ type AnnotationConfigEdge {
   node: AnnotationConfig!
 }
 
+enum AnnotationSource {
+  API
+  APP
+}
+
 type AnnotationSummary {
   count: Int!
   labels: [String!]!
@@ -409,6 +414,8 @@ input CreateSpanAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
+  identifier: String = null
+  source: AnnotationSource! = APP
 }
 
 type CreateSystemApiKeyMutationPayload {
@@ -425,6 +432,8 @@ input CreateTraceAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
+  identifier: String = null
+  source: AnnotationSource!
 }
 
 input CreateUserApiKeyInput {
@@ -1459,6 +1468,7 @@ input PatchAnnotationInput {
   score: Float
   explanation: String
   metadata: JSON
+  identifier: String
 }
 
 input PatchDatasetExamplesInput {
@@ -2097,7 +2107,10 @@ type SpanAnnotation implements Node & Annotation {
   explanation: String
   annotatorKind: AnnotatorKind!
   metadata: JSON!
+  source: AnnotationSource!
+  identifier: String
   spanId: GlobalID!
+  user: User
 }
 
 enum SpanAnnotationColumn {
@@ -2360,6 +2373,8 @@ type TraceAnnotation implements Node {
   score: Float
   explanation: String
   metadata: JSON!
+  identifier: String
+  source: AnnotationSource!
   traceId: GlobalID!
 }
 

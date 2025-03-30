@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+from typing import Optional
 
 import strawberry
 from sqlalchemy import delete, insert, update
-from strawberry import UNSET
-from strawberry.types import Info
+from starlette.requests import Request
+from strawberry import UNSET, Info
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
@@ -14,6 +15,7 @@ from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationI
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationDeleteEvent, SpanAnnotationInsertEvent
 
 
@@ -29,6 +31,10 @@ class SpanAnnotationMutationMixin:
     async def create_span_annotations(
         self, info: Info[Context, None], input: list[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
         inserted_annotations: Sequence[models.SpanAnnotation] = []
         async with info.context.db() as session:
             values_list = [
@@ -42,7 +48,7 @@ class SpanAnnotationMutationMixin:
                     metadata_=annotation.metadata,
                     identifier=annotation.identifier,
                     source=annotation.source.value,
-                    user_id=None,
+                    user_id=user_id,
                 )
                 for annotation in input
             ]
