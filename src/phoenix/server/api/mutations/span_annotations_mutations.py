@@ -140,6 +140,13 @@ class SpanAnnotationMutationMixin:
     async def delete_span_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> SpanAnnotationMutationPayload:
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        user_is_admin = False
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+            user_is_admin = user.is_admin
+
         span_annotation_ids = [
             from_global_id_with_expected_type(global_id, "SpanAnnotation")
             for global_id in input.annotation_ids
@@ -152,6 +159,15 @@ class SpanAnnotationMutationMixin:
             )
             result = await session.scalars(stmt)
             deleted_annotations = result.all()
+
+            for annotation in deleted_annotations:
+                if annotation.user_id != user_id and not user_is_admin:
+                    await session.rollback()
+                    raise BadRequest(
+                        f"Cannot delete span annotation '{annotation.id}' "
+                        "because it is not associated with the current user "
+                        "and the current user is not an admin."
+                    )
 
             deleted_annotations_gql = [
                 to_gql_span_annotation(annotation) for annotation in deleted_annotations
