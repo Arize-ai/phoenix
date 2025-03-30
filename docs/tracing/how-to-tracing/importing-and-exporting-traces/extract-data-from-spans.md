@@ -45,7 +45,13 @@ px.Client().get_spans_dataframe("span_kind == 'CHAIN'")
 
 ## Running Span Queries
 
-You can query for data using our query DSL (domain specific language). Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
+You can query for data using our **query DSL** (domain specific language).&#x20;
+
+{% hint style="success" %}
+This **Query DSL** is the same as what is used by the filter bar in the dashboard. It can be helpful to form your query string in the Phoenix dashboard for more immediate feedback, before moving it to code.
+{% endhint %}
+
+Below is an example of how to pull all retriever spans and select the input value. The output of this query is a DataFrame that contains the input values for all retriever spans.
 
 ```python
 import phoenix as px
@@ -219,7 +225,7 @@ Span attributes can be selected by simply listing them inside `.select()` method
 ```python
 query = SpanQuery().select(
     "input.value",
-    "output.value,
+    "output.value",
 )
 ```
 
@@ -230,7 +236,7 @@ Keyword-argument style can be used to rename the columns in the dataframe. The e
 ```python
 query = SpanQuery().select(
     input="input.value",
-    output="output.value,
+    output="output.value",
 )
 ```
 
@@ -241,7 +247,7 @@ If arbitrary output names are desired, e.g. names with spaces and symbols, we ca
 ```python
 query = SpanQuery().select(**{
     "Value (Input)": "input.value",
-    "Value (Output)": "output.value,
+    "Value (Output)": "output.value",
 })
 ```
 
@@ -278,7 +284,7 @@ This is useful for joining a span to its parent span. To do that we would first 
 ```python
 query = SpanQuery().select(
     span_id="parent_id",
-    output="output.value,
+    output="output.value",
 )
 ```
 

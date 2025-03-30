@@ -15,11 +15,15 @@ Before accessing px.Client(), be sure you've set the following environment varia
 ```python
 import os
 
+# Used by local phoenix deployments with auth:
+os.environ["PHOENIX_API_KEY"] = "..."
+
+# Used by Phoenix Cloud deployments:
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key=..."
+
+# Be sure to modify this if you're self-hosting Phoenix:
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
-
-If you're self-hosting Phoenix, ignore the client headers and change the collector endpoint to your endpoint.
 
 ## Span Evaluations
 

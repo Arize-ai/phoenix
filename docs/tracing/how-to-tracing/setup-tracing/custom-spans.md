@@ -5,11 +5,11 @@ description: >-
   customize your LLM spans
 ---
 
-# Instrument: Python
+# Setup Tracing using Base OTEL
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Ways-to-collect-data-for-Arize-and-Phoenix.png" alt=""><figcaption></figcaption></figure>
 
-Phoenix and OpenInference use the OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required!  This guide will help you understand how to create and customize spans using the OpenTelemetry Trace API.
+Phoenix and OpenInference use the OpenTelemetry Trace API to create spans. Because Phoenix supports OpenTelemetry, this means that you can perform manual instrumentation, no LLM framework required! This guide will help you understand how to create and customize spans using the OpenTelemetry Trace API.
 
 {% hint style="info" %}
 See [here](https://github.com/Arize-ai/phoenix/tree/main/examples/manually-instrumented-chatbot) for an end-to-end example of a manually instrumented application.
@@ -158,6 +158,7 @@ pip install openinference-semantic-conventions
 Then you can use it in code:
 
 ```python
+from opentelemetry import trace
 from openinference.semconv.trace import SpanAttributes
 
 # ...

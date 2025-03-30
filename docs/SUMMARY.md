@@ -185,6 +185,7 @@
 
 ## 🔌 INTEGRATIONS
 
+* [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
 
 ## 📚 Reference

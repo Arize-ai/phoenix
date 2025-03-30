@@ -1,46 +1,27 @@
-```python
+# Chain-of-Thought Prompting
 
-```
-
-<center>
-<p style="text-align:center">
-<img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/9e6101d95936f4bd4d390efc9ce646dc6937fb2d/images/socal/github-large-banner-phoenix.jpg" width="1000"/>
-<br>
-<br>
-<a href="https://docs.arize.com/phoenix/">Docs</a>
-|
-<a href="https://github.com/Arize-ai/phoenix">GitHub</a>
-|
-<a href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">Community</a>
-</p>
-</center>
-<h1 align="center">Chain-of-Thought Prompting Tutorial</h1>
+{% embed url="https://youtu.be/Ys6aQjSioyk?si=MXgYt0JCIzcpkPke" %}
 
 LLMs excel at text generation, but their reasoning abilities depend on how we prompt them. **Chain of Thought (CoT)** prompting enhances logical reasoning by guiding the model to think step by step, improving accuracy in tasks like math, logic, and multi-step problem solving.
 
 In this tutorial, you will:
-- Examine how different prompting techniques influence reasoning by evaluating model performance on a dataset.
-- Refine prompting strategies, progressing from basic approaches to structured reasoning.
-- Utilize Phoenix to assess accuracy at each stage and explore the model's thought process.
-- Learn how to apply CoT prompting effectively in real-world tasks.
+
+* Examine how different prompting techniques influence reasoning by evaluating model performance on a dataset.
+* Refine prompting strategies, progressing from basic approaches to structured reasoning.
+* Utilize Phoenix to assess accuracy at each stage and explore the model's thought process.
+* Learn how to apply CoT prompting effectively in real-world tasks.
 
 ⚠️ You'll need an OpenAI Key for this tutorial.
 
 Let’s dive in! 🚀
 
-# **Set up Dependencies and Keys**
-
-> Add blockquote
-
-
-
+## **Set up Dependencies and Keys**
 
 ```python
 !pip install -qqqq "arize-phoenix>=8.0.0" datasets openinference-instrumentation-openai
 ```
 
 Next you need to connect to Phoenix. The code below will connect you to a Phoenix Cloud instance. You can also [connect to a self-hosted Phoenix instance](https://docs.arize.com/phoenix/deployment) if you'd prefer.
-
 
 ```python
 import os
@@ -54,12 +35,11 @@ if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
 ```
 
-# **Load Dataset Into Phoenix**
+## **Load Dataset Into Phoenix**
 
 This dataset includes math word problems, step-by-step explanations, and their corresponding answers. As we refine our prompt, we'll test it against the dataset to measure and track improvements in performance.
 
 Here, we also import the Phoenix Client, which enables us to create and modify prompts directly within the notebook while seamlessly syncing changes to the Phoenix UI.
-
 
 ```python
 import uuid
@@ -84,12 +64,11 @@ dataset = px.Client().upload_dataset(
 )
 ```
 
-# **Zero-Shot Prompting** - Baseline
+## **Zero-Shot Prompting** - Baseline
 
 **Zero-shot prompting** is the simplest way to interact with a language model—it involves asking a question without providing any examples or reasoning steps. The model generates an answer based solely on its pre-trained knowledge.
 
 This serves as our baseline for comparison. By evaluating its performance on our dataset, we can see how well the model solves math word problems without explicit guidance. In later sections, we’ll introduce structured reasoning techniques like **Chain of Thought (CoT)** to measure improvements in accuracy and answers.
-
 
 ```python
 from openai import OpenAI
@@ -122,12 +101,11 @@ At this stage, this initial prompt is now available in Phoenix under the Prompt 
 
 Prompts in Phoenix store more than just text—they also include key details such as the prompt template, model configurations, and response format, ensuring a structured and consistent approach to generating outputs.
 
-![Baseline Prompt in UI](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_1.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_1.png)
 
 Next, we will define a task and evaluator for the experiment. Then, we run our experiment.
 
 Because our dataset has ground truth labels, we can use a simple function to extract the answer and check if the calculated answer matches the expected output.
-
 
 ```python
 import nest_asyncio
@@ -161,29 +139,19 @@ initial_experiment = run_experiment(
 )
 ```
 
-We can review the results of the experiment in Phoenix. We achieved ~75% accuracy in this run. In the following sections, we will iterate on this prompt and see how our evaluation changes!
-
+We can review the results of the experiment in Phoenix. We achieved \~75% accuracy in this run. In the following sections, we will iterate on this prompt and see how our evaluation changes!
 
 **Note**: Throughout this tutorial, you will encounter various evaluator outcomes. At times, you may notice a decline in performance compared to the initial experiment. However, this is not necessarily a flaw. Variations in results can arise due to factors such as the choice of LLM, inherent model behaviors, and randomness.
 
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_2.png)
 
-
-
-
-
-
-
-
-![Baseline Experiement](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_2.png)
-
-# **Zero-Shot CoT Prompting**
+## **Zero-Shot CoT Prompting**
 
 Zero-shot prompting provides a direct answer, but it often struggles with complex reasoning. **Zero-Shot Chain of Thought (CoT)** prompting improves this by explicitly instructing the model to think step by step before arriving at a final answer.
 
-By adding a simple instruction like *“Let’s think through this step by step,”* we encourage the model to break down the problem logically. This structured reasoning can lead to more accurate answers, especially for multi-step math problems.
+By adding a simple instruction like _“Let’s think through this step by step,”_ we encourage the model to break down the problem logically. This structured reasoning can lead to more accurate answers, especially for multi-step math problems.
 
 In this section, we'll compare Zero-Shot CoT against our baseline to evaluate its impact on performance. First, let's create the prompt.
-
 
 ```python
 zero_shot_COT_template = """
@@ -216,7 +184,6 @@ zero_shot_COT = PhoenixClient().prompts.create(
 This updated prompt is now lives in Phoenix as a new prompt version.
 
 Next, we run our task and evaluation by extracting the answer from the output of our LLM.
-
 
 ```python
 import re
@@ -251,20 +218,19 @@ initial_experiment = run_experiment(
 )
 ```
 
-By clicking into the experiement in Phoenix, you can take a look at the steps the model took the reach the answer. By telling the model to think through the problem and output reasoning, we see a performance improvement.
+By clicking into the experiment in Phoenix, you can take a look at the steps the model took the reach the answer. By telling the model to think through the problem and output reasoning, we see a performance improvement.
 
-![Experiment Details](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_3.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_3.png)
 
-![Experiment 2 Outcome](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_4.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_4.png)
 
-# **Self-Consistency CoT Prompting**
+## **Self-Consistency CoT Prompting**
 
 Even with Chain of Thought prompting, a single response may not always be reliable. **Self-Consistency CoT** enhances accuracy by generating multiple reasoning paths and selecting the most common answer. Instead of relying on one response, we sample multiple outputs and aggregate them, reducing errors caused by randomness or flawed reasoning steps.
 
 This method improves robustness, especially for complex problems where initial reasoning steps might vary. In this section, we'll compare Self-Consistency CoT to our previous promppts to see how using on multiple responses impacts overall performance.
 
 Let's repeat the same process as above with a new prompt and evaluate the outcome.
-
 
 ```python
 consistency_COT_template = """
@@ -293,7 +259,6 @@ self_consistency_COT = PhoenixClient().prompts.create(
     version=PromptVersion.from_openai(params),
 )
 ```
-
 
 ```python
 def self_consistency_COT_prompt(input):
@@ -327,28 +292,19 @@ initial_experiment = run_experiment(
 
 We've observed a significant improvement in performance! Since the prompt instructs the model to compute the answer multiple times independently, you may notice that the experiment takes slightly longer to run. You can click into the experiement explore to view the independent computations the model performed for each problem.
 
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_6.png)
 
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_5.png)
 
-
-
-
-
-
-
-![Exp 2 Results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_6.png)
-
-![Experiment 2](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_5.png)
-
-# Few Shot CoT Prompting
+## Few Shot CoT Prompting
 
 **Few-shot CoT prompting** enhances reasoning by providing worked examples before asking the model to solve a new problem. By demonstrating step-by-step solutions, the model learns to apply similar logical reasoning to unseen questions.
 
 This method leverages **in-context learning**, allowing the model to generalize patterns from the examples.
 
- In this final section, we’ll compare Few-Shot CoT against our previous prompts.
+In this final section, we’ll compare Few-Shot CoT against our previous prompts.
 
- First, let's construct our prompt by sampling examples from a test dataset.
-
+First, let's construct our prompt by sampling examples from a test dataset.
 
 ```python
 ds = load_dataset("syeddula/math_word_problems")["test"]
@@ -357,7 +313,6 @@ few_shot_examples
 ```
 
 We now will construct our final prompt, run the experiement, and view the results. Under the **Prompts tab** in Phoenix, you can track the version history of your prompt and see what random examples were chosen.
-
 
 ```python
 few_shot_COT_template = """
@@ -385,8 +340,7 @@ few_shot_COT = PhoenixClient().prompts.create(
 )
 ```
 
-![Few Shot Prompt](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_8.png)
-
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_8.png)
 
 ```python
 def few_shot_COT_prompt(input):
@@ -424,7 +378,7 @@ initial_experiment = run_experiment(
 )
 ```
 
-# **Final Results**
+## **Final Results**
 
 After running all of your experiments, you can compare the performance of different prompting techniques. Keep in mind that results may vary due to randomness and the model's non-deterministic behavior.
 
@@ -432,7 +386,6 @@ You can review your prompt version history in the **Prompts tab** and explore th
 
 To refine and test these prompts against other datasets, experiment with Chain of Thought (CoT) prompting to see its relevance to your specific use cases. With Phoenix, you can seamlessly integrate this process into your workflow using the TypeScript and Python Clients.
 
-
-![Final Run Results](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_7.png)
+![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/CoT_Demo_7.png)
 
 From here, you can check out more [examples on Phoenix](https://docs.arize.com/phoenix/notebooks), and if you haven't already, [please give us a star on GitHub!](https://github.com/Arize-ai/phoenix) ⭐️
