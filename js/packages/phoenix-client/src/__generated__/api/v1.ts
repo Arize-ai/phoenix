@@ -1112,6 +1112,11 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation
+             */
+            identifier?: string | null;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
