@@ -77,6 +77,18 @@ ROW_COUNT_PATTERN = r"\(actual(?:\s+[^)]*?)?\s+rows=(\d+)"
 
 
 @dataclass
+class ExecutionPlan:
+    """Stores an execution plan with its associated execution time."""
+
+    execution_time_ms: float
+    plan: str
+
+    def __post_init__(self) -> None:
+        """Round the execution time to 1 decimal place."""
+        self.execution_time_ms = round(self.execution_time_ms, 1)
+
+
+@dataclass
 class QueryResult:
     """Stores the results of running a query multiple times."""
 
@@ -85,7 +97,7 @@ class QueryResult:
     execution_times_ms: list[float]
     row_count: Optional[int]
     timestamp: str
-    execution_plans: list[tuple[float, str]]  # List of (execution_time, plan) tuples
+    execution_plans: list[ExecutionPlan]  # List of execution plans with their times
     error: Optional[str] = None
 
     @property
@@ -113,8 +125,10 @@ class QueryResult:
         try:
             median_time = statistics.median(self.execution_times_ms)
             # Find the plan with execution time closest to median
-            closest_plan = min(self.execution_plans, key=lambda x: abs(x[0] - median_time))
-            return closest_plan[1]
+            closest_plan = min(
+                self.execution_plans, key=lambda x: abs(x.execution_time_ms - median_time)
+            )
+            return closest_plan.plan
         except statistics.StatisticsError:
             return None
 
@@ -368,7 +382,7 @@ class PostgresQueryAnalyzer:
                 execution_times_ms=[round(execution_time, 1)],
                 row_count=row_count,
                 timestamp=datetime.now().isoformat(),
-                execution_plans=[(round(execution_time, 1), execution_plan)]
+                execution_plans=[ExecutionPlan(execution_time, execution_plan)]
                 if execution_plan is not None
                 else [],
             )
@@ -376,7 +390,7 @@ class PostgresQueryAnalyzer:
             self.results[query_name].execution_times_ms.append(round(execution_time, 1))
             if execution_plan is not None:
                 self.results[query_name].execution_plans.append(
-                    (round(execution_time, 1), execution_plan)
+                    ExecutionPlan(execution_time, execution_plan)
                 )
 
     def _format_table_row(
