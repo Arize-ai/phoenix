@@ -31,7 +31,7 @@ Use auto-instrumentation to export traces for common frameworks and libraries
 
 * [Instrument LlamaIndex](../integrations-tracing/llamaindex.md)
 * [Instrument LangChain](../integrations-tracing/langchain.md)
-* [Instrument OpenAI](../integrations-tracing/dspy.md)
+* [Instrument OpenAI](../integrations-tracing/openai.md)
 * [Instrument DSPy](../integrations-tracing/dspy.md)
 * [Instrument AWS Bedrock](../integrations-tracing/bedrock.md)
 * [Instrument AutoGen](../integrations-tracing/autogen-support.md)
