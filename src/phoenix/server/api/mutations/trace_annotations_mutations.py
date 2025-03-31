@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, insert, update
+from sqlalchemy import delete, insert, select
 from starlette.requests import Request
 from strawberry import UNSET
 from strawberry.types import Info
@@ -10,6 +10,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -73,41 +74,73 @@ class TraceAnnotationMutationMixin:
     async def patch_trace_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
-        patched_annotations = []
-        async with info.context.db() as session:
-            for annotation in input:
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+
+        patch_by_id = {}
+        for patch in input:
+            try:
                 trace_annotation_id = from_global_id_with_expected_type(
-                    annotation.annotation_id, "TraceAnnotation"
+                    patch.annotation_id, "TraceAnnotation"
                 )
-                patch = {
-                    column.key: patch_value
-                    for column, patch_value, column_is_nullable in (
-                        (models.TraceAnnotation.name, annotation.name, False),
-                        (
-                            models.TraceAnnotation.annotator_kind,
-                            annotation.annotator_kind.value
-                            if annotation.annotator_kind is not None
-                            else None,
-                            False,
-                        ),
-                        (models.TraceAnnotation.label, annotation.label, True),
-                        (models.TraceAnnotation.score, annotation.score, True),
-                        (models.TraceAnnotation.explanation, annotation.explanation, True),
-                        (models.TraceAnnotation.metadata_, annotation.metadata, False),
-                        (models.TraceAnnotation.identifier, annotation.identifier, True),
+            except ValueError:
+                raise BadRequest(f"Invalid trace annotation ID: {patch.annotation_id}")
+            if trace_annotation_id in patch_by_id:
+                raise BadRequest(f"Duplicate patch for trace annotation ID: {trace_annotation_id}")
+            patch_by_id[trace_annotation_id] = patch
+
+        async with info.context.db() as session:
+            trace_annotations_by_id = {}
+            for trace_annotation in await session.scalars(
+                select(models.TraceAnnotation).where(
+                    models.TraceAnnotation.id.in_(patch_by_id.keys())
+                )
+            ):
+                if trace_annotation.user_id != user_id:
+                    raise BadRequest(
+                        f"Cannot patch trace annotation '{trace_annotation.id}' "
+                        "because it is not associated with the current user."
                     )
-                    if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
-                }
-                trace_annotation = await session.scalar(
-                    update(models.TraceAnnotation)
-                    .where(models.TraceAnnotation.id == trace_annotation_id)
-                    .values(**patch)
-                    .returning(models.TraceAnnotation)
+                trace_annotations_by_id[trace_annotation.id] = trace_annotation
+
+            missing_trace_annotation_ids = set(patch_by_id) - set(trace_annotations_by_id.keys())
+            if missing_trace_annotation_ids:
+                raise BadRequest(
+                    f"Could not find trace annotations with IDs: {missing_trace_annotation_ids}"
                 )
-                if trace_annotation:
-                    patched_annotations.append(to_gql_trace_annotation(trace_annotation))
-                    info.context.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
-        return TraceAnnotationMutationPayload(trace_annotations=patched_annotations, query=Query())
+
+            for trace_annotation_id, patch in patch_by_id.items():
+                trace_annotation = trace_annotations_by_id[trace_annotation_id]
+                if patch.name is not UNSET:
+                    trace_annotation.name = patch.name
+                if patch.annotator_kind is not UNSET:
+                    trace_annotation.annotator_kind = patch.annotator_kind.value
+                if patch.label is not UNSET:
+                    trace_annotation.label = patch.label
+                if patch.score is not UNSET:
+                    trace_annotation.score = patch.score
+                if patch.explanation is not UNSET:
+                    trace_annotation.explanation = patch.explanation
+                if patch.metadata is not UNSET:
+                    assert isinstance(patch.metadata, dict)
+                    trace_annotation.metadata_ = patch.metadata
+                if patch.identifier is not UNSET:
+                    trace_annotation.identifier = patch.identifier
+                session.add(trace_annotation)
+            await session.commit()
+
+        patched_annotations = [
+            to_gql_trace_annotation(trace_annotation)
+            for trace_annotation in trace_annotations_by_id.values()
+        ]
+        for trace_annotation in trace_annotations_by_id.values():
+            info.context.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
+        return TraceAnnotationMutationPayload(
+            trace_annotations=patched_annotations,
+            query=Query(),
+        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore
     async def delete_trace_annotations(
