@@ -12,8 +12,8 @@ import {
   Popover,
   Select,
   SelectChevronUpDownIcon,
+  SelectItem,
   SelectValue,
-  View,
 } from "@phoenix/components";
 
 /**
@@ -73,9 +73,9 @@ const SelectContent = () => (
     <Popover>
       <ListBox>
         {options.map((option) => (
-          <ListBoxItem key={option.id} id={option.id}>
+          <SelectItem key={option.id} id={option.id}>
             {option.name}
-          </ListBoxItem>
+          </SelectItem>
         ))}
       </ListBox>
     </Popover>
