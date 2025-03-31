@@ -121,6 +121,7 @@ class SpanAnnotationMutationMixin:
                 if patch.explanation is not UNSET:
                     span_annotation.explanation = patch.explanation
                 if patch.metadata is not UNSET:
+                    assert isinstance(patch.metadata, dict)
                     span_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
                     span_annotation.identifier = patch.identifier
