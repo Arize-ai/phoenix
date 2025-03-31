@@ -20,7 +20,7 @@ import { Icon, Icons } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/field/styles";
 import { SizingProps } from "@phoenix/components/types";
 
-import { SelectChevronUpDownIcon } from "../select";
+import { SelectChevronUpDownIcon } from "../icon";
 
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
