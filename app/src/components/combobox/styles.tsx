@@ -5,13 +5,13 @@ import { fieldPopoverCSS } from "../field/styles";
 export const comboBoxCSS = css`
   &[data-size="M"] {
     --combobox-vertical-padding: 6px;
-    --combobox-start-padding: 8px;
-    --combobox-end-padding: 6px;
+    --combobox-start-padding: var(--ac-global-dimension-static-size-100);
+    --combobox-end-padding: var(--ac-global-dimension-static-size-50);
   }
   &[data-size="L"] {
     --combobox-vertical-padding: 10px;
     --combobox-start-padding: var(--ac-global-dimension-static-size-200);
-    --combobox-end-padding: var(--ac-global-dimension-static-size-200);
+    --combobox-end-padding: var(--ac-global-dimension-static-size-100);
   }
   color: var(--ac-global-text-color-900);
   &[data-required] {
@@ -31,8 +31,13 @@ export const comboBoxCSS = css`
     .react-aria-Input {
       padding: var(--combobox-vertical-padding) var(--combobox-end-padding)
         var(--combobox-vertical-padding) var(--combobox-start-padding);
+      &:hover:not([disabled]) {
+        background-color: var(--ac-global-input-field-border-color-hover);
+      }
     }
     .react-aria-Button {
+      /* Account for the border width of the input */
+      padding: 0 calc(var(--combobox-end-padding) + 1px);
       background: none;
       color: inherit;
       forced-color-adjust: none;
@@ -42,12 +47,9 @@ export const comboBoxCSS = css`
       border: none;
       transform: translateY(-50%);
       cursor: pointer;
-      padding: 0 10px;
+
       &[data-disabled] {
         opacity: var(--ac-global-opacity-disabled);
-      }
-      i {
-        font-size: var(--ac-global-dimension-static-font-size-200);
       }
     }
   }

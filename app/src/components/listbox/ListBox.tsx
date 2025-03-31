@@ -25,7 +25,8 @@ const listBoxCSS = css`
 
   .react-aria-ListBoxItem {
     margin: var(--ac-global-dimension-size-25);
-    padding: 0.286rem 0.571rem;
+    padding: var(--ac-global-dimension-size-100)
+      var(--ac-global-dimension-size-150);
     border-radius: var(--ac-global-rounding-small);
     outline: none;
     cursor: default;
@@ -49,6 +50,10 @@ const listBoxCSS = css`
         outline-color: var(--ac-highlight-foreground);
         outline-offset: -4px;
       }
+    }
+    &[data-hovered],
+    &[data-active] {
+      background: var(--ac-global-background-color-light-hover);
     }
   }
 `;

@@ -951,6 +951,10 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
       var(--ac-global-color-grey-900-rgb),
       0.1
     );
+    --ac-global-color-primary-50: rgba(
+      var(--ac-global-color-grey-900-rgb),
+      0.05
+    );
 
     --ac-global-background-color-default: var(--ac-global-color-grey-100);
     --ac-global-background-color-light: var(--ac-global-color-grey-200);
@@ -963,7 +967,8 @@ export const derivedCSS = (theme: ThemeContextType["theme"]) => css`
     --ac-global-border-color-dark: var(--ac-global-color-grey-300);
 
     --ac-highlight-foreground: var(--ac-global-text-color-900);
-    --ac-highlight-background: var(--ac-global-color-primary-300);
+    --ac-highlight-background: var(--ac-global-color-primary-100);
+    --ac-hover-background: var(--ac-global-color-primary-50);
     --ac-focus-ring-color: var(--ac-global-color-primary-500);
 
     // Text
