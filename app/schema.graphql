@@ -415,7 +415,7 @@ input CreateSpanAnnotationInput {
   explanation: String = null
   metadata: JSON! = {}
   identifier: String = null
-  source: AnnotationSource! = APP
+  source: AnnotationSource!
 }
 
 type CreateSystemApiKeyMutationPayload {
@@ -1467,7 +1467,7 @@ input PatchAnnotationInput {
   label: String
   score: Float
   explanation: String
-  metadata: JSON!
+  metadata: JSON
   identifier: String
 }
 

@@ -18,4 +18,4 @@ class CreateSpanAnnotationInput:
     explanation: Optional[str] = None
     metadata: JSON = strawberry.field(default_factory=dict)
     identifier: Optional[str] = None
-    source: AnnotationSource = AnnotationSource.APP
+    source: AnnotationSource

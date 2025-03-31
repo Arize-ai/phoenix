@@ -16,5 +16,5 @@ class PatchAnnotationInput:
     label: Optional[str] = UNSET
     score: Optional[float] = UNSET
     explanation: Optional[str] = UNSET
-    metadata: JSON = UNSET
+    metadata: Optional[JSON] = UNSET
     identifier: Optional[str] = UNSET
