@@ -82,9 +82,10 @@ class QueryResult:
 
     query_name: str
     query: str
-    execution_times_ms: list[float] = field(default_factory=list)
-    row_count: Optional[int] = None
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    execution_times_ms: list[float]
+    row_count: Optional[int]
+    timestamp: str
+    execution_plans: list[tuple[float, str]]  # List of (execution_time, plan) tuples
     error: Optional[str] = None
 
     @property
@@ -103,6 +104,19 @@ class QueryResult:
             )
         except statistics.StatisticsError:
             return None, None
+
+    def get_plan_closest_to_median(self) -> Optional[str]:
+        """Get the execution plan from the run closest to the median execution time."""
+        if not self.execution_plans:
+            return None
+
+        try:
+            median_time = statistics.median(self.execution_times_ms)
+            # Find the plan with execution time closest to median
+            closest_plan = min(self.execution_plans, key=lambda x: abs(x[0] - median_time))
+            return closest_plan[1]
+        except statistics.StatisticsError:
+            return None
 
 
 class PostgresQueryError(Exception):
@@ -191,12 +205,19 @@ class PostgresQueryAnalyzer:
 
         try:
             async with self.engine.connect() as conn:
-                with anyio.move_on_after(QUERY_TIMEOUT_SECONDS):
-                    execution_time, row_count = await self._execute_and_extract_metrics(
-                        conn, f"EXPLAIN ANALYZE {query}"
-                    )
-                    self._update_results(query_name, query, execution_time, row_count)
-                    await anyio.sleep(DEFAULT_DELAY_BETWEEN_RUNS)
+                async with conn.begin():  # Start a transaction
+                    with anyio.move_on_after(QUERY_TIMEOUT_SECONDS):
+                        (
+                            execution_time,
+                            row_count,
+                            execution_plan,
+                        ) = await self._execute_and_extract_metrics(
+                            conn, f"EXPLAIN ANALYZE {query}"
+                        )
+                        self._update_results(
+                            query_name, query, execution_time, row_count, execution_plan
+                        )
+                        await anyio.sleep(DEFAULT_DELAY_BETWEEN_RUNS)
         except anyio.get_cancelled_exc_class():
             # Handle timeout errors
             self._handle_query_error(
@@ -240,6 +261,10 @@ class PostgresQueryAnalyzer:
             self.results[query_name] = QueryResult(
                 query_name=query_name,
                 query=query,
+                execution_times_ms=[],
+                row_count=None,
+                timestamp=datetime.now().isoformat(),
+                execution_plans=[],
                 error=error,
             )
         return self.results[query_name]
@@ -263,7 +288,7 @@ class PostgresQueryAnalyzer:
 
     async def _execute_and_extract_metrics(
         self, conn: AsyncConnection, explain_query: str
-    ) -> tuple[float, Optional[int]]:
+    ) -> tuple[float, Optional[int], Optional[str]]:
         """Run the EXPLAIN ANALYZE query and extract timing information."""
         try:
             # Set statement timeout in PostgreSQL
@@ -275,7 +300,10 @@ class PostgresQueryAnalyzer:
             if execution_time is None:
                 raise QueryExecutionError("No execution time found in EXPLAIN ANALYZE output")
 
-            return execution_time, self._extract_row_count(explain_output)
+            row_count = self._extract_row_count(explain_output)
+            execution_plan = self._extract_execution_plan(explain_output)
+
+            return execution_time, row_count, execution_plan
         except sqlalchemy.exc.SQLAlchemyError:
             raise
         except Exception as e:
@@ -310,17 +338,46 @@ class PostgresQueryAnalyzer:
             return int(match.group(1))
         return None
 
+    def _extract_execution_plan(self, explain_output: str) -> Optional[str]:
+        """Extract the execution plan from EXPLAIN ANALYZE output."""
+        # Include all lines including the execution time line
+        lines = explain_output.split("\n")
+        plan_lines = []
+        for line in lines:
+            plan_lines.append(line)
+            if line.strip().startswith("Execution Time:"):
+                break
+        return "\n".join(plan_lines) if plan_lines else None
+
     def _update_results(
         self,
         query_name: str,
         query: str,
-        execution_time: float,
+        execution_time: Optional[float],
         row_count: Optional[int],
+        execution_plan: Optional[str],
     ) -> None:
         """Store the results of running a query."""
-        result = self._get_or_create_result(query_name, query)
-        result.execution_times_ms.append(round(execution_time, 1))
-        result.row_count = row_count
+        if execution_time is None:
+            raise ValueError("No execution time found in EXPLAIN ANALYZE output")
+
+        if query_name not in self.results:
+            self.results[query_name] = QueryResult(
+                query_name=query_name,
+                query=query,
+                execution_times_ms=[round(execution_time, 1)],
+                row_count=row_count,
+                timestamp=datetime.now().isoformat(),
+                execution_plans=[(round(execution_time, 1), execution_plan)]
+                if execution_plan is not None
+                else [],
+            )
+        else:
+            self.results[query_name].execution_times_ms.append(round(execution_time, 1))
+            if execution_plan is not None:
+                self.results[query_name].execution_plans.append(
+                    (round(execution_time, 1), execution_plan)
+                )
 
     def _format_table_row(
         self,
@@ -359,15 +416,29 @@ class PostgresQueryAnalyzer:
             self.console.print("[yellow]No results to display.[/yellow]")
             return
 
-        self.console.print("\n[bold blue]## Query Performance Comparison[/bold blue]\n")
+        # First show the execution plans
+        self.console.print("\n[bold blue]## Representative Execution Plans[/bold blue]")
+        self.console.print(
+            "[dim](Showing plans from runs closest to median execution time)[/dim]\n"
+        )
 
-        # Print summary of failed queries first
-        failed_queries = [q for q in self.results.values() if not q.is_successful]
-        if failed_queries:
-            self.console.print("[bold red]Failed Queries:[/bold red]")
-            for query in failed_queries:
-                self.console.print(f"  • {query.query_name}: {query.error}")
-            self.console.print()
+        for result in self._get_sorted_results():
+            if result.execution_plans:
+                median_plan = result.get_plan_closest_to_median()
+                if median_plan:
+                    self.console.print(f"\n[bold]Query {result.query_name}[/bold]")
+                    self.console.print("[dim]Original Query:[/dim]")
+                    self.console.print(f"[dim]{result.query}[/dim]\n")
+                    self.console.print("[bold]Execution Plan:[/bold]")
+                    self.console.print(median_plan)
+                    self.console.print("\n" + "─" * 80 + "\n")
+            elif result.error:
+                self.console.print(
+                    f"[bold red]Query {result.query_name} failed:[/bold red] {result.error}\n"
+                )
+
+        # Then show the performance comparison table
+        self.console.print("\n[bold blue]## Query Performance Comparison[/bold blue]\n")
 
         query_stats = self._calculate_query_statistics()
         if not query_stats:
@@ -378,8 +449,6 @@ class PostgresQueryAnalyzer:
         self._print_table_header(col_widths)
 
         for result in self._get_sorted_results():
-            if not result.is_successful:
-                continue  # Skip failed queries in the table
             stats = query_stats.get(result.query_name, {})
             row = self._format_table_row(
                 result=result,
@@ -387,7 +456,7 @@ class PostgresQueryAnalyzer:
                 median_time=stats.get("median"),
                 p90_time=stats.get("p90"),
                 ratio=stats.get("ratio"),
-                n_runs=str(len(result.execution_times_ms)),
+                n_runs=str(len(result.execution_times_ms)) if result.execution_times_ms else "0",
             )
             self.console.print(row)
 
