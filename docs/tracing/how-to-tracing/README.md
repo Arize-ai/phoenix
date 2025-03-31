@@ -25,7 +25,7 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 
 ## [Auto Instrumentation](../integrations-tracing/)
 
-Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](./#platforms) and [LiteLLM proxy](./#platforms).
+Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. Phoenix can also be natively integrated with AI platforms such as [LangFlow](../integrations-tracing/#platforms) and [LiteLLM proxy](../integrations-tracing/#platforms).
 
 ## Manual Instrumentation
 
