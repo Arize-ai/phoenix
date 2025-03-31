@@ -97,7 +97,7 @@ export const GlobalRetentionPolicyCard = () => {
   }, [maxDays, debouncedSubmit]);
 
   return (
-    <Card title="Global retention policy" variant="compact">
+    <Card title="Default Project Retention Policy" variant="compact">
       <Form onSubmit={handleSubmit(onSubmit)}>
         <Controller
           control={control}
