@@ -146,26 +146,54 @@ class TraceAnnotationMutationMixin:
     async def delete_trace_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> TraceAnnotationMutationPayload:
-        trace_annotation_ids = [
-            from_global_id_with_expected_type(global_id, "TraceAnnotation")
-            for global_id in input.annotation_ids
-        ]
+        trace_annotation_ids = []
+        for annotation_gid in input.annotation_ids:
+            try:
+                annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
+            except ValueError:
+                raise BadRequest(f"Invalid trace annotation ID: {annotation_gid}")
+            trace_annotation_ids.append(annotation_id)
+        if not trace_annotation_ids:
+            raise BadRequest("No trace annotation IDs provided.")
+        trace_annotation_ids = list(set(trace_annotation_ids))
+
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        user_is_admin = False
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+            user_is_admin = user.is_admin
+
         async with info.context.db() as session:
-            stmt = (
+            deleted_annotations_by_id = {}
+            for annotation in await session.scalars(
                 delete(models.TraceAnnotation)
                 .where(models.TraceAnnotation.id.in_(trace_annotation_ids))
                 .returning(models.TraceAnnotation)
-            )
-            result = await session.scalars(stmt)
-            deleted_annotations = result.all()
+            ):
+                if annotation.user_id != user_id and not user_is_admin:
+                    await session.rollback()
+                    raise BadRequest(
+                        f"Cannot delete trace annotation '{annotation.id}' "
+                        "because it is not associated with the current user "
+                        "and the current user is not an admin."
+                    )
+                deleted_annotations_by_id[annotation.id] = annotation
 
-            deleted_annotations_gql = [
-                to_gql_trace_annotation(annotation) for annotation in deleted_annotations
-            ]
-        if deleted_annotations:
-            info.context.event_queue.put(
-                TraceAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations))
+            missing_trace_annotation_ids = set(trace_annotation_ids) - set(
+                deleted_annotations_by_id.keys()
             )
+            if missing_trace_annotation_ids:
+                raise BadRequest(
+                    f"Could not find trace annotations with IDs: {missing_trace_annotation_ids}"
+                )
+
+        deleted_gql_annotations = [
+            to_gql_trace_annotation(deleted_annotations_by_id[id]) for id in trace_annotation_ids
+        ]
+        info.context.event_queue.put(
+            TraceAnnotationDeleteEvent(tuple(deleted_annotations_by_id.keys()))
+        )
         return TraceAnnotationMutationPayload(
-            trace_annotations=deleted_annotations_gql, query=Query()
+            trace_annotations=deleted_gql_annotations, query=Query()
         )
