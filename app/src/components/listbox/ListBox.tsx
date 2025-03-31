@@ -51,6 +51,10 @@ const listBoxCSS = css`
         outline-offset: -4px;
       }
     }
+    &[data-hovered],
+    &[data-active] {
+      background: var(--ac-global-background-color-light-hover);
+    }
   }
 `;
 

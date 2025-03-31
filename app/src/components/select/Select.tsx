@@ -34,7 +34,7 @@ const selectCSS = css`
     padding-right: var(--ac-global-dimension-size-100);
   }
 
-  data-ho .react-aria-SelectValue {
+  .react-aria-SelectValue {
     &[data-placeholder] {
       font-style: italic;
       color: var(--ac-text-color-placeholder);
