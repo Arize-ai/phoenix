@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Optional, TypeAlias
+from typing import Any, Optional
 
 import anyio
 import sqlalchemy.exc
@@ -54,15 +54,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from tqdm import tqdm
 
-# Type aliases for better code readability
-QueryInfo: TypeAlias = dict[str, str]
-QueryStats: TypeAlias = dict[str, dict[str, float]]
-ColumnWidths: TypeAlias = dict[str, int]
-
 # Configuration
-DEFAULT_RUNS = 20
-DEFAULT_DELAY_BETWEEN_RUNS = 0.1
-QUERY_TIMEOUT_SECONDS = 10
+DEFAULT_RUNS: int = 20
+DEFAULT_DELAY_BETWEEN_RUNS: float = 0.1
+QUERY_TIMEOUT_SECONDS: int = 10
 
 # Database configuration
 DEFAULT_DB_HOST: str = "localhost"
@@ -72,8 +67,66 @@ DEFAULT_DB_USER: str = "postgres"
 DEFAULT_DB_PASSWORD: str = "phoenix"
 
 # Regex patterns for extracting metrics
-EXECUTION_TIME_PATTERN = r"Execution Time: (\d+\.\d+) ms"
-ROW_COUNT_PATTERN = r"\(actual(?:\s+[^)]*?)?\s+rows=(\d+)"
+EXECUTION_TIME_PATTERN: str = r"Execution Time: (\d+\.\d+) ms"
+ROW_COUNT_PATTERN: str = r"\(actual(?:\s+[^)]*?)?\s+rows=(\d+)"
+
+
+# Type definitions for better code readability
+@dataclass(frozen=True)
+class RegexPatterns:
+    """Compiled regex patterns for extracting metrics from EXPLAIN ANALYZE output."""
+
+    execution_time: re.Pattern[str]
+    row_count: re.Pattern[str]
+
+
+# Compiled regex patterns
+COMPILED_PATTERNS = RegexPatterns(
+    execution_time=re.compile(EXECUTION_TIME_PATTERN),
+    row_count=re.compile(ROW_COUNT_PATTERN),
+)
+
+
+@dataclass(frozen=True)
+class QueryInfo:
+    """Information about a query to be analyzed."""
+
+    name: str
+    query: str
+
+
+@dataclass(frozen=True)
+class QueryStats:
+    """Statistics for a query's performance metrics."""
+
+    median: Optional[float] = None
+    p90: Optional[float] = None
+    ratio: Optional[float] = None
+    n_runs: int = 0
+
+
+@dataclass(frozen=True)
+class ColumnWidths:
+    """Widths of columns in the output table."""
+
+    query_number: int = 10
+    median_ms: int = 12
+    ratio: int = 8
+    p90_ms: int = 10
+    n_runs: int = 8
+    rows_returned: int = 13
+
+    def get_width(self, column: str) -> int:
+        """Get the width for a specific column."""
+        width_map = {
+            "Query #": self.query_number,
+            "Median (ms)": self.median_ms,
+            "Ratio": self.ratio,
+            "P90 (ms)": self.p90_ms,
+            "N Runs": self.n_runs,
+            "Rows Returned": self.rows_returned,
+        }
+        return width_map[column]
 
 
 @dataclass
@@ -82,10 +135,6 @@ class ExecutionPlan:
 
     execution_time_ms: float
     plan: str
-
-    def __post_init__(self) -> None:
-        """Round the execution time to 1 decimal place."""
-        self.execution_time_ms = round(self.execution_time_ms, 1)
 
 
 @dataclass
@@ -136,25 +185,34 @@ class QueryResult:
 class PostgresQueryError(Exception):
     """Base exception for PostgreSQL query errors."""
 
-    pass
+    def __init__(self, message: str, query_name: Optional[str] = None) -> None:
+        """Initialize the error with a message and optional query name."""
+        super().__init__(message)
+        self.query_name = query_name
 
 
 class QueryTimeoutError(PostgresQueryError):
     """Raised when a query exceeds the timeout limit."""
 
-    pass
+    def __init__(self, timeout_seconds: int, query_name: Optional[str] = None) -> None:
+        """Initialize the timeout error with the timeout duration."""
+        super().__init__(f"Query exceeded timeout of {timeout_seconds} seconds", query_name)
 
 
 class QueryExecutionError(PostgresQueryError):
     """Raised when a query fails to execute."""
 
-    pass
+    def __init__(self, message: str, query_name: Optional[str] = None) -> None:
+        """Initialize the execution error with a message."""
+        super().__init__(message, query_name)
 
 
 class QueryParseError(PostgresQueryError):
     """Raised when a query cannot be parsed."""
 
-    pass
+    def __init__(self, message: str, query_name: Optional[str] = None) -> None:
+        """Initialize the parse error with a message."""
+        super().__init__(message, query_name)
 
 
 class PostgresQueryAnalyzer:
@@ -166,10 +224,16 @@ class PostgresQueryAnalyzer:
         self.engine: Optional[AsyncEngine] = None
         self.results: dict[str, QueryResult] = {}
         self.console = Console()
+        self._compiled_patterns = COMPILED_PATTERNS
 
     async def __aenter__(self) -> "PostgresQueryAnalyzer":
         """Set up the database engine when entering the context manager."""
-        self.engine = create_async_engine(self.connection_string)
+        self.engine = create_async_engine(
+            self.connection_string,
+            pool_pre_ping=True,  # Enable connection health checks
+            pool_size=1,  # Single connection since we're running sequentially
+            max_overflow=0,  # No overflow needed
+        )
         return self
 
     async def __aexit__(
@@ -188,7 +252,7 @@ class PostgresQueryAnalyzer:
         queries: list[QueryInfo],
         runs: int = DEFAULT_RUNS,
     ) -> list[QueryResult]:
-        """Run EXPLAIN ANALYZE on multiple queries in random order."""
+        """Run EXPLAIN ANALYZE on multiple queries in randomized sequential order."""
         if not self.engine:
             raise RuntimeError("Database engine not initialized. Use async with context manager.")
 
@@ -197,14 +261,14 @@ class PostgresQueryAnalyzer:
         random.shuffle(all_runs)
 
         with tqdm(total=len(all_runs), desc="Analyzing queries", unit="run") as pbar:
-            async with anyio.create_task_group() as group:
-                for query_info, _ in all_runs:
-                    group.start_soon(
-                        self._analyze_query_with_connection,
-                        query_info["name"],
-                        query_info["query"],
-                        pbar,
-                    )
+            for query_info, _ in all_runs:
+                await self._analyze_query_with_connection(
+                    query_info.name,
+                    query_info.query,
+                    pbar,
+                )
+                await anyio.sleep(DEFAULT_DELAY_BETWEEN_RUNS)
+
         return list(self.results.values())
 
     async def _analyze_query_with_connection(
@@ -231,7 +295,6 @@ class PostgresQueryAnalyzer:
                         self._update_results(
                             query_name, query, execution_time, row_count, execution_plan
                         )
-                        await anyio.sleep(DEFAULT_DELAY_BETWEEN_RUNS)
         except anyio.get_cancelled_exc_class():
             # Handle timeout errors
             self._handle_query_error(
@@ -332,23 +395,13 @@ class PostgresQueryAnalyzer:
 
     def _extract_execution_time(self, explain_output: str) -> Optional[float]:
         """Extract execution time from EXPLAIN ANALYZE output."""
-        if match := re.search(EXECUTION_TIME_PATTERN, explain_output):
+        if match := self._compiled_patterns.execution_time.search(explain_output):
             return float(match.group(1))
         return None
 
     def _extract_row_count(self, explain_output: str) -> Optional[int]:
-        """Extract actual row count from EXPLAIN ANALYZE output.
-
-        The method uses a regex pattern to find the actual row count in the EXPLAIN ANALYZE output.
-        The pattern looks for the format: (actual ... rows=N) where ... can be any text.
-
-        Args:
-            explain_output: The raw EXPLAIN ANALYZE output string
-
-        Returns:
-            The actual row count if found, None otherwise
-        """
-        if match := re.search(ROW_COUNT_PATTERN, explain_output):
+        """Extract actual row count from EXPLAIN ANALYZE output."""
+        if match := self._compiled_patterns.row_count.search(explain_output):
             return int(match.group(1))
         return None
 
@@ -400,7 +453,6 @@ class PostgresQueryAnalyzer:
         median_time: Optional[float],
         p90_time: Optional[float],
         ratio: Optional[float],
-        n_runs: str,
     ) -> str:
         """Format a row for the results table."""
 
@@ -416,12 +468,12 @@ class PostgresQueryAnalyzer:
             return str(value).rjust(width)
 
         return (
-            f"| {result.query_name.ljust(col_widths['Query #'])} | "
-            f"{format_col(median_time, col_widths['Median (ms)'])} | "
-            f"{format_col(ratio, col_widths['Ratio'], is_ratio=True)} | "
-            f"{format_col(p90_time, col_widths['P90 (ms)'])} | "
-            f"{n_runs.rjust(col_widths['N Runs'])} | "
-            f"{format_col(result.row_count, col_widths['Rows Returned'])} |"
+            f"| {result.query_name.ljust(col_widths.query_number)} | "
+            f"{format_col(median_time, col_widths.median_ms)} | "
+            f"{format_col(ratio, col_widths.ratio, is_ratio=True)} | "
+            f"{format_col(p90_time, col_widths.p90_ms)} | "
+            f"{str(len(result.execution_times_ms)).rjust(col_widths.n_runs)} | "
+            f"{format_col(result.row_count, col_widths.rows_returned)} |"
         )
 
     def print_results_table(self) -> None:
@@ -440,7 +492,7 @@ class PostgresQueryAnalyzer:
             if result.execution_plans:
                 median_plan = result.get_plan_closest_to_median()
                 if median_plan:
-                    self.console.print(f"\n[bold]Query {result.query_name}[/bold]")
+                    self.console.print(f"\n[bold]{result.query_name}[/bold]")
                     self.console.print("[dim]Original Query:[/dim]")
                     self.console.print(f"[dim]{result.query}[/dim]\n")
                     self.console.print("[bold]Execution Plan:[/bold]")
@@ -448,7 +500,7 @@ class PostgresQueryAnalyzer:
                     self.console.print("\n" + "─" * 80 + "\n")
             elif result.error:
                 self.console.print(
-                    f"[bold red]Query {result.query_name} failed:[/bold red] {result.error}\n"
+                    f"[bold red]{result.query_name} failed:[/bold red] {result.error}\n"
                 )
 
         # Then show the performance comparison table
@@ -463,63 +515,67 @@ class PostgresQueryAnalyzer:
         self._print_table_header(col_widths)
 
         for result in self._get_sorted_results():
-            stats = query_stats.get(result.query_name, {})
+            stats = query_stats.get(result.query_name)
             row = self._format_table_row(
                 result=result,
                 col_widths=col_widths,
-                median_time=stats.get("median"),
-                p90_time=stats.get("p90"),
-                ratio=stats.get("ratio"),
-                n_runs=str(len(result.execution_times_ms)) if result.execution_times_ms else "0",
+                median_time=stats.median if stats else None,
+                p90_time=stats.p90 if stats else None,
+                ratio=stats.ratio if stats else None,
             )
             self.console.print(row)
 
         self.console.print("\n")
 
-    def _calculate_query_statistics(self) -> QueryStats:
+    def _calculate_query_statistics(self) -> dict[str, QueryStats]:
         """Calculate statistical measures for all queries."""
-        stats: QueryStats = {}
+        stats: dict[str, QueryStats] = {}
         min_median = float("inf")
 
+        # First pass: calculate medians and find minimum
         for query_name, result in self.results.items():
             if not result.is_successful:
                 continue
 
-            median_time, p90_time = result.get_statistics()
-            if median_time is not None:
-                min_median = min(min_median, median_time)
-                stats[query_name] = {
-                    "median": median_time,
-                    "p90": p90_time if p90_time is not None else 0.0,
-                }
+            # Include any query that has execution times
+            if result.execution_times_ms:
+                median_time, p90_time = result.get_statistics()
+                if median_time is not None and p90_time is not None:
+                    stats[query_name] = QueryStats(
+                        median=median_time,
+                        p90=p90_time,
+                        ratio=None,  # Will be calculated in second pass
+                        n_runs=len(result.execution_times_ms),
+                    )
+                    min_median = min(min_median, median_time)
 
-        if min_median > 0:
-            for query_stats in stats.values():
-                query_stats["ratio"] = query_stats["median"] / min_median
+        # Second pass: calculate ratios
+        updated_stats: dict[str, QueryStats] = {}
+        for query_name, stat in stats.items():
+            if stat.median is not None and min_median > 0:
+                ratio = stat.median / min_median
+            else:
+                ratio = None
+            updated_stats[query_name] = QueryStats(
+                median=stat.median, p90=stat.p90, ratio=ratio, n_runs=stat.n_runs
+            )
 
-        return stats
+        return updated_stats
 
     def _get_column_widths(self) -> ColumnWidths:
         """Get the width for each column in the results table."""
-        return {
-            "Query #": 10,
-            "Median (ms)": 12,
-            "Ratio": 8,
-            "P90 (ms)": 10,
-            "N Runs": 8,
-            "Rows Returned": 13,
-        }
+        return ColumnWidths()
 
     def _print_table_header(self, col_widths: ColumnWidths) -> None:
         """Print the table header and separator line."""
         columns = ["Query #", "Median (ms)", "Ratio", "P90 (ms)", "N Runs", "Rows Returned"]
-        header = "| " + " | ".join(col.ljust(col_widths[col]) for col in columns) + " |"
+        header = "| " + " | ".join(col.ljust(col_widths.get_width(col)) for col in columns) + " |"
         separator = (
             "|"
             + "|".join(
-                "-" * (col_widths[col] + 1) + ":"
+                "-" * (col_widths.get_width(col) + 1) + ":"
                 if col != "Query #"
-                else "-" * (col_widths[col] + 2)
+                else "-" * (col_widths.get_width(col) + 2)
                 for col in columns
             )
             + "|"
@@ -547,11 +603,11 @@ def read_queries_from_file(file_path: Path, console: Console) -> list[QueryInfo]
 
         # Parse and format queries
         parsed_queries = sqlparse.split(all_queries_text)
-        queries = []
-        for i, query in enumerate(parsed_queries, 1):
-            formatted_query = sqlparse.format(query, strip_comments=True).strip()
-            if formatted_query:
-                queries.append({"name": f"Query {i}", "query": formatted_query})
+        queries = [
+            QueryInfo(name=f"Query {i}", query=formatted_query)
+            for i, query in enumerate(parsed_queries, 1)
+            if (formatted_query := sqlparse.format(query, strip_comments=True).strip())
+        ]
 
         if queries:
             console.print(
@@ -578,7 +634,7 @@ def read_queries_from_file(file_path: Path, console: Console) -> list[QueryInfo]
         return []
 
 
-@dataclass
+@dataclass(frozen=True)
 class AnalyzerConfig:
     """Configuration for the PostgreSQL query analyzer."""
 
@@ -605,8 +661,8 @@ class AnalyzerConfig:
         console.print(f"  Query file: {self.query_file}\n")
 
 
-async def main() -> None:
-    """Main program entry point."""
+def parse_args() -> AnalyzerConfig:
+    """Parse command line arguments and return configuration."""
     parser = argparse.ArgumentParser(description="PostgreSQL Query Performance Analyzer")
     script_dir = Path(__file__).parent.absolute()
     default_query_file = script_dir / "paste_queries_here.sql"
@@ -625,10 +681,7 @@ async def main() -> None:
     )
 
     args = parser.parse_args()
-    console = Console()
-
-    # Create configuration
-    config = AnalyzerConfig(
+    return AnalyzerConfig(
         host=str(args.host),
         port=int(args.port),
         dbname=str(args.dbname),
@@ -638,33 +691,42 @@ async def main() -> None:
         query_file=Path(str(args.file)),
     )
 
-    # Show configuration
-    config.print_config(console)
 
-    # Read queries from file
-    queries = read_queries_from_file(config.query_file, console)
-    if not queries:
-        console.print(
-            "[bold yellow]No queries to analyze. Please add your "
-            "SQL queries to the file and run again. Each query must end "
-            "with a semicolon (;).[/bold yellow]\n"
-        )
-        return
-
-    # Run the analysis
+async def main() -> None:
+    """Main program entry point."""
     try:
+        config = parse_args()
+        console = Console()
+
+        # Show configuration
+        config.print_config(console)
+
+        # Read queries from file
+        queries = read_queries_from_file(config.query_file, console)
+        if not queries:
+            console.print(
+                "[bold yellow]No queries to analyze. Please add your "
+                "SQL queries to the file and run again. Each query must end "
+                "with a semicolon (;).[/bold yellow]\n"
+            )
+            return
+
+        # Run the analysis
         async with PostgresQueryAnalyzer(config.get_connection_string()) as analyzer:
             await analyzer.analyze_queries(queries, config.runs)
             analyzer.print_results_table()
     except sqlalchemy.exc.SQLAlchemyError as e:
+        console = Console()
         console.print(f"[bold red]Database connection error:[/bold red] {str(e)}")
-        return
+        sys.exit(1)
     except PostgresQueryError as e:
+        console = Console()
         console.print(f"[bold red]Query error:[/bold red] {str(e)}")
-        return
+        sys.exit(1)
     except Exception as e:
+        console = Console()
         console.print(f"[bold red]Unexpected error during analysis:[/bold red] {str(e)}")
-        return
+        sys.exit(1)
 
 
 if __name__ == "__main__":
