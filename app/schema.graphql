@@ -2361,7 +2361,7 @@ type Trace implements Node {
   spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 
   """Annotations associated with the trace."""
-  spanAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
+  traceAnnotations(sort: TraceAnnotationSort = null): [TraceAnnotation!]!
 }
 
 type TraceAnnotation implements Node {
@@ -2376,6 +2376,7 @@ type TraceAnnotation implements Node {
   identifier: String
   source: AnnotationSource!
   traceId: GlobalID!
+  user: User
 }
 
 enum TraceAnnotationColumn {

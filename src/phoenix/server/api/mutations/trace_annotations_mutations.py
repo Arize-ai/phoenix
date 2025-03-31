@@ -1,12 +1,14 @@
 from collections.abc import Sequence
+from typing import Optional
 
 import strawberry
 from sqlalchemy import delete, insert, update
+from starlette.requests import Request
 from strawberry import UNSET
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly
+from phoenix.server.api.auth import IsLocked, IsNotReadOnly, PhoenixUser
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
@@ -29,6 +31,10 @@ class TraceAnnotationMutationMixin:
     async def create_trace_annotations(
         self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
             values_list = [
@@ -42,7 +48,7 @@ class TraceAnnotationMutationMixin:
                     metadata_=annotation.metadata,
                     identifier=annotation.identifier,
                     source=annotation.source.value,
-                    user_id=None,
+                    user_id=user_id,
                 )
                 for annotation in input
             ]
