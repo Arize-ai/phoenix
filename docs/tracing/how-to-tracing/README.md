@@ -25,21 +25,7 @@ How to set custom attributes and semantic attributes to child spans and spans cr
 
 ## [Auto Instrumentation](../integrations-tracing/)
 
-Use auto-instrumentation to export traces for common frameworks and libraries
-
-### Auto Instrument: Python
-
-* [Instrument LlamaIndex](../integrations-tracing/llamaindex.md)
-* [Instrument LangChain](../integrations-tracing/langchain.md)
-* [Instrument OpenAI](../integrations-tracing/openai.md)
-* [Instrument DSPy](../integrations-tracing/dspy.md)
-* [Instrument AWS Bedrock](../integrations-tracing/bedrock.md)
-* [Instrument AutoGen](../integrations-tracing/autogen-support.md)
-
-### Auto Instrument: TypeScript
-
-* [Instrument OpenAI Node SDK](../integrations-tracing/openai-node-sdk.md)
-* [Instrument LangChain.js](../integrations-tracing/langchain.js.md)
+Phoenix natively works with a variety of frameworks and SDKs across [Python](./#python) and [JavaScript](./#javascript) via OpenTelemetry auto-instrumentation. These auto-instrumentors capture and trace any requests made to their respective packages. Phoenix can also be natively integrated with AI platforms such as [LangFlow](./#platforms) and [LiteLLM proxy](./#platforms).
 
 ## Manual Instrumentation
 
