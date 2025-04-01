@@ -32,6 +32,9 @@ class SpanAnnotationMutationMixin:
     async def create_span_annotations(
         self, info: Info[Context, None], input: list[CreateSpanAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
+        if not input:
+            raise BadRequest("No span annotations provided.")
+
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
@@ -73,6 +76,9 @@ class SpanAnnotationMutationMixin:
     async def patch_span_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> SpanAnnotationMutationPayload:
+        if not input:
+            raise BadRequest("No span annotations provided.")
+
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
@@ -102,9 +108,11 @@ class SpanAnnotationMutationMixin:
                         "At least one span annotation is not associated with the current user."
                     )
                 span_annotations_by_id[span_annotation.id] = span_annotation
-            missing_span_annotation_ids = set(patch_by_id) - set(span_annotations_by_id.keys())
+            missing_span_annotation_ids = set(patch_by_id.keys()) - set(
+                span_annotations_by_id.keys()
+            )
             if missing_span_annotation_ids:
-                raise BadRequest(
+                raise NotFound(
                     f"Could not find span annotations with IDs: {missing_span_annotation_ids}"
                 )
             for span_annotation_id, patch in patch_by_id.items():
@@ -140,6 +148,9 @@ class SpanAnnotationMutationMixin:
     async def delete_span_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> SpanAnnotationMutationPayload:
+        if not input.annotation_ids:
+            raise BadRequest("No span annotation IDs provided.")
+
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
         user_is_admin = False
@@ -147,7 +158,7 @@ class SpanAnnotationMutationMixin:
             user_id = int(user.identity)
             user_is_admin = user.is_admin
 
-        span_annotation_ids = []
+        span_annotation_ids: dict[int, None] = {}  # use a dict to preserve ordering
         for annotation_gid in input.annotation_ids:
             try:
                 span_annotation_id = from_global_id_with_expected_type(
@@ -155,30 +166,28 @@ class SpanAnnotationMutationMixin:
                 )
             except ValueError:
                 raise BadRequest(f"Invalid span annotation ID: {annotation_gid}")
-            span_annotation_ids.append(span_annotation_id)
-        if not span_annotation_ids:
-            raise BadRequest("No span annotation IDs provided.")
-        span_annotation_ids = list(set(span_annotation_ids))
+            if span_annotation_id in span_annotation_ids:
+                raise BadRequest(f"Duplicate span annotation ID: {span_annotation_id}")
+            span_annotation_ids[span_annotation_id] = None
 
         async with info.context.db() as session:
             stmt = (
                 delete(models.SpanAnnotation)
-                .where(models.SpanAnnotation.id.in_(span_annotation_ids))
+                .where(models.SpanAnnotation.id.in_(span_annotation_ids.keys()))
                 .returning(models.SpanAnnotation)
             )
             result = await session.scalars(stmt)
             deleted_annotations_by_id = {annotation.id: annotation for annotation in result.all()}
 
-            if any(
-                annotation.user_id != user_id and not user_is_admin
-                for annotation in deleted_annotations_by_id.values()
+            if not user_is_admin and any(
+                annotation.user_id != user_id for annotation in deleted_annotations_by_id.values()
             ):
                 await session.rollback()
                 raise Unauthorized(
                     "At least one span annotation is not associated with the current user."
                 )
 
-            missing_span_annotation_ids = set(span_annotation_ids) - set(
+            missing_span_annotation_ids = set(span_annotation_ids.keys()) - set(
                 deleted_annotations_by_id.keys()
             )
             if missing_span_annotation_ids:
