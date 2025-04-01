@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -446,14 +446,16 @@ class AnnotationConfigMutationMixin:
             )
             if (type_name := item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
                 raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-            project_annotation_config_associations.add(project_id)
+            annotation_config_id = item.annotation_config_id.node_id
+            project_annotation_config_associations.add((project_id, annotation_config_id))
         async with info.context.db() as session:
             result = await session.scalars(
                 delete(models.ProjectAnnotationConfig)
                 .where(
-                    models.ProjectAnnotationConfig.project_id.in_(
-                        project_annotation_config_associations
-                    )
+                    tuple_(
+                        models.ProjectAnnotationConfig.project_id,
+                        models.ProjectAnnotationConfig.annotation_config_id,
+                    ).in_(project_annotation_config_associations)
                 )
                 .returning(models.ProjectAnnotationConfig)
             )
