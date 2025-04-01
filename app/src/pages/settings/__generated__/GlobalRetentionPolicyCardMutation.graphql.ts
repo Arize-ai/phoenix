@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f64907e26c3af3145c18c55f654a4de9>>
+ * @generated SignedSource<<0daa8fa2fabd3c12756220ece8632a77>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,6 +39,14 @@ export type GlobalRetentionPolicyCardMutation$data = {
   readonly patchProjectTraceRetentionPolicy: {
     readonly node: {
       readonly id: string;
+      readonly rule: {
+        readonly __typename: "TraceRetentionRuleMaxDays";
+        readonly maxDays: number;
+      } | {
+        // This will never be '%other', but we need some
+        // value in case none of the concrete values match.
+        readonly __typename: "%other";
+      };
     };
   };
 };
@@ -84,6 +92,38 @@ v1 = [
             "kind": "ScalarField",
             "name": "id",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": null,
+            "kind": "LinkedField",
+            "name": "rule",
+            "plural": false,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "__typename",
+                "storageKey": null
+              },
+              {
+                "kind": "InlineFragment",
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "maxDays",
+                    "storageKey": null
+                  }
+                ],
+                "type": "TraceRetentionRuleMaxDays",
+                "abstractKey": null
+              }
+            ],
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -110,16 +150,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "852ea7b911946a5fde4a767be8034066",
+    "cacheID": "096e3d4c546229fc771e14be03b168a3",
     "id": null,
     "metadata": {},
     "name": "GlobalRetentionPolicyCardMutation",
     "operationKind": "mutation",
-    "text": "mutation GlobalRetentionPolicyCardMutation(\n  $input: PatchProjectTraceRetentionPolicyInput!\n) {\n  patchProjectTraceRetentionPolicy(input: $input) {\n    node {\n      id\n    }\n  }\n}\n"
+    "text": "mutation GlobalRetentionPolicyCardMutation(\n  $input: PatchProjectTraceRetentionPolicyInput!\n) {\n  patchProjectTraceRetentionPolicy(input: $input) {\n    node {\n      id\n      rule {\n        __typename\n        ... on TraceRetentionRuleMaxDays {\n          maxDays\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6250488254468492dfb10d0540da68bc";
+(node as any).hash = "d1757c8159d448039635f1fe035803c4";
 
 export default node;
