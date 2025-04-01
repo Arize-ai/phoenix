@@ -729,9 +729,9 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
 
 
 ROOT_DIR = RestrictedPath(WORKING_DIR)
-EXPORT_DIR = RestrictedPath(ROOT_DIR / "exports")
-INFERENCES_DIR = RestrictedPath(ROOT_DIR / "inferences")
-TRACE_DATASETS_DIR = RestrictedPath(ROOT_DIR / "trace_datasets")
+EXPORT_DIR = RestrictedPath(WORKING_DIR / "exports")
+INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
+TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
 
 
 def ensure_working_dir_if_needed() -> None:
