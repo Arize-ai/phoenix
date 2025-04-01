@@ -7,7 +7,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Optional, cast, overload, Union, Any, Iterator
+from typing import Any, Iterator, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urlparse
 
 import wrapt
@@ -676,6 +676,7 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
         attr = getattr(self.__wrapped__, name)
 
         if callable(attr):
+
             def wrapped_attr(*args: Any, **kwargs: Any) -> Any:
                 result = attr(*args, **kwargs)
                 if isinstance(result, Path):
