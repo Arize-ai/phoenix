@@ -1214,7 +1214,7 @@ class TestSpanAnnotations:
             span_annotation = response["data"]["spanAnnotation"]
             assert span_annotation == original_span_annotation
 
-        # Only the user who created the annotation can delete
+        # Member who did not create the annotation cannot delete
         with pytest.raises(RuntimeError) as exc_info:
             logged_in_member.gql(
                 query=self.QUERY,
@@ -1238,6 +1238,7 @@ class TestSpanAnnotations:
         span_annotation = response["data"]["spanAnnotation"]
         assert span_annotation == original_span_annotation
 
+        # Admin can delete
         response, _ = logged_in_admin.gql(
             query=self.QUERY,
             operation_name="DeleteSpanAnnotations",
