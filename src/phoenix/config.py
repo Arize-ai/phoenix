@@ -11,7 +11,6 @@ from typing import Optional, cast, overload
 from urllib.parse import quote_plus, urlparse
 
 import wrapt
-
 from email_validator import EmailNotValidError, validate_email
 
 from phoenix.utilities.logging import log_a_list
@@ -654,17 +653,16 @@ class RestrictedPath(wrapt.ObjectProxy):
         attr = getattr(self.__wrapped__, name)
 
         if callable(attr):
+
             def wrapped_attr(*args, **kwargs):
                 result = attr(*args, **kwargs)
                 if isinstance(result, Path):
                     self._check_forbidden()
                     return RestrictedPath(result)
-                elif hasattr(result, '__iter__') and not isinstance(result, (str, bytes)):
-                    return (
-                        RestrictedPath(p) if isinstance(p, Path) else p
-                        for p in result
-                    )
+                elif hasattr(result, "__iter__") and not isinstance(result, (str, bytes)):
+                    return (RestrictedPath(p) if isinstance(p, Path) else p for p in result)
                 return result
+
             return wrapped_attr
         else:
             if isinstance(attr, Path):
@@ -693,7 +691,9 @@ class RestrictedPath(wrapt.ObjectProxy):
         return self
 
     def __eq__(self, other):
-        return self.__wrapped__ == (other.__wrapped__ if isinstance(other, RestrictedPath) else other)
+        return self.__wrapped__ == (
+            other.__wrapped__ if isinstance(other, RestrictedPath) else other
+        )
 
     def __hash__(self):
         return hash(self.__wrapped__)
