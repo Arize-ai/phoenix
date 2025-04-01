@@ -188,6 +188,7 @@
 ## 🔌 INTEGRATIONS
 
 * [Cleanlab](integrations/cleanlab.md)
+* [Flowise](integrations/flowise.md)
 * [Ragas](integrations/ragas.md)
 
 ## 📚 Reference
