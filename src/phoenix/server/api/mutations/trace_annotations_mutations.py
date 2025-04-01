@@ -33,10 +33,14 @@ class TraceAnnotationMutationMixin:
     async def create_trace_annotations(
         self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
+        if not input:
+            raise BadRequest("No trace annotations provided.")
+
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
             user_id = int(user.identity)
+
         inserted_annotations: Sequence[models.TraceAnnotation] = []
         async with info.context.db() as session:
             values_list = [
@@ -74,6 +78,9 @@ class TraceAnnotationMutationMixin:
     async def patch_trace_annotations(
         self, info: Info[Context, None], input: list[PatchAnnotationInput]
     ) -> TraceAnnotationMutationPayload:
+        if not input:
+            raise BadRequest("No trace annotations provided.")
+
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
@@ -104,7 +111,9 @@ class TraceAnnotationMutationMixin:
                     )
                 trace_annotations_by_id[trace_annotation.id] = trace_annotation
 
-            missing_trace_annotation_ids = set(patch_by_id) - set(trace_annotations_by_id.keys())
+            missing_trace_annotation_ids = set(patch_by_id.keys()) - set(
+                trace_annotations_by_id.keys()
+            )
             if missing_trace_annotation_ids:
                 raise NotFound(
                     f"Could not find trace annotations with IDs: {missing_trace_annotation_ids}"
@@ -134,8 +143,7 @@ class TraceAnnotationMutationMixin:
             to_gql_trace_annotation(trace_annotation)
             for trace_annotation in trace_annotations_by_id.values()
         ]
-        for trace_annotation in trace_annotations_by_id.values():
-            info.context.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
+        info.context.event_queue.put(TraceAnnotationInsertEvent(tuple(patch_by_id.keys())))
         return TraceAnnotationMutationPayload(
             trace_annotations=patched_annotations,
             query=Query(),
@@ -145,16 +153,18 @@ class TraceAnnotationMutationMixin:
     async def delete_trace_annotations(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> TraceAnnotationMutationPayload:
-        trace_annotation_ids = []
+        if not input.annotation_ids:
+            raise BadRequest("No trace annotation IDs provided.")
+
+        trace_annotation_ids: dict[int, None] = {}  # use dict to preserve order
         for annotation_gid in input.annotation_ids:
             try:
                 annotation_id = from_global_id_with_expected_type(annotation_gid, "TraceAnnotation")
             except ValueError:
                 raise BadRequest(f"Invalid trace annotation ID: {annotation_gid}")
-            trace_annotation_ids.append(annotation_id)
-        if not trace_annotation_ids:
-            raise BadRequest("No trace annotation IDs provided.")
-        trace_annotation_ids = list(set(trace_annotation_ids))
+            if annotation_id in trace_annotation_ids:
+                raise BadRequest(f"Duplicate trace annotation ID: {annotation_id}")
+            trace_annotation_ids[annotation_id] = None
 
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
@@ -164,18 +174,15 @@ class TraceAnnotationMutationMixin:
             user_is_admin = user.is_admin
 
         async with info.context.db() as session:
-            deleted_annotations_by_id = {
-                annotation.id: annotation
-                for annotation in await session.scalars(
-                    delete(models.TraceAnnotation)
-                    .where(models.TraceAnnotation.id.in_(trace_annotation_ids))
-                    .returning(models.TraceAnnotation)
-                )
-            }
+            result = await session.scalars(
+                delete(models.TraceAnnotation)
+                .where(models.TraceAnnotation.id.in_(trace_annotation_ids.keys()))
+                .returning(models.TraceAnnotation)
+            )
+            deleted_annotations_by_id = {annotation.id: annotation for annotation in result.all()}
 
-            if any(
-                annotation.user_id != user_id and not user_is_admin
-                for annotation in deleted_annotations_by_id.values()
+            if not user_is_admin and any(
+                annotation.user_id != user_id for annotation in deleted_annotations_by_id.values()
             ):
                 await session.rollback()
                 raise Unauthorized(
@@ -183,7 +190,7 @@ class TraceAnnotationMutationMixin:
                     "and the current user is not an admin."
                 )
 
-            missing_trace_annotation_ids = set(trace_annotation_ids) - set(
+            missing_trace_annotation_ids = set(trace_annotation_ids.keys()) - set(
                 deleted_annotations_by_id.keys()
             )
             if missing_trace_annotation_ids:

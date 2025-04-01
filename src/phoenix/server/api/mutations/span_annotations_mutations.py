@@ -139,6 +139,9 @@ class SpanAnnotationMutationMixin:
             to_gql_span_annotation(span_annotation)
             for span_annotation in span_annotations_by_id.values()
         ]
+        info.context.event_queue.put(
+            SpanAnnotationInsertEvent(tuple(span_annotations_by_id.keys()))
+        )
         return SpanAnnotationMutationPayload(
             span_annotations=patched_annotations,
             query=Query(),
@@ -199,7 +202,7 @@ class SpanAnnotationMutationMixin:
             to_gql_span_annotation(deleted_annotations_by_id[id]) for id in span_annotation_ids
         ]
         info.context.event_queue.put(
-            SpanAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations_by_id.values()))
+            SpanAnnotationDeleteEvent(tuple(deleted_annotations_by_id.keys()))
         )
         return SpanAnnotationMutationPayload(
             span_annotations=deleted_annotations_gql, query=Query()
