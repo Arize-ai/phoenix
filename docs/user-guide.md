@@ -126,7 +126,7 @@ In production, Phoenix works hand-in-hand with Arize, which focuses on the produ
 
 Phoenix and Arize use the same collector frameworks in development and production. This allows teams to monitor latency, token usage, and other performance metrics, setting up alerts when thresholds are exceeded.
 
-* [llm-traces-1.md](tracing/llm-traces-1.md "mention")
+* [llm-traces-1](tracing/llm-traces-1/ "mention")
 {% endtab %}
 
 {% tab title="Evals for Production" %}

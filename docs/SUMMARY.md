@@ -14,7 +14,9 @@
 ## 🔭 Tracing
 
 * [Overview: Tracing](tracing/llm-traces.md)
-* [Quickstart: Tracing](tracing/llm-traces-1.md)
+* [Quickstart: Tracing](tracing/llm-traces-1/README.md)
+  * [Quickstart: Tracing (Python)](tracing/llm-traces-1/quickstart-tracing-python.md)
+  * [Quickstart: Tracing (TS)](tracing/llm-traces-1/quickstart-tracing-ts.md)
 * [Features: Tracing](tracing/features-tracing/README.md)
   * [Projects](tracing/features-tracing/projects.md)
   * [Annotations](tracing/features-tracing/how-to-annotate-traces.md)

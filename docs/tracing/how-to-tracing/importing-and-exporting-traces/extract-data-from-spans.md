@@ -45,7 +45,7 @@ px.Client().get_spans_dataframe("span_kind == 'CHAIN'")
 
 ## Running Span Queries
 
-You can query for data using our **query DSL** (domain specific language).&#x20;
+You can query for data using our **query DSL** (domain specific language).
 
 {% hint style="success" %}
 This **Query DSL** is the same as what is used by the filter bar in the dashboard. It can be helpful to form your query string in the Phoenix dashboard for more immediate feedback, before moving it to code.
@@ -255,7 +255,7 @@ query = SpanQuery().select(**{
 
 #### Concatenating
 
-The document contents can also be concatenated together. The query below concatenates the list of `document.content` with `\n` (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
+The document contents can also be concatenated together. The query below concatenates the list of `document.content` with  (double newlines), which is the default separator. Keyword arguments are necessary to name the output columns, and in this example we name the output column as `reference`. (Python's double-asterisk unpacking idiom can be used to specify arbitrary output names containing spaces or symbols. See [here](extract-data-from-spans.md#arbitrary-output-column-names) for an example.)
 
 ```python
 query = SpanQuery().concat(
@@ -428,4 +428,3 @@ This output the trace ID and prints the path of the saved file:
 `💾 Trace dataset saved to under ID: f7733fda-6ad6-4427-a803-55ad2182b662`
 
 `📂 Trace dataset path: /my_saved_traces/trace_dataset-f7733fda-6ad6-4427-a803-55ad2182b662.parquet`
-

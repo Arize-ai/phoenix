@@ -28,6 +28,6 @@ By using tracing in Phoenix, you can gain increased visibility into your LLM app
 
 ## Next steps
 
-* To get started, check out the [Quickstart guide](llm-traces-1.md).
+* To get started, check out the [Quickstart guide](llm-traces-1/).
 * Read more about [what traces are](concepts-tracing/what-are-traces.md) and [how traces work](concepts-tracing/how-does-tracing-work.md)[.](llm-traces.md#how-does-tracing-work)
 * Check out the [How-To Guides](how-to-tracing/) for specific tutorials.

@@ -163,7 +163,7 @@ from phoenix.otel import register
 register(auto_instrument=True)
 ```
 
-For more details, you can check the [docs](../tracing/llm-traces-1.md) and explore further tracing options.&#x20;
+For more details, you can check the [docs](../tracing/llm-traces-1/) and explore further tracing options.&#x20;
 
 ***
 
