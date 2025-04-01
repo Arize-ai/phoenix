@@ -632,6 +632,29 @@ class DirectoryError(Exception):
         super().__init__(message)
 
 
+def get_env_postgres_connection_str() -> Optional[str]:
+    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
+    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
+    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
+    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
+
+    if pg_host and ":" in pg_host:
+        pg_host, parsed_port = pg_host.split(":")
+        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
+
+    if pg_host and pg_user and pg_password:
+        encoded_password = quote_plus(pg_password)
+        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+        if pg_port:
+            connection_str = f"{connection_str}:{pg_port}"
+        if pg_db:
+            connection_str = f"{connection_str}/{pg_db}"
+
+        return connection_str
+    return None
+
+
 def _no_local_storage() -> bool:
     """
     Check if we're using a postgres database by checking if postgres connection string is set
@@ -834,29 +857,6 @@ def get_env_database_connection_str() -> str:
 
     working_dir = get_working_dir()
     return f"sqlite:///{working_dir}/phoenix.db"
-
-
-def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
-    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
-    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
-
-    if pg_host and ":" in pg_host:
-        pg_host, parsed_port = pg_host.split(":")
-        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
-
-    if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
-        if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
-        if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
-
-        return connection_str
-    return None
 
 
 def get_env_database_schema() -> Optional[str]:
