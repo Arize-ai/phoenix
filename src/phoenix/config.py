@@ -616,11 +616,6 @@ GENERATED_INFERENCES_NAME_PREFIX = "phoenix_inferences_"
 WORKING_DIR = get_working_dir()
 """The work directory for saving, loading, and exporting data."""
 
-ROOT_DIR = WORKING_DIR
-EXPORT_DIR = ROOT_DIR / "exports"
-INFERENCES_DIR = ROOT_DIR / "inferences"
-TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
-
 
 class DirectoryError(Exception):
     def __init__(self, message: Optional[str] = None) -> None:
