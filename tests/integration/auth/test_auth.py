@@ -1,3 +1,4 @@
+from asyncio import sleep
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -1081,3 +1082,242 @@ class TestPrompts:
             user = version["promptVersion"]["user"]
             assert user is not None
             assert user["id"] == logged_in_user.gid
+
+
+class TestSpanAnnotations:
+    async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
+        self,
+        _spans: Sequence[ReadableSpan],
+        _get_user: _GetUser,
+    ) -> None:
+        annotation_creator = _get_user(_MEMBER)
+        logged_in_annotation_creator = annotation_creator.log_in()
+        member = _get_user(_MEMBER)
+        logged_in_member = member.log_in()
+        admin = _get_user(_ADMIN)
+        logged_in_admin = admin.log_in()
+
+        # Add spans
+        user_api_key = logged_in_annotation_creator.create_api_key()
+        headers = dict(authorization=f"Bearer {user_api_key}")
+        exporter = _http_span_exporter(headers=headers)
+        assert exporter.export(_spans) is SpanExportResult.SUCCESS
+        await sleep(0.1)  # wait for spans to be exported and written to disk
+
+        # Create span annotation
+        span_gid = str(GlobalID("Span", "1"))
+        response, _ = logged_in_annotation_creator.gql(
+            query="""
+              mutation ($input: [CreateSpanAnnotationInput!]!) {
+                createSpanAnnotations(input: $input) {
+                  spanAnnotations {
+                    id
+                    name
+                    score
+                    label
+                    explanation
+                    annotatorKind
+                    metadata
+                    source
+                    identifier
+                    spanId
+                    user {
+                      id
+                      email
+                      username
+                    }
+                  }
+                }
+              }
+            """,
+            variables={
+                "input": {
+                    "spanId": span_gid,
+                    "name": "span-annotation-name",
+                    "annotatorKind": "HUMAN",
+                    "label": "correct",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "metadata": {},
+                    "identifier": "identifier",
+                    "source": "APP",
+                }
+            },
+        )
+
+        span_annotations = response["data"]["createSpanAnnotations"]["spanAnnotations"]
+        assert len(span_annotations) == 1
+        original_span_annotation = span_annotations[0]
+        annotation_id = original_span_annotation["id"]
+
+        # Only the user who created the annotation can patch
+        span_gid = str(GlobalID("Span", "1"))
+        for user in [logged_in_member, logged_in_admin]:
+            with pytest.raises(RuntimeError) as exc_info:
+                response, _ = user.gql(
+                    query="""
+                      mutation ($input: [PatchAnnotationInput!]!) {
+                        patchSpanAnnotations(input: $input) {
+                          spanAnnotations {
+                            id
+                            name
+                            score
+                            label
+                            explanation
+                            annotatorKind
+                            metadata
+                            source
+                            identifier
+                            spanId
+                            user {
+                              id
+                              email
+                              username
+                            }
+                          }
+                        }
+                      }
+                    """,
+                    variables={
+                        "input": {
+                            "annotationId": annotation_id,
+                            "name": "patched-span-annotation-name",
+                            "annotatorKind": "LLM",
+                            "label": "incorrect",
+                            "score": 0,
+                            "explanation": "patched-explanation",
+                            "metadata": {"patched": "key"},
+                            "identifier": "patched-identifier",
+                        }
+                    },
+                )
+            assert "At least one span annotation is not associated with the current user." in str(
+                exc_info.value
+            )
+
+            # Check that the annotation remains unchanged
+            response, _ = user.gql(
+                query="""
+                  query ($annotationId: GlobalID!) {
+                    spanAnnotation: node(id: $annotationId) {
+                      ... on SpanAnnotation {
+                        id
+                        name
+                        score
+                        label
+                        explanation
+                        annotatorKind
+                        metadata
+                        source
+                        identifier
+                        spanId
+                        user {
+                          id
+                          email
+                          username
+                        }
+                      }
+                    }
+                  }
+                """,
+                variables={"annotationId": annotation_id},
+            )
+            span_annotation = response["data"]["spanAnnotation"]
+            assert span_annotation == original_span_annotation
+
+        # Only the user who created the annotation can delete
+        with pytest.raises(RuntimeError) as exc_info:
+            logged_in_member.gql(
+                query="""
+                mutation ($input: DeleteAnnotationsInput!) {
+                  deleteSpanAnnotations(input: $input) {
+                    spanAnnotations {
+                      id
+                      name
+                      score
+                      label
+                      explanation
+                      annotatorKind
+                      metadata
+                      source
+                      identifier
+                      spanId
+                      user {
+                        id
+                        email
+                        username
+                      }
+                    }
+                  }
+                }
+                """,
+                variables={
+                    "input": {
+                        "annotationIds": [annotation_id],
+                    }
+                },
+            )
+        assert "At least one span annotation is not associated with the current user." in str(
+            exc_info.value
+        )
+
+        # Check that the annotation remains unchanged
+        response, _ = user.gql(
+            query="""
+              query ($annotationId: GlobalID!) {
+                spanAnnotation: node(id: $annotationId) {
+                  ... on SpanAnnotation {
+                    id
+                    name
+                    score
+                    label
+                    explanation
+                    annotatorKind
+                    metadata
+                    source
+                    identifier
+                    spanId
+                    user {
+                      id
+                      email
+                      username
+                    }
+                  }
+                }
+              }
+            """,
+            variables={"annotationId": annotation_id},
+        )
+        span_annotation = response["data"]["spanAnnotation"]
+        assert span_annotation == original_span_annotation
+
+        response, _ = logged_in_admin.gql(
+            query="""
+              mutation ($input: DeleteAnnotationsInput!) {
+                deleteSpanAnnotations(input: $input) {
+                  spanAnnotations {
+                    id
+                    name
+                    score
+                    label
+                    explanation
+                    annotatorKind
+                    metadata
+                    source
+                    identifier
+                    spanId
+                    user {
+                      id
+                      email
+                      username
+                    }
+                  }
+                }
+              }
+            """,
+            variables={
+                "input": {
+                    "annotationIds": [annotation_id],
+                }
+            },
+        )

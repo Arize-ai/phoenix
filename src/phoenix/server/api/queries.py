@@ -74,6 +74,7 @@ from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_labe
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
+from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.User import User, to_gql_user
@@ -599,7 +600,7 @@ class Query:
                 ):
                     raise NotFound(f"Unknown prompt label: {id}")
             return to_gql_prompt_label(prompt_label)
-        if type_name == ProjectTraceRetentionPolicy.__name__:
+        elif type_name == ProjectTraceRetentionPolicy.__name__:
             async with info.context.db() as session:
                 db_policy = await session.scalar(
                     select(models.ProjectTraceRetentionPolicy).filter_by(id=node_id)
@@ -607,6 +608,12 @@ class Query:
                 if not db_policy:
                     raise NotFound(f"Unknown project trace retention policy: {id}")
             return ProjectTraceRetentionPolicy(id=db_policy.id, db_policy=db_policy)
+        elif type_name == SpanAnnotation.__name__:
+            async with info.context.db() as session:
+                span_annotation = await session.get(models.SpanAnnotation, node_id)
+                if not span_annotation:
+                    raise NotFound(f"Unknown span annotation: {id}")
+            return to_gql_span_annotation(span_annotation)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field

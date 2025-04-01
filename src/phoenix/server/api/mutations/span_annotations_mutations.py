@@ -9,7 +9,7 @@ from strawberry import UNSET, Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, Unauthorized
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -98,9 +98,8 @@ class SpanAnnotationMutationMixin:
                 )
             ):
                 if span_annotation.user_id != user_id:
-                    raise BadRequest(
-                        f"Cannot patch span annotation '{span_annotation.id}' "
-                        "because it is not associated with the current user."
+                    raise Unauthorized(
+                        "At least one span annotation is not associated with the current user."
                     )
                 span_annotations_by_id[span_annotation.id] = span_annotation
             missing_span_annotation_ids = set(patch_by_id) - set(span_annotations_by_id.keys())
@@ -164,15 +163,13 @@ class SpanAnnotationMutationMixin:
             for annotation in deleted_annotations:
                 if annotation.user_id != user_id and not user_is_admin:
                     await session.rollback()
-                    raise BadRequest(
-                        f"Cannot delete span annotation '{annotation.id}' "
-                        "because it is not associated with the current user "
-                        "and the current user is not an admin."
+                    raise Unauthorized(
+                        "At least one span annotation is not associated with the current user."
                     )
 
-            deleted_annotations_gql = [
-                to_gql_span_annotation(annotation) for annotation in deleted_annotations
-            ]
+        deleted_annotations_gql = [
+            to_gql_span_annotation(annotation) for annotation in deleted_annotations
+        ]
         if deleted_annotations:
             info.context.event_queue.put(
                 SpanAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations))
