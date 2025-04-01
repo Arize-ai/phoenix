@@ -9,7 +9,7 @@ from strawberry import UNSET, Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, Unauthorized
+from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -147,10 +147,19 @@ class SpanAnnotationMutationMixin:
             user_id = int(user.identity)
             user_is_admin = user.is_admin
 
-        span_annotation_ids = [
-            from_global_id_with_expected_type(global_id, "SpanAnnotation")
-            for global_id in input.annotation_ids
-        ]
+        span_annotation_ids = []
+        for annotation_gid in input.annotation_ids:
+            try:
+                span_annotation_id = from_global_id_with_expected_type(
+                    annotation_gid, SpanAnnotation.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid span annotation ID: {annotation_gid}")
+            span_annotation_ids.append(span_annotation_id)
+        if not span_annotation_ids:
+            raise BadRequest("No span annotation IDs provided.")
+        span_annotation_ids = list(set(span_annotation_ids))
+
         async with info.context.db() as session:
             stmt = (
                 delete(models.SpanAnnotation)
@@ -158,22 +167,31 @@ class SpanAnnotationMutationMixin:
                 .returning(models.SpanAnnotation)
             )
             result = await session.scalars(stmt)
-            deleted_annotations = result.all()
+            deleted_annotations_by_id = {annotation.id: annotation for annotation in result.all()}
 
-            for annotation in deleted_annotations:
-                if annotation.user_id != user_id and not user_is_admin:
-                    await session.rollback()
-                    raise Unauthorized(
-                        "At least one span annotation is not associated with the current user."
-                    )
+            if any(
+                annotation.user_id != user_id and not user_is_admin
+                for annotation in deleted_annotations_by_id.values()
+            ):
+                await session.rollback()
+                raise Unauthorized(
+                    "At least one span annotation is not associated with the current user."
+                )
+
+            missing_span_annotation_ids = set(span_annotation_ids) - set(
+                deleted_annotations_by_id.keys()
+            )
+            if missing_span_annotation_ids:
+                raise NotFound(
+                    f"Could not find span annotations with IDs: {missing_span_annotation_ids}"
+                )
 
         deleted_annotations_gql = [
-            to_gql_span_annotation(annotation) for annotation in deleted_annotations
+            to_gql_span_annotation(deleted_annotations_by_id[id]) for id in span_annotation_ids
         ]
-        if deleted_annotations:
-            info.context.event_queue.put(
-                SpanAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations))
-            )
+        info.context.event_queue.put(
+            SpanAnnotationDeleteEvent(tuple(anno.id for anno in deleted_annotations_by_id.values()))
+        )
         return SpanAnnotationMutationPayload(
             span_annotations=deleted_annotations_gql, query=Query()
         )

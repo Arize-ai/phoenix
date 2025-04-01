@@ -10,7 +10,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -99,15 +99,14 @@ class TraceAnnotationMutationMixin:
                 )
             ):
                 if trace_annotation.user_id != user_id:
-                    raise BadRequest(
-                        f"Cannot patch trace annotation '{trace_annotation.id}' "
-                        "because it is not associated with the current user."
+                    raise Unauthorized(
+                        "At least one trace annotation is not associated with the current user."
                     )
                 trace_annotations_by_id[trace_annotation.id] = trace_annotation
 
             missing_trace_annotation_ids = set(patch_by_id) - set(trace_annotations_by_id.keys())
             if missing_trace_annotation_ids:
-                raise BadRequest(
+                raise NotFound(
                     f"Could not find trace annotations with IDs: {missing_trace_annotation_ids}"
                 )
 
@@ -165,26 +164,30 @@ class TraceAnnotationMutationMixin:
             user_is_admin = user.is_admin
 
         async with info.context.db() as session:
-            deleted_annotations_by_id = {}
-            for annotation in await session.scalars(
-                delete(models.TraceAnnotation)
-                .where(models.TraceAnnotation.id.in_(trace_annotation_ids))
-                .returning(models.TraceAnnotation)
+            deleted_annotations_by_id = {
+                annotation.id: annotation
+                for annotation in await session.scalars(
+                    delete(models.TraceAnnotation)
+                    .where(models.TraceAnnotation.id.in_(trace_annotation_ids))
+                    .returning(models.TraceAnnotation)
+                )
+            }
+
+            if any(
+                annotation.user_id != user_id and not user_is_admin
+                for annotation in deleted_annotations_by_id.values()
             ):
-                if annotation.user_id != user_id and not user_is_admin:
-                    await session.rollback()
-                    raise BadRequest(
-                        f"Cannot delete trace annotation '{annotation.id}' "
-                        "because it is not associated with the current user "
-                        "and the current user is not an admin."
-                    )
-                deleted_annotations_by_id[annotation.id] = annotation
+                await session.rollback()
+                raise Unauthorized(
+                    "At least one trace annotation is not associated with the current user "
+                    "and the current user is not an admin."
+                )
 
             missing_trace_annotation_ids = set(trace_annotation_ids) - set(
                 deleted_annotations_by_id.keys()
             )
             if missing_trace_annotation_ids:
-                raise BadRequest(
+                raise NotFound(
                     f"Could not find trace annotations with IDs: {missing_trace_annotation_ids}"
                 )
 
