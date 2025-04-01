@@ -7,7 +7,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Optional, cast, overload
+from typing import Optional, cast, overload, Union, Any, Iterator
 from urllib.parse import quote_plus, urlparse
 
 import wrapt
@@ -623,7 +623,7 @@ TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
 
 
 class DirectoryError(Exception):
-    def __init__(self, message=None):
+    def __init__(self, message: Optional[str] = None) -> None:
         if message is None:
             message = (
                 "Local storage is not configured. Please set the "
@@ -663,21 +663,20 @@ def _no_local_storage() -> bool:
     return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
 
 
-class RestrictedPath(wrapt.ObjectProxy):
-    def __init__(self, wrapped):
+class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+    def __init__(self, wrapped: Union[str, Path]) -> None:
         super().__init__(Path(wrapped))
 
-    def _check_forbidden(self):
+    def _check_forbidden(self) -> None:
         if _no_local_storage():
             raise DirectoryError()
         return
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         attr = getattr(self.__wrapped__, name)
 
         if callable(attr):
-
-            def wrapped_attr(*args, **kwargs):
+            def wrapped_attr(*args: Any, **kwargs: Any) -> Any:
                 result = attr(*args, **kwargs)
                 if isinstance(result, Path):
                     self._check_forbidden()
@@ -693,43 +692,43 @@ class RestrictedPath(wrapt.ObjectProxy):
                 return RestrictedPath(attr)
             return attr
 
-    def __str__(self):
+    def __str__(self) -> str:
         self._check_forbidden()
         return str(self.__wrapped__)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<RestrictedPath({repr(self.__wrapped__)})>"
 
-    def __fspath__(self):
+    def __fspath__(self) -> str:
         self._check_forbidden()
         return str(self.__wrapped__)
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[str, Path]) -> "RestrictedPath":
         new_path = self.__wrapped__ / other
         return RestrictedPath(new_path)
 
-    def __itruediv__(self, other):
+    def __itruediv__(self, other: Union[str, Path]) -> "RestrictedPath":
         self.__wrapped__ /= other
         self._check_forbidden()
         return self
 
-    def __eq__(self, other):
-        return self.__wrapped__ == (
-            other.__wrapped__ if isinstance(other, RestrictedPath) else other
-        )
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, RestrictedPath):
+            return bool(self.__wrapped__ == other.__wrapped__)
+        return bool(self.__wrapped__ == other)
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.__wrapped__)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator["RestrictedPath"]:
         self._check_forbidden()
         for child in self.__wrapped__:
             yield RestrictedPath(child)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__wrapped__.parts)
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self.__wrapped__.parts
 
 
