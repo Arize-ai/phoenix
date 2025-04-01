@@ -34,18 +34,26 @@ Available tools to query Phoenix observability data:
         *   `limit` (integer, default: 5): How many recent traces to list.
         *   `minutes_ago` (integer, default: 60): How far back in minutes to look for traces.
     *   Use this tool when the user asks for recent traces, a summary of activity, or doesn't specify a particular trace ID.
+    *   After using this tool, you can use get_trace to fetch details about any interesting traces found.
 
 2.  **`get_trace`**:
     *   Description: "Get all spans for a specific trace ID using the Phoenix Python client."
     *   Arguments:
         *   `trace_id` (string, required): The specific ID of the trace to retrieve details for. Trace IDs look like '4b46e32db9349e7436d236593c2e4e58'.
-    *   Use this tool ONLY when the user provides a specific trace ID or asks for details about a specific trace mentioned previously.
+    *   Use this tool ONLY when you have a specific trace ID (either from the user or from a previous list_traces response).
 
 You must respond ONLY with a JSON object specifying the tool to use and its arguments, like this:
 {"tool": "tool_name", "args": {"arg_name": "value", ...}}
-If no specific trace ID is mentioned or implied for `get_trace`, use `list_traces`.
-If the question cannot be answered with these tools, respond with:
-{"tool": "none", "args": {}}
+
+Tool Selection Strategy:
+1. If no specific trace ID is provided and no previous context exists, use list_traces first
+2. If you see a trace ID in the previous tool response that seems relevant, use get_trace with that ID
+3. If you already have detailed trace information or encounter an error, respond with {"tool": "none", "args": {}}
+
+Example of chaining:
+1. User asks about recent activity
+2. Use list_traces to get overview
+3. If interesting trace found, use get_trace to get details
 """
 
 async def plan_step(user_query: str) -> Dict | None:
@@ -179,17 +187,42 @@ async def main():
             if user_input.lower() in ["exit", "quit"]:
                 break
 
-            # 1. Plan which tool to use
-            plan = await plan_step(user_input)
-
+            # Initialize context for the planner
+            context = ""
             tool_result_data = None
-            if plan and plan.get("tool") != "none":
+            max_iterations = 3  # Prevent infinite loops
+            iteration = 0
+
+            while iteration < max_iterations:
+                # Update the prompt with previous context if any
+                current_query = user_input
+                if context:
+                    current_query = f"{user_input}\n\nPrevious tool response:\n{context}"
+
+                # 1. Plan which tool to use
+                plan = await plan_step(current_query)
+                
+                if not plan or plan.get("tool") == "none":
+                    break
+
                 # 2. Execute the tool
                 tool_result_data = await execute_tool(plan["tool"], plan["args"])
+                
+                # Update context for next iteration
+                try:
+                    result_json = json.loads(tool_result_data)
+                    context = json.dumps(result_json, indent=2)
+                except json.JSONDecodeError:
+                    context = tool_result_data
+
+                # If this was a get_trace call or there's an error, stop iterating
+                if plan["tool"] == "get_trace" or "error" in context.lower():
+                    break
+                
+                iteration += 1
 
             # 3. Generate the final answer
             final_answer = await answer_step(user_input, tool_result_data)
-
             print(f"\nBot: {final_answer}")
 
         except KeyboardInterrupt:

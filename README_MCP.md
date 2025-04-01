@@ -77,3 +77,81 @@ Once both services are running, you can interact with the chat client by:
   ```bash
   pip list | grep -E "fastapi|uvicorn|phoenix-cli|openai|httpx|pandas|pydantic"
   ```
+
+
+  Example output
+  phoenix) amankhan@Amans-Air phoenix % python phoenix_rag_chat.py
+
+--- Phoenix RAG Chatbot ---
+Ask questions about your Phoenix traces (Ctrl+C to exit)
+
+You: find the most recent trace and then get info about it
+
+Planner thinking...
+Planner Response: {"tool": "list_traces", "args": {"limit": 1}}
+
+Executing tool 'list_traces' with args: {'limit': 1} via HTTP...
+Tool execution successful via HTTP.
+
+Planner thinking...
+Planner Response: {"tool": "get_trace", "args": {"trace_id": "ae74b5b79c8ffdfd64a379508e0a6bf9"}}
+
+Executing tool 'get_trace' with args: {'trace_id': 'ae74b5b79c8ffdfd64a379508e0a6bf9'} via HTTP...
+Tool execution successful via HTTP.
+
+Answering LLM thinking...
+
+Bot: The most recent trace available is identified by the trace ID "ae74b5b79c8ffdfd64a379508e0a6bf9" for the project "openai-chat." 
+
+Here are the details of the trace:
+
+- **Span Name**: ChatCompletion
+- **Span Kind**: LLM
+- **Start Time**: April 1, 2025, 14:23:05 UTC
+- **End Time**: April 1, 2025, 14:23:05 UTC
+- **Status Code**: OK
+- **Token Count (Completion)**: 13
+- **Token Count (Total)**: 27
+- **Model Name**: gpt-3.5-turbo-0125
+- **Input Value**: 
+  ```json
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Write a haiku about observability"
+      }
+    ],
+    "model": "gpt-3.5-turbo"
+  }
+  ```
+- **Output Value**: 
+  ```json
+  {
+    "id": "chatcmpl-BHWo55CiN9GM96dStEvBSsj7exCaW",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "data streams flowing\ninsightful patterns emerge\nobservability",
+          "role": "assistant"
+        }
+      }
+    ],
+    "created": 1743517385,
+    "model": "gpt-3.5-turbo-0125",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "usage": {
+      "completion_tokens": 13,
+      "prompt_tokens": 14,
+      "total_tokens": 27
+    }
+  }
+  ```
+- **Input Mime Type**: application/json
+- **Output Mime Type**: application/json
+
+This trace captures a request to generate a haiku about observability, which was successfully processed.
