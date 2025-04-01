@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Optional, cast, overload
 from urllib.parse import quote_plus, urlparse
 
+import wrapt
+
 from email_validator import EmailNotValidError, validate_email
 
 from phoenix.utilities.logging import log_a_list
@@ -144,7 +146,7 @@ ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account, which defaults to ‘admin’ if not
+The initial password for the default admin account, which defaults to 'admin' if not
 explicitly set. Note that changing this value will have no effect if the default admin
 record already exists in the database. In such cases, the default admin password must
 be updated manually in the application.
@@ -621,11 +623,109 @@ INFERENCES_DIR = ROOT_DIR / "inferences"
 TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
 
 
+class DirectoryError(Exception):
+    def __init__(self, message=None):
+        if message is None:
+            message = (
+                "Local storage is not configured. Please set the "
+                "PHOENIX_WORKING_DIR environment variable to fix this."
+            )
+        super().__init__(message)
+
+
+def _no_local_storage() -> bool:
+    """
+    Check if we're using a postgres database by checking if postgres connection string is set
+    and a working directory was not explicitly set.
+    """
+    return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
+
+
+class RestrictedPath(wrapt.ObjectProxy):
+    def __init__(self, wrapped):
+        super().__init__(Path(wrapped))
+
+    def _check_forbidden(self):
+        if _no_local_storage():
+            raise DirectoryError()
+        return
+
+    def __getattr__(self, name):
+        attr = getattr(self.__wrapped__, name)
+
+        if callable(attr):
+            def wrapped_attr(*args, **kwargs):
+                result = attr(*args, **kwargs)
+                if isinstance(result, Path):
+                    self._check_forbidden()
+                    return RestrictedPath(result)
+                elif hasattr(result, '__iter__') and not isinstance(result, (str, bytes)):
+                    return (
+                        RestrictedPath(p) if isinstance(p, Path) else p
+                        for p in result
+                    )
+                return result
+            return wrapped_attr
+        else:
+            if isinstance(attr, Path):
+                self._check_forbidden()
+                return RestrictedPath(attr)
+            return attr
+
+    def __str__(self):
+        self._check_forbidden()
+        return str(self.__wrapped__)
+
+    def __repr__(self):
+        return f"<RestrictedPath({repr(self.__wrapped__)})>"
+
+    def __fspath__(self):
+        self._check_forbidden()
+        return str(self.__wrapped__)
+
+    def __truediv__(self, other):
+        new_path = self.__wrapped__ / other
+        return RestrictedPath(new_path)
+
+    def __itruediv__(self, other):
+        self.__wrapped__ /= other
+        self._check_forbidden()
+        return self
+
+    def __eq__(self, other):
+        return self.__wrapped__ == (other.__wrapped__ if isinstance(other, RestrictedPath) else other)
+
+    def __hash__(self):
+        return hash(self.__wrapped__)
+
+    def __iter__(self):
+        self._check_forbidden()
+        for child in self.__wrapped__:
+            yield RestrictedPath(child)
+
+    def __len__(self):
+        return len(self.__wrapped__.parts)
+
+    def __contains__(self, item):
+        return item in self.__wrapped__.parts
+
+
+ROOT_DIR = RestrictedPath(WORKING_DIR)
+EXPORT_DIR = RestrictedPath(ROOT_DIR / "exports")
+INFERENCES_DIR = RestrictedPath(ROOT_DIR / "inferences")
+TRACE_DATASETS_DIR = RestrictedPath(ROOT_DIR / "trace_datasets")
+
+
 def ensure_working_dir() -> None:
     """
     Ensure the working directory exists. This is needed because the working directory
     must exist before certain operations can be performed.
+
+    This is bypassed if a postgres database is configured and a working directory is not set.
     """
+    if _no_local_storage():
+        pass
+
     logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:
         for path in (
@@ -662,6 +762,8 @@ def get_exported_files(directory: Path) -> list[Path]:
     list: list[Path]
         List of paths of the exported files.
     """
+    if _no_local_storage():
+        return []  # Do not attempt to access local storage
     return list(directory.glob("*.parquet"))
 
 
