@@ -739,7 +739,7 @@ INFERENCES_DIR = RestrictedPath(ROOT_DIR / "inferences")
 TRACE_DATASETS_DIR = RestrictedPath(ROOT_DIR / "trace_datasets")
 
 
-def ensure_working_dir() -> None:
+def ensure_working_dir_if_needed() -> None:
     """
     Ensure the working directory exists. This is needed because the working directory
     must exist before certain operations can be performed.
@@ -767,8 +767,8 @@ def ensure_working_dir() -> None:
         raise
 
 
-# Invoke ensure_working_dir() to ensure the working directory exists
-ensure_working_dir()
+# Invoke ensure_working_dir_if_needed() to ensure the working directory exists
+ensure_working_dir_if_needed()
 
 
 def get_exported_files(directory: Path) -> list[Path]:
