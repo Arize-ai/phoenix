@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2c4588c5d052215b8b564ac02223f696>>
+ * @generated SignedSource<<bec6b06f8ed044a3478385549e6647fc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,20 +9,23 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+import { FragmentRefs } from "relay-runtime";
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
 export type ProjectAnnotationConfigCardContentQuery$variables = {
   projectId: string;
 };
 export type ProjectAnnotationConfigCardContentQuery$data = {
+  readonly allAnnotationConfigs: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly annotationType?: AnnotationType;
+        readonly id?: string;
+        readonly name?: string;
+      };
+    }>;
+  };
   readonly project: {
-    readonly annotationConfigs?: {
-      readonly edges: ReadonlyArray<{
-        readonly node: {
-          readonly annotationType?: AnnotationType;
-          readonly name?: string;
-        };
-      }>;
-    };
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigCardContent_project_annotations">;
   };
 };
 export type ProjectAnnotationConfigCardContentQuery = {
@@ -46,15 +49,31 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
   "kind": "InlineFragment",
   "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "name",
-      "storageKey": null
-    },
+    (v2/*: any*/)
+  ],
+  "type": "Node",
+  "abstractKey": "__isNode"
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -66,18 +85,11 @@ v2 = {
   "type": "AnnotationConfigBase",
   "abstractKey": "__isAnnotationConfigBase"
 },
-v3 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
   "storageKey": null
 };
 return {
@@ -99,42 +111,48 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
                 "args": null,
-                "concreteType": "AnnotationConfigConnection",
-                "kind": "LinkedField",
-                "name": "annotationConfigs",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "AnnotationConfigEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": null,
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v2/*: any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
+                "kind": "FragmentSpread",
+                "name": "ProjectAnnotationConfigCardContent_project_annotations"
               }
             ],
             "type": "Project",
             "abstractKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": "allAnnotationConfigs",
+        "args": null,
+        "concreteType": "AnnotationConfigConnection",
+        "kind": "LinkedField",
+        "name": "annotationConfigs",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "AnnotationConfigEdge",
+            "kind": "LinkedField",
+            "name": "edges",
+            "plural": true,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  (v3/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -157,7 +175,12 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
+          (v6/*: any*/),
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
+          },
+          (v2/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -185,16 +208,16 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v3/*: any*/),
-                          (v2/*: any*/),
+                          (v6/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
                               (v4/*: any*/)
                             ],
-                            "type": "Node",
-                            "abstractKey": "__isNode"
-                          }
+                            "type": "AnnotationConfigBase",
+                            "abstractKey": "__isAnnotationConfigBase"
+                          },
+                          (v3/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -207,28 +230,59 @@ return {
             ],
             "type": "Project",
             "abstractKey": null
-          },
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": "allAnnotationConfigs",
+        "args": null,
+        "concreteType": "AnnotationConfigConnection",
+        "kind": "LinkedField",
+        "name": "annotationConfigs",
+        "plural": false,
+        "selections": [
           {
-            "kind": "TypeDiscriminator",
-            "abstractKey": "__isNode"
-          },
-          (v4/*: any*/)
+            "alias": null,
+            "args": null,
+            "concreteType": "AnnotationConfigEdge",
+            "kind": "LinkedField",
+            "name": "edges",
+            "plural": true,
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": null,
+                "kind": "LinkedField",
+                "name": "node",
+                "plural": false,
+                "selections": [
+                  (v6/*: any*/),
+                  (v3/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "e5db295931def4b3ae9aea2523bb02b4",
+    "cacheID": "0c6ef22f77939481932f07f0e45a3154",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationConfigCardContentQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationConfigCardContentQuery(\n  $projectId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      annotationConfigs {\n        edges {\n          node {\n            __typename\n            ... on AnnotationConfigBase {\n              __isAnnotationConfigBase: __typename\n              name\n              annotationType\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query ProjectAnnotationConfigCardContentQuery(\n  $projectId: GlobalID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigCardContent_project_annotations\n    }\n    __isNode: __typename\n    id\n  }\n  allAnnotationConfigs: annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n      }\n    }\n  }\n}\n\nfragment ProjectAnnotationConfigCardContent_project_annotations on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9ef005916145fdc15bb65a44ae4d563b";
+(node as any).hash = "ed210ab30e8d40d669d27c7f83ada5b8";
 
 export default node;
