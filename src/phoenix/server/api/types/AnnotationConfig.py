@@ -50,11 +50,8 @@ class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
 
 
 @strawberry.type
-class FreeformAnnotationConfig(Node):
+class FreeformAnnotationConfig(Node, AnnotationConfigBase):
     id_attr: NodeID[int]
-    name: str
-    annotation_type: AnnotationType
-    description: Optional[str]
 
 
 AnnotationConfig: TypeAlias = Annotated[
