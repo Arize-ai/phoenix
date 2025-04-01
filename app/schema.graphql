@@ -1137,12 +1137,12 @@ type FloatInvocationParameter implements InvocationParameterBase {
   defaultValue: Float
 }
 
-type FreeformAnnotationConfig implements Node {
+type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
-  annotationType: AnnotationType!
   description: String
+  annotationType: AnnotationType!
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
