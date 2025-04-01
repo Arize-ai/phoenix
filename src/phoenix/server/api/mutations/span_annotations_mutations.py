@@ -109,9 +109,9 @@ class SpanAnnotationMutationMixin:
                 )
             for span_annotation_id, patch in patch_by_id.items():
                 span_annotation = span_annotations_by_id[span_annotation_id]
-                if patch.name is not UNSET:
+                if patch.name:
                     span_annotation.name = patch.name
-                if patch.annotator_kind is not UNSET:
+                if patch.annotator_kind:
                     span_annotation.annotator_kind = patch.annotator_kind.value
                 if patch.label is not UNSET:
                     span_annotation.label = patch.label
