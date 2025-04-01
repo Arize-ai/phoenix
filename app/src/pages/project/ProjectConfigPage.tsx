@@ -74,7 +74,7 @@ const ProjectConfigContent = ({
   return (
     <Flex direction="column" gap="size-200">
       <ProjectConfigCard project={data.project} />
-      <ProjectAnnotationConfigCard />
+      <ProjectAnnotationConfigCard projectId={data.project.id} />
     </Flex>
   );
 };
