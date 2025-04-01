@@ -12,7 +12,8 @@ import sys # Import sys
 import traceback # Import traceback
 # Removed uvicorn import
 
-print("--- Script Top Level: START ---")
+# --- Use stderr for ALL prints ---
+print("--- Script Top Level: START ---", file=sys.stderr)
 
 # Initialize MCP server - Restore stdio=True
 server = FastMCP(
@@ -21,7 +22,7 @@ server = FastMCP(
     args=["phoenix_mcp_server.py"],
     stdio=True # Re-enable stdio=True
 )
-print("--- Script Top Level: FastMCP Initialized (with stdio=True) ---")
+print("--- Script Top Level: FastMCP Initialized (with stdio=True) ---", file=sys.stderr)
 
 # Configuration
 PHOENIX_URL = "http://localhost:6006"
@@ -29,38 +30,37 @@ PROJECT_NAME = "openai-chat" # Set your target project name
 
 # Initialize Phoenix Client
 px_client = None # Initialize as None
-print("--- Script Top Level: Attempting px.Client() connection... ---")
+print("--- Script Top Level: Attempting px.Client() connection... ---", file=sys.stderr)
 try:
     px_client = px.Client()
-    print(f"--- Script Top Level: Successfully connected Phoenix client. Targeting project: '{PROJECT_NAME}' ---")
+    print(f"--- Script Top Level: Successfully connected Phoenix client. Targeting project: '{PROJECT_NAME}' ---", file=sys.stderr)
 except Exception as e:
-    print(f"--- Script Top Level: Error connecting Phoenix client: {e} ---")
-    print("Please ensure the Phoenix server is running (`python -m phoenix.server.main serve`)")
+    print(f"--- Script Top Level: Error connecting Phoenix client: {e} ---", file=sys.stderr)
+    print("Please ensure the Phoenix server is running (`python -m phoenix.server.main serve`)", file=sys.stderr)
     # Keep px_client as None
 
 # --- Tool Definitions using phoenix client ---
 
 @server.tool()
 async def list_traces(limit: int = 10, minutes_ago: int = 1440) -> str:
-    print(f"\n>>> ENTERING list_traces tool (limit={limit}, minutes_ago={minutes_ago})")
-    sys.stdout.flush() # Force flush output buffer
+    print(f"\n>>> ENTERING list_traces tool (limit={limit}, minutes_ago={minutes_ago})", file=sys.stderr)
+    # sys.stdout.flush() # No longer needed for stdout
     """List recent traces (root spans) using get_spans_dataframe and pandas filtering."""
     if not px_client:
+        # Error messages in the return value are fine, they are part of the JSON payload
         return json.dumps({"error": "Phoenix client not connected."})
     try:
-        print(f"Fetching all spans for project '{PROJECT_NAME}' to find root spans...")
-        sys.stdout.flush()
+        print(f"Fetching all spans for project '{PROJECT_NAME}' to find root spans...", file=sys.stderr)
         df_all = px_client.get_spans_dataframe(project_name=PROJECT_NAME)
 
         if df_all is None or df_all.empty:
             return json.dumps({"message": f"No spans found at all in project '{PROJECT_NAME}'.", "traces": []})
 
         # --- DEBUG: Log initial columns ---
-        print(f"Initial columns fetched: {df_all.columns.tolist()}")
+        print(f"Initial columns fetched: {df_all.columns.tolist()}", file=sys.stderr)
         # --- End DEBUG ---
 
-        print(f"Fetched {len(df_all)} total spans. Filtering for root spans and time window...")
-        sys.stdout.flush()
+        print(f"Fetched {len(df_all)} total spans. Filtering for root spans and time window...", file=sys.stderr)
 
         # --- Filter in Memory using Pandas ---
         if 'start_time' in df_all.columns and not pd.api.types.is_datetime64_any_dtype(df_all['start_time']):
@@ -73,7 +73,7 @@ async def list_traces(limit: int = 10, minutes_ago: int = 1440) -> str:
                   df_roots['start_time'] = df_roots['start_time'].dt.tz_localize('UTC')
              df_roots = df_roots[df_roots['start_time'] >= start_time_limit].copy()
         else:
-             print("Warning: Could not filter by time, start_time column format issue.")
+             print("Warning: Could not filter by time, start_time column format issue.", file=sys.stderr)
 
         if df_roots.empty:
              return json.dumps({"message": f"No root spans (traces) found in the last {minutes_ago} minutes for project '{PROJECT_NAME}'.", "traces": []})
@@ -81,12 +81,13 @@ async def list_traces(limit: int = 10, minutes_ago: int = 1440) -> str:
         df_roots = df_roots.sort_values(by='start_time', ascending=False).head(limit)
 
         # --- DEBUG: Log columns and first row after filtering ---
-        print(f"Columns in df_roots after filtering: {df_roots.columns.tolist()}")
+        print(f"Columns in df_roots after filtering: {df_roots.columns.tolist()}", file=sys.stderr)
         if not df_roots.empty:
-            print(f"Data of first filtered root row:\n{df_roots.iloc[0].to_dict()}")
+            # Use repr() for potentially multi-line dict output to keep it on one log line
+            print(f"Data of first filtered root row:\n{repr(df_roots.iloc[0].to_dict())}", file=sys.stderr)
         # --- End DEBUG ---
 
-        print(f"Found {len(df_roots)} matching root spans (traces).")
+        print(f"Found {len(df_roots)} matching root spans (traces).", file=sys.stderr)
         # --- End Filtering ---
 
         # --- Start Manual JSON Construction ---
@@ -99,7 +100,7 @@ async def list_traces(limit: int = 10, minutes_ago: int = 1440) -> str:
                 trace_entry['trace_id'] = row['trace_id']
             # Add check for potential alternative name if standard one fails
             elif 'context.trace_id' in row and pd.notna(row['context.trace_id']):
-                 print("Note: Using 'context.trace_id' instead of 'trace_id'")
+                 print("Note: Using 'context.trace_id' instead of 'trace_id'", file=sys.stderr)
                  trace_entry['trace_id'] = row['context.trace_id']
 
             if 'name' in row and pd.notna(row['name']):
@@ -124,7 +125,7 @@ async def list_traces(limit: int = 10, minutes_ago: int = 1440) -> str:
                       except: trace_entry['latency_ms'] = None
             # Check for 'duration' as alternative from OTel spec
             elif 'duration' in row and pd.notna(row['duration']):
-                 print("Note: Using 'duration' for latency")
+                 print("Note: Using 'duration' for latency", file=sys.stderr)
                  try: # Duration might be nanoseconds
                       trace_entry['latency_ms'] = float(row['duration']) / 1_000_000
                  except:
@@ -134,40 +135,37 @@ async def list_traces(limit: int = 10, minutes_ago: int = 1440) -> str:
             if 'status_code' in row and pd.notna(row['status_code']):
                 trace_entry['status_code'] = row['status_code']
             elif 'status.code' in row and pd.notna(row['status.code']): # Alternative naming
-                 print("Note: Using 'status.code' instead of 'status_code'")
+                 print("Note: Using 'status.code' instead of 'status_code'", file=sys.stderr)
                  trace_entry['status_code'] = row['status.code']
 
 
             traces_output.append(trace_entry)
         # --- End Manual JSON Construction ---
 
-        print(f"Constructed JSON output (first item): {traces_output[0] if traces_output else 'None'}")
-        sys.stdout.flush()
+        print(f"Constructed JSON output (first item): {traces_output[0] if traces_output else 'None'}", file=sys.stderr)
         result_json = json.dumps({"project_name": PROJECT_NAME, "traces": traces_output}, indent=2, default=str)
-        print("<<< EXITING list_traces tool (Success)")
-        sys.stdout.flush()
+        print("<<< EXITING list_traces tool (Success)", file=sys.stderr)
         return result_json
-
     except Exception as e:
-        print(f"!!! Exception in list_traces tool: {type(e).__name__}: {str(e)}")
-        print(traceback.format_exc()) # Print full traceback
-        sys.stdout.flush() # Flush before returning error
+        print(f"!!! Exception in list_traces tool: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        # traceback.format_exc() prints to stderr by default
+        traceback.print_exc(file=sys.stderr)
         error_json = json.dumps({"error": f"Failed to list traces for project '{PROJECT_NAME}': {str(e)}"})
-        print("<<< EXITING list_traces tool (Exception)")
+        print("<<< EXITING list_traces tool (Exception)", file=sys.stderr)
         return error_json
 
 
 @server.tool()
 async def get_trace(trace_id: str) -> str:
-    print(f"\n>>> ENTERING get_trace tool (trace_id={trace_id})")
-    sys.stdout.flush() # Force flush output buffer
+    print(f"\n>>> ENTERING get_trace tool (trace_id={trace_id})", file=sys.stderr)
+    # sys.stdout.flush() # No longer needed
     """Get all spans for a specific trace ID using get_spans_dataframe for the configured project."""
     # This tool should still work correctly as it uses the reliable filtering method
     if not px_client:
         return json.dumps({"error": "Phoenix client not connected."})
     try:
         filter_string = f"trace_id == '{trace_id}'"
-        print(f"Querying spans for trace_id: {trace_id} in project '{PROJECT_NAME}' using filter string: {filter_string}")
+        print(f"Querying spans for trace_id: {trace_id} in project '{PROJECT_NAME}' using filter string: {filter_string}", file=sys.stderr)
 
         # Use get_spans_dataframe with the filter string AND project_name
         df = px_client.get_spans_dataframe(filter_string, project_name=PROJECT_NAME)
@@ -193,29 +191,27 @@ async def get_trace(trace_id: str) -> str:
         }
         sys.stdout.flush()
         result_json = json.dumps(result, indent=2, default=str)
-        print("<<< EXITING get_trace tool (Success)")
-        sys.stdout.flush()
+        print("<<< EXITING get_trace tool (Success)", file=sys.stderr)
         return result_json
     except Exception as e:
-        print(f"!!! Exception in get_trace tool: {type(e).__name__}: {str(e)}")
-        print(traceback.format_exc()) # Print full traceback
-        sys.stdout.flush() # Flush before returning error
+        print(f"!!! Exception in get_trace tool: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         error_json = json.dumps({"error": f"Failed to get trace '{trace_id}' from project '{PROJECT_NAME}': {str(e)}", "trace_id": trace_id})
-        print("<<< EXITING get_trace tool (Exception)")
+        print("<<< EXITING get_trace tool (Exception)", file=sys.stderr)
         return error_json
 
 
 @server.tool()
 async def check_health() -> str:
-    print(f"\n>>> ENTERING check_health tool") # Add entry log
-    sys.stdout.flush() # Flush output buffer
+    print(f"\n>>> ENTERING check_health tool", file=sys.stderr)
+    # sys.stdout.flush() # No longer needed
     """Check the health/status of the Phoenix server UI via root."""
     url = urljoin(PHOENIX_URL, "/")
     try:
-        print(f"\nChecking Phoenix health via root endpoint ('/') at {url}")
+        print(f"\nChecking Phoenix health via root endpoint ('/') at {url}", file=sys.stderr)
         async with httpx.AsyncClient() as client:
             response = await client.head(url, headers={"Accept": "text/html"}, timeout=10.0)
-        print(f"Health check status: {response.status_code}")
+        print(f"Health check status: {response.status_code}", file=sys.stderr)
         is_healthy = response.is_success
         status = "healthy" if is_healthy else "unhealthy"
         result_json = json.dumps({
@@ -223,38 +219,36 @@ async def check_health() -> str:
             "checked_url": url,
             "http_status": response.status_code,
         })
-        print("<<< EXITING check_health tool (Success)") # Add success exit log
-        sys.stdout.flush()
+        print("<<< EXITING check_health tool (Success)", file=sys.stderr)
         return result_json
     except Exception as e:
-        print(f"!!! Exception in check_health tool: {type(e).__name__}: {str(e)}")
-        sys.stdout.flush() # Flush before returning error
+        print(f"!!! Exception in check_health tool: {type(e).__name__}: {str(e)}", file=sys.stderr)
         error_json = json.dumps({"status": "unhealthy", "checked_url": url, "error": str(e)})
-        print("<<< EXITING check_health tool (Exception)") # Add exception exit log
+        print("<<< EXITING check_health tool (Exception)", file=sys.stderr)
         return error_json
 
 if __name__ == "__main__":
-    print(f"--- Script Main Block: START ---")
-    print(f"Starting Phoenix MCP Server...")
-    print(f"Target Phoenix URL (for health check): {PHOENIX_URL}")
-    print(f"Target Phoenix Project (for tools): '{PROJECT_NAME}'")
-    print("MCP Server interacting via Phoenix Python Client.")
-    print("\nAvailable tools:")
-    print("  1. check_health - Check if the Phoenix server UI is reachable via HTTP.")
-    print("  2. list_traces - List recent traces (uses get_spans_dataframe + pandas filter). Args: limit, minutes_ago")
-    print("  3. get_trace - Get all spans for a specific trace (uses get_spans_dataframe). Args: trace_id")
+    print(f"--- Script Main Block: START ---", file=sys.stderr)
+    print(f"Starting Phoenix MCP Server...", file=sys.stderr)
+    print(f"Target Phoenix URL (for health check): {PHOENIX_URL}", file=sys.stderr)
+    print(f"Target Phoenix Project (for tools): '{PROJECT_NAME}'", file=sys.stderr)
+    print("MCP Server interacting via Phoenix Python Client.", file=sys.stderr)
+    print("\nAvailable tools:", file=sys.stderr)
+    print("  1. check_health - Check if the Phoenix server UI is reachable via HTTP.", file=sys.stderr)
+    print("  2. list_traces - List recent traces (uses get_spans_dataframe + pandas filter). Args: limit, minutes_ago", file=sys.stderr)
+    print("  3. get_trace - Get all spans for a specific trace (uses get_spans_dataframe). Args: trace_id", file=sys.stderr)
     if not px_client:
-         print("\n--- Script Main Block: WARNING: Phoenix client connection failed. Tools might not function. ---")
+         print("\n--- Script Main Block: WARNING: Phoenix client connection failed. Tools might not function. ---", file=sys.stderr)
     else:
-         print("\n--- Script Main Block: Phoenix client seems connected. ---")
+         print("\n--- Script Main Block: Phoenix client seems connected. ---", file=sys.stderr)
 
     # --- Restore simple server.run() for stdio mode ---
-    print(f"--- Script Main Block: Starting server via server.run() (expecting stdio communication) ---")
-    sys.stdout.flush()
+    print(f"--- Script Main Block: Starting server via server.run() (expecting stdio communication) ---", file=sys.stderr)
+    # sys.stdout.flush() # No longer needed
     try:
         server.run() # No arguments, relies on stdio=True setting
     except Exception as e:
-        print(f"!!! Failed to start server. Error: {type(e).__name__}: {e}")
-        print(traceback.format_exc())
+        print(f"!!! Failed to start server. Error: {type(e).__name__}: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
-    print("--- Script Main Block: server finished (if run completed/exited) ---")
+    print("--- Script Main Block: server finished (if run completed/exited) ---", file=sys.stderr)

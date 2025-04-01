@@ -7,8 +7,8 @@ import re
 from typing import Dict, Optional
 
 # --- Configuration ---
-MCP_SERVER_URL = "http://localhost:5173" # Default port for FastMCP
-CALL_TOOL_ENDPOINT = f"{MCP_SERVER_URL}/call_tool" # Standard FastMCP endpoint
+MCP_SERVER_URL = "http://localhost:5174" # Use port 5174
+CALL_TOOL_ENDPOINT = f"{MCP_SERVER_URL}/call_tool" # Will use port 5174
 PLANNER_MODEL = "gpt-4o-mini"
 ANSWER_MODEL = "gpt-4o-mini"
 # Ensure OPENAI_API_KEY is set in your environment variables
