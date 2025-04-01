@@ -427,6 +427,7 @@ def get_inferences(
         paths = {role: INFERENCES_DIR / path for role, path in fixture.paths()}
     else:
         paths = dict(_download(fixture, INFERENCES_DIR))
+        assert all(isinstance(path, Path) for path in paths.values())
     primary_inferences = Inferences(
         read_parquet(paths[InferencesRole.PRIMARY]),
         fixture.primary_schema,
