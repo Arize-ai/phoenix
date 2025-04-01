@@ -1085,6 +1085,58 @@ class TestPrompts:
 
 
 class TestSpanAnnotations:
+    QUERY = """
+      mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {
+        createSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      mutation PatchSpanAnnotations($input: [PatchAnnotationInput!]!) {
+        patchSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      mutation DeleteSpanAnnotations($input: DeleteAnnotationsInput!) {
+        deleteSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      query GetSpanAnnotation($annotationId: GlobalID!) {
+        spanAnnotation: node(id: $annotationId) {
+          ... on SpanAnnotation {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      fragment SpanAnnotationFields on SpanAnnotation {
+        id
+        name
+        score
+        label
+        explanation
+        annotatorKind
+        metadata
+        source
+        identifier
+        spanId
+        user {
+          id
+          email
+          username
+        }
+      }
+    """
+
     async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
         self,
         _spans: Sequence[ReadableSpan],
@@ -1107,29 +1159,8 @@ class TestSpanAnnotations:
         # Create span annotation
         span_gid = str(GlobalID("Span", "1"))
         response, _ = logged_in_annotation_creator.gql(
-            query="""
-              mutation ($input: [CreateSpanAnnotationInput!]!) {
-                createSpanAnnotations(input: $input) {
-                  spanAnnotations {
-                    id
-                    name
-                    score
-                    label
-                    explanation
-                    annotatorKind
-                    metadata
-                    source
-                    identifier
-                    spanId
-                    user {
-                      id
-                      email
-                      username
-                    }
-                  }
-                }
-              }
-            """,
+            query=self.QUERY,
+            operation_name="CreateSpanAnnotations",
             variables={
                 "input": {
                     "spanId": span_gid,
@@ -1155,29 +1186,8 @@ class TestSpanAnnotations:
         for user in [logged_in_member, logged_in_admin]:
             with pytest.raises(RuntimeError) as exc_info:
                 response, _ = user.gql(
-                    query="""
-                      mutation ($input: [PatchAnnotationInput!]!) {
-                        patchSpanAnnotations(input: $input) {
-                          spanAnnotations {
-                            id
-                            name
-                            score
-                            label
-                            explanation
-                            annotatorKind
-                            metadata
-                            source
-                            identifier
-                            spanId
-                            user {
-                              id
-                              email
-                              username
-                            }
-                          }
-                        }
-                      }
-                    """,
+                    query=self.QUERY,
+                    operation_name="PatchSpanAnnotations",
                     variables={
                         "input": {
                             "annotationId": annotation_id,
@@ -1197,29 +1207,8 @@ class TestSpanAnnotations:
 
             # Check that the annotation remains unchanged
             response, _ = user.gql(
-                query="""
-                  query ($annotationId: GlobalID!) {
-                    spanAnnotation: node(id: $annotationId) {
-                      ... on SpanAnnotation {
-                        id
-                        name
-                        score
-                        label
-                        explanation
-                        annotatorKind
-                        metadata
-                        source
-                        identifier
-                        spanId
-                        user {
-                          id
-                          email
-                          username
-                        }
-                      }
-                    }
-                  }
-                """,
+                query=self.QUERY,
+                operation_name="GetSpanAnnotation",
                 variables={"annotationId": annotation_id},
             )
             span_annotation = response["data"]["spanAnnotation"]
@@ -1228,29 +1217,8 @@ class TestSpanAnnotations:
         # Only the user who created the annotation can delete
         with pytest.raises(RuntimeError) as exc_info:
             logged_in_member.gql(
-                query="""
-                mutation ($input: DeleteAnnotationsInput!) {
-                  deleteSpanAnnotations(input: $input) {
-                    spanAnnotations {
-                      id
-                      name
-                      score
-                      label
-                      explanation
-                      annotatorKind
-                      metadata
-                      source
-                      identifier
-                      spanId
-                      user {
-                        id
-                        email
-                        username
-                      }
-                    }
-                  }
-                }
-                """,
+                query=self.QUERY,
+                operation_name="DeleteSpanAnnotations",
                 variables={
                     "input": {
                         "annotationIds": [annotation_id],
@@ -1263,58 +1231,16 @@ class TestSpanAnnotations:
 
         # Check that the annotation remains unchanged
         response, _ = user.gql(
-            query="""
-              query ($annotationId: GlobalID!) {
-                spanAnnotation: node(id: $annotationId) {
-                  ... on SpanAnnotation {
-                    id
-                    name
-                    score
-                    label
-                    explanation
-                    annotatorKind
-                    metadata
-                    source
-                    identifier
-                    spanId
-                    user {
-                      id
-                      email
-                      username
-                    }
-                  }
-                }
-              }
-            """,
+            query=self.QUERY,
+            operation_name="GetSpanAnnotation",
             variables={"annotationId": annotation_id},
         )
         span_annotation = response["data"]["spanAnnotation"]
         assert span_annotation == original_span_annotation
 
         response, _ = logged_in_admin.gql(
-            query="""
-              mutation ($input: DeleteAnnotationsInput!) {
-                deleteSpanAnnotations(input: $input) {
-                  spanAnnotations {
-                    id
-                    name
-                    score
-                    label
-                    explanation
-                    annotatorKind
-                    metadata
-                    source
-                    identifier
-                    spanId
-                    user {
-                      id
-                      email
-                      username
-                    }
-                  }
-                }
-              }
-            """,
+            query=self.QUERY,
+            operation_name="DeleteSpanAnnotations",
             variables={
                 "input": {
                     "annotationIds": [annotation_id],
