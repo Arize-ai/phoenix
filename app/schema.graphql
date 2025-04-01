@@ -44,6 +44,12 @@ interface Annotation {
 
 union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
+interface AnnotationConfigBase {
+  name: String!
+  description: String
+  annotationType: AnnotationType!
+}
+
 """A connection to a list of items."""
 type AnnotationConfigConnection {
   """Pagination data for this connection"""
@@ -135,12 +141,12 @@ enum CanonicalParameterName {
   ANTHROPIC_EXTENDED_THINKING
 }
 
-type CategoricalAnnotationConfig implements Node {
+type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
-  annotationType: AnnotationType!
   description: String
+  annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   values: [CategoricalAnnotationValue!]!
 }
@@ -319,12 +325,12 @@ input ContentPartInput @oneOf {
   toolResult: ToolResultContentValueInput
 }
 
-type ContinuousAnnotationConfig implements Node {
+type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
-  annotationType: AnnotationType!
   description: String
+  annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   lowerBound: Float
   upperBound: Float

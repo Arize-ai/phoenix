@@ -15,6 +15,13 @@ class AnnotationType(Enum):
     FREEFORM = "FREEFORM"
 
 
+@strawberry.interface
+class AnnotationConfigBase:
+    name: str
+    description: Optional[str]
+    annotation_type: AnnotationType
+
+
 @strawberry.enum
 class OptimizationDirection(Enum):
     MINIMIZE = "MINIMIZE"
@@ -28,21 +35,15 @@ class CategoricalAnnotationValue:
 
 
 @strawberry.type
-class CategoricalAnnotationConfig(Node):
+class CategoricalAnnotationConfig(Node, AnnotationConfigBase):
     id_attr: NodeID[int]
-    name: str
-    annotation_type: AnnotationType
-    description: Optional[str]
     optimization_direction: OptimizationDirection
     values: List[CategoricalAnnotationValue]
 
 
 @strawberry.type
-class ContinuousAnnotationConfig(Node):
+class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
     id_attr: NodeID[int]
-    name: str
-    annotation_type: AnnotationType
-    description: Optional[str]
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float]
     upper_bound: Optional[float]
