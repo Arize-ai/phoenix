@@ -17,7 +17,7 @@ const REFRESH_INTERVAL_MS = 2000;
 /**
  * Routes where streaming is enabled
  */
-const STREAMING_ENABLED_ROUTE_TAILS = ["/spans", "/traces", "/sessions"];
+const STREAMING_ENABLED_ROUTE_TAILS = ["spans", "traces", "sessions"];
 
 export function StreamToggle(props: { project: StreamToggle_data$key }) {
   const {
@@ -78,7 +78,6 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
       onChange={() => {
         setIsStreaming(!isStreamingState);
       }}
-      isDisabled={!isStreamingEnabled}
     >
       Stream
     </Switch>
