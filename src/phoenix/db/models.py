@@ -799,6 +799,16 @@ class SpanAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    identifier: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        index=True,
+        unique=True,
+    )
+    source: Mapped[str] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 
 class TraceAnnotation(Base):
@@ -819,6 +829,16 @@ class TraceAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    identifier: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        index=True,
+        unique=True,
+    )
+    source: Mapped[str] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
 
 class DocumentAnnotation(Base):
@@ -840,6 +860,17 @@ class DocumentAnnotation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    identifier: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+        index=True,
+        unique=True,
+    )
+    source: Mapped[str] = mapped_column(
+        CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
 
