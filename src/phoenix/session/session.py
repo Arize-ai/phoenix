@@ -22,7 +22,7 @@ from phoenix.config import (
     ENV_PHOENIX_COLLECTOR_ENDPOINT,
     ENV_PHOENIX_HOST,
     ENV_PHOENIX_PORT,
-    ensure_working_dir,
+    ensure_working_dir_if_needed,
     get_env_database_connection_str,
     get_env_enable_websockets,
     get_env_host,
@@ -498,7 +498,7 @@ def launch_app(
 
     # First we must ensure that the working directory is setup
     # NB: this is because the working directory can be deleted by the user
-    ensure_working_dir()
+    ensure_working_dir_if_needed()
 
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:

@@ -7,9 +7,10 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Optional, cast, overload
+from typing import Any, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urlparse
 
+import wrapt
 from email_validator import EmailNotValidError, validate_email
 
 from phoenix.utilities.logging import log_a_list
@@ -144,7 +145,7 @@ ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account, which defaults to ‘admin’ if not
+The initial password for the default admin account, which defaults to 'admin' if not
 explicitly set. Note that changing this value will have no effect if the default admin
 record already exists in the database. In such cases, the default admin password must
 be updated manually in the application.
@@ -615,17 +616,138 @@ GENERATED_INFERENCES_NAME_PREFIX = "phoenix_inferences_"
 WORKING_DIR = get_working_dir()
 """The work directory for saving, loading, and exporting data."""
 
-ROOT_DIR = WORKING_DIR
-EXPORT_DIR = ROOT_DIR / "exports"
-INFERENCES_DIR = ROOT_DIR / "inferences"
-TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
+
+class DirectoryError(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None:
+            message = (
+                "Local storage is not configured. Please set the "
+                "PHOENIX_WORKING_DIR environment variable to fix this."
+            )
+        super().__init__(message)
 
 
-def ensure_working_dir() -> None:
+def get_env_postgres_connection_str() -> Optional[str]:
+    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
+    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
+    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
+    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
+
+    if pg_host and ":" in pg_host:
+        pg_host, parsed_port = pg_host.split(":")
+        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
+
+    if pg_host and pg_user and pg_password:
+        encoded_password = quote_plus(pg_password)
+        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+        if pg_port:
+            connection_str = f"{connection_str}:{pg_port}"
+        if pg_db:
+            connection_str = f"{connection_str}/{pg_db}"
+
+        return connection_str
+    return None
+
+
+def _no_local_storage() -> bool:
+    """
+    Check if we're using a postgres database by checking if postgres connection string is set
+    and a working directory was not explicitly set.
+    """
+    return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
+
+
+class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+    """
+    This wraps pathlib.Path and will raise a DirectoryError if no local storage is configured.
+
+    Users can forego configuring a working directory if they are using a postgres database. If this
+    condition is met, the working directory path wrapped by this object will raise an error when
+    accessed in any way.
+    """
+
+    def __init__(self, wrapped: Union[str, Path]) -> None:
+        super().__init__(Path(wrapped))
+        self.__wrapped__: Path
+
+    def _check_forbidden(self) -> None:
+        if _no_local_storage():
+            raise DirectoryError()
+        return
+
+    def __getattr__(self, name: str) -> Any:
+        attr = getattr(self.__wrapped__, name)
+
+        if callable(attr):
+
+            def wrapped_attr(*args: Any, **kwargs: Any) -> Any:
+                result = attr(*args, **kwargs)
+                if isinstance(result, Path):
+                    self._check_forbidden()
+                    return RestrictedPath(result)
+                elif hasattr(result, "__iter__") and not isinstance(result, (str, bytes)):
+                    return (RestrictedPath(p) if isinstance(p, Path) else p for p in result)
+                return result
+
+            return wrapped_attr
+        else:
+            if isinstance(attr, Path):
+                self._check_forbidden()
+                return RestrictedPath(attr)
+            return attr
+
+    def __str__(self) -> str:
+        self._check_forbidden()
+        return str(self.__wrapped__)
+
+    def __repr__(self) -> str:
+        return f"<RestrictedPath({repr(self.__wrapped__)})>"
+
+    def __fspath__(self) -> str:
+        self._check_forbidden()
+        return str(self.__wrapped__)
+
+    def __truediv__(self, other: Union[str, Path]) -> Path:
+        self._check_forbidden()
+        return self.__wrapped__ / other
+
+    def __itruediv__(self, other: Union[str, Path]) -> Path:
+        self.__wrapped__ /= other
+        self._check_forbidden()
+        return self.__wrapped__
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, RestrictedPath):
+            return bool(self.__wrapped__ == other.__wrapped__)
+        return bool(self.__wrapped__ == other)
+
+    def __hash__(self) -> int:
+        return hash(self.__wrapped__)
+
+    def __len__(self) -> int:
+        return len(self.__wrapped__.parts)
+
+    def __contains__(self, item: str) -> bool:
+        return item in self.__wrapped__.parts
+
+
+ROOT_DIR = RestrictedPath(WORKING_DIR)
+EXPORT_DIR = RestrictedPath(WORKING_DIR / "exports")
+INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
+TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
+
+
+def ensure_working_dir_if_needed() -> None:
     """
     Ensure the working directory exists. This is needed because the working directory
     must exist before certain operations can be performed.
+
+    This is bypassed if a postgres database is configured and a working directory is not set.
     """
+    if _no_local_storage():
+        pass
+
     logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:
         for path in (
@@ -644,8 +766,8 @@ def ensure_working_dir() -> None:
         raise
 
 
-# Invoke ensure_working_dir() to ensure the working directory exists
-ensure_working_dir()
+# Invoke ensure_working_dir_if_needed() to ensure the working directory exists
+ensure_working_dir_if_needed()
 
 
 def get_exported_files(directory: Path) -> list[Path]:
@@ -662,6 +784,8 @@ def get_exported_files(directory: Path) -> list[Path]:
     list: list[Path]
         List of paths of the exported files.
     """
+    if _no_local_storage():
+        return []  # Do not attempt to access local storage
     return list(directory.glob("*.parquet"))
 
 
@@ -732,29 +856,6 @@ def get_env_database_connection_str() -> str:
 
     working_dir = get_working_dir()
     return f"sqlite:///{working_dir}/phoenix.db"
-
-
-def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
-    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
-    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
-
-    if pg_host and ":" in pg_host:
-        pg_host, parsed_port = pg_host.split(":")
-        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
-
-    if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
-        if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
-        if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
-
-        return connection_str
-    return None
 
 
 def get_env_database_schema() -> Optional[str]:
