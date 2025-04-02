@@ -8,7 +8,7 @@ from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Optional, Union, cast, overload
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
@@ -181,6 +181,13 @@ will not start if this environment variable is set but cannot be parsed or conta
 If the username or email address already exists in the database, the user record will not be
 modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
 startup will not undo any records created in previous startups.
+"""
+ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
+"""
+This is the full URL used to access Phoenix from a web browser. This is important if you use OAuth
+authentication (for the callback URL to be correct). This setting is also important if you have a
+reverse proxy in front of Phoenix that exposes it through a sub-path. In that case add the sub-path
+to the end of this URL setting.
 """
 
 
@@ -824,7 +831,7 @@ def get_env_host() -> str:
 
 
 def get_env_host_root_path() -> str:
-    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+    if not (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)):
         return HOST_ROOT_PATH
     if not host_root_path.startswith("/"):
         raise ValueError(
@@ -890,7 +897,35 @@ def get_env_client_headers() -> dict[str, str]:
     return headers
 
 
+def get_env_root_url() -> str:
+    """
+    Get the root URL of the Phoenix server. If not provided in environment variables, constructs
+    one from HOST and PORT. This is necessary when Phoenix is behind a reverse proxy and is useful,
+    for example, when generating URLs for email templates.
+
+    Returns:
+        str: The root URL of the Phoenix server
+
+    Note:
+        This is intended to be a replacement for legacy `get_base_url()` helper function. In
+        particular, `get_env_collector_endpoint()` is really for the client and should be
+        deprecated on the server side.
+    """
+    if root_url := getenv(ENV_PHOENIX_ROOT_URL):
+        result = urlparse(root_url)
+        if not result.scheme or not result.netloc:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_ROOT_URL}` must be a valid URL."
+            )
+        return root_url
+    host = get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    return urljoin(f"http://{host}:{get_env_port()}", get_env_host_root_path())
+
+
 def get_base_url() -> str:
+    """Deprecated: Use get_env_base_url() instead, but note the difference in behavior."""
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"

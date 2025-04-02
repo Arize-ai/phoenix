@@ -1498,6 +1498,7 @@ class CreateUserInput(BaseModel):
     email: str
     password: str
     role: Literal["ADMIN", "MEMBER"]
+    sendWelcomeEmail: Optional[bool] = False
     username: str
 
 

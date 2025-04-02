@@ -7,6 +7,7 @@ from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     get_env_admins,
     get_env_postgres_connection_str,
+    get_env_root_url,
 )
 
 
@@ -242,4 +243,112 @@ class TestGetEnvStartupAdmins:
         monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
         with pytest.raises(ValueError) as e:
             get_env_admins()
+        assert expected_error_msg in str(e.value)
+
+
+class TestGetEnvRootUrl:
+    @pytest.mark.parametrize(
+        "env_vars, expected_url",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_ROOT_URL": "https://example.com",
+                    "PHOENIX_HOST": "0.0.0.0",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+                },
+                "https://example.com",
+                id="explicit_root_url",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "localhost",
+                    "PHOENIX_PORT": "8080",
+                    "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+                },
+                "http://localhost:8080/phoenix",
+                id="constructed_url_with_root_path",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "0.0.0.0",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "",
+                },
+                "http://127.0.0.1:6006",
+                id="constructed_url_with_0.0.0.0_host",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_HOST": "example.com",
+                    "PHOENIX_PORT": "443",
+                    "PHOENIX_HOST_ROOT_PATH": "/app",
+                },
+                "http://example.com:443/app",
+                id="constructed_url_with_domain",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ROOT_URL": "https://example.com/",
+                    "PHOENIX_HOST": "localhost",
+                    "PHOENIX_PORT": "6006",
+                    "PHOENIX_HOST_ROOT_PATH": "/phoenix",
+                },
+                "https://example.com/",
+                id="explicit_root_url_with_trailing_slash",
+            ),
+        ],
+    )
+    def test_valid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_url: str,
+    ) -> None:
+        # Set environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+        # Delete any env vars not in env_vars to ensure clean state
+        for key in ["PHOENIX_ROOT_URL", "PHOENIX_HOST", "PHOENIX_PORT", "PHOENIX_HOST_ROOT_PATH"]:
+            if key not in env_vars:
+                monkeypatch.delenv(key, raising=False)
+
+        assert get_env_root_url() == expected_url
+
+    @pytest.mark.parametrize(
+        "env_vars, expected_error_msg",
+        [
+            pytest.param(
+                {"PHOENIX_ROOT_URL": "not_a_url"},
+                "must be a valid URL",
+                id="invalid_root_url",
+            ),
+            pytest.param(
+                {"PHOENIX_HOST_ROOT_PATH": "no_leading_slash"},
+                "must start with '/'",
+                id="invalid_root_path_no_leading_slash",
+            ),
+            pytest.param(
+                {"PHOENIX_HOST_ROOT_PATH": "/trailing/slash/"},
+                "cannot end with '/'",
+                id="invalid_root_path_trailing_slash",
+            ),
+        ],
+    )
+    def test_invalid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_error_msg: str,
+    ) -> None:
+        # Set environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+        # Delete any env vars not in env_vars to ensure clean state
+        for key in ["PHOENIX_ROOT_URL", "PHOENIX_HOST", "PHOENIX_PORT", "PHOENIX_HOST_ROOT_PATH"]:
+            if key not in env_vars:
+                monkeypatch.delenv(key, raising=False)
+
+        with pytest.raises(ValueError) as e:
+            get_env_root_url()
         assert expected_error_msg in str(e.value)
