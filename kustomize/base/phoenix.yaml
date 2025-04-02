@@ -28,7 +28,7 @@ spec:
                         value: /mnt/data
                       - name: PHOENIX_PORT
                         value: "6006"
-                  image: arizephoenix/phoenix:version-8.20.0
+                  image: arizephoenix/phoenix:version-8.21.0
                   name: phoenix
                   ports:
                       - containerPort: 6006
