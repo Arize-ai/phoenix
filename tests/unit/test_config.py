@@ -2,6 +2,7 @@ from urllib.parse import quote_plus
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
+from starlette.datastructures import URL
 
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
@@ -257,7 +258,7 @@ class TestGetEnvRootUrl:
                     "PHOENIX_PORT": "6006",
                     "PHOENIX_HOST_ROOT_PATH": "/phoenix",
                 },
-                "https://example.com",
+                URL("https://example.com"),
                 id="explicit_root_url",
             ),
             pytest.param(
@@ -266,7 +267,7 @@ class TestGetEnvRootUrl:
                     "PHOENIX_PORT": "8080",
                     "PHOENIX_HOST_ROOT_PATH": "/phoenix",
                 },
-                "http://localhost:8080/phoenix",
+                URL("http://localhost:8080/phoenix"),
                 id="constructed_url_with_root_path",
             ),
             pytest.param(
@@ -275,7 +276,7 @@ class TestGetEnvRootUrl:
                     "PHOENIX_PORT": "6006",
                     "PHOENIX_HOST_ROOT_PATH": "",
                 },
-                "http://127.0.0.1:6006",
+                URL("http://127.0.0.1:6006"),
                 id="constructed_url_with_0.0.0.0_host",
             ),
             pytest.param(
@@ -284,7 +285,7 @@ class TestGetEnvRootUrl:
                     "PHOENIX_PORT": "443",
                     "PHOENIX_HOST_ROOT_PATH": "/app",
                 },
-                "http://example.com:443/app",
+                URL("http://example.com:443/app"),
                 id="constructed_url_with_domain",
             ),
             pytest.param(
@@ -294,7 +295,7 @@ class TestGetEnvRootUrl:
                     "PHOENIX_PORT": "6006",
                     "PHOENIX_HOST_ROOT_PATH": "/phoenix",
                 },
-                "https://example.com/",
+                URL("https://example.com/"),
                 id="explicit_root_url_with_trailing_slash",
             ),
         ],
@@ -303,16 +304,10 @@ class TestGetEnvRootUrl:
         self,
         monkeypatch: MonkeyPatch,
         env_vars: dict[str, str],
-        expected_url: str,
+        expected_url: URL,
     ) -> None:
-        # Set environment variables
         for key, value in env_vars.items():
             monkeypatch.setenv(key, value)
-        # Delete any env vars not in env_vars to ensure clean state
-        for key in ["PHOENIX_ROOT_URL", "PHOENIX_HOST", "PHOENIX_PORT", "PHOENIX_HOST_ROOT_PATH"]:
-            if key not in env_vars:
-                monkeypatch.delenv(key, raising=False)
-
         assert get_env_root_url() == expected_url
 
     @pytest.mark.parametrize(
@@ -341,14 +336,8 @@ class TestGetEnvRootUrl:
         env_vars: dict[str, str],
         expected_error_msg: str,
     ) -> None:
-        # Set environment variables
         for key, value in env_vars.items():
             monkeypatch.setenv(key, value)
-        # Delete any env vars not in env_vars to ensure clean state
-        for key in ["PHOENIX_ROOT_URL", "PHOENIX_HOST", "PHOENIX_PORT", "PHOENIX_HOST_ROOT_PATH"]:
-            if key not in env_vars:
-                monkeypatch.delenv(key, raising=False)
-
         with pytest.raises(ValueError) as e:
             get_env_root_url()
         assert expected_error_msg in str(e.value)

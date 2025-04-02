@@ -12,6 +12,7 @@ from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
 from email_validator import EmailNotValidError, validate_email
+from starlette.datastructures import URL
 
 from phoenix.utilities.logging import log_a_list
 
@@ -897,14 +898,14 @@ def get_env_client_headers() -> dict[str, str]:
     return headers
 
 
-def get_env_root_url() -> str:
+def get_env_root_url() -> URL:
     """
     Get the root URL of the Phoenix server. If not provided in environment variables, constructs
     one from HOST and PORT. This is necessary when Phoenix is behind a reverse proxy and is useful,
     for example, when generating URLs for email templates.
 
     Returns:
-        str: The root URL of the Phoenix server
+        URL: The root URL of the Phoenix server
 
     Note:
         This is intended to be a replacement for legacy `get_base_url()` helper function. In
@@ -917,11 +918,11 @@ def get_env_root_url() -> str:
             raise ValueError(
                 f"The environment variable `{ENV_PHOENIX_ROOT_URL}` must be a valid URL."
             )
-        return root_url
+        return URL(root_url)
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    return urljoin(f"http://{host}:{get_env_port()}", get_env_host_root_path())
+    return URL(urljoin(f"http://{host}:{get_env_port()}", get_env_host_root_path()))
 
 
 def get_base_url() -> str:

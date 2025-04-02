@@ -50,7 +50,7 @@ class SimpleEmailSender:
         template = self.env.get_template(template_name)
         html_content = template.render(
             name=name,
-            welcome_url=get_env_root_url(),
+            welcome_url=str(get_env_root_url()),
         )
 
         msg = EmailMessage()
