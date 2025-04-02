@@ -639,6 +639,9 @@ async def span_annotation(db: DbSessionFactory) -> None:
             label="ambiguous",
             score=0.5,
             explanation="meaningful words",
+            identifier=None,
+            source="APP",
+            user_id=None,
         )
         session.add(span_annotation)
         await session.flush()

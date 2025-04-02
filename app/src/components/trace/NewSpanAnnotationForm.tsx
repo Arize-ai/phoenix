@@ -37,6 +37,7 @@ export function NewSpanAnnotationForm(props: NewSpanAnnotationFormProps) {
           spanId: spanNodeId,
           annotatorKind: "HUMAN",
           ...data,
+          source: "APP",
         },
         spanId: spanNodeId,
       },
