@@ -331,6 +331,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/prompt_versions/{prompt_version_id}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get tags for a prompt version
+         * @description Get tags for a specific prompt version.
+         *
+         *     Args:
+         *         request (Request): The request object.
+         *         prompt_version_id (str): The ID of the prompt version.
+         *
+         *     Returns:
+         *         GetPromptVersionTagsResponseBody: The response body containing the tags.
+         */
+        get: operations["getPromptVersionTags"];
+        put?: never;
+        /** Add tag to a prompt version */
+        post: operations["createPromptVersionTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -536,6 +564,11 @@ export interface components {
         /** GetPromptResponseBody */
         GetPromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** GetPromptVersionTagsResponseBody */
+        GetPromptVersionTagsResponseBody: {
+            /** Data */
+            data: components["schemas"]["PromptVersionTag"][];
         };
         /** GetPromptVersionsResponseBody */
         GetPromptVersionsResponseBody: {
@@ -912,6 +945,20 @@ export interface components {
             tools?: components["schemas"]["PromptTools"] | null;
             /** Response Format */
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+        };
+        /** PromptVersionTag */
+        PromptVersionTag: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+        };
+        /** PromptVersionTagData */
+        PromptVersionTagData: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
         };
         /** SpanAnnotation */
         SpanAnnotation: {
@@ -2123,6 +2170,108 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["GetPromptResponseBody"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getPromptVersionTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the prompt version. */
+                prompt_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetPromptVersionTagsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createPromptVersionTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the prompt version. */
+                prompt_version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptVersionTagData"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {
