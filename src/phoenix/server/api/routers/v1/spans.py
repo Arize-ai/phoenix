@@ -180,7 +180,13 @@ class SpanAnnotation(V1RoutesBaseModel):
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
-    identifier: Optional[str] = Field(default=None, description="The identifier of the annotation")
+    identifier: Optional[str] = Field(
+        default=None,
+        description=(
+            "The identifier of the annotation. "
+            "If provided, the annotation will be updated if it already exists."
+        ),
+    )
 
     def as_precursor(self) -> Precursors.SpanAnnotation:
         return Precursors.SpanAnnotation(
