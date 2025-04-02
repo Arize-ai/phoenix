@@ -659,6 +659,14 @@ def _no_local_storage() -> bool:
 
 
 class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+    """
+    This wraps pathlib.Path and will raise a DirectoryError if no local storage is configured.
+
+    Users can forego configuring a working directory if they are using a postgres database. If this
+    condition is met, the working directory path wrapped by this object will raise an error when
+    accessed in any way.
+    """
+
     def __init__(self, wrapped: Union[str, Path]) -> None:
         super().__init__(Path(wrapped))
         self.__wrapped__: Path
