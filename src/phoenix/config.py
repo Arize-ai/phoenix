@@ -661,6 +661,7 @@ def _no_local_storage() -> bool:
 class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
     def __init__(self, wrapped: Union[str, Path]) -> None:
         super().__init__(Path(wrapped))
+        self.__wrapped__: Path
 
     def _check_forbidden(self) -> None:
         if _no_local_storage():
@@ -699,14 +700,14 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
         self._check_forbidden()
         return str(self.__wrapped__)
 
-    def __truediv__(self, other: Union[str, Path]) -> "RestrictedPath":
-        new_path = self.__wrapped__ / other
-        return RestrictedPath(new_path)
+    def __truediv__(self, other: Union[str, Path]) -> Path:
+        self._check_forbidden()
+        return self.__wrapped__ / other
 
-    def __itruediv__(self, other: Union[str, Path]) -> "RestrictedPath":
+    def __itruediv__(self, other: Union[str, Path]) -> Path:
         self.__wrapped__ /= other
         self._check_forbidden()
-        return self
+        return self.__wrapped__
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, RestrictedPath):
