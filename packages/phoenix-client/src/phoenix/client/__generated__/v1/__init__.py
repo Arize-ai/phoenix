@@ -183,6 +183,17 @@ class PromptToolFunctionDefinition(TypedDict):
     strict: NotRequired[bool]
 
 
+class PromptVersionTag(TypedDict):
+    name: str
+    id: str
+    description: NotRequired[str]
+
+
+class PromptVersionTagData(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
 class SpanAnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -226,6 +237,10 @@ class AnnotateSpansResponseBody(TypedDict):
 
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
+
+
+class GetPromptVersionTagsResponseBody(TypedDict):
+    data: Sequence[PromptVersionTag]
 
 
 class GetPromptsResponseBody(TypedDict):

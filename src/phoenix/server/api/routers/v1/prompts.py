@@ -6,11 +6,13 @@ from pydantic import ValidationError, model_validator
 from sqlalchemy import select
 from sqlalchemy.sql import Select
 from starlette.requests import Request
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import HTTP_204_NO_CONTENT, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.models import (
@@ -26,6 +28,7 @@ from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_resp
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
 from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag as PromptVersionTagNodeType
 from phoenix.server.bearer_auth import PhoenixUser
 
 logger = logging.getLogger(__name__)
@@ -356,6 +359,129 @@ async def create_prompt(
         session.add(version_orm)
     data = _prompt_version_from_orm_version(version_orm)
     return CreatePromptResponseBody(data=data)
+
+
+class PromptVersionTagData(V1RoutesBaseModel):
+    name: Identifier
+    description: Optional[str] = None
+
+
+class PromptVersionTag(PromptVersionTagData):
+    id: str
+
+
+class GetPromptVersionTagsResponseBody(ResponseBody[list[PromptVersionTag]]):
+    pass
+
+
+@router.get(
+    "/prompt_versions/{prompt_version_id}/tags",
+    operation_id="getPromptVersionTags",
+    summary="Get tags for a prompt version",
+    responses=add_errors_to_responses(
+        [
+            HTTP_404_NOT_FOUND,
+        ]
+    ),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def get_prompt_version_tags(
+    request: Request,
+    prompt_version_id: str = Path(description="The ID of the prompt version."),
+) -> GetPromptVersionTagsResponseBody:
+    """
+    Get tags for a specific prompt version.
+
+    Args:
+        request (Request): The request object.
+        prompt_version_id (str): The ID of the prompt version.
+
+    Returns:
+        GetPromptVersionTagsResponseBody: The response body containing the tags.
+    """
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_version_id),
+            PromptVersionNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+    stmt = (
+        select(
+            models.PromptVersion.id,
+            models.PromptVersionTag.id,
+            models.PromptVersionTag.name,
+            models.PromptVersionTag.description,
+        )
+        .outerjoin_from(models.PromptVersion, models.PromptVersionTag)
+        .where(models.PromptVersion.id == id_)
+    )
+    async with request.app.state.db() as session:
+        result = (await session.execute(stmt)).all()
+    if not result:
+        raise HTTPException(HTTP_404_NOT_FOUND)
+    data = [
+        PromptVersionTag(
+            id=str(GlobalID(PromptVersionTagNodeType.__name__, str(id_))),
+            name=name,
+            description=description,
+        )
+        for _, id_, name, description in result
+        if id_ is not None
+    ]
+    return GetPromptVersionTagsResponseBody(data=data)
+
+
+@router.post(
+    "/prompt_versions/{prompt_version_id}/tags",
+    operation_id="createPromptVersionTag",
+    summary="Add tag to a prompt version",
+    status_code=HTTP_204_NO_CONTENT,
+    responses=add_errors_to_responses(
+        [
+            HTTP_404_NOT_FOUND,
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def create_prompt_version_tag(
+    request: Request,
+    request_body: PromptVersionTagData,
+    prompt_version_id: str = Path(description="The ID of the prompt version."),
+) -> None:
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(prompt_version_id),
+            PromptVersionNodeType.__name__,
+        )
+    except ValueError:
+        raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
+        if prompt_id is None:
+            raise HTTPException(HTTP_404_NOT_FOUND)
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        values = dict(
+            name=request_body.name,
+            description=request_body.description,
+            prompt_id=prompt_id,
+            prompt_version_id=id_,
+        )
+        await session.execute(
+            insert_on_conflict(
+                values,
+                dialect=dialect,
+                table=models.PromptVersionTag,
+                unique_by=("name", "prompt_id"),
+                on_conflict=OnConflict.DO_UPDATE,
+            )
+        )
+    return None
 
 
 class _PromptId(int): ...

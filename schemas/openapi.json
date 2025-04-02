@@ -1720,6 +1720,136 @@
           }
         }
       }
+    },
+    "/v1/prompt_versions/{prompt_version_id}/tags": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Get tags for a prompt version",
+        "description": "Get tags for a specific prompt version.\n\nArgs:\n    request (Request): The request object.\n    prompt_version_id (str): The ID of the prompt version.\n\nReturns:\n    GetPromptVersionTagsResponseBody: The response body containing the tags.",
+        "operationId": "getPromptVersionTags",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptVersionTagsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Add tags to a prompt version",
+        "operationId": "addTagsToPromptVersion",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptVersionTagData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2134,6 +2264,22 @@
           "data"
         ],
         "title": "GetPromptResponseBody"
+      },
+      "GetPromptVersionTagsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PromptVersionTag"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetPromptVersionTagsResponseBody"
       },
       "GetPromptVersionsResponseBody": {
         "properties": {
@@ -3245,6 +3391,57 @@
           "invocation_parameters"
         ],
         "title": "PromptVersionData"
+      },
+      "PromptVersionTag": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id"
+        ],
+        "title": "PromptVersionTag"
+      },
+      "PromptVersionTagData": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptVersionTagData"
       },
       "SpanAnnotation": {
         "properties": {

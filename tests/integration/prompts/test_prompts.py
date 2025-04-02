@@ -969,3 +969,101 @@ class TestClient:
             assert prompt._template_format == template_format
             params = prompt.format(formatter=NO_OP_FORMATTER)
             assert not DeepDiff(expected, {**params})
+
+    def test_version_tags(
+        self,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test the version tagging functionality for prompts.
+
+        This test verifies that:
+        1. Tags can be created for prompt versions
+        2. Tags are associated with specific versions, not the prompt itself
+        3. Tags contain the expected name and description
+        4. Only one version can have a tag with a given name - creating a tag with the same name
+           for a different version will remove it from the previous version
+        """
+        # Set up test environment with logged in user
+        u = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        prompt_identifier = token_hex(16)
+        from phoenix.client import Client
+
+        client = Client()
+
+        # Create initial version of the prompt
+        version = PromptVersion(
+            [{"role": "user", "content": "hello {x}"}],
+            model_name=token_hex(8),
+        )
+        prompt1 = client.prompts.create(
+            name=prompt_identifier,
+            version=version,
+        )
+        assert prompt1.id
+
+        # Verify no tags exist initially
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt1.id,
+        )
+        assert not tags
+
+        # Create a tag for the first version with a random name and description
+        # Using random hex values ensures uniqueness and prevents test interference
+        tag_name = token_hex(8)
+        tag_description = token_hex(16)
+        client.prompts.tags.create(
+            prompt_version_id=prompt1.id,
+            name=tag_name,
+            description=tag_description,
+        )
+
+        # Verify tag was created with correct attributes
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt1.id,
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
+        assert tags[0]["description"] == tag_description
+
+        # Create a second version of the same prompt
+        prompt2 = client.prompts.create(
+            name=prompt_identifier,
+            version=version,
+        )
+        assert prompt2.id
+
+        # Verify second version has no tags initially
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt2.id,
+        )
+        assert not tags
+
+        # Create a tag with the same name for the second version.
+        # This will automatically remove the tag from the first version
+        # due to tag name uniqueness.
+        tag_description = token_hex(16)
+        client.prompts.tags.create(
+            prompt_version_id=prompt2.id,
+            name=tag_name,
+            description=tag_description,
+        )
+
+        # Verify tag was created for second version with the new description
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt2.id,
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
+        assert tags[0]["description"] == tag_description
+
+        # Verify first version's tag was automatically removed when we created
+        # the tag for the second version. This demonstrates that tag names must
+        # be unique across all versions.
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt1.id,
+        )
+        assert not tags

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import Optional, cast
 from urllib.parse import quote_plus
@@ -24,6 +26,10 @@ class Prompts:
 
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
+
+    @property
+    def tags(self) -> PromptVersionTags:
+        return PromptVersionTags(self._client)
 
     def get(
         self,
@@ -88,6 +94,46 @@ class Prompts:
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
 
+class PromptVersionTags:
+    """
+    Provides methods for interacting with prompt version tags.
+
+    This class allows you to retrieve and create prompt version tags.
+
+    Example:
+        Basic usage:
+            >>> from phoenix.client import Client
+            >>> Client().prompts.tags.get(prompt_version_id="...")
+    """
+
+    def __init__(self, client: httpx.Client) -> None:
+        self._client = client
+
+    def create(
+        self,
+        *,
+        prompt_version_id: str,
+        name: str,
+        description: Optional[str] = None,
+    ) -> None:
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        data = v1.PromptVersionTagData(name=name)
+        if description:
+            data["description"] = description
+        response = self._client.post(url, json=data)
+        response.raise_for_status()
+
+    def get(
+        self,
+        *,
+        prompt_version_id: str,
+    ) -> list[v1.PromptVersionTag]:
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        response = self._client.get(url)
+        response.raise_for_status()
+        return list(cast(v1.GetPromptVersionTagsResponseBody, response.json())["data"])
+
+
 class AsyncPrompts:
     """
     Provides asynchronous methods for interacting with prompt resources.
@@ -102,6 +148,10 @@ class AsyncPrompts:
 
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
+
+    @property
+    def tags(self) -> AsyncPromptVersionTags:
+        return AsyncPromptVersionTags(self._client)
 
     async def get(
         self,
@@ -164,6 +214,46 @@ class AsyncPrompts:
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+
+
+class AsyncPromptVersionTags:
+    """
+    Provides methods for interacting with prompt version tags.
+
+    This class allows you to retrieve and create prompt version tags.
+
+    Example:
+        Basic usage:
+            >>> from phoenix.client import Client
+            >>> await Client().prompts.tags.get(prompt_version_id="...")
+    """
+
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._client = client
+
+    async def create(
+        self,
+        *,
+        prompt_version_id: str,
+        name: str,
+        description: Optional[str] = None,
+    ) -> None:
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        data = v1.PromptVersionTagData(name=name)
+        if description:
+            data["description"] = description
+        response = await self._client.post(url, json=data)
+        response.raise_for_status()
+
+    async def get(
+        self,
+        *,
+        prompt_version_id: str,
+    ) -> list[v1.PromptVersionTag]:
+        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        response = await self._client.get(url)
+        response.raise_for_status()
+        return list(cast(v1.GetPromptVersionTagsResponseBody, response.json())["data"])
 
 
 def _url(
