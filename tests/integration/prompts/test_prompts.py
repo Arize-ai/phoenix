@@ -983,14 +983,17 @@ class TestClient:
         3. Tags contain the expected name and description
         4. Only one version can have a tag with a given name - creating a tag with the same name
            for a different version will remove it from the previous version
+        5. Different prompts can have tags with the same name without affecting each other
         """
         # Set up test environment with logged in user
         u = _get_user(_MEMBER).log_in()
         monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
-        prompt_identifier = token_hex(16)
         from phoenix.client import Client
 
         client = Client()
+
+        # First test: Verify tag name uniqueness within same prompt
+        prompt_identifier = token_hex(16)
 
         # Create initial version of the prompt
         version = PromptVersion(
@@ -1044,11 +1047,11 @@ class TestClient:
         # Create a tag with the same name for the second version.
         # This will automatically remove the tag from the first version
         # due to tag name uniqueness.
-        tag_description = token_hex(16)
+        tag_description2 = token_hex(16)
         client.prompts.tags.create(
             prompt_version_id=prompt2.id,
             name=tag_name,
-            description=tag_description,
+            description=tag_description2,
         )
 
         # Verify tag was created for second version with the new description
@@ -1058,7 +1061,7 @@ class TestClient:
         assert len(tags) == 1
         assert tags[0]["name"] == tag_name
         assert "description" in tags[0]
-        assert tags[0]["description"] == tag_description
+        assert tags[0]["description"] == tag_description2
 
         # Verify first version's tag was automatically removed when we created
         # the tag for the second version. This demonstrates that tag names must
@@ -1067,3 +1070,37 @@ class TestClient:
             prompt_version_id=prompt1.id,
         )
         assert not tags
+
+        # Second test: Verify tag name uniqueness is not enforced across different prompts
+        # Create a new prompt with a different identifier
+        new_prompt_identifier = token_hex(16)
+        prompt3 = client.prompts.create(
+            name=new_prompt_identifier,
+            version=version,
+        )
+        assert prompt3.id
+
+        # Create a tag with the same name for the new prompt
+        # This should NOT affect the tag on prompt2 since they're different prompts
+        tag_description3 = token_hex(16)
+        client.prompts.tags.create(
+            prompt_version_id=prompt3.id,
+            name=tag_name,
+            description=tag_description3,
+        )
+
+        # Verify tag was created for the new prompt
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt3.id,
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert tags[0]["description"] == tag_description3
+
+        # Verify prompt2's tag was NOT affected since it's a different prompt
+        tags = client.prompts.tags.get(
+            prompt_version_id=prompt2.id,
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert tags[0]["description"] == tag_description2
