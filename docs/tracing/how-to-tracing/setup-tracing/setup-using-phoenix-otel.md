@@ -109,8 +109,10 @@ tracer_provider = register(
 
 `register` can be configured with different keyword arguments:
 
-* `project_name`: The Phoenix project name (or `PHOENIX_PROJECT_NAME` env. var)
-* `headers`: Headers to send along with each span payload (or `PHOENIX_CLIENT_HEADERS` env. var)
+* `project_name`: The Phoenix project name
+  * or use `PHOENIX_PROJECT_NAME` env. var
+* `headers`: Headers to send along with each span payload
+  * or use `PHOENIX_CLIENT_HEADERS` env. var
 * `batch`: Whether or not to process spans in batch
 
 ```python
