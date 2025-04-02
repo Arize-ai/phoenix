@@ -900,15 +900,13 @@ def get_env_client_headers() -> dict[str, str]:
 
 def get_env_root_url() -> URL:
     """
-    Get the root URL of the Phoenix server. If not provided in environment variables, constructs
-    one from HOST and PORT. This is necessary when Phoenix is behind a reverse proxy and is useful,
-    for example, when generating URLs for email templates.
+    Get the URL used to access Phoenix from a web browser
 
     Returns:
         URL: The root URL of the Phoenix server
 
     Note:
-        This is intended to be a replacement for legacy `get_base_url()` helper function. In
+        This is intended to replace the legacy `get_base_url()` helper function. In
         particular, `get_env_collector_endpoint()` is really for the client and should be
         deprecated on the server side.
     """
@@ -1086,3 +1084,8 @@ DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
+
+
+def verify_server_environment_variables() -> None:
+    """Verify that the environment variables are set correctly. Raises an error otherwise."""
+    get_env_root_url()

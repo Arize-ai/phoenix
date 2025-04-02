@@ -59,6 +59,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
+    verify_server_environment_variables,
 )
 from phoenix.core.model_schema import Model
 from phoenix.db import models
@@ -770,6 +771,7 @@ def create_app(
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
+    verify_server_environment_variables()
     if model.embedding_dimensions:
         try:
             import fast_hdbscan  # noqa: F401
