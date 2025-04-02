@@ -132,8 +132,9 @@ class _User:
         self,
         query: str,
         variables: Optional[Mapping[str, Any]] = None,
+        operation_name: Optional[str] = None,
     ) -> tuple[dict[str, Any], Headers]:
-        return _gql(self, query=query, variables=variables)
+        return _gql(self, query=query, variables=variables, operation_name=operation_name)
 
     def create_user(
         self,
@@ -685,8 +686,9 @@ def _gql(
     *,
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
+    operation_name: Optional[str] = None,
 ) -> tuple[dict[str, Any], Headers]:
-    json_ = dict(query=query, variables=dict(variables or {}))
+    json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
     resp = _httpx_client(auth).post("graphql", json=json_)
     return _json(resp), resp.headers
 
