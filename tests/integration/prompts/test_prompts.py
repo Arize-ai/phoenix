@@ -1015,11 +1015,11 @@ class TestClient:
         # Create a tag for the first version with a random name and description
         # Using random hex values ensures uniqueness and prevents test interference
         tag_name = token_hex(8)
-        tag_description = token_hex(16)
+        tag_description1 = token_hex(16)
         client.prompts.tags.create(
             prompt_version_id=prompt1.id,
             name=tag_name,
-            description=tag_description,
+            description=tag_description1,
         )
 
         # Verify tag was created with correct attributes
@@ -1029,7 +1029,7 @@ class TestClient:
         assert len(tags) == 1
         assert tags[0]["name"] == tag_name
         assert "description" in tags[0]
-        assert tags[0]["description"] == tag_description
+        assert tags[0]["description"] == tag_description1
 
         # Create a second version of the same prompt
         prompt2 = client.prompts.create(
@@ -1095,6 +1095,7 @@ class TestClient:
         )
         assert len(tags) == 1
         assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
         assert tags[0]["description"] == tag_description3
 
         # Verify prompt2's tag was NOT affected since it's a different prompt
@@ -1103,4 +1104,5 @@ class TestClient:
         )
         assert len(tags) == 1
         assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
         assert tags[0]["description"] == tag_description2

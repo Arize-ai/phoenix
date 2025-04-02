@@ -1789,8 +1789,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Add tags to a prompt version",
-        "operationId": "addTagsToPromptVersion",
+        "summary": "Add tag to a prompt version",
+        "operationId": "createPromptVersionTag",
         "parameters": [
           {
             "name": "prompt_version_id",
