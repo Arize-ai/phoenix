@@ -1114,7 +1114,7 @@ export interface components {
             } | null;
             /**
              * Identifier
-             * @description The identifier of the annotation
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
              */
             identifier?: string | null;
         };

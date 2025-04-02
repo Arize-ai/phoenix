@@ -2329,6 +2329,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -2447,6 +2448,7 @@
             "title": "Description"
           },
           "metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
           },
@@ -2479,14 +2481,17 @@
             "title": "Id"
           },
           "input": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Input"
           },
           "output": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Output"
           },
           "metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
           },
@@ -2524,6 +2529,7 @@
             "title": "Description"
           },
           "metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
           },
@@ -2564,6 +2570,7 @@
             "title": "Description"
           },
           "metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
           },
@@ -2617,6 +2624,7 @@
             "description": "Number of times the experiment is repeated"
           },
           "metadata": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Metadata",
             "description": "Metadata of the experiment"
@@ -3355,6 +3363,7 @@
             "title": "Description"
           },
           "schema": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Schema"
           },
@@ -3502,6 +3511,7 @@
             "title": "Description"
           },
           "parameters": {
+            "additionalProperties": true,
             "type": "object",
             "title": "Parameters"
           },
@@ -3847,6 +3857,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -4025,6 +4036,7 @@
                 "type": "string"
               },
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
