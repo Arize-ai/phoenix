@@ -14,7 +14,7 @@ These defaults are aware of environment variables you may have set to configure 
 * `PHOENIX_API_KEY`
 * `PHOENIX_GRPC_PORT`&#x20;
 
-## Quick setup using `register`&#x20;
+## Quickstart: `phoenix.otel.register`&#x20;
 
 The `phoenix.otel` module provides a high-level `register` function to configure OpenTelemetry tracing by setting a global `TracerProvider`. The register function can also configure headers and whether or not to process spans one by one or by batch.
 
