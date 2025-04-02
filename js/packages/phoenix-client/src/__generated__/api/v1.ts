@@ -530,11 +530,772 @@ export interface paths {
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /** AnnotateSpansRequestBody */
-    AnnotateSpansRequestBody: {
-      /** Data */
-      data: components["schemas"]["SpanAnnotation"][];
+    schemas: {
+        /** AnnotateSpansRequestBody */
+        AnnotateSpansRequestBody: {
+            /** Data */
+            data: components["schemas"]["SpanAnnotation"][];
+        };
+        /** AnnotateSpansResponseBody */
+        AnnotateSpansResponseBody: {
+            /** Data */
+            data: components["schemas"]["InsertedSpanAnnotation"][];
+        };
+        /** AnnotationConfigResponse */
+        AnnotationConfigResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            annotation_type: components["schemas"]["AnnotationType"];
+            optimization_direction?: components["schemas"]["OptimizationDirection"] | null;
+            /** Description */
+            description?: string | null;
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+            /** Values */
+            values?: components["schemas"]["CategoricalAnnotationValue"][] | null;
+        };
+        /**
+         * AnnotationType
+         * @enum {string}
+         */
+        AnnotationType: "CONTINUOUS" | "CATEGORICAL" | "FREEFORM";
+        /** CategoricalAnnotationValue */
+        CategoricalAnnotationValue: {
+            /** Label */
+            label: string;
+            /** Score */
+            score?: number | null;
+        };
+        /** CreateCategoricalAnnotationConfigPayload */
+        CreateCategoricalAnnotationConfigPayload: {
+            /** Name */
+            name: string;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Description */
+            description?: string | null;
+            /** Values */
+            values: components["schemas"]["CreateCategoricalAnnotationValuePayload"][];
+        };
+        /** CreateCategoricalAnnotationValuePayload */
+        CreateCategoricalAnnotationValuePayload: {
+            /** Label */
+            label: string;
+            /** Score */
+            score?: number | null;
+        };
+        /** CreateContinuousAnnotationConfigPayload */
+        CreateContinuousAnnotationConfigPayload: {
+            /** Name */
+            name: string;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Description */
+            description?: string | null;
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+        };
+        /**
+         * CreateExperimentRequestBody
+         * @description Details of the experiment to be created
+         */
+        CreateExperimentRequestBody: {
+            /**
+             * Name
+             * @description Name of the experiment (if omitted, a random name will be generated)
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description An optional description of the experiment
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description Metadata for the experiment
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Version Id
+             * @description ID of the dataset version over which the experiment will be run (if omitted, the latest version will be used)
+             */
+            version_id?: string | null;
+            /**
+             * Repetitions
+             * @description Number of times the experiment should be repeated for each example
+             * @default 1
+             */
+            repetitions: number;
+        };
+        /** CreateExperimentResponseBody */
+        CreateExperimentResponseBody: {
+            data: components["schemas"]["Experiment"];
+        };
+        /** CreateFreeformAnnotationConfigPayload */
+        CreateFreeformAnnotationConfigPayload: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** CreatePromptRequestBody */
+        CreatePromptRequestBody: {
+            prompt: components["schemas"]["PromptData"];
+            version: components["schemas"]["PromptVersionData"];
+        };
+        /** CreatePromptResponseBody */
+        CreatePromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
+        /** Dataset */
+        Dataset: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DatasetExample */
+        DatasetExample: {
+            /** Id */
+            id: string;
+            /** Input */
+            input: {
+                [key: string]: unknown;
+            };
+            /** Output */
+            output: {
+                [key: string]: unknown;
+            };
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DatasetVersion */
+        DatasetVersion: {
+            /** Version Id */
+            version_id: string;
+            /** Description */
+            description: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** DatasetWithExampleCount */
+        DatasetWithExampleCount: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Example Count */
+            example_count: number;
+        };
+        /** Experiment */
+        Experiment: {
+            /**
+             * Id
+             * @description The ID of the experiment
+             */
+            id: string;
+            /**
+             * Dataset Id
+             * @description The ID of the dataset associated with the experiment
+             */
+            dataset_id: string;
+            /**
+             * Dataset Version Id
+             * @description The ID of the dataset version associated with the experiment
+             */
+            dataset_version_id: string;
+            /**
+             * Repetitions
+             * @description Number of times the experiment is repeated
+             */
+            repetitions: number;
+            /**
+             * Metadata
+             * @description Metadata of the experiment
+             */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /**
+             * Project Name
+             * @description The name of the project associated with the experiment
+             */
+            project_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description The creation timestamp of the experiment
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description The last update timestamp of the experiment
+             */
+            updated_at: string;
+        };
+        /** GetDatasetResponseBody */
+        GetDatasetResponseBody: {
+            data: components["schemas"]["DatasetWithExampleCount"];
+        };
+        /** GetExperimentResponseBody */
+        GetExperimentResponseBody: {
+            data: components["schemas"]["Experiment"];
+        };
+        /** GetPromptResponseBody */
+        GetPromptResponseBody: {
+            data: components["schemas"]["PromptVersion"];
+        };
+        /** GetPromptVersionsResponseBody */
+        GetPromptVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["PromptVersion"][];
+        };
+        /** GetPromptsResponseBody */
+        GetPromptsResponseBody: {
+            /** Data */
+            data: components["schemas"]["Prompt"][];
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Identifier */
+        Identifier: string;
+        /** InsertedSpanAnnotation */
+        InsertedSpanAnnotation: {
+            /**
+             * Id
+             * @description The ID of the inserted span annotation
+             */
+            id: string;
+        };
+        /** ListDatasetExamplesData */
+        ListDatasetExamplesData: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Version Id */
+            version_id: string;
+            /** Examples */
+            examples: components["schemas"]["DatasetExample"][];
+        };
+        /** ListDatasetExamplesResponseBody */
+        ListDatasetExamplesResponseBody: {
+            data: components["schemas"]["ListDatasetExamplesData"];
+        };
+        /** ListDatasetVersionsResponseBody */
+        ListDatasetVersionsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetVersion"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** ListDatasetsResponseBody */
+        ListDatasetsResponseBody: {
+            /** Data */
+            data: components["schemas"]["Dataset"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** ListExperimentsResponseBody */
+        ListExperimentsResponseBody: {
+            /** Data */
+            data: components["schemas"]["Experiment"][];
+        };
+        /**
+         * ModelProvider
+         * @enum {string}
+         */
+        ModelProvider: "OPENAI" | "AZURE_OPENAI" | "ANTHROPIC" | "GOOGLE";
+        /**
+         * OptimizationDirection
+         * @enum {string}
+         */
+        OptimizationDirection: "MINIMIZE" | "MAXIMIZE";
+        /** Prompt */
+        Prompt: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Prompt Id */
+            source_prompt_id?: string | null;
+            /** Id */
+            id: string;
+        };
+        /** PromptAnthropicInvocationParameters */
+        PromptAnthropicInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "anthropic";
+            anthropic: components["schemas"]["PromptAnthropicInvocationParametersContent"];
+        };
+        /** PromptAnthropicInvocationParametersContent */
+        PromptAnthropicInvocationParametersContent: {
+            /** Max Tokens */
+            max_tokens: number;
+            /** Temperature */
+            temperature?: number;
+            /** Top P */
+            top_p?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
+            /** Thinking */
+            thinking?: components["schemas"]["PromptAnthropicThinkingConfigDisabled"] | components["schemas"]["PromptAnthropicThinkingConfigEnabled"];
+        };
+        /** PromptAnthropicThinkingConfigDisabled */
+        PromptAnthropicThinkingConfigDisabled: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "disabled";
+        };
+        /** PromptAnthropicThinkingConfigEnabled */
+        PromptAnthropicThinkingConfigEnabled: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "enabled";
+            /** Budget Tokens */
+            budget_tokens: number;
+        };
+        /** PromptAzureOpenAIInvocationParameters */
+        PromptAzureOpenAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "azure_openai";
+            azure_openai: components["schemas"]["PromptAzureOpenAIInvocationParametersContent"];
+        };
+        /** PromptAzureOpenAIInvocationParametersContent */
+        PromptAzureOpenAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
+        /** PromptChatTemplate */
+        PromptChatTemplate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "chat";
+            /** Messages */
+            messages: components["schemas"]["PromptMessage"][];
+        };
+        /** PromptData */
+        PromptData: {
+            name: components["schemas"]["Identifier"];
+            /** Description */
+            description?: string | null;
+            /** Source Prompt Id */
+            source_prompt_id?: string | null;
+        };
+        /** PromptGoogleInvocationParameters */
+        PromptGoogleInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "google";
+            google: components["schemas"]["PromptGoogleInvocationParametersContent"];
+        };
+        /** PromptGoogleInvocationParametersContent */
+        PromptGoogleInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Output Tokens */
+            max_output_tokens?: number;
+            /** Stop Sequences */
+            stop_sequences?: string[];
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Top K */
+            top_k?: number;
+        };
+        /** PromptMessage */
+        PromptMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant" | "model" | "ai" | "tool" | "system" | "developer";
+            /** Content */
+            content: string | (components["schemas"]["TextContentPart"] | components["schemas"]["ToolCallContentPart"] | components["schemas"]["ToolResultContentPart"])[];
+        };
+        /** PromptOpenAIInvocationParameters */
+        PromptOpenAIInvocationParameters: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "openai";
+            openai: components["schemas"]["PromptOpenAIInvocationParametersContent"];
+        };
+        /** PromptOpenAIInvocationParametersContent */
+        PromptOpenAIInvocationParametersContent: {
+            /** Temperature */
+            temperature?: number;
+            /** Max Tokens */
+            max_tokens?: number;
+            /** Max Completion Tokens */
+            max_completion_tokens?: number;
+            /** Frequency Penalty */
+            frequency_penalty?: number;
+            /** Presence Penalty */
+            presence_penalty?: number;
+            /** Top P */
+            top_p?: number;
+            /** Seed */
+            seed?: number;
+            /**
+             * Reasoning Effort
+             * @enum {string}
+             */
+            reasoning_effort?: "low" | "medium" | "high";
+        };
+        /** PromptResponseFormatJSONSchema */
+        PromptResponseFormatJSONSchema: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "json_schema";
+            json_schema: components["schemas"]["PromptResponseFormatJSONSchemaDefinition"];
+        };
+        /** PromptResponseFormatJSONSchemaDefinition */
+        PromptResponseFormatJSONSchemaDefinition: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Schema */
+            schema?: {
+                [key: string]: unknown;
+            };
+            /** Strict */
+            strict?: boolean;
+        };
+        /** PromptStringTemplate */
+        PromptStringTemplate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "string";
+            /** Template */
+            template: string;
+        };
+        /**
+         * PromptTemplateFormat
+         * @enum {string}
+         */
+        PromptTemplateFormat: "MUSTACHE" | "F_STRING" | "NONE";
+        /**
+         * PromptTemplateType
+         * @enum {string}
+         */
+        PromptTemplateType: "STR" | "CHAT";
+        /** PromptToolChoiceNone */
+        PromptToolChoiceNone: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "none";
+        };
+        /** PromptToolChoiceOneOrMore */
+        PromptToolChoiceOneOrMore: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "one_or_more";
+        };
+        /** PromptToolChoiceSpecificFunctionTool */
+        PromptToolChoiceSpecificFunctionTool: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "specific_function";
+            /** Function Name */
+            function_name: string;
+        };
+        /** PromptToolChoiceZeroOrMore */
+        PromptToolChoiceZeroOrMore: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "zero_or_more";
+        };
+        /** PromptToolFunction */
+        PromptToolFunction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "function";
+            function: components["schemas"]["PromptToolFunctionDefinition"];
+        };
+        /** PromptToolFunctionDefinition */
+        PromptToolFunctionDefinition: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /** Strict */
+            strict?: boolean;
+        };
+        /** PromptTools */
+        PromptTools: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "tools";
+            /** Tools */
+            tools: components["schemas"]["PromptToolFunction"][];
+            /** Tool Choice */
+            tool_choice?: components["schemas"]["PromptToolChoiceNone"] | components["schemas"]["PromptToolChoiceZeroOrMore"] | components["schemas"]["PromptToolChoiceOneOrMore"] | components["schemas"]["PromptToolChoiceSpecificFunctionTool"];
+            /** Disable Parallel Tool Calls */
+            disable_parallel_tool_calls?: boolean;
+        };
+        /** PromptVersion */
+        PromptVersion: {
+            /** Description */
+            description?: string | null;
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /** Template */
+            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
+            template_type: components["schemas"]["PromptTemplateType"];
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** Invocation Parameters */
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            tools?: components["schemas"]["PromptTools"] | null;
+            /** Response Format */
+            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+            /** Id */
+            id: string;
+        };
+        /** PromptVersionData */
+        PromptVersionData: {
+            /** Description */
+            description?: string | null;
+            model_provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /** Template */
+            template: components["schemas"]["PromptChatTemplate"] | components["schemas"]["PromptStringTemplate"];
+            template_type: components["schemas"]["PromptTemplateType"];
+            template_format: components["schemas"]["PromptTemplateFormat"];
+            /** Invocation Parameters */
+            invocation_parameters: components["schemas"]["PromptOpenAIInvocationParameters"] | components["schemas"]["PromptAzureOpenAIInvocationParameters"] | components["schemas"]["PromptAnthropicInvocationParameters"] | components["schemas"]["PromptGoogleInvocationParameters"];
+            tools?: components["schemas"]["PromptTools"] | null;
+            /** Response Format */
+            response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
+        };
+        /** SpanAnnotation */
+        SpanAnnotation: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             */
+            identifier?: string | null;
+        };
+        /** SpanAnnotationResult */
+        SpanAnnotationResult: {
+            /**
+             * Label
+             * @description The label assigned by the annotation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the annotation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the annotation result
+             */
+            explanation?: string | null;
+        };
+        /** TextContentPart */
+        TextContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+            /** Text */
+            text: string;
+        };
+        /** ToolCallContentPart */
+        ToolCallContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tool_call";
+            /** Tool Call Id */
+            tool_call_id: string;
+            /** Tool Call */
+            tool_call: components["schemas"]["ToolCallFunction"];
+        };
+        /** ToolCallFunction */
+        ToolCallFunction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "function";
+            /** Name */
+            name: string;
+            /** Arguments */
+            arguments: string;
+        };
+        /** ToolResultContentPart */
+        ToolResultContentPart: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tool_result";
+            /** Tool Call Id */
+            tool_call_id: string;
+            /** Tool Result */
+            tool_result: boolean | number | string | {
+                [key: string]: unknown;
+            } | unknown[] | null;
+        };
+        /** UploadDatasetData */
+        UploadDatasetData: {
+            /** Dataset Id */
+            dataset_id: string;
+        };
+        /** UploadDatasetResponseBody */
+        UploadDatasetResponseBody: {
+            data: components["schemas"]["UploadDatasetData"];
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
     };
     /** AnnotateSpansResponseBody */
     AnnotateSpansResponseBody: {
