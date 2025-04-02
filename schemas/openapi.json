@@ -4267,6 +4267,18 @@
             ],
             "title": "Metadata",
             "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists."
           }
         },
         "type": "object",

@@ -113,6 +113,13 @@ class TraceAnnotation(V1RoutesBaseModel):
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
+    identifier: Optional[str] = Field(
+        default=None,
+        description=(
+            "The identifier of the annotation. "
+            "If provided, the annotation will be updated if it already exists."
+        ),
+    )
 
     def as_precursor(self) -> Precursors.TraceAnnotation:
         return Precursors.TraceAnnotation(
@@ -124,6 +131,9 @@ class TraceAnnotation(V1RoutesBaseModel):
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
                 metadata_=self.metadata or {},
+                identifier=self.identifier,
+                source="APP",
+                user_id=None,
             ),
         )
 

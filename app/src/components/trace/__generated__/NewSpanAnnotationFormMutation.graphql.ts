@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<acb6f3a3bc21507fc7712af0f29e3063>>
+ * @generated SignedSource<<e5c9baf57091e0f434c43f7e79fd302b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,14 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type AnnotationSource = "API" | "APP";
 export type AnnotatorKind = "HUMAN" | "LLM";
 export type CreateSpanAnnotationInput = {
   annotatorKind: AnnotatorKind;
   explanation?: string | null;
+  identifier?: string | null;
   label?: string | null;
   metadata?: any;
   name: string;
   score?: number | null;
+  source: AnnotationSource;
   spanId: string;
 };
 export type NewSpanAnnotationFormMutation$variables = {
