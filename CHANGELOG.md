@@ -1,5 +1,20 @@
 # Changelog
 
+## [8.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.20.0...arize-phoenix-v8.21.0) (2025-04-02)
+
+
+### Features
+
+* Allow no working dir configured w/ postgres ([#6972](https://github.com/Arize-ai/phoenix/issues/6972)) ([e7fd445](https://github.com/Arize-ai/phoenix/commit/e7fd4450a3aa5fca7dc4efc789b641e495f31f18))
+* Move Span Annotation Editor into Span Aside ([#6937](https://github.com/Arize-ai/phoenix/issues/6937)) ([9dc2dc7](https://github.com/Arize-ai/phoenix/commit/9dc2dc7e526e67140009398014166d04eb528a15))
+* **ui:** add chat / message components for note taking ([#6940](https://github.com/Arize-ai/phoenix/issues/6940)) ([d3af052](https://github.com/Arize-ai/phoenix/commit/d3af052c2d26a4ee3d82014e7b16cb029518a16d))
+* **ui:** select ([#6951](https://github.com/Arize-ai/phoenix/issues/6951)) ([beb9640](https://github.com/Arize-ai/phoenix/commit/beb964007e355a00c5f5ccb20a47378a05232a9e))
+
+
+### Performance Improvements
+
+* Cache project table results when toggling details slide over ([#6973](https://github.com/Arize-ai/phoenix/issues/6973)) ([bd1f5db](https://github.com/Arize-ai/phoenix/commit/bd1f5db938b48b976f884aa4c51335b2a3c993f3))
+
 ## [8.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.19.1...arize-phoenix-v8.20.0) (2025-03-28)
 
 
