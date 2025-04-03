@@ -65,6 +65,25 @@ class TimeSeries(BaseModel):
     data: list[TimeSeriesDataPoint]
 
 
+class AddAnnotationConfigToProjectPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    project: Project
+
+
+class AnnotationConfigConnection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    edges: list[AnnotationConfigEdge] = Field(...)
+    pageInfo: PageInfo = Field(...)
+
+
+class AnnotationConfigEdge(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cursor: str = Field(...)
+    node: Union[
+        "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
+    ] = Field(...)
+
+
 class AnnotationSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
     count: int
@@ -137,6 +156,22 @@ class BoundedFloatInvocationParameter(InvocationParameterBase):
     required: bool
 
 
+class CategoricalAnnotationConfig(Node):
+    model_config = ConfigDict(frozen=True)
+    annotationType: Literal["CATEGORICAL", "CONTINUOUS", "FREEFORM"]
+    description: Optional[str] = None
+    id: str = Field(...)
+    name: str
+    optimizationDirection: Literal["MAXIMIZE", "MINIMIZE"]
+    values: list[CategoricalAnnotationValue]
+
+
+class CategoricalAnnotationValue(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    label: str
+    score: Optional[float] = None
+
+
 class ChatCompletionFunctionCall(BaseModel):
     model_config = ConfigDict(frozen=True)
     arguments: str
@@ -204,6 +239,32 @@ class Cluster(BaseModel):
     id: str = Field(...)
     performanceMetric: DatasetValues = Field(...)
     primaryToCorpusRatio: Optional[float] = Field(default=None)
+
+
+class ContinuousAnnotationConfig(Node):
+    model_config = ConfigDict(frozen=True)
+    annotationType: Literal["CATEGORICAL", "CONTINUOUS", "FREEFORM"]
+    description: Optional[str] = None
+    id: str = Field(...)
+    lowerBound: Optional[float] = None
+    name: str
+    optimizationDirection: Literal["MAXIMIZE", "MINIMIZE"]
+    upperBound: Optional[float] = None
+
+
+class CreateCategoricalAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: CategoricalAnnotationConfig
+
+
+class CreateContinuousAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: ContinuousAnnotationConfig
+
+
+class CreateFreeformAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: FreeformAnnotationConfig
 
 
 class CreateSystemApiKeyMutationPayload(BaseModel):
@@ -317,6 +378,13 @@ class DbTableStats(BaseModel):
     model_config = ConfigDict(frozen=True)
     numBytes: float
     tableName: str
+
+
+class DeleteAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: Union[
+        "CategoricalAnnotationConfig", "ContinuousAnnotationConfig", "FreeformAnnotationConfig"
+    ]
 
 
 class DeleteApiKeyMutationPayload(BaseModel):
@@ -587,6 +655,14 @@ class FloatInvocationParameter(InvocationParameterBase):
     required: bool
 
 
+class FreeformAnnotationConfig(Node):
+    model_config = ConfigDict(frozen=True)
+    annotationType: Literal["CATEGORICAL", "CONTINUOUS", "FREEFORM"]
+    description: Optional[str] = None
+    id: str = Field(...)
+    name: str
+
+
 class FunctionCallChunk(ChatCompletionSubscriptionPayload):
     model_config = ConfigDict(frozen=True)
     arguments: str
@@ -752,6 +828,7 @@ class Point3D(BaseModel):
 
 class Project(Node):
     model_config = ConfigDict(frozen=True)
+    annotationConfigs: AnnotationConfigConnection
     documentEvaluationNames: list[str] = Field(...)
     documentEvaluationSummary: Optional[DocumentEvaluationSummary] = None
     endTime: Optional[str] = None
@@ -775,6 +852,7 @@ class Project(Node):
     traceAnnotationSummary: Optional[AnnotationSummary] = None
     traceAnnotationsNames: list[str] = Field(...)
     traceCount: int
+    traceRetentionPolicy: ProjectTraceRetentionPolicy
     validateSpanFilterCondition: ValidationResult
 
 
@@ -816,6 +894,36 @@ class ProjectSessionEdge(BaseModel):
     model_config = ConfigDict(frozen=True)
     cursor: str = Field(...)
     node: ProjectSession = Field(...)
+
+
+class ProjectTraceRetentionPolicy(Node):
+    model_config = ConfigDict(frozen=True)
+    cronExpression: str
+    id: str = Field(...)
+    name: str
+    projects: ProjectConnection
+    rule: Union[
+        "TraceRetentionRuleMaxCount",
+        "TraceRetentionRuleMaxDays",
+        "TraceRetentionRuleMaxDaysOrCount",
+    ]
+
+
+class ProjectTraceRetentionPolicyConnection(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    edges: list[ProjectTraceRetentionPolicyEdge] = Field(...)
+    pageInfo: PageInfo = Field(...)
+
+
+class ProjectTraceRetentionPolicyEdge(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    cursor: str = Field(...)
+    node: ProjectTraceRetentionPolicy = Field(...)
+
+
+class ProjectTraceRetentionPolicyMutationPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    node: ProjectTraceRetentionPolicy
 
 
 class Prompt(Node):
@@ -1271,6 +1379,22 @@ class TraceEdge(BaseModel):
     node: Trace = Field(...)
 
 
+class TraceRetentionRuleMaxCount(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxCount: int
+
+
+class TraceRetentionRuleMaxDays(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxDays: float
+
+
+class TraceRetentionRuleMaxDaysOrCount(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxCount: int
+    maxDays: float
+
+
 class UMAPPoint(BaseModel):
     model_config = ConfigDict(frozen=True)
     coordinates: Union["Point2D", "Point3D"]
@@ -1287,6 +1411,21 @@ class UMAPPoints(BaseModel):
     corpusData: list[UMAPPoint]
     data: list[UMAPPoint]
     referenceData: list[UMAPPoint]
+
+
+class UpdateCategoricalAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: CategoricalAnnotationConfig
+
+
+class UpdateContinuousAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: ContinuousAnnotationConfig
+
+
+class UpdateFreeformAnnotationConfigPayload(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfig: FreeformAnnotationConfig
 
 
 class User(Node):
@@ -1341,6 +1480,12 @@ class ValidationResult(BaseModel):
     isValid: bool
 
 
+class AddAnnotationConfigToProjectInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    annotationConfigId: str
+    projectId: str
+
+
 class AddExamplesToDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     datasetId: str
@@ -1355,6 +1500,12 @@ class AddSpansToDatasetInput(BaseModel):
     datasetVersionDescription: Optional[str] = None
     datasetVersionMetadata: Optional[dict[str, Any]] = None
     spanIds: list[str]
+
+
+class CategoricalAnnotationValueInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    label: str
+    score: Optional[float] = None
 
 
 class ChatCompletionInput(BaseModel):
@@ -1437,6 +1588,14 @@ class CreateApiKeyInput(BaseModel):
     name: str
 
 
+class CreateCategoricalAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    description: Optional[str] = None
+    name: str
+    optimizationDirection: Literal["MAXIMIZE", "MINIMIZE"]
+    values: list[CategoricalAnnotationValueInput]
+
+
 class CreateChatPromptInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     description: Optional[str] = None
@@ -1451,11 +1610,34 @@ class CreateChatPromptVersionInput(BaseModel):
     tags: Optional[list[SetPromptVersionTagInput]] = None
 
 
+class CreateContinuousAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    description: Optional[str] = None
+    lowerBound: Optional[float] = None
+    name: str
+    optimizationDirection: Literal["MAXIMIZE", "MINIMIZE"]
+    upperBound: Optional[float] = None
+
+
 class CreateDatasetInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     description: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
     name: str
+
+
+class CreateFreeformAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    description: Optional[str] = None
+    name: str
+
+
+class CreateProjectTraceRetentionPolicyInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    addProjects: Optional[list[str]] = None
+    cronExpression: str
+    name: str
+    rule: ProjectTraceRetentionRuleInput
 
 
 class CreatePromptLabelInput(BaseModel):
@@ -1548,6 +1730,11 @@ class DatasetVersionSort(BaseModel):
     dir: Literal["asc", "desc"]
 
 
+class DeleteAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    configId: str
+
+
 class DeleteAnnotationsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     annotationIds: list[str]
@@ -1573,6 +1760,11 @@ class DeleteDatasetInput(BaseModel):
 class DeleteExperimentsInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     experimentIds: list[str]
+
+
+class DeleteProjectTraceRetentionPolicyInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    id: str
 
 
 class DeletePromptInput(BaseModel):
@@ -1699,6 +1891,16 @@ class PatchDatasetInput(BaseModel):
     name: Optional[str] = None
 
 
+class PatchProjectTraceRetentionPolicyInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    addProjects: Optional[list[str]] = None
+    cronExpression: Optional[str] = None
+    id: str
+    name: Optional[str] = None
+    removeProjects: Optional[list[str]] = None
+    rule: Optional[ProjectTraceRetentionRuleInput] = None
+
+
 class PatchPromptInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     description: str
@@ -1736,6 +1938,29 @@ class ProjectSessionSort(BaseModel):
     model_config = ConfigDict(frozen=True)
     col: Literal["endTime", "numTraces", "startTime", "tokenCountTotal"]
     dir: Literal["asc", "desc"]
+
+
+class ProjectTraceRetentionRuleInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxCount: Optional[ProjectTraceRetentionRuleMaxCountInput] = None
+    maxDays: Optional[ProjectTraceRetentionRuleMaxDaysInput] = None
+    maxDaysOrCount: Optional[ProjectTraceRetentionRuleMaxDaysOrCountInput] = None
+
+
+class ProjectTraceRetentionRuleMaxCountInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxCount: int
+
+
+class ProjectTraceRetentionRuleMaxDaysInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxDays: float
+
+
+class ProjectTraceRetentionRuleMaxDaysOrCountInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    maxCount: int
+    maxDays: float
 
 
 class PromptChatTemplateInput(BaseModel):
@@ -1843,3 +2068,29 @@ class UnsetPromptLabelInput(BaseModel):
     model_config = ConfigDict(frozen=True)
     promptId: str
     promptLabelId: str
+
+
+class UpdateCategoricalAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    configId: str
+    description: Optional[str] = None
+    name: str
+    optimizationDirection: Literal["MAXIMIZE", "MINIMIZE"]
+    values: list[CategoricalAnnotationValueInput]
+
+
+class UpdateContinuousAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    configId: str
+    description: Optional[str] = None
+    lowerBound: Optional[float] = None
+    name: str
+    optimizationDirection: Literal["MAXIMIZE", "MINIMIZE"]
+    upperBound: Optional[float] = None
+
+
+class UpdateFreeformAnnotationConfigInput(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    configId: str
+    description: Optional[str] = None
+    name: str

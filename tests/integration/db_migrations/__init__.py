@@ -12,7 +12,8 @@ def _up(engine: Engine, alembic_config: Config, revision: str) -> None:
         alembic_config.attributes["connection"] = conn
         command.upgrade(alembic_config, revision)
     engine.dispose()
-    assert _version_num(engine) == (revision,)
+    actual = _version_num(engine)
+    assert actual == (revision,)
 
 
 def _down(engine: Engine, alembic_config: Config, revision: str) -> None:
