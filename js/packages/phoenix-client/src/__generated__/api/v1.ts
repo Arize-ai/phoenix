@@ -252,10 +252,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get all prompts */
+        /**
+         * List all prompts
+         * @description Retrieve a paginated list of all prompts in the system. A prompt can have multiple versions.
+         */
         get: operations["getPrompts"];
         put?: never;
-        /** Create a prompt version */
+        /**
+         * Create a new prompt
+         * @description Create a new prompt and its initial version. A prompt can have multiple versions.
+         */
         post: operations["postPromptVersion"];
         delete?: never;
         options?: never;
@@ -270,7 +276,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all prompt versions for a given prompt */
+        /**
+         * List prompt versions
+         * @description Retrieve all versions of a specific prompt with pagination support. Each prompt can have multiple versions with different configurations.
+         */
         get: operations["listPromptVersions"];
         put?: never;
         post?: never;
@@ -287,7 +296,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get prompt by prompt version ID */
+        /**
+         * Get prompt version by ID
+         * @description Retrieve a specific prompt version using its unique identifier. A prompt version contains the actual template and configuration.
+         */
         get: operations["getPromptVersionByPromptVersionId"];
         put?: never;
         post?: never;
@@ -304,7 +316,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get prompt by tag name */
+        /**
+         * Get prompt version by tag
+         * @description Retrieve a specific prompt version using its tag name. Tags are used to identify specific versions of a prompt.
+         */
         get: operations["getPromptVersionByTagName"];
         put?: never;
         post?: never;
@@ -321,7 +336,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get the latest prompt version */
+        /**
+         * Get latest prompt version
+         * @description Retrieve the most recent version of a specific prompt.
+         */
         get: operations["getPromptVersionLatest"];
         put?: never;
         post?: never;
@@ -339,19 +357,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get tags for a prompt version
-         * @description Get tags for a specific prompt version.
-         *
-         *     Args:
-         *         request (Request): The request object.
-         *         prompt_version_id (str): The ID of the prompt version.
-         *
-         *     Returns:
-         *         GetPromptVersionTagsResponseBody: The response body containing the tags.
+         * List prompt version tags
+         * @description Retrieve all tags associated with a specific prompt version. Tags are used to identify and categorize different versions of a prompt.
          */
         get: operations["getPromptVersionTags"];
         put?: never;
-        /** Add tag to a prompt version */
+        /**
+         * Add tag to prompt version
+         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
+         */
         post: operations["createPromptVersionTag"];
         delete?: never;
         options?: never;
@@ -569,16 +583,22 @@ export interface components {
         GetPromptVersionTagsResponseBody: {
             /** Data */
             data: components["schemas"]["PromptVersionTag"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** GetPromptVersionsResponseBody */
         GetPromptVersionsResponseBody: {
             /** Data */
             data: components["schemas"]["PromptVersion"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** GetPromptsResponseBody */
         GetPromptsResponseBody: {
             /** Data */
             data: components["schemas"]["Prompt"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1931,7 +1951,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description A list of prompts with pagination information */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1973,7 +1993,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description The newly created prompt version */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2019,7 +2039,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description A list of prompt versions with pagination information */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2030,6 +2050,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2060,7 +2089,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description The requested prompt version */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2112,7 +2141,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description The prompt version with the specified tag */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2162,7 +2191,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description The latest version of the specified prompt */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2202,7 +2231,12 @@ export interface operations {
     };
     getPromptVersionTags: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Cursor for pagination (base64-encoded promptVersionTag ID) */
+                cursor?: string | null;
+                /** @description The max number of tags to return at a time. */
+                limit?: number;
+            };
             header?: never;
             path: {
                 /** @description The ID of the prompt version. */
@@ -2212,7 +2246,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description A list of tags associated with the prompt version */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2239,13 +2273,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -2266,7 +2300,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description No content returned on successful tag creation */
             204: {
                 headers: {
                     [name: string]: unknown;
