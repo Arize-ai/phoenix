@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.21.0...arize-phoenix-v8.22.0) (2025-04-03)
+
+
+### Features
+
+* add REST endpoints to list or create prompt version tags ([#6984](https://github.com/Arize-ai/phoenix/issues/6984)) ([959622d](https://github.com/Arize-ai/phoenix/commit/959622d335274a0cb59dbf6b78e94fe6f3613bd3))
+
 ## [8.21.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.20.0...arize-phoenix-v8.21.0) (2025-04-02)
 
 
