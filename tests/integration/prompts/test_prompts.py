@@ -1005,7 +1005,7 @@ class TestClient:
         assert prompt1.id
 
         # Verify no tags exist initially
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt1.id,
         )
         assert not tags
@@ -1021,7 +1021,7 @@ class TestClient:
         )
 
         # Verify tag was created with correct attributes
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt1.id,
         )
         assert len(tags) == 1
@@ -1042,7 +1042,7 @@ class TestClient:
         assert prompt2.id
 
         # Verify second version has no tags initially
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt2.id,
         )
         assert not tags
@@ -1062,7 +1062,7 @@ class TestClient:
         )
 
         # Verify tag was created for second version with the new description
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt2.id,
         )
         assert len(tags) == 1
@@ -1078,7 +1078,7 @@ class TestClient:
         # Verify first version's tag was automatically removed when we created
         # the tag for the second version. This demonstrates that tag names must
         # be unique across all versions.
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt1.id,
         )
         assert not tags
@@ -1102,7 +1102,7 @@ class TestClient:
         )
 
         # Verify tag was created for the new prompt
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt3.id,
         )
         assert len(tags) == 1
@@ -1111,7 +1111,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description3
 
         # Verify prompt2's tag was NOT affected since it's a different prompt
-        tags = Client().prompts.tags.get(
+        tags = Client().prompts.tags.list(
             prompt_version_id=prompt2.id,
         )
         assert len(tags) == 1

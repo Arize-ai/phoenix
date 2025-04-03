@@ -146,7 +146,7 @@ class PromptVersionTags:
         response = self._client.post(url, json=data)
         response.raise_for_status()
 
-    def get(
+    def list(
         self,
         *,
         prompt_version_id: str,
@@ -167,7 +167,7 @@ class PromptVersionTags:
                 permission issues.
 
         Example:
-            >>> tags = client.prompts.tags.get(prompt_version_id="version-123")
+            >>> tags = client.prompts.tags.list(prompt_version_id="version-123")
             >>> for tag in tags:
             ...     print(f"Tag: {tag.name}, Description: {tag.description}")
         """
@@ -311,7 +311,7 @@ class AsyncPromptVersionTags:
         response = await self._client.post(url, json=data)
         response.raise_for_status()
 
-    async def get(
+    async def list(
         self,
         *,
         prompt_version_id: str,
@@ -332,7 +332,7 @@ class AsyncPromptVersionTags:
                 permission issues.
 
         Example:
-            >>> tags = await client.prompts.tags.get(prompt_version_id="version-123")
+            >>> tags = await client.prompts.tags.list(prompt_version_id="version-123")
             >>> for tag in tags:
             ...     print(f"Tag: {tag.name}, Description: {tag.description}")
         """
