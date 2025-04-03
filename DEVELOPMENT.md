@@ -22,7 +22,7 @@
 
 We recommend using a virtual environment to isolate your Python dependencies. This guide will use `uv`, but you can use a different virtual environment management tool such as `conda` if you want.
 
-First, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `uv` via `brew` with
+**First**, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `uv` via `brew` with
 
 ```
 brew install uv
@@ -47,8 +47,16 @@ From the root of the reposistory, install the `arize-phoenix` package in editabl
 ```bash
 uv pip install -e ".[dev]"
 ```
+Some parts of Phoenix—such as `phoenix.evals`, `phoenix.otel`, and `phoenix.client` developed as local packages located under the packages/ directory. These modules are excluded from the standard build process and are not installed automatically.
 
-Second, install the web build dependencies.
+To make these modules available when working from source, run:
+
+```bash
+tox run -e add_symlinks
+```
+This command will create symbolic links inside src/phoenix/ pointing to the relevant submodules.
+
+**Second**, install the web build dependencies.
 
 We recommend installing [nodejs via nvm](https://github.com/nvm-sh/nvm) and then
 installing `pnpm` globally to manage the web frontend dependencies.
