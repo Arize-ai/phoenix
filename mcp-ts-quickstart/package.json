@@ -1,0 +1,32 @@
+{
+  "name": "mcp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "mcp": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "npx -y @modelcontextprotocol/inspector -- node src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "files": [
+    "src"
+  ],
+  "keywords": [],
+  "author": "Anthony Powell <powell.anthonyd@proton.me>",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "^5.8.2"
+  },
+  "engineStrict": true,
+  "engines": {
+    "node": ">=23.0.0"
+  }
+}
