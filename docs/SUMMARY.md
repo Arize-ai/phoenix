@@ -14,7 +14,9 @@
 ## 🔭 Tracing
 
 * [Overview: Tracing](tracing/llm-traces.md)
-* [Quickstart: Tracing](tracing/llm-traces-1.md)
+* [Quickstart: Tracing](tracing/llm-traces-1/README.md)
+  * [Quickstart: Tracing (Python)](tracing/llm-traces-1/quickstart-tracing-python.md)
+  * [Quickstart: Tracing (TS)](tracing/llm-traces-1/quickstart-tracing-ts.md)
 * [Features: Tracing](tracing/features-tracing/README.md)
   * [Projects](tracing/features-tracing/projects.md)
   * [Annotations](tracing/features-tracing/how-to-annotate-traces.md)
@@ -47,8 +49,9 @@
   * [Guardrails AI](tracing/integrations-tracing/guardrails-ai.md)
 * [How-to: Tracing](tracing/how-to-tracing/README.md)
   * [Setup Tracing](tracing/how-to-tracing/setup-tracing/README.md)
-    * [Setup Tracing using Phoenix Decorators](tracing/how-to-tracing/setup-tracing/instrument-python.md)
-    * [Setup Tracing using Base OTEL](tracing/how-to-tracing/setup-tracing/custom-spans.md)
+    * [Setup using Phoenix OTEL](tracing/how-to-tracing/setup-tracing/setup-using-phoenix-otel.md)
+    * [Setup using base OTEL](tracing/how-to-tracing/setup-tracing/custom-spans.md)
+    * [Using Phoenix Decorators](tracing/how-to-tracing/setup-tracing/instrument-python.md)
     * [Setup Tracing (TS)](tracing/how-to-tracing/setup-tracing/javascript.md)
     * [Setup Projects](tracing/how-to-tracing/setup-tracing/setup-projects.md)
     * [Setup Sessions](tracing/how-to-tracing/setup-tracing/setup-sessions.md)
@@ -186,6 +189,7 @@
 ## 🔌 INTEGRATIONS
 
 * [Cleanlab](integrations/cleanlab.md)
+* [Flowise](integrations/flowise.md)
 * [Ragas](integrations/ragas.md)
 
 ## 📚 Reference

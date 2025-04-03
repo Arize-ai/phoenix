@@ -1,12 +1,12 @@
-# Quickstart: Tracing
+# Quickstart: Tracing (Python)
 
 ## Overview
 
 Phoenix supports three main options to collect traces:
 
-1. Use [Phoenix's decorators](how-to-tracing/setup-tracing/instrument-python.md) to mark functions and code blocks.
-2. Use [automatic instrumentation](integrations-tracing/) to capture all calls made to supported frameworks.
-3. Use [base OpenTelemetry ](how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](how-to-tracing/setup-tracing/javascript.md)
+1. Use [Phoenix's decorators](../how-to-tracing/setup-tracing/instrument-python.md) to mark functions and code blocks.
+2. Use [automatic instrumentation](../integrations-tracing/) to capture all calls made to supported frameworks.
+3. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
 This example uses options 1 and 2.
 
@@ -18,7 +18,7 @@ This example uses options 1 and 2.
 
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 2. Grab your API key from the Keys option on the left bar.
-3. Set your endpoint and API key:
+3. In your code, set your endpoint and API key:
 
 ```python
 import os
@@ -31,8 +31,8 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 ### Using Self-hosted Phoenix:
 
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [deployment](../deployment/ "mention")
-2. Set your endpoint:
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [deployment](../../deployment/ "mention")
+2. In your code, set your endpoint:
 
 ```python
 import os
@@ -75,7 +75,7 @@ Input and output attributes are set automatically based on `my_func`'s parameter
 
 ## Trace all calls made to a library
 
-Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](integrations-tracing/):
+Phoenix can also capture all calls made to supported libraries automatically. Just install the [respective OpenInference library](../integrations-tracing/):
 
 ```
 pip install openinference-instrumentation-openai
@@ -104,10 +104,10 @@ print(response.choices[0].message.content)
 
 You should now see traces in Phoenix!
 
-<figure><img src="../.gitbook/assets/Screenshot 2024-10-29 at 2.51.24 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2024-10-29 at 2.51.24 PM.png" alt=""><figcaption></figcaption></figure>
 
-## Next Steps:
+## Next Steps
 
-* Explore tracing [integrations](integrations-tracing/)
-* [Customize tracing](how-to-tracing/)
-* View use cases to see [end-to-end examples](use-cases-tracing/)
+* Explore tracing [integrations](../integrations-tracing/)
+* [Customize tracing](../how-to-tracing/)
+* View use cases to see [end-to-end examples](../use-cases-tracing/)
