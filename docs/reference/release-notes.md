@@ -4,6 +4,53 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
+## 04.02.2025 Improved Span Annotation Editor ✍️
+
+**Available in Phoenix 8.21+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/annotations_span_aside.gif" %}
+
+The new span aside moves the Span Annotation editor into a dedicated panel, providing a clearer view for adding annotations and enhancing customization of your setup. Read [this documentation ](../tracing/features-tracing/how-to-annotate-traces.md)to learn how annotations can be used.&#x20;
+
+<details>
+
+<summary>Improvements and Bug Fixes 🐛</summary>
+
+* **Enhancement**: Allow the option to have no configured working directory when using Postgres
+* **Performance**: Cache project table results when toggling the details slide-over for improved performance
+* **UI**: Add chat and message components for note-taking
+
+</details>
+
+***
+
+## 04.01.2025: Support for MCP Span Tool Info in OpenAI Agents SDK 🔨
+
+**Available in Phoenix 8.20+**&#x20;
+
+Newly added to the OpenAI Agent SDK is support for MCP Span Info, allowing for the tracing and extraction of useful information about MCP tool listings. Use the Phoenix [OpenAI Agents SDK](../tracing/integrations-tracing/openai-agents-sdk.md) for powerful agent tracing.&#x20;
+
+***
+
+## 03.27.2025 Span View Improvements 👀&#x20;
+
+**Available in Phoenix 8.19+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/images/span_orphan_toggle.gif" %}
+
+You can now toggle the option to treat orphan spans as root when viewing your spans. Additionally, we've enhanced the UI with an icon view in span details for better visibility in smaller displays. Learn more [here](broken-reference).&#x20;
+
+<details>
+
+<summary>Improvements and Bug Fixes 🐛</summary>
+
+* **Performance**: Disable streaming when a dialog is open
+* **Playground**: Removed unpredictable playground transformations
+
+</details>
+
+***
+
 ## 03.24.2025: Tracing Configuration Tab 🖌️
 
 **Available in Phoenix 8.19+**
