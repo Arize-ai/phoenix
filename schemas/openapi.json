@@ -1315,7 +1315,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Get all prompts",
+        "summary": "List all prompts",
+        "description": "Retrieve a paginated list of all prompts in the system. A prompt can have multiple versions.",
         "operationId": "getPrompts",
         "parameters": [
           {
@@ -1352,7 +1353,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "A list of prompts with pagination information",
             "content": {
               "application/json": {
                 "schema": {
@@ -1387,7 +1388,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Create a prompt version",
+        "summary": "Create a new prompt",
+        "description": "Create a new prompt and its initial version. A prompt can have multiple versions.",
         "operationId": "postPromptVersion",
         "requestBody": {
           "required": true,
@@ -1401,7 +1403,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "The newly created prompt version",
             "content": {
               "application/json": {
                 "schema": {
@@ -1438,7 +1440,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "List all prompt versions for a given prompt",
+        "summary": "List prompt versions",
+        "description": "Retrieve all versions of a specific prompt with pagination support. Each prompt can have multiple versions with different configurations.",
         "operationId": "listPromptVersions",
         "parameters": [
           {
@@ -1486,7 +1489,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "A list of prompt versions with pagination information",
             "content": {
               "application/json": {
                 "schema": {
@@ -1514,6 +1517,16 @@
               }
             },
             "description": "Unprocessable Entity"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
           }
         }
       }
@@ -1523,7 +1536,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Get prompt by prompt version ID",
+        "summary": "Get prompt version by ID",
+        "description": "Retrieve a specific prompt version using its unique identifier. A prompt version contains the actual template and configuration.",
         "operationId": "getPromptVersionByPromptVersionId",
         "parameters": [
           {
@@ -1540,7 +1554,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "The requested prompt version",
             "content": {
               "application/json": {
                 "schema": {
@@ -1587,7 +1601,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Get prompt by tag name",
+        "summary": "Get prompt version by tag",
+        "description": "Retrieve a specific prompt version using its tag name. Tags are used to identify specific versions of a prompt.",
         "operationId": "getPromptVersionByTagName",
         "parameters": [
           {
@@ -1615,7 +1630,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "The prompt version with the specified tag",
             "content": {
               "application/json": {
                 "schema": {
@@ -1662,7 +1677,8 @@
         "tags": [
           "prompts"
         ],
-        "summary": "Get the latest prompt version",
+        "summary": "Get latest prompt version",
+        "description": "Retrieve the most recent version of a specific prompt.",
         "operationId": "getPromptVersionLatest",
         "parameters": [
           {
@@ -1679,7 +1695,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "The latest version of the specified prompt",
             "content": {
               "application/json": {
                 "schema": {
@@ -1687,6 +1703,168 @@
                 }
               }
             }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/prompt_versions/{prompt_version_id}/tags": {
+      "get": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "List prompt version tags",
+        "description": "Retrieve all tags associated with a specific prompt version. Tags are used to identify and categorize different versions of a prompt.",
+        "operationId": "getPromptVersionTags",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded promptVersionTag ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded promptVersionTag ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of tags to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of tags to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of tags associated with the prompt version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPromptVersionTagsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Add tag to prompt version",
+        "description": "Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.",
+        "operationId": "createPromptVersionTag",
+        "parameters": [
+          {
+            "name": "prompt_version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the prompt version.",
+              "title": "Prompt Version Id"
+            },
+            "description": "The ID of the prompt version."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptVersionTagData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No content returned on successful tag creation"
           },
           "403": {
             "content": {
@@ -2135,6 +2313,34 @@
         ],
         "title": "GetPromptResponseBody"
       },
+      "GetPromptVersionTagsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/PromptVersionTag"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetPromptVersionTagsResponseBody"
+      },
       "GetPromptVersionsResponseBody": {
         "properties": {
           "data": {
@@ -2143,11 +2349,23 @@
             },
             "type": "array",
             "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "type": "object",
         "required": [
-          "data"
+          "data",
+          "next_cursor"
         ],
         "title": "GetPromptVersionsResponseBody"
       },
@@ -2159,11 +2377,23 @@
             },
             "type": "array",
             "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "type": "object",
         "required": [
-          "data"
+          "data",
+          "next_cursor"
         ],
         "title": "GetPromptsResponseBody"
       },
@@ -3245,6 +3475,57 @@
           "invocation_parameters"
         ],
         "title": "PromptVersionData"
+      },
+      "PromptVersionTag": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id"
+        ],
+        "title": "PromptVersionTag"
+      },
+      "PromptVersionTagData": {
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PromptVersionTagData"
       },
       "SpanAnnotation": {
         "properties": {

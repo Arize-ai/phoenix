@@ -183,6 +183,17 @@ class PromptToolFunctionDefinition(TypedDict):
     strict: NotRequired[bool]
 
 
+class PromptVersionTag(TypedDict):
+    name: str
+    id: str
+    description: NotRequired[str]
+
+
+class PromptVersionTagData(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
 class SpanAnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -228,8 +239,14 @@ class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
+class GetPromptVersionTagsResponseBody(TypedDict):
+    data: Sequence[PromptVersionTag]
+    next_cursor: Optional[str]
+
+
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
+    next_cursor: Optional[str]
 
 
 class HTTPValidationError(TypedDict):
@@ -356,3 +373,4 @@ class GetPromptResponseBody(TypedDict):
 
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
+    next_cursor: Optional[str]
