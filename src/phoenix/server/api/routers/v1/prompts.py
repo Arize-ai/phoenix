@@ -24,7 +24,11 @@ from phoenix.server.api.helpers.prompts.models import (
     PromptTools,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
-from phoenix.server.api.routers.v1.utils import ResponseBody, add_errors_to_responses
+from phoenix.server.api.routers.v1.utils import (
+    PaginatedResponseBody,
+    ResponseBody,
+    add_errors_to_responses,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt as PromptNodeType
 from phoenix.server.api.types.PromptVersion import PromptVersion as PromptVersionNodeType
@@ -76,11 +80,11 @@ class GetPromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
-class GetPromptsResponseBody(ResponseBody[list[Prompt]]):
+class GetPromptsResponseBody(PaginatedResponseBody[Prompt]):
     pass
 
 
-class GetPromptVersionsResponseBody(ResponseBody[list[PromptVersion]]):
+class GetPromptVersionsResponseBody(PaginatedResponseBody[PromptVersion]):
     pass
 
 
@@ -99,7 +103,10 @@ router = APIRouter(tags=["prompts"])
 @router.get(
     "/prompts",
     operation_id="getPrompts",
-    summary="Get all prompts",
+    summary="List all prompts",
+    description="Retrieve a paginated list of all prompts in the system. A prompt can have "
+    "multiple versions.",
+    response_description="A list of prompts with pagination information",
     responses=add_errors_to_responses(
         [
             HTTP_422_UNPROCESSABLE_ENTITY,
@@ -131,6 +138,12 @@ async def get_prompts(
         HTTPException: If the cursor format is invalid.
     """
     async with request.app.state.db() as session:
+        # First check if any prompts exist
+        if not cursor:
+            prompt_exists = await session.scalar(select(models.Prompt.id).limit(1))
+            if not prompt_exists:
+                return GetPromptsResponseBody(next_cursor=None, data=[])
+
         query = select(models.Prompt).order_by(models.Prompt.id.desc())
 
         if cursor:
@@ -163,8 +176,11 @@ async def get_prompts(
 @router.get(
     "/prompts/{prompt_identifier}/versions",
     operation_id="listPromptVersions",
-    summary="List all prompt versions for a given prompt",
-    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY]),
+    summary="List prompt versions",
+    description="Retrieve all versions of a specific prompt with pagination support. Each prompt "
+    "can have multiple versions with different configurations.",
+    response_description="A list of prompt versions with pagination information",
+    responses=add_errors_to_responses([HTTP_422_UNPROCESSABLE_ENTITY, HTTP_404_NOT_FOUND]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -194,7 +210,8 @@ async def list_prompt_versions(
             information.
 
     Raises:
-        HTTPException: If the cursor format is invalid or the prompt identifier is invalid.
+        HTTPException: If the cursor format is invalid, the prompt identifier is invalid,
+            or the prompt is not found.
     """
     query = select(models.PromptVersion)
     query = _filter_by_prompt_identifier(query.join(models.Prompt), prompt_identifier)
@@ -231,7 +248,10 @@ async def list_prompt_versions(
 @router.get(
     "/prompt_versions/{prompt_version_id}",
     operation_id="getPromptVersionByPromptVersionId",
-    summary="Get prompt by prompt version ID",
+    summary="Get prompt version by ID",
+    description="Retrieve a specific prompt version using its unique identifier. A prompt version "
+    "contains the actual template and configuration.",
+    response_description="The requested prompt version",
     responses=add_errors_to_responses(
         [
             HTTP_404_NOT_FOUND,
@@ -277,7 +297,10 @@ async def get_prompt_version_by_prompt_version_id(
 @router.get(
     "/prompts/{prompt_identifier}/tags/{tag_name}",
     operation_id="getPromptVersionByTagName",
-    summary="Get prompt by tag name",
+    summary="Get prompt version by tag",
+    description="Retrieve a specific prompt version using its tag name. Tags are used to identify "
+    "specific versions of a prompt.",
+    response_description="The prompt version with the specified tag",
     responses=add_errors_to_responses(
         [
             HTTP_404_NOT_FOUND,
@@ -328,7 +351,9 @@ async def get_prompt_version_by_tag_name(
 @router.get(
     "/prompts/{prompt_identifier}/latest",
     operation_id="getPromptVersionLatest",
-    summary="Get the latest prompt version",
+    summary="Get latest prompt version",
+    description="Retrieve the most recent version of a specific prompt.",
+    response_description="The latest version of the specified prompt",
     responses=add_errors_to_responses(
         [
             HTTP_404_NOT_FOUND,
@@ -369,7 +394,9 @@ async def get_prompt_version_by_latest(
 @router.post(
     "/prompts",
     operation_id="postPromptVersion",
-    summary="Create a prompt version",
+    summary="Create a new prompt",
+    description="Create a new prompt and its initial version. A prompt can have multiple versions.",
+    response_description="The newly created prompt version",
     responses=add_errors_to_responses(
         [
             HTTP_422_UNPROCESSABLE_ENTITY,
@@ -454,26 +481,37 @@ class PromptVersionTag(PromptVersionTagData):
     id: str
 
 
-class GetPromptVersionTagsResponseBody(ResponseBody[list[PromptVersionTag]]):
+class GetPromptVersionTagsResponseBody(PaginatedResponseBody[PromptVersionTag]):
     pass
 
 
 @router.get(
     "/prompt_versions/{prompt_version_id}/tags",
     operation_id="getPromptVersionTags",
-    summary="Get tags for a prompt version",
+    summary="List prompt version tags",
+    description="Retrieve all tags associated with a specific prompt version. Tags are used to "
+    "identify and categorize different versions of a prompt.",
+    response_description="A list of tags associated with the prompt version",
     responses=add_errors_to_responses(
         [
             HTTP_404_NOT_FOUND,
+            HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
 )
-async def get_prompt_version_tags(
+async def list_prompt_version_tags(
     request: Request,
     prompt_version_id: str = Path(description="The ID of the prompt version."),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination (base64-encoded promptVersionTag ID)",
+    ),
+    limit: int = Query(
+        default=100, description="The max number of tags to return at a time.", gt=0
+    ),
 ) -> GetPromptVersionTagsResponseBody:
     """
     Get tags for a specific prompt version.
@@ -481,12 +519,15 @@ async def get_prompt_version_tags(
     Args:
         request (Request): The request object.
         prompt_version_id (str): The ID of the prompt version.
+        cursor (Optional[str]): Pagination cursor (base64-encoded promptVersionTag ID).
+        limit (int): Maximum number of tags to return per request.
 
     Returns:
         GetPromptVersionTagsResponseBody: The response body containing the tags.
 
     Raises:
-        HTTPException: If the prompt version ID is invalid or the prompt version is not found.
+        HTTPException: If the prompt version ID is invalid, the prompt version is not found,
+            or the cursor format is invalid.
     """
     try:
         id_ = from_global_id_with_expected_type(
@@ -495,6 +536,8 @@ async def get_prompt_version_tags(
         )
     except ValueError:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+
+    # Build the query for tags
     stmt = (
         select(
             models.PromptVersion.id,
@@ -504,11 +547,46 @@ async def get_prompt_version_tags(
         )
         .outerjoin_from(models.PromptVersion, models.PromptVersionTag)
         .where(models.PromptVersion.id == id_)
+        .order_by(models.PromptVersionTag.id.desc())
     )
+
+    # Apply cursor-based pagination
+    if cursor:
+        try:
+            cursor_id = GlobalID.from_id(cursor).node_id
+            stmt = stmt.filter(models.PromptVersionTag.id <= int(cursor_id))
+        except ValueError:
+            raise HTTPException(
+                detail=f"Invalid cursor format: {cursor}",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+    # Apply limit
+    stmt = stmt.limit(limit + 1)
+
     async with request.app.state.db() as session:
         result = (await session.execute(stmt)).all()
+
+    # Check if prompt version exists
     if not result:
-        raise HTTPException(HTTP_404_NOT_FOUND)
+        raise HTTPException(HTTP_404_NOT_FOUND, "Prompt version not found")
+
+    # Check if there are any tags
+    has_tags = any(id_ is not None for _, id_, _, _ in result)
+    if not has_tags:
+        return GetPromptVersionTagsResponseBody(next_cursor=None, data=[])
+
+    # Check if there are more results
+    next_cursor = None
+    if len(result) == limit + 1:
+        # Remove the extra item used for pagination
+        result = result[:-1]
+        # Get the ID of the last item for the next cursor
+        last_tag_id = result[-1][1]  # The second element is the tag ID
+        if last_tag_id is not None:
+            next_cursor = str(GlobalID(PromptVersionTagNodeType.__name__, str(last_tag_id)))
+
+    # Convert to response format
     data = [
         PromptVersionTag(
             id=str(GlobalID(PromptVersionTagNodeType.__name__, str(id_))),
@@ -518,13 +596,17 @@ async def get_prompt_version_tags(
         for _, id_, name, description in result
         if id_ is not None
     ]
-    return GetPromptVersionTagsResponseBody(data=data)
+
+    return GetPromptVersionTagsResponseBody(next_cursor=next_cursor, data=data)
 
 
 @router.post(
     "/prompt_versions/{prompt_version_id}/tags",
     operation_id="createPromptVersionTag",
-    summary="Add tag to a prompt version",
+    summary="Add tag to prompt version",
+    description="Add a new tag to a specific prompt version. Tags help identify and categorize "
+    "different versions of a prompt.",
+    response_description="No content returned on successful tag creation",
     status_code=HTTP_204_NO_CONTENT,
     responses=add_errors_to_responses(
         [

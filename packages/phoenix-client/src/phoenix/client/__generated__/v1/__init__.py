@@ -241,10 +241,12 @@ class CreateExperimentResponseBody(TypedDict):
 
 class GetPromptVersionTagsResponseBody(TypedDict):
     data: Sequence[PromptVersionTag]
+    next_cursor: Optional[str]
 
 
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
+    next_cursor: Optional[str]
 
 
 class HTTPValidationError(TypedDict):
@@ -371,3 +373,4 @@ class GetPromptResponseBody(TypedDict):
 
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
+    next_cursor: Optional[str]
