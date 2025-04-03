@@ -116,6 +116,20 @@ async def get_prompts(
         default=100, description="The max number of prompts to return at a time.", gt=0
     ),
 ) -> GetPromptsResponseBody:
+    """
+    Retrieve a paginated list of all prompts in the system.
+
+    Args:
+        request (Request): The FastAPI request object.
+        cursor (Optional[str]): Pagination cursor (base64-encoded prompt ID).
+        limit (int): Maximum number of prompts to return per request.
+
+    Returns:
+        GetPromptsResponseBody: Response containing a list of prompts and pagination information.
+
+    Raises:
+        HTTPException: If the cursor format is invalid.
+    """
     async with request.app.state.db() as session:
         query = select(models.Prompt).order_by(models.Prompt.id.desc())
 
@@ -166,6 +180,22 @@ async def list_prompt_versions(
         default=100, description="The max number of prompt versions to return at a time.", gt=0
     ),
 ) -> GetPromptVersionsResponseBody:
+    """
+    List all versions of a specific prompt with pagination support.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_identifier (str): The identifier of the prompt (name or ID).
+        cursor (Optional[str]): Pagination cursor (base64-encoded promptVersion ID).
+        limit (int): Maximum number of prompt versions to return per request.
+
+    Returns:
+        GetPromptVersionsResponseBody: Response containing a list of prompt versions and pagination
+            information.
+
+    Raises:
+        HTTPException: If the cursor format is invalid or the prompt identifier is invalid.
+    """
     query = select(models.PromptVersion)
     query = _filter_by_prompt_identifier(query.join(models.Prompt), prompt_identifier)
     query = query.order_by(models.PromptVersion.id.desc())
@@ -216,6 +246,19 @@ async def get_prompt_version_by_prompt_version_id(
     request: Request,
     prompt_version_id: str = Path(description="The ID of the prompt version."),
 ) -> GetPromptResponseBody:
+    """
+    Retrieve a specific prompt version by its ID.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_version_id (str): The ID of the prompt version to retrieve.
+
+    Returns:
+        GetPromptResponseBody: Response containing the requested prompt version.
+
+    Raises:
+        HTTPException: If the prompt version ID is invalid or the prompt version is not found.
+    """
     try:
         id_ = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_version_id),
@@ -250,6 +293,20 @@ async def get_prompt_version_by_tag_name(
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
     tag_name: str = Path(description="The tag of the prompt version"),
 ) -> GetPromptResponseBody:
+    """
+    Retrieve a specific prompt version by its tag name.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_identifier (str): The identifier of the prompt (name or ID).
+        tag_name (str): The tag name associated with the prompt version.
+
+    Returns:
+        GetPromptResponseBody: Response containing the prompt version with the specified tag.
+
+    Raises:
+        HTTPException: If the tag name is invalid or the prompt version is not found.
+    """
     try:
         name = Identifier.model_validate(tag_name)
     except ValidationError:
@@ -286,6 +343,19 @@ async def get_prompt_version_by_latest(
     request: Request,
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
 ) -> GetPromptResponseBody:
+    """
+    Retrieve the latest version of a specific prompt.
+
+    Args:
+        request (Request): The FastAPI request object.
+        prompt_identifier (str): The identifier of the prompt (name or ID).
+
+    Returns:
+        GetPromptResponseBody: Response containing the latest prompt version.
+
+    Raises:
+        HTTPException: If the prompt identifier is invalid or no prompt version is found.
+    """
     stmt = select(models.PromptVersion).order_by(models.PromptVersion.id.desc()).limit(1)
     stmt = _filter_by_prompt_identifier(stmt.join(models.Prompt), prompt_identifier)
     async with request.app.state.db() as session:
@@ -313,6 +383,20 @@ async def create_prompt(
     request: Request,
     request_body: CreatePromptRequestBody,
 ) -> CreatePromptResponseBody:
+    """
+    Create a new prompt and its initial version.
+
+    Args:
+        request (Request): The FastAPI request object.
+        request_body (CreatePromptRequestBody): The request body containing prompt and version data.
+
+    Returns:
+        CreatePromptResponseBody: Response containing the created prompt version.
+
+    Raises:
+        HTTPException: If the template type is not supported, the name identifier is invalid,
+                      or any other validation error occurs.
+    """
     if (
         request_body.version.template.type.lower() != "chat"
         or request_body.version.template_type != PromptTemplateType.CHAT
@@ -400,6 +484,9 @@ async def get_prompt_version_tags(
 
     Returns:
         GetPromptVersionTagsResponseBody: The response body containing the tags.
+
+    Raises:
+        HTTPException: If the prompt version ID is invalid or the prompt version is not found.
     """
     try:
         id_ = from_global_id_with_expected_type(
@@ -454,6 +541,21 @@ async def create_prompt_version_tag(
     request_body: PromptVersionTagData,
     prompt_version_id: str = Path(description="The ID of the prompt version."),
 ) -> None:
+    """
+    Add a tag to a specific prompt version.
+
+    Args:
+        request (Request): The FastAPI request object.
+        request_body (PromptVersionTagData): The tag data to be added.
+        prompt_version_id (str): The ID of the prompt version to tag.
+
+    Returns:
+        None: Returns a 204 No Content response on success.
+
+    Raises:
+        HTTPException: If the prompt version ID is invalid, the prompt version is not found,
+            or any other validation error occurs.
+    """
     try:
         id_ = from_global_id_with_expected_type(
             GlobalID.from_id(prompt_version_id),
@@ -461,6 +563,10 @@ async def create_prompt_version_tag(
         )
     except ValueError:
         raise HTTPException(HTTP_422_UNPROCESSABLE_ENTITY, "Invalid prompt version ID")
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        user_id = int(user.identity)
     async with request.app.state.db() as session:
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
@@ -471,6 +577,7 @@ async def create_prompt_version_tag(
             description=request_body.description,
             prompt_id=prompt_id,
             prompt_version_id=id_,
+            user_id=user_id,
         )
         await session.execute(
             insert_on_conflict(

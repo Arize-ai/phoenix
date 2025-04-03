@@ -98,7 +98,9 @@ class PromptVersionTags:
     """
     Provides methods for interacting with prompt version tags.
 
-    This class allows you to retrieve and create prompt version tags.
+    This class allows you to retrieve and create prompt version tags. Tags are useful for
+    organizing and categorizing different versions of prompts, making it easier to track
+    and manage prompt versions.
 
     Example:
         Basic usage:
@@ -116,6 +118,27 @@ class PromptVersionTags:
         name: str,
         description: Optional[str] = None,
     ) -> None:
+        """
+        Creates a new tag for a specific prompt version.
+
+        Args:
+            prompt_version_id (str): The unique identifier for the prompt version to tag.
+            name (str): The name of the tag. Should be a descriptive identifier for the tag.
+            description (Optional[str]): An optional description providing additional context
+                about the tag's purpose or significance.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+                This could happen if the prompt version doesn't exist or if there are
+                permission issues.
+
+        Example:
+            >>> client.prompts.tags.create(
+            ...     prompt_version_id="version-123",
+            ...     name="staging",
+            ...     description="Ready for staging environment"
+            ... )
+        """
         url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
         if description:
@@ -128,6 +151,26 @@ class PromptVersionTags:
         *,
         prompt_version_id: str,
     ) -> list[v1.PromptVersionTag]:
+        """
+        Retrieves all tags associated with a specific prompt version.
+
+        Args:
+            prompt_version_id (str): The unique identifier for the prompt version.
+
+        Returns:
+            list[v1.PromptVersionTag]: A list of tags associated with the prompt version.
+            Each tag contains information such as name and description.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+                This could happen if the prompt version doesn't exist or if there are
+                permission issues.
+
+        Example:
+            >>> tags = client.prompts.tags.get(prompt_version_id="version-123")
+            >>> for tag in tags:
+            ...     print(f"Tag: {tag.name}, Description: {tag.description}")
+        """
         url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
         response = self._client.get(url)
         response.raise_for_status()
@@ -218,9 +261,11 @@ class AsyncPrompts:
 
 class AsyncPromptVersionTags:
     """
-    Provides methods for interacting with prompt version tags.
+    Provides asynchronous methods for interacting with prompt version tags.
 
-    This class allows you to retrieve and create prompt version tags.
+    This class allows you to retrieve and create prompt version tags asynchronously. Tags are
+    useful for organizing and categorizing different versions of prompts, making it easier to
+    track and manage prompt versions in an asynchronous context.
 
     Example:
         Basic usage:
@@ -238,6 +283,27 @@ class AsyncPromptVersionTags:
         name: str,
         description: Optional[str] = None,
     ) -> None:
+        """
+        Asynchronously creates a new tag for a specific prompt version.
+
+        Args:
+            prompt_version_id (str): The unique identifier for the prompt version to tag.
+            name (str): The name of the tag. Should be a descriptive identifier for the tag.
+            description (Optional[str]): An optional description providing additional context
+                about the tag's purpose or significance.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+                This could happen if the prompt version doesn't exist or if there are
+                permission issues.
+
+        Example:
+            >>> await client.prompts.tags.create(
+            ...     prompt_version_id="version-123",
+            ...     name="staging",
+            ...     description="Ready for staging environment"
+            ... )
+        """
         url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
         if description:
@@ -250,6 +316,26 @@ class AsyncPromptVersionTags:
         *,
         prompt_version_id: str,
     ) -> list[v1.PromptVersionTag]:
+        """
+        Asynchronously retrieves all tags associated with a specific prompt version.
+
+        Args:
+            prompt_version_id (str): The unique identifier for the prompt version.
+
+        Returns:
+            list[v1.PromptVersionTag]: A list of tags associated with the prompt version.
+            Each tag contains information such as name and description.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP request returned an unsuccessful status code.
+                This could happen if the prompt version doesn't exist or if there are
+                permission issues.
+
+        Example:
+            >>> tags = await client.prompts.tags.get(prompt_version_id="version-123")
+            >>> for tag in tags:
+            ...     print(f"Tag: {tag.name}, Description: {tag.description}")
+        """
         url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
         response = await self._client.get(url)
         response.raise_for_status()
@@ -261,6 +347,35 @@ def _url(
     prompt_identifier: Optional[str] = None,
     tag: Optional[str] = None,
 ) -> str:
+    """
+    Constructs the appropriate URL for prompt-related API endpoints.
+
+    This helper function builds the correct URL path based on the provided parameters.
+    It supports three different URL patterns:
+    1. Direct prompt version access
+    2. Latest version of a prompt
+    3. Tagged version of a prompt
+
+    Args:
+        prompt_version_id (Optional[str]): The unique identifier for a specific prompt version.
+        prompt_identifier (Optional[str]): The unique identifier for a prompt.
+        tag (Optional[str]): An optional tag to filter the prompt version.
+
+    Returns:
+        str: The constructed URL path for the API endpoint.
+
+    Raises:
+        AssertionError: If neither prompt_version_id nor prompt_identifier is provided,
+            or if the provided values are not strings.
+
+    Example:
+        >>> _url(prompt_version_id="version-123")
+        'v1/prompt_versions/version-123'
+        >>> _url(prompt_identifier="my-prompt")
+        'v1/prompts/my-prompt/latest'
+        >>> _url(prompt_identifier="my-prompt", tag="production")
+        'v1/prompts/my-prompt/tags/production'
+    """
     if prompt_version_id is not None:
         assert isinstance(prompt_version_id, str)
         return f"v1/prompt_versions/{quote_plus(prompt_version_id)}"

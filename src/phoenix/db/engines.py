@@ -122,7 +122,7 @@ def aio_sqlite_engine(
 
     engine = create_async_engine(
         url=url,
-        echo=True,
+        echo=log_to_stdout,
         json_serializer=_dumps,
         async_creator=async_creator,
         poolclass=StaticPool,

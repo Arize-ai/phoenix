@@ -42,7 +42,7 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _GetUser, _LoggedInUser
+from .._helpers import _MEMBER, _GetUser, _gql, _LoggedInUser
 
 
 class TestUserMessage:
@@ -985,12 +985,10 @@ class TestClient:
            for a different version will remove it from the previous version
         5. Different prompts can have tags with the same name without affecting each other
         """
-        # Set up test environment with logged in user
-        u = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        # Set up test environment with logged-in user
+        u1 = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
         from phoenix.client import Client
-
-        client = Client()
 
         # First test: Verify tag name uniqueness within same prompt
         prompt_identifier = token_hex(16)
@@ -1000,14 +998,14 @@ class TestClient:
             [{"role": "user", "content": "hello {x}"}],
             model_name=token_hex(8),
         )
-        prompt1 = client.prompts.create(
+        prompt1 = Client().prompts.create(
             name=prompt_identifier,
             version=version,
         )
         assert prompt1.id
 
         # Verify no tags exist initially
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt1.id,
         )
         assert not tags
@@ -1016,14 +1014,14 @@ class TestClient:
         # Using random hex values ensures uniqueness and prevents test interference
         tag_name = token_hex(8)
         tag_description1 = token_hex(16)
-        client.prompts.tags.create(
+        Client().prompts.tags.create(
             prompt_version_id=prompt1.id,
             name=tag_name,
             description=tag_description1,
         )
 
         # Verify tag was created with correct attributes
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt1.id,
         )
         assert len(tags) == 1
@@ -1031,31 +1029,40 @@ class TestClient:
         assert "description" in tags[0]
         assert tags[0]["description"] == tag_description1
 
+        # Verify tag is associated with the correct user
+        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        res, _ = _gql(u1, query=query, variables={"id": tags[0]["id"]})
+        assert res["data"]["node"]["user"]["id"] == u1.gid
+
         # Create a second version of the same prompt
-        prompt2 = client.prompts.create(
+        prompt2 = Client().prompts.create(
             name=prompt_identifier,
             version=version,
         )
         assert prompt2.id
 
         # Verify second version has no tags initially
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt2.id,
         )
         assert not tags
+
+        # Change the user api key to a different one
+        u2 = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u2.create_api_key())
 
         # Create a tag with the same name for the second version.
         # This will automatically remove the tag from the first version
         # due to tag name uniqueness.
         tag_description2 = token_hex(16)
-        client.prompts.tags.create(
+        Client().prompts.tags.create(
             prompt_version_id=prompt2.id,
             name=tag_name,
             description=tag_description2,
         )
 
         # Verify tag was created for second version with the new description
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt2.id,
         )
         assert len(tags) == 1
@@ -1063,10 +1070,15 @@ class TestClient:
         assert "description" in tags[0]
         assert tags[0]["description"] == tag_description2
 
+        # Verify tag is associated with the correct user
+        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        res, _ = _gql(u2, query=query, variables={"id": tags[0]["id"]})
+        assert res["data"]["node"]["user"]["id"] == u2.gid
+
         # Verify first version's tag was automatically removed when we created
         # the tag for the second version. This demonstrates that tag names must
         # be unique across all versions.
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt1.id,
         )
         assert not tags
@@ -1074,7 +1086,7 @@ class TestClient:
         # Second test: Verify tag name uniqueness is not enforced across different prompts
         # Create a new prompt with a different identifier
         new_prompt_identifier = token_hex(16)
-        prompt3 = client.prompts.create(
+        prompt3 = Client().prompts.create(
             name=new_prompt_identifier,
             version=version,
         )
@@ -1083,14 +1095,14 @@ class TestClient:
         # Create a tag with the same name for the new prompt
         # This should NOT affect the tag on prompt2 since they're different prompts
         tag_description3 = token_hex(16)
-        client.prompts.tags.create(
+        Client().prompts.tags.create(
             prompt_version_id=prompt3.id,
             name=tag_name,
             description=tag_description3,
         )
 
         # Verify tag was created for the new prompt
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt3.id,
         )
         assert len(tags) == 1
@@ -1099,7 +1111,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description3
 
         # Verify prompt2's tag was NOT affected since it's a different prompt
-        tags = client.prompts.tags.get(
+        tags = Client().prompts.tags.get(
             prompt_version_id=prompt2.id,
         )
         assert len(tags) == 1
