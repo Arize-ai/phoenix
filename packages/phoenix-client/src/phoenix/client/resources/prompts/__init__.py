@@ -105,7 +105,7 @@ class PromptVersionTags:
     Example:
         Basic usage:
             >>> from phoenix.client import Client
-            >>> Client().prompts.tags.get(prompt_version_id="...")
+            >>> Client().prompts.tags.list(prompt_version_id="...")
     """
 
     def __init__(self, client: httpx.Client) -> None:
@@ -270,7 +270,7 @@ class AsyncPromptVersionTags:
     Example:
         Basic usage:
             >>> from phoenix.client import Client
-            >>> await Client().prompts.tags.get(prompt_version_id="...")
+            >>> await Client().prompts.tags.list(prompt_version_id="...")
     """
 
     def __init__(self, client: httpx.AsyncClient) -> None:
