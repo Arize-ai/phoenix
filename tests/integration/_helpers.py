@@ -1020,7 +1020,7 @@ _COOKIE_NAMES = (
 )
 
 
-async def _run(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
+async def _await_or_return(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
     """Helper function to handle both synchronous and asynchronous operations uniformly.
 
     This function enables writing code that works with both synchronous and asynchronous
@@ -1035,7 +1035,7 @@ async def _run(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
 
     Example:
         # This works with both sync and async operations:
-        result = await _run(some_operation())
+        result = await _await_or_return(some_operation())
     """
     if isinstance(obj, Awaitable):
         return cast(_AnyT, await obj)

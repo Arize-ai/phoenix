@@ -51,7 +51,7 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _GetUser, _gql, _LoggedInUser, _run
+from .._helpers import _MEMBER, _await_or_return, _GetUser, _gql, _LoggedInUser
 
 
 class TestUserMessage:
@@ -1013,7 +1013,7 @@ class TestClient:
             [{"role": "user", "content": "hello {x}"}],
             model_name=token_hex(8),
         )
-        prompt1 = await _run(
+        prompt1 = await _await_or_return(
             Client().prompts.create(
                 name=prompt_identifier,
                 version=version,
@@ -1022,7 +1022,7 @@ class TestClient:
         assert prompt1.id
 
         # Verify no tags exist initially
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt1.id,
             )
@@ -1033,7 +1033,7 @@ class TestClient:
         # Using random hex values ensures uniqueness and prevents test interference
         tag_name = token_hex(8)
         tag_description1 = token_hex(16)
-        await _run(
+        await _await_or_return(
             Client().prompts.tags.create(
                 prompt_version_id=prompt1.id,
                 name=tag_name,
@@ -1042,7 +1042,7 @@ class TestClient:
         )
 
         # Verify tag was created with correct attributes
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt1.id,
             )
@@ -1058,7 +1058,7 @@ class TestClient:
         assert res["data"]["node"]["user"]["id"] == u1.gid
 
         # Create a second version of the same prompt
-        prompt2 = await _run(
+        prompt2 = await _await_or_return(
             Client().prompts.create(
                 name=prompt_identifier,
                 version=version,
@@ -1067,7 +1067,7 @@ class TestClient:
         assert prompt2.id
 
         # Verify second version has no tags initially
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt2.id,
             )
@@ -1082,7 +1082,7 @@ class TestClient:
         # This will automatically remove the tag from the first version
         # due to tag name uniqueness.
         tag_description2 = token_hex(16)
-        await _run(
+        await _await_or_return(
             Client().prompts.tags.create(
                 prompt_version_id=prompt2.id,
                 name=tag_name,
@@ -1091,7 +1091,7 @@ class TestClient:
         )
 
         # Verify tag was created for second version with the new description
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt2.id,
             )
@@ -1109,7 +1109,7 @@ class TestClient:
         # Verify first version's tag was automatically removed when we created
         # the tag for the second version. This demonstrates that tag names must
         # be unique across all versions.
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt1.id,
             )
@@ -1119,7 +1119,7 @@ class TestClient:
         # Second test: Verify tag name uniqueness is not enforced across different prompts
         # Create a new prompt with a different identifier
         new_prompt_identifier = token_hex(16)
-        prompt3 = await _run(
+        prompt3 = await _await_or_return(
             Client().prompts.create(
                 name=new_prompt_identifier,
                 version=version,
@@ -1130,7 +1130,7 @@ class TestClient:
         # Create a tag with the same name for the new prompt
         # This should NOT affect the tag on prompt2 since they're different prompts
         tag_description3 = token_hex(16)
-        await _run(
+        await _await_or_return(
             Client().prompts.tags.create(
                 prompt_version_id=prompt3.id,
                 name=tag_name,
@@ -1139,7 +1139,7 @@ class TestClient:
         )
 
         # Verify tag was created for the new prompt
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt3.id,
             )
@@ -1150,7 +1150,7 @@ class TestClient:
         assert tags[0]["description"] == tag_description3
 
         # Verify prompt2's tag was NOT affected since it's a different prompt
-        tags = await _run(
+        tags = await _await_or_return(
             Client().prompts.tags.list(
                 prompt_version_id=prompt2.id,
             )
