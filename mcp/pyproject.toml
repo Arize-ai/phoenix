@@ -1,0 +1,48 @@
+[project]
+name = "arize-phoenix-mcp"
+version = "0.1.0"
+description = "A simple MCP server exposing a customizable prompt"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Arize" }]
+maintainers = []
+keywords = ["mcp", "llm", "observability"]
+license = { text = "Elastic License 2.0" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+]
+dependencies = [
+  "anyio>=4.5",
+  "click>=8.1.0",
+  "httpx>=0.27",
+  "mcp",
+  "pydantic>=2.10.0",
+  "pydantic-settings>=2.0.0",
+]
+
+[project.scripts]
+arize-phoenix-mcp = "phoenix.mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.uv]
+dev-dependencies = [
+  "pytest>=8.3.3",
+  "ruff>=0.6.9",
+]
