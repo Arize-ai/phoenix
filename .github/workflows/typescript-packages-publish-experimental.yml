@@ -22,6 +22,7 @@ jobs:
           filters: |
             phoenix-client:
               - 'js/packages/phoenix-client/**'
+              - 'js/packages/phoenix-mcp/**'
             workflow_file:
               - '.github/workflows/typescript-packages-publish-experimental.yml'
 
