@@ -367,7 +367,7 @@ async def delete_project(
         # The default project must not be deleted - it's forbidden
         if project.name == DEFAULT_PROJECT_NAME:
             raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=HTTP_403_FORBIDDEN,
                 detail="The default project cannot be deleted",
             )
 

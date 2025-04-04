@@ -238,7 +238,7 @@ class TestProjects:
         Test that the default project cannot be deleted.
 
         This test verifies that:
-        1. The DELETE /projects/{project_id} endpoint returns a 422 status code when attempting to delete the default project
+        1. The DELETE /projects/{project_id} endpoint returns a 403 status code when attempting to delete the default project
         2. The error message clearly indicates that the default project cannot be deleted
         3. The default project remains in the database
         """  # noqa: E501
@@ -267,8 +267,8 @@ class TestProjects:
 
         # Verify that the request was rejected
         assert (
-            response.status_code == 422
-        ), f"DELETE /projects/{project_id} should return 422 status code, got {response.status_code}"  # noqa: E501
+            response.status_code == 403
+        ), f"DELETE /projects/{project_id} should return 403 status code, got {response.status_code}"  # noqa: E501
         assert (
             "cannot be deleted" in response.text
         ), f"Response should indicate default project cannot be deleted, got: {response.text}"  # noqa: E501
