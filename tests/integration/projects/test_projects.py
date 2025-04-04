@@ -53,10 +53,10 @@ class TestClientForProjectsAPI:
         # Verify project was created with correct attributes (CREATE operation)
         assert project["id"], "Project ID should be present after creation"  # noqa: E501
         assert project["name"] == project_name, "Project name should match input after creation"  # noqa: E501
-        if "description" in project:
-            assert (
-                project["description"] == project_description
-            ), "Project description should match input after creation"  # noqa: E501
+        assert "description" in project, "Project should have a description field"  # noqa: E501
+        assert (
+            project["description"] == project_description
+        ), "Project description should match input after creation"  # noqa: E501
 
         # Test project name uniqueness (CREATE operation)
         with pytest.raises(Exception):
@@ -80,10 +80,12 @@ class TestClientForProjectsAPI:
         assert (
             retrieved_project["name"] == project_name
         ), "Retrieved project name should match created project"  # noqa: E501
-        if "description" in retrieved_project:
-            assert (
-                retrieved_project["description"] == project_description
-            ), "Retrieved project description should match created project"  # noqa: E501
+        assert (
+            "description" in retrieved_project
+        ), "Retrieved project should have a description field"  # noqa: E501
+        assert (
+            retrieved_project["description"] == project_description
+        ), "Retrieved project description should match created project"  # noqa: E501
 
         # List all projects (READ operation)
         all_projects = await _await_or_return(Client().projects.list())
@@ -110,10 +112,12 @@ class TestClientForProjectsAPI:
             assert (
                 updated_project["name"] == project_name
             ), "Project name should not change after update"  # noqa: E501
-            if "description" in updated_project:
-                assert (
-                    updated_project["description"] == new_description
-                ), "Project description should be updated"  # noqa: E501
+            assert (
+                "description" in updated_project
+            ), "Updated project should have a description field"  # noqa: E501
+            assert (
+                updated_project["description"] == new_description
+            ), "Project description should be updated"  # noqa: E501
 
         else:
             # Member users should not be able to update projects (UPDATE operation)
