@@ -3,7 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createClient } from "@arizeai/phoenix-client";
 import minimist from "minimist";
-import { initializePromptTools, initializeDatasetTools } from "./tools";
+import { initializePromptTools } from "./tools";
+import { initializeReadmeResources } from "./resources";
 
 const argv = minimist(process.argv.slice(2));
 
@@ -32,6 +33,9 @@ initializePromptTools({ client, server });
 initializeDatasetTools({ client, server });
 
 async function main() {
+  // Initialize readme resources first
+  await initializeReadmeResources({ server });
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Phoenix MCP Server running on stdio");
