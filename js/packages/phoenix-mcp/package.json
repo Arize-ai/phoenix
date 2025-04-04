@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "A MCP server for Arize Phoenix",
   "bin": {
-    "phoenix-mcp-server": "./build/index.js"
+    "@arizeai/phoenix-mcp": "./build/index.js"
   },
   "type": "module",
   "scripts": {
