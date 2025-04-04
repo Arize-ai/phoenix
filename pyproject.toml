@@ -304,3 +304,11 @@ force-single-line = false
 
 [tool.ruff.format]
 line-ending = "native"
+<<<<<<< Updated upstream
+=======
+
+[tool.ariadne-codegen]
+schema_path = "app/schema.graphql"
+queries_path = "queries.graphql"
+target_package_path = "mcp/src/phoenix/mcp/__generated__"
+>>>>>>> Stashed changes

@@ -1,0 +1,78 @@
+query GetPrompt($promptId: GlobalID!) {
+  node(id: $promptId) {
+    ... on Prompt {
+      name
+      createdAt
+      description
+      id
+      sourcePromptId
+      version {
+        createdAt
+        description
+        id
+        invocationParameters
+        metadata
+        modelName
+        modelProvider
+        sequenceNumber
+        responseFormat {
+          definition
+        }
+        tags {
+          description
+          id
+          name
+          promptVersionId
+        }
+        template {
+          ... on PromptStringTemplate {
+            __typename
+            template
+          }
+          ... on PromptChatTemplate {
+            __typename
+            messages {
+              content {
+                ... on TextContentPart {
+                  __typename
+                  text {
+                    text
+                  }
+                }
+                ... on ToolCallContentPart {
+                  __typename
+                  toolCall {
+                    toolCallId
+                    toolCall {
+                      arguments
+                      name
+                    }
+                  }
+                }
+                ... on ToolResultContentPart {
+                  __typename
+                  toolResult {
+                    result
+                    toolCallId
+                  }
+                }
+              }
+              role
+            }
+          }
+        }
+        templateFormat
+        templateType
+        tools {
+          definition
+        }
+      }
+      versionTags {
+        description
+        id
+        name
+        promptVersionId
+      }
+    }
+  }
+}
