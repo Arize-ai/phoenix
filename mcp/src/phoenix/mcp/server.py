@@ -42,11 +42,11 @@ def create_messages(
 @click.option(
     "--transport",
     type=click.Choice(["stdio", "sse"]),
-    default="stdio",
+    default="sse",
     help="Transport type",
 )
 def main(port: int, transport: str) -> int:
-    app = Server("mcp-simple-prompt")
+    app = Server("arize-phoenix-mcp")
 
     @app.list_prompts()
     async def list_prompts() -> list[types.Prompt]:
