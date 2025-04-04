@@ -53,4 +53,4 @@ jobs:
 
       - name: Publish
         working-directory: ./js
-        run: pnpx pkg-pr-new publish ./packages/phoenix-client
+        run: pnpx pkg-pr-new publish ./packages/phoenix-client ./packages/phoenix-mcp

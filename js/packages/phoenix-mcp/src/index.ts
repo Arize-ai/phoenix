@@ -39,7 +39,7 @@ initializeDatasetTools({ client, server });
 
 async function main() {
   // Initialize readme resources first
-  if (process.env.DANGEROUSLY_READ_README_FILES !== "true") {
+  if (process.env.DANGEROUSLY_READ_README_FILES === "true") {
     await initializeReadmeResources({ server });
   }
 
