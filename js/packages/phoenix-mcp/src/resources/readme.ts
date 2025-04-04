@@ -21,6 +21,7 @@ export async function initializeReadmeResources({
   // Start from the directory where this file is located
   const baseDir = path.dirname(path.resolve(__dirname, "../../../.."));
 
+  // TODO: Refactor to fetch from public github repo instead of filesystem
   // Find all README files recursively (case insensitive)
   const readmeFiles = await glob("**/README*", {
     cwd: baseDir,
