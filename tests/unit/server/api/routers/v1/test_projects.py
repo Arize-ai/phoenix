@@ -384,16 +384,227 @@ class TestProjects:
 
         # Verify response structure
         data = response.json()
-        assert "data" in data, "Response should contain a 'data' field with projects"
-        assert isinstance(data["data"], list), "Response data should be a list of projects"
+        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
+        assert isinstance(data["data"], list), "Response data should be a list of projects"  # noqa: E501
 
         # Verify we got all projects
         assert len(data["data"]) >= len(
             projects
-        ), f"Expected at least {len(projects)} projects, got {len(data['data'])}"
+        ), f"Expected at least {len(projects)} projects, got {len(data['data'])}"  # noqa: E501
 
         # Verify pagination fields
-        assert "next_cursor" in data, "Response should contain a 'next_cursor' field for pagination"
+        assert "next_cursor" in data, "Response should contain a 'next_cursor' field for pagination"  # noqa: E501
+
+    async def test_list_projects_with_cursor(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test pagination of projects using cursor-based navigation.
+
+        This test verifies that:
+        1. The GET /projects endpoint with a limit parameter returns the correct number of projects
+        2. The response includes a next_cursor when there are more projects to fetch
+        3. Using the next_cursor in a subsequent request returns the next page of projects
+        4. When all projects have been fetched, the next_cursor is null
+        5. The projects are returned in the correct order (descending by ID)
+        """  # noqa: E501
+        # Create multiple test projects (more than the limit we'll use)
+        projects = await self._insert_projects(db, 5)
+
+        # Sort projects by ID in descending order (as the API returns them)
+        projects.sort(key=lambda p: p.id, reverse=True)
+
+        # First page: request with limit=2
+        url = "v1/projects"
+        response = await httpx_client.get(url, params={"limit": 2})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
+        assert "next_cursor" in data, "Response should contain a 'next_cursor' field for pagination"  # noqa: E501
+
+        # Verify first page has 2 projects
+        first_page_projects = data["data"]
+        assert len(first_page_projects) == 2, "First page should return exactly 2 projects"  # noqa: E501
+
+        # Verify next_cursor is present
+        next_cursor = data["next_cursor"]
+        assert next_cursor is not None, "next_cursor should be present when there are more projects"  # noqa: E501
+
+        # Verify the projects in the first page match the first 2 projects in our sorted list
+        for i, project_data in enumerate(first_page_projects):
+            project_id = from_global_id_with_expected_type(
+                GlobalID.from_id(project_data["id"]), Project.__name__
+            )
+            assert (
+                project_id == projects[i].id
+            ), f"Project at index {i} should have ID {projects[i].id}, got {project_id}"  # noqa: E501
+
+        # Second page: request with the next_cursor
+        response = await httpx_client.get(url, params={"limit": 2, "cursor": next_cursor})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects with cursor should return 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
+
+        # Verify second page has 2 projects
+        second_page_projects = data["data"]
+        assert len(second_page_projects) == 2, "Second page should return exactly 2 projects"  # noqa: E501
+
+        # Verify next_cursor is present
+        next_cursor = data["next_cursor"]
+        assert next_cursor is not None, "next_cursor should be present when there are more projects"  # noqa: E501
+
+        # Verify the projects in the second page match the next 2 projects in our sorted list
+        for i, project_data in enumerate(second_page_projects):
+            project_id = from_global_id_with_expected_type(
+                GlobalID.from_id(project_data["id"]), Project.__name__
+            )
+            assert (
+                project_id == projects[i + 2].id
+            ), f"Project at index {i} should have ID {projects[i+2].id}, got {project_id}"  # noqa: E501
+
+        # Third page: request with the next_cursor
+        response = await httpx_client.get(url, params={"limit": 2, "cursor": next_cursor})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects with cursor should return 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
+
+        # Verify third page has 1 project (the last one)
+        third_page_projects = data["data"]
+        assert len(third_page_projects) == 1, "Third page should return exactly 1 project"  # noqa: E501
+
+        # Verify next_cursor is null (no more projects)
+        assert (
+            data["next_cursor"] is None
+        ), "next_cursor should be null when there are no more projects"  # noqa: E501
+
+        # Verify the project in the third page matches the last project in our sorted list
+        project_id = from_global_id_with_expected_type(
+            GlobalID.from_id(third_page_projects[0]["id"]), Project.__name__
+        )
+        assert (
+            project_id == projects[4].id
+        ), f"Project should have ID {projects[4].id}, got {project_id}"  # noqa: E501
+
+        # Test with an invalid cursor
+        response = await httpx_client.get(url, params={"cursor": "invalid-cursor"})
+        assert (
+            response.status_code == 422
+        ), f"GET /projects with invalid cursor should return 422 status code, got {response.status_code}: {response.text}"  # noqa: E501
+        assert (
+            "Invalid cursor format" in response.text
+        ), "Response should indicate invalid cursor format"  # noqa: E501
+
+    async def test_list_projects_empty(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test pagination of projects when there are no projects to return.
+
+        This test verifies that:
+        1. The GET /projects endpoint returns an empty list when there are no projects
+        2. The next_cursor is null when there are no projects
+        3. The response structure is correct even when empty
+        """  # noqa: E501
+        # Request projects with a limit
+        url = "v1/projects"
+        response = await httpx_client.get(url, params={"limit": 10})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
+        assert "next_cursor" in data, "Response should contain a 'next_cursor' field for pagination"  # noqa: E501
+
+        # Verify empty data list
+        assert len(data["data"]) == 0, "Data list should be empty when there are no projects"  # noqa: E501
+
+        # Verify next_cursor is null
+        assert data["next_cursor"] is None, "next_cursor should be null when there are no projects"  # noqa: E501
+
+        # Test with a cursor when there are no projects
+        response = await httpx_client.get(url, params={"cursor": "some-cursor", "limit": 10})
+        assert (
+            response.status_code == 422
+        ), f"GET /projects with invalid cursor should return 422 status code, got {response.status_code}: {response.text}"  # noqa: E501
+        assert (
+            "Invalid cursor format" in response.text
+        ), "Response should indicate invalid cursor format"  # noqa: E501
+
+        # Test with a valid cursor format but no projects
+        # Create a valid cursor format (base64-encoded project ID)
+        valid_cursor = str(GlobalID(Project.__name__, "999999"))
+        response = await httpx_client.get(url, params={"cursor": valid_cursor, "limit": 10})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects with valid cursor should return 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        assert len(data["data"]) == 0, "Data list should be empty when there are no projects"  # noqa: E501
+        assert data["next_cursor"] is None, "next_cursor should be null when there are no projects"  # noqa: E501
+
+    async def test_list_projects_limit_larger_than_available(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test pagination of projects when the limit parameter is larger than the number of available projects.
+
+        This test verifies that:
+        1. The GET /projects endpoint returns all available projects when the limit is larger
+        2. The next_cursor is null when all projects have been returned
+        3. The response structure is correct
+        """  # noqa: E501
+        # Create a small number of test projects
+        projects = await self._insert_projects(db, 3)
+
+        # Sort projects by ID in descending order (as the API returns them)
+        projects.sort(key=lambda p: p.id, reverse=True)
+
+        # Request with a limit larger than the number of projects
+        url = "v1/projects"
+        response = await httpx_client.get(url, params={"limit": 10})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects should return 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
+        assert "next_cursor" in data, "Response should contain a 'next_cursor' field for pagination"  # noqa: E501
+
+        # Verify all projects are returned
+        returned_projects = data["data"]
+        assert len(returned_projects) == len(
+            projects
+        ), f"Should return all {len(projects)} projects, got {len(returned_projects)}"  # noqa: E501
+
+        # Verify next_cursor is null (no more projects)
+        assert (
+            data["next_cursor"] is None
+        ), "next_cursor should be null when all projects have been returned"  # noqa: E501
+
+        # Verify the projects match our sorted list
+        for i, project_data in enumerate(returned_projects):
+            project_id = from_global_id_with_expected_type(
+                GlobalID.from_id(project_data["id"]), Project.__name__
+            )
+            assert (
+                project_id == projects[i].id
+            ), f"Project at index {i} should have ID {projects[i].id}, got {project_id}"  # noqa: E501
 
     @staticmethod
     def _compare_project(
