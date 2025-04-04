@@ -25,6 +25,9 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix/tags">
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
+        <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
+    </a>
 </p>
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
