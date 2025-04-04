@@ -21,10 +21,12 @@
   "dependencies": {
     "@arizeai/phoenix-client": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.8.0",
+    "glob": "^11.0.1",
     "minimist": "^1.2.8",
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/glob": "^8.1.0",
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.14.0",
     "tsx": "^4.19.3",
