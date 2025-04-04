@@ -5,6 +5,7 @@ from typing import Optional, cast
 from urllib.parse import quote_plus
 
 import httpx
+from httpx._types import QueryParamTypes
 
 from phoenix.client.__generated__ import v1
 
@@ -89,11 +90,11 @@ class Projects:
             ```
         """  # noqa: E501
         all_projects = []
-        next_cursor = None
+        next_cursor: Optional[str] = None
 
         while True:
             url = "v1/projects"
-            params = {"limit": 100}
+            params: QueryParamTypes = {}
             if next_cursor:
                 params["cursor"] = next_cursor
 
@@ -303,11 +304,11 @@ class AsyncProjects:
             ```
         """  # noqa: E501
         all_projects = []
-        next_cursor = None
+        next_cursor: Optional[str] = None
 
         while True:
             url = "v1/projects"
-            params = {"limit": 100}
+            params: QueryParamTypes = {}
             if next_cursor:
                 params["cursor"] = next_cursor
 
