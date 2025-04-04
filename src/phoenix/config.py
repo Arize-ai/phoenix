@@ -185,10 +185,13 @@ startup will not undo any records created in previous startups.
 """
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
 """
-This is the full URL used to access Phoenix from a web browser. This is important if you use OAuth
-authentication (for the callback URL to be correct). This setting is also important if you have a
-reverse proxy in front of Phoenix that exposes it through a sub-path. In that case add the sub-path
-to the end of this URL setting.
+This is the full URL used to access Phoenix from a web browser. This setting is important when
+you have a reverse proxy in front of Phoenix. If the reverse proxy exposes Phoenix through a
+sub-path, add that sub-path to the end of this URL setting.
+
+Examples:
+    - With a sub-path: "https://example.com/phoenix"
+    - Without a sub-path: "https://phoenix.example.com"
 """
 
 
