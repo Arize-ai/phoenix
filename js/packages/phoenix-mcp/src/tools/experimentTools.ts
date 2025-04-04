@@ -36,22 +36,34 @@ export const initializeExperimentTools = ({
 
   server.tool(
     "get-experiment-by-id",
-    "Get an experiment by its ID",
+    "Get an experiment by its ID. The tool returns experiment metadata in the first content block and a JSON object with the experiment data in the second.",
     {
       experiment_id: z.string(),
     },
     async ({ experiment_id }) => {
-      const response = await client.GET("/v1/experiments/{experiment_id}", {
-        params: {
-          path: {
-            experiment_id,
-          },
-        },
+      const [experimentMetadataResponse, experimentDataResponse] =
+        await Promise.all([
+          client.GET("/v1/experiments/{experiment_id}", {
+            params: {
+              path: {
+                experiment_id,
+              },
+            },
+          }),
+          client.GET("/v1/experiments/{experiment_id}/json", {
+            params: {
+              path: {
+                experiment_id,
+              },
+            },
+          }),
+        ]);
+      const text = JSON.stringify({
+        metadata: experimentMetadataResponse.data?.data,
+        experimentResult: experimentDataResponse.data,
       });
       return {
-        content: [
-          { type: "text", text: JSON.stringify(response.data?.data, null, 2) },
-        ],
+        content: [{ type: "text", text }],
       };
     }
   );
