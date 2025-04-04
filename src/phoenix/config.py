@@ -189,6 +189,9 @@ This is the full URL used to access Phoenix from a web browser. This setting is 
 you have a reverse proxy in front of Phoenix. If the reverse proxy exposes Phoenix through a
 sub-path, add that sub-path to the end of this URL setting.
 
+WARNING: When a sub-path is needed, you must also specify the sub-path via the environment
+variable PHOENIX_HOST_ROOT_PATH. Setting just this URL setting is not enough.
+
 Examples:
     - With a sub-path: "https://example.com/phoenix"
     - Without a sub-path: "https://phoenix.example.com"
