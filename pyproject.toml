@@ -304,8 +304,3 @@ force-single-line = false
 
 [tool.ruff.format]
 line-ending = "native"
-
-[tool.ariadne-codegen]
-schema_path = "app/schema.graphql"
-enable_custom_operations = true
-target_package_path = "mcp/src/phoenix/mcp/__generated__"
