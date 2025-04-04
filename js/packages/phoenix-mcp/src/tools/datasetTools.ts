@@ -31,4 +31,26 @@ export const initializeDatasetTools = ({
       };
     }
   );
+  server.tool(
+    "get-dataset-examples",
+    "Get examples from a dataset",
+    {
+      datasetId: z.string(),
+    },
+    async ({ datasetId }) => {
+      const response = await client.GET("/v1/datasets/{id}/examples", {
+        params: {
+          path: { id: datasetId },
+        },
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    }
+  );
 };
