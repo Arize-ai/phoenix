@@ -13,6 +13,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.enums import UserRole
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -21,7 +22,6 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
-from phoenix.server.bearer_auth import PhoenixUser
 
 router = APIRouter(tags=["projects"])
 
@@ -258,13 +258,20 @@ async def update_project(
     Raises:
         HTTPException: If the project ID is invalid, the project is not found, or the name is changed.
     """  # noqa: E501
-    if request.app.state.authentication_enabled and not (
-        isinstance(request.user, PhoenixUser) and request.user.is_admin
-    ):
-        raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN,
-            detail="Only admins can update projects",
-        )
+    if request.app.state.authentication_enabled:
+        async with request.app.state.db() as session:
+            # Check if the user is an admin
+            stmt = (
+                select(models.UserRole.name)
+                .join(models.User)
+                .where(models.User.id == int(request.user.identity))
+            )
+            role_name = await session.scalar(stmt)
+        if role_name != UserRole.ADMIN.value:
+            raise HTTPException(
+                status_code=HTTP_403_FORBIDDEN,
+                detail="Only admins can update projects",
+            )
     async with request.app.state.db() as session:
         try:
             id_ = from_global_id_with_expected_type(
@@ -330,13 +337,20 @@ async def delete_project(
     Raises:
         HTTPException: If the project ID is invalid, the project is not found, or it's the default project.
     """  # noqa: E501
-    if request.app.state.authentication_enabled and not (
-        isinstance(request.user, PhoenixUser) and request.user.is_admin
-    ):
-        raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN,
-            detail="Only admins can delete projects",
-        )
+    if request.app.state.authentication_enabled:
+        async with request.app.state.db() as session:
+            # Check if the user is an admin
+            stmt = (
+                select(models.UserRole.name)
+                .join(models.User)
+                .where(models.User.id == int(request.user.identity))
+            )
+            role_name = await session.scalar(stmt)
+        if role_name != UserRole.ADMIN.value:
+            raise HTTPException(
+                status_code=HTTP_403_FORBIDDEN,
+                detail="Only admins can delete projects",
+            )
     async with request.app.state.db() as session:
         try:
             id_ = from_global_id_with_expected_type(
