@@ -6,6 +6,7 @@ import httpx
 
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
+from phoenix.client.resources.spans import AsyncSpans
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 
 
@@ -95,6 +96,7 @@ class AsyncClient:
             )
         self._prompts = AsyncPrompts(http_client)
         self._projects = AsyncProjects(http_client)
+        self._spans = AsyncSpans(http_client)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -117,6 +119,17 @@ class AsyncClient:
             AsyncProjects: An instance of the Projects class.
         """  # noqa: E501
         return self._projects
+
+    @property
+    def spans(self) -> AsyncSpans:
+        """
+        Returns an instance of the Asynchronous Spans class for interacting with span-related
+        API endpoints.
+
+        Returns:
+            AsyncSpans: An instance of the Spans class.
+        """
+        return self._spans
 
 
 def _update_headers(

@@ -27,6 +27,14 @@ dependencies = [
   "typing-extensions",
 ]
 
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "arize-phoenix",
+]
+
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
