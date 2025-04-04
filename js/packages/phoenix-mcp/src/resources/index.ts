@@ -1,1 +1,1 @@
-export * from "./readme";
+export * from "./readme.js";

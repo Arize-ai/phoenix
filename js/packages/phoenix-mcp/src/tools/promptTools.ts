@@ -8,9 +8,7 @@ import {
   getPromptByIdentifierSchema,
   getPromptVersionSchema,
   createPromptSchema,
-  updatePromptSchema,
-  deletePromptSchema,
-} from "./promptSchemas";
+} from "./promptSchemas.js";
 
 export const initializePromptTools = ({
   client,
