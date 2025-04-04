@@ -96,26 +96,20 @@ async def get_projects(
         HTTPException: If the cursor format is invalid.
     """  # noqa: E501
     async with request.app.state.db() as session:
-        # First check if any projects exist
-        if not cursor:
-            project_exists = await session.scalar(select(models.Project.id).limit(1))
-            if not project_exists:
-                return GetProjectsResponseBody(next_cursor=None, data=[])
-
-        query = select(models.Project).order_by(models.Project.id.desc())
+        stmt = select(models.Project).order_by(models.Project.id.desc())
 
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id
-                query = query.filter(models.Project.id <= int(cursor_id))
+                stmt = stmt.filter(models.Project.id <= int(cursor_id))
             except ValueError:
                 raise HTTPException(
                     detail=f"Invalid cursor format: {cursor}",
                     status_code=HTTP_422_UNPROCESSABLE_ENTITY,
                 )
 
-        query = query.limit(limit + 1)
-        result = await session.execute(query)
+        stmt = stmt.limit(limit + 1)
+        result = await session.execute(stmt)
         orm_projects = result.scalars().all()
 
         if not orm_projects:
