@@ -16,7 +16,7 @@ from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from typing import Any, Generic, Literal, Optional, Protocol, TypeVar, Union, cast
+from typing import Any, Awaitable, Generic, Literal, Optional, Protocol, TypeVar, Union, cast
 from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import urlopen
 
@@ -1021,3 +1021,25 @@ _COOKIE_NAMES = (
     PHOENIX_OAUTH2_STATE_COOKIE_NAME,
     PHOENIX_OAUTH2_NONCE_COOKIE_NAME,
 )
+
+
+async def _await_or_return(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
+    """Helper function to handle both synchronous and asynchronous operations uniformly.
+
+    This function enables writing code that works with both synchronous and asynchronous
+    operations without duplicating logic. It takes either a regular value or an awaitable
+    and returns the resolved value, abstracting away the sync/async distinction.
+
+    Args:
+        obj: Either a regular value or an awaitable (like a coroutine or Future)
+
+    Returns:
+        The resolved value. If obj was an awaitable, it will be awaited first.
+
+    Example:
+        # This works with both sync and async operations:
+        result = await _await_or_return(some_operation())
+    """
+    if isinstance(obj, Awaitable):
+        return cast(_AnyT, await obj)
+    return obj

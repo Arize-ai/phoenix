@@ -1,12 +1,16 @@
 # Setup Tracing
 
-[instrument-python.md](instrument-python.md "mention")
+[setup-using-phoenix-otel.md](setup-using-phoenix-otel.md "mention")
 
-* Learn how to use Phoenix's decorators to easily instrument specific methods or code blocks in your application.
+* Learn how to use the `phoenix.otel` library
 
 [custom-spans.md](custom-spans.md "mention")
 
 * Learn how you can use basic OpenTelemetry to instrument your application.
+
+[instrument-python.md](instrument-python.md "mention")
+
+* Learn how to use Phoenix's decorators to easily instrument specific methods or code blocks in your application.
 
 [javascript.md](javascript.md "mention")
 

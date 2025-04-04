@@ -928,6 +928,7 @@ class PromptVersionTag(Node):
     id: str = Field(...)
     name: str
     promptVersionId: str
+    user: Optional[User] = None
 
 
 class PromptVersionTagMutationPayload(BaseModel):

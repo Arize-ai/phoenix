@@ -6,7 +6,16 @@ from enum import Enum
 from random import randint, random
 from secrets import token_hex
 from types import MappingProxyType
-from typing import Any, Callable, Iterable, Literal, Mapping, Optional, Sequence, cast
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    cast,
+)
 
 import phoenix as px
 import pytest
@@ -42,7 +51,7 @@ from ...__generated__.graphql import (
     TextContentValueInput,
     ToolDefinitionInput,
 )
-from .._helpers import _MEMBER, _GetUser, _LoggedInUser
+from .._helpers import _MEMBER, _await_or_return, _GetUser, _gql, _LoggedInUser
 
 
 class TestUserMessage:
@@ -969,3 +978,184 @@ class TestClient:
             assert prompt._template_format == template_format
             params = prompt.format(formatter=NO_OP_FORMATTER)
             assert not DeepDiff(expected, {**params})
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_version_tags(
+        self,
+        is_async: bool,
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test the version tagging functionality for prompts.
+
+        This test verifies that:
+        1. Tags can be created for prompt versions
+        2. Tags are associated with specific versions, not the prompt itself
+        3. Tags contain the expected name and description
+        4. Only one version can have a tag with a given name - creating a tag with the same name
+           for a different version will remove it from the previous version
+        5. Different prompts can have tags with the same name without affecting each other
+        """
+        # Set up test environment with logged-in user
+        u1 = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
+
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # First test: Verify tag name uniqueness within same prompt
+        prompt_identifier = token_hex(16)
+
+        # Create initial version of the prompt
+        version = PromptVersion(
+            [{"role": "user", "content": "hello {x}"}],
+            model_name=token_hex(8),
+        )
+        prompt1 = await _await_or_return(
+            Client().prompts.create(
+                name=prompt_identifier,
+                version=version,
+            )
+        )
+        assert prompt1.id
+
+        # Verify no tags exist initially
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt1.id,
+            )
+        )
+        assert not tags
+
+        # Create a tag for the first version with a random name and description
+        # Using random hex values ensures uniqueness and prevents test interference
+        tag_name = token_hex(8)
+        tag_description1 = token_hex(16)
+        await _await_or_return(
+            Client().prompts.tags.create(
+                prompt_version_id=prompt1.id,
+                name=tag_name,
+                description=tag_description1,
+            )
+        )
+
+        # Verify tag was created with correct attributes
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt1.id,
+            )
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
+        assert tags[0]["description"] == tag_description1
+
+        # Verify tag is associated with the correct user
+        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        res, _ = _gql(u1, query=query, variables={"id": tags[0]["id"]})
+        assert res["data"]["node"]["user"]["id"] == u1.gid
+
+        # Create a second version of the same prompt
+        prompt2 = await _await_or_return(
+            Client().prompts.create(
+                name=prompt_identifier,
+                version=version,
+            )
+        )
+        assert prompt2.id
+
+        # Verify second version has no tags initially
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt2.id,
+            )
+        )
+        assert not tags
+
+        # Change the user api key to a different one
+        u2 = _get_user(_MEMBER).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u2.create_api_key())
+
+        # Create a tag with the same name for the second version.
+        # This will automatically remove the tag from the first version
+        # due to tag name uniqueness.
+        tag_description2 = token_hex(16)
+        await _await_or_return(
+            Client().prompts.tags.create(
+                prompt_version_id=prompt2.id,
+                name=tag_name,
+                description=tag_description2,
+            )
+        )
+
+        # Verify tag was created for second version with the new description
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt2.id,
+            )
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
+        assert tags[0]["description"] == tag_description2
+
+        # Verify tag is associated with the correct user
+        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        res, _ = _gql(u2, query=query, variables={"id": tags[0]["id"]})
+        assert res["data"]["node"]["user"]["id"] == u2.gid
+
+        # Verify first version's tag was automatically removed when we created
+        # the tag for the second version. This demonstrates that tag names must
+        # be unique across all versions.
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt1.id,
+            )
+        )
+        assert not tags
+
+        # Second test: Verify tag name uniqueness is not enforced across different prompts
+        # Create a new prompt with a different identifier
+        new_prompt_identifier = token_hex(16)
+        prompt3 = await _await_or_return(
+            Client().prompts.create(
+                name=new_prompt_identifier,
+                version=version,
+            )
+        )
+        assert prompt3.id
+
+        # Create a tag with the same name for the new prompt
+        # This should NOT affect the tag on prompt2 since they're different prompts
+        tag_description3 = token_hex(16)
+        await _await_or_return(
+            Client().prompts.tags.create(
+                prompt_version_id=prompt3.id,
+                name=tag_name,
+                description=tag_description3,
+            )
+        )
+
+        # Verify tag was created for the new prompt
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt3.id,
+            )
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
+        assert tags[0]["description"] == tag_description3
+
+        # Verify prompt2's tag was NOT affected since it's a different prompt
+        tags = await _await_or_return(
+            Client().prompts.tags.list(
+                prompt_version_id=prompt2.id,
+            )
+        )
+        assert len(tags) == 1
+        assert tags[0]["name"] == tag_name
+        assert "description" in tags[0]
+        assert tags[0]["description"] == tag_description2

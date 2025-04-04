@@ -1643,6 +1643,7 @@ type PromptVersionTag implements Node {
   promptVersionId: GlobalID!
   name: Identifier!
   description: String
+  user: User
 }
 
 type PromptVersionTagMutationPayload {

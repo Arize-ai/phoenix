@@ -10,7 +10,9 @@ Instrumentation is the act of adding observability code to an app yourself.
 
 If you’re instrumenting an app, you need to use the OpenTelemetry SDK for your language. You’ll then use the SDK to initialize OpenTelemetry and the API to instrument your code. This will emit telemetry from your app, and any library you installed that also comes with instrumentation.
 
-Phoenix natively supports automatic instrumentation provided by OpenInference. For more details on OpenInfernce, checkout the [project](https://github.com/Arize-ai/openinference)
+Phoenix natively supports automatic instrumentation provided by OpenInference. For more details on OpenInference, checkout the [project](https://github.com/Arize-ai/openinference) on GitHub.
+
+Now lets walk through instrumenting, and then tracing, a sample express application.
 
 ### instrumentation setup <a href="#example-app" id="example-app"></a>
 
@@ -19,129 +21,153 @@ Phoenix natively supports automatic instrumentation provided by OpenInference. F
 Install OpenTelemetry API packages:
 
 ```shell
-npm install @opentelemetry/api @opentelemetry/resources @opentelemetry/semantic-conventions
+# npm, pnpm, yarn, etc
+npm install @opentelemetry/semantic-conventions @opentelemetry/api @opentelemetry/instrumentation @opentelemetry/resources @opentelemetry/sdk-trace-base @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-proto
 ```
 
 Install OpenInference instrumentation packages. Below is an example of adding instrumentation for OpenAI as well as the semantic conventions for OpenInference.
 
-<pre class="language-bash"><code class="lang-bash"><strong>npm install @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
+<pre class="language-bash"><code class="lang-bash"># npm, pnpm, yarn, etc
+<strong>npm install openai @arizeai/openinference-instrumentation-openai @arizeai/openinference-semantic-conventions
 </strong></code></pre>
-
-#### Initialize the SDK <a href="#initialize-the-sdk" id="initialize-the-sdk"></a>
-
-If you instrument a Node.js application install the [OpenTelemetry SDK for Node.js](https://www.npmjs.com/package/@opentelemetry/sdk-node):
-
-```shell
-npm install @opentelemetry/sdk-node
-```
-
-Before any other module in your application is loaded, you must initialize the SDK. If you fail to initialize the SDK or initialize it too late, no-op implementations will be provided to any library that acquires a tracer or meter from the API.
-
-```ts
-/*instrumentation.ts*/
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-
-const sdk = new NodeSDK({
-  resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'yourServiceName',
-    [SemanticResourceAttributes.SERVICE_VERSION]: '1.0',
-  }),
-  traceExporter: new ConsoleSpanExporter(),
-});
-
-sdk.start();
-```
-
-For debugging and local development purposes, the following example exports telemetry to the console. After you have finished setting up manual instrumentation, you need to configure an appropriate exporter to [export the app’s telemetry data](https://opentelemetry.io/docs/languages/js/exporters/) to to Phoenix (e.g. .
-
-The example also sets up the mandatory SDK default attribute `service.name`, which holds the logical name of the service, and the optional (but highly encouraged!) attribute `service.version`, which holds the version of the service API or implementation.
-
-Alternative methods exist for setting up resource attributes. For more information, see [Resources](https://opentelemetry.io/docs/languages/js/resources/).
-
-To verify your code, run the app by requiring the library:
-
-```sh
-npx ts-node --require ./instrumentation.ts app.ts
-```
-
-This basic setup has no effect on your app yet. You need to add code for [traces](https://opentelemetry.io/docs/languages/js/instrumentation/#traces), [metrics](https://opentelemetry.io/docs/languages/js/instrumentation/#metrics), and/or [logs](https://opentelemetry.io/docs/languages/js/instrumentation/#logs).
-
-You can register instrumentation libraries with the OpenTelemetry SDK for Node.js in order to generate telemetry data for your dependencies. For more information, see [Libraries](https://opentelemetry.io/docs/languages/js/libraries/).
 
 ### Traces <a href="#traces" id="traces"></a>
 
 #### Initialize Tracing <a href="#initialize-tracing" id="initialize-tracing"></a>
 
-To enable [tracing](https://opentelemetry.io/docs/concepts/signals/traces/) in your app, you’ll need to have an initialized [`TracerProvider`](https://opentelemetry.io/docs/concepts/signals/traces/#tracer-provider) that will let you create a [`Tracer`](https://opentelemetry.io/docs/concepts/signals/traces/#tracer).
+To enable [tracing](https://opentelemetry.io/docs/concepts/signals/traces/) in your app, you’ll need to have an initialized [`TracerProvider`](https://opentelemetry.io/docs/concepts/signals/traces/#tracer-provider).
 
-If a `TracerProvider` is not created, the OpenTelemetry APIs for tracing will use a no-op implementation and fail to generate data. As explained next, modify the `instrumentation.ts` (or `instrumentation.js`) file to include all the SDK initialization code in Node and the browser.
+If a `TracerProvider` is not created, the OpenTelemetry APIs for tracing will use a no-op implementation and fail to generate data. As explained next, create an `instrumentation.ts` (or `instrumentation.js`) file to include all of the provider initialization code in Node.
 
 **Node.js**
 
-If you followed the instructions to [initialize the SDK](https://opentelemetry.io/docs/languages/js/instrumentation/#initialize-the-sdk) above, you have a `TracerProvider` setup for you already. You can continue with [acquiring a tracer](https://opentelemetry.io/docs/languages/js/instrumentation/#acquiring-a-tracer).
-
-First, ensure you’ve got the right packages:
-
-```shell
-npm install @opentelemetry/sdk-trace-web
-```
-
-Next, update `instrumentation.ts` (or `instrumentation.js`) to contain all the SDK initialization code in it:
+Create `instrumentation.ts` (or `instrumentation.js`) to contain all the provider initialization code:
 
 ```ts
-/* eslint-disable no-console */
+// instrumentation.ts
 import { registerInstrumentations } from "@opentelemetry/instrumentation";
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
-import {
-  ConsoleSpanExporter,
-  SimpleSpanProcessor,
-} from "@opentelemetry/sdk-trace-base";
-import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
-import { Resource } from "@opentelemetry/resources";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
-import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+import OpenAI from "openai";
 
 // For troubleshooting, set the log level to DiagLogLevel.DEBUG
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
-const provider = new NodeTracerProvider({
-  resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: "openai-service",
+const tracerProvider = new NodeTracerProvider({
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: "openai-service",
+    // Project name in Phoenix, defaults to "default"
+    [SEMRESATTRS_PROJECT_NAME]: "openai-service",
   }),
+  spanProcessors: [
+    // BatchSpanProcessor will flush spans in batches after some time,
+    // this is recommended in production. For development or testing purposes
+    // you may try SimpleSpanProcessor for instant span flushing to the Phoenix UI.
+    new BatchSpanProcessor(
+      new OTLPTraceExporter({
+        url: `http://localhost:6006/v1/traces`,
+        // (optional) if connecting to Phoenix Cloud
+        // headers: { "api_key": process.env.PHOENIX_API_KEY },
+        // (optional) if connecting to self-hosted Phoenix with Authentication enabled
+        // headers: { "Authorization": `Bearer ${process.env.PHOENIX_API_KEY}` }
+      })
+    ),
+  ],
 });
+tracerProvider.register();
 
-provider.addSpanProcessor(new SimpleSpanProcessor(new ConsoleSpanExporter()));
-provider.addSpanProcessor(
-  new SimpleSpanProcessor(
-    new OTLPTraceExporter({
-      url: "http://localhost:6006/v1/traces",
-    }),
-  ),
-);
-provider.register();
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.manuallyInstrument(OpenAI);
 
 registerInstrumentations({
-  instrumentations: [new OpenAIInstrumentation({})],
+  instrumentations: [instrumentation],
 });
 
 console.log("👀 OpenInference initialized");
 ```
 
-You’ll need to bundle this file with your web application to be able to use tracing throughout the rest of your web application.
+This basic setup has will instrument chat completions via native calls to the OpenAI client.
 
-This will have no effect on your app yet: you need to [create spans](https://opentelemetry.io/docs/languages/js/instrumentation/#create-spans) to have telemetry emitted by your app.
+As shown above with OpenAI, you can register additional instrumentation libraries with the OpenTelemetry provider in order to generate telemetry data for your dependencies. For more information, see [Integrations](../../integrations-tracing/).
 
 **Picking the right span processor**
 
-By default, the Node SDK uses the `BatchSpanProcessor`, and this span processor is also chosen in the Web SDK example. The `BatchSpanProcessor` processes spans in batches before they are exported. This is usually the right processor to use for an application.
+In our `instrumentation.ts` file above, we use the `BatchSpanProcessor`. The `BatchSpanProcessor` processes spans in batches before they are exported. This is usually the right processor to use for an application.
 
 In contrast, the `SimpleSpanProcessor` processes spans as they are created. This means that if you create 5 spans, each will be processed and exported before the next span is created in code. This can be helpful in scenarios where you do not want to risk losing a batch, or if you’re experimenting with OpenTelemetry in development. However, it also comes with potentially significant overhead, especially if spans are being exported over a network - each time a call to create a span is made, it would be processed and sent over a network before your app’s execution could continue.
 
 In most cases, stick with `BatchSpanProcessor` over `SimpleSpanProcessor`.
+
+**Tracing instrumented libraries**
+
+Now that you have configured a tracer provider, and instrumented the `openai` package, lets see how we can generate traces for a sample application.
+
+{% hint style="info" %}
+The following code assumes you have Phoenix running locally, on its default port of 6006. See our [Quickstart: Tracing (TS)](../../llm-traces-1/quickstart-tracing-ts.md) documentation if you'd like to learn more about running Phoenix.
+{% endhint %}
+
+First, install the dependencies required for our sample app.
+
+```sh
+# npm, pnpm, yarn, etc
+npm install express
+```
+
+Next, create an `app.ts` (or `app.js` ) file, that hosts a simple express server for executing OpenAI chat completions.
+
+```typescript
+// app.ts
+import express from "express";
+import OpenAI from "openai";
+
+const PORT: number = parseInt(process.env.PORT || "8080");
+const app = express();
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+app.get("/chat", async (req, res) => {
+  const message = req.query.message;
+  const chatCompletion = await openai.chat.completions.create({
+    messages: [{ role: "user", content: message }],
+    model: "gpt-4o",
+  });
+  res.send(chatCompletion.choices[0].message.content);
+});
+
+app.listen(PORT, () => {
+  console.log(`Listening for requests on http://localhost:${PORT}`);
+});
+```
+
+Then, we will start our application, loading the `instrumentation.ts` file before `app.ts` so that our instrumentation code can instrument `openai` .&#x20;
+
+<pre class="language-sh"><code class="lang-sh"># node v23
+<strong>node --require ./instrumentation.ts app.ts
+</strong></code></pre>
+
+{% hint style="info" %}
+We are using Node v23 above as this allows us to execute TypeScript code without a transpilation step. OpenTelemetry and OpenInference support Node versions from v18 onwards, and we are flexible with projects configured using CommonJS or ESM module syntaxes.
+
+Learn more by visiting the Node.js documentation on [TypeScript](https://nodejs.org/en/learn/typescript/run-natively#running-typescript-natively) and [ESM](https://nodejs.org/api/esm.html) or see our [Quickstart: Tracing (TS)](../../llm-traces-1/quickstart-tracing-ts.md) documentation for an end to end example.
+{% endhint %}
+
+Finally, we can execute a request against our server
+
+```sh
+curl "http://localhost:8080/chat?message=write%20me%20a%20haiku"
+```
+
+After a few moments, a new project `openai-service`  will appear in the Phoenix UI, along with the trace generated by our OpenAI chat completion!
+
+### Advanced: Manually Tracing
 
 #### Acquiring a tracer <a href="#acquiring-a-tracer" id="acquiring-a-tracer"></a>
 
@@ -163,32 +189,30 @@ The values of `instrumentation-scope-name` and `instrumentation-scope-version` s
 
 It’s generally recommended to call `getTracer` in your app when you need it rather than exporting the `tracer` instance to the rest of your app. This helps avoid trickier application load issues when other required dependencies are involved.
 
-In the case of the [example app](https://opentelemetry.io/docs/languages/js/instrumentation/#example-app), there are two places where a tracer may be acquired with an appropriate Instrumentation Scope:
-
-First, in the _application file_ `app.ts` (or `app.js`):
+Below is an example of acquiring a tracer within application scope.
 
 ```ts
-/*app.ts*/
+// app.ts
 import { trace } from '@opentelemetry/api';
-import express, { Express } from 'express';
-import { OpenAI } from "openai";
+import express from 'express';
+import OpenAI from "openai";
 
 const tracer = trace.getTracer('llm-server', '0.1.0');
 
-const PORT: number = parseInt(process.env.PORT || '8080');
-const app: Express = express();
+const PORT: number = parseInt(process.env.PORT || "8080");
+const app = express();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-app.get('/chat', (req, res) => {
-  const message = req.query.message
-  let chatCompletion = await openai.chat.completions.create({
+app.get("/chat", async (req, res) => {
+  const message = req.query.message;
+  const chatCompletion = await openai.chat.completions.create({
     messages: [{ role: "user", content: message }],
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o",
   });
-  res.send(chatCompletion.choices[0].message);
+  res.send(chatCompletion.choices[0].message.content);
 });
 
 app.listen(PORT, () => {
