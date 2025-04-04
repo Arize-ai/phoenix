@@ -59,4 +59,30 @@ export const initializePromptTools = ({
       };
     }
   );
+
+  server.tool(
+    "get-prompt-by-identifier",
+    "Get a prompt's latest version by its identifier",
+    { prompt_identifier: z.string() },
+    async ({ prompt_identifier }) => {
+      const response = await client.GET(
+        "/v1/prompts/{prompt_identifier}/latest",
+        {
+          params: {
+            path: {
+              prompt_identifier,
+            },
+          },
+        }
+      );
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    }
+  );
 };

@@ -7,7 +7,7 @@ A MCP server for Arize Phoenix.
 This package is installed using PNPM:
 
 ```bash
-pnpm install @arize/phoenix-mcp-server
+pnpm install @arize/phoenix-mcp
 ```
 
 ## Development

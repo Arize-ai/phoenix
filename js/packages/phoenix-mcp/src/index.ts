@@ -29,6 +29,7 @@ const server = new McpServer({
 });
 
 initializePromptTools({ client, server });
+// initializeDatasetTools({ client, server });
 
 async function main() {
   const transport = new StdioServerTransport();
