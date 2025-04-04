@@ -576,7 +576,7 @@ class Project(Node):
             hour = func.date_trunc("hour", models.Span.start_time)
         elif info.context.db.dialect is SupportedSQLDialect.SQLITE:
             # SQLite uses strftime for timestamp formatting
-            hour = func.strftime("%Y-%m-%d %H:00:00Z", models.Span.start_time)
+            hour = func.strftime("%Y-%m-%dT%H:00:00.000+00:00", models.Span.start_time)
         else:
             assert_never(info.context.db.dialect)
 
