@@ -1552,23 +1552,6 @@ class TestProject:
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
 
-    @dataclass
-    class TimeSeriesTestData:
-        """Data structure for time series test data."""
-
-        timestamp: datetime
-        expected_count: int
-        description: str
-
-    @dataclass
-    class TimeRangeTest:
-        """Test case for time range filtering."""
-
-        start: datetime
-        end: datetime
-        expected_counts: Dict[datetime, int]
-        description: str
-
     @pytest.fixture
     async def _span_count_time_series_data(
         self,
@@ -1884,7 +1867,10 @@ class TestProject:
         if time_range is None:
             field = "spanCountTimeSeries{data{timestamp value}}"
         else:
-            field = f'spanCountTimeSeries(timeRange:{{start:"{time_range["start"].isoformat()}",end:"{time_range["end"].isoformat()}"}}){{data{{timestamp value}}}}'
+            # Format the datetime in a way that Strawberry accepts
+            start_str = time_range["start"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
+            end_str = time_range["end"].strftime("%Y-%m-%dT%H:%M:%S.000000+00:00")
+            field = f'spanCountTimeSeries(timeRange:{{start:"{start_str}",end:"{end_str}"}}){{data{{timestamp value}}}}'
 
         res = await self._node(field, project, httpx_client)
 
