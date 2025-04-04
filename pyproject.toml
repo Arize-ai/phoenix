@@ -129,6 +129,7 @@ container = [
   "prometheus-client",
   "openai>=1.0.0",
   "azure-identity",
+  "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",
