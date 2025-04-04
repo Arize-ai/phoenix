@@ -3,12 +3,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createClient } from "@arizeai/phoenix-client";
 import minimist from "minimist";
-<<<<<<< HEAD
-import { initializePromptTools } from "./tools";
-=======
-import { initializeDatasetTools, initializeExperimentTools, initializePromptTools } from "./tools";
->>>>>>> bfddf6669 (feat(mcp): get experiment by id (#7030))
-import { initializeReadmeResources } from "./resources";
+import {
+  initializeDatasetTools,
+  initializeExperimentTools,
+  initializePromptTools,
+} from "./tools/index.js";
+import { initializeReadmeResources } from "./resources/index.js";
 
 const argv = minimist(process.argv.slice(2));
 
@@ -39,7 +39,9 @@ initializeDatasetTools({ client, server });
 
 async function main() {
   // Initialize readme resources first
-  await initializeReadmeResources({ server });
+  if (process.env.DANGEROUSLY_READ_README_FILES !== "true") {
+    await initializeReadmeResources({ server });
+  }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
