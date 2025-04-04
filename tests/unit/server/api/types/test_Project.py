@@ -3,7 +3,7 @@ import base64
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from secrets import token_hex
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 import pytest
@@ -1551,3 +1551,358 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+    @dataclass
+    class TimeSeriesTestData:
+        """Data structure for time series test data."""
+
+        timestamp: datetime
+        expected_count: int
+        description: str
+
+    @dataclass
+    class TimeRangeTest:
+        """Test case for time range filtering."""
+
+        start: datetime
+        end: datetime
+        expected_counts: Dict[datetime, int]
+        description: str
+
+    @pytest.fixture
+    async def _span_count_time_series_data(
+        self,
+        db: DbSessionFactory,
+    ) -> _Data:
+        """Creates a minimal dataset for testing span_count_time_series.
+
+        Creates spans across different hours to test:
+        1. Basic time series grouping
+        2. Time range filtering
+        3. Edge cases with spans at hour boundaries
+        4. Discontinuities in timestamps
+        """
+        projects, traces = [], []
+        spans: List[models.Span] = []
+        async with db() as session:
+            # Create a test project
+            projects.append(models.Project(name=token_hex(8)))
+            session.add(projects[-1])
+            await session.flush()
+
+            # Create spans across different hours
+            base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+
+            # Create spans in first hour (2 spans)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time,
+                end_time=base_time + timedelta(minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.extend(
+                [
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span1",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(minutes=15),
+                        end_time=base_time + timedelta(minutes=30),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span2",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(minutes=45),
+                        end_time=base_time + timedelta(minutes=60),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                ]
+            )
+            traces.append(trace)
+
+            # Create spans in second hour (3 spans)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time + timedelta(hours=1),
+                end_time=base_time + timedelta(hours=1, minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.extend(
+                [
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span3",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(hours=1, minutes=15),
+                        end_time=base_time + timedelta(hours=1, minutes=30),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span4",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(hours=1, minutes=30),
+                        end_time=base_time + timedelta(hours=1, minutes=45),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                    models.Span(
+                        trace_rowid=trace.id,
+                        span_id=token_hex(8),
+                        parent_id=None,
+                        name="span5",
+                        span_kind="CHAIN",
+                        start_time=base_time + timedelta(hours=1, minutes=45),
+                        end_time=base_time + timedelta(hours=2),
+                        attributes={},
+                        events=[],
+                        status_code="OK",
+                        status_message="",
+                        cumulative_error_count=0,
+                        cumulative_llm_token_count_prompt=0,
+                        cumulative_llm_token_count_completion=0,
+                    ),
+                ]
+            )
+            traces.append(trace)
+
+            # Create a span exactly at hour boundary (2:00:00)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time + timedelta(hours=2),
+                end_time=base_time + timedelta(hours=2, minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.append(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name="span6",
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(hours=2),  # Exactly at 2:00:00
+                    end_time=base_time + timedelta(hours=2, minutes=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            traces.append(trace)
+
+            # Create a span in hour 4 (skipping hour 3 to create a discontinuity)
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=projects[-1].id,
+                start_time=base_time + timedelta(hours=4),
+                end_time=base_time + timedelta(hours=4, minutes=30),
+            )
+            session.add(trace)
+            await session.flush()
+
+            spans.append(
+                models.Span(
+                    trace_rowid=trace.id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name="span7",
+                    span_kind="CHAIN",
+                    start_time=base_time + timedelta(hours=4, minutes=15),
+                    end_time=base_time + timedelta(hours=4, minutes=30),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+            )
+            traces.append(trace)
+
+            session.add_all(spans)
+            await session.flush()
+
+        return _Data(
+            spans=spans,
+            traces=traces,
+            projects=projects,
+        )
+
+    @pytest.mark.parametrize(
+        "time_range,expected_counts,description",
+        [
+            pytest.param(
+                None,
+                {
+                    datetime.fromisoformat("2024-01-01T00:00:00+00:00"): 2,
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
+                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
+                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
+                },
+                "no time range",
+                id="no_time_range",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,
+                },
+                "middle hour only",
+                id="middle_hour_only",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:45:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T02:15:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
+                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,  # Span at 2:00:00
+                },
+                "span at hour boundary",
+                id="span_at_hour_boundary",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
+                },
+                "start at hour boundary",
+                id="start_at_hour_boundary",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T01:30:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T01:00:00+00:00"): 3,  # All spans in hour 1
+                },
+                "end at hour boundary",
+                id="end_at_hour_boundary",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T03:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T04:00:00+00:00"),
+                },
+                {},
+                "no spans in range",
+                id="no_spans_in_range",
+            ),
+            pytest.param(
+                {
+                    "start": datetime.fromisoformat("2024-01-01T02:00:00+00:00"),
+                    "end": datetime.fromisoformat("2024-01-01T05:00:00+00:00"),
+                },
+                {
+                    datetime.fromisoformat("2024-01-01T02:00:00+00:00"): 1,
+                    datetime.fromisoformat("2024-01-01T04:00:00+00:00"): 1,
+                },
+                "time range with discontinuity",
+                id="time_range_with_discontinuity",
+            ),
+        ],
+    )
+    async def test_span_count_time_series(
+        self,
+        _span_count_time_series_data: _Data,
+        httpx_client: httpx.AsyncClient,
+        time_range: Optional[Dict[str, datetime]],
+        expected_counts: Dict[datetime, int],
+        description: str,
+    ) -> None:
+        """Test the span_count_time_series field.
+
+        This test verifies that:
+        1. The field returns the correct time series data grouped by hour
+        2. The time range filtering works correctly
+        3. Edge cases with spans at hour boundaries are handled correctly
+        4. Empty result sets are handled correctly
+        5. Time range edge cases are handled correctly
+
+        Args:
+            time_range: The time range to filter spans by, or None for no filtering
+            expected_counts: The expected counts for each hour in the time range
+            description: A description of the test case
+        """
+        project = _span_count_time_series_data.projects[0]
+
+        # Construct the GraphQL query based on whether a time range is provided
+        if time_range is None:
+            field = "spanCountTimeSeries{data{timestamp value}}"
+        else:
+            field = f'spanCountTimeSeries(timeRange:{{start:"{time_range["start"].isoformat()}",end:"{time_range["end"].isoformat()}"}}){{data{{timestamp value}}}}'
+
+        res = await self._node(field, project, httpx_client)
+
+        # Verify the structure of the response
+        assert "data" in res
+        assert isinstance(res["data"], list)
+
+        if not expected_counts:
+            assert len(res["data"]) == 0, f"Expected empty data for {description}"
+            return
+
+        # Verify the data points
+        for data_point in res["data"]:
+            timestamp = datetime.fromisoformat(data_point["timestamp"])
+            value = data_point["value"]
+            assert (
+                timestamp in expected_counts
+            ), f"Unexpected timestamp: {timestamp} for {description}"
+            assert (
+                value == expected_counts[timestamp]
+            ), f"Expected count {expected_counts[timestamp]} for hour {timestamp}, got {value} for {description}"
