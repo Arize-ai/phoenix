@@ -1,5 +1,5 @@
 {
-  "name": "@arize/phoenix-mcp",
+  "name": "@arizeai/phoenix-mcp",
   "version": "1.0.0",
   "description": "A MCP server for Arize Phoenix",
   "bin": {
