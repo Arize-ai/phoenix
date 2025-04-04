@@ -307,5 +307,5 @@ line-ending = "native"
 
 [tool.ariadne-codegen]
 schema_path = "app/schema.graphql"
-queries_path = "queries.graphql"
+queries_path = "packages/phoenix-mcp/queries.graphql"
 target_package_path = "packages/phoenix-mcp/src/phoenix/mcp/__generated__"
