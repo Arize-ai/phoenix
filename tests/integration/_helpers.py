@@ -141,8 +141,9 @@ class _User:
         /,
         *,
         profile: _Profile,
+        send_welcome_email: bool = False,
     ) -> _User:
-        return _create_user(self, role=role, profile=profile)
+        return _create_user(self, role=role, profile=profile, send_welcome_email=send_welcome_email)
 
     def delete_users(self, *users: Union[_GqlId, _User]) -> None:
         return _delete_users(self, users=users)
@@ -712,6 +713,7 @@ def _create_user(
     *,
     role: UserRoleInput,
     profile: _Profile,
+    send_welcome_email: bool = False,
 ) -> _User:
     email = profile.email
     password = profile.password
@@ -719,6 +721,7 @@ def _create_user(
     args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
     if username:
         args.append(f'username:"{username}"')
+    args.append(f"sendWelcomeEmail:{str(send_welcome_email).lower()}")
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(auth, query=query)

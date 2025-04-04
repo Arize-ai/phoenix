@@ -335,6 +335,7 @@ input CreateUserInput {
   username: String!
   password: String!
   role: UserRoleInput!
+  sendWelcomeEmail: Boolean = false
 }
 
 enum DataQualityMetric {

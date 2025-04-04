@@ -59,6 +59,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
+    verify_server_environment_variables,
 )
 from phoenix.core.model_schema import Model
 from phoenix.db import models
@@ -550,6 +551,7 @@ def create_graphql_router(
     read_only: bool = False,
     secret: Optional[str] = None,
     token_store: Optional[TokenStore] = None,
+    email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
@@ -565,6 +567,8 @@ def create_graphql_router(
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
         read_only (bool, optional): Marks the app as read-only. Defaults to False.
         secret (Optional[str], optional): The application secret for auth. Defaults to None.
+        token_store (Optional[TokenStore], optional): The token store for auth. Defaults to None.
+        email_sender (Optional[EmailSender], optional): The email sender. Defaults to None.
 
     Returns:
         GraphQLRouter: The router mounted at /graphql
@@ -653,6 +657,7 @@ def create_graphql_router(
             auth_enabled=authentication_enabled,
             secret=secret,
             token_store=token_store,
+            email_sender=email_sender,
         )
 
     return GraphQLRouter(
@@ -766,6 +771,7 @@ def create_app(
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
 ) -> FastAPI:
+    verify_server_environment_variables()
     if model.embedding_dimensions:
         try:
             import fast_hdbscan  # noqa: F401
@@ -868,6 +874,7 @@ def create_app(
         read_only=read_only,
         secret=secret,
         token_store=token_store,
+        email_sender=email_sender,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware

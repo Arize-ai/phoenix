@@ -60,6 +60,7 @@ from phoenix.server.app import (
     instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import SimpleEmailSender
+from phoenix.server.email.types import EmailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -380,7 +381,7 @@ def main() -> None:
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
-    email_sender = None
+    email_sender: Optional[EmailSender] = None
     if mail_sever := get_env_smtp_hostname():
         assert (mail_username := get_env_smtp_username()), "SMTP username is required"
         assert (mail_password := get_env_smtp_password()), "SMTP password is required"

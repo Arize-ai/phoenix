@@ -1,5 +1,6 @@
 from secrets import token_bytes
 
+import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 
@@ -10,11 +11,28 @@ from phoenix.db.facilitator import _ensure_admins, _ensure_enums
 from phoenix.server.types import DbSessionFactory
 
 
+class _MockWelcomeEmailSender:
+    def __init__(self, email_sending_fails: bool = False) -> None:
+        self.attempts: list[tuple[str, str]] = []
+        self.email_sending_fails = email_sending_fails
+
+    async def send_welcome_email(
+        self,
+        email: str,
+        name: str,
+    ) -> None:
+        self.attempts.append((email, name))
+        if self.email_sending_fails:
+            raise RuntimeError("Failed to send email")
+
+
 class TestEnsureStartupAdmins:
+    @pytest.mark.parametrize("email_sending_fails", [False, True])
     async def test_ensure_startup_admins(
         self,
         db: DbSessionFactory,
         monkeypatch: MonkeyPatch,
+        email_sending_fails: bool,
     ) -> None:
         monkeypatch.setenv(
             ENV_PHOENIX_ADMINS,
@@ -25,8 +43,7 @@ class TestEnsureStartupAdmins:
             ),
         )
         # Initialize the enum values in the database
-        async with db() as session:
-            await _ensure_enums(session)
+        await _ensure_enums(db)
         # Create existing users (not admins) for the test
         async with db() as session:
             # Fetch role IDs
@@ -57,8 +74,15 @@ class TestEnsureStartupAdmins:
             }
             session.add_all(existing_users.values())
             await session.flush()
-        async with db() as session:
-            await _ensure_admins(session)
+
+        # Create mock email sender and ensure admins
+        email_sender = _MockWelcomeEmailSender(email_sending_fails=email_sending_fails)
+        await _ensure_admins(db, email_sender=email_sender)
+
+        # Verify email sending behavior
+        assert email_sender.attempts == [("benjamin@example.com", "Franklin, Benjamin")]
+
+        # Verify database state
         async with db() as session:
             users = {user.email: user for user in await session.scalars(select(models.User))}
         assert len(users) == 3

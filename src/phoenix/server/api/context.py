@@ -53,6 +53,7 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
+from phoenix.server.email.types import EmailSender
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -124,6 +125,7 @@ class Context(BaseContext):
     auth_enabled: bool = False
     secret: Optional[str] = None
     token_store: Optional[TokenStore] = None
+    email_sender: Optional[EmailSender] = None
 
     def get_secret(self) -> str:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
