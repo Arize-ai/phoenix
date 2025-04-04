@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { createClient } from "@arizeai/phoenix-client";
 import minimist from "minimist";
-import { initializePromptTools } from "./tools";
+import { initializePromptTools, initializeDatasetTools } from "./tools";
 import { initializeReadmeResources } from "./resources";
 
 const argv = minimist(process.argv.slice(2));
@@ -30,7 +30,7 @@ const server = new McpServer({
 });
 
 initializePromptTools({ client, server });
-// initializeDatasetTools({ client, server });
+initializeDatasetTools({ client, server });
 
 async function main() {
   // Initialize readme resources first
