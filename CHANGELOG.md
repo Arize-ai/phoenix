@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.22.0...arize-phoenix-v8.22.1) (2025-04-04)
+
+
+### Bug Fixes
+
+* add aiohttp to container for azure-identity ([#6995](https://github.com/Arize-ai/phoenix/issues/6995)) ([6eb3eb1](https://github.com/Arize-ai/phoenix/commit/6eb3eb1ad6b65eec98b2f26ba6526709e4d5ecef))
+
 ## [8.22.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.21.0...arize-phoenix-v8.22.0) (2025-04-03)
 
 
