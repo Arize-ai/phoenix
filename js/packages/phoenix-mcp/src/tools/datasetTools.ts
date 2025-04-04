@@ -53,4 +53,26 @@ export const initializeDatasetTools = ({
       };
     }
   );
+  server.tool(
+    "get-dataset-experiments",
+    "List experiments run on a dataset",
+    {
+      datasetId: z.string(),
+    },
+    async ({ datasetId }) => {
+      const response = await client.GET("/v1/datasets/{dataset_id}/experiments", {
+        params: {
+          path: { dataset_id: datasetId },
+        },
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response.data, null, 2),
+          },
+        ],
+      };
+    }
+  );
 };
