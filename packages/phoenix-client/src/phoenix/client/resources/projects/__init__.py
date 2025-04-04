@@ -5,7 +5,6 @@ from typing import Optional, cast
 from urllib.parse import quote_plus
 
 import httpx
-from httpx._types import QueryParamTypes
 
 from phoenix.client.__generated__ import v1
 
@@ -89,25 +88,17 @@ class Projects:
                 print(f"Project name: {project['name']}")
             ```
         """  # noqa: E501
-        all_projects = []
+        all_projects: list[v1.Project] = []
         next_cursor: Optional[str] = None
-
         while True:
             url = "v1/projects"
-            params: QueryParamTypes = {}
-            if next_cursor:
-                params["cursor"] = next_cursor
-
+            params = {"cursor": next_cursor} if next_cursor else {}
             response = self._client.get(url, params=params)
             response.raise_for_status()
             data = cast(v1.GetProjectsResponseBody, response.json())
-
             all_projects.extend(data["data"])
-
-            next_cursor = data.get("next_cursor")
-            if not next_cursor:
+            if not (next_cursor := data.get("next_cursor")):
                 break
-
         return all_projects
 
     def create(
@@ -303,25 +294,17 @@ class AsyncProjects:
                 print(f"Project name: {project['name']}")
             ```
         """  # noqa: E501
-        all_projects = []
+        all_projects: list[v1.Project] = []
         next_cursor: Optional[str] = None
-
         while True:
             url = "v1/projects"
-            params: QueryParamTypes = {}
-            if next_cursor:
-                params["cursor"] = next_cursor
-
+            params = {"cursor": next_cursor} if next_cursor else {}
             response = await self._client.get(url, params=params)
             response.raise_for_status()
             data = cast(v1.GetProjectsResponseBody, response.json())
-
             all_projects.extend(data["data"])
-
-            next_cursor = data.get("next_cursor")
-            if not next_cursor:
+            if not (next_cursor := data.get("next_cursor")):
                 break
-
         return all_projects
 
     async def create(
