@@ -60,11 +60,14 @@ export const initializeDatasetTools = ({
       datasetId: z.string(),
     },
     async ({ datasetId }) => {
-      const response = await client.GET("/v1/datasets/{dataset_id}/experiments", {
-        params: {
-          path: { dataset_id: datasetId },
-        },
-      });
+      const response = await client.GET(
+        "/v1/datasets/{dataset_id}/experiments",
+        {
+          params: {
+            path: { dataset_id: datasetId },
+          },
+        }
+      );
       return {
         content: [
           {
