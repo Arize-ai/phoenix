@@ -44,7 +44,7 @@ class SimpleEmailSender:
         email: str,
         name: str,
     ) -> None:
-        subject = "[Phoenix] Welcome to Phoenix"
+        subject = "[Phoenix] Welcome to Arize Phoenix"
         template_name = "welcome.html"
 
         template = self.env.get_template(template_name)
