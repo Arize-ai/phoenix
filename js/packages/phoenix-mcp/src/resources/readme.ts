@@ -7,6 +7,13 @@ import {
   ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import z from "zod";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const _dirname =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url));
 
 interface ReadmeResourcesOptions {
   server: McpServer;
@@ -20,7 +27,7 @@ export async function initializeReadmeResources({
   server,
 }: ReadmeResourcesOptions): Promise<void> {
   // Start from the directory where this file is located
-  const baseDir = path.dirname(path.resolve(__dirname, "../../../.."));
+  const baseDir = path.dirname(path.resolve(_dirname, "../../../.."));
 
   // TODO: Refactor to fetch from public github repo instead of filesystem
   // Find all README files recursively (case insensitive)

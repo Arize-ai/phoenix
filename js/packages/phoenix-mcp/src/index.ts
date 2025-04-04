@@ -7,8 +7,8 @@ import {
   initializeDatasetTools,
   initializeExperimentTools,
   initializePromptTools,
-} from "./tools";
-import { initializeReadmeResources } from "./resources";
+} from "./tools/index.js";
+import { initializeReadmeResources } from "./resources/index.js";
 
 const argv = minimist(process.argv.slice(2));
 
@@ -39,7 +39,7 @@ initializeDatasetTools({ client, server });
 
 async function main() {
   // Initialize readme resources first
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.DANGEROUSLY_READ_README_FILES !== "true") {
     await initializeReadmeResources({ server });
   }
 
