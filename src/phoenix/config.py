@@ -927,7 +927,7 @@ def get_env_root_url() -> URL:
 
 
 def get_base_url() -> str:
-    """Deprecated: Use get_env_base_url() instead, but note the difference in behavior."""
+    """Deprecated: Use get_env_root_url() instead, but note the difference in behavior."""
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
