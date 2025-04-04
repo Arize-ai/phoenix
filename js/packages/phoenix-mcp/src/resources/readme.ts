@@ -2,7 +2,10 @@ import path from "path";
 import fs from "fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { glob } from "glob";
-import z from "zod";
+import {
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
 interface ReadmeResourcesOptions {
   server: McpServer;
@@ -23,53 +26,72 @@ export async function initializeReadmeResources({
     cwd: baseDir,
     ignore: ["**/node_modules/**", "**/dist/**"],
     nodir: true,
-    maxDepth: 5, // Only go 5 directories deep
   });
 
-  // Create a tool for the list of readmes
-  server.tool(
-    "list-readmes",
-    "Get a list of all available README files",
-    {},
-    async () => {
-      return {
-        content: readmeFiles
-          .map((file) => file.replace(baseDir, ""))
-          .map((file) => ({
-            type: "text",
-            text: file,
-          })),
-      };
-    }
-  );
+  /* eslint-disable-next-line no-console */
+  console.error(`Found ${readmeFiles.length} README files`);
 
-  // Create a tool to get a specific readme by its path
-  server.tool(
-    "get-readme",
-    "Get the contents of a specific README file by its path",
-    {
-      readme_path: z.string(),
+  server.server.registerCapabilities({
+    resources: {
+      list: true,
+      read: true,
     },
-    async ({ readme_path }) => {
-      try {
-        const fullPath = path.join(baseDir, readme_path);
-        const content = await fs.promises.readFile(fullPath, "utf-8");
+  });
+
+  // Register handlers for resource operations
+  server.server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    return {
+      resources: readmeFiles.map((file) => {
+        const relativePath = file.replace(baseDir, "").replace(/^\//, "");
         return {
-          content: [
-            {
-              type: "text",
-              text: content,
-            },
-          ],
+          uri: `readme://${relativePath}`,
+          name: relativePath,
+          description: `README file at ${relativePath}`,
+          mimeType: "text/markdown",
         };
-      } catch (error) {
-        /* eslint-disable-next-line no-console */
-        console.error(`Error reading README file ${readme_path}:`, error);
-        throw new Error(`Failed to read README file: ${readme_path}`);
+      }),
+    };
+  });
+
+  server.server.setRequestHandler(
+    ReadResourceRequestSchema,
+    async (request) => {
+      const uri = request.params.uri;
+
+      // Parse the URI to get the file path
+      if (uri.startsWith("readme://")) {
+        const filePath = uri.replace("readme://", "");
+        const fullPath = path.join(baseDir, filePath);
+
+        try {
+          // Check if the requested file is in our readmeFiles list
+          const matchingFile = readmeFiles.find(
+            (file) => file.replace(baseDir, "").replace(/^\//, "") === filePath
+          );
+
+          if (!matchingFile) {
+            throw new Error(`Resource not found: ${uri}`);
+          }
+
+          const content = await fs.promises.readFile(fullPath, "utf-8");
+
+          return {
+            contents: [
+              {
+                uri,
+                mimeType: "text/markdown",
+                text: content,
+              },
+            ],
+          };
+        } catch (error) {
+          /* eslint-disable-next-line no-console */
+          console.error(`Error reading README file ${uri}:`, error);
+          throw new Error(`Failed to read README file: ${uri}`);
+        }
+      } else {
+        throw new Error(`Unsupported resource URI scheme: ${uri}`);
       }
     }
   );
-
-  /* eslint-disable-next-line no-console */
-  console.error(`Registered ${readmeFiles.length} README files`);
 }
