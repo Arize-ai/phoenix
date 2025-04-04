@@ -33,4 +33,26 @@ export const initializeExperimentTools = ({
       };
     }
   );
+
+  server.tool(
+    "get-experiment-by-id",
+    "Get an experiment by its ID",
+    {
+      experiment_id: z.string(),
+    },
+    async ({ experiment_id }) => {
+      const response = await client.GET("/v1/experiments/{experiment_id}", {
+        params: {
+          path: {
+            experiment_id,
+          },
+        },
+      });
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(response.data?.data, null, 2) },
+        ],
+      };
+    }
+  );
 };
