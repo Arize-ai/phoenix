@@ -1410,6 +1410,9 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+
+  """Hourly span count for the project."""
+  spanCountTimeSeries(timeRange: TimeRange): SpanCountTimeSeries!
 }
 
 """A connection to a list of items."""
@@ -1917,6 +1920,10 @@ type SpanConnection {
 type SpanContext {
   traceId: ID!
   spanId: ID!
+}
+
+type SpanCountTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
 }
 
 """An edge in a connection."""
