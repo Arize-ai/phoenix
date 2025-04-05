@@ -1,8 +1,25 @@
-# arize-phoenix-client
+<h1 align="center" style="border-bottom: none">
+    <div>
+        <a href="https://phoenix.arize.com/?utm_medium=github&utm_content=header_img&utm_campaign=phoenix-client">
+            <picture>
+                <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix.svg">
+                <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix-white.svg">
+                <img alt="Arize Phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/refs/heads/main/logos/Phoenix/phoenix.svg" width="100" />
+            </picture>
+        </a>
+        <br>
+        arize-phoenix-client
+    </div>
+</h1>
 
-Phoenix Client is a lightweight package for interacting with the Phoenix server via its OpenAPI REST interface.
+Phoenix Client is a lightweight package for interacting with the Phoenix server.
 
 [![pypi](https://badge.fury.io/py/arize-phoenix-client.svg)](https://pypi.org/project/arize-phoenix-client/)
+
+## Features
+
+- **API** - Interact with Phoenix's OpenAPI REST interface
+- **Prompt Management** - Pull / push / and invoke prompts stored in Phoenix
 
 ## Installation
 
