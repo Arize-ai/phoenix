@@ -53,6 +53,20 @@ pip install arize-phoenix
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
 
+## Packages
+
+The `arize-phoenix` package includes the entire Phoenix platfom. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages and TypeScript packages that can be used in conjunction with the platfrom.
+
+### Subpackages
+
+| Package                                                                                             | Language                                                                                                                                     | Description                                                                                       |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [arize-phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel)           | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-otel)](https://pypi.org/project/arize-phoenix-otel/)                     | Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults        |
+| [arize-phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client)       | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-client)](https://pypi.org/project/arize-phoenix-client/)                 | Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface         |
+| [arize-phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-evals)         | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-evals)](https://pypi.org/project/arize-phoenix-evals/)                   | Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more          |
+| [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | JavaScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) | Client for the Arize Phoenix API                                                                  |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | JavaScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp)       | MCP server implementation for Arize Phoenix providing unified interface to Phoenix's capabilities |
+
 ## Tracing Integrations
 
 Phoenix is built on top of OpenTelemetry and is vendor, language, and framework agnostic. For details about tracing integrations and example applications, see the [OpenInference](https://github.com/Arize-ai/openinference) project.
