@@ -10,7 +10,10 @@
     <a target="_blank" href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">
         <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
-    <a target="_blank" href="https://twitter.com/ArizePhoenix">
+     <a target="_blank" href="https://bsky.app/profile/arize-phoenix.bsky.social">
+        <img src="https://img.shields.io/badge/-phoenix-blue.svg?color=blue&labelColor=gray&logo=bluesky">
+    </a>
+    <a target="_blank" href="https://x.com/ArizePhoenix">
         <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=x">
     </a>
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
