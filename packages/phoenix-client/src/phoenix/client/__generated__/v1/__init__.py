@@ -203,6 +203,9 @@ class SpanAnnotationResult(TypedDict):
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
+    subtype: NotRequired[Literal["thinking"]]
+    signature: NotRequired[str]
+    redacted: NotRequired[bool]
 
 
 class ToolCallFunction(TypedDict):
