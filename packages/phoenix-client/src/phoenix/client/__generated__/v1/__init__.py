@@ -96,6 +96,17 @@ class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
 
 
+class Project(TypedDict):
+    name: str
+    id: str
+    description: NotRequired[str]
+
+
+class ProjectData(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
 class PromptData(TypedDict):
     name: str
     description: NotRequired[str]
@@ -217,6 +228,14 @@ class ToolResultContentPart(TypedDict):
     tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
 
 
+class UpdateProjectRequestBody(TypedDict):
+    project: ProjectData
+
+
+class UpdateProjectResponseBody(TypedDict):
+    data: Project
+
+
 class UploadDatasetData(TypedDict):
     dataset_id: str
 
@@ -237,6 +256,23 @@ class AnnotateSpansResponseBody(TypedDict):
 
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
+
+
+class CreateProjectRequestBody(TypedDict):
+    project: ProjectData
+
+
+class CreateProjectResponseBody(TypedDict):
+    data: Project
+
+
+class GetProjectResponseBody(TypedDict):
+    data: Project
+
+
+class GetProjectsResponseBody(TypedDict):
+    data: Sequence[Project]
+    next_cursor: Optional[str]
 
 
 class GetPromptVersionTagsResponseBody(TypedDict):

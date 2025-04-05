@@ -4,6 +4,7 @@ from typing import Mapping, Optional
 
 import httpx
 
+from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 
@@ -31,7 +32,7 @@ class Client:
             http_client (Optional[httpx.Client]): An instance of httpx.Client to be used for
                 making HTTP requests. If not provided, a new instance will be created. Defaults
                 to None.
-        """
+        """  # noqa: E501
         if http_client is None:
             base_url = base_url or get_base_url()
             http_client = _WrappedClient(
@@ -39,6 +40,7 @@ class Client:
                 headers=_update_headers(headers, api_key),
             )
         self._prompts = Prompts(http_client)
+        self._projects = Projects(http_client)
 
     @property
     def prompts(self) -> Prompts:
@@ -47,8 +49,18 @@ class Client:
 
         Returns:
             Prompts: An instance of the Prompts class.
-        """
+        """  # noqa: E501
         return self._prompts
+
+    @property
+    def projects(self) -> Projects:
+        """
+        Returns an instance of the Projects class for interacting with project-related API endpoints.
+
+        Returns:
+            Projects: An instance of the Projects class.
+        """  # noqa: E501
+        return self._projects
 
 
 class AsyncClient:
@@ -74,7 +86,7 @@ class AsyncClient:
             http_client (Optional[httpx.AsyncClient]): An instance of httpx.AsyncClient to be used
                 for making HTTP requests. If not provided, a new instance will be created. Defaults
                 to None.
-        """
+        """  # noqa: E501
         if http_client is None:
             base_url = base_url or get_base_url()
             http_client = httpx.AsyncClient(
@@ -82,6 +94,7 @@ class AsyncClient:
                 headers=_update_headers(headers, api_key),
             )
         self._prompts = AsyncPrompts(http_client)
+        self._projects = AsyncProjects(http_client)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -91,8 +104,19 @@ class AsyncClient:
 
         Returns:
             AsyncPrompts: An instance of the Prompts class.
-        """
+        """  # noqa: E501
         return self._prompts
+
+    @property
+    def projects(self) -> AsyncProjects:
+        """
+        Returns an instance of the Asynchronous Projects class for interacting with project-related
+        API endpoints.
+
+        Returns:
+            AsyncProjects: An instance of the Projects class.
+        """  # noqa: E501
+        return self._projects
 
 
 def _update_headers(
