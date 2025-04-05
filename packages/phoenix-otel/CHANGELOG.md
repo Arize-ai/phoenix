@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.0...arize-phoenix-otel-v0.9.1) (2025-04-05)
+
+
+### Documentation
+
+* add nice headers ([#7044](https://github.com/Arize-ai/phoenix/issues/7044)) ([9151104](https://github.com/Arize-ai/phoenix/commit/9151104bd4aa69380849a441e3556a3adfa604ca))
+
 ## [0.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.8.0...arize-phoenix-otel-v0.9.0) (2025-03-22)
 
 
