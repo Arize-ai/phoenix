@@ -99,6 +99,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
 |  Websockets: {{ websockets_enabled }}
+|  Allowed Origins: {{ allowed_origins }}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -366,6 +367,8 @@ def main() -> None:
     if enable_websockets is None:
         enable_websockets = True
 
+    allowed_origins = args.allowed_origins or get_env_allowed_origins()
+
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
@@ -377,6 +380,7 @@ def main() -> None:
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
         websockets_enabled=enable_websockets,
+        allowed_origins=allowed_origins,
     )
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
@@ -401,7 +405,6 @@ def main() -> None:
             connection_method="STARTTLS",
             validate_certs=get_env_smtp_validate_certs(),
         )
-    allowed_origins = args.allowed_origins or get_env_allowed_origins()
 
     app = create_app(
         db=factory,
