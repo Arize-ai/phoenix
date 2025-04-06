@@ -124,7 +124,7 @@
     "dev:offline": "pnpm run dev:server:offline & pnpm run build:static && pnpm run build:relay && vite",
     "dev:embeddings": "pnpm run dev:server:embeddings & pnpm run build:static && pnpm run build:relay && vite",
     "dev:ui": "pnpm run build:static && pnpm run build:relay && vite",
-    "dev:server": "source .env && tox r -e phoenix_main -- --dev --enable-cors serve",
+    "dev:server": "source .env && tox r -e phoenix_main -- --dev serve",
     "dev:server:offline": "python -m phoenix.server.main --dev serve",
     "dev:server:embeddings": "source .env && tox r -e phoenix_main -- --dev serve --with-fixture=fashion_mnist",
     "dev:server:test": "node ./tests/utils/testServer.mjs",
