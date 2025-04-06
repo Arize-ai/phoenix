@@ -167,12 +167,6 @@ def main() -> None:
     parser.add_argument("--debug", action="store_true", help=SUPPRESS)
     parser.add_argument("--dev", action="store_true", help=SUPPRESS)
     parser.add_argument("--no-ui", action="store_true", help=SUPPRESS)
-    parser.add_argument(
-        "--allowed-origins",
-        type=str,
-        required=False,
-        help="Comma separated list of allowed origins",
-    )
     parser.add_argument("--enable-websockets", type=str, help=SUPPRESS)
     subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
 
@@ -223,6 +217,12 @@ def main() -> None:
             "the inputted project or trace fixture. "
             "Default is False. "
         ),
+    )
+    serve_parser.add_argument(
+        "--allowed-origins",
+        type=str,
+        required=False,
+        help="Comma separated list of allowed origins",
     )
 
     datasets_parser = subparsers.add_parser("datasets")
