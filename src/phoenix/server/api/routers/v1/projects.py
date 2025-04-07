@@ -2,6 +2,7 @@ import base64
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
+from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -29,7 +30,7 @@ router = APIRouter(tags=["projects"])
 
 
 class ProjectData(V1RoutesBaseModel):
-    name: str
+    name: str = Field(..., ge=1)
     description: Optional[str] = None
 
 

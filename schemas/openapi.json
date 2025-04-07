@@ -2331,7 +2331,8 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "Name"
+            "title": "Name",
+            "ge": 1
           },
           "description": {
             "anyOf": [
@@ -2948,7 +2949,8 @@
         "properties": {
           "name": {
             "type": "string",
-            "title": "Name"
+            "title": "Name",
+            "ge": 1
           },
           "description": {
             "anyOf": [
