@@ -1921,10 +1921,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Cursor for pagination (base64-encoded project ID)",
+              "description": "Cursor for pagination (project ID)",
               "title": "Cursor"
             },
-            "description": "Cursor for pagination (base64-encoded project ID)"
+            "description": "Cursor for pagination (project ID)"
           },
           {
             "name": "limit",
@@ -2030,7 +2030,7 @@
           "projects"
         ],
         "summary": "Get project by ID or name",
-        "description": "Retrieve a specific project using its unique identifier. The identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+        "description": "Retrieve a specific project using its unique identifier. The identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.",
         "operationId": "getProject",
         "parameters": [
           {
@@ -2039,10 +2039,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.",
               "title": "Project Identifier"
             },
-            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name."
+            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name."
           }
         ],
         "responses": {
@@ -2093,7 +2093,7 @@
           "projects"
         ],
         "summary": "Update a project by ID or name",
-        "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+        "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.",
         "operationId": "updateProject",
         "parameters": [
           {
@@ -2102,10 +2102,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.",
               "title": "Project Identifier"
             },
-            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name."
+            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name."
           }
         ],
         "requestBody": {
@@ -2166,7 +2166,7 @@
           "projects"
         ],
         "summary": "Delete a project by ID or name",
-        "description": "Delete an existing project and all its associated data. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. The default project cannot be deleted.",
+        "description": "Delete an existing project and all its associated data. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name. The default project cannot be deleted.",
         "operationId": "deleteProject",
         "parameters": [
           {
@@ -2175,10 +2175,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.",
               "title": "Project Identifier"
             },
-            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name."
+            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name."
           }
         ],
         "responses": {

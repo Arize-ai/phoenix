@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import string
 from secrets import token_hex
 from typing import Any
@@ -13,6 +12,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api.routers.v1.projects import _encode_project_name
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
@@ -142,7 +142,7 @@ class TestProjects:
             await session.flush()
 
         # Test retrieving the project by name
-        project_identifier = base64.urlsafe_b64encode(project.name.encode()).decode()
+        project_identifier = _encode_project_name(project.name)
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.get(url)
         assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
@@ -229,7 +229,7 @@ class TestProjects:
         updated_project_data = {
             "description": updated_description,
         }
-        project_identifier = base64.urlsafe_b64encode(project.name.encode()).decode()
+        project_identifier = _encode_project_name(project.name)
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.put(url, json=updated_project_data)
         assert response.is_success, f"PUT /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
@@ -273,7 +273,7 @@ class TestProjects:
             await session.flush()
 
         # Delete the project by name
-        project_identifier = base64.urlsafe_b64encode(project.name.encode()).decode()
+        project_identifier = _encode_project_name(project.name)
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.delete(url)
         assert (
@@ -337,7 +337,7 @@ class TestProjects:
             ), f"Default project {default_project.id} should still exist in database"  # noqa: E501
 
         # Try to delete the default project by name
-        project_identifier = base64.urlsafe_b64encode(DEFAULT_PROJECT_NAME.encode()).decode()
+        project_identifier = _encode_project_name(DEFAULT_PROJECT_NAME)
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.delete(url)
 
@@ -369,7 +369,7 @@ class TestProjects:
 
         # Test with a nonexistent project name
         name = token_hex(16)
-        project_identifier = base64.urlsafe_b64encode(name.encode()).decode()
+        project_identifier = _encode_project_name(name)
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.get(url)
         assert (
@@ -402,7 +402,7 @@ class TestProjects:
 
         # Test with a nonexistent project name
         name = token_hex(16)
-        project_identifier = base64.urlsafe_b64encode(name.encode()).decode()
+        project_identifier = _encode_project_name(name)
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.put(url, json=updated_project_data)
         assert (
@@ -428,7 +428,7 @@ class TestProjects:
         ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
         # Test with a nonexistent project name
-        project_identifier = base64.urlsafe_b64encode(token_hex(16).encode()).decode()
+        project_identifier = _encode_project_name(token_hex(16))
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.delete(url)
         assert (

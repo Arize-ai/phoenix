@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import logging
 from typing import Optional, cast
 from urllib.parse import quote_plus
@@ -71,7 +70,7 @@ class Projects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+            project_identifier = _encode_project_name(project_name)
         else:
             assert project_id
             project_identifier = project_id
@@ -201,7 +200,7 @@ class Projects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+            project_identifier = _encode_project_name(project_name)
         else:
             assert project_id
             project_identifier = project_id
@@ -245,7 +244,7 @@ class Projects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+            project_identifier = _encode_project_name(project_name)
         else:
             assert project_id
             project_identifier = project_id
@@ -310,7 +309,7 @@ class AsyncProjects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+            project_identifier = _encode_project_name(project_name)
         else:
             assert project_id
             project_identifier = project_id
@@ -440,7 +439,7 @@ class AsyncProjects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+            project_identifier = _encode_project_name(project_name)
         else:
             assert project_id
             project_identifier = project_id
@@ -484,10 +483,23 @@ class AsyncProjects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+            project_identifier = _encode_project_name(project_name)
         else:
             assert project_id
             project_identifier = project_id
         url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await self._client.delete(url)
         response.raise_for_status()
+
+
+def _encode_project_name(name: str) -> str:
+    """
+    Encode a project name using URL-safe hex encoding.
+
+    Args:
+        name: The project name to encode
+
+    Returns:
+        The hex-encoded project name
+    """
+    return name.encode().hex()
