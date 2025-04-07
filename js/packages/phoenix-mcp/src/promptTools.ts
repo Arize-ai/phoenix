@@ -15,7 +15,13 @@ import {
 } from "./promptSchemas.js";
 
 // Tool descriptions as template literals for better readability
-const LIST_PROMPTS_DESCRIPTION = `Get a list of all the prompts. Returns a list of prompt objects with their IDs, names, and descriptions.
+const LIST_PROMPTS_DESCRIPTION = `Get a list of all the prompts.
+
+Prompts (templates, prompt templates) are versioned templates for input messages to an LLM.
+Each prompt includes both the input messages, but also the model and invocation parameters
+to use when generating outputs.
+
+Returns a list of prompt objects with their IDs, names, and descriptions.
 
 Example usage: 
   List all available prompts
@@ -26,7 +32,7 @@ Expected return:
       "name": "article-summarizer",
       "description": "Summarizes an article into concise bullet points",
       "source_prompt_id": null,
-      "id": "UHJvbXB0OjM="
+      "id": "promptid1234"
   }]`;
 
 const GET_LATEST_PROMPT_DESCRIPTION = `Get the latest version of a prompt. Returns the prompt version with its template, model configuration, and invocation parameters.
@@ -59,7 +65,7 @@ Expected return:
       "type": "openai",
       "openai": {}
     },
-    "id": "UHJvbXB0VmVyc2lvbjoz"
+    "id": "promptversionid1234"
   }`;
 
 const GET_PROMPT_BY_IDENTIFIER_DESCRIPTION = `Get a prompt's latest version by its identifier (name or ID). Returns the prompt version with its template, model configuration, and invocation parameters.
@@ -92,13 +98,13 @@ Expected return:
         "type": "openai",
         "openai": {}
       },
-      "id": "UHJvbXB0VmVyc2lvbjoz"
+      "id": "promptversionid1234"
     }`;
 
 const GET_PROMPT_VERSION_DESCRIPTION = `Get a specific version of a prompt using its version ID. Returns the prompt version with its template, model configuration, and invocation parameters.
 
 Example usage: 
-  Get a specific prompt version with ID 'UHJvbXB0VmVyc2lvbjoz'
+  Get a specific prompt version with ID 'promptversionid1234'
 
 Expected return: 
   Prompt version object with template and configuration. 
@@ -125,7 +131,7 @@ Expected return:
       "type": "openai",
       "openai": {}
     },
-    "id": "UHJvbXB0VmVyc2lvbjoz"
+    "id": "promptversionid1234"
   }`;
 
 const UPSERT_PROMPT_DESCRIPTION = `Create or update a prompt with its template and configuration. Creates a new prompt and its initial version with specified model settings.
@@ -167,7 +173,7 @@ Expected return:
         "type": "openai",
         "openai": {}
       },
-      "id": "UHJvbXB0VmVyc2lvbjoz"
+      "id": "promptversionid1234"
     }
   ]`;
 
@@ -201,13 +207,13 @@ Expected return:
         "type": "openai",
         "openai": {}
       },
-      "id": "UHJvbXB0VmVyc2lvbjoz"
+      "id": "promptversionid1234"
     }`;
 
 const LIST_PROMPT_VERSION_TAGS_DESCRIPTION = `Get a list of all tags for a specific prompt version. Returns tag objects with pagination support.
 
 Example usage: 
-  List all tags associated with prompt version 'UHJvbXB0VmVyc2lvbjoz'
+  List all tags associated with prompt version 'promptversionid1234'
 
 Expected return: 
   Array of tag objects with names and IDs. 
@@ -215,19 +221,19 @@ Expected return:
     {
       "name": "staging",
       "description": "The version deployed to staging",
-      "id": "UHJvbXB0VmVyc2lvblRhZzoy"
+      "id": "promptversionid1234"
     },
     {
       "name": "development",
       "description": "The version deployed for development",
-      "id": "UHJvbXB0VmVyc2lvblRhZzox"
+      "id": "promptversionid1234"
     }
   ]`;
 
 const ADD_PROMPT_VERSION_TAG_DESCRIPTION = `Add a tag to a specific prompt version. The operation returns no content on success (204 status code).
 
 Example usage: 
-  Tag prompt version 'UHJvbXB0VmVyc2lvbjoz' with the name 'production'
+  Tag prompt version 'promptversionid1234' with the name 'production'
 
 Expected return: 
   Confirmation message of successful tag addition`;
