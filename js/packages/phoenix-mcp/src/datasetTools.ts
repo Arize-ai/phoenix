@@ -77,7 +77,9 @@ const ADD_DATASET_EXAMPLES_DESCRIPTION = `Add examples to an existing dataset.
 
 This tool adds one or more examples to an existing dataset. Each example includes an input,
 output, and metadata. The metadata will automatically include information indicating that
-these examples were synthetically generated via MCP.
+these examples were synthetically generated via MCP. When calling this tool, check existing
+examples using the "get-dataset-examples" tool to ensure that you are not adding duplicate
+examples and following existing patterns for how data should be structured.
 
 Example usage:
   Look at the analyze "my-dataset" and augment them with new examples to cover relevant edge cases
