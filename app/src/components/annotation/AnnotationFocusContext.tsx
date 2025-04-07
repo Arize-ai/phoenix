@@ -26,6 +26,7 @@ export type AnnotationFocusContextType = {
   unregister: (ref: React.RefObject<HTMLElement>) => void;
   moveFocus: (direction: "forward" | "backward") => void;
   resetFocus: () => void;
+  moveInputShortcut: string;
 };
 
 /**
@@ -100,10 +101,11 @@ export const AnnotationFocusProvider = ({
   }, [registeredComponents]);
 
   const modifierKey = useModifierKey();
-
+  const moveInputShortcut =
+    modifierKey.toLowerCase() === "cmd" ? `ctrl+n` : `ctrl+shift+n`;
   // Move forward through form inputs, wrapping around if the end is reached
   useHotkeys(
-    modifierKey.toLowerCase() === "cmd" ? `ctrl+n` : `ctrl+shift+n`,
+    moveInputShortcut,
     (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -136,7 +138,7 @@ export const AnnotationFocusProvider = ({
 
   return (
     <AnnotationFocusContext.Provider
-      value={{ register, unregister, moveFocus, resetFocus }}
+      value={{ register, unregister, moveFocus, resetFocus, moveInputShortcut }}
     >
       {children}
     </AnnotationFocusContext.Provider>
