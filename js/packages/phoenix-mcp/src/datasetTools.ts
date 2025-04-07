@@ -198,7 +198,16 @@ export const initializeDatasetTools = ({
           outputs: examplesWithMetadata.map((e) => e.output),
           metadata: examplesWithMetadata.map((e) => e.metadata),
         },
+        params: {
+          query: {
+            sync: true,
+          },
+        },
       });
+
+      if (!response.data?.data?.dataset_id) {
+        throw new Error("Failed to add examples to dataset: No dataset ID received");
+      }
 
       return {
         content: [
@@ -207,6 +216,7 @@ export const initializeDatasetTools = ({
             text: JSON.stringify(
               {
                 dataset_name: datasetName,
+                dataset_id: response.data.data.dataset_id,
                 message: "Successfully added examples to dataset",
               },
               null,
