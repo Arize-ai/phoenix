@@ -1,7 +1,5 @@
 # Frequently Asked Questions
 
-## Will Phoenix Cloud be on the latest version of Phoenix?
-
 ## What is the difference between Phoenix and Arize?
 
 Arize is the company that makes Phoenix. Phoenix is an open source LLM observability tool offered by Arize. It can be access in its Cloud form online, or self-hosted and run on your own machine or server.
