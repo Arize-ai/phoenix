@@ -7,6 +7,8 @@ import React, {
 } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
+
 /**
  * A context for managing the focus state of wrapped components.
  *
@@ -98,6 +100,7 @@ export const AnnotationFocusProvider = ({
   }, [registeredComponents]);
 
   const modifierKey = useModifierKey();
+
   // Move forward through form inputs, wrapping around if the end is reached
   useHotkeys(
     modifierKey.toLowerCase() === "cmd" ? `ctrl+n` : `ctrl+shift+n`,
