@@ -23,6 +23,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias, assert_never
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.datetime_utils import local_now, normalize_datetime
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
@@ -84,7 +85,6 @@ ChatCompletionResult: TypeAlias = tuple[
     DatasetExampleID, Optional[models.Span], models.ExperimentRun
 ]
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
-PLAYGROUND_PROJECT_NAME = "playground"
 
 
 @strawberry.type

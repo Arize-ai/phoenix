@@ -16,6 +16,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.enums import UserRole
+from phoenix.db.helpers import exclude_experiment_projects
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -82,6 +83,10 @@ async def get_projects(
     limit: int = Query(
         default=100, description="The max number of projects to return at a time.", gt=0
     ),
+    include_experiment_projects: bool = Query(
+        default=False,
+        description="Include experiment projects in the response. Experiment projects are created from running experiments.",  # noqa: E501
+    ),
 ) -> GetProjectsResponseBody:
     """
     Retrieve a paginated list of all projects in the system.
@@ -90,6 +95,8 @@ async def get_projects(
         request (Request): The FastAPI request object.
         cursor (Optional[str]): Pagination cursor (project ID).
         limit (int): Maximum number of projects to return per request.
+        include_experiment_projects (bool): Flag to include experiment projects in the response.
+            Experiment projects are created from running experiments.
 
     Returns:
         GetProjectsResponseBody: Response containing a list of projects and pagination information.
@@ -97,9 +104,10 @@ async def get_projects(
     Raises:
         HTTPException: If the cursor format is invalid.
     """  # noqa: E501
+    stmt = select(models.Project).order_by(models.Project.id.desc())
+    if not include_experiment_projects:
+        stmt = exclude_experiment_projects(stmt)
     async with request.app.state.db() as session:
-        stmt = select(models.Project).order_by(models.Project.id.desc())
-
         if cursor:
             try:
                 cursor_id = GlobalID.from_id(cursor).node_id

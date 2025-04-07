@@ -2435,6 +2435,8 @@ export interface operations {
                 cursor?: string | null;
                 /** @description The max number of projects to return at a time. */
                 limit?: number;
+                /** @description Include experiment projects in the response. Experiment projects are created from running experiments. */
+                include_experiment_projects?: boolean;
             };
             header?: never;
             path?: never;

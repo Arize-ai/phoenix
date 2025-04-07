@@ -1938,6 +1938,18 @@
               "title": "Limit"
             },
             "description": "The max number of projects to return at a time."
+          },
+          {
+            "name": "include_experiment_projects",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include experiment projects in the response. Experiment projects are created from running experiments.",
+              "default": false,
+              "title": "Include Experiment Projects"
+            },
+            "description": "Include experiment projects in the response. Experiment projects are created from running experiments."
           }
         ],
         "responses": {
