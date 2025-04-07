@@ -8,7 +8,7 @@ import { initializeDatasetTools } from "./datasetTools.js";
 import { initializeExperimentTools } from "./experimentTools.js";
 import { initializePromptTools } from "./promptTools.js";
 import { initializeReadmeResources } from "./readmeResource.js";
-
+import { initializePrompts } from "./prompts.js";
 const argv = minimist(process.argv.slice(2));
 
 // Initialize Phoenix client
@@ -29,13 +29,14 @@ const server = new McpServer({
   capabilities: {
     resources: {},
     tools: {},
+    prompts: {},
   },
 });
 
 initializePromptTools({ client, server });
 initializeExperimentTools({ client, server });
 initializeDatasetTools({ client, server });
-
+initializePrompts({ client, server });
 async function main() {
   // Initialize readme resources first
   if (process.env.DANGEROUSLY_READ_README_FILES === "true") {
