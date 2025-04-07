@@ -1,6 +1,7 @@
 # pyright: reportPrivateUsage=false
 from __future__ import annotations
 
+import string
 from secrets import token_hex
 
 import pytest
@@ -11,16 +12,42 @@ from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _RoleOrUser
 class TestClientForProjectsAPI:
     """Integration tests for the Projects client REST endpoints."""  # noqa: E501
 
+    name_and_description_test_cases = [
+        pytest.param(
+            token_hex(16),
+            token_hex(16),
+            id="regular_chars",
+        ),
+        pytest.param(
+            f"Punctuations {string.punctuation}",
+            "Punctuation characters",
+            id="punctuation_chars",
+        ),
+        pytest.param(
+            "项目名称",
+            "Unicode characters (Chinese)",
+            id="unicode_chars",
+        ),
+        pytest.param(
+            "Project Name/With Spaces/And Slashes",
+            "Spaces and slashes",
+            id="spaces_and_slashes",
+        ),
+    ]
+
     @pytest.mark.parametrize("is_async", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_crud_operations(
         self,
         is_async: bool,
         role_or_user: _RoleOrUser,
+        project_name: str,
+        project_description: str,
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test basic CRUD operations for projects.
+        """Test CRUD operations for projects.
 
         This test verifies that:
         1. Projects can be created with a name and optional description (both admin and member)
@@ -29,6 +56,7 @@ class TestClientForProjectsAPI:
         4. Projects can be updated (description only, not name) (admin only)
         5. Projects can be deleted (admin only)
         6. Project names must be unique (both admin and member)
+        7. Special characters in names and descriptions are handled correctly
         """  # noqa: E501
         # Set up test environment with logged-in user
         u = _get_user(role_or_user).log_in()
@@ -39,30 +67,32 @@ class TestClientForProjectsAPI:
 
         Client = AsyncClient if is_async else SyncClient
 
-        # Create a project with a random name and description
-        project_name = f"test-project-{token_hex(8)}"
-        project_description = f"Test project description {token_hex(8)}"
+        # Create a project with special characters and ensure uniqueness
+        unique_project_name = f"{project_name}_{token_hex(8)}"
+        description = f"A project with {project_description}"
 
         project = await _await_or_return(
             Client().projects.create(
-                name=project_name,
-                description=project_description,
+                name=unique_project_name,
+                description=description,
             )
         )
 
         # Verify project was created with correct attributes (CREATE operation)
         assert project["id"], "Project ID should be present after creation"  # noqa: E501
-        assert project["name"] == project_name, "Project name should match input after creation"  # noqa: E501
+        assert (
+            project["name"] == unique_project_name
+        ), "Project name should match input after creation"  # noqa: E501
         assert "description" in project, "Project should have a description field"  # noqa: E501
         assert (
-            project["description"] == project_description
+            project["description"] == description
         ), "Project description should match input after creation"  # noqa: E501
 
         # Test project name uniqueness (CREATE operation)
         with pytest.raises(Exception):
             await _await_or_return(
                 Client().projects.create(
-                    name=project_name,
+                    name=unique_project_name,
                 )
             )
 
@@ -78,13 +108,13 @@ class TestClientForProjectsAPI:
             retrieved_project["id"] == project["id"]
         ), "Retrieved project ID should match created project"  # noqa: E501
         assert (
-            retrieved_project["name"] == project_name
+            retrieved_project["name"] == unique_project_name
         ), "Retrieved project name should match created project"  # noqa: E501
         assert (
             "description" in retrieved_project
         ), "Retrieved project should have a description field"  # noqa: E501
         assert (
-            retrieved_project["description"] == project_description
+            retrieved_project["description"] == description
         ), "Retrieved project description should match created project"  # noqa: E501
 
         # List all projects (READ operation)
@@ -96,7 +126,7 @@ class TestClientForProjectsAPI:
         ), "Created project should be present in list of all projects"  # noqa: E501
 
         # Update the project description (admin only) (UPDATE operation)
-        new_description = f"Updated description {token_hex(8)}"
+        new_description = f"Updated description with {project_description}"
         if role_or_user == _ADMIN:
             updated_project = await _await_or_return(
                 Client().projects.update(
@@ -110,7 +140,7 @@ class TestClientForProjectsAPI:
                 updated_project["id"] == project["id"]
             ), "Updated project ID should match original project"  # noqa: E501
             assert (
-                updated_project["name"] == project_name
+                updated_project["name"] == unique_project_name
             ), "Project name should not change after update"  # noqa: E501
             assert (
                 "description" in updated_project

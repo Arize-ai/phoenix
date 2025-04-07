@@ -15,6 +15,11 @@ class CreateExperimentRequestBody(TypedDict):
     repetitions: NotRequired[int]
 
 
+class CreateProjectRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
 class Dataset(TypedDict):
     id: str
     name: str
@@ -99,11 +104,6 @@ class ListExperimentsResponseBody(TypedDict):
 class Project(TypedDict):
     name: str
     id: str
-    description: NotRequired[str]
-
-
-class ProjectData(TypedDict):
-    name: str
     description: NotRequired[str]
 
 
@@ -229,7 +229,7 @@ class ToolResultContentPart(TypedDict):
 
 
 class UpdateProjectRequestBody(TypedDict):
-    project: ProjectData
+    description: NotRequired[str]
 
 
 class UpdateProjectResponseBody(TypedDict):
@@ -256,10 +256,6 @@ class AnnotateSpansResponseBody(TypedDict):
 
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
-
-
-class CreateProjectRequestBody(TypedDict):
-    project: ProjectData
 
 
 class CreateProjectResponseBody(TypedDict):

@@ -1,7 +1,9 @@
+import base64
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.status import (
     HTTP_204_NO_CONTENT,
@@ -43,8 +45,8 @@ class GetProjectResponseBody(ResponseBody[Project]):
     pass
 
 
-class CreateProjectRequestBody(V1RoutesBaseModel):
-    project: ProjectData
+class CreateProjectRequestBody(ProjectData):
+    pass
 
 
 class CreateProjectResponseBody(ResponseBody[Project]):
@@ -52,7 +54,7 @@ class CreateProjectResponseBody(ResponseBody[Project]):
 
 
 class UpdateProjectRequestBody(V1RoutesBaseModel):
-    project: ProjectData
+    description: Optional[str] = None
 
 
 class UpdateProjectResponseBody(ResponseBody[Project]):
@@ -126,10 +128,10 @@ async def get_projects(
 
 
 @router.get(
-    "/projects/{project_id}",
+    "/projects/{project_identifier}",
     operation_id="getProject",
-    summary="Get project by ID",  # noqa: E501
-    description="Retrieve a specific project using its unique identifier.",  # noqa: E501
+    summary="Get project by ID or name",  # noqa: E501
+    description="Retrieve a specific project using its unique identifier. The identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",  # noqa: E501
     response_description="The requested project",  # noqa: E501
     responses=add_errors_to_responses(
         [
@@ -140,41 +142,26 @@ async def get_projects(
 )
 async def get_project(
     request: Request,
-    project_id: str = Path(description="The ID of the project."),
+    project_identifier: str = Path(
+        description="The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",  # noqa: E501
+    ),
 ) -> GetProjectResponseBody:
     """
-    Retrieve a specific project by its ID.
+    Retrieve a specific project by its ID or name.
 
     Args:
         request (Request): The FastAPI request object.
-        project_id (str): The ID of the project to retrieve.
+        project_identifier (str): The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.
 
     Returns:
         GetProjectResponseBody: Response containing the requested project.
 
     Raises:
-        HTTPException: If the project ID is invalid or the project is not found.
+        HTTPException: If the project identifier format is invalid or the project is not found.
     """  # noqa: E501
     async with request.app.state.db() as session:
-        try:
-            id_ = from_global_id_with_expected_type(
-                GlobalID.from_id(project_id),
-                ProjectNodeType.__name__,
-            )
-            project = await session.get(models.Project, id_)
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid project ID format: {project_id}",
-            )
-
-        if project is None:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail=f"Project with ID {project_id} not found",
-            )
-
-    data = _project_from_orm_project(project)
+        project_orm = await _get_project_by_identifier(session, project_identifier)
+    data = _project_from_orm_project(project_orm)
     return GetProjectResponseBody(data=data)
 
 
@@ -207,11 +194,10 @@ async def create_project(
     Raises:
         HTTPException: If any validation error occurs.
     """
-    project = request_body.project
     async with request.app.state.db() as session:
         project_orm = models.Project(
-            name=project.name,
-            description=project.description,
+            name=request_body.name,
+            description=request_body.description,
         )
         session.add(project_orm)
         await session.flush()
@@ -220,10 +206,10 @@ async def create_project(
 
 
 @router.put(
-    "/projects/{project_id}",
+    "/projects/{project_identifier}",
     operation_id="updateProject",
-    summary="Update a project",  # noqa: E501
-    description="Update an existing project with new configuration. Project names cannot be changed.",  # noqa: E501
+    summary="Update a project by ID or name",  # noqa: E501
+    description="Update an existing project with new configuration. Project names cannot be changed. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",  # noqa: E501
     response_description="The updated project",  # noqa: E501
     responses=add_errors_to_responses(
         [
@@ -236,21 +222,23 @@ async def create_project(
 async def update_project(
     request: Request,
     request_body: UpdateProjectRequestBody,
-    project_id: str = Path(description="The ID of the project to update."),
+    project_identifier: str = Path(
+        description="The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",  # noqa: E501
+    ),
 ) -> UpdateProjectResponseBody:
     """
     Update an existing project.
 
     Args:
         request (Request): The FastAPI request object.
-        request_body (UpdateProjectRequestBody): The request body containing updated project data.
-        project_id (str): The ID of the project to update.
+        request_body (UpdateProjectRequestBody): The request body containing the new description.
+        project_identifier (str): The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.
 
     Returns:
         UpdateProjectResponseBody: Response containing the updated project.
 
     Raises:
-        HTTPException: If the project ID is invalid, the project is not found, or the name is changed.
+        HTTPException: If the project identifier format is invalid or the project is not found.
     """  # noqa: E501
     if request.app.state.authentication_enabled:
         async with request.app.state.db() as session:
@@ -267,43 +255,21 @@ async def update_project(
                 detail="Only admins can update projects",
             )
     async with request.app.state.db() as session:
-        try:
-            id_ = from_global_id_with_expected_type(
-                GlobalID.from_id(project_id),
-                ProjectNodeType.__name__,
-            )
-            project_orm = await session.get(models.Project, id_)
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid project ID format: {project_id}",
-            )
+        project_orm = await _get_project_by_identifier(session, project_identifier)
 
-        if project_orm is None:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail=f"Project with ID {project_id} not found",
-            )
-
-        # Prevent changing the project name
-        if project_orm.name != request_body.project.name:
-            raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Project names cannot be changed",
-            )
-
-        # Only update the description
-        project_orm.description = request_body.project.description
+        # Update the description if provided
+        if request_body.description is not None:
+            project_orm.description = request_body.description
 
     data = _project_from_orm_project(project_orm)
     return UpdateProjectResponseBody(data=data)
 
 
 @router.delete(
-    "/projects/{project_id}",
+    "/projects/{project_identifier}",
     operation_id="deleteProject",
-    summary="Delete a project",  # noqa: E501
-    description="Delete an existing project and all its associated data.",  # noqa: E501
+    summary="Delete a project by ID or name",  # noqa: E501
+    description="Delete an existing project and all its associated data. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. The default project cannot be deleted.",  # noqa: E501
     response_description="No content returned on successful deletion",  # noqa: E501
     status_code=HTTP_204_NO_CONTENT,
     responses=add_errors_to_responses(
@@ -316,20 +282,22 @@ async def update_project(
 )
 async def delete_project(
     request: Request,
-    project_id: str = Path(description="The ID of the project to delete."),
+    project_identifier: str = Path(
+        description="The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",  # noqa: E501
+    ),
 ) -> None:
     """
     Delete an existing project.
 
     Args:
         request (Request): The FastAPI request object.
-        project_id (str): The ID of the project to delete.
+        project_identifier (str): The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.
 
     Returns:
         None: Returns a 204 No Content response on success.
 
     Raises:
-        HTTPException: If the project ID is invalid, the project is not found, or it's the default project.
+        HTTPException: If the project identifier format is invalid, the project is not found, or it's the default project.
     """  # noqa: E501
     if request.app.state.authentication_enabled:
         async with request.app.state.db() as session:
@@ -346,32 +314,16 @@ async def delete_project(
                 detail="Only admins can delete projects",
             )
     async with request.app.state.db() as session:
-        try:
-            id_ = from_global_id_with_expected_type(
-                GlobalID.from_id(project_id),
-                ProjectNodeType.__name__,
-            )
-            project = await session.get(models.Project, id_)
-        except ValueError:
-            raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid project ID format: {project_id}",
-            )
-
-        if project is None:
-            raise HTTPException(
-                status_code=HTTP_404_NOT_FOUND,
-                detail=f"Project with ID {project_id} not found",
-            )
+        project_orm = await _get_project_by_identifier(session, project_identifier)
 
         # The default project must not be deleted - it's forbidden
-        if project.name == DEFAULT_PROJECT_NAME:
+        if project_orm.name == DEFAULT_PROJECT_NAME:
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="The default project cannot be deleted",
             )
 
-        await session.delete(project)
+        await session.delete(project_orm)
     return None
 
 
@@ -381,3 +333,51 @@ def _project_from_orm_project(orm_project: models.Project) -> Project:
         name=orm_project.name,
         description=orm_project.description,
     )
+
+
+async def _get_project_by_identifier(
+    session: AsyncSession,
+    project_identifier: str,
+) -> models.Project:
+    """
+    Get a project by its ID or name.
+
+    Args:
+        session: The database session.
+        project_identifier: The project ID or base64-encoded name.
+
+    Returns:
+        The project object.
+
+    Raises:
+        HTTPException: If the identifier format is invalid or the project is not found.
+    """
+    # Try to parse as a GlobalID first
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(project_identifier),
+            ProjectNodeType.__name__,
+        )
+    except Exception:
+        try:
+            name = base64.urlsafe_b64decode(project_identifier.encode()).decode()
+        except Exception:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid project identifier format: {project_identifier}",
+            )
+        stmt = select(models.Project).filter_by(name=name)
+        project_orm = await session.scalar(stmt)
+        if project_orm is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with name {name} not found",
+            )
+    else:
+        project_orm = await session.get(models.Project, id_)
+        if project_orm is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with ID {project_identifier} not found",
+            )
+    return project_orm

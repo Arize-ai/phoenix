@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import base64
+import string
 from secrets import token_hex
 from typing import Any
 from urllib.parse import quote_plus
 
 import httpx
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -16,6 +19,29 @@ from phoenix.server.types import DbSessionFactory
 
 
 class TestProjects:
+    name_and_description_test_cases = [
+        pytest.param(
+            token_hex(16),
+            token_hex(16),
+            id="regular_chars",
+        ),
+        pytest.param(
+            f"Punctuations {string.punctuation}",
+            "Punctuation characters",
+            id="punctuation_chars",
+        ),
+        pytest.param(
+            "项目名称",
+            "Unicode characters (Chinese)",
+            id="unicode_chars",
+        ),
+        pytest.param(
+            "Project Name/With Spaces/And Slashes",
+            "Spaces and slashes",
+            id="spaces_and_slashes",
+        ),
+    ]
+
     async def test_get_projects(
         self,
         httpx_client: httpx.AsyncClient,
@@ -75,24 +101,66 @@ class TestProjects:
         Test retrieving a specific project by its ID.
 
         This test verifies that:
-        1. The GET /projects/{project_id} endpoint returns a 200 status code
+        1. The GET /projects/{project_identifier} endpoint returns a 200 status code
         2. The response contains the correct project data
         3. The project ID, name, and description match the expected values
         """  # noqa: E501
         projects = await self._insert_projects(db)
         project = projects[0]
-        project_id = str(GlobalID(Project.__name__, str(project.id)))
-        url = f"v1/projects/{quote_plus(project_id)}"
+        project_identifier = str(GlobalID(Project.__name__, str(project.id)))
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.get(url)
-        assert response.is_success, f"GET /projects/{project_id} failed with status code {response.status_code}: {response.text}"  # noqa: E501
+        assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"  # noqa: E501
         self._compare_project(data, project, f"Project with ID {project.id}")
 
+    @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
+    async def test_get_project_by_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        project_name: str,
+        project_description: str,
+    ) -> None:
+        """
+        Test retrieving a specific project by its name.
+
+        This test verifies that:
+        1. The GET /projects/{project_identifier} endpoint returns a 200 status code when using a project name
+        2. The response contains the correct project data
+        3. The project ID, name, and description match the expected values
+        4. Projects with special characters in their names can be retrieved correctly
+        """  # noqa: E501
+        # Test with special characters
+        project = models.Project(
+            name=project_name,
+            description=f"A project with {project_description}",
+        )
+        async with db() as session:
+            session.add(project)
+            await session.flush()
+
+        # Test retrieving the project by name
+        project_identifier = base64.urlsafe_b64encode(project.name.encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
+        response = await httpx_client.get(url)
+        assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
+        data = response.json()["data"]
+        assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"  # noqa: E501
+        self._compare_project(data, project, f"Project with name {project.name}")
+
+        # Clean up
+        async with db() as session:
+            await session.delete(project)
+
+    @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_create_project(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
+        project_name: str,
+        project_description: str,
     ) -> None:
         """
         Test creating a new project.
@@ -102,14 +170,13 @@ class TestProjects:
         2. The response contains the newly created project data
         3. The project name and description match the values provided in the request
         4. The project is assigned a valid ID
+        5. Projects with special characters in their names can be created correctly
         """  # noqa: E501
-        project_name = token_hex(16)
-        project_description = token_hex(16)
+        description = f"A project with {project_description}"
+
         project_data = {
-            "project": {
-                "name": project_name,
-                "description": project_description,
-            }
+            "name": project_name,
+            "description": description,
         }
         url = "v1/projects"
         response = await httpx_client.post(url, json=project_data)
@@ -122,36 +189,50 @@ class TestProjects:
             data["name"] == project_name
         ), f"Project name should be '{project_name}', got '{data['name']}'"  # noqa: E501
         assert (
-            data["description"] == project_description
-        ), f"Project description should be '{project_description}', got '{data['description']}'"  # noqa: E501
+            data["description"] == description
+        ), f"Project description should be '{description}', got '{data['description']}'"  # noqa: E501
 
-    async def test_update_project(
+        # Clean up
+        project_id = data["id"]
+        url = f"v1/projects/{quote_plus(project_id)}"
+        await httpx_client.delete(url)
+
+    @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
+    async def test_update_project_by_name(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
+        special_chars_name: str,
+        description: str,
     ) -> None:
         """
-        Test updating a project's description while keeping the name unchanged.
+        Test updating a project's description by name while keeping the name unchanged.
 
         This test verifies that:
-        1. The PUT /projects/{project_id} endpoint returns a 200 status code
+        1. The PUT /projects/{project_identifier} endpoint returns a 200 status code when using a project name
         2. The project name remains unchanged
         3. The project description is updated to the new value
         4. The response contains the updated project data
+        5. Projects with special characters in their names can be updated correctly
         """  # noqa: E501
-        projects = await self._insert_projects(db)
-        project = projects[0]
-        project_id = str(GlobalID(Project.__name__, str(project.id)))
-        updated_description = token_hex(16)
+        # Test with special characters
+        project = models.Project(
+            name=special_chars_name,
+            description=f"A project with {description}",
+        )
+        async with db() as session:
+            session.add(project)
+            await session.flush()
+
+        # Update the project by name
+        updated_description = f"Updated description for project with {description}"
         updated_project_data = {
-            "project": {
-                "name": project.name,  # Keep the same name
-                "description": updated_description,
-            }
+            "description": updated_description,
         }
-        url = f"v1/projects/{quote_plus(project_id)}"
+        project_identifier = base64.urlsafe_b64encode(project.name.encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.put(url, json=updated_project_data)
-        assert response.is_success, f"PUT /projects/{project_id} failed with status code {response.status_code}: {response.text}"  # noqa: E501
+        assert response.is_success, f"PUT /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"  # noqa: E501
         assert (
@@ -161,68 +242,43 @@ class TestProjects:
             data["description"] == updated_description
         ), f"Updated project description should be '{updated_description}', got '{data['description']}'"  # noqa: E501
 
-    async def test_cannot_update_project_name(
+        # Clean up
+        async with db() as session:
+            await session.delete(project)
+
+    @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
+    async def test_delete_project_by_name(
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
+        special_chars_name: str,
+        description: str,
     ) -> None:
         """
-        Test that project names cannot be changed.
+        Test deleting a project by name.
 
         This test verifies that:
-        1. The PUT /projects/{project_id} endpoint returns a 422 status code when attempting to change the project name
-        2. The error message clearly indicates that project names cannot be changed
-        3. The project data in the database remains unchanged
-        """  # noqa: E501
-        projects = await self._insert_projects(db)
-        project = projects[0]
-        project_id = str(GlobalID(Project.__name__, str(project.id)))
-        updated_name = token_hex(16)
-        updated_description = token_hex(16)
-        updated_project_data = {
-            "project": {
-                "name": updated_name,  # Try to change the name
-                "description": updated_description,
-            }
-        }
-        url = f"v1/projects/{quote_plus(project_id)}"
-        response = await httpx_client.put(url, json=updated_project_data)
-        assert (
-            response.status_code == 422
-        ), f"PUT /projects/{project_id} with changed name should return 422 status code, got {response.status_code}: {response.text}"  # noqa: E501
-        assert (
-            "Project names cannot be changed" in response.text
-        ), f"Response should indicate project names cannot be changed, got: {response.text}"  # noqa: E501
-
-    async def test_delete_project(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """
-        Test deleting a project.
-
-        This test verifies that:
-        1. The DELETE /projects/{project_id} endpoint returns a 204 status code
+        1. The DELETE /projects/{project_identifier} endpoint returns a 204 status code when using a project name
         2. The project is successfully removed from the database
         3. Subsequent attempts to retrieve the deleted project return a 404 error
+        4. Projects with special characters in their names can be deleted correctly
         """  # noqa: E501
-        # Create a test project
+        # Test with special characters
         project = models.Project(
-            name=token_hex(16),
-            description=token_hex(16),
+            name=special_chars_name,
+            description=f"A project with {description}",
         )
         async with db() as session:
             session.add(project)
             await session.flush()
 
-        # Delete the project
-        project_id = str(GlobalID(Project.__name__, str(project.id)))
-        url = f"v1/projects/{quote_plus(project_id)}"
+        # Delete the project by name
+        project_identifier = base64.urlsafe_b64encode(project.name.encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.delete(url)
         assert (
             response.status_code == 204
-        ), f"DELETE /projects/{project_id} should return 204 status code, got {response.status_code}"  # noqa: E501
+        ), f"DELETE /projects/{project_identifier} should return 204 status code, got {response.status_code}"  # noqa: E501
 
         async with db() as session:
             # Verify project is deleted
@@ -238,7 +294,7 @@ class TestProjects:
         Test that the default project cannot be deleted.
 
         This test verifies that:
-        1. The DELETE /projects/{project_id} endpoint returns a 403 status code when attempting to delete the default project
+        1. The DELETE /projects/{project_identifier} endpoint returns a 403 status code when attempting to delete the default project
         2. The error message clearly indicates that the default project cannot be deleted
         3. The default project remains in the database
         """  # noqa: E501
@@ -261,14 +317,14 @@ class TestProjects:
                 )
 
         # Try to delete the default project by ID
-        project_id = str(GlobalID(Project.__name__, str(default_project.id)))
-        url = f"v1/projects/{quote_plus(project_id)}"
+        project_identifier = str(GlobalID(Project.__name__, str(default_project.id)))
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.delete(url)
 
         # Verify that the request was rejected
         assert (
             response.status_code == 403
-        ), f"DELETE /projects/{project_id} should return 403 status code, got {response.status_code}"  # noqa: E501
+        ), f"DELETE /projects/{project_identifier} should return 403 status code, got {response.status_code}"  # noqa: E501
         assert (
             "cannot be deleted" in response.text
         ), f"Response should indicate default project cannot be deleted, got: {response.text}"  # noqa: E501
@@ -280,6 +336,19 @@ class TestProjects:
                 existing_default is not None
             ), f"Default project {default_project.id} should still exist in database"  # noqa: E501
 
+        # Try to delete the default project by name
+        project_identifier = base64.urlsafe_b64encode(DEFAULT_PROJECT_NAME.encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
+        response = await httpx_client.delete(url)
+
+        # Verify that the request was rejected
+        assert (
+            response.status_code == 403
+        ), f"DELETE /projects/{project_identifier} should return 403 status code, got {response.status_code}"  # noqa: E501
+        assert (
+            "cannot be deleted" in response.text
+        ), f"Response should indicate default project cannot be deleted, got: {response.text}"  # noqa: E501
+
     async def test_get_nonexistent_project(
         self,
         httpx_client: httpx.AsyncClient,
@@ -288,15 +357,24 @@ class TestProjects:
         Test retrieving a project that doesn't exist.
 
         This test verifies that:
-        1. The GET /projects/{project_id} endpoint returns a 404 status code when the project doesn't exist
+        1. The GET /projects/{project_identifier} endpoint returns a 404 status code when the project doesn't exist
         2. The error message clearly indicates that the project was not found
         """  # noqa: E501
-        project_id = str(GlobalID(Project.__name__, "999999"))
-        url = f"v1/projects/{quote_plus(project_id)}"
+        project_identifier = str(GlobalID(Project.__name__, "999999"))
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.get(url)
         assert (
             response.status_code == 404
-        ), f"GET /projects/{project_id} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
+        ), f"GET /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        # Test with a nonexistent project name
+        name = token_hex(16)
+        project_identifier = base64.urlsafe_b64encode(name.encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
+        response = await httpx_client.get(url)
+        assert (
+            response.status_code == 404
+        ), f"GET /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
     async def test_update_nonexistent_project(
         self,
@@ -306,21 +384,30 @@ class TestProjects:
         Test updating a project that doesn't exist.
 
         This test verifies that:
-        1. The PUT /projects/{project_id} endpoint returns a 404 status code when the project doesn't exist
+        1. The PUT /projects/{project_identifier} endpoint returns a 404 status code when the project doesn't exist
         2. The error message clearly indicates that the project was not found
         """  # noqa: E501
-        project_id = str(GlobalID(Project.__name__, "999999"))
+        project_identifier = str(GlobalID(Project.__name__, "999999"))
         updated_project_data = {
             "project": {
                 "name": token_hex(16),
                 "description": token_hex(16),
             }
         }
-        url = f"v1/projects/{quote_plus(project_id)}"
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.put(url, json=updated_project_data)
         assert (
             response.status_code == 404
-        ), f"PUT /projects/{project_id} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
+        ), f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+        # Test with a nonexistent project name
+        name = token_hex(16)
+        project_identifier = base64.urlsafe_b64encode(name.encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
+        response = await httpx_client.put(url, json=updated_project_data)
+        assert (
+            response.status_code == 404
+        ), f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
     async def test_delete_nonexistent_project(
         self,
@@ -330,70 +417,41 @@ class TestProjects:
         Test deleting a project that doesn't exist.
 
         This test verifies that:
-        1. The DELETE /projects/{project_id} endpoint returns a 404 status code when the project doesn't exist
+        1. The DELETE /projects/{project_identifier} endpoint returns a 404 status code when the project doesn't exist
         2. The error message clearly indicates that the project was not found
         """  # noqa: E501
-        project_id = str(GlobalID(Project.__name__, "999999"))
-        url = f"v1/projects/{quote_plus(project_id)}"
+        project_identifier = str(GlobalID(Project.__name__, "999999"))
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.delete(url)
         assert (
             response.status_code == 404
-        ), f"DELETE /projects/{project_id} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
+        ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
-    async def test_invalid_project_id(
+        # Test with a nonexistent project name
+        project_identifier = base64.urlsafe_b64encode(token_hex(16).encode()).decode()
+        url = f"v1/projects/{quote_plus(project_identifier)}"
+        response = await httpx_client.delete(url)
+        assert (
+            response.status_code == 404
+        ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
+
+    async def test_invalid_project_identifier(
         self,
         httpx_client: httpx.AsyncClient,
     ) -> None:
         """
-        Test handling of invalid project ID format.
+        Test handling of invalid project identifier format.
 
         This test verifies that:
-        1. The GET /projects/{project_id} endpoint returns a 422 status code when the project ID format is invalid
-        2. The error message clearly indicates that the project ID format is invalid
+        1. The GET /projects/{project_identifier} endpoint returns a 422 status code when the project ID format is invalid
+        2. The error message clearly indicates that the project identifier format is invalid
         """  # noqa: E501
-        invalid_id = "invalid-id"
-        url = f"v1/projects/{quote_plus(invalid_id)}"
+        project_identifier = "invalid-identifier"
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await httpx_client.get(url)
         assert (
             response.status_code == 422
-        ), f"GET /projects/{invalid_id} should return a 422 status code, got {response.status_code}: {response.text}"  # noqa: E501
-
-    async def test_missing_project_id(
-        self,
-        httpx_client: httpx.AsyncClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """
-        Test retrieving a paginated list of all projects.
-
-        This test verifies that:
-        1. The GET /projects endpoint returns a 200 status code
-        2. The response contains a 'data' field with a list of projects
-        3. The number of projects returned is at least as many as were created
-        4. Pagination fields are present in the response
-        """  # noqa: E501
-        # Create some test projects
-        projects = await self._insert_projects(db, 3)
-
-        # Get all projects
-        url = "v1/projects"
-        response = await httpx_client.get(url)
-        assert (
-            response.status_code == 200
-        ), f"GET /projects should return a 200 status code, got {response.status_code}: {response.text}"  # noqa: E501
-
-        # Verify response structure
-        data = response.json()
-        assert "data" in data, "Response should contain a 'data' field with projects"  # noqa: E501
-        assert isinstance(data["data"], list), "Response data should be a list of projects"  # noqa: E501
-
-        # Verify we got all projects
-        assert len(data["data"]) >= len(
-            projects
-        ), f"Expected at least {len(projects)} projects, got {len(data['data'])}"  # noqa: E501
-
-        # Verify pagination fields
-        assert "next_cursor" in data, "Response should contain a 'next_cursor' field for pagination"  # noqa: E501
+        ), f"GET /projects/{project_identifier} should return a 422 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
     async def test_list_projects_with_cursor(
         self,

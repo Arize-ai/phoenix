@@ -2024,25 +2024,25 @@
         }
       }
     },
-    "/v1/projects/{project_id}": {
+    "/v1/projects/{project_identifier}": {
       "get": {
         "tags": [
           "projects"
         ],
-        "summary": "Get project by ID",
-        "description": "Retrieve a specific project using its unique identifier.",
+        "summary": "Get project by ID or name",
+        "description": "Retrieve a specific project using its unique identifier. The identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
         "operationId": "getProject",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the project.",
-              "title": "Project Id"
+              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+              "title": "Project Identifier"
             },
-            "description": "The ID of the project."
+            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name."
           }
         ],
         "responses": {
@@ -2092,20 +2092,20 @@
         "tags": [
           "projects"
         ],
-        "summary": "Update a project",
-        "description": "Update an existing project with new configuration. Project names cannot be changed.",
+        "summary": "Update a project by ID or name",
+        "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
         "operationId": "updateProject",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the project to update.",
-              "title": "Project Id"
+              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+              "title": "Project Identifier"
             },
-            "description": "The ID of the project to update."
+            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name."
           }
         ],
         "requestBody": {
@@ -2165,20 +2165,20 @@
         "tags": [
           "projects"
         ],
-        "summary": "Delete a project",
-        "description": "Delete an existing project and all its associated data.",
+        "summary": "Delete a project by ID or name",
+        "description": "Delete an existing project and all its associated data. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. The default project cannot be deleted.",
         "operationId": "deleteProject",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the project to delete.",
-              "title": "Project Id"
+              "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.",
+              "title": "Project Identifier"
             },
-            "description": "The ID of the project to delete."
+            "description": "The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name."
           }
         ],
         "responses": {
@@ -2329,13 +2329,25 @@
       },
       "CreateProjectRequestBody": {
         "properties": {
-          "project": {
-            "$ref": "#/components/schemas/ProjectData"
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
         "required": [
-          "project"
+          "name"
         ],
         "title": "CreateProjectRequestBody"
       },
@@ -2960,30 +2972,6 @@
           "id"
         ],
         "title": "Project"
-      },
-      "ProjectData": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "ProjectData"
       },
       "Prompt": {
         "properties": {
@@ -4190,14 +4178,19 @@
       },
       "UpdateProjectRequestBody": {
         "properties": {
-          "project": {
-            "$ref": "#/components/schemas/ProjectData"
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
-        "required": [
-          "project"
-        ],
         "title": "UpdateProjectRequestBody"
       },
       "UpdateProjectResponseBody": {
