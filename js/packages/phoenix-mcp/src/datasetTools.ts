@@ -206,7 +206,9 @@ export const initializeDatasetTools = ({
       });
 
       if (!response.data?.data?.dataset_id) {
-        throw new Error("Failed to add examples to dataset: No dataset ID received");
+        throw new Error(
+          "Failed to add examples to dataset: No dataset ID received"
+        );
       }
 
       return {
