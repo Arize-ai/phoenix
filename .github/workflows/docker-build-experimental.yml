@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - span-query-optimization
-      - cors-arg
 
 jobs:
   push_to_registry:
