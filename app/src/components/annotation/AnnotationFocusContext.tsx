@@ -1,5 +1,10 @@
-import { useModifierKey } from "@phoenix/hooks/useModifierKey";
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 /**
@@ -36,8 +41,13 @@ const deeplyFocus = (el: HTMLElement | null) => {
 
 export const AnnotationFocusProvider = ({
   children,
+  autoFocus,
 }: {
   children: React.ReactNode;
+  /**
+   * If provided, the first registered component will be focused after mount.
+   */
+  autoFocus?: boolean;
 }) => {
   const [registeredComponents, setRegisteredComponents] = useState<
     React.RefObject<HTMLElement>[]
@@ -113,6 +123,13 @@ export const AnnotationFocusProvider = ({
       document: document,
     }
   );
+
+  useLayoutEffect(() => {
+    const firstComponent = registeredComponents[0]?.current;
+    if (autoFocus && firstComponent) {
+      deeplyFocus(firstComponent);
+    }
+  }, [autoFocus, registeredComponents]);
 
   return (
     <AnnotationFocusContext.Provider

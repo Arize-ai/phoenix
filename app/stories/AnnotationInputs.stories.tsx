@@ -16,9 +16,11 @@ import {
 /**
  * Stories showcasing the annotation input components in a form
  * to test keyboard navigation between different input types.
+ *
+ * Components are wrapped in \<AnnotationFocusProvider \\> to provide focus management.
  */
 const meta = {
-  title: "Annotation/InputsForm",
+  title: "AnnotationInputs",
   parameters: {
     layout: "centered",
   },
@@ -57,7 +59,7 @@ const freeformConfig: AnnotationConfigFreeform = {
 
 export const Default: Story = {
   render: () => (
-    <AnnotationFocusProvider>
+    <AnnotationFocusProvider autoFocus>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput annotationConfig={categoricalConfig} />
