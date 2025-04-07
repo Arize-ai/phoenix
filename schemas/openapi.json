@@ -1898,6 +1898,325 @@
           }
         }
       }
+    },
+    "/v1/projects": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List all projects",
+        "description": "Retrieve a paginated list of all projects in the system.",
+        "operationId": "getProjects",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded project ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded project ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of projects to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of projects to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of projects with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProjectsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create a new project",
+        "description": "Create a new project with the specified configuration.",
+        "operationId": "createProject",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The newly created project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateProjectResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_id}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get project by ID",
+        "description": "Retrieve a specific project using its unique identifier.",
+        "operationId": "getProject",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the project.",
+              "title": "Project Id"
+            },
+            "description": "The ID of the project."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProjectResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Update a project",
+        "description": "Update an existing project with new configuration. Project names cannot be changed.",
+        "operationId": "updateProject",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the project to update.",
+              "title": "Project Id"
+            },
+            "description": "The ID of the project to update."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateProjectResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Delete a project",
+        "description": "Delete an existing project and all its associated data.",
+        "operationId": "deleteProject",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the project to delete.",
+              "title": "Project Id"
+            },
+            "description": "The ID of the project to delete."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful deletion"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2007,6 +2326,30 @@
           "data"
         ],
         "title": "CreateExperimentResponseBody"
+      },
+      "CreateProjectRequestBody": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/ProjectData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "title": "CreateProjectRequestBody"
+      },
+      "CreateProjectResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Project"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateProjectResponseBody"
       },
       "CreatePromptRequestBody": {
         "properties": {
@@ -2301,6 +2644,46 @@
         ],
         "title": "GetExperimentResponseBody"
       },
+      "GetProjectResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Project"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetProjectResponseBody"
+      },
+      "GetProjectsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetProjectsResponseBody"
+      },
       "GetPromptResponseBody": {
         "properties": {
           "data": {
@@ -2548,6 +2931,59 @@
           "GOOGLE"
         ],
         "title": "ModelProvider"
+      },
+      "Project": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id"
+        ],
+        "title": "Project"
+      },
+      "ProjectData": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ProjectData"
       },
       "Prompt": {
         "properties": {
@@ -3751,6 +4187,30 @@
           "tool_result"
         ],
         "title": "ToolResultContentPart"
+      },
+      "UpdateProjectRequestBody": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/ProjectData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project"
+        ],
+        "title": "UpdateProjectRequestBody"
+      },
+      "UpdateProjectResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Project"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateProjectResponseBody"
       },
       "UploadDatasetData": {
         "properties": {
