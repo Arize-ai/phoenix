@@ -27,16 +27,15 @@ const server = new McpServer({
   name: "phoenix-mcp-server",
   version: "1.0.0",
   capabilities: {
-    resources: {},
-    tools: {},
     prompts: {},
   },
 });
 
+initializePrompts({ client, server });
 initializePromptTools({ client, server });
 initializeExperimentTools({ client, server });
 initializeDatasetTools({ client, server });
-initializePrompts({ client, server });
+
 async function main() {
   // Initialize readme resources first
   if (process.env.DANGEROUSLY_READ_README_FILES === "true") {

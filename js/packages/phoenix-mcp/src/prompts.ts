@@ -1,11 +1,29 @@
 import { PhoenixClient } from "@arizeai/phoenix-client";
-import { createPrompt, promptVersion } from "@arizeai/phoenix-client/prompts";
-
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   GetPromptRequestSchema,
   ListPromptsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+
+const parseVariablesMustache = (template: string) => {
+  const regex = /\{\{([^{}]+)\}\}/g;
+  const variables = [];
+  let match;
+  while ((match = regex.exec(template))) {
+    variables.push(match[1]);
+  }
+  return variables;
+};
+
+const parseArgumentsFString = (template: string) => {
+  const regex = /\{([^{}]+)\}/g;
+  const variables = [];
+  let match;
+  while ((match = regex.exec(template))) {
+    variables.push(match[1]);
+  }
+  return variables;
+};
 
 export const initializePrompts = async ({
   client,
@@ -36,18 +54,32 @@ export const initializePrompts = async ({
         }
       );
 
+      const args: string[] = [];
+      const template = promptVersionResponse.data?.data.template;
+      const format = promptVersionResponse.data?.data.template_format;
+      const parser =
+        format === "F_STRING" ? parseArgumentsFString : parseVariablesMustache;
+      if (template && template.type === "chat") {
+        template.messages.forEach((message) => {
+          const content = message.content;
+          if (typeof content === "string") {
+            args.push(...parser(content));
+          }
+        });
+      }
+
       return {
         name: prompt.name,
         description: prompt.description,
-        arguments: [],
+        arguments: args,
       };
     });
 
-    return prompts;
+    return { prompts: prompts };
   });
 
   server.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-    const arguments = request.params.arguments || {};
+    // const args = request.params.arguments || {};
     // Get the latest version of the prompt
     const promptVersionResponse = await client.GET(
       "/v1/prompts/{prompt_identifier}/latest",
