@@ -180,7 +180,7 @@ export const initializeDatasetTools = ({
     },
     async ({ datasetName, examples }) => {
       // Add MCP metadata to each example
-      const examplesWithMetadata = examples.map(example => ({
+      const examplesWithMetadata = examples.map((example) => ({
         ...example,
         metadata: {
           ...example.metadata,
@@ -192,9 +192,9 @@ export const initializeDatasetTools = ({
         body: {
           action: "append",
           name: datasetName,
-          inputs: examplesWithMetadata.map(e => e.input),
-          outputs: examplesWithMetadata.map(e => e.output),
-          metadata: examplesWithMetadata.map(e => e.metadata),
+          inputs: examplesWithMetadata.map((e) => e.input),
+          outputs: examplesWithMetadata.map((e) => e.output),
+          metadata: examplesWithMetadata.map((e) => e.metadata),
         },
       });
 
@@ -202,10 +202,14 @@ export const initializeDatasetTools = ({
         content: [
           {
             type: "text",
-            text: JSON.stringify({
-              dataset_name: datasetName,
-              message: "Successfully added examples to dataset",
-            }, null, 2),
+            text: JSON.stringify(
+              {
+                dataset_name: datasetName,
+                message: "Successfully added examples to dataset",
+              },
+              null,
+              2
+            ),
           },
         ],
       };
