@@ -160,6 +160,7 @@ class TestClientForProjectsAPI:
 
         # Delete the project (admin only) (DELETE operation)
         if role_or_user == _ADMIN:
+            # Test deleting by ID
             await _await_or_return(
                 Client().projects.delete(
                     project_id=project["id"],
@@ -171,6 +172,29 @@ class TestClientForProjectsAPI:
                 await _await_or_return(
                     Client().projects.get(
                         project_id=project["id"],
+                    )
+                )
+
+            # Create another project to test deleting by name
+            another_project = await _await_or_return(
+                Client().projects.create(
+                    name=f"Another_{project_name}_{token_hex(8)}",
+                    description=f"Another project with {project_description}",
+                )
+            )
+
+            # Test deleting by name
+            await _await_or_return(
+                Client().projects.delete(
+                    project_name=another_project["name"],
+                )
+            )
+
+            # Verify project was deleted by name
+            with pytest.raises(Exception):
+                await _await_or_return(
+                    Client().projects.get(
+                        project_id=another_project["id"],
                     )
                 )
 

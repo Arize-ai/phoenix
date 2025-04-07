@@ -206,7 +206,7 @@ class Projects:
             assert project_id
             project_identifier = project_id
         url = f"v1/projects/{quote_plus(project_identifier)}"
-        if not description:
+        if description is None:
             raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
         response = self._client.put(url=url, json=json_)
@@ -445,7 +445,7 @@ class AsyncProjects:
             assert project_id
             project_identifier = project_id
         url = f"v1/projects/{quote_plus(project_identifier)}"
-        if not description:
+        if description is None:
             raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
         response = await self._client.put(url=url, json=json_)
@@ -455,24 +455,39 @@ class AsyncProjects:
     async def delete(
         self,
         *,
-        project_id: str,
+        project_id: Optional[str] = None,
+        project_name: Optional[str] = None,
     ) -> None:
-        """Delete a project by ID.
+        """Delete a project by ID or name.
 
         Args:
             project_id: The ID of the project to delete.
+            project_name: The name of the project to delete.
 
         Raises:
             httpx.HTTPError: If the request fails.
+            ValueError: If neither project_id nor project_name is provided.
 
         Example:
             ```python
             from phoenix.client import AsyncClient
 
             async_client = AsyncClient()
+            # Delete by ID
             await async_client.projects.delete(project_id="UHJvamVjdDoy")
+            # Delete by name
+            await async_client.projects.delete(project_name="My Project")
             ```
         """  # noqa: E501
-        url = f"v1/projects/{quote_plus(project_id)}"
+        if not project_id and not project_name:
+            raise ValueError("Either project_id or project_name must be provided.")
+        if project_id and project_name:
+            raise ValueError("Only one of project_id or project_name can be provided.")
+        if project_name:
+            project_identifier = base64.urlsafe_b64encode(project_name.encode()).decode()
+        else:
+            assert project_id
+            project_identifier = project_id
+        url = f"v1/projects/{quote_plus(project_identifier)}"
         response = await self._client.delete(url)
         response.raise_for_status()
