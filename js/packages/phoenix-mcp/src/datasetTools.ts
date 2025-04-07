@@ -36,11 +36,11 @@ Example usage:
 Expected return:
   Object containing dataset ID, version ID, and array of examples.
   Example: {
-    "dataset_id": "RGF0YXNldDox",
-    "version_id": "RGF0YXNldFZlcnNpb246Ng==",
+    "dataset_id": "datasetid1234",
+    "version_id": "datasetversionid1234",
     "examples": [
       {
-        "id": "RGF0YXNldEV4YW1wbGU6Ng==",
+        "id": "exampleid1234",
         "input": {
           "text": "Sample input text"
         },
@@ -48,7 +48,7 @@ Expected return:
           "text": "Expected output text"
         },
         "metadata": {},
-        "updated_at": "2024-03-20T12:00:00Z"
+        "updated_at": "YYYY-MM-DDTHH:mm:ssZ"
       }
     ]
   }`;
@@ -62,14 +62,14 @@ Expected return:
   Array of experiment objects with metadata.
   Example: [
     {
-      "id": "RXhwZXJpbWVudDo4",
-      "dataset_id": "RGF0YXNldDox",
-      "dataset_version_id": "RGF0YXNldFZlcnNpb246Ng==",
+      "id": "experimentid1234",
+      "dataset_id": "datasetid1234",
+      "dataset_version_id": "datasetversionid1234",
       "repetitions": 1,
       "metadata": {},
       "project_name": "Experiment-abc123",
-      "created_at": "2025-03-20T12:00:00Z",
-      "updated_at": "2025-03-20T12:00:00Z"
+      "created_at": "YYYY-MM-DDTHH:mm:ssZ",
+      "updated_at": "YYYY-MM-DDTHH:mm:ssZ"
     }
   ]`;
 
