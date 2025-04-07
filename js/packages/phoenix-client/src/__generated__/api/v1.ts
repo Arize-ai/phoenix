@@ -406,18 +406,18 @@ export interface paths {
         };
         /**
          * Get project by ID or name
-         * @description Retrieve a specific project using its unique identifier. The identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.
+         * @description Retrieve a specific project using its unique identifier: either project ID or hex-encoded project name.
          */
         get: operations["getProject"];
         /**
          * Update a project by ID or name
-         * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name.
+         * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or hex-encoded project name.
          */
         put: operations["updateProject"];
         post?: never;
         /**
          * Delete a project by ID or name
-         * @description Delete an existing project and all its associated data. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name. The default project cannot be deleted.
+         * @description Delete an existing project and all its associated data. The project identifier is either project ID or hex-encoded project name. The default project cannot be deleted.
          */
         delete: operations["deleteProject"];
         options?: never;
@@ -2518,7 +2518,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name. */
+                /** @description The project identifier: either project ID or hex-encoded project name. */
                 project_identifier: string;
             };
             cookie?: never;
@@ -2568,7 +2568,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name. */
+                /** @description The project identifier: either project ID or hex-encoded project name. */
                 project_identifier: string;
             };
             cookie?: never;
@@ -2622,7 +2622,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a hex-encoded project name. */
+                /** @description The project identifier: either project ID or hex-encoded project name. */
                 project_identifier: string;
             };
             cookie?: never;
