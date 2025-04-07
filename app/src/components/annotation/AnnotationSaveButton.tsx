@@ -26,7 +26,6 @@ export const AnnotationSaveButton = forwardRef<
       e.preventDefault();
       e.stopPropagation();
       props.onPress?.(e as unknown as PressEvent);
-      console.log("submitting");
     },
     {
       enableOnFormTags: true,
