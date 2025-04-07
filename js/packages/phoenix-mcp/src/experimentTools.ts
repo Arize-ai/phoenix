@@ -11,7 +11,10 @@ export const initializeExperimentTools = ({
 }) => {
   server.tool(
     "list-experiments-for-dataset",
-    "Get a list of all the experiments for a given dataset",
+    "Get a list of all the experiments run on a given dataset.\n\n" +
+    "Experiments are collections of experiment runs, each experiment run corresponds to a single " +
+    "dataset example. The dataset example is passed to an implied `task` which in turn " +
+    "produces an output.",
     {
       dataset_id: z.string(),
     },
@@ -36,7 +39,12 @@ export const initializeExperimentTools = ({
 
   server.tool(
     "get-experiment-by-id",
-    "Get an experiment by its ID. The tool returns experiment metadata in the first content block and a JSON object with the experiment data in the second.",
+    "Get an experiment by its ID.\n\n" +
+    "The tool returns experiment metadata in the first content block and a JSON object with the " +
+    "experiment data in the second. The experiment data contains both the results of each " +
+    "experiment run and the annotations made by an evaluator to score or label the results, " +
+    "for example, comparing the output of an experiment run to the expected output from the " +
+    "dataset example.",
     {
       experiment_id: z.string(),
     },

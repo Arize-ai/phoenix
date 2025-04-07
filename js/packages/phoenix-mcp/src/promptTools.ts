@@ -15,7 +15,13 @@ import {
 } from "./promptSchemas.js";
 
 // Tool descriptions as template literals for better readability
-const LIST_PROMPTS_DESCRIPTION = `Get a list of all the prompts. Returns a list of prompt objects with their IDs, names, and descriptions.
+const LIST_PROMPTS_DESCRIPTION = `Get a list of all the prompts.
+
+Prompts (templates, prompt templates) are versioned templates for input messages to an LLM.
+Each prompt includes both the input messages, but also the model and invocation parameters
+to use when generating outputs.
+
+Returns a list of prompt objects with their IDs, names, and descriptions.
 
 Example usage: 
   List all available prompts

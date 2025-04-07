@@ -11,7 +11,9 @@ export const initializeDatasetTools = ({
 }) => {
   server.tool(
     "list-datasets",
-    "Get a list of all the datasets",
+    "Get a list of all datasets.\n\n" +
+    "Datasets are collections of 'dataset examples' that each example includes an input, " +
+    "(expected) output, and optional metadata. They are primarily used as inputs for the experiments.",
     {
       limit: z.number().min(1).max(100).default(100),
     },
@@ -33,7 +35,11 @@ export const initializeDatasetTools = ({
   );
   server.tool(
     "get-dataset-examples",
-    "Get examples from a dataset",
+    "Get examples from a dataset.\n\n" +
+    "Dataset examples are an array of objects that each include an input, " +
+    "(expected) output, and optional metadata. These examples are typically used to represent " +
+    "input to an application or model (e.g. prompt template variables, a code file, or image) " +
+    "and used to test or benchmark changes.",
     {
       datasetId: z.string(),
     },
