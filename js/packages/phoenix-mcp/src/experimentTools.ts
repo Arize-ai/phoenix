@@ -2,6 +2,86 @@ import { PhoenixClient } from "@arizeai/phoenix-client";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import z from "zod";
 
+const LIST_EXPERIMENTS_DESCRIPTION = `Get a list of all the experiments run on a given dataset.
+
+Experiments are collections of experiment runs, each experiment run corresponds to a single 
+dataset example. The dataset example is passed to an implied \`task\` which in turn 
+produces an output.
+
+Example usage:
+  Show me all the experiments I've run on dataset RGF0YXNldDox
+
+Expected return:
+  Array of experiment objects with metadata. 
+  Example: [
+    {
+      "id": "RXhwZXJpbWVudDo4",
+      "dataset_id": "RGF0YXNldDox",
+      "dataset_version_id": "RGF0YXNldFZlcnNpb246Ng==",
+      "repetitions": 1,
+      "metadata": {},
+      "project_name": "Experiment-abc123",
+      "created_at": "2025-03-20T12:00:00Z",
+      "updated_at": "2025-03-20T12:00:00Z"
+    }
+  ]`;
+
+const GET_EXPERIMENT_DESCRIPTION = `Get an experiment by its ID.
+
+The tool returns experiment metadata in the first content block and a JSON object with the 
+experiment data in the second. The experiment data contains both the results of each 
+experiment run and the annotations made by an evaluator to score or label the results, 
+for example, comparing the output of an experiment run to the expected output from the 
+dataset example.
+
+Example usage:
+  Show me the experiment results for experiment RXhwZXJpbWVudDo4
+
+Expected return:
+  Object containing experiment metadata and results.
+  Example: {
+    "metadata": {
+      "id": "RXhwZXJpbWVudDo4",
+      "dataset_id": "RGF0YXNldDox",
+      "dataset_version_id": "RGF0YXNldFZlcnNpb246Ng==",
+      "repetitions": 1,
+      "metadata": {},
+      "project_name": "Experiment-abc123",
+      "created_at": "2025-03-20T12:00:00Z",
+      "updated_at": "2025-03-20T12:00:00Z"
+    },
+    "experimentResult": [
+      {
+        "example_id": "RGF0YXNldEV4YW1wbGU6Ng==",
+        "repetition_number": 0,
+        "input": "Sample input text",
+        "reference_output": "Expected output text",
+        "output": "Actual output text",
+        "error": null,
+        "latency_ms": 1000,
+        "start_time": "2025-03-20T12:00:00Z",
+        "end_time": "2025-03-20T12:00:01Z",
+        "trace_id": "trace-123",
+        "prompt_token_count": 10,
+        "completion_token_count": 20,
+        "annotations": [
+          {
+            "name": "quality",
+            "annotator_kind": "HUMAN",
+            "label": "good",
+            "score": 0.9,
+            "explanation": "Output matches expected format",
+            "trace_id": "trace-456",
+            "error": null,
+            "metadata": {},
+            "start_time": "2025-03-20T12:00:01Z",
+            "end_time": "2025-03-20T12:00:02Z"
+          }
+        ]
+      }
+    ]
+  }`;
+
 export const initializeExperimentTools = ({
   client,
   server,
@@ -11,10 +91,7 @@ export const initializeExperimentTools = ({
 }) => {
   server.tool(
     "list-experiments-for-dataset",
-    "Get a list of all the experiments run on a given dataset.\n\n" +
-    "Experiments are collections of experiment runs, each experiment run corresponds to a single " +
-    "dataset example. The dataset example is passed to an implied `task` which in turn " +
-    "produces an output.",
+    LIST_EXPERIMENTS_DESCRIPTION,
     {
       dataset_id: z.string(),
     },
@@ -39,12 +116,7 @@ export const initializeExperimentTools = ({
 
   server.tool(
     "get-experiment-by-id",
-    "Get an experiment by its ID.\n\n" +
-    "The tool returns experiment metadata in the first content block and a JSON object with the " +
-    "experiment data in the second. The experiment data contains both the results of each " +
-    "experiment run and the annotations made by an evaluator to score or label the results, " +
-    "for example, comparing the output of an experiment run to the expected output from the " +
-    "dataset example.",
+    GET_EXPERIMENT_DESCRIPTION,
     {
       experiment_id: z.string(),
     },
