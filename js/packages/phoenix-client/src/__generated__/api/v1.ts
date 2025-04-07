@@ -397,7 +397,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_id}": {
+    "/v1/projects/{project_identifier}": {
         parameters: {
             query?: never;
             header?: never;
@@ -405,19 +405,19 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get project by ID
-         * @description Retrieve a specific project using its unique identifier.
+         * Get project by ID or name
+         * @description Retrieve a specific project using its unique identifier. The identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.
          */
         get: operations["getProject"];
         /**
-         * Update a project
-         * @description Update an existing project with new configuration. Project names cannot be changed.
+         * Update a project by ID or name
+         * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name.
          */
         put: operations["updateProject"];
         post?: never;
         /**
-         * Delete a project
-         * @description Delete an existing project and all its associated data.
+         * Delete a project by ID or name
+         * @description Delete an existing project and all its associated data. The project identifier is first interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. The default project cannot be deleted.
          */
         delete: operations["deleteProject"];
         options?: never;
@@ -479,7 +479,10 @@ export interface components {
         };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
-            project: components["schemas"]["ProjectData"];
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
         };
         /** CreateProjectResponseBody */
         CreateProjectResponseBody: {
@@ -731,13 +734,6 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
-        };
-        /** ProjectData */
-        ProjectData: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
         };
         /** Prompt */
         Prompt: {
@@ -1163,7 +1159,8 @@ export interface components {
         };
         /** UpdateProjectRequestBody */
         UpdateProjectRequestBody: {
-            project: components["schemas"]["ProjectData"];
+            /** Description */
+            description?: string | null;
         };
         /** UpdateProjectResponseBody */
         UpdateProjectResponseBody: {
@@ -2521,8 +2518,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the project. */
-                project_id: string;
+                /** @description The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. */
+                project_identifier: string;
             };
             cookie?: never;
         };
@@ -2571,8 +2568,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the project to update. */
-                project_id: string;
+                /** @description The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. */
+                project_identifier: string;
             };
             cookie?: never;
         };
@@ -2625,8 +2622,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The ID of the project to delete. */
-                project_id: string;
+                /** @description The project identifier. First interpreted as a project ID. If the ID format is invalid, it is then treated as a base64-encoded project name. */
+                project_identifier: string;
             };
             cookie?: never;
         };
