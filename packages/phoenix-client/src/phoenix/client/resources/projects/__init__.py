@@ -147,7 +147,9 @@ class Projects:
             ```
         """  # noqa: E501
         url = "v1/projects"
-        json_ = v1.CreateProjectRequestBody(name=name, description=description)
+        json_ = v1.CreateProjectRequestBody(name=name)
+        if description:
+            json_["description"] = description
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
         return cast(v1.CreateProjectResponseBody, response.json())["data"]
@@ -204,7 +206,8 @@ class Projects:
             assert project_id
             project_identifier = project_id
         url = f"v1/projects/{quote_plus(project_identifier)}"
-
+        if not description:
+            raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
         response = self._client.put(url=url, json=json_)
         response.raise_for_status()
@@ -383,7 +386,9 @@ class AsyncProjects:
             ```
         """  # noqa: E501
         url = "v1/projects"
-        json_ = v1.CreateProjectRequestBody(name=name, description=description)
+        json_ = v1.CreateProjectRequestBody(name=name)
+        if description:
+            json_["description"] = description
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
         return cast(v1.CreateProjectResponseBody, response.json())["data"]
@@ -440,7 +445,8 @@ class AsyncProjects:
             assert project_id
             project_identifier = project_id
         url = f"v1/projects/{quote_plus(project_identifier)}"
-
+        if not description:
+            raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
         response = await self._client.put(url=url, json=json_)
         response.raise_for_status()

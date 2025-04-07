@@ -68,21 +68,19 @@ class TestClientForProjectsAPI:
         Client = AsyncClient if is_async else SyncClient
 
         # Create a project with special characters and ensure uniqueness
-        unique_project_name = f"{project_name}_{token_hex(8)}"
+        name = f"{project_name}_{token_hex(16)}"
         description = f"A project with {project_description}"
 
         project = await _await_or_return(
             Client().projects.create(
-                name=unique_project_name,
+                name=name,
                 description=description,
             )
         )
 
         # Verify project was created with correct attributes (CREATE operation)
         assert project["id"], "Project ID should be present after creation"  # noqa: E501
-        assert (
-            project["name"] == unique_project_name
-        ), "Project name should match input after creation"  # noqa: E501
+        assert project["name"] == name, "Project name should match input after creation"  # noqa: E501
         assert "description" in project, "Project should have a description field"  # noqa: E501
         assert (
             project["description"] == description
@@ -92,7 +90,7 @@ class TestClientForProjectsAPI:
         with pytest.raises(Exception):
             await _await_or_return(
                 Client().projects.create(
-                    name=unique_project_name,
+                    name=name,
                 )
             )
 
@@ -108,7 +106,7 @@ class TestClientForProjectsAPI:
             retrieved_project["id"] == project["id"]
         ), "Retrieved project ID should match created project"  # noqa: E501
         assert (
-            retrieved_project["name"] == unique_project_name
+            retrieved_project["name"] == name
         ), "Retrieved project name should match created project"  # noqa: E501
         assert (
             "description" in retrieved_project
@@ -139,9 +137,7 @@ class TestClientForProjectsAPI:
             assert (
                 updated_project["id"] == project["id"]
             ), "Updated project ID should match original project"  # noqa: E501
-            assert (
-                updated_project["name"] == unique_project_name
-            ), "Project name should not change after update"  # noqa: E501
+            assert updated_project["name"] == name, "Project name should not change after update"  # noqa: E501
             assert (
                 "description" in updated_project
             ), "Updated project should have a description field"  # noqa: E501

@@ -30,7 +30,7 @@ router = APIRouter(tags=["projects"])
 
 
 class ProjectData(V1RoutesBaseModel):
-    name: str = Field(..., ge=1)
+    name: str = Field(..., min_length=1)
     description: Optional[str] = None
 
 
