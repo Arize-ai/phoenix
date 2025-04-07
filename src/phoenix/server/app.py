@@ -950,7 +950,7 @@ def create_app(
         FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
         FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
         shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
-    if allowed_origins and len(allowed_origins) > 0:
+    if allowed_origins:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=allowed_origins,
