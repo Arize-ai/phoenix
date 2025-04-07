@@ -99,7 +99,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
 |  Websockets: {{ websockets_enabled }}
-|  Allowed Origins: {{ allowed_origins }}
+{%- if allowed_origins %}\n|  Allowed Origins: {{ allowed_origins }}{% endif %}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -217,12 +217,6 @@ def main() -> None:
             "the inputted project or trace fixture. "
             "Default is False. "
         ),
-    )
-    serve_parser.add_argument(
-        "--allowed-origins",
-        type=str,
-        required=False,
-        help="Comma separated list of allowed origins",
     )
 
     datasets_parser = subparsers.add_parser("datasets")
@@ -367,7 +361,7 @@ def main() -> None:
     if enable_websockets is None:
         enable_websockets = True
 
-    allowed_origins = args.allowed_origins or get_env_allowed_origins()
+    allowed_origins = get_env_allowed_origins()
 
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)

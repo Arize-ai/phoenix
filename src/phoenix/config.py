@@ -7,7 +7,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, List, Optional, Union, cast, overload
+from typing import Any, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urlparse
 
 import wrapt
@@ -1054,7 +1054,7 @@ DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
 
 
-def get_env_allowed_origins() -> Optional[List[str]]:
+def get_env_allowed_origins() -> Optional[list[str]]:
     """
     Gets the value of the PHOENIX_ALLOWED_ORIGINS environment variable.
     """
