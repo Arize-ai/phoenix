@@ -560,6 +560,16 @@ def launch_app(
         database_url = f"sqlite:///{_session_working_dir.name}/phoenix.db"
     else:
         database_url = get_env_database_connection_str()
+        # Raise error for PostgreSQL usage with launch_app
+        if database_url.startswith("postgresql"):
+            raise ValueError(
+                "PostgreSQL backend detected in your environment configuration. "
+                "This could be from PHOENIX_SQL_DATABASE_URL or PHOENIX_POSTGRES_* variables. "
+                "launch_app() is designed to work with SQLite for notebook environments. "
+                "To use PostgreSQL, please use 'phoenix serve' from the command line instead. "
+                "Make sure you have the PostgreSQL extras installed: "
+                "pip install 'arize-phoenix[pg]'"
+            )
 
     enable_websockets_env = get_env_enable_websockets() or False
     enable_websockets = (
