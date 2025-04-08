@@ -75,11 +75,9 @@ class Spans:
         """
         url = "v1/spans"
 
-        # Convert datetime objects to ISO format strings if provided
         start_time_str = start_time.isoformat() if start_time else None
         end_time_str = end_time.isoformat() if end_time else None
 
-        # Create request body
         request_body = GetSpansRequestBody(
             queries=[query] if query else [],
             start_time=start_time_str,
@@ -89,14 +87,11 @@ class Spans:
             project_name=project_name,
         )
 
-        # Make request
         response = self._client.post(url=url, json=request_body.to_dict())
         response.raise_for_status()
 
-        # Parse response
         response_body = GetSpansResponseBody.from_dict(response.json())
 
-        # Convert to DataFrame
         if not response_body.data:
             return pd.DataFrame()
 
@@ -164,11 +159,9 @@ class AsyncSpans:
         """
         url = "v1/spans"
 
-        # Convert datetime objects to ISO format strings if provided
         start_time_str = start_time.isoformat() if start_time else None
         end_time_str = end_time.isoformat() if end_time else None
 
-        # Create request body
         request_body = GetSpansRequestBody(
             queries=[query] if query else [],
             start_time=start_time_str,
@@ -178,14 +171,11 @@ class AsyncSpans:
             project_name=project_name,
         )
 
-        # Make request
         response = await self._client.post(url=url, json=request_body.to_dict())
         response.raise_for_status()
 
-        # Parse response
         response_body = GetSpansResponseBody.from_dict(response.json())
 
-        # Convert to DataFrame
         if not response_body.data:
             return pd.DataFrame()
 
