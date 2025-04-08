@@ -13,7 +13,6 @@ from phoenix.trace.dsl import SpanQuery as PhoenixSpanQuery
 
 
 def assert_dict_equivalence(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> None:
-    """Helper function to compare dictionaries recursively."""
     assert dict1.keys() == dict2.keys()
     for key in dict1:
         if isinstance(dict1[key], dict):
@@ -23,7 +22,6 @@ def assert_dict_equivalence(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Non
 
 
 def test_basic_query_equivalence() -> None:
-    """Test that basic queries produce equivalent dictionaries."""
     phoenix_query = PhoenixSpanQuery().select("span_id", "trace_id")
     client_query = SpanQuery().select("span_id", "trace_id")
 
@@ -31,7 +29,6 @@ def test_basic_query_equivalence() -> None:
 
 
 def test_filter_query_equivalence() -> None:
-    """Test that filter queries produce equivalent dictionaries."""
     phoenix_query = PhoenixSpanQuery().where("span_id == '123'")
     client_query = SpanQuery().where("span_id == '123'")
 
@@ -39,7 +36,6 @@ def test_filter_query_equivalence() -> None:
 
 
 def test_explode_query_equivalence() -> None:
-    """Test that explode queries produce equivalent dictionaries."""
     phoenix_query = PhoenixSpanQuery().explode("attributes")
     client_query = SpanQuery().explode("attributes")
 
@@ -47,7 +43,6 @@ def test_explode_query_equivalence() -> None:
 
 
 def test_concat_query_equivalence() -> None:
-    """Test that concatenation queries produce equivalent dictionaries."""
     phoenix_query = PhoenixSpanQuery().concat("messages")
     client_query = SpanQuery().concat("messages")
 
@@ -55,7 +50,6 @@ def test_concat_query_equivalence() -> None:
 
 
 def test_rename_query_equivalence() -> None:
-    """Test that rename queries produce equivalent dictionaries."""
     phoenix_query = PhoenixSpanQuery().rename(old_name="new_name")
     client_query = SpanQuery().rename(old_name="new_name")
 
@@ -63,7 +57,6 @@ def test_rename_query_equivalence() -> None:
 
 
 def test_index_query_equivalence() -> None:
-    """Test that index queries produce equivalent dictionaries."""
     phoenix_query = PhoenixSpanQuery().with_index("span_id")
     client_query = SpanQuery().with_index("span_id")
 
@@ -71,7 +64,6 @@ def test_index_query_equivalence() -> None:
 
 
 def test_complex_query_equivalence() -> None:
-    """Test that complex queries with multiple operations produce equivalent dictionaries."""
     phoenix_query = (
         PhoenixSpanQuery()
         .select("span_id", "trace_id")
@@ -95,8 +87,6 @@ def test_complex_query_equivalence() -> None:
 
 
 def test_backward_compatibility() -> None:
-    """Test that backward compatibility field names are handled correctly."""
-    # Test with old field names
     query = SpanQuery().select(
         "context.span_id",
         "context.trace_id",
@@ -111,7 +101,6 @@ def test_backward_compatibility() -> None:
 
 
 def test_empty_key_validation() -> None:
-    """Test that empty keys are properly validated."""
     with pytest.raises(ValueError):
         Projection(key="")
 
@@ -166,7 +155,6 @@ def test_default_index_behavior() -> None:
 
 
 def test_explosion_kwargs_equivalence() -> None:
-    """Test that explosion with kwargs matches DSL behavior."""
     phoenix_query = PhoenixSpanQuery().explode("attributes", arg1="span_id", arg2="some_field")
     client_query = SpanQuery().explode("attributes", arg1="span_id", arg2="some_field")
 
@@ -174,7 +162,6 @@ def test_explosion_kwargs_equivalence() -> None:
 
 
 def test_concatenation_kwargs_equivalence() -> None:
-    """Test that concatenation with kwargs matches DSL behavior."""
     phoenix_query = PhoenixSpanQuery().concat("messages", arg1="span_id", arg2="some_field")
     client_query = SpanQuery().concat("messages", arg1="span_id", arg2="some_field")
 
