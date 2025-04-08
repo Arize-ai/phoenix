@@ -94,10 +94,12 @@ def test_backward_compatibility() -> None:
     )
 
     # The query should internally convert to new field names
-    assert query._select is not None
-    assert "span_id" in query._select
-    assert "trace_id" in query._select
-    assert "cumulative_llm_token_count_completion" in query._select
+    query_dict = query.to_dict()
+    assert "select" in query_dict
+    select_dict = query_dict["select"]
+    assert "span_id" in select_dict
+    assert "trace_id" in select_dict
+    assert "cumulative_llm_token_count_completion" in select_dict
 
 
 def test_empty_key_validation() -> None:

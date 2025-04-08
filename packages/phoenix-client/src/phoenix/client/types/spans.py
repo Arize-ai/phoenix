@@ -174,7 +174,7 @@ class SpanQuery:
     _index_has_been_set: bool = dataclass_field(default=False)
 
     def select(self, *fields: str) -> "SpanQuery":
-        select_dict = {}
+        select_dict: dict[str, Projection] = {}
         for field in fields:
             normalized = _normalize_field(field)
             select_dict[normalized] = Projection(key=normalized)
@@ -203,10 +203,16 @@ class SpanQuery:
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
         current_index = self._index.key if self._index else "context.span_id"
         primary_index_key = current_index
+        # Create a new dictionary with normalized keys and values
+        normalized_kwargs: dict[str, str] = {}
+        for k, v in kwargs.items():
+            normalized_k = _normalize_field(k)
+            normalized_v = _normalize_field(v)
+            normalized_kwargs[normalized_k] = normalized_v
         return SpanQuery(
             _select=self._select,
             _filter=self._filter,
-            _explode=Explosion(key=key, kwargs=kwargs, primary_index_key=primary_index_key),
+            _explode=Explosion(key=key, kwargs=normalized_kwargs, primary_index_key=primary_index_key),
             _concat=self._concat,
             _rename=self._rename,
             _index=self._index,
@@ -215,11 +221,17 @@ class SpanQuery:
 
     def concat(self, key: str, **kwargs: str) -> "SpanQuery":
         """Concatenate a field from the spans."""
+        # Create a new dictionary with normalized keys and values
+        normalized_kwargs: dict[str, str] = {}
+        for k, v in kwargs.items():
+            normalized_k = _normalize_field(k)
+            normalized_v = _normalize_field(v)
+            normalized_kwargs[normalized_k] = normalized_v
         return SpanQuery(
             _select=self._select,
             _filter=self._filter,
             _explode=self._explode,
-            _concat=Concatenation(key=key, kwargs=kwargs),
+            _concat=Concatenation(key=key, kwargs=normalized_kwargs),
             _rename=self._rename,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
@@ -227,7 +239,7 @@ class SpanQuery:
 
     def rename(self, **kwargs: str) -> "SpanQuery":
         """Rename fields in the result."""
-        rename_dict = {}
+        rename_dict: dict[str, str] = {}
         for old_name, new_name in kwargs.items():
             normalized_old = _normalize_field(old_name)
             rename_dict[normalized_old] = new_name
