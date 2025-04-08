@@ -1,8 +1,9 @@
-import React, { forwardRef, HTMLAttributes, Ref } from "react";
+import React, { forwardRef, HTMLAttributes } from "react";
 import { css, keyframes } from "@emotion/react";
 
-import { BorderRadiusToken } from "../types/sizing";
 import { classNames } from "@arizeai/components";
+
+import { BorderRadiusToken } from "../types/sizing";
 
 // Export the AnimationType so it can be used in stories
 export type AnimationType = "pulse" | "wave" | false;
