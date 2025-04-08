@@ -45,6 +45,7 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_HTTP\_ENDPOINT:** Specifies an HTTP endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_SERVER\_INSTRUMENTATION\_OTLP\_TRACE\_COLLECTOR\_GRPC\_ENDPOINT:** Specifies an gRPC endpoint for the OTLP trace collector. Specifying this variable enables the OpenTelemetry tracer and exporter for the Phoenix server.
 * **PHOENIX\_CSRF\_TRUSTED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Site Request Forgery (CSRF) protection. This setting is recommended when configuring OAuth2 clients or sending password reset emails. If this variable is left unspecified or contains no origins, CSRF protection will not be enabled. In such cases, when a request includes `origin` or `referer` headers, those values will not be validated.
+* **PHOENIX\_ALLOWED\_ORIGINS:** A comma-separated list of origins allowed to bypass Cross-Origin Request Sharing (CORS) protection. This setting is recommended when Phoenix should be accessible from runtime environments that restrict cross-origin requests, such as web browsers. If this variable is left unspecified or contains no origins, requests to Phoenix from web browser-like environments will not be possible.
 
 #### SMTP Configuration for Password Reset (When Auth Is Enabled)
 
