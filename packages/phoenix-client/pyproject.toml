@@ -33,6 +33,7 @@ test = [
   "pytest-asyncio",
   "pytest-cov",
   "arize-phoenix",
+  "pandas-stubs",
 ]
 
 [project.urls]
