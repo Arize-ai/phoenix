@@ -4,6 +4,8 @@ import { css } from "@emotion/react";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
+import { messageContainerCSS, messageRowCSS } from "./styles";
+
 const USER_PICTURE_SIZE = 24;
 
 interface MessageBubbleProps {
@@ -33,29 +35,6 @@ interface MessageBubbleProps {
    */
   userPicture?: string | null;
 }
-
-const containerCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-50);
-  max-width: 80%;
-  &[data-outgoing="true"] {
-    align-self: flex-end;
-  }
-  &[data-outgoing="false"] {
-    align-self: flex-start;
-  }
-`;
-
-const messageRowCSS = css`
-  display: flex;
-  gap: var(--ac-global-dimension-size-100);
-  width: 100%;
-  align-items: flex-end;
-  &[data-outgoing="true"] {
-    flex-direction: row-reverse;
-  }
-`;
 
 const bubbleCSS = css`
   padding: var(--ac-global-dimension-size-100)
@@ -100,7 +79,7 @@ export function MessageBubble({
   userPicture = null,
 }: MessageBubbleProps) {
   return (
-    <div css={containerCSS} data-outgoing={isOutgoing}>
+    <div css={messageContainerCSS} data-outgoing={isOutgoing}>
       <div css={messageRowCSS} data-outgoing={isOutgoing}>
         <UserPicture
           name={userName}
