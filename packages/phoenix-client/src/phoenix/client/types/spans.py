@@ -1,6 +1,5 @@
+from dataclasses import dataclass, field as dataclass_field
 from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel, Field, field_validator
 
 _BACKWARD_COMPATIBILITY_REPLACEMENTS: Dict[str, str] = {
     "context.span_id": "span_id",
@@ -15,43 +14,37 @@ _ALIASES: Dict[str, str] = {
     "trace_id": "context.trace_id",
 }
 
-_REVERSE_BACKWARD_COMPATIBILITY_REPLACEMENTS: Dict[str, str] = {
-    v: k for k, v in _BACKWARD_COMPATIBILITY_REPLACEMENTS.items()
-}
-
-
 def _unalias(key: str) -> str:
     """Convert old field names to their new form."""
     return _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(key, key)
-
 
 def _replace_backward_compatibility(key: str) -> str:
     """Replace backward compatibility field names with their current form."""
     return _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(key, key)
 
-
 def _normalize_field(key: str) -> str:
+    # If the user has provided the fully qualified version, strip off "context."
     if key.startswith("context."):
         return key[len("context.") :]
+    # If the shorthand is given, return the fully qualified field.
     if key in _ALIASES:
         return _ALIASES[key]
+    # Check if the key is a legacy name that should be replaced.
     if key in _BACKWARD_COMPATIBILITY_REPLACEMENTS:
         return _BACKWARD_COMPATIBILITY_REPLACEMENTS[key]
+    # Otherwise, return the key as is.
     return key
 
 
-class Projection(BaseModel):
+@dataclass
+class Projection:
     """Represents a projection in a span query."""
 
-    key: str = Field(description="The key to project from the span attributes")
+    key: str = dataclass_field(default="")
 
-    @field_validator("key")
-    @classmethod
-    def validate_key(cls, v: str) -> str:
-        if not v:
+    def __post_init__(self) -> None:
+        if not self.key:
             raise ValueError("Projection key cannot be empty")
-        # Do not apply _normalize_field here—assume it's already done.
-        return v
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
@@ -62,23 +55,18 @@ class Projection(BaseModel):
         return cls(key=obj["key"])
 
 
-class SpanFilter(BaseModel):
+@dataclass
+class SpanFilter:
     """Represents a filter condition in a span query."""
 
-    condition: str = Field(description="The filter condition as a Python boolean expression")
-    valid_eval_names: Optional[List[str]] = Field(
-        default=None,
-        description="List of valid evaluation names that can be referenced in the condition",
-    )
+    condition: str = dataclass_field(default="")
+    valid_eval_names: Optional[List[str]] = dataclass_field(default=None)
 
-    @field_validator("condition")
-    @classmethod
-    def validate_condition(cls, v: str) -> str:
-        if not v:
+    def __post_init__(self) -> None:
+        if not self.condition:
             raise ValueError("Filter condition cannot be empty")
         for old, new in _BACKWARD_COMPATIBILITY_REPLACEMENTS.items():
-            v = v.replace(old, new)
-        return v
+            self.condition = self.condition.replace(old, new)
 
     def to_dict(self) -> Dict[str, Any]:
         return {"condition": self.condition}
@@ -95,45 +83,29 @@ class SpanFilter(BaseModel):
         )
 
 
-class Explosion(BaseModel):
+@dataclass
+class Explosion:
     """Represents an explosion operation in a span query."""
 
-    key: str = Field(description="The key to explode from the span attributes")
-    kwargs: Dict[str, str] = Field(
-        default_factory=dict, description="Additional fields to include in the explosion"
-    )
-    primary_index_key: str = Field(
-        default="context.span_id",
-        description="The key to use as the primary index",
-    )
+    key: str = dataclass_field(default="")
+    _kwargs: Dict[str, str] = dataclass_field(default_factory=dict)
+    _primary_index_key: str = dataclass_field(default="context.span_id")
 
-    @field_validator("key")
-    @classmethod
-    def validate_key(cls, v: str) -> str:
-        if not v:
+    def __post_init__(self) -> None:
+        if not self.key:
             raise ValueError("Explosion key cannot be empty")
-        return _replace_backward_compatibility(_unalias(v))
-
-    @field_validator("primary_index_key")
-    @classmethod
-    def validate_primary_index_key(cls, v: str) -> str:
-        if not v:
+        self.key = _replace_backward_compatibility(_unalias(self.key))
+        if not self._primary_index_key:
             raise ValueError("Primary index key cannot be empty")
-        # DO NOT convert here; preserve exactly as-is.
-        return v
-
-    @field_validator("kwargs")
-    @classmethod
-    def validate_kwargs(cls, v: Dict[str, str]) -> Dict[str, str]:
-        return {k: _replace_backward_compatibility(_unalias(v)) for k, v in v.items()}
+        self._kwargs = {k: _replace_backward_compatibility(_unalias(v)) for k, v in self._kwargs.items()}
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
             "key": self.key,
-            "primary_index_key": self.primary_index_key,  # Ensure unchanged here
+            "primary_index_key": self._primary_index_key,
         }
-        if self.kwargs:
-            result["kwargs"] = self.kwargs
+        if self._kwargs:
+            result["kwargs"] = self._kwargs
         return result
 
     @classmethod
@@ -141,172 +113,170 @@ class Explosion(BaseModel):
         if not obj.get("key"):
             raise ValueError("Explosion key cannot be empty")
         return cls(
-            key=obj["key"],
-            kwargs=obj.get("kwargs", {}),
-            primary_index_key=obj.get("primary_index_key", "context.span_id"),
+            _key=obj["key"],
+            _kwargs=obj.get("kwargs", {}),
+            _primary_index_key=obj.get("primary_index_key", "context.span_id"),
         )
 
 
-class Concatenation(BaseModel):
+@dataclass
+class Concatenation:
     """Represents a concatenation operation in a span query."""
 
-    key: str = Field(description="The key to concatenate from the span attributes")
-    kwargs: Dict[str, str] = Field(
-        default_factory=dict, description="Additional fields to include in the concatenation"
-    )
-    separator: str = Field(default="\n\n", description="The separator to use when concatenating")
+    key: str = dataclass_field(default="")
+    _kwargs: Dict[str, str] = dataclass_field(default_factory=dict)
+    _separator: str = dataclass_field(default="\n\n")
 
-    @field_validator("key")
-    @classmethod
-    def validate_key(cls, v: str) -> str:
-        if not v:
+    def __post_init__(self) -> None:
+        if not self.key:
             raise ValueError("Concatenation key cannot be empty")
-        return _replace_backward_compatibility(_unalias(v))
-
-    @field_validator("kwargs")
-    @classmethod
-    def validate_kwargs(cls, v: Dict[str, str]) -> Dict[str, str]:
-        return {k: _replace_backward_compatibility(_unalias(v)) for k, v in v.items()}
+        self.key = _replace_backward_compatibility(_unalias(self.key))
+        self._kwargs = {k: _replace_backward_compatibility(_unalias(v)) for k, v in self._kwargs.items()}
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format."""
         result = {
             "key": self.key,
-            "separator": self.separator,
+            "separator": self._separator,
         }
-        # Only include kwargs if it's not empty
-        if self.kwargs:
-            result["kwargs"] = self.kwargs
+        if self._kwargs:
+            result["kwargs"] = self._kwargs
         return result
 
     @classmethod
     def from_dict(cls, obj: Dict[str, Any]) -> "Concatenation":
-        if not obj.get("key"):  # check `key` for backward-compatible truthiness
+        if not obj.get("key"):
             raise ValueError("Concatenation key cannot be empty")
         return cls(
-            key=obj["key"],
-            kwargs=obj.get("kwargs", {}),
-            separator=obj.get("separator", "\n\n"),
+            _key=obj["key"],
+            _kwargs=obj.get("kwargs", {}),
+            _separator=obj.get("separator", "\n\n"),
         )
 
 
-class SpanQuery(BaseModel):
+@dataclass
+class SpanQuery:
     """Represents a query for spans using the query DSL."""
 
-    select: Optional[Dict[str, Projection]] = Field(
-        default=None, description="Fields to select from the spans"
-    )
-    filter: Optional[SpanFilter] = Field(
-        default=None, description="Filter condition to apply to the spans"
-    )
-    explode: Optional[Explosion] = Field(
-        default=None, description="Field to explode from the spans"
-    )
-    concat: Optional[Concatenation] = Field(
-        default=None, description="Field to concatenate from the spans"
-    )
-    rename: Optional[Dict[str, str]] = Field(
-        default=None, description="Mapping of field names to rename in the result"
-    )
-    index: Optional[Projection] = Field(
-        default=None, description="Field to use as the index in the result"
-    )
-    concat_separator: str = Field(
-        default="\n\n", description="Default separator to use for concatenation operations"
-    )
+    _select: Optional[Dict[str, Projection]] = dataclass_field(default=None)
+    _filter: Optional[SpanFilter] = dataclass_field(default=None)
+    _explode: Optional[Explosion] = dataclass_field(default=None)
+    _concat: Optional[Concatenation] = dataclass_field(default=None)
+    _rename: Optional[Dict[str, str]] = dataclass_field(default=None)
+    _index: Optional[Projection] = dataclass_field(default=None)
+    _index_has_been_set: bool = dataclass_field(default=False)
 
-    def select_fields(self, *args: str, **kwargs: str) -> "SpanQuery":
+    def select(self, *fields: str) -> "SpanQuery":
         select_dict = {}
-        # Handle positional arguments
-        for name in args:
-            norm_key = _normalize_field(name)  # Toggle exactly once here.
-            select_dict[norm_key] = Projection(key=norm_key)
-        # Handle keyword arguments similarly.
-        for name, key in kwargs.items():
-            norm_key = _normalize_field(key)
-            select_dict[norm_key] = Projection(key=norm_key)
-        return self.model_copy(update={"select": select_dict})
+        for field in fields:
+            normalized = _normalize_field(field)
+            select_dict[normalized] = Projection(key=normalized)
+        return SpanQuery(
+            _select=select_dict,
+            _filter=self._filter,
+            _explode=self._explode,
+            _concat=self._concat,
+            _rename=self._rename,
+            _index=self._index,
+            _index_has_been_set=self._index_has_been_set,
+        )
+
+    def where(self, condition: str) -> "SpanQuery":
+        """Filter spans based on a condition."""
+        return SpanQuery(
+            _select=self._select,
+            _filter=SpanFilter(condition=condition),
+            _explode=self._explode,
+            _concat=self._concat,
+            _rename=self._rename,
+            _index=self._index,
+            _index_has_been_set=self._index_has_been_set,
+        )
+
+    def explode(self, key: str, **kwargs: str) -> "SpanQuery":
+        current_index = self._index._key if self._index else "context.span_id"
+        primary_index_key = current_index
+        return SpanQuery(
+            _select=self._select,
+            _filter=self._filter,
+            _explode=Explosion(key=key, _kwargs=kwargs, _primary_index_key=primary_index_key),
+            _concat=self._concat,
+            _rename=self._rename,
+            _index=self._index,
+            _index_has_been_set=self._index_has_been_set,
+        )
+
+    def concat(self, key: str, **kwargs: str) -> "SpanQuery":
+        """Concatenate a field from the spans."""
+        return SpanQuery(
+            _select=self._select,
+            _filter=self._filter,
+            _explode=self._explode,
+            _concat=Concatenation(key=key, _kwargs=kwargs),
+            _rename=self._rename,
+            _index=self._index,
+            _index_has_been_set=self._index_has_been_set,
+        )
+
+    def rename(self, **kwargs: str) -> "SpanQuery":
+        """Rename fields in the result."""
+        return SpanQuery(
+            _select=self._select,
+            _filter=self._filter,
+            _explode=self._explode,
+            _concat=self._concat,
+            _rename=kwargs,
+            _index=self._index,
+            _index_has_been_set=self._index_has_been_set,
+        )
+
+    def with_index(self, key: str) -> "SpanQuery":
+        # If there's already an explosion, update its primary index key
+        new_explode = self._explode
+        if new_explode is not None:
+            # Use _unalias on the provided key so that if key is "span_id"
+            # (which normally would be normalized to "context.span_id"),
+            # we get the raw value "span_id" for the explosion.
+            new_explode = Explosion(
+                key=new_explode.key,
+                _kwargs=new_explode._kwargs,
+                _primary_index_key=_unalias(key),
+            )
+        return SpanQuery(
+            _select=self._select,
+            _filter=self._filter,
+            _explode=new_explode,
+            _concat=self._concat,
+            _rename=self._rename,
+            # For the index projection, we follow the normalization as before.
+            _index=Projection(key=_normalize_field(key)),
+            _index_has_been_set=True,
+        )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format, excluding concat_separator."""
         result = {}
-        if self.select is not None:
-            # Use the select dictionary as is, since keys are already converted
-            result["select"] = {k: v.to_dict() for k, v in self.select.items()}
-        if self.filter is not None:
-            result["filter"] = self.filter.to_dict()
-        if self.explode is not None:
-            result["explode"] = self.explode.to_dict()
-        if self.concat is not None:
-            result["concat"] = self.concat.to_dict()
-        if self.rename is not None and not callable(self.rename):
-            result["rename"] = self.rename
-        # Always include index, defaulting to context.span_id if not specified
-        result["index"] = (
-            self.index.to_dict()
-            if self.index is not None
-            else Projection(key="context.span_id").to_dict()
-        )
+        if self._select:
+            result["select"] = {k: v.to_dict() for k, v in self._select.items()}
+        if self._filter:
+            result["filter"] = self._filter.to_dict()
+        if self._explode:
+            result["explode"] = self._explode.to_dict()
+        if self._concat:
+            result["concat"] = self._concat.to_dict()
+        if self._rename:
+            result["rename"] = self._rename
+        if self._index is not None and self._index_has_been_set:
+            result["index"] = self._index.to_dict()
+        elif any(
+            [
+                self._select,
+                self._filter,
+                self._explode,
+                self._concat,
+                self._rename,
+            ]
+        ):
+            result["index"] = Projection(key="context.span_id").to_dict()
         return result
-
-    @field_validator("rename")
-    @classmethod
-    def validate_rename(cls, v: Optional[Dict[str, str]]) -> Optional[Dict[str, str]]:
-        """Validate the rename field."""
-        if v is None:
-            return None
-        # Convert keys using the toggle helper.
-        return {_normalize_field(k): v for k, v in v.items()}
-
-    def where(self, condition: str, valid_eval_names: Optional[List[str]] = None) -> "SpanQuery":
-        """Add a filter condition to the query."""
-        return self.model_copy(
-            update={"filter": SpanFilter(condition=condition, valid_eval_names=valid_eval_names)}
-        )
-
-    def explode_field(self, key: str, **kwargs: str) -> "SpanQuery":
-        current_index = self.index.key if self.index else "context.span_id"
-        # Do not alter current_index here—use it as stored.
-        return self.model_copy(
-            update={
-                "explode": Explosion(
-                    key=key, kwargs=kwargs, primary_index_key=current_index
-                )
-            }
-        )
-
-    def concat_field(self, key: str, **kwargs: str) -> "SpanQuery":
-        """Concatenate a field from the spans."""
-        return self.model_copy(
-            update={
-                "concat": Concatenation(key=key, kwargs=kwargs, separator=self.concat_separator)
-            }
-        )
-
-    def rename_fields_dict(self, mapping: Dict[str, str]) -> "SpanQuery":
-        """Rename fields in the result using a mapping dictionary."""
-        return self.model_copy(update={"rename": mapping})
-
-    def rename_fields(self, **kwargs: str) -> "SpanQuery":
-        """Rename fields in the result using keyword arguments."""
-        return self.rename_fields_dict(kwargs)
-
-    def with_index(self, key: str = "context.span_id") -> "SpanQuery":
-        # Normalize the key: if user passes "span_id", this returns "context.span_id"
-        normalized = _normalize_field(key)
-        aliased_index = Projection(key=normalized)
-        updated_fields = {"index": aliased_index}
-        if self.explode:
-            # Use the raw key (as provided) for explosion's primary_index_key
-            updated_explode = self.explode.model_copy(
-                update={"primary_index_key": key}
-            )
-            updated_fields["explode"] = updated_explode
-        return self.model_copy(update=updated_fields)
-
-    def with_concat_separator(self, separator: str = "\n\n") -> "SpanQuery":
-        """Set the default separator for concatenation operations."""
-        return self.model_copy(update={"concat_separator": separator})
 
     @classmethod
     def from_dict(
@@ -315,68 +285,48 @@ class SpanQuery(BaseModel):
         valid_eval_names: Optional[List[str]] = None,
     ) -> "SpanQuery":
         return cls(
-            **(
-                {
-                    "select": {
-                        name: Projection.from_dict(proj)
-                        for name, proj in obj.get("select", {}).items()
-                    }
-                }
-                if obj.get("select")
-                else {}
-            ),
-            **(
-                {
-                    "filter": SpanFilter.from_dict(
-                        obj["filter"],
-                        valid_eval_names=valid_eval_names,
-                    )
-                }
-                if obj.get("filter")
-                else {}
-            ),
-            **(
-                {"explode": Explosion.from_dict(obj["explode"])}
-                if obj.get("explode") and obj["explode"].get("key")
-                else {}
-            ),
-            **(
-                {"concat": Concatenation.from_dict(obj["concat"])}
-                if obj.get("concat") and obj["concat"].get("key")
-                else {}
-            ),
-            **({"rename": dict(obj["rename"])} if obj.get("rename") else {}),
-            **({"index": Projection.from_dict(obj["index"])} if obj.get("index") else {}),
+            _select={
+                name: Projection.from_dict(proj)
+                for name, proj in obj.get("select", {}).items()
+            }
+            if obj.get("select")
+            else None,
+            _filter=SpanFilter.from_dict(
+                obj["filter"],
+                valid_eval_names=valid_eval_names,
+            )
+            if obj.get("filter")
+            else None,
+            _explode=Explosion.from_dict(obj["explode"])
+            if obj.get("explode") and obj["explode"].get("key")
+            else None,
+            _concat=Concatenation.from_dict(obj["concat"])
+            if obj.get("concat") and obj["concat"].get("key")
+            else None,
+            _rename=dict(obj["rename"]) if obj.get("rename") else None,
+            _index=Projection.from_dict(obj["index"]) if obj.get("index") else None,
         )
 
 
-class GetSpansRequestBody(BaseModel):
-    queries: List[SpanQuery] = Field(description="List of queries to execute")
-    start_time: Optional[str] = Field(
-        default=None, description="Start time to filter spans by (ISO format)"
-    )
-    end_time: Optional[str] = Field(
-        default=None, description="End time to filter spans by (ISO format)"
-    )
-    limit: int = Field(default=1000, description="Maximum number of spans to return")
-    root_spans_only: Optional[bool] = Field(
-        default=None, description="Whether to only return root spans"
-    )
-    project_name: Optional[str] = Field(
-        default=None, description="The name of the project to query"
-    )
+class GetSpansRequestBody:
+    queries: List[SpanQuery] = dataclass_field(default=[])
+    start_time: Optional[str] = dataclass_field(default=None)
+    end_time: Optional[str] = dataclass_field(default=None)
+    limit: int = dataclass_field(default=1000)
+    root_spans_only: Optional[bool] = dataclass_field(default=None)
+    project_name: Optional[str] = dataclass_field(default=None)
 
 
-class SpanData(BaseModel):
-    span_id: str = Field(description="The ID of the span")
-    trace_id: str = Field(description="The ID of the trace")
-    name: str = Field(description="The name of the span")
-    span_kind: str = Field(description="The kind of span")
-    start_time: str = Field(description="The start time of the span")
-    end_time: Optional[str] = Field(description="The end time of the span")
-    parent_id: Optional[str] = Field(description="The ID of the parent span")
-    attributes: Dict[str, Any] = Field(description="The attributes of the span")
+class SpanData:
+    span_id: str = dataclass_field(default="")
+    trace_id: str = dataclass_field(default="")
+    name: str = dataclass_field(default="")
+    span_kind: str = dataclass_field(default="")
+    start_time: str = dataclass_field(default="")
+    end_time: Optional[str] = dataclass_field(default=None)
+    parent_id: Optional[str] = dataclass_field(default=None)
+    attributes: Dict[str, Any] = dataclass_field(default=dict)
 
 
-class GetSpansResponseBody(BaseModel):
-    data: List[SpanData] = Field(description="The spans data")
+class GetSpansResponseBody:
+    data: List[SpanData] = dataclass_field(default=[])
