@@ -4,7 +4,21 @@ description: The latest releases from the Phoenix team.
 
 # Release Notes
 
-## 04.02.2025 Improved Span Annotation Editor ✍️
+## 04.03.2025: Phoenix Client Prompt Tagging 🏷️&#x20;
+
+**Available in Phoenix 8.22+**
+
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/prompt_tagging.gif" %}
+
+We’ve added support for Prompt Tagging in the Phoenix client. This new feature gives you more control and visibility over your prompts throughout the development lifecycle.
+
+* Tag prompts directly in your code and see those tags reflected in the Phoenix UI.
+* Label prompt versions as `development`, `staging`, or `production` — or define your own custom tags.
+* Add tag descriptions to provide additional context or list out all tags
+
+Check out documentation on [prompt tags](../prompt-engineering/how-to-prompts/tag-a-prompt.md).&#x20;
+
+## 04.02.2025: Improved Span Annotation Editor ✍️
 
 **Available in Phoenix 8.21+**
 
