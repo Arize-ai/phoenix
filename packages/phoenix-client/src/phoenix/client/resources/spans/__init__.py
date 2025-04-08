@@ -90,17 +90,17 @@ class Spans:
         )
 
         # Make request
-        response = self._client.post(url=url, json=request_body.dict())
+        response = self._client.post(url=url, json=request_body.to_dict())
         response.raise_for_status()
 
         # Parse response
-        response_body = GetSpansResponseBody.parse_obj(response.json())
+        response_body = GetSpansResponseBody.from_dict(response.json())
 
         # Convert to DataFrame
         if not response_body.data:
             return pd.DataFrame()
 
-        return pd.DataFrame([span.dict() for span in response_body.data])
+        return pd.DataFrame([span.to_dict() for span in response_body.data])
 
 
 class AsyncSpans:
@@ -179,14 +179,14 @@ class AsyncSpans:
         )
 
         # Make request
-        response = await self._client.post(url=url, json=request_body.dict())
+        response = await self._client.post(url=url, json=request_body.to_dict())
         response.raise_for_status()
 
         # Parse response
-        response_body = GetSpansResponseBody.parse_obj(response.json())
+        response_body = GetSpansResponseBody.from_dict(response.json())
 
         # Convert to DataFrame
         if not response_body.data:
             return pd.DataFrame()
 
-        return pd.DataFrame([span.dict() for span in response_body.data])
+        return pd.DataFrame([span.to_dict() for span in response_body.data])

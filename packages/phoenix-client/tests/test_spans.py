@@ -167,9 +167,7 @@ def test_default_index_behavior() -> None:
 
 def test_explosion_kwargs_equivalence() -> None:
     """Test that explosion with kwargs matches DSL behavior."""
-    phoenix_query = PhoenixSpanQuery().explode(
-        "attributes", arg1="span_id", arg2="some_field"
-    )
+    phoenix_query = PhoenixSpanQuery().explode("attributes", arg1="span_id", arg2="some_field")
     client_query = SpanQuery().explode("attributes", arg1="span_id", arg2="some_field")
 
     assert_dict_equivalence(phoenix_query.to_dict(), client_query.to_dict())

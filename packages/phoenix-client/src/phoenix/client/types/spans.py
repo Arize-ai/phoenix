@@ -227,12 +227,16 @@ class SpanQuery:
 
     def rename(self, **kwargs: str) -> "SpanQuery":
         """Rename fields in the result."""
+        rename_dict = {}
+        for old_name, new_name in kwargs.items():
+            normalized_old = _normalize_field(old_name)
+            rename_dict[normalized_old] = new_name
         return SpanQuery(
             _select=self._select,
             _filter=self._filter,
             _explode=self._explode,
             _concat=self._concat,
-            _rename=kwargs,
+            _rename=rename_dict,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
         )
@@ -315,15 +319,38 @@ class SpanQuery:
         )
 
 
+@dataclass
 class GetSpansRequestBody:
-    queries: List[SpanQuery] = dataclass_field(default=[])
+    queries: List[SpanQuery] = dataclass_field(default_factory=list)
     start_time: Optional[str] = dataclass_field(default=None)
     end_time: Optional[str] = dataclass_field(default=None)
     limit: int = dataclass_field(default=1000)
     root_spans_only: Optional[bool] = dataclass_field(default=None)
     project_name: Optional[str] = dataclass_field(default=None)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "queries": [q.to_dict() for q in self.queries],
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "limit": self.limit,
+            "root_spans_only": self.root_spans_only,
+            "project_name": self.project_name,
+        }
 
+    @classmethod
+    def from_dict(cls, obj: Dict[str, Any]) -> "GetSpansRequestBody":
+        return cls(
+            queries=[SpanQuery.from_dict(q) for q in obj.get("queries", [])],
+            start_time=obj.get("start_time"),
+            end_time=obj.get("end_time"),
+            limit=obj.get("limit", 1000),
+            root_spans_only=obj.get("root_spans_only"),
+            project_name=obj.get("project_name"),
+        )
+
+
+@dataclass
 class SpanData:
     span_id: str = dataclass_field(default="")
     trace_id: str = dataclass_field(default="")
@@ -332,8 +359,45 @@ class SpanData:
     start_time: str = dataclass_field(default="")
     end_time: Optional[str] = dataclass_field(default=None)
     parent_id: Optional[str] = dataclass_field(default=None)
-    attributes: Dict[str, Any] = dataclass_field(default=dict)
+    attributes: Dict[str, Any] = dataclass_field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "span_id": self.span_id,
+            "trace_id": self.trace_id,
+            "name": self.name,
+            "span_kind": self.span_kind,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "parent_id": self.parent_id,
+            "attributes": self.attributes,
+        }
+
+    @classmethod
+    def from_dict(cls, obj: Dict[str, Any]) -> "SpanData":
+        return cls(
+            span_id=obj.get("span_id", ""),
+            trace_id=obj.get("trace_id", ""),
+            name=obj.get("name", ""),
+            span_kind=obj.get("span_kind", ""),
+            start_time=obj.get("start_time", ""),
+            end_time=obj.get("end_time"),
+            parent_id=obj.get("parent_id"),
+            attributes=obj.get("attributes", {}),
+        )
 
 
+@dataclass
 class GetSpansResponseBody:
-    data: List[SpanData] = dataclass_field(default=[])
+    data: List[SpanData] = dataclass_field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "data": [d.to_dict() for d in self.data],
+        }
+
+    @classmethod
+    def from_dict(cls, obj: Dict[str, Any]) -> "GetSpansResponseBody":
+        return cls(
+            data=[SpanData.from_dict(d) for d in obj.get("data", [])],
+        )
