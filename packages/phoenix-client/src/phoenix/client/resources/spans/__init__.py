@@ -81,6 +81,7 @@ class Spans:
         if as_dataframe:
             try:
                 import pandas as pd
+
                 return pd.DataFrame(data)
             except ImportError:
                 raise ImportError(
@@ -158,6 +159,7 @@ class AsyncSpans:
         if as_dataframe:
             try:
                 import pandas as pd
+
                 return pd.DataFrame(data)
             except ImportError:
                 raise ImportError(
