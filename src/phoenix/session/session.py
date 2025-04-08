@@ -567,7 +567,8 @@ def launch_app(
                 "This could be from PHOENIX_SQL_DATABASE_URL or PHOENIX_POSTGRES_* variables. "
                 "launch_app() is designed to work with SQLite for notebook environments. "
                 "To use PostgreSQL, please use 'phoenix serve' from the command line instead. "
-                "Make sure you have the PostgreSQL extras installed: pip install 'arize-phoenix[pg]'"
+                "Make sure you have the PostgreSQL extras installed: "
+                "pip install 'arize-phoenix[pg]'"
             )
 
     enable_websockets_env = get_env_enable_websockets() or False
