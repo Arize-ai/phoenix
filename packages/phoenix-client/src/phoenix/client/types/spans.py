@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from typing import Any, Dict, List, Optional
 
 _BACKWARD_COMPATIBILITY_REPLACEMENTS: Dict[str, str] = {
@@ -14,13 +15,16 @@ _ALIASES: Dict[str, str] = {
     "trace_id": "context.trace_id",
 }
 
+
 def _unalias(key: str) -> str:
     """Convert old field names to their new form."""
     return _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(key, key)
 
+
 def _replace_backward_compatibility(key: str) -> str:
     """Replace backward compatibility field names with their current form."""
     return _BACKWARD_COMPATIBILITY_REPLACEMENTS.get(key, key)
+
 
 def _normalize_field(key: str) -> str:
     # If the user has provided the fully qualified version, strip off "context."
@@ -88,24 +92,26 @@ class Explosion:
     """Represents an explosion operation in a span query."""
 
     key: str = dataclass_field(default="")
-    _kwargs: Dict[str, str] = dataclass_field(default_factory=dict)
-    _primary_index_key: str = dataclass_field(default="context.span_id")
+    kwargs: Dict[str, str] = dataclass_field(default_factory=dict)
+    primary_index_key: str = dataclass_field(default="context.span_id")
 
     def __post_init__(self) -> None:
         if not self.key:
             raise ValueError("Explosion key cannot be empty")
         self.key = _replace_backward_compatibility(_unalias(self.key))
-        if not self._primary_index_key:
+        if not self.primary_index_key:
             raise ValueError("Primary index key cannot be empty")
-        self._kwargs = {k: _replace_backward_compatibility(_unalias(v)) for k, v in self._kwargs.items()}
+        self.kwargs = {
+            k: _replace_backward_compatibility(_unalias(v)) for k, v in self.kwargs.items()
+        }
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
             "key": self.key,
-            "primary_index_key": self._primary_index_key,
+            "primary_index_key": self.primary_index_key,
         }
-        if self._kwargs:
-            result["kwargs"] = self._kwargs
+        if self.kwargs:
+            result["kwargs"] = self.kwargs
         return result
 
     @classmethod
@@ -113,9 +119,9 @@ class Explosion:
         if not obj.get("key"):
             raise ValueError("Explosion key cannot be empty")
         return cls(
-            _key=obj["key"],
-            _kwargs=obj.get("kwargs", {}),
-            _primary_index_key=obj.get("primary_index_key", "context.span_id"),
+            key=obj["key"],
+            kwargs=obj.get("kwargs", {}),
+            primary_index_key=obj.get("primary_index_key", "context.span_id"),
         )
 
 
@@ -124,22 +130,24 @@ class Concatenation:
     """Represents a concatenation operation in a span query."""
 
     key: str = dataclass_field(default="")
-    _kwargs: Dict[str, str] = dataclass_field(default_factory=dict)
-    _separator: str = dataclass_field(default="\n\n")
+    kwargs: Dict[str, str] = dataclass_field(default_factory=dict)
+    separator: str = dataclass_field(default="\n\n")
 
     def __post_init__(self) -> None:
         if not self.key:
             raise ValueError("Concatenation key cannot be empty")
         self.key = _replace_backward_compatibility(_unalias(self.key))
-        self._kwargs = {k: _replace_backward_compatibility(_unalias(v)) for k, v in self._kwargs.items()}
+        self.kwargs = {
+            k: _replace_backward_compatibility(_unalias(v)) for k, v in self.kwargs.items()
+        }
 
     def to_dict(self) -> Dict[str, Any]:
         result = {
             "key": self.key,
-            "separator": self._separator,
+            "separator": self.separator,
         }
-        if self._kwargs:
-            result["kwargs"] = self._kwargs
+        if self.kwargs:
+            result["kwargs"] = self.kwargs
         return result
 
     @classmethod
@@ -147,9 +155,9 @@ class Concatenation:
         if not obj.get("key"):
             raise ValueError("Concatenation key cannot be empty")
         return cls(
-            _key=obj["key"],
-            _kwargs=obj.get("kwargs", {}),
-            _separator=obj.get("separator", "\n\n"),
+            key=obj["key"],
+            kwargs=obj.get("kwargs", {}),
+            separator=obj.get("separator", "\n\n"),
         )
 
 
@@ -193,12 +201,12 @@ class SpanQuery:
         )
 
     def explode(self, key: str, **kwargs: str) -> "SpanQuery":
-        current_index = self._index._key if self._index else "context.span_id"
+        current_index = self._index.key if self._index else "context.span_id"
         primary_index_key = current_index
         return SpanQuery(
             _select=self._select,
             _filter=self._filter,
-            _explode=Explosion(key=key, _kwargs=kwargs, _primary_index_key=primary_index_key),
+            _explode=Explosion(key=key, kwargs=kwargs, primary_index_key=primary_index_key),
             _concat=self._concat,
             _rename=self._rename,
             _index=self._index,
@@ -211,7 +219,7 @@ class SpanQuery:
             _select=self._select,
             _filter=self._filter,
             _explode=self._explode,
-            _concat=Concatenation(key=key, _kwargs=kwargs),
+            _concat=Concatenation(key=key, kwargs=kwargs),
             _rename=self._rename,
             _index=self._index,
             _index_has_been_set=self._index_has_been_set,
@@ -238,8 +246,8 @@ class SpanQuery:
             # we get the raw value "span_id" for the explosion.
             new_explode = Explosion(
                 key=new_explode.key,
-                _kwargs=new_explode._kwargs,
-                _primary_index_key=_unalias(key),
+                kwargs=new_explode.kwargs,
+                primary_index_key=_unalias(key),
             )
         return SpanQuery(
             _select=self._select,
@@ -286,8 +294,7 @@ class SpanQuery:
     ) -> "SpanQuery":
         return cls(
             _select={
-                name: Projection.from_dict(proj)
-                for name, proj in obj.get("select", {}).items()
+                name: Projection.from_dict(proj) for name, proj in obj.get("select", {}).items()
             }
             if obj.get("select")
             else None,
