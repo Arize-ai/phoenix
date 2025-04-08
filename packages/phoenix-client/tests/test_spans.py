@@ -163,3 +163,21 @@ def test_default_index_behavior() -> None:
     query = SpanQuery().select("span_id")
     phoenix_query = PhoenixSpanQuery().select("span_id")
     assert_dict_equivalence(query.to_dict(), phoenix_query.to_dict())
+
+
+def test_explosion_kwargs_equivalence() -> None:
+    """Test that explosion with kwargs matches DSL behavior."""
+    phoenix_query = PhoenixSpanQuery().explode(
+        "attributes", arg1="span_id", arg2="some_field"
+    )
+    client_query = SpanQuery().explode("attributes", arg1="span_id", arg2="some_field")
+
+    assert_dict_equivalence(phoenix_query.to_dict(), client_query.to_dict())
+
+
+def test_concatenation_kwargs_equivalence() -> None:
+    """Test that concatenation with kwargs matches DSL behavior."""
+    phoenix_query = PhoenixSpanQuery().concat("messages", arg1="span_id", arg2="some_field")
+    client_query = SpanQuery().concat("messages", arg1="span_id", arg2="some_field")
+
+    assert_dict_equivalence(phoenix_query.to_dict(), client_query.to_dict())
