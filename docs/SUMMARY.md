@@ -44,6 +44,7 @@
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
   * [LangFlow](tracing/integrations-tracing/langflow.md)
   * [BeeAI](tracing/integrations-tracing/beeai.md)
+  * [Flowise](tracing/integrations-tracing/flowise.md)
   * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [Guardrails AI](tracing/integrations-tracing/guardrails-ai.md)
@@ -189,7 +190,6 @@
 ## 🔌 INTEGRATIONS
 
 * [Cleanlab](integrations/cleanlab.md)
-* [Flowise](integrations/flowise.md)
 * [Ragas](integrations/ragas.md)
 
 ## 📚 Reference
