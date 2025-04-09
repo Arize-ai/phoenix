@@ -56,6 +56,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
                 profilePictureUrl
               }
             }
+            ...SpanFeedback_annotations
           }
         }
       }

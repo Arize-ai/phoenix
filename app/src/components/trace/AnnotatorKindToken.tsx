@@ -11,7 +11,7 @@ export function AnnotatorKindToken(props: { kind: AnnotatorKind }) {
       size="S"
       color={
         kind === "HUMAN"
-          ? "var(--ac-global-color-blue-500) "
+          ? "var(--ac-global-color-blue-500)"
           : "var(--ac-global-color-orange-500)"
       }
     >
