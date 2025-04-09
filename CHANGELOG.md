@@ -1,5 +1,29 @@
 # Changelog
 
+## [8.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.22.1...arize-phoenix-v8.23.0) (2025-04-09)
+
+
+### Features
+
+* add PHOENIX_ALLOWED_ORIGINS env to phoenix server ([#7051](https://github.com/Arize-ai/phoenix/issues/7051)) ([f6c57a7](https://github.com/Arize-ai/phoenix/commit/f6c57a7b3db15fd78bc6a91dcc691b499320ca59))
+* REST API for CRUD operations on projects ([#7006](https://github.com/Arize-ai/phoenix/issues/7006)) ([b30c7ff](https://github.com/Arize-ai/phoenix/commit/b30c7ff65ee418c225d54a6fd00d4f7f29ad84e8))
+* **tracing:** delete annotations in the feedback column ([#7085](https://github.com/Arize-ai/phoenix/issues/7085)) ([0cc306a](https://github.com/Arize-ai/phoenix/commit/0cc306a79cea3d8024c963b882cb7797c04a3409))
+* **tracing:** make feedback table scroll ([#7081](https://github.com/Arize-ai/phoenix/issues/7081)) ([6c86bed](https://github.com/Arize-ai/phoenix/commit/6c86bed040f3ea234b111308490467e8cbd41214))
+
+
+### Bug Fixes
+
+* Allow scrolling the entire experiment compare table ([#7069](https://github.com/Arize-ai/phoenix/issues/7069)) ([4a6a0dc](https://github.com/Arize-ai/phoenix/commit/4a6a0dc7d86c9d056a69a0ad875f8bcb722bba41))
+* Don't close model settings dialog when picking azure version ([#7067](https://github.com/Arize-ai/phoenix/issues/7067)) ([d24a3af](https://github.com/Arize-ai/phoenix/commit/d24a3af5f5d8c23e1173dcb51ea3dcf0148bb951))
+* Make time range selector more accessible ([#7066](https://github.com/Arize-ai/phoenix/issues/7066)) ([199c08f](https://github.com/Arize-ai/phoenix/commit/199c08ffc1541da6afaec13a1c966d99ab95bff5))
+* **session:** improve PostgreSQL error message in launch_app ([#7072](https://github.com/Arize-ai/phoenix/issues/7072)) ([90d936b](https://github.com/Arize-ai/phoenix/commit/90d936b596d0e5466c198ccbeac7f6de4440dec8))
+
+
+### Documentation
+
+* add bluesky ([227e08e](https://github.com/Arize-ai/phoenix/commit/227e08e2afd73ba232de8a4c28d7ffc23b66c947))
+* fix readmes for MCP ([#7042](https://github.com/Arize-ai/phoenix/issues/7042)) ([a687808](https://github.com/Arize-ai/phoenix/commit/a687808b073fbd92a3bd66ac79cb5b020fd761f9))
+
 ## [8.22.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.22.0...arize-phoenix-v8.22.1) (2025-04-04)
 
 
