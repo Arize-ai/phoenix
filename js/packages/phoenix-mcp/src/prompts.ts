@@ -42,40 +42,42 @@ export const initializePrompts = async ({
     }
 
     // Get all the prompts and parse out the arguments
-    const prompts = promptsResponse.data.data.map(async (prompt) => {
-      const promptVersionResponse = await client.GET(
-        "/v1/prompts/{prompt_identifier}/latest",
-        {
-          params: {
-            path: {
-              prompt_identifier: prompt.name,
+    const prompts = await Promise.all(
+      promptsResponse.data.data.map(async (prompt) => {
+        const promptVersionResponse = await client.GET(
+          "/v1/prompts/{prompt_identifier}/latest",
+          {
+            params: {
+              path: {
+                prompt_identifier: prompt.name,
+              },
             },
-          },
-        }
-      );
-
-      const args: string[] = [];
-      const template = promptVersionResponse.data?.data.template;
-      const format = promptVersionResponse.data?.data.template_format;
-      const parser =
-        format === "F_STRING" ? parseArgumentsFString : parseVariablesMustache;
-      if (template && template.type === "chat") {
-        template.messages.forEach((message) => {
-          const content = message.content;
-          if (typeof content === "string") {
-            args.push(...parser(content));
           }
-        });
-      }
+        );
 
-      return {
-        name: prompt.name,
-        description: prompt.description,
-        arguments: args,
-      };
-    });
-
-    return { prompts: prompts };
+        const args: string[] = [];
+        const template = promptVersionResponse.data?.data.template;
+        const format = promptVersionResponse.data?.data.template_format;
+        const parser =
+          format === "F_STRING"
+            ? parseArgumentsFString
+            : parseVariablesMustache;
+        if (template && template.type === "chat") {
+          template.messages.forEach((message) => {
+            const content = message.content;
+            if (typeof content === "string") {
+              args.push(...parser(content));
+            }
+          });
+        }
+        return {
+          name: prompt.name,
+          description: prompt.description,
+          arguments: args,
+        };
+      })
+    );
+    return { prompts };
   });
 
   server.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
@@ -93,14 +95,42 @@ export const initializePrompts = async ({
     );
 
     const template = promptVersionResponse.data?.data.template;
-    let messages: { role: string; content: string }[] = [];
+    let messages: { role: string; content: { type: string; text: string } }[] =
+      [];
     if (template && template.type === "chat") {
-      messages = template.messages.map((message) => {
-        return {
-          role: message.role as string,
-          content: message.content as string,
-        };
-      });
+      messages = template.messages
+        .map((message) => {
+          if (message.role === "system") {
+            return undefined;
+          }
+          const messageContent = message.content;
+          if (typeof messageContent === "string") {
+            return {
+              role: message.role,
+              content: {
+                type: "text",
+                text: messageContent,
+              },
+            };
+          }
+          if (Array.isArray(messageContent)) {
+            if (
+              messageContent.length === 1 &&
+              messageContent[0].type === "text"
+            ) {
+              const messageContentText = messageContent[0].text;
+              return {
+                role: message.role,
+                content: {
+                  type: "text",
+                  text: messageContentText,
+                },
+              };
+            }
+          }
+          return undefined;
+        })
+        .filter((message) => message !== undefined);
     }
     return {
       description: promptVersionResponse.data?.data.description,

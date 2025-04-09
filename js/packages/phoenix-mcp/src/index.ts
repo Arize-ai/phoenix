@@ -23,13 +23,19 @@ const client = createClient({
 });
 
 // Create server instance
-const server = new McpServer({
-  name: "phoenix-mcp-server",
-  version: "1.0.0",
-  capabilities: {
-    prompts: {},
+const server = new McpServer(
+  {
+    name: "phoenix-mcp-server",
+    version: "1.0.0",
   },
-});
+  {
+    capabilities: {
+      resources: {},
+      tools: {},
+      prompts: {},
+    },
+  }
+);
 
 initializePrompts({ client, server });
 initializePromptTools({ client, server });
