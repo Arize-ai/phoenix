@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0667beee0dc8a30756adfdc8a22ea7a4>>
+ * @generated SignedSource<<a3a0730925da1d4b228de496284f2ef1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type SpanFeedback_annotations$data = {
   readonly id: string;
   readonly spanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
+    readonly createdAt: string;
     readonly explanation: string | null;
     readonly id: string;
     readonly identifier: string | null;
@@ -24,6 +25,7 @@ export type SpanFeedback_annotations$data = {
     readonly name: string;
     readonly score: number | null;
     readonly source: AnnotationSource;
+    readonly updatedAt: string;
     readonly user: {
       readonly id: string;
       readonly profilePictureUrl: string | null;
@@ -120,6 +122,20 @@ return {
         {
           "alias": null,
           "args": null,
+          "kind": "ScalarField",
+          "name": "createdAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "updatedAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "User",
           "kind": "LinkedField",
           "name": "user",
@@ -152,6 +168,6 @@ return {
 };
 })();
 
-(node as any).hash = "4bd45326949597405e994b2ceb1f19d0";
+(node as any).hash = "9a73b57370acadba7a0398c1439e9893";
 
 export default node;
