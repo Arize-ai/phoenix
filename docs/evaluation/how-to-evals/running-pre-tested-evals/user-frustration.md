@@ -1,6 +1,6 @@
 # User Frustration
 
-Teams that are using conversation bots and assistants desire to know whether a user interacting with the bot is frustrated. The user frustration Evaluation can be used on a single back and forth or an entire span to detect whether a user has become frustrated by the conversation.
+Teams that are using conversation bots and assistants desire to know whether a user interacting with the bot is frustrated. The user frustration evaluation can be used on a single back and forth or an entire span to detect whether a user has become frustrated by the conversation.
 
 {% embed url="https://colab.research.google.com/drive/1Av5MGJHqt0xcJziBadEoVgdYqqohm6oT?usp=sharing" %}
 

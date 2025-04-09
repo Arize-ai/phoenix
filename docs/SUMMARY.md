@@ -72,7 +72,6 @@
   * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
   * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 
 ## 📃 Prompt Engineering
@@ -104,10 +103,10 @@
 
 * [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
 * [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
-* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
@@ -121,14 +120,8 @@
 
 * [Overview: Evals](evaluation/llm-evals.md)
 * [Quickstart: Evals](evaluation/evals.md)
-* [Concepts: Evals](evaluation/concepts-evals/README.md)
-  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
-  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
-  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
-  * [Evaluators](evaluation/concepts-evals/evaluation.md)
-  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 * [How to: Evals](evaluation/how-to-evals/README.md)
-  * [Use Phoenix Evaluators](evaluation/how-to-evals/running-pre-tested-evals/README.md)
+  * [Pre-Built Evals](evaluation/how-to-evals/running-pre-tested-evals/README.md)
     * [Hallucinations](evaluation/how-to-evals/running-pre-tested-evals/hallucinations.md)
     * [Q\&A on Retrieved Data](evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
     * [Retrieval (RAG) Relevance](evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
@@ -141,13 +134,22 @@
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
     * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
     * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
-  * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
+  * [Eval Models](evaluation/how-to-evals/evaluation-models.md)
+  * [Build an Eval](evaluation/how-to-evals/bring-your-own-evaluator.md)
+  * [Build a Multimodal Eval](evaluation/how-to-evals/multimodal-evals.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
-  * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
+  * [Evals API Reference](evaluation/how-to-evals/evals-reference.md)
+* [Concepts: Evals](evaluation/concepts-evals/README.md)
+  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
+  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
+  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
+  * [Evaluators](evaluation/concepts-evals/evaluation.md)
+  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 
 ***
 
 * [Use Cases: Evals](use-cases-evals/README.md)
+  * [Evaluate RAG](use-cases-evals/rag-evaluation.md)
   * [Evaluating a Data Agent](use-cases-evals/evaluating-a-data-agent.md)
 
 ## 🔎 Retrieval
@@ -180,8 +182,6 @@
 
 * [Session](api/session.md)
 * [Client](api/client.md)
-* [Evals](api/evals.md)
-* [Models](api/evaluation-models.md)
 
 ## 🔌 INTEGRATIONS
 

@@ -78,7 +78,7 @@ Once the data is in a dataframe, evaluations can be run on the data. Evaluations
 
 ### Q\&A and Hallucination Evals
 
-This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many other [models](../api/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
+This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many other [models](../evaluation/how-to-evals/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
 
 ```python
 from phoenix.trace import SpanEvaluations, DocumentEvaluations

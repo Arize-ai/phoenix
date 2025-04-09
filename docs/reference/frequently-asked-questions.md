@@ -30,7 +30,7 @@ Self-hosting Phoenix is completely free.
 
 ## Can I use Azure OpenAI?
 
-Yes, in fact this is probably the preferred way to interact with OpenAI if your enterprise requires data privacy. Getting the parameters right for Azure can be a bit tricky so check out the [models section for details.](../api/evaluation-models.md#azure-openai)
+Yes, in fact this is probably the preferred way to interact with OpenAI if your enterprise requires data privacy. Getting the parameters right for Azure can be a bit tricky so check out the [models section for details.](../evaluation/how-to-evals/evaluation-models.md#azure-openai)
 
 ## Can I use Phoenix locally from a remote Jupyter instance?
 
