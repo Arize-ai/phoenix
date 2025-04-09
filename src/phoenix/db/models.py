@@ -813,7 +813,6 @@ class SpanAnnotation(Base):
         UniqueConstraint(
             "span_rowid",
             "identifier",
-            name="uq_span_annotation_identifier_per_span",
             postgresql_where=identifier.isnot(None),
             sqlite_where=identifier.isnot(None),
         ),
@@ -852,7 +851,6 @@ class TraceAnnotation(Base):
         UniqueConstraint(
             "trace_rowid",
             "identifier",
-            name="uq_trace_annotation_identifier_per_trace",
             postgresql_where=identifier.isnot(None),
             sqlite_where=identifier.isnot(None),
         ),
