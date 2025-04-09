@@ -810,9 +810,10 @@ class SpanAnnotation(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     __table_args__ = (
-        UniqueConstraint(
+        Index(
             "span_rowid",
             "identifier",
+            unique=True,
             postgresql_where=identifier.isnot(None),
             sqlite_where=identifier.isnot(None),
         ),
@@ -848,9 +849,10 @@ class TraceAnnotation(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     __table_args__ = (
-        UniqueConstraint(
+        Index(
             "trace_rowid",
             "identifier",
+            unique=True,
             postgresql_where=identifier.isnot(None),
             sqlite_where=identifier.isnot(None),
         ),
