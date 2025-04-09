@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.23.0...arize-phoenix-v8.24.0) (2025-04-09)
+
+
+### Features
+
+* allow project name as identifier in REST path for projects endpoints ([#7064](https://github.com/Arize-ai/phoenix/issues/7064)) ([8ccf2d7](https://github.com/Arize-ai/phoenix/commit/8ccf2d761100cefb2afc5a2d70690f9a5d15483e))
+* send welcome email after user creation ([#6982](https://github.com/Arize-ai/phoenix/issues/6982)) ([ee56a1b](https://github.com/Arize-ai/phoenix/commit/ee56a1b5866e206d3429d0b2b3dfb63a3645a34a))
+
 ## [8.23.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.22.1...arize-phoenix-v8.23.0) (2025-04-09)
 
 
