@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useRef } from "react";
 
 import {
   Button,
@@ -9,7 +9,6 @@ import {
   SelectItem,
   SelectValue,
 } from "@phoenix/components";
-import { useAnnotationFocus } from "@phoenix/components/annotation/AnnotationFocusContext";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { SelectProps } from "@phoenix/components/select";
 import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
@@ -23,10 +22,6 @@ export const CategoricalAnnotationInput = ({
   ...props
 }: CategoricalAnnotationInputProps) => {
   const selectRef = useRef<HTMLDivElement>(null);
-  const { register } = useAnnotationFocus();
-  useLayoutEffect(() => {
-    register(selectRef);
-  }, [register]);
   return (
     <Select
       id={annotationConfig.id}

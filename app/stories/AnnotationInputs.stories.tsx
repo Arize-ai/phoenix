@@ -1,9 +1,9 @@
 import React from "react";
+import { FocusScope } from "react-aria";
 import { Form } from "react-aria-components";
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Flex } from "@phoenix/components";
-import { AnnotationFocusProvider } from "@phoenix/components/annotation/AnnotationFocusContext";
 import { AnnotationSaveButton } from "@phoenix/components/annotation/AnnotationSaveButton";
 import { CategoricalAnnotationInput } from "@phoenix/components/annotation/CategoricalAnnotationInput";
 import { ContinuousAnnotationInput } from "@phoenix/components/annotation/ContinuousAnnotationInput";
@@ -59,7 +59,7 @@ const freeformConfig: AnnotationConfigFreeform = {
 
 export const Default: Story = {
   render: () => (
-    <AnnotationFocusProvider autoFocus>
+    <FocusScope autoFocus contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput annotationConfig={categoricalConfig} />
@@ -74,13 +74,13 @@ export const Default: Story = {
           <AnnotationSaveButton type="submit">Submit</AnnotationSaveButton>
         </Flex>
       </Form>
-    </AnnotationFocusProvider>
+    </FocusScope>
   ),
 };
 
 export const WithValidation: Story = {
   render: () => (
-    <AnnotationFocusProvider>
+    <FocusScope autoFocus contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -101,13 +101,13 @@ export const WithValidation: Story = {
           <AnnotationSaveButton type="submit">Submit</AnnotationSaveButton>
         </Flex>
       </Form>
-    </AnnotationFocusProvider>
+    </FocusScope>
   ),
 };
 
 export const Disabled: Story = {
   render: () => (
-    <AnnotationFocusProvider>
+    <FocusScope autoFocus contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -131,13 +131,13 @@ export const Disabled: Story = {
           </AnnotationSaveButton>
         </Flex>
       </Form>
-    </AnnotationFocusProvider>
+    </FocusScope>
   ),
 };
 
 export const WithDefaultValues: Story = {
   render: () => (
-    <AnnotationFocusProvider>
+    <FocusScope autoFocus contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -158,13 +158,13 @@ export const WithDefaultValues: Story = {
           <AnnotationSaveButton type="submit">Submit</AnnotationSaveButton>
         </Flex>
       </Form>
-    </AnnotationFocusProvider>
+    </FocusScope>
   ),
 };
 
 export const MixedSizes: Story = {
   render: () => (
-    <AnnotationFocusProvider>
+    <FocusScope autoFocus contain>
       <Form>
         <Flex direction="column" gap="size-400">
           <CategoricalAnnotationInput
@@ -182,6 +182,6 @@ export const MixedSizes: Story = {
           <AnnotationSaveButton type="submit">Submit</AnnotationSaveButton>
         </Flex>
       </Form>
-    </AnnotationFocusProvider>
+    </FocusScope>
   ),
 };
