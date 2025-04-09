@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { forwardRef, useContext } from "react";
 import {
   Label,
   LabelContext,
@@ -181,15 +181,12 @@ export type SliderProps<T> = AriaSliderProps<T> &
     thumbLabels?: string[];
   }>;
 
-export function Slider<T extends number | number[]>({
-  label,
-  thumbLabels,
-  children,
-  css: _css,
-  ...props
-}: SliderProps<T>) {
+function _Slider<T extends number | number[]>(
+  { label, thumbLabels, children, css: _css, ...props }: SliderProps<T>,
+  ref: React.Ref<HTMLDivElement>
+) {
   return (
-    <AriaSlider css={css(sliderCSS, _css)} {...props}>
+    <AriaSlider css={css(sliderCSS, _css)} {...props} ref={ref}>
       {label && <Label className="ac-slider-label">{label}</Label>}
       <AriaSliderOutput className="ac-slider-output">
         {typeof children === "undefined" ? <SliderTextField /> : children}
@@ -229,6 +226,10 @@ export function Slider<T extends number | number[]>({
     </AriaSlider>
   );
 }
+
+export const Slider = forwardRef(_Slider) as <T extends number | number[]>(
+  props: SliderProps<T> & { ref?: React.Ref<HTMLDivElement> }
+) => ReturnType<typeof _Slider>;
 
 export function SliderNumberField({
   value: _value,
