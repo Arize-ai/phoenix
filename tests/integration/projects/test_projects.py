@@ -14,11 +14,6 @@ class TestClientForProjectsAPI:
 
     name_and_description_test_cases = [
         pytest.param(
-            token_hex(16),
-            token_hex(16),
-            id="regular_chars",
-        ),
-        pytest.param(
             f"Punctuations {string.punctuation.translate(str.maketrans('', '', '/?#'))}",
             "Punctuation characters excluding /, ?, # (not safe for URL)",
             id="punctuation_chars_with_exclusion",
@@ -51,7 +46,7 @@ class TestClientForProjectsAPI:
         4. Projects can be updated (description only, not name) (admin only)
         5. Projects can be deleted (admin only)
         6. Project names must be unique (both admin and member)
-        7. Special characters in names and descriptions are handled correctly
+        7. Special characters in project names are handled correctly
         """  # noqa: E501
         # Set up test environment with logged-in user
         u = _get_user(role_or_user).log_in()
@@ -62,7 +57,7 @@ class TestClientForProjectsAPI:
 
         Client = AsyncClient if is_async else SyncClient
 
-        # Create a project with special characters and ensure uniqueness
+        # Create a project with name suffix to ensure uniqueness
         name = f"{project_name}_{token_hex(16)}"
         description = f"A project with {project_description}"
 

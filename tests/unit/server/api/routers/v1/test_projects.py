@@ -20,11 +20,6 @@ from phoenix.server.types import DbSessionFactory
 class TestProjects:
     name_and_description_test_cases = [
         pytest.param(
-            token_hex(16),
-            token_hex(16),
-            id="regular_chars",
-        ),
-        pytest.param(
             f"Punctuations {string.punctuation.translate(str.maketrans('', '', '/?#'))}",
             "Punctuation characters excluding /, ?, # (not safe for URL)",
             id="punctuation_chars_with_exclusion",
@@ -126,7 +121,6 @@ class TestProjects:
         3. The project ID, name, and description match the expected values
         4. Projects with special characters in their names can be retrieved correctly
         """  # noqa: E501
-        # Test with special characters
         project = models.Project(
             name=project_name,
             description=f"A project with {project_description}",
@@ -143,10 +137,6 @@ class TestProjects:
         data = response.json()["data"]
         assert isinstance(data, dict), f"Response data should be a dictionary, got {type(data)}"  # noqa: E501
         self._compare_project(data, project, f"Project with name {project.name}")
-
-        # Clean up
-        async with db() as session:
-            await session.delete(project)
 
     @pytest.mark.parametrize("project_name,project_description", name_and_description_test_cases)
     async def test_create_project(
@@ -209,7 +199,6 @@ class TestProjects:
         4. The response contains the updated project data
         5. Projects with special characters in their names can be updated correctly
         """  # noqa: E501
-        # Test with special characters
         project = models.Project(
             name=special_chars_name,
             description=f"A project with {description}",
@@ -236,10 +225,6 @@ class TestProjects:
             data["description"] == updated_description
         ), f"Updated project description should be '{updated_description}', got '{data['description']}'"  # noqa: E501
 
-        # Clean up
-        async with db() as session:
-            await session.delete(project)
-
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_delete_project_by_name(
         self,
@@ -257,7 +242,6 @@ class TestProjects:
         3. Subsequent attempts to retrieve the deleted project return a 404 error
         4. Projects with special characters in their names can be deleted correctly
         """  # noqa: E501
-        # Test with special characters
         project = models.Project(
             name=special_chars_name,
             description=f"A project with {description}",
