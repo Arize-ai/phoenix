@@ -1,4 +1,4 @@
-import React, { startTransition, useState } from "react";
+import React, { startTransition, useEffect, useRef, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -18,6 +18,9 @@ type SpanNotesEditorProps = {
 
 const notesListCSS = css`
   width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: var(--ac-global-dimension-size-100);
@@ -30,6 +33,7 @@ const notesListCSS = css`
 
 export function SpanNotesEditor(props: SpanNotesEditorProps) {
   const [fetchKey, setFetchKey] = useState(0);
+  const notesEndRef = useRef<HTMLDivElement>(null);
   // TODO: add filter by note annotations
   const data = useLazyLoadQuery<SpanNotesEditorQuery>(
     graphql`
@@ -59,23 +63,19 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
     {
       spanNodeId: props.spanNodeId,
     },
-    { fetchKey }
+    {
+      fetchKey: fetchKey,
+      fetchPolicy: "store-and-network",
+    }
   );
 
   const [addNote, isAddingNote] = useMutation<SpanNotesEditorAddNoteMutation>(
     graphql`
       mutation SpanNotesEditorAddNoteMutation(
         $input: CreateSpanAnnotationInput!
-        $spanId: GlobalID!
       ) {
         createSpanAnnotations(input: [$input]) {
-          query {
-            node(id: $spanId) {
-              ... on Span {
-                ...SpanAnnotationsEditor_spanAnnotations
-              }
-            }
-          }
+          __typename
         }
       }
     `
@@ -92,7 +92,6 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
             source: "APP",
             spanId: props.spanNodeId,
           },
-          spanId: props.spanNodeId,
         },
       });
       setFetchKey(fetchKey + 1);
@@ -105,6 +104,12 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
     // TODO: remove this hard coding
     (annotation) => annotation.name === "note"
   );
+
+  useEffect(() => {
+    if (notesEndRef.current) {
+      notesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [notes]);
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
@@ -120,8 +125,8 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
             />
           </li>
         ))}
+        <div ref={notesEndRef} aria-hidden="true" />
       </ul>
-
       <MessageBar
         onSendMessage={onAddNote}
         placeholder="Add a note"

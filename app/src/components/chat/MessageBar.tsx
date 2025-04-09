@@ -71,7 +71,7 @@ export function MessageBar({
   };
 
   return (
-    <View padding="size-100" width="100%">
+    <View padding="size-100" width="100%" flex="none">
       <Flex direction="row" gap="size-100">
         <TextField
           size="M"

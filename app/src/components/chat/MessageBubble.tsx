@@ -2,7 +2,7 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
+import { shortDateTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { messageContainerCSS, messageRowCSS } from "./styles";
 
@@ -92,7 +92,7 @@ export function MessageBubble({
       </div>
       <div css={timestampCSS} data-outgoing={isOutgoing}>
         <time dateTime={timestamp.toISOString()}>
-          {fullTimeFormatter(timestamp)}
+          {shortDateTimeFormatter(timestamp)}
         </time>
       </div>
     </div>
