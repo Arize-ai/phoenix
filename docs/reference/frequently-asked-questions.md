@@ -103,7 +103,7 @@ You can persist data in the notebook by either setting the `use_temp_dir` flag t
 
 ## Can I use gRPC for trace collection?
 
-Phoenix does natively support gRPC for trace collection post 4.0 release. See [deployment](../deployment/ "mention") for details.
+Phoenix does natively support gRPC for trace collection post 4.0 release. See [Broken link](broken-reference "mention") for details.
 
 ## How do I resolve Phoenix Evals showing NOT\_PARSABLE?
 

@@ -5,11 +5,6 @@
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
 * [Environments](environments.md)
-* [Self-Hosting](deployment/README.md)
-  * [Configuration](deployment/configuration.md)
-  * [Docker](deployment/docker.md)
-  * [Kubernetes](deployment/kubernetes.md)
-  * [Authentication](deployment/authentication.md)
 
 ## 🔭 Tracing
 
