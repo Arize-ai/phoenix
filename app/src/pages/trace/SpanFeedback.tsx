@@ -14,6 +14,7 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import {
@@ -77,6 +78,33 @@ function SpanAnnotationsTable({
         accessorKey: "explanation",
         cell: PreformattedTextCell,
         size: 400,
+      },
+      {
+        header: "source",
+        accessorKey: "source",
+        size: 100,
+      },
+      {
+        header: "user",
+        accessorKey: "user",
+        size: 100,
+        cell: ({ row }) => {
+          const user = row.original.user;
+          return user ? (
+            <UserPicture
+              name={user.username}
+              profilePictureUrl={user.profilePictureUrl}
+              size={24}
+            />
+          ) : (
+            "--"
+          );
+        },
+      },
+      {
+        header: "identifier",
+        accessorKey: "identifier",
+        size: 100,
       },
       {
         header: "metadata",
@@ -185,6 +213,13 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
           explanation
           metadata
           annotatorKind
+          identifier
+          source
+          user {
+            id
+            username
+            profilePictureUrl
+          }
         }
       }
     `,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ebe78017fc09f298e6f20a6e1a90035>>
+ * @generated SignedSource<<0667beee0dc8a30756adfdc8a22ea7a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type AnnotationSource = "API" | "APP";
 export type AnnotatorKind = "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SpanFeedback_annotations$data = {
@@ -17,10 +18,17 @@ export type SpanFeedback_annotations$data = {
     readonly annotatorKind: AnnotatorKind;
     readonly explanation: string | null;
     readonly id: string;
+    readonly identifier: string | null;
     readonly label: string | null;
     readonly metadata: any;
     readonly name: string;
     readonly score: number | null;
+    readonly source: AnnotationSource;
+    readonly user: {
+      readonly id: string;
+      readonly profilePictureUrl: string | null;
+      readonly username: string;
+    } | null;
   }>;
   readonly " $fragmentType": "SpanFeedback_annotations";
 };
@@ -94,6 +102,46 @@ return {
           "kind": "ScalarField",
           "name": "annotatorKind",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "identifier",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "source",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "User",
+          "kind": "LinkedField",
+          "name": "user",
+          "plural": false,
+          "selections": [
+            (v0/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "username",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "profilePictureUrl",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -104,6 +152,6 @@ return {
 };
 })();
 
-(node as any).hash = "8ed7e3ac3c8cc4b5934f6f269116d159";
+(node as any).hash = "4bd45326949597405e994b2ceb1f19d0";
 
 export default node;
