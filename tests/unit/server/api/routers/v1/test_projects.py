@@ -3,7 +3,7 @@ from __future__ import annotations
 import string
 from secrets import token_hex
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -12,7 +12,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.server.api.routers.v1.projects import _encode_project_name
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
@@ -26,19 +25,14 @@ class TestProjects:
             id="regular_chars",
         ),
         pytest.param(
-            f"Punctuations {string.punctuation}",
-            "Punctuation characters",
-            id="punctuation_chars",
+            f"Punctuations {string.punctuation.translate(str.maketrans('', '', '/?#'))}",
+            "Punctuation characters excluding /, ?, # (not safe for URL)",
+            id="punctuation_chars_with_exclusion",
         ),
         pytest.param(
             "项目名称",
             "Unicode characters (Chinese)",
             id="unicode_chars",
-        ),
-        pytest.param(
-            "Project Name/With Spaces/And Slashes",
-            "Spaces and slashes",
-            id="spaces_and_slashes",
         ),
     ]
 
@@ -108,7 +102,7 @@ class TestProjects:
         projects = await self._insert_projects(db)
         project = projects[0]
         project_identifier = str(GlobalID(Project.__name__, str(project.id)))
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
         assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
         data = response.json()["data"]
@@ -142,8 +136,8 @@ class TestProjects:
             await session.flush()
 
         # Test retrieving the project by name
-        project_identifier = _encode_project_name(project.name)
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = project.name
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
         assert response.is_success, f"GET /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
         data = response.json()["data"]
@@ -194,7 +188,7 @@ class TestProjects:
 
         # Clean up
         project_id = data["id"]
-        url = f"v1/projects/{quote_plus(project_id)}"
+        url = f"v1/projects/{quote(project_id)}"
         await httpx_client.delete(url)
 
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
@@ -229,8 +223,8 @@ class TestProjects:
         updated_project_data = {
             "description": updated_description,
         }
-        project_identifier = _encode_project_name(project.name)
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = project.name
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.put(url, json=updated_project_data)
         assert response.is_success, f"PUT /projects/{project_identifier} failed with status code {response.status_code}: {response.text}"  # noqa: E501
         data = response.json()["data"]
@@ -273,8 +267,8 @@ class TestProjects:
             await session.flush()
 
         # Delete the project by name
-        project_identifier = _encode_project_name(project.name)
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = project.name
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
         assert (
             response.status_code == 204
@@ -318,7 +312,7 @@ class TestProjects:
 
         # Try to delete the default project by ID
         project_identifier = str(GlobalID(Project.__name__, str(default_project.id)))
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
 
         # Verify that the request was rejected
@@ -337,8 +331,8 @@ class TestProjects:
             ), f"Default project {default_project.id} should still exist in database"  # noqa: E501
 
         # Try to delete the default project by name
-        project_identifier = _encode_project_name(DEFAULT_PROJECT_NAME)
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = DEFAULT_PROJECT_NAME
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
 
         # Verify that the request was rejected
@@ -361,7 +355,7 @@ class TestProjects:
         2. The error message clearly indicates that the project was not found
         """  # noqa: E501
         project_identifier = str(GlobalID(Project.__name__, "999999"))
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
         assert (
             response.status_code == 404
@@ -369,8 +363,8 @@ class TestProjects:
 
         # Test with a nonexistent project name
         name = token_hex(16)
-        project_identifier = _encode_project_name(name)
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = name
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.get(url)
         assert (
             response.status_code == 404
@@ -394,7 +388,7 @@ class TestProjects:
                 "description": token_hex(16),
             }
         }
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.put(url, json=updated_project_data)
         assert (
             response.status_code == 404
@@ -402,8 +396,8 @@ class TestProjects:
 
         # Test with a nonexistent project name
         name = token_hex(16)
-        project_identifier = _encode_project_name(name)
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = name
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.put(url, json=updated_project_data)
         assert (
             response.status_code == 404
@@ -421,37 +415,19 @@ class TestProjects:
         2. The error message clearly indicates that the project was not found
         """  # noqa: E501
         project_identifier = str(GlobalID(Project.__name__, "999999"))
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
         assert (
             response.status_code == 404
         ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
         # Test with a nonexistent project name
-        project_identifier = _encode_project_name(token_hex(16))
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        project_identifier = token_hex(16)
+        url = f"v1/projects/{project_identifier}"
         response = await httpx_client.delete(url)
         assert (
             response.status_code == 404
         ), f"DELETE /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"  # noqa: E501
-
-    async def test_invalid_project_identifier(
-        self,
-        httpx_client: httpx.AsyncClient,
-    ) -> None:
-        """
-        Test handling of invalid project identifier format.
-
-        This test verifies that:
-        1. The GET /projects/{project_identifier} endpoint returns a 422 status code when the project ID format is invalid
-        2. The error message clearly indicates that the project identifier format is invalid
-        """  # noqa: E501
-        project_identifier = "invalid-identifier"
-        url = f"v1/projects/{quote_plus(project_identifier)}"
-        response = await httpx_client.get(url)
-        assert (
-            response.status_code == 422
-        ), f"GET /projects/{project_identifier} should return a 422 status code, got {response.status_code}: {response.text}"  # noqa: E501
 
     async def test_list_projects_with_cursor(
         self,

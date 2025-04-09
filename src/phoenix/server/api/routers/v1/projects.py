@@ -139,7 +139,7 @@ async def get_projects(
     "/projects/{project_identifier}",
     operation_id="getProject",
     summary="Get project by ID or name",  # noqa: E501
-    description="Retrieve a specific project using its unique identifier: either project ID or hex-encoded project name.",  # noqa: E501
+    description="Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     response_description="The requested project",  # noqa: E501
     responses=add_errors_to_responses(
         [
@@ -151,7 +151,7 @@ async def get_projects(
 async def get_project(
     request: Request,
     project_identifier: str = Path(
-        description="The project identifier: either project ID or hex-encoded project name.",  # noqa: E501
+        description="The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     ),
 ) -> GetProjectResponseBody:
     """
@@ -159,7 +159,8 @@ async def get_project(
 
     Args:
         request (Request): The FastAPI request object.
-        project_identifier (str): The project identifier: either project ID or hex-encoded project name.
+        project_identifier (str): The project identifier: either project ID or project name.
+            If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
 
     Returns:
         GetProjectResponseBody: Response containing the requested project.
@@ -217,7 +218,7 @@ async def create_project(
     "/projects/{project_identifier}",
     operation_id="updateProject",
     summary="Update a project by ID or name",  # noqa: E501
-    description="Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or hex-encoded project name.",  # noqa: E501
+    description="Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     response_description="The updated project",  # noqa: E501
     responses=add_errors_to_responses(
         [
@@ -231,7 +232,7 @@ async def update_project(
     request: Request,
     request_body: UpdateProjectRequestBody,
     project_identifier: str = Path(
-        description="The project identifier: either project ID or hex-encoded project name.",  # noqa: E501
+        description="The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     ),
 ) -> UpdateProjectResponseBody:
     """
@@ -240,7 +241,8 @@ async def update_project(
     Args:
         request (Request): The FastAPI request object.
         request_body (UpdateProjectRequestBody): The request body containing the new description.
-        project_identifier (str): The project identifier: either project ID or hex-encoded project name.
+        project_identifier (str): The project identifier: either project ID or project name.
+            If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
 
     Returns:
         UpdateProjectResponseBody: Response containing the updated project.
@@ -277,7 +279,7 @@ async def update_project(
     "/projects/{project_identifier}",
     operation_id="deleteProject",
     summary="Delete a project by ID or name",  # noqa: E501
-    description="Delete an existing project and all its associated data. The project identifier is either project ID or hex-encoded project name. The default project cannot be deleted.",  # noqa: E501
+    description="Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     response_description="No content returned on successful deletion",  # noqa: E501
     status_code=HTTP_204_NO_CONTENT,
     responses=add_errors_to_responses(
@@ -291,7 +293,7 @@ async def update_project(
 async def delete_project(
     request: Request,
     project_identifier: str = Path(
-        description="The project identifier: either project ID or hex-encoded project name.",  # noqa: E501
+        description="The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",  # noqa: E501
     ),
 ) -> None:
     """
@@ -299,7 +301,8 @@ async def delete_project(
 
     Args:
         request (Request): The FastAPI request object.
-        project_identifier (str): The project identifier: either project ID or hex-encoded project name.
+        project_identifier (str): The project identifier: either project ID or project name.
+            If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
 
     Returns:
         None: Returns a 204 No Content response on success.
@@ -352,7 +355,7 @@ async def _get_project_by_identifier(
 
     Args:
         session: The database session.
-        project_identifier: The project ID or hex-encoded name.
+        project_identifier: The project ID or name.
 
     Returns:
         The project object.
@@ -367,13 +370,7 @@ async def _get_project_by_identifier(
             ProjectNodeType.__name__,
         )
     except Exception:
-        try:
-            name = _decode_project_name(project_identifier)
-        except HTTPException:
-            raise HTTPException(
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid project identifier format: {project_identifier}",
-            )
+        name = project_identifier
         stmt = select(models.Project).filter_by(name=name)
         project_orm = await session.scalar(stmt)
         if project_orm is None:
@@ -389,38 +386,3 @@ async def _get_project_by_identifier(
                 detail=f"Project with ID {project_identifier} not found",
             )
     return project_orm
-
-
-def _encode_project_name(name: str) -> str:
-    """
-    Encode a project name using URL-safe hex encoding.
-
-    Args:
-        name: The project name to encode
-
-    Returns:
-        The hex-encoded project name
-    """
-    return name.encode().hex()
-
-
-def _decode_project_name(encoded_name: str) -> str:
-    """
-    Decode a hex-encoded project name.
-
-    Args:
-        encoded_name: The hex-encoded project name
-
-    Returns:
-        The decoded project name
-
-    Raises:
-        HTTPException: If the encoded name is not valid hex
-    """
-    try:
-        return bytes.fromhex(encoded_name).decode()
-    except ValueError:
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid project name encoding: {encoded_name}",
-        )

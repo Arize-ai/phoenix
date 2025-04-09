@@ -19,19 +19,14 @@ class TestClientForProjectsAPI:
             id="regular_chars",
         ),
         pytest.param(
-            f"Punctuations {string.punctuation}",
-            "Punctuation characters",
-            id="punctuation_chars",
+            f"Punctuations {string.punctuation.translate(str.maketrans('', '', '/?#'))}",
+            "Punctuation characters excluding /, ?, # (not safe for URL)",
+            id="punctuation_chars_with_exclusion",
         ),
         pytest.param(
             "项目名称",
             "Unicode characters (Chinese)",
             id="unicode_chars",
-        ),
-        pytest.param(
-            "Project Name/With Spaces/And Slashes",
-            "Spaces and slashes",
-            id="spaces_and_slashes",
         ),
     ]
 

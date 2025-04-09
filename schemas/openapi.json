@@ -2042,7 +2042,7 @@
           "projects"
         ],
         "summary": "Get project by ID or name",
-        "description": "Retrieve a specific project using its unique identifier: either project ID or hex-encoded project name.",
+        "description": "Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "getProject",
         "parameters": [
           {
@@ -2051,10 +2051,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The project identifier: either project ID or hex-encoded project name.",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
               "title": "Project Identifier"
             },
-            "description": "The project identifier: either project ID or hex-encoded project name."
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           }
         ],
         "responses": {
@@ -2105,7 +2105,7 @@
           "projects"
         ],
         "summary": "Update a project by ID or name",
-        "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or hex-encoded project name.",
+        "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "updateProject",
         "parameters": [
           {
@@ -2114,10 +2114,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The project identifier: either project ID or hex-encoded project name.",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
               "title": "Project Identifier"
             },
-            "description": "The project identifier: either project ID or hex-encoded project name."
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           }
         ],
         "requestBody": {
@@ -2178,7 +2178,7 @@
           "projects"
         ],
         "summary": "Delete a project by ID or name",
-        "description": "Delete an existing project and all its associated data. The project identifier is either project ID or hex-encoded project name. The default project cannot be deleted.",
+        "description": "Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "deleteProject",
         "parameters": [
           {
@@ -2187,10 +2187,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The project identifier: either project ID or hex-encoded project name.",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
               "title": "Project Identifier"
             },
-            "description": "The project identifier: either project ID or hex-encoded project name."
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           }
         ],
         "responses": {

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 from typing import Optional, cast
-from urllib.parse import quote_plus
 
 import httpx
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.utils.encode_path_param import encode_path_param
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +70,11 @@ class Projects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = _encode_project_name(project_name)
+            project_identifier = project_name
         else:
             assert project_id
             project_identifier = project_id
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = self._client.get(url)
         response.raise_for_status()
         return cast(v1.GetProjectResponseBody, response.json())["data"]
@@ -200,11 +200,11 @@ class Projects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = _encode_project_name(project_name)
+            project_identifier = project_name
         else:
             assert project_id
             project_identifier = project_id
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{encode_path_param(project_identifier)}"
         if description is None:
             raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
@@ -244,11 +244,11 @@ class Projects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = _encode_project_name(project_name)
+            project_identifier = project_name
         else:
             assert project_id
             project_identifier = project_id
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = self._client.delete(url)
         response.raise_for_status()
 
@@ -309,11 +309,11 @@ class AsyncProjects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = _encode_project_name(project_name)
+            project_identifier = project_name
         else:
             assert project_id
             project_identifier = project_id
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = await self._client.get(url)
         response.raise_for_status()
         return cast(v1.GetProjectResponseBody, response.json())["data"]
@@ -439,11 +439,11 @@ class AsyncProjects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = _encode_project_name(project_name)
+            project_identifier = project_name
         else:
             assert project_id
             project_identifier = project_id
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{encode_path_param(project_identifier)}"
         if description is None:
             raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
@@ -483,11 +483,11 @@ class AsyncProjects:
         if project_id and project_name:
             raise ValueError("Only one of project_id or project_name can be provided.")
         if project_name:
-            project_identifier = _encode_project_name(project_name)
+            project_identifier = project_name
         else:
             assert project_id
             project_identifier = project_id
-        url = f"v1/projects/{quote_plus(project_identifier)}"
+        url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = await self._client.delete(url)
         response.raise_for_status()
 

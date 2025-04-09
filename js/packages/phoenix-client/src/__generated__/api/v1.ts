@@ -406,18 +406,18 @@ export interface paths {
         };
         /**
          * Get project by ID or name
-         * @description Retrieve a specific project using its unique identifier: either project ID or hex-encoded project name.
+         * @description Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
          */
         get: operations["getProject"];
         /**
          * Update a project by ID or name
-         * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or hex-encoded project name.
+         * @description Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
          */
         put: operations["updateProject"];
         post?: never;
         /**
          * Delete a project by ID or name
-         * @description Delete an existing project and all its associated data. The project identifier is either project ID or hex-encoded project name. The default project cannot be deleted.
+         * @description Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.
          */
         delete: operations["deleteProject"];
         options?: never;
@@ -2520,7 +2520,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier: either project ID or hex-encoded project name. */
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
                 project_identifier: string;
             };
             cookie?: never;
@@ -2570,7 +2570,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier: either project ID or hex-encoded project name. */
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
                 project_identifier: string;
             };
             cookie?: never;
@@ -2624,7 +2624,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The project identifier: either project ID or hex-encoded project name. */
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
                 project_identifier: string;
             };
             cookie?: never;

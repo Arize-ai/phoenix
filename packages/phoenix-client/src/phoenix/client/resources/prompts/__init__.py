@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 from typing import Optional, cast
-from urllib.parse import quote_plus
 
 import httpx
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.types.prompts import PromptVersion
+from phoenix.client.utils.encode_path_param import encode_path_param
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ class PromptVersionTags:
             ...     description="Ready for staging environment"
             ... )
         """
-        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
         if description:
             data["description"] = description
@@ -171,7 +171,7 @@ class PromptVersionTags:
             >>> for tag in tags:
             ...     print(f"Tag: {tag.name}, Description: {tag.description}")
         """
-        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = self._client.get(url)
         response.raise_for_status()
         return list(cast(v1.GetPromptVersionTagsResponseBody, response.json())["data"])
@@ -304,7 +304,7 @@ class AsyncPromptVersionTags:
             ...     description="Ready for staging environment"
             ... )
         """
-        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         data = v1.PromptVersionTagData(name=name)
         if description:
             data["description"] = description
@@ -336,7 +336,7 @@ class AsyncPromptVersionTags:
             >>> for tag in tags:
             ...     print(f"Tag: {tag.name}, Description: {tag.description}")
         """
-        url = f"v1/prompt_versions/{quote_plus(prompt_version_id)}/tags"
+        url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = await self._client.get(url)
         response.raise_for_status()
         return list(cast(v1.GetPromptVersionTagsResponseBody, response.json())["data"])
@@ -378,12 +378,12 @@ def _url(
     """
     if prompt_version_id is not None:
         assert isinstance(prompt_version_id, str)
-        return f"v1/prompt_versions/{quote_plus(prompt_version_id)}"
+        return f"v1/prompt_versions/{encode_path_param(prompt_version_id)}"
     assert (
         prompt_identifier is not None
     ), "Must specify either `prompt_version_id` or `prompt_identifier`"
     assert isinstance(prompt_identifier, str)
     if tag is not None:
         assert isinstance(tag, str)
-        return f"v1/prompts/{quote_plus(prompt_identifier)}/tags/{quote_plus(tag)}"
-    return f"v1/prompts/{quote_plus(prompt_identifier)}/latest"
+        return f"v1/prompts/{encode_path_param(prompt_identifier)}/tags/{encode_path_param(tag)}"
+    return f"v1/prompts/{encode_path_param(prompt_identifier)}/latest"
