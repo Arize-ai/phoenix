@@ -116,38 +116,10 @@ def test_empty_key_validation() -> None:
         Concatenation(key="")
 
 
-def test_round_trip_serialization() -> None:
-    original = SpanQuery().select("span_id", "trace_id").where("span_id == '123'")
-    reconstructed = SpanQuery.from_dict(original.to_dict())
-    assert_dict_equivalence(original.to_dict(), reconstructed.to_dict())
-
-
 def test_chaining_order_equivalence() -> None:
     q1 = SpanQuery().select("span_id", "trace_id").where("span_id == '123'")
     q2 = SpanQuery().where("span_id == '123'").select("span_id", "trace_id")
     assert_dict_equivalence(q1.to_dict(), q2.to_dict())
-
-
-def test_projection_from_dict() -> None:
-    proj = Projection.from_dict({"key": "span_id"})
-    assert proj.key == "span_id"
-
-
-def test_span_filter_from_dict() -> None:
-    sf = SpanFilter.from_dict({"condition": "span_id == '123'"})
-    assert sf.condition == "span_id == '123'"
-
-
-def test_explosion_from_dict() -> None:
-    expl = Explosion.from_dict({"key": "attributes", "primary_index_key": "span_id"})
-    assert expl.key == "attributes"
-    assert expl.primary_index_key == "span_id"
-
-
-def test_concatenation_from_dict() -> None:
-    concat = Concatenation.from_dict({"key": "messages", "separator": ", "})
-    assert concat.key == "messages"
-    assert concat.separator == ", "
 
 
 def test_default_index_behavior() -> None:

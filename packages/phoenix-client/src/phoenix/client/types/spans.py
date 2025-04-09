@@ -54,10 +54,6 @@ class Projection:
         """Convert to dictionary format."""
         return {"key": self.key}
 
-    @classmethod
-    def from_dict(cls, obj: dict[str, Any]) -> "Projection":
-        return cls(key=obj["key"])
-
 
 @dataclass
 class SpanFilter:
@@ -74,17 +70,6 @@ class SpanFilter:
 
     def to_dict(self) -> dict[str, Any]:
         return {"condition": self.condition}
-
-    @classmethod
-    def from_dict(
-        cls,
-        obj: dict[str, Any],
-        valid_eval_names: Optional[list[str]] = None,
-    ) -> "SpanFilter":
-        return cls(
-            condition=obj.get("condition") or "",
-            valid_eval_names=valid_eval_names,
-        )
 
 
 @dataclass
@@ -114,16 +99,6 @@ class Explosion:
             result["kwargs"] = dict(self.kwargs)
         return result
 
-    @classmethod
-    def from_dict(cls, obj: dict[str, Any]) -> "Explosion":
-        if not obj.get("key"):
-            raise ValueError("Explosion key cannot be empty")
-        return cls(
-            key=obj["key"],
-            kwargs=obj.get("kwargs", {}),
-            primary_index_key=obj.get("primary_index_key", "context.span_id"),
-        )
-
 
 @dataclass
 class Concatenation:
@@ -149,16 +124,6 @@ class Concatenation:
         if self.kwargs:
             result["kwargs"] = dict(self.kwargs)
         return result
-
-    @classmethod
-    def from_dict(cls, obj: dict[str, Any]) -> "Concatenation":
-        if not obj.get("key"):
-            raise ValueError("Concatenation key cannot be empty")
-        return cls(
-            key=obj["key"],
-            kwargs=obj.get("kwargs", {}),
-            separator=obj.get("separator", "\n\n"),
-        )
 
 
 @dataclass
@@ -304,34 +269,6 @@ class SpanQuery:
             result["index"] = Projection(key="context.span_id").to_dict()
         return result
 
-    @classmethod
-    def from_dict(
-        cls,
-        obj: dict[str, Any],
-        valid_eval_names: Optional[list[str]] = None,
-    ) -> "SpanQuery":
-        return cls(
-            _select={
-                name: Projection.from_dict(proj) for name, proj in obj.get("select", {}).items()
-            }
-            if obj.get("select")
-            else None,
-            _filter=SpanFilter.from_dict(
-                obj["filter"],
-                valid_eval_names=valid_eval_names,
-            )
-            if obj.get("filter")
-            else None,
-            _explode=Explosion.from_dict(obj["explode"])
-            if obj.get("explode") and obj["explode"].get("key")
-            else None,
-            _concat=Concatenation.from_dict(obj["concat"])
-            if obj.get("concat") and obj["concat"].get("key")
-            else None,
-            _rename=dict(obj["rename"]) if obj.get("rename") else None,
-            _index=Projection.from_dict(obj["index"]) if obj.get("index") else None,
-        )
-
 
 @dataclass
 class GetSpansRequestBody:
@@ -351,17 +288,6 @@ class GetSpansRequestBody:
             "root_spans_only": self.root_spans_only,
             "project_name": self.project_name,
         }
-
-    @classmethod
-    def from_dict(cls, obj: dict[str, Any]) -> "GetSpansRequestBody":
-        return cls(
-            queries=[SpanQuery.from_dict(q) for q in obj.get("queries", [])],
-            start_time=obj.get("start_time"),
-            end_time=obj.get("end_time"),
-            limit=obj.get("limit", 1000),
-            root_spans_only=obj.get("root_spans_only"),
-            project_name=obj.get("project_name"),
-        )
 
 
 @dataclass
@@ -387,19 +313,6 @@ class SpanData:
             "attributes": self.attributes,
         }
 
-    @classmethod
-    def from_dict(cls, obj: dict[str, Any]) -> "SpanData":
-        return cls(
-            span_id=obj.get("span_id", ""),
-            trace_id=obj.get("trace_id", ""),
-            name=obj.get("name", ""),
-            span_kind=obj.get("span_kind", ""),
-            start_time=obj.get("start_time", ""),
-            end_time=obj.get("end_time"),
-            parent_id=obj.get("parent_id"),
-            attributes=obj.get("attributes", {}),
-        )
-
 
 @dataclass
 class GetSpansResponseBody:
@@ -409,9 +322,3 @@ class GetSpansResponseBody:
         return {
             "data": [d.to_dict() for d in self.data],
         }
-
-    @classmethod
-    def from_dict(cls, obj: dict[str, Any]) -> "GetSpansResponseBody":
-        return cls(
-            data=[SpanData.from_dict(d) for d in obj.get("data", [])],
-        )
