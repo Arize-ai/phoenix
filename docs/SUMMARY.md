@@ -195,7 +195,6 @@
 * [OpenInference](reference/open-inference.md)
 * [Resources](reference/resources.md)
 * [Contribute to Phoenix](reference/contribute-to-phoenix.md)
-* [Release Notes](reference/release-notes.md)
 
 ***
 
