@@ -14,7 +14,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { IsAdmin } from "@phoenix/components/auth";
+import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
@@ -84,8 +84,10 @@ export function SettingsGeneralPage() {
       <IsAdmin>
         <APIKeysCard />
         <UsersCard />
-        <GlobalRetentionPolicyCard />
       </IsAdmin>
+      <CanManageRetentionPolicy>
+        <GlobalRetentionPolicyCard />
+      </CanManageRetentionPolicy>
     </Flex>
   );
 }
