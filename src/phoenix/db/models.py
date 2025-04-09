@@ -803,12 +803,21 @@ class SpanAnnotation(Base):
         String,
         nullable=True,
         index=True,
-        unique=True,
     )
     source: Mapped[str] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "span_rowid",
+            "identifier",
+            name="uq_span_annotation_identifier_per_span",
+            postgresql_where=identifier.isnot(None),
+            sqlite_where=identifier.isnot(None),
+        ),
+    )
 
 
 class TraceAnnotation(Base):
@@ -839,6 +848,16 @@ class TraceAnnotation(Base):
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "trace_rowid",
+            "identifier",
+            name="uq_trace_annotation_identifier_per_trace",
+            postgresql_where=identifier.isnot(None),
+            sqlite_where=identifier.isnot(None),
+        ),
+    )
 
 
 class DocumentAnnotation(Base):

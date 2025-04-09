@@ -7,7 +7,8 @@ from typing import Any, Literal, Optional
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, func
+from sqlalchemy.dialects import postgresql, sqlite
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
@@ -241,6 +242,8 @@ async def annotate_spans(
 
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
+        dialect_name = session.bind.dialect.name # type: ignore
+
         existing_spans = {
             span.span_id: span.id
             async for span in await session.stream_scalars(
@@ -257,10 +260,36 @@ async def annotate_spans(
         inserted_ids = []
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
-            result = await session.execute(
-                insert(models.SpanAnnotation).values(**values).returning(models.SpanAnnotation.id)
-            )
+            stmt = insert(models.SpanAnnotation).values(**values)
+
+            if values.get("identifier") is not None:
+                update_fields = {
+                    "name": stmt.excluded.name,
+                    "label": stmt.excluded.label,
+                    "score": stmt.excluded.score,
+                    "explanation": stmt.excluded.explanation,
+                    "metadata_": stmt.excluded.metadata_,
+                    "annotator_kind": stmt.excluded.annotator_kind,
+                    "source": stmt.excluded.source,
+                    "user_id": stmt.excluded.user_id,
+                }
+                if dialect_name == "postgresql":
+                    pg_stmt = postgresql.insert(models.SpanAnnotation).values(**values)
+                    stmt = pg_stmt.on_conflict_do_update(
+                        constraint="uq_span_annotation_identifier_per_span",
+                        set_=update_fields
+                    )
+                elif dialect_name == "sqlite":
+                    sqlite_stmt = sqlite.insert(models.SpanAnnotation).values(**values)
+                    stmt = sqlite_stmt.on_conflict_do_update(
+                        index_elements=["span_rowid", "identifier"],
+                        index_where=models.SpanAnnotation.identifier.isnot(None),
+                        set_=update_fields
+                    )
+
+            result = await session.execute(stmt.returning(models.SpanAnnotation.id))
             inserted_ids.append(result.scalar_one())
+
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSpansResponseBody(
         data=[
