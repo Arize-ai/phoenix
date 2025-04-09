@@ -7,8 +7,6 @@ description: >-
 
 # Phoenix MCP Server
 
-[![](https://camo.githubusercontent.com/8b50f705052cadadcf7baa5d69a59ac11c57b6f1020a757e755e1d06ff808dd5/68747470733a2f2f62616467652e6d6370782e6465763f7374617475733d6f6e)](https://camo.githubusercontent.com/8b50f705052cadadcf7baa5d69a59ac11c57b6f1020a757e755e1d06ff808dd5/68747470733a2f2f62616467652e6d6370782e6465763f7374617475733d6f6e)
-
 Phoenix MCP Server supports:
 
 * **Prompts Management**: Create, list, update, and iterate on prompts
