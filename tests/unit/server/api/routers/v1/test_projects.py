@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
-from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
@@ -639,6 +639,139 @@ class TestProjects:
             assert (
                 project_id == projects[i].id
             ), f"Project at index {i} should have ID {projects[i].id}, got {project_id}"  # noqa: E501
+
+    async def test_include_experiment_projects_parameter(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test that the playground project is always included in project listings, regardless of
+        whether it has associated experiments or the include_experiment_projects parameter.
+
+        This test verifies that:
+        1. Regular experiment projects are excluded by default from the response
+        2. Regular experiment projects are included when include_experiment_projects=True
+        3. The playground project is always included in the response, even when:
+           - It has an associated experiment
+           - Other experiment projects are being excluded
+
+        This behavior is important because:
+        - Regular experiment projects can be filtered to reduce clutter
+        - The playground project is special and should always be visible
+        - Having an experiment shouldn't change the playground project's visibility
+        """  # noqa: E501
+        # Create regular projects that will always be included
+        regular_projects = await self._insert_projects(db, 2)
+
+        async with db() as session:
+            # Create a regular experiment project - this should be filtered by default
+            experiment_project = models.Project(
+                name="experiment-project",
+                description="A project created from an experiment - should be filtered by default",
+            )
+            session.add(experiment_project)
+            await session.flush()
+
+            # Setup dataset and version needed for experiments
+            dataset = models.Dataset(name="test-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            dataset_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                metadata_={},
+            )
+            session.add(dataset_version)
+            await session.flush()
+
+            # Create an experiment for the regular experiment project
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="test-experiment",
+                repetitions=1,
+                metadata_={},
+                project_name="experiment-project",
+            )
+            session.add(experiment)
+            await session.flush()
+
+            # Create the playground project - this should always be visible
+            playground_project = models.Project(
+                name=PLAYGROUND_PROJECT_NAME,
+                description="Playground project - should always be visible",
+            )
+            session.add(playground_project)
+            await session.flush()
+
+            # Create an experiment using the playground project - this shouldn't affect visibility
+            playground_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="playground-experiment",
+                repetitions=1,
+                metadata_={},
+                project_name=PLAYGROUND_PROJECT_NAME,
+            )
+            session.add(playground_experiment)
+            await session.flush()
+
+        # Test default behavior - should exclude regular experiment projects but include playground
+        url = "v1/projects"
+        response = await httpx_client.get(url)
+        assert (
+            response.status_code == 200
+        ), f"GET /projects failed with status code {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        returned_projects = data["data"]
+
+        # Should return regular projects and playground project (but not experiment project)
+        expected_count = len(regular_projects) + 1  # +1 for playground project
+        assert len(returned_projects) == expected_count, (
+            f"Expected {expected_count} projects (regular + playground), "
+            f"got {len(returned_projects)}"
+        )  # noqa: E501
+
+        # Regular experiment project should be filtered out by default
+        experiment_project_ids = [str(GlobalID(Project.__name__, str(experiment_project.id)))]
+        returned_project_ids = [p["id"] for p in returned_projects]
+        assert not any(
+            id_ in returned_project_ids for id_ in experiment_project_ids
+        ), "Regular experiment project should be excluded by default to reduce clutter"  # noqa: E501
+
+        # Playground project should be included despite having an experiment
+        playground_project_ids = [str(GlobalID(Project.__name__, str(playground_project.id)))]
+        assert any(
+            id_ in returned_project_ids for id_ in playground_project_ids
+        ), "Playground project should be included even with an experiment - it's special and should always be visible"  # noqa: E501
+
+        # Test with include_experiment_projects=True - should include all projects
+        response = await httpx_client.get(url, params={"include_experiment_projects": True})
+        assert (
+            response.status_code == 200
+        ), f"GET /projects with include_experiment_projects=True failed with status code {response.status_code}: {response.text}"  # noqa: E501
+
+        data = response.json()
+        returned_projects = data["data"]
+
+        # Should return all projects when including experiment projects
+        expected_count = len(regular_projects) + 2  # +1 for experiment project, +1 for playground
+        assert (
+            len(returned_projects) == expected_count
+        ), f"Expected {expected_count} projects (regular + experiment + playground), got {len(returned_projects)}"  # noqa: E501
+
+        # Regular experiment project should now be included
+        returned_project_ids = [p["id"] for p in returned_projects]
+        assert any(
+            id_ in returned_project_ids for id_ in experiment_project_ids
+        ), "Regular experiment project should be included when explicitly requested"  # noqa: E501
+
+        # Playground project should still be included (as always)
+        assert any(
+            id_ in returned_project_ids for id_ in playground_project_ids
+        ), "Playground project should always be included - it's special and visibility isn't affected by parameters"  # noqa: E501
 
     @staticmethod
     def _compare_project(
