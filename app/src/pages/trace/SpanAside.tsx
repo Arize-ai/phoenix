@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -10,6 +10,7 @@ import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotations
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanAsideSpanQuery } from "./__generated__/SpanAsideSpanQuery.graphql";
+import { SpanNotesEditor, SpanNotesEditorSkeleton } from "./SpanNotesEditor";
 
 const annotationListCSS = css`
   display: flex;
@@ -79,6 +80,13 @@ export function SpanAside(props: { span: SpanAside_span$key }) {
             projectId={data.project.id}
             spanNodeId={data.id}
           />
+        </View>
+      </TitledPanel>
+      <TitledPanel resizable title="Notes" panelProps={{ order: 3 }}>
+        <View height="100%" maxHeight="100%">
+          <Suspense fallback={<SpanNotesEditorSkeleton />}>
+            <SpanNotesEditor spanNodeId={data.id} />
+          </Suspense>
         </View>
       </TitledPanel>
     </PanelGroup>
