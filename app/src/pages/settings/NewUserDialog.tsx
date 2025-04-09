@@ -39,6 +39,7 @@ export function NewUserDialog({
             username: data.username,
             password: data.password,
             role: data.role,
+            sendWelcomeEmail: true,
           },
         },
         onCompleted: (response) => {

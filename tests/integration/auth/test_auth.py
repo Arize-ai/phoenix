@@ -4,6 +4,7 @@ from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from secrets import token_hex
 from typing import (
     Any,
     Generic,
@@ -148,6 +149,31 @@ class TestLogIn:
         admin_user.delete_users(user)
         with _EXPECTATION_401:
             user.log_in()
+
+
+class TestWelcomeEmail:
+    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("send_welcome_email", [True, False])
+    def test_welcome_email_is_sent(
+        self,
+        role: UserRoleInput,
+        send_welcome_email: bool,
+        _get_user: _GetUser,
+        _smtpd: smtpdfix.AuthController,
+    ) -> None:
+        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        profile = _Profile(email=email, password=token_hex(8), username=token_hex(8))
+        u = _create_user(
+            _get_user(_ADMIN),
+            role=role,
+            profile=profile,
+            send_welcome_email=send_welcome_email,
+        )
+        if send_welcome_email:
+            assert _smtpd.messages
+            assert _smtpd.messages[-1]["to"] == u.email
+        else:
+            assert not _smtpd.messages or _smtpd.messages[-1]["to"] != u.email
 
 
 class TestPasswordReset:
