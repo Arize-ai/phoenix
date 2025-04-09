@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f244985af85b1f2aae81261b9ab7a8fb>>
+ * @generated SignedSource<<f984f911db48fb2188036c243779e795>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type SpanNotesEditorQuery$variables = {
 export type SpanNotesEditorQuery$data = {
   readonly span: {
     readonly spanAnnotations?: ReadonlyArray<{
+      readonly createdAt: string;
       readonly explanation: string | null;
       readonly id: string;
       readonly name: string;
@@ -114,6 +115,13 @@ v5 = {
         {
           "alias": null,
           "args": null,
+          "kind": "ScalarField",
+          "name": "createdAt",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "User",
           "kind": "LinkedField",
           "name": "user",
@@ -186,16 +194,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c2de081abe109bfa0320c51ef49c77cd",
+    "cacheID": "1c78ee04ea8e2b065d8903b04a1f6e54",
     "id": null,
     "metadata": {},
     "name": "SpanNotesEditorQuery",
     "operationKind": "query",
-    "text": "query SpanNotesEditorQuery(\n  $spanNodeId: GlobalID!\n) {\n  viewer {\n    id\n    username\n    profilePictureUrl\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        explanation\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SpanNotesEditorQuery(\n  $spanNodeId: GlobalID!\n) {\n  viewer {\n    id\n    username\n    profilePictureUrl\n  }\n  span: node(id: $spanNodeId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        explanation\n        createdAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a2128978bf3cef2dd4dfa7ce705eadf8";
+(node as any).hash = "4d324ba920dcf0a0cb24d624aea004ae";
 
 export default node;

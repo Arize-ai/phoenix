@@ -45,6 +45,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
               id
               name
               explanation
+              createdAt
               user {
                 id
                 username
@@ -112,8 +113,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
           <li key={note.id}>
             <MessageBubble
               text={note.explanation || ""}
-              // TODO: plumb through
-              timestamp={new Date()}
+              timestamp={new Date(note.createdAt)}
               userName={note.user?.username || "system"}
               userPicture={note.user?.profilePictureUrl}
               isOutgoing={note.user?.id === data.viewer?.id}

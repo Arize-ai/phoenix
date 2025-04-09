@@ -40,6 +40,12 @@ interface Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
 }
 
 union AnnotationConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
@@ -826,6 +832,12 @@ type DocumentEvaluation implements Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
 
   """
   The zero-based index among retrieved documents, which is collected as a list (even when ordering is not inherently meaningful).
@@ -2111,6 +2123,12 @@ type SpanAnnotation implements Node & Annotation {
   The annotator's explanation for the annotation result (i.e. score or label, or both) given to the subject.
   """
   explanation: String
+
+  """The date and time when the annotation was created."""
+  createdAt: DateTime!
+
+  """The date and time when the annotation was last updated."""
+  updatedAt: DateTime!
   annotatorKind: AnnotatorKind!
   metadata: JSON!
   source: AnnotationSource!
