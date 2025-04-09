@@ -131,7 +131,7 @@ async def get_projects(
             next_cursor = str(GlobalID(ProjectNodeType.__name__, str(last_project.id)))
             orm_projects = orm_projects[:-1]
 
-        projects = [_project_from_orm_project(orm_project) for orm_project in orm_projects]
+        projects = [_to_project_response(orm_project) for orm_project in orm_projects]
     return GetProjectsResponseBody(next_cursor=next_cursor, data=projects)
 
 
@@ -169,8 +169,8 @@ async def get_project(
         HTTPException: If the project identifier format is invalid or the project is not found.
     """  # noqa: E501
     async with request.app.state.db() as session:
-        project_orm = await _get_project_by_identifier(session, project_identifier)
-    data = _project_from_orm_project(project_orm)
+        project = await _get_project_by_identifier(session, project_identifier)
+    data = _to_project_response(project)
     return GetProjectResponseBody(data=data)
 
 
@@ -204,13 +204,13 @@ async def create_project(
         HTTPException: If any validation error occurs.
     """
     async with request.app.state.db() as session:
-        project_orm = models.Project(
+        project = models.Project(
             name=request_body.name,
             description=request_body.description,
         )
-        session.add(project_orm)
+        session.add(project)
         await session.flush()
-    data = _project_from_orm_project(project_orm)
+    data = _to_project_response(project)
     return CreateProjectResponseBody(data=data)
 
 
@@ -265,13 +265,13 @@ async def update_project(
                 detail="Only admins can update projects",
             )
     async with request.app.state.db() as session:
-        project_orm = await _get_project_by_identifier(session, project_identifier)
+        project = await _get_project_by_identifier(session, project_identifier)
 
         # Update the description if provided
         if request_body.description is not None:
-            project_orm.description = request_body.description
+            project.description = request_body.description
 
-    data = _project_from_orm_project(project_orm)
+    data = _to_project_response(project)
     return UpdateProjectResponseBody(data=data)
 
 
@@ -325,24 +325,24 @@ async def delete_project(
                 detail="Only admins can delete projects",
             )
     async with request.app.state.db() as session:
-        project_orm = await _get_project_by_identifier(session, project_identifier)
+        project = await _get_project_by_identifier(session, project_identifier)
 
         # The default project must not be deleted - it's forbidden
-        if project_orm.name == DEFAULT_PROJECT_NAME:
+        if project.name == DEFAULT_PROJECT_NAME:
             raise HTTPException(
                 status_code=HTTP_403_FORBIDDEN,
                 detail="The default project cannot be deleted",
             )
 
-        await session.delete(project_orm)
+        await session.delete(project)
     return None
 
 
-def _project_from_orm_project(orm_project: models.Project) -> Project:
+def _to_project_response(project: models.Project) -> Project:
     return Project(
-        id=str(GlobalID(ProjectNodeType.__name__, str(orm_project.id))),
-        name=orm_project.name,
-        description=orm_project.description,
+        id=str(GlobalID(ProjectNodeType.__name__, str(project.id))),
+        name=project.name,
+        description=project.description,
     )
 
 
@@ -370,19 +370,25 @@ async def _get_project_by_identifier(
             ProjectNodeType.__name__,
         )
     except Exception:
-        name = project_identifier
+        try:
+            name = project_identifier
+        except HTTPException:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid project identifier format: {project_identifier}",
+            )
         stmt = select(models.Project).filter_by(name=name)
-        project_orm = await session.scalar(stmt)
-        if project_orm is None:
+        project = await session.scalar(stmt)
+        if project is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
                 detail=f"Project with name {name} not found",
             )
     else:
-        project_orm = await session.get(models.Project, id_)
-        if project_orm is None:
+        project = await session.get(models.Project, id_)
+        if project is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
                 detail=f"Project with ID {project_identifier} not found",
             )
-    return project_orm
+    return project
