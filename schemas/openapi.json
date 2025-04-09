@@ -1921,10 +1921,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Cursor for pagination (base64-encoded project ID)",
+              "description": "Cursor for pagination (project ID)",
               "title": "Cursor"
             },
-            "description": "Cursor for pagination (base64-encoded project ID)"
+            "description": "Cursor for pagination (project ID)"
           },
           {
             "name": "limit",
@@ -1938,6 +1938,18 @@
               "title": "Limit"
             },
             "description": "The max number of projects to return at a time."
+          },
+          {
+            "name": "include_experiment_projects",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include experiment projects in the response. Experiment projects are created from running experiments.",
+              "default": false,
+              "title": "Include Experiment Projects"
+            },
+            "description": "Include experiment projects in the response. Experiment projects are created from running experiments."
           }
         ],
         "responses": {
@@ -2024,25 +2036,25 @@
         }
       }
     },
-    "/v1/projects/{project_id}": {
+    "/v1/projects/{project_identifier}": {
       "get": {
         "tags": [
           "projects"
         ],
-        "summary": "Get project by ID",
-        "description": "Retrieve a specific project using its unique identifier.",
+        "summary": "Get project by ID or name",
+        "description": "Retrieve a specific project using its unique identifier: either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "getProject",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the project.",
-              "title": "Project Id"
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
             },
-            "description": "The ID of the project."
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           }
         ],
         "responses": {
@@ -2092,20 +2104,20 @@
         "tags": [
           "projects"
         ],
-        "summary": "Update a project",
-        "description": "Update an existing project with new configuration. Project names cannot be changed.",
+        "summary": "Update a project by ID or name",
+        "description": "Update an existing project with new configuration. Project names cannot be changed. The project identifier is either project ID or project name. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "updateProject",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the project to update.",
-              "title": "Project Id"
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
             },
-            "description": "The ID of the project to update."
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           }
         ],
         "requestBody": {
@@ -2165,20 +2177,20 @@
         "tags": [
           "projects"
         ],
-        "summary": "Delete a project",
-        "description": "Delete an existing project and all its associated data.",
+        "summary": "Delete a project by ID or name",
+        "description": "Delete an existing project and all its associated data. The project identifier is either project ID or project name. The default project cannot be deleted. Note: When using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
         "operationId": "deleteProject",
         "parameters": [
           {
-            "name": "project_id",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The ID of the project to delete.",
-              "title": "Project Id"
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
             },
-            "description": "The ID of the project to delete."
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           }
         ],
         "responses": {
@@ -2329,13 +2341,26 @@
       },
       "CreateProjectRequestBody": {
         "properties": {
-          "project": {
-            "$ref": "#/components/schemas/ProjectData"
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
         "required": [
-          "project"
+          "name"
         ],
         "title": "CreateProjectRequestBody"
       },
@@ -2936,6 +2961,7 @@
         "properties": {
           "name": {
             "type": "string",
+            "minLength": 1,
             "title": "Name"
           },
           "description": {
@@ -2960,30 +2986,6 @@
           "id"
         ],
         "title": "Project"
-      },
-      "ProjectData": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "ProjectData"
       },
       "Prompt": {
         "properties": {
@@ -4190,14 +4192,19 @@
       },
       "UpdateProjectRequestBody": {
         "properties": {
-          "project": {
-            "$ref": "#/components/schemas/ProjectData"
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
-        "required": [
-          "project"
-        ],
         "title": "UpdateProjectRequestBody"
       },
       "UpdateProjectResponseBody": {

@@ -1066,3 +1066,4 @@ def get_env_allowed_origins() -> Optional[list[str]]:
 
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
+PLAYGROUND_PROJECT_NAME = "playground"
