@@ -1,6 +1,6 @@
 # Import Existing Traces
 
-Phoenix supports loading data that contains [OpenInference traces](../../../reference/open-inference.md). This allows you to load an existing dataframe of traces into your Phoenix instance.
+Phoenix supports loading data that contains [OpenInference traces](https://docs.arize.com/phoenix/references/openinference). This allows you to load an existing dataframe of traces into your Phoenix instance.
 
 Usually these will be traces you've previously saved using [Save All Traces](https://docs.arize.com/phoenix/tracing/how-to-tracing/extract-data-from-spans#save-all-traces).
 

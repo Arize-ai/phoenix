@@ -3,9 +3,8 @@
 * [Arize Phoenix](README.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
-* [Examples](notebooks.md)
 * [Interactive Demo](https://phoenix-demo.arize.com/projects)
-* [Deployment](deployment.md)
+* [Examples](notebooks.md)
 * [Environments](environments.md)
 
 ## 🔭 Tracing
@@ -189,13 +188,6 @@
 * [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
-
-## 📚 Reference
-
-* [Frequently Asked Questions](reference/frequently-asked-questions.md)
-* [OpenInference](reference/open-inference.md)
-* [Resources](reference/resources.md)
-* [Contribute to Phoenix](reference/contribute-to-phoenix.md)
 
 ***
 
