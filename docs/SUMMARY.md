@@ -4,6 +4,7 @@
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
+* [Interactive Demo](https://phoenix-demo.arize.com/projects)
 * [Deployment](deployment.md)
 * [Environments](environments.md)
 
