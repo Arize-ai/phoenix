@@ -31,7 +31,7 @@ PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 
 ### Using Self-hosted Phoenix:
 
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [Broken link](broken-reference "mention")
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://docs.arize.com/phoenix/self-hosting).
 2. In your code, configure environment variables for your endpoint and API key:
 
 ```shell
