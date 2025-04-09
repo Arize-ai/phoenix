@@ -119,20 +119,19 @@ async def get_projects(
                 )
 
         stmt = stmt.limit(limit + 1)
-        result = await session.execute(stmt)
-        orm_projects = result.scalars().all()
+        projects = (await session.scalars(stmt)).all()
 
-        if not orm_projects:
+        if not projects:
             return GetProjectsResponseBody(next_cursor=None, data=[])
 
         next_cursor = None
-        if len(orm_projects) == limit + 1:
-            last_project = orm_projects[-1]
+        if len(projects) == limit + 1:
+            last_project = projects[-1]
             next_cursor = str(GlobalID(ProjectNodeType.__name__, str(last_project.id)))
-            orm_projects = orm_projects[:-1]
+            projects = projects[:-1]
 
-        projects = [_to_project_response(orm_project) for orm_project in orm_projects]
-    return GetProjectsResponseBody(next_cursor=next_cursor, data=projects)
+        project_responses = [_to_project_response(project) for project in projects]
+    return GetProjectsResponseBody(next_cursor=next_cursor, data=project_responses)
 
 
 @router.get(
