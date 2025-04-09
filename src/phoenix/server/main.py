@@ -16,6 +16,7 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     get_env_access_token_expiry,
+    get_env_allowed_origins,
     get_env_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
@@ -99,6 +100,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
 |  Websockets: {{ websockets_enabled }}
+{%- if allowed_origins %}\n|  Allowed Origins: {{ allowed_origins }}{% endif %}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -360,6 +362,8 @@ def main() -> None:
     if enable_websockets is None:
         enable_websockets = True
 
+    allowed_origins = get_env_allowed_origins()
+
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
@@ -371,6 +375,7 @@ def main() -> None:
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
         websockets_enabled=enable_websockets,
+        allowed_origins=allowed_origins,
     )
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
@@ -420,6 +425,7 @@ def main() -> None:
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
+        allowed_origins=allowed_origins,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

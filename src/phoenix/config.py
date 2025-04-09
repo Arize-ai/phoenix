@@ -223,7 +223,11 @@ ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 """
 Whether to validate SMTP server certificates. Defaults to true.
 """
-
+ENV_PHOENIX_ALLOWED_ORIGINS = "PHOENIX_ALLOWED_ORIGINS"
+"""
+List of allowed origins for CORS. Defaults to None.
+When set to None, CORS is disabled.
+"""
 # API extension settings
 ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FASTAPI_MIDDLEWARE_PATHS"
 ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
@@ -1089,9 +1093,22 @@ def get_env_disable_migrations() -> bool:
 DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
 
-SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
+
+def get_env_allowed_origins() -> Optional[list[str]]:
+    """
+    Gets the value of the PHOENIX_ALLOWED_ORIGINS environment variable.
+    """
+    allowed_origins = getenv(ENV_PHOENIX_ALLOWED_ORIGINS)
+    if allowed_origins is None:
+        return None
+
+    return allowed_origins.split(",")
 
 
 def verify_server_environment_variables() -> None:
     """Verify that the environment variables are set correctly. Raises an error otherwise."""
     get_env_root_url()
+
+
+SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
+PLAYGROUND_PROJECT_NAME = "playground"

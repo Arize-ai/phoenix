@@ -19,6 +19,7 @@ from sqlalchemy import (
 )
 from typing_extensions import assert_never
 
+from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 
 
@@ -157,3 +158,18 @@ def get_dataset_example_revisions(
             ),
         )
     )
+
+
+_AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
+
+
+def exclude_experiment_projects(
+    stmt: Select[_AnyTuple],
+) -> Select[_AnyTuple]:
+    return stmt.outerjoin(
+        models.Experiment,
+        and_(
+            models.Project.name == models.Experiment.project_name,
+            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
+        ),
+    ).where(models.Experiment.project_name.is_(None))
