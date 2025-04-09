@@ -71,7 +71,7 @@ Running Phoenix for the first time? Select a quickstart below.
 
 ## Next Steps
 
-### [Try our Tutorials](notebooks.md)
+### [Try our Tutorials](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/jl0P6vk8OJiHMr4yNY0U/)
 
 Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more.
 
