@@ -12,9 +12,15 @@ import { NoticeConfig } from "@arizeai/components/dist/notification/types";
 import { Button, Flex, Text, View } from "@phoenix/components";
 
 import { SpanAnnotationActionMenuDeleteMutation } from "./__generated__/SpanAnnotationActionMenuDeleteMutation.graphql";
-import { AnnotationActionMenu } from "./AnnotationActionMenu";
+import {
+  AnnotationActionMenu,
+  AnnotationActionMenuProps,
+} from "./AnnotationActionMenu";
 
-type SpanAnnotationActionMenuProps = {
+type SpanAnnotationActionMenuProps = Pick<
+  AnnotationActionMenuProps,
+  "buttonVariant" | "buttonSize"
+> & {
   annotationId: string;
   spanNodeId: string;
   annotationName: string;
@@ -31,6 +37,8 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
     annotationName,
     onSpanAnnotationActionSuccess,
     onSpanAnnotationActionError,
+    buttonVariant = "quiet",
+    buttonSize = "compact",
   } = props;
   const [confirmDialog, setConfirmDialog] = useState<ReactNode>(null);
   const [commitDelete, isCommittingDelete] =
@@ -113,6 +121,8 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
       <AnnotationActionMenu
         onDelete={onDelete}
         isDisabled={isCommittingDelete}
+        buttonVariant={buttonVariant}
+        buttonSize={buttonSize}
       />
       <DialogContainer
         type="modal"
