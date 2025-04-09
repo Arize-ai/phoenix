@@ -12,7 +12,9 @@ from typing import (
     Optional,
     TypeVar,
 )
+from urllib.parse import urljoin
 
+import bs4
 import jwt
 import pytest
 import smtpdfix
@@ -23,6 +25,7 @@ from opentelemetry.sdk.environment_variables import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+from phoenix.config import get_env_root_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
@@ -46,6 +49,7 @@ from .._helpers import (
     _Email,
     _Expectation,
     _export_embeddings,
+    _extract_html,
     _GetUser,
     _GqlId,
     _grpc_span_exporter,
@@ -171,7 +175,11 @@ class TestWelcomeEmail:
         )
         if send_welcome_email:
             assert _smtpd.messages
-            assert _smtpd.messages[-1]["to"] == u.email
+            assert (msg := _smtpd.messages[-1])["to"] == u.email
+            assert (soup := _extract_html(msg))
+            assert isinstance((link := soup.find(id="welcome-url")), bs4.Tag)
+            assert isinstance((url := link.get("href")), str)
+            assert url == urljoin(str(get_env_root_url()), "forgot-password")
         else:
             assert not _smtpd.messages or _smtpd.messages[-1]["to"] != u.email
 
