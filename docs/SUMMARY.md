@@ -4,6 +4,7 @@
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
 * [Examples](notebooks.md)
+* [Deployment](deployment.md)
 * [Environments](environments.md)
 
 ## 🔭 Tracing
