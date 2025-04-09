@@ -5,8 +5,10 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.dialects import postgresql, sqlite
 from starlette.requests import Request
 from strawberry import UNSET, Info
+from typing_extensions import assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -43,7 +45,7 @@ class SpanAnnotationMutationMixin:
         processed_annotations: dict[int, models.SpanAnnotation] = {}
 
         async with info.context.db() as session:
-            dialect_name = session.bind.dialect.name  # type: ignore
+            dialect_name = SupportedSQLDialect(session.bind.dialect.name)
 
             for idx, annotation_input in enumerate(input):
                 try:
@@ -79,12 +81,12 @@ class SpanAnnotationMutationMixin:
                         "source": stmt.excluded.source,
                         "user_id": stmt.excluded.user_id,
                     }
-                    if dialect_name == "postgresql":
+                    if dialect_name == SupportedSQLDialect.POSTGRESQL:
                         pg_stmt = postgresql.insert(models.SpanAnnotation).values(**values)
                         stmt = pg_stmt.on_conflict_do_update(
                             constraint="uq_span_annotation_identifier_per_span", set_=update_fields
                         ).returning(models.SpanAnnotation)
-                    elif dialect_name == "sqlite":
+                    elif dialect_name == SupportedSQLDialect.SQLITE:
                         sqlite_stmt = sqlite.insert(models.SpanAnnotation).values(**values)
                         stmt = sqlite_stmt.on_conflict_do_update(
                             index_elements=["span_rowid", "identifier"],
@@ -92,7 +94,7 @@ class SpanAnnotationMutationMixin:
                             set_=update_fields,
                         ).returning(models.SpanAnnotation)
                     else:
-                        pass
+                        assert_never(dialect_name)
                 else:
                     stmt = stmt.returning(models.SpanAnnotation)
 

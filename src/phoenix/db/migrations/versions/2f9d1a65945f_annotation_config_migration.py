@@ -38,7 +38,6 @@ def upgrade() -> None:
                 name="valid_source",
             ),
             nullable=False,
-            server_default="APP",
         ),
     )
     with op.batch_alter_table("span_annotations") as batch_op:
@@ -76,7 +75,6 @@ def upgrade() -> None:
                 name="valid_source",
             ),
             nullable=False,
-            server_default="APP",
         ),
     )
     with op.batch_alter_table("trace_annotations") as batch_op:
@@ -115,7 +113,6 @@ def upgrade() -> None:
                 name="valid_source",
             ),
             nullable=False,
-            server_default="APP",
         ),
     )
     with op.batch_alter_table("document_annotations") as batch_op:

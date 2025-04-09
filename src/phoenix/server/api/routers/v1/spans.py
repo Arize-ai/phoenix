@@ -13,10 +13,12 @@ from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
@@ -242,7 +244,7 @@ async def annotate_spans(
 
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
-        dialect_name = session.bind.dialect.name  # type: ignore
+        dialect_name = SupportedSQLDialect(session.bind.dialect.name)
 
         existing_spans = {
             span.span_id: span.id
@@ -273,20 +275,23 @@ async def annotate_spans(
                     "source": stmt.excluded.source,
                     "user_id": stmt.excluded.user_id,
                 }
-                if dialect_name == "postgresql":
+                if dialect_name == SupportedSQLDialect.POSTGRESQL:
                     pg_stmt = postgresql.insert(models.SpanAnnotation).values(**values)
                     stmt = pg_stmt.on_conflict_do_update(
                         constraint="uq_span_annotation_identifier_per_span", set_=update_fields
                     )
-                elif dialect_name == "sqlite":
+                elif dialect_name == SupportedSQLDialect.SQLITE:
                     sqlite_stmt = sqlite.insert(models.SpanAnnotation).values(**values)
                     stmt = sqlite_stmt.on_conflict_do_update(
                         index_elements=["span_rowid", "identifier"],
                         index_where=models.SpanAnnotation.identifier.isnot(None),
                         set_=update_fields,
                     )
-
-            result = await session.execute(stmt.returning(models.SpanAnnotation.id))
+                else:
+                    assert_never(dialect_name)
+            else:
+                stmt = stmt.returning(models.SpanAnnotation.id)
+            result = await session.execute(stmt)
             inserted_ids.append(result.scalar_one())
 
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
