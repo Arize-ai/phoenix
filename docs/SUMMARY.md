@@ -187,11 +187,3 @@
 * [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
-
-***
-
-* [GitHub](https://github.com/Arize-ai/phoenix)
-* [Releases](https://github.com/Arize-ai/phoenix/releases)
-* [Python API](https://arize-phoenix.readthedocs.io/)
-* [OpenInference](https://github.com/Arize-ai/openinference)
-* [TypeScript API](https://arize-ai.github.io/phoenix/)
