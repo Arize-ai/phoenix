@@ -177,11 +177,6 @@
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
-## ⌨️ API
-
-* [Session](api/session.md)
-* [Client](api/client.md)
-
 ## 🔌 INTEGRATIONS
 
 * [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
