@@ -189,6 +189,7 @@
 
 ## 🔌 INTEGRATIONS
 
+* [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
 
