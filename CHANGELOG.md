@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.0...arize-phoenix-v8.24.1) (2025-04-09)
+
+
+### Bug Fixes
+
+* route user to forgot-password page in welcome email url ([#7089](https://github.com/Arize-ai/phoenix/issues/7089)) ([5fbd2f0](https://github.com/Arize-ai/phoenix/commit/5fbd2f0d4716703abeeddcac215de650959a7fbb))
+
 ## [8.24.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.23.0...arize-phoenix-v8.24.0) (2025-04-09)
 
 
