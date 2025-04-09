@@ -71,7 +71,7 @@ class Spans:
         )
 
         response = self._client.post(
-            "/api/v1/spans",
+            "v1/spans",
             json=request_body.to_dict(),
         )
         response.raise_for_status()
@@ -149,7 +149,7 @@ class AsyncSpans:
         )
 
         response = await self._client.post(
-            "/api/v1/spans",
+            "v1/spans",
             json=request_body.to_dict(),
         )
         response.raise_for_status()
