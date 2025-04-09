@@ -114,7 +114,7 @@ px.launch_app()
 ```
 
 {% hint style="info" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [Broken link](broken-reference "mention") or use one of the other deployment options to retain traces.
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://docs.arize.com/phoenix/self-hosting) or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
 {% endtabs %}

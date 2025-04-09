@@ -90,7 +90,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-For more info on using Phoenix with Docker, see [#docker](mistralai.md#docker "mention")
+For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 
 {% tab title="Notebook" %}
