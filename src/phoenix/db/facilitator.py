@@ -29,12 +29,12 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import COLUMN_ENUMS, UserRole
-from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
+from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ async def _ensure_admins(
         await session.execute(insert(models.User).values(values))
 
 
-async def _ensure_default_project_trace_retention_policy(session: AsyncSession) -> None:
+async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -> None:
     """
     Ensures the default trace retention policy (id=1) exists in the database. Default policy
     applies to all projects without a specific policy (i.e. foreign key is null).
@@ -213,30 +213,32 @@ async def _ensure_default_project_trace_retention_policy(session: AsyncSession) 
     If the default policy already exists, this function makes no changes.
 
     Args:
-        session (AsyncSession): An async SQLAlchemy session.
+        db (DbSessionFactory): An async SQLAlchemy session factory.
 
     Returns:
         None
     """
     assert DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID == 0
-    if await session.scalar(
-        select(
-            exists().where(
-                models.ProjectTraceRetentionPolicy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+    async with db() as session:
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.ProjectTraceRetentionPolicy.id
+                    == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+                )
             )
+        ):
+            return
+        cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")
+        rule = TraceRetentionRule(root=MaxDaysRule(max_days=0))
+        await session.execute(
+            insert(models.ProjectTraceRetentionPolicy),
+            [
+                {
+                    "id": DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
+                    "name": "Default",
+                    "cron_expression": cron_expression,
+                    "rule": rule,
+                }
+            ],
         )
-    ):
-        return
-    cron_expression = TraceRetentionCronExpression(root="0 0 * * 0")
-    rule = TraceRetentionRule(root=MaxDaysRule(max_days=0))
-    await session.execute(
-        insert(models.ProjectTraceRetentionPolicy),
-        [
-            {
-                "id": DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID,
-                "name": "Default",
-                "cron_expression": cron_expression,
-                "rule": rule,
-            }
-        ],
-    )
