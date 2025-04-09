@@ -13,8 +13,6 @@ Phoenix MCP Server supports:
 * **Datasets**: Explore datasets, and synthesize new examples
 * **Experiments**: Pull experiment results and visualize them with the help of an LLM
 
-Don't see a use-case covered? `@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
-
 ## Connecting the Phoenix MCP Server
 
 {% tabs %}
