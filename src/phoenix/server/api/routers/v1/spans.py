@@ -7,7 +7,7 @@ from typing import Any, Literal, Optional
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import insert, select, func
+from sqlalchemy import insert, select
 from sqlalchemy.dialects import postgresql, sqlite
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -242,7 +242,7 @@ async def annotate_spans(
 
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
-        dialect_name = session.bind.dialect.name # type: ignore
+        dialect_name = session.bind.dialect.name  # type: ignore
 
         existing_spans = {
             span.span_id: span.id
@@ -276,15 +276,14 @@ async def annotate_spans(
                 if dialect_name == "postgresql":
                     pg_stmt = postgresql.insert(models.SpanAnnotation).values(**values)
                     stmt = pg_stmt.on_conflict_do_update(
-                        constraint="uq_span_annotation_identifier_per_span",
-                        set_=update_fields
+                        constraint="uq_span_annotation_identifier_per_span", set_=update_fields
                     )
                 elif dialect_name == "sqlite":
                     sqlite_stmt = sqlite.insert(models.SpanAnnotation).values(**values)
                     stmt = sqlite_stmt.on_conflict_do_update(
                         index_elements=["span_rowid", "identifier"],
                         index_where=models.SpanAnnotation.identifier.isnot(None),
-                        set_=update_fields
+                        set_=update_fields,
                     )
 
             result = await session.execute(stmt.returning(models.SpanAnnotation.id))

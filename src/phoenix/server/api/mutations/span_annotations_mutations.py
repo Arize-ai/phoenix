@@ -1,9 +1,8 @@
-from collections.abc import Sequence
 from typing import Optional
 
 import strawberry
-from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy import delete, insert, select
+from sqlalchemy.dialects import postgresql, sqlite
 from starlette.requests import Request
 from strawberry import UNSET, Info
 
@@ -44,13 +43,15 @@ class SpanAnnotationMutationMixin:
         processed_annotations: dict[int, models.SpanAnnotation] = {}
 
         async with info.context.db() as session:
-            dialect_name = session.bind.dialect.name # type: ignore
+            dialect_name = session.bind.dialect.name  # type: ignore
 
             for idx, annotation_input in enumerate(input):
                 try:
                     span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
                 except ValueError:
-                     raise BadRequest(f"Invalid span ID for annotation at index {idx}: {annotation_input.span_id}")
+                    raise BadRequest(
+                        f"Invalid span ID for annotation at index {idx}: {annotation_input.span_id}"
+                    )
 
                 values = {
                     "span_rowid": span_rowid,
@@ -81,15 +82,14 @@ class SpanAnnotationMutationMixin:
                     if dialect_name == "postgresql":
                         pg_stmt = postgresql.insert(models.SpanAnnotation).values(**values)
                         stmt = pg_stmt.on_conflict_do_update(
-                            constraint="uq_span_annotation_identifier_per_span",
-                            set_=update_fields
+                            constraint="uq_span_annotation_identifier_per_span", set_=update_fields
                         ).returning(models.SpanAnnotation)
                     elif dialect_name == "sqlite":
                         sqlite_stmt = sqlite.insert(models.SpanAnnotation).values(**values)
                         stmt = sqlite_stmt.on_conflict_do_update(
                             index_elements=["span_rowid", "identifier"],
                             index_where=models.SpanAnnotation.identifier.isnot(None),
-                            set_=update_fields
+                            set_=update_fields,
                         ).returning(models.SpanAnnotation)
                     else:
                         pass
@@ -102,9 +102,7 @@ class SpanAnnotationMutationMixin:
 
         inserted_annotation_ids = tuple(anno.id for anno in processed_annotations.values())
         if inserted_annotation_ids:
-            info.context.event_queue.put(
-                SpanAnnotationInsertEvent(inserted_annotation_ids)
-            )
+            info.context.event_queue.put(SpanAnnotationInsertEvent(inserted_annotation_ids))
 
         returned_annotations = [
             to_gql_span_annotation(processed_annotations[i])
