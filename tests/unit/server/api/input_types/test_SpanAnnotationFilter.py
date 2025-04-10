@@ -9,7 +9,7 @@ from phoenix.server.api.input_types.SpanAnnotationFilter import (
 
 
 @pytest.mark.parametrize(
-    "span_annotation, filter, satisfies",
+    "span_annotation, filter, expected_satisfies",
     [
         pytest.param(
             SpanAnnotation(
@@ -46,6 +46,6 @@ from phoenix.server.api.input_types.SpanAnnotationFilter import (
 def test_satisfies_filter(
     span_annotation: SpanAnnotation,
     filter: SpanAnnotationFilter,
-    satisfies: bool,
+    expected_satisfies: bool,
 ) -> None:
-    assert satisfies_filter(span_annotation, filter) == satisfies
+    assert satisfies_filter(span_annotation, filter) == expected_satisfies
