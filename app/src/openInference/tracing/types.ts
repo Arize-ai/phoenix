@@ -27,6 +27,7 @@ export type AttributeLLMTool = {
 };
 
 export type AttributeToolCall = {
+  id?: string;
   function?: {
     name?: string;
     arguments?: string;
@@ -44,6 +45,7 @@ export type AttributeMessage = {
   [MessageAttributePostfixes.name]?: string;
   [MessageAttributePostfixes.function_call_name]?: string;
   [MessageAttributePostfixes.function_call_arguments_json]?: string;
+  [MessageAttributePostfixes.tool_call_id]?: string;
   [MessageAttributePostfixes.tool_calls]?: {
     [SemanticAttributePrefixes.tool_call]?: AttributeToolCall;
   }[];
