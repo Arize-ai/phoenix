@@ -1,4 +1,4 @@
-name: Bug report
+name: 🐛 Bug Report
 description: Help us improve Phoenix by reporting a bug
 title: "[BUG]: "
 labels: ["bug", "triage"]
@@ -18,7 +18,7 @@ body:
     id: version
     attributes:
       label: What version of Phoenix are you using?
-      placeholder: e.g. 8.0.0, Cloud
+      placeholder: e.g. 8.0.0
       description: You may be able to find this by running "pip show arize-phoenix"
     validations:
       required: true
@@ -33,9 +33,9 @@ body:
     id: python-version
     attributes:
       label: What version of Python are you running Phoenix with?
-      placeholder: e.g. 3.13, Cloud
+      placeholder: e.g. 3.13
     validations:
-      required: true
+      required: false
   - type: input
     id: instrumentation-runtime
     attributes:
