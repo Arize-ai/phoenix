@@ -5,6 +5,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 
@@ -15,11 +16,23 @@ class SpanAnnotationFilterCondition:
     sources: Optional[list[AnnotationSource]] = UNSET
     user_ids: Optional[list[GlobalID]] = UNSET
 
+    def __post_init__(self) -> None:
+        if isinstance(self.names, list) and not self.names:
+            raise BadRequest("names must be a non-empty list")
+        if isinstance(self.sources, list) and not self.sources:
+            raise BadRequest("sources must be a non-empty list")
+        if isinstance(self.user_ids, list) and not self.user_ids:
+            raise BadRequest("user ids must be a non-empty list")
+
 
 @strawberry.input
 class SpanAnnotationFilter:
     include: Optional[SpanAnnotationFilterCondition] = UNSET
     exclude: Optional[SpanAnnotationFilterCondition] = UNSET
+
+    def __post_init__(self) -> None:
+        if self.include is UNSET and self.exclude is UNSET:
+            raise BadRequest("include and exclude cannot both be unset")
 
 
 def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotationFilter) -> bool:

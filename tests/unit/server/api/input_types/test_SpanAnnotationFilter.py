@@ -16,21 +16,6 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
         pytest.param(
             SpanAnnotation(
                 span_rowid=1,
-                name="span-annotation-name",
-                label="label",
-                score=1.0,
-                explanation="explanation",
-                metadata_={},
-                annotator_kind="HUMAN",
-                source="API",
-            ),
-            SpanAnnotationFilter(),
-            True,
-            id="empty-filter",
-        ),
-        pytest.param(
-            SpanAnnotation(
-                span_rowid=1,
                 name="test-name",
                 label="label",
                 score=1.0,
