@@ -194,6 +194,7 @@ export function TracesTable(props: TracesTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   // Determine if the table is active based on the current path
   const isTableActive = !!useMatch("/projects/:projectId/traces");
+  const isTableActiveRef = useRef(isTableActive);
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -667,7 +668,7 @@ export function TracesTable(props: TracesTableProps) {
       isFirstRender.current = false;
       return;
     }
-    if (isTableActive) {
+    if (isTableActiveRef.current) {
       //if the sorting changes, we need to reset the pagination
       const sort = sorting[0];
       startTransition(() => {
@@ -684,7 +685,7 @@ export function TracesTable(props: TracesTableProps) {
         );
       });
     }
-  }, [sorting, refetch, filterCondition, fetchKey, isTableActive]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
 
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
