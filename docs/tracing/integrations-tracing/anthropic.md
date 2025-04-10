@@ -56,7 +56,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-See [Broken link](broken-reference "mention") for more details
+See [Terminal](../../environments.md#terminal) for more details
 {% endtab %}
 
 {% tab title="Docker" %}

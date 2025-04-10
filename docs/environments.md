@@ -2,7 +2,7 @@
 
 The Phoenix app can be run in various environments such as Colab and SageMaker notebooks, as well as be served via the terminal or a docker container.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Phoenix Cloud</strong></td><td>Connect to a pre-configured, managed Phoenix instance</td><td></td><td><a href=".gitbook/assets/Screenshot 2024-10-09 at 6.32.50 PM.png">Screenshot 2024-10-09 at 6.32.50 PM.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Self-host your own Phoenix</td><td><a href="broken-reference">Broken link</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>In a Notebook</strong></td><td>Run Phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run Phoenix via the CLI on your local machine</td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><strong>Phoenix Cloud</strong></td><td>Connect to a pre-configured, managed Phoenix instance</td><td><a href="https://app.phoenix.arize.com/login">https://app.phoenix.arize.com/login</a></td><td><a href=".gitbook/assets/Screenshot 2024-10-09 at 6.32.50 PM.png">Screenshot 2024-10-09 at 6.32.50 PM.png</a></td></tr><tr><td><strong>As a Container</strong></td><td>Self-host your own Phoenix</td><td><a href="broken-reference">Broken link</a></td><td><a href=".gitbook/assets/docker.png">docker.png</a></td></tr><tr><td><strong>In a Notebook</strong></td><td>Run Phoenix in the notebook as you run experiments</td><td><a href="environments.md#notebooks">#notebooks</a></td><td><a href=".gitbook/assets/notebook.png">notebook.png</a></td></tr><tr><td><strong>From the Terminal</strong></td><td>Run Phoenix via the CLI on your local machine</td><td><a href="environments.md#terminal">#terminal</a></td><td><a href=".gitbook/assets/terminal.png">terminal.png</a></td></tr></tbody></table>
 
 ### Phoenix Cloud
 
@@ -17,7 +17,7 @@ export PHOENIX_COLLECTOR_ENDPOINT = "https://app.phoenix.arize.com"
 
 ### Container
 
-See [Self-Hosting](https://docs.arize.com/phoenix/self-hosting)
+See [Self-Hosting](https://docs.arize.com/phoenix/self-hosting).
 
 ### Notebooks
 
