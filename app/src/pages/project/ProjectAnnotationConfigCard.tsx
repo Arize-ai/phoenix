@@ -9,7 +9,7 @@ import { css } from "@emotion/react";
 
 import { Card } from "@arizeai/components";
 
-import { ContentSkeleton, Flex, Link, View } from "@phoenix/components";
+import { ContentSkeleton, Flex, Link, Text, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 
 import { ProjectAnnotationConfigCardContent_project_annotations$key } from "./__generated__/ProjectAnnotationConfigCardContent_project_annotations.graphql";
@@ -185,6 +185,13 @@ const ProjectAnnotationConfigCardContent = (
     projectAnnotationData?.annotationConfigs?.edges.map(
       (edge) => edge?.node?.name
     ) || [];
+  if (allAnnotationConfigs.edges.length === 0) {
+    return (
+      <Flex direction="row" justifyContent="center">
+        <Text>No annotation configurations available.</Text>
+      </Flex>
+    );
+  }
   return (
     <ul
       css={css`
