@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.24.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.1...arize-phoenix-v8.24.2) (2025-04-10)
+
+
+### Bug Fixes
+
+* restore streaming ([#7107](https://github.com/Arize-ai/phoenix/issues/7107)) ([a78c2e4](https://github.com/Arize-ai/phoenix/commit/a78c2e42cde6e8a4895dde6a046968ba5c52c564))
+* update Gemini models for playground ([#7102](https://github.com/Arize-ai/phoenix/issues/7102)) ([960a5a1](https://github.com/Arize-ai/phoenix/commit/960a5a14f6662314bb0ed3f10aaa71e3061cca9d))
+
 ## [8.24.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.0...arize-phoenix-v8.24.1) (2025-04-09)
 
 
