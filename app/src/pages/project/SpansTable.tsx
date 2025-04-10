@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useMatch, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -138,9 +138,6 @@ export const MemoizedTableBody = React.memo(
 
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
-  // Determine if the table is active based on the current path
-  const isTableActive = !!useMatch("/projects/:projectId/spans");
-  const isTableActiveRef = useRef(isTableActive);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
@@ -477,22 +474,20 @@ export function SpansTable(props: SpansTableProps) {
       isFirstRender.current = false;
       return;
     }
-    if (isTableActiveRef.current) {
-      //if the sorting changes, we need to reset the pagination
-      startTransition(() => {
-        const sort = sorting[0];
-        refetch(
-          {
-            sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
-            after: null,
-            first: PAGE_SIZE,
-            filterCondition,
-            rootSpansOnly,
-          },
-          { fetchPolicy: "store-and-network" }
-        );
-      });
-    }
+    //if the sorting changes, we need to reset the pagination
+    startTransition(() => {
+      const sort = sorting[0];
+      refetch(
+        {
+          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition,
+          rootSpansOnly,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
+    });
   }, [sorting, refetch, filterCondition, fetchKey, rootSpansOnly]);
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
