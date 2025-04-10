@@ -13,18 +13,13 @@ import {
 } from "react-relay";
 import { css } from "@emotion/react";
 
-// eslint-disable-next-line deprecate/import
-import {
-  Card,
-  Item,
-  ListBox,
-  PopoverTrigger,
-  TriggerWrap,
-} from "@arizeai/components";
+import { Card } from "@arizeai/components";
 
 import {
   Alert,
   Button,
+  Dialog,
+  DialogTrigger,
   Disclosure,
   DisclosureGroup,
   DisclosurePanel,
@@ -35,10 +30,16 @@ import {
   Icons,
   Input,
   Label,
+  ListBox,
+  ListBoxItem,
+  Loading,
+  Popover,
+  Text,
   TextField,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
+import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import {
@@ -131,62 +132,73 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
     spanNodeId,
     onAnnotationNameSelect,
   } = props;
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [popoverRef, setPopoverRef] = useState<HTMLDivElement | null>(null);
   return (
-    <PopoverTrigger
-      placement="bottom end"
-      crossOffset={300}
-      isOpen={isPopoverOpen}
-      onOpenChange={(isOpen) => {
-        setIsPopoverOpen(isOpen);
-      }}
-    >
-      <TriggerWrap>
+    <>
+      <DialogTrigger>
         <Button
           variant={disabled ? "default" : "primary"}
           isDisabled={disabled}
           size="S"
           leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
-          onPress={() => {
-            setIsPopoverOpen(true);
-          }}
         >
-          New Annotation
+          Add Annotation
         </Button>
-      </TriggerWrap>
-      <NewAnnotationPopover
-        projectId={projectId}
-        spanNodeId={spanNodeId}
-        onAnnotationNameSelect={(name) => {
-          onAnnotationNameSelect(name);
-          setIsPopoverOpen(false);
-        }}
-      />
-    </PopoverTrigger>
+        <Popover
+          style={{ border: "none" }}
+          placement="bottom end"
+          crossOffset={300}
+          UNSTABLE_portalContainer={popoverRef ?? undefined}
+        >
+          <Dialog>
+            {({ close }) => (
+              <NewAnnotationCard
+                projectId={projectId}
+                spanNodeId={spanNodeId}
+                onAnnotationNameSelect={(name) => {
+                  onAnnotationNameSelect(name);
+                }}
+                onClose={close}
+              />
+            )}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+      <div ref={setPopoverRef} />
+    </>
   );
 }
 
-type NewAnnotationPopoverProps = {
+type NewAnnotationCardProps = {
   projectId: string;
   spanNodeId: string;
+  onClose: () => void;
   onAnnotationNameSelect: (name: string) => void;
 };
 
-function NewAnnotationPopover(props: NewAnnotationPopoverProps) {
-  const { projectId, spanNodeId, onAnnotationNameSelect } = props;
+function NewAnnotationCard(props: NewAnnotationCardProps) {
+  const { projectId, spanNodeId, onAnnotationNameSelect, onClose } = props;
   return (
     <Card
-      title="New Annotation"
+      title="Add Annotation from Config"
       backgroundColor="light"
       borderColor="light"
       variant="compact"
       bodyStyle={{ padding: 0 }}
     >
       <Suspense>
-        <NewAnnotationPopoverContent
+        <NewAnnotationFromConfig
           projectId={projectId}
           spanId={spanNodeId}
-          onAnnotationNameSelect={onAnnotationNameSelect}
+          onClose={onClose}
+          renderNewAnnotationForm={
+            <NewAnnotationInput
+              projectId={projectId}
+              spanId={spanNodeId}
+              onAnnotationNameSelect={onAnnotationNameSelect}
+              onClose={onClose}
+            />
+          }
         />
       </Suspense>
     </Card>
@@ -446,7 +458,7 @@ function SpanAnnotationDisclosure(props: {
   );
 }
 
-function NewAnnotationPopoverContent(props: {
+function NewAnnotationInput(props: {
   projectId: string;
   spanId: string;
   /**
@@ -454,8 +466,12 @@ function NewAnnotationPopoverContent(props: {
    * @param name The name of the annotation
    */
   onAnnotationNameSelect: (name: string) => void;
+  /**
+   * Callback when the popover is closed
+   */
+  onClose: () => void;
 }) {
-  const { projectId, spanId, onAnnotationNameSelect } = props;
+  const { projectId, spanId, onAnnotationNameSelect, onClose } = props;
   const data = useLazyLoadQuery<SpanAnnotationsEditorNewAnnotationQuery>(
     graphql`
       query SpanAnnotationsEditorNewAnnotationQuery(
@@ -501,18 +517,24 @@ function NewAnnotationPopoverContent(props: {
   return (
     <>
       <View padding="size-200">
+        <Text size="S" weight="heavy">
+          New Annotation
+        </Text>
         <Form
           onSubmit={(e) => {
             e.preventDefault();
             onAnnotationNameSelect(newName);
+            onClose();
           }}
         >
           <Flex direction="row" gap="size-100" alignItems="end">
             <TextField
+              autoFocus
               value={newName}
               onChange={(newName) => {
                 setNewName(newName);
               }}
+              name="new-annotation-name"
             >
               <Label>Annotation Name</Label>
               <Input placeholder="e.x. correctness" />
@@ -550,11 +572,33 @@ function NewAnnotationPopoverContent(props: {
             disabledKeys={existingAnnotationNames}
           >
             {availableNames.map((name) => (
-              <Item key={name}>{name}</Item>
+              <ListBoxItem key={name}>{name}</ListBoxItem>
             ))}
           </ListBox>
         </>
       )}
     </>
+  );
+}
+
+function NewAnnotationFromConfig(props: {
+  projectId: string;
+  spanId: string;
+  onClose: () => void;
+  renderNewAnnotationForm: React.ReactNode;
+}) {
+  const { projectId, spanId, renderNewAnnotationForm } = props;
+  return (
+    <View minWidth={320}>
+      <Suspense fallback={<Loading />}>
+        <Flex direction="column" gap="size-100">
+          <AnnotationConfigList
+            projectId={projectId}
+            spanId={spanId}
+            renderNewAnnotationForm={renderNewAnnotationForm}
+          />
+        </Flex>
+      </Suspense>
+    </View>
   );
 }
