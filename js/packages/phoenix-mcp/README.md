@@ -23,7 +23,7 @@ You can use Phoenix MCP Server for:
 - **Datasets**: Explore datasets, and syntesize new examples
 - **Experiments**: Pull experiment results and visualize them with the help of an LLM
 
-Don't se a use-case covered? `@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
+Don't see a use-case covered? `@arizeai/phoenix-mcp` is [open-source](https://github.com/Arize-ai/phoenix)! Issues and PRs welcome.
 
 ## Installation
 
@@ -50,15 +50,15 @@ This MCP server can be used using `npx` and can be directly integrated with clie
 
 ## Install
 
-This package as managed via a pnpm workspace.
+This package is managed via a pnpm workspace.
 
 ```sh
 // From the /js/ directory
-pnpm install -r
-pnpm build -r
+pnpm install
+pnpm build
 ```
 
-This only needs to be repeated if dependancies change or there is a change to the phoenix-client.
+This only needs to be repeated if dependencies change or there is a change to the phoenix-client.
 
 ### Building
 
