@@ -194,6 +194,8 @@ class AsyncSpans:
         data = [span.to_dict() for span in response_body.data]
 
         try:
+            import pandas as pd
+
             return pd.DataFrame(data)
         except ImportError:
             raise ImportError(
