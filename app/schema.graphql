@@ -2065,7 +2065,7 @@ type Span implements Node {
   """
   Annotations associated with the span. This encompasses both LLM and human annotations.
   """
-  spanAnnotations(sort: SpanAnnotationSort): [SpanAnnotation!]!
+  spanAnnotations(sort: SpanAnnotationSort, filter: SpanAnnotationFilter = null): [SpanAnnotation!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
@@ -2139,6 +2139,17 @@ type SpanAnnotation implements Node & Annotation {
 enum SpanAnnotationColumn {
   createdAt
   name
+}
+
+input SpanAnnotationFilter {
+  include: SpanAnnotationFilterCondition
+  exclude: SpanAnnotationFilterCondition
+}
+
+input SpanAnnotationFilterCondition {
+  names: [String!]
+  sources: [AnnotationSource!]
+  userIds: [GlobalID!]
 }
 
 type SpanAnnotationMutationPayload {
