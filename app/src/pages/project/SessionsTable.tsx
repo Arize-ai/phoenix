@@ -254,7 +254,7 @@ export function SessionsTable(props: SessionsTableProps) {
           first: PAGE_SIZE,
           filterIoSubstring: filterIoSubstring,
         },
-        { fetchPolicy: "store-or-network" }
+        { fetchPolicy: "store-and-network" }
       );
     });
   }, [sorting, refetch, filterIoSubstring, fetchKey]);

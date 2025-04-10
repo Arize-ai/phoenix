@@ -488,7 +488,7 @@ export function SpansTable(props: SpansTableProps) {
             filterCondition,
             rootSpansOnly,
           },
-          { fetchPolicy: "store-or-network" }
+          { fetchPolicy: "store-and-network" }
         );
       });
     }
