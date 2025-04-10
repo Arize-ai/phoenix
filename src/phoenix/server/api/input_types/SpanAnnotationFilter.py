@@ -28,9 +28,9 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
     """
     span_annotation_source = AnnotationSource(span_annotation.source)
     if include := filter.include:
-        if include.names is not UNSET and span_annotation.name not in include.names:
+        if include.names and span_annotation.name not in include.names:
             return False
-        if include.sources is not UNSET and span_annotation_source not in include.sources:
+        if include.sources and span_annotation_source not in include.sources:
             return False
         if include.user_ids:
             user_rowids = [
@@ -39,9 +39,9 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
             if span_annotation.user_id not in user_rowids:
                 return False
     if exclude := filter.exclude:
-        if exclude.names is not UNSET and span_annotation.name in exclude.names:
+        if exclude.names and span_annotation.name in exclude.names:
             return False
-        if exclude.sources is not UNSET and span_annotation_source in exclude.sources:
+        if exclude.sources and span_annotation_source in exclude.sources:
             return False
         if exclude.user_ids:
             user_rowids = [
