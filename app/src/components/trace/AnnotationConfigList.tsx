@@ -8,11 +8,15 @@ import {
 } from "react-relay";
 import { css } from "@emotion/react";
 
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+
 import {
   Button,
   Dialog,
   DialogTrigger,
   Flex,
+  Icon,
+  Icons,
   Input,
   Link,
   ListBox,
@@ -243,7 +247,14 @@ export function AnnotationConfigList(props: {
                   <Input placeholder="Search annotation configs" />
                 </TextField>
                 <DialogTrigger>
-                  <Button aria-label="Create annotation config">New</Button>
+                  <TooltipTrigger>
+                    <TriggerWrap>
+                      <Button aria-label="Create annotation config">
+                        <Icon svg={<Icons.PlusCircleOutline />} />
+                      </Button>
+                    </TriggerWrap>
+                    <Tooltip>Create new annotation config</Tooltip>
+                  </TooltipTrigger>
                   <Modal
                     isDismissable
                     UNSTABLE_portalContainer={popoverRef ?? undefined}
