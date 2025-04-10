@@ -1,4 +1,5 @@
 import pytest
+from strawberry.relay import GlobalID
 
 from phoenix.db.models import SpanAnnotation
 from phoenix.server.api.input_types.SpanAnnotationFilter import (
@@ -6,6 +7,7 @@ from phoenix.server.api.input_types.SpanAnnotationFilter import (
     SpanAnnotationFilterCondition,
     satisfies_filter,
 )
+from phoenix.server.api.types.AnnotationSource import AnnotationSource
 
 
 @pytest.mark.parametrize(
@@ -29,6 +31,21 @@ from phoenix.server.api.input_types.SpanAnnotationFilter import (
         pytest.param(
             SpanAnnotation(
                 span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(include=SpanAnnotationFilterCondition(name="test-name")),
+            True,
+            id="matches-included-name",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
                 name="span-annotation-name",
                 label="label",
                 score=1.0,
@@ -39,7 +56,213 @@ from phoenix.server.api.input_types.SpanAnnotationFilter import (
             ),
             SpanAnnotationFilter(include=SpanAnnotationFilterCondition(name="missing-name")),
             False,
-            id="missing-name",
+            id="does-not-match-included-name",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(exclude=SpanAnnotationFilterCondition(name="test-name")),
+            False,
+            id="matches-excluded-name",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(exclude=SpanAnnotationFilterCondition(name="different-name")),
+            True,
+            id="does-not-match-excluded-name",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(source=AnnotationSource.API)
+            ),
+            True,
+            id="matches-included-source",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(source=AnnotationSource.API)
+            ),
+            False,
+            id="does-not-match-included-source",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="APP",
+            ),
+            SpanAnnotationFilter(
+                exclude=SpanAnnotationFilterCondition(source=AnnotationSource.APP)
+            ),
+            False,
+            id="matches-excluded-source",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(
+                exclude=SpanAnnotationFilterCondition(source=AnnotationSource.APP)
+            ),
+            True,
+            id="does-not-match-excluded-source",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=1,
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(user_ids=[GlobalID("User", "1")])
+            ),
+            True,
+            id="matches-included-user-id",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=1,
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(user_ids=[GlobalID("User", "2")])
+            ),
+            False,
+            id="does-not-match-included-user-id",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=None,
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(user_ids=[GlobalID("User", "1")])
+            ),
+            False,
+            id="does-not-match-included-user-id-with-null-user-id",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=1,
+            ),
+            SpanAnnotationFilter(
+                exclude=SpanAnnotationFilterCondition(user_ids=[GlobalID("User", "1")])
+            ),
+            False,
+            id="matches-excluded-user-id",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=2,
+            ),
+            SpanAnnotationFilter(
+                exclude=SpanAnnotationFilterCondition(user_ids=[GlobalID("User", "1")])
+            ),
+            True,
+            id="does-not-match-excluded-user-id",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=None,
+            ),
+            SpanAnnotationFilter(
+                exclude=SpanAnnotationFilterCondition(user_ids=[GlobalID("User", "1")])
+            ),
+            True,
+            id="does-not-match-excluded-user-id-with-null-user-id",
         ),
     ],
 )
