@@ -33,7 +33,7 @@ Tracing in Phoenix
 
 [Tracing](tracing/llm-traces.md) is a helpful tool for understanding how your LLM application works. Phoenix's open-source library offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework.&#x20;
 
-Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](tracing/integrations-tracing/llamaindex.md), [LangChain](tracing/integrations-tracing/langchain.md),[ DSPy](tracing/integrations-tracing/dspy.md)), SDKs ([OpenAI](tracing/integrations-tracing/openai.md), [Bedrock](tracing/integrations-tracing/bedrock.md), [Mistral](tracing/integrations-tracing/mistralai.md), [Vertex](tracing/integrations-tracing/vertexai.md)), and Languages. ([Python](broken-reference), [Javascript](tracing/how-to-tracing/setup-tracing/javascript.md), etc.)
+Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ([LlamaIndex](tracing/integrations-tracing/llamaindex.md), [LangChain](tracing/integrations-tracing/langchain.md),[ DSPy](tracing/integrations-tracing/dspy.md)), SDKs ([OpenAI](tracing/integrations-tracing/openai.md), [Bedrock](tracing/integrations-tracing/bedrock.md), [Mistral](tracing/integrations-tracing/mistralai.md), [Vertex](tracing/integrations-tracing/vertexai.md)), and Languages. ([Python](tracing/integrations-tracing/#python), [Javascript](tracing/how-to-tracing/setup-tracing/javascript.md), etc.)
 {% endtab %}
 
 {% tab title="Evaluation" %}
