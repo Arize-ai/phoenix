@@ -11,8 +11,8 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 @strawberry.input
 class SpanAnnotationFilterCondition:
-    name: Optional[str] = UNSET
-    source: Optional[AnnotationSource] = UNSET
+    names: Optional[list[str]] = UNSET
+    sources: Optional[list[AnnotationSource]] = UNSET
     user_ids: Optional[list[GlobalID]] = UNSET
 
 
@@ -28,9 +28,9 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
     """
     span_annotation_source = AnnotationSource(span_annotation.source)
     if include := filter.include:
-        if include.name is not UNSET and span_annotation.name != include.name:
+        if include.names is not UNSET and span_annotation.name not in include.names:
             return False
-        if include.source is not UNSET and span_annotation_source is not include.source:
+        if include.sources is not UNSET and span_annotation_source not in include.sources:
             return False
         if include.user_ids:
             user_rowids = [
@@ -39,9 +39,9 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
             if span_annotation.user_id not in user_rowids:
                 return False
     if exclude := filter.exclude:
-        if exclude.name is not UNSET and span_annotation.name == exclude.name:
+        if exclude.names is not UNSET and span_annotation.name in exclude.names:
             return False
-        if exclude.source is not UNSET and span_annotation_source is exclude.source:
+        if exclude.sources is not UNSET and span_annotation_source in exclude.sources:
             return False
         if exclude.user_ids:
             user_rowids = [

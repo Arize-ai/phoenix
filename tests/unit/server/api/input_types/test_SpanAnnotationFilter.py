@@ -39,7 +39,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 annotator_kind="HUMAN",
                 source="API",
             ),
-            SpanAnnotationFilter(include=SpanAnnotationFilterCondition(name="test-name")),
+            SpanAnnotationFilter(include=SpanAnnotationFilterCondition(names=["test-name"])),
             True,
             id="matches-included-name",
         ),
@@ -54,7 +54,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 annotator_kind="HUMAN",
                 source="API",
             ),
-            SpanAnnotationFilter(include=SpanAnnotationFilterCondition(name="missing-name")),
+            SpanAnnotationFilter(include=SpanAnnotationFilterCondition(names=["missing-name"])),
             False,
             id="does-not-match-included-name",
         ),
@@ -69,7 +69,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 annotator_kind="HUMAN",
                 source="API",
             ),
-            SpanAnnotationFilter(exclude=SpanAnnotationFilterCondition(name="test-name")),
+            SpanAnnotationFilter(exclude=SpanAnnotationFilterCondition(names=["test-name"])),
             False,
             id="matches-excluded-name",
         ),
@@ -84,7 +84,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 annotator_kind="HUMAN",
                 source="API",
             ),
-            SpanAnnotationFilter(exclude=SpanAnnotationFilterCondition(name="different-name")),
+            SpanAnnotationFilter(exclude=SpanAnnotationFilterCondition(names=["different-name"])),
             True,
             id="does-not-match-excluded-name",
         ),
@@ -100,7 +100,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 source="API",
             ),
             SpanAnnotationFilter(
-                include=SpanAnnotationFilterCondition(source=AnnotationSource.API)
+                include=SpanAnnotationFilterCondition(sources=[AnnotationSource.API])
             ),
             True,
             id="matches-included-source",
@@ -117,7 +117,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 source="APP",
             ),
             SpanAnnotationFilter(
-                include=SpanAnnotationFilterCondition(source=AnnotationSource.API)
+                include=SpanAnnotationFilterCondition(sources=[AnnotationSource.API])
             ),
             False,
             id="does-not-match-included-source",
@@ -134,7 +134,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 source="APP",
             ),
             SpanAnnotationFilter(
-                exclude=SpanAnnotationFilterCondition(source=AnnotationSource.APP)
+                exclude=SpanAnnotationFilterCondition(sources=[AnnotationSource.APP])
             ),
             False,
             id="matches-excluded-source",
@@ -151,7 +151,7 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
                 source="API",
             ),
             SpanAnnotationFilter(
-                exclude=SpanAnnotationFilterCondition(source=AnnotationSource.APP)
+                exclude=SpanAnnotationFilterCondition(sources=[AnnotationSource.APP])
             ),
             True,
             id="does-not-match-excluded-source",
@@ -278,10 +278,14 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
             ),
             SpanAnnotationFilter(
                 include=SpanAnnotationFilterCondition(
-                    name="test-name", source=AnnotationSource.API, user_ids=[GlobalID("User", "1")]
+                    names=["test-name"],
+                    sources=[AnnotationSource.API],
+                    user_ids=[GlobalID("User", "1")],
                 ),
                 exclude=SpanAnnotationFilterCondition(
-                    name="other-name", source=AnnotationSource.APP, user_ids=[GlobalID("User", "2")]
+                    names=["other-name"],
+                    sources=[AnnotationSource.APP],
+                    user_ids=[GlobalID("User", "2")],
                 ),
             ),
             True,
@@ -301,12 +305,54 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
             ),
             SpanAnnotationFilter(
                 include=SpanAnnotationFilterCondition(
-                    name="test-name", source=AnnotationSource.API, user_ids=[GlobalID("User", "1")]
+                    names=["test-name"],
+                    sources=[AnnotationSource.API],
+                    user_ids=[GlobalID("User", "1")],
                 ),
-                exclude=SpanAnnotationFilterCondition(name="test-name"),
+                exclude=SpanAnnotationFilterCondition(names=["test-name"]),
             ),
             False,
             id="matches-all-include-fields-but-fails-on-exclude-name",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(
+                    names=["test-name", "other-name"],
+                    sources=[AnnotationSource.API, AnnotationSource.APP],
+                ),
+            ),
+            True,
+            id="matches-multiple-included-names-and-sources",
+        ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+            ),
+            SpanAnnotationFilter(
+                exclude=SpanAnnotationFilterCondition(
+                    names=["test-name", "other-name"],
+                    sources=[AnnotationSource.API, AnnotationSource.APP],
+                ),
+            ),
+            False,
+            id="matches-multiple-excluded-names-and-sources",
         ),
     ],
 )
