@@ -213,7 +213,6 @@ async def _ensure_admins(
     ):
         if isinstance(exc, Exception):
             logger.error(f"Failed to send welcome email: {exc}")
-        await session.execute(insert(models.User).values(values))
 
 
 async def _ensure_default_project_trace_retention_policy(db: DbSessionFactory) -> None:

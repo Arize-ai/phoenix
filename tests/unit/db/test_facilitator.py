@@ -123,8 +123,7 @@ class TestEnsureDefaultProjectTraceRetentionPolicy:
             policies = list(await session.scalars(stmt))
         assert len(policies) == 0
         for _ in range(2):
-            async with db() as session:
-                await _ensure_default_project_trace_retention_policy(session)
+            await _ensure_default_project_trace_retention_policy(db)
             async with db() as session:
                 policies = list(await session.scalars(stmt))
             assert len(policies) == 1
