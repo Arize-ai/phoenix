@@ -287,6 +287,27 @@ from phoenix.server.api.types.AnnotationSource import AnnotationSource
             True,
             id="matches-all-include-fields-and-no-exclude-fields",
         ),
+        pytest.param(
+            SpanAnnotation(
+                span_rowid=1,
+                name="test-name",
+                label="label",
+                score=1.0,
+                explanation="explanation",
+                metadata_={},
+                annotator_kind="HUMAN",
+                source="API",
+                user_id=1,
+            ),
+            SpanAnnotationFilter(
+                include=SpanAnnotationFilterCondition(
+                    name="test-name", source=AnnotationSource.API, user_ids=[GlobalID("User", "1")]
+                ),
+                exclude=SpanAnnotationFilterCondition(name="test-name"),
+            ),
+            False,
+            id="matches-all-include-fields-but-fails-on-exclude-name",
+        ),
     ],
 )
 def test_satisfies_filter(
