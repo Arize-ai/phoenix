@@ -271,7 +271,7 @@ class SpanQuery:
 
 
 @dataclass
-class GetSpansRequestBody:
+class SpanQueryRequestBody:
     queries: list[SpanQuery] = dataclass_field(default_factory=list)
     start_time: Optional[str] = dataclass_field(default=None)
     end_time: Optional[str] = dataclass_field(default=None)
@@ -313,6 +313,19 @@ class SpanData:
             "attributes": self.attributes,
         }
 
+    @classmethod
+    def from_dict(cls, obj: dict[str, Any]) -> "SpanData":
+        return cls(
+            span_id=obj.get("span_id", ""),
+            trace_id=obj.get("trace_id", ""),
+            name=obj.get("name", ""),
+            span_kind=obj.get("span_kind", ""),
+            start_time=obj.get("start_time", ""),
+            end_time=obj.get("end_time"),
+            parent_id=obj.get("parent_id"),
+            attributes=obj.get("attributes", {}),
+        )
+
 
 @dataclass
 class GetSpansResponseBody:
@@ -322,3 +335,9 @@ class GetSpansResponseBody:
         return {
             "data": [d.to_dict() for d in self.data],
         }
+
+    @classmethod
+    def from_dict(cls, obj: dict[str, Any]) -> "GetSpansResponseBody":
+        return cls(
+            data=[SpanData.from_dict(d) for d in obj.get("data", [])],
+        )

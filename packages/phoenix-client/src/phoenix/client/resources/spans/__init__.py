@@ -1,14 +1,18 @@
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 import httpx
 
 from phoenix.client.types.spans import (
-    GetSpansRequestBody,
     GetSpansResponseBody,
+    SpanData,
     SpanQuery,
+    SpanQueryRequestBody,
 )
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -20,22 +24,17 @@ class Spans:
     Example:
         Basic usage:
             >>> from phoenix.client import Client
-            >>> from phoenix.client.types.spans import SpanQuery, Projection
+            >>> from phoenix.client.types.spans import SpanQuery
             >>> client = Client()
-            >>> query = SpanQuery(
-            ...     select={"name": Projection(key="name")},
-            ...     filter=SpanFilter(condition="name == 'my-span'")
-            ... )
-            >>> data = client.spans.get_spans(query=query)
-            >>> # Convert to DataFrame if needed
-            >>> import pandas as pd
-            >>> df = pd.DataFrame(data)
+            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
+            >>> df = client.spans.get_spans_dataframe(query=query)
+
     """
 
     def __init__(self, client: httpx.Client) -> None:
         self._client = client
 
-    def get_spans(
+    def get_spans_dataframe(
         self,
         *,
         query: Optional[SpanQuery] = None,
@@ -44,8 +43,7 @@ class Spans:
         limit: int = 1000,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
-        as_dataframe: bool = False,
-    ) -> Union[List[Dict[str, Any]], Any]:
+    ) -> "pd.DataFrame":
         """
         Retrieves spans based on the provided filter conditions.
 
@@ -56,12 +54,14 @@ class Spans:
             limit: Maximum number of spans to return
             root_spans_only: Whether to return only root spans
             project_name: Optional project name to filter by
-            as_dataframe: If True, returns a pandas DataFrame. Requires pandas to be installed.
 
         Returns:
-            List of dictionaries containing span data, or a pandas DataFrame if as_dataframe=True
+            pandas DataFrame
+
+        Raises:
+            ImportError: If pandas is not installed
         """
-        request_body = GetSpansRequestBody(
+        request_body = SpanQueryRequestBody(
             queries=[query] if query else [],
             start_time=start_time.isoformat() if start_time else None,
             end_time=end_time.isoformat() if end_time else None,
@@ -78,42 +78,17 @@ class Spans:
         response_body = GetSpansResponseBody.from_dict(response.json())
         data = [span.to_dict() for span in response_body.data]
 
-        if as_dataframe:
-            try:
-                import pandas as pd
+        try:
+            import pandas as pd
 
-                return pd.DataFrame(data)
-            except ImportError:
-                raise ImportError(
-                    "pandas is required to return a DataFrame. "
-                    "Install it with 'pip install pandas' or set as_dataframe=False"
-                )
-        return data
+            return pd.DataFrame(data)
+        except ImportError:
+            raise ImportError(
+                "pandas is required to use get_spans_dataframe. "
+                "Install it with 'pip install pandas'"
+            )
 
-
-class AsyncSpans:
-    """
-    Provides async methods for interacting with span resources.
-
-    Example:
-        Basic usage:
-            >>> from phoenix.client import Client
-            >>> from phoenix.client.types.spans import SpanQuery, Projection
-            >>> client = Client()
-            >>> query = SpanQuery(
-            ...     select={"name": Projection(key="name")},
-            ...     filter=SpanFilter(condition="name == 'my-span'")
-            ... )
-            >>> data = await client.spans.get_spans(query=query)
-            >>> # Convert to DataFrame if needed
-            >>> import pandas as pd
-            >>> df = pd.DataFrame(data)
-    """
-
-    def __init__(self, client: httpx.AsyncClient) -> None:
-        self._client = client
-
-    async def get_spans(
+    def get_spans(
         self,
         *,
         query: Optional[SpanQuery] = None,
@@ -122,8 +97,7 @@ class AsyncSpans:
         limit: int = 1000,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
-        as_dataframe: bool = False,
-    ) -> Union[List[Dict[str, Any]], Any]:
+    ) -> list[SpanData]:
         """
         Retrieves spans based on the provided filter conditions.
 
@@ -134,12 +108,75 @@ class AsyncSpans:
             limit: Maximum number of spans to return
             root_spans_only: Whether to return only root spans
             project_name: Optional project name to filter by
-            as_dataframe: If True, returns a pandas DataFrame. Requires pandas to be installed.
 
         Returns:
-            List of dictionaries containing span data, or a pandas DataFrame if as_dataframe=True
+            list of SpanData
         """
-        request_body = GetSpansRequestBody(
+        request_body = SpanQueryRequestBody(
+            queries=[query] if query else [],
+            start_time=start_time.isoformat() if start_time else None,
+            end_time=end_time.isoformat() if end_time else None,
+            limit=limit,
+            root_spans_only=root_spans_only,
+            project_name=project_name,
+        )
+
+        response = self._client.post(
+            "v1/spans",
+            json=request_body.to_dict(),
+        )
+        response.raise_for_status()
+        response_body = GetSpansResponseBody.from_dict(response.json())
+        return response_body.data
+
+
+class AsyncSpans:
+    """
+    Provides async methods for interacting with span resources.
+
+    Example:
+        Basic usage:
+            >>> import asyncio
+            >>> from phoenix.client import AsyncClient
+            >>> from phoenix.client.types.spans import SpanQuery
+            >>> client = AsyncClient()
+            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
+            >>> df = await client.spans.get_spans_dataframe(query=query)
+
+    """
+
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._client = client
+
+    async def get_spans_dataframe(
+        self,
+        *,
+        query: Optional[SpanQuery] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 1000,
+        root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
+        as_dataframe: bool = False,
+    ) -> "pd.DataFrame":
+        """
+        Retrieves spans based on the provided filter conditions.
+
+        Args:
+            query: Optional query to filter spans
+            start_time: Optional start time for filtering
+            end_time: Optional end time for filtering
+            limit: Maximum number of spans to return
+            root_spans_only: Whether to return only root spans
+            project_name: Optional project name to filter by
+
+        Returns:
+            pandas DataFrame
+
+        Raises:
+            ImportError: If pandas is not installed
+        """
+        request_body = SpanQueryRequestBody(
             queries=[query] if query else [],
             start_time=start_time.isoformat() if start_time else None,
             end_time=end_time.isoformat() if end_time else None,
@@ -156,14 +193,40 @@ class AsyncSpans:
         response_body = GetSpansResponseBody.from_dict(response.json())
         data = [span.to_dict() for span in response_body.data]
 
-        if as_dataframe:
-            try:
-                import pandas as pd
+        try:
+            return pd.DataFrame(data)
+        except ImportError:
+            raise ImportError(
+                "pandas is required to use get_spans_dataframe. "
+                "Install it with 'pip install pandas'"
+            )
 
-                return pd.DataFrame(data)
-            except ImportError:
-                raise ImportError(
-                    "pandas is required to return a DataFrame. "
-                    "Install it with 'pip install pandas' or set as_dataframe=False"
-                )
-        return data
+    async def get_spans(
+        self,
+        *,
+        query: Optional[SpanQuery] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 1000,
+        root_spans_only: Optional[bool] = None,
+        project_name: Optional[str] = None,
+    ) -> list[SpanData]:
+        """
+        Retrieves spans based on the provided filter conditions.
+        """
+        request_body = SpanQueryRequestBody(
+            queries=[query] if query else [],
+            start_time=start_time.isoformat() if start_time else None,
+            end_time=end_time.isoformat() if end_time else None,
+            limit=limit,
+            root_spans_only=root_spans_only,
+            project_name=project_name,
+        )
+
+        response = await self._client.post(
+            "v1/spans",
+            json=request_body.to_dict(),
+        )
+        response.raise_for_status()
+        response_body = GetSpansResponseBody.from_dict(response.json())
+        return response_body.data
