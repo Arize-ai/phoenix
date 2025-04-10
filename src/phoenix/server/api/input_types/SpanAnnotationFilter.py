@@ -33,9 +33,9 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
         if include.source is not UNSET and span_annotation_source is not include.source:
             return False
         if include.user_ids:
-            user_rowids = set(
+            user_rowids = [
                 from_global_id_with_expected_type(user_id, "User") for user_id in include.user_ids
-            )
+            ]
             if span_annotation.user_id not in user_rowids:
                 return False
     if exclude := filter.exclude:
@@ -44,9 +44,9 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
         if exclude.source is not UNSET and span_annotation_source is exclude.source:
             return False
         if exclude.user_ids:
-            user_rowids = set(
+            user_rowids = [
                 from_global_id_with_expected_type(user_id, "User") for user_id in exclude.user_ids
-            )
+            ]
             if span_annotation.user_id in user_rowids:
                 return False
     return True
