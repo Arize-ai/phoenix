@@ -2150,8 +2150,8 @@ input SpanAnnotationFilter {
 }
 
 input SpanAnnotationFilterCondition {
-  name: String
-  source: AnnotationSource
+  names: [String!]
+  sources: [AnnotationSource!]
   userIds: [GlobalID!]
 }
 
