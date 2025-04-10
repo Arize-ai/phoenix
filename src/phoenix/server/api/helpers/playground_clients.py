@@ -903,7 +903,10 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
-        "gemini-2.0-flash-exp",
+        "gemini-2.5-pro-preview-03-25",
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash-001",
+        "gemini-2.0-flash-thinking-exp-01-21",
         "gemini-1.5-flash",
         "gemini-1.5-flash-8b",
         "gemini-1.5-pro",
