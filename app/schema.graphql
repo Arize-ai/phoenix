@@ -80,6 +80,7 @@ enum AnnotationSource {
 }
 
 type AnnotationSummary {
+  name: String!
   count: Int!
   labels: [String!]!
   labelFractions: [LabelFraction!]!
@@ -2069,6 +2070,9 @@ type Span implements Node {
   Annotations associated with the span. This encompasses both LLM and human annotations.
   """
   spanAnnotations(sort: SpanAnnotationSort, filter: SpanAnnotationFilter = null): [SpanAnnotation!]!
+
+  """Summarizes each annotation (by name) associated with the span"""
+  spanAnnotationSummaries(filter: SpanAnnotationFilter = null): [AnnotationSummary!]!
 
   """
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
