@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import {
   type ColumnDef,
@@ -66,68 +66,71 @@ export const RetentionPoliciesTable = ({
     (edge) => edge.node
   );
 
-  const columns: ColumnDef<(typeof tableData)[number]>[] = [
-    {
-      header: "Name",
-      accessorKey: "name",
-    },
-    {
-      header: "Schedule",
-      accessorKey: "cronExpression",
-      cell: ({ row }) => {
-        return cronstrue.toString(row.original.cronExpression);
+  const columns: ColumnDef<(typeof tableData)[number]>[] = useMemo(
+    () => [
+      {
+        header: "Name",
+        accessorKey: "name",
       },
-    },
-    {
-      header: "Rule",
-      accessorKey: "rule",
-      cell: ({ row }) => {
-        const rule = row.original.rule;
-        if (rule.__typename === "TraceRetentionRuleMaxCount") {
-          return `${rule.maxCount} traces`;
-        }
-        if (rule.__typename === "TraceRetentionRuleMaxDays") {
-          if (rule.maxDays === 0) {
-            return "Infinite";
+      {
+        header: "Schedule",
+        accessorKey: "cronExpression",
+        cell: ({ row }) => {
+          return cronstrue.toString(row.original.cronExpression);
+        },
+      },
+      {
+        header: "Rule",
+        accessorKey: "rule",
+        cell: ({ row }) => {
+          const rule = row.original.rule;
+          if (rule.__typename === "TraceRetentionRuleMaxCount") {
+            return `${rule.maxCount} traces`;
           }
-          return `${rule.maxDays} days`;
-        }
-        if (rule.__typename === "TraceRetentionRuleMaxDaysOrCount") {
-          return `${rule.maxDays} days or ${rule.maxCount} traces`;
-        }
-        if (rule.__typename === "%other") {
-          return "Unknown";
-        }
-        assertUnreachable(rule);
+          if (rule.__typename === "TraceRetentionRuleMaxDays") {
+            if (rule.maxDays === 0) {
+              return "Infinite";
+            }
+            return `${rule.maxDays} days`;
+          }
+          if (rule.__typename === "TraceRetentionRuleMaxDaysOrCount") {
+            return `${rule.maxDays} days or ${rule.maxCount} traces`;
+          }
+          if (rule.__typename === "%other") {
+            return "Unknown";
+          }
+          assertUnreachable(rule);
+        },
       },
-    },
-    {
-      header: "Projects",
-      accessorKey: "projects",
-      cell: ({ row }) => {
-        return (
-          <ul
-            css={css`
-              li {
-                display: inline;
-              }
-              li:not(:first-child):before {
-                content: ", ";
-              }
-            `}
-          >
-            {row.original.projects.edges.map((edge) => (
-              <li key={edge.node.id}>
-                <Link to={`/projects/${edge.node.id}/config`}>
-                  {edge.node.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        );
+      {
+        header: "Projects",
+        accessorKey: "projects",
+        cell: ({ row }) => {
+          return (
+            <ul
+              css={css`
+                li {
+                  display: inline;
+                }
+                li:not(:first-child):before {
+                  content: ", ";
+                }
+              `}
+            >
+              {row.original.projects.edges.map((edge) => (
+                <li key={edge.node.id}>
+                  <Link to={`/projects/${edge.node.id}/config`}>
+                    {edge.node.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          );
+        },
       },
-    },
-  ];
+    ],
+    []
+  );
 
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
