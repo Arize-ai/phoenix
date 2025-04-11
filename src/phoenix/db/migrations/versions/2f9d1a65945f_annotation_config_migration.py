@@ -49,7 +49,6 @@ def upgrade() -> None:
         )
         batch_op.drop_constraint(
             constraint_name="ck_span_annotations_`valid_annotator_kind`",
-            table_name="span_annotations",
             type_="check",
         )
         batch_op.create_check_constraint(
