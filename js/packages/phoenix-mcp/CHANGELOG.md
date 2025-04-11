@@ -1,5 +1,11 @@
 # @arizeai/phoenix-mcp
 
+## 2.1.2
+
+### Patch Changes
+
+- 4cbb0e6: chore: Update readme
+
 ## 2.1.1
 
 ### Patch Changes
