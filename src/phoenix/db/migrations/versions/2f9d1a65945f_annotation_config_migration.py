@@ -48,11 +48,11 @@ def upgrade() -> None:
             ),
         )
         batch_op.drop_constraint(
-            constraint_name="ck_span_annotations_`valid_annotator_kind`",
+            constraint_name="valid_annotator_kind",
             type_="check",
         )
         batch_op.create_check_constraint(
-            constraint_name="ck_span_annotations_`valid_annotator_kind`",
+            constraint_name="valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
@@ -100,11 +100,11 @@ def upgrade() -> None:
             ),
         )
         batch_op.drop_constraint(
-            constraint_name="ck_trace_annotations_`valid_annotator_kind`",
+            constraint_name="valid_annotator_kind",
             type_="check",
         )
         batch_op.create_check_constraint(
-            constraint_name="ck_trace_annotations_`valid_annotator_kind`",
+            constraint_name="valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
         batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
@@ -137,7 +137,6 @@ def upgrade() -> None:
             type_="unique",
         )
         batch_op.add_column(
-            "document_annotations",
             sa.Column(
                 "identifier",
                 sa.String,
@@ -147,7 +146,6 @@ def upgrade() -> None:
             ),
         )
         batch_op.add_column(
-            "document_annotations",
             sa.Column(
                 "source",
                 sa.String,
@@ -159,11 +157,11 @@ def upgrade() -> None:
             ),
         )
         batch_op.drop_constraint(
-            constraint_name="ck_document_annotations_`valid_annotator_kind`",
+            constraint_name="valid_annotator_kind",
             type_="check",
         )
         batch_op.create_check_constraint(
-            constraint_name="ck_document_annotations_`valid_annotator_kind`",
+            constraint_name="valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
 
@@ -280,7 +278,7 @@ def downgrade() -> None:
         batch_op.drop_index("uq_span_annotations_span_rowid_name_identifier_not_null")
         batch_op.drop_index("uq_span_annotations_span_rowid_name_null_identifier")
         batch_op.drop_constraint("ck_span_annotations_`valid_source`", type_="check")
-        batch_op.drop_constraint("ck_span_annotations_`valid_annotator_kind`", type_="check")
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
         batch_op.drop_column("source")
         batch_op.drop_column("identifier")
@@ -288,7 +286,7 @@ def downgrade() -> None:
             "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
         )
         batch_op.create_check_constraint(
-            "ck_span_annotations_`valid_annotator_kind`",
+            "valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'HUMAN')",
         )
 
@@ -296,7 +294,7 @@ def downgrade() -> None:
         batch_op.drop_index("uq_trace_annotations_trace_rowid_name_identifier_not_null")
         batch_op.drop_index("uq_trace_annotations_trace_rowid_name_null_identifier")
         batch_op.drop_constraint("ck_trace_annotations_`valid_source`", type_="check")
-        batch_op.drop_constraint("ck_trace_annotations_`valid_annotator_kind`", type_="check")
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
         batch_op.drop_column("source")
         batch_op.drop_column("identifier")
@@ -304,14 +302,14 @@ def downgrade() -> None:
             "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
         )
         batch_op.create_check_constraint(
-            "ck_trace_annotations_`valid_annotator_kind`",
+            "valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'HUMAN')",
         )
 
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.drop_index("ix_document_annotations_identifier")
         batch_op.drop_constraint("ck_document_annotations_`valid_source`", type_="check")
-        batch_op.drop_constraint("ck_document_annotations_`valid_annotator_kind`", type_="check")
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
         batch_op.drop_column("source")
         batch_op.drop_column("identifier")
@@ -320,6 +318,6 @@ def downgrade() -> None:
             ["name", "span_rowid", "document_position"],
         )
         batch_op.create_check_constraint(
-            "ck_document_annotations_`valid_annotator_kind`",
+            "valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'HUMAN')",
         )
