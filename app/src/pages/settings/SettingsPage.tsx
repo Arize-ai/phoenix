@@ -44,6 +44,7 @@ export function SettingsPage() {
             <Tab id="general">General</Tab>
             <Tab id="providers">AI Providers</Tab>
             <Tab id="annotations">Annotations</Tab>
+            <Tab id="data">Data Retention</Tab>
           </TabList>
           <LazyTabPanel id="general" padded>
             <Outlet />
@@ -52,6 +53,9 @@ export function SettingsPage() {
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel id="annotations" padded>
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel id="data" padded>
             <Outlet />
           </LazyTabPanel>
         </Tabs>
