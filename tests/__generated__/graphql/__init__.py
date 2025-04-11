@@ -1802,6 +1802,9 @@ class SpanSort(BaseModel):
 
 class TextContentValueInput(BaseModel):
     model_config = ConfigDict(frozen=True)
+    redacted: Optional[bool] = None
+    signature: Optional[str] = None
+    subtype: Optional[str] = None
     text: str
 
 

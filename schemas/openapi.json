@@ -4071,6 +4071,21 @@
           "text": {
             "type": "string",
             "title": "Text"
+          },
+          "subtype": {
+            "type": "string",
+            "enum": [
+              "thinking"
+            ],
+            "title": "Subtype"
+          },
+          "signature": {
+            "type": "string",
+            "title": "Signature"
+          },
+          "redacted": {
+            "type": "boolean",
+            "title": "Redacted"
           }
         },
         "additionalProperties": false,
