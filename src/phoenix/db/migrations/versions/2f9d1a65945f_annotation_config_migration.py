@@ -50,13 +50,6 @@ def upgrade() -> None:
             ),
         )
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
-        batch_op.create_index(
-            "uq_span_annotations_span_rowid_identifier",
-            ["span_rowid", "identifier"],
-            unique=True,
-            postgresql_where=sa.column("identifier").isnot(None),
-            sqlite_where=sa.column("identifier").isnot(None),
-        )
     op.add_column(
         "trace_annotations",
         sa.Column(
@@ -88,13 +81,6 @@ def upgrade() -> None:
             ),
         )
         batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
-        batch_op.create_index(
-            "uq_trace_annotations_trace_rowid_identifier",
-            ["trace_rowid", "identifier"],
-            unique=True,
-            postgresql_where=sa.column("identifier").isnot(None),
-            sqlite_where=sa.column("identifier").isnot(None),
-        )
     op.add_column(
         "document_annotations",
         sa.Column(
@@ -232,6 +218,40 @@ def upgrade() -> None:
         ),
     )
 
+    op.create_index(
+        "uq_span_annotations_span_rowid_name_null_identifier",
+        "span_annotations",
+        ["span_rowid", "name"],
+        unique=True,
+        postgresql_where=sa.column("identifier").is_(None),
+        sqlite_where=sa.column("identifier").is_(None),
+    )
+    op.create_index(
+        "uq_span_annotations_span_rowid_name_identifier_not_null",
+        "span_annotations",
+        ["span_rowid", "name", "identifier"],
+        unique=True,
+        postgresql_where=sa.column("identifier").isnot(None),
+        sqlite_where=sa.column("identifier").isnot(None),
+    )
+
+    op.create_index(
+        "uq_trace_annotations_trace_rowid_name_null_identifier",
+        "trace_annotations",
+        ["trace_rowid", "name"],
+        unique=True,
+        postgresql_where=sa.column("identifier").is_(None),
+        sqlite_where=sa.column("identifier").is_(None),
+    )
+    op.create_index(
+        "uq_trace_annotations_trace_rowid_name_identifier_not_null",
+        "trace_annotations",
+        ["trace_rowid", "name", "identifier"],
+        unique=True,
+        postgresql_where=sa.column("identifier").isnot(None),
+        sqlite_where=sa.column("identifier").isnot(None),
+    )
+
 
 def downgrade() -> None:
     op.drop_table("project_annotation_configs")
@@ -241,18 +261,34 @@ def downgrade() -> None:
     op.drop_table("annotation_configs")
 
     with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.drop_index("ix_span_annotations_span_rowid_identifier")
+        batch_op.create_unique_constraint(
+            "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
+        )
         batch_op.drop_column("user_id")
         batch_op.drop_constraint("ck_span_annotations_`valid_source`", type_="check")
+    op.drop_index(
+        "uq_span_annotations_span_rowid_name_identifier_not_null", table_name="span_annotations"
+    )
+    op.drop_index(
+        "uq_span_annotations_span_rowid_name_null_identifier", table_name="span_annotations"
+    )
     op.drop_column("span_annotations", "source")
-    op.drop_index("ix_span_annotations_identifier")
     op.drop_column("span_annotations", "identifier")
     with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.drop_index("ix_trace_annotations_trace_rowid_identifier")
+        batch_op.create_unique_constraint(
+            "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
+        )
         batch_op.drop_column("user_id")
         batch_op.drop_constraint("ck_trace_annotations_`valid_source`", type_="check")
+    op.drop_index(
+        "uq_trace_annotations_trace_rowid_name_identifier_not_null",
+        table_name="trace_annotations",
+    )
+    op.drop_index(
+        "uq_trace_annotations_trace_rowid_name_null_identifier",
+        table_name="trace_annotations",
+    )
     op.drop_column("trace_annotations", "source")
-    op.drop_index("ix_trace_annotations_identifier")
     op.drop_column("trace_annotations", "identifier")
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.create_unique_constraint(

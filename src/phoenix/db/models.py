@@ -811,7 +811,17 @@ class SpanAnnotation(Base):
 
     __table_args__ = (
         Index(
+            "uq_span_annotations_span_rowid_name_null_identifier",
             "span_rowid",
+            "name",
+            unique=True,
+            postgresql_where=identifier.is_(None),
+            sqlite_where=identifier.is_(None),
+        ),
+        Index(
+            "uq_span_annotations_span_rowid_name_identifier_not_null",
+            "span_rowid",
+            "name",
             "identifier",
             unique=True,
             postgresql_where=identifier.isnot(None),
@@ -850,7 +860,17 @@ class TraceAnnotation(Base):
 
     __table_args__ = (
         Index(
+            "uq_trace_annotations_trace_rowid_name_null_identifier",
             "trace_rowid",
+            "name",
+            unique=True,
+            postgresql_where=identifier.is_(None),
+            sqlite_where=identifier.is_(None),
+        ),
+        Index(
+            "uq_trace_annotations_trace_rowid_name_identifier_not_null",
+            "trace_rowid",
+            "name",
             "identifier",
             unique=True,
             postgresql_where=identifier.isnot(None),
