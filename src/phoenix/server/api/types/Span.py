@@ -21,6 +21,10 @@ from phoenix.server.api.helpers.dataset_helpers import (
     get_dataset_example_output,
 )
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.SpanAnnotationFilter import (
+    SpanAnnotationFilter,
+    satisfies_filter,
+)
 from phoenix.server.api.input_types.SpanAnnotationSort import (
     SpanAnnotationColumn,
     SpanAnnotationSort,
@@ -490,11 +494,16 @@ class Span(Node):
         self,
         info: Info[Context, None],
         sort: Optional[SpanAnnotationSort] = UNSET,
+        filter: Optional[SpanAnnotationFilter] = None,
     ) -> list[SpanAnnotation]:
         span_id = self.span_rowid
         annotations = await info.context.data_loaders.span_annotations.load(span_id)
         sort_key = SpanAnnotationColumn.name.value
         sort_descending = False
+        if filter:
+            annotations = [
+                annotation for annotation in annotations if satisfies_filter(annotation, filter)
+            ]
         if sort:
             sort_key = sort.col.value
             sort_descending = sort.dir is SortDir.desc

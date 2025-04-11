@@ -14,10 +14,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { IsAdmin } from "@phoenix/components/auth";
+import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
 import { DBUsagePieChart } from "@phoenix/pages/settings/DBUsagePieChart";
+import { GlobalRetentionPolicyCard } from "@phoenix/pages/settings/GlobalRetentionPolicyCard";
 import { settingsGeneralPageLoader } from "@phoenix/pages/settings/settingsGeneralPageLoader";
 import { UsersCard } from "@phoenix/pages/settings/UsersCard";
 
@@ -81,11 +82,12 @@ export function SettingsGeneralPage() {
         </View>
       </Flex>
       <IsAdmin>
-        <>
-          <APIKeysCard />
-          <UsersCard />
-        </>
+        <APIKeysCard />
+        <UsersCard />
       </IsAdmin>
+      <CanManageRetentionPolicy>
+        <GlobalRetentionPolicyCard />
+      </CanManageRetentionPolicy>
     </Flex>
   );
 }

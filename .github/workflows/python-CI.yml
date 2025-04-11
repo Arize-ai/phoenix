@@ -2,7 +2,7 @@ name: Python CI
 
 on:
   push:
-    branches: [main, sessions]
+    branches: [main, feat/annotations]
   pull_request:
     paths:
       - "**/*.py"
@@ -70,8 +70,8 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix_client == 'true' }}
     strategy:
       matrix:
-        py: [ 3.9, 3.12 ]
-        os: [ ubuntu-latest, windows-latest, macos-13 ]
+        py: [3.9, 3.12]
+        os: [ubuntu-latest, windows-latest, macos-13]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,8 +139,8 @@ jobs:
     if: ${{ needs.changes.outputs.ipynb == 'true' }}
     strategy:
       matrix:
-        py: [ 3.13 ]
-        os: [ ubuntu-latest ]
+        py: [3.13]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -506,8 +506,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [ 3.9 ]
-        pkg: [ openai, anthropic, google_generativeai ]
+        py: [3.9]
+        pkg: [openai, anthropic, google_generativeai]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

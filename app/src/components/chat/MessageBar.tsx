@@ -15,12 +15,17 @@ interface MessageBarProps {
    * The function receives the trimmed message text as its argument.
    * @example (message) => console.log('New message:', message)
    */
-  onSendMessage: (message: string) => void;
+  onSendMessage?: (message: string) => void;
 
   /** Whether the message is currently being sent. Controls the button's loading state.
    * @default false
    */
   isSending?: boolean;
+  /**
+   * The placeholder text for the message input
+   * @default "Type a message"
+   */
+  placeholder?: string;
 }
 
 /**
@@ -47,12 +52,13 @@ interface MessageBarProps {
 export function MessageBar({
   onSendMessage,
   isSending = false,
+  placeholder = "Type a message",
 }: MessageBarProps) {
   const [message, setMessage] = useState("");
 
   const handleSend = () => {
     if (message.trim()) {
-      onSendMessage(message.trim());
+      onSendMessage && onSendMessage(message.trim());
       setMessage("");
     }
   };
@@ -65,7 +71,7 @@ export function MessageBar({
   };
 
   return (
-    <View padding="size-100" width="100%">
+    <View padding="size-100" width="100%" flex="none">
       <Flex direction="row" gap="size-100">
         <TextField
           size="M"
@@ -75,7 +81,7 @@ export function MessageBar({
           aria-label="Message input"
           isDisabled={isSending}
         >
-          <Input placeholder="Type a message" />
+          <Input placeholder={placeholder} />
         </TextField>
         <Button
           size="M"

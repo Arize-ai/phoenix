@@ -1,13 +1,23 @@
-from secrets import token_bytes
+from secrets import token_bytes, token_hex
 
 import pytest
+import sqlalchemy as sa
 from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 
 from phoenix.config import ENV_PHOENIX_ADMINS
 from phoenix.db import models
 from phoenix.db.enums import UserRole
-from phoenix.db.facilitator import _ensure_admins, _ensure_enums
+from phoenix.db.facilitator import (
+    _ensure_admins,
+    _ensure_default_project_trace_retention_policy,
+    _ensure_enums,
+)
+from phoenix.db.types.trace_retention import (
+    MaxDaysRule,
+    TraceRetentionCronExpression,
+    TraceRetentionRule,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -101,3 +111,38 @@ class TestEnsureStartupAdmins:
         assert user.username == "Franklin, Benjamin"
         assert user.user_role_id == admin_role_id
         assert user.reset_password
+
+
+class TestEnsureDefaultProjectTraceRetentionPolicy:
+    async def test_default_project_trace_retention_policy_insertion(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        stmt = sa.select(models.ProjectTraceRetentionPolicy)
+        async with db() as session:
+            policies = list(await session.scalars(stmt))
+        assert len(policies) == 0
+        for _ in range(2):
+            await _ensure_default_project_trace_retention_policy(db)
+            async with db() as session:
+                policies = list(await session.scalars(stmt))
+            assert len(policies) == 1
+        policy = policies[0]
+        assert policy.id == 0
+        assert policy.name == "Default"
+        assert policy.cron_expression.root == "0 0 * * 0"
+        assert policy.rule.root == MaxDaysRule(max_days=0)
+        assert not bool(policy.rule)  # rule is dormant by default
+
+        # Should be able to insert new policies without error. This could be an issue for postgres
+        # if the default policy is inserted at id=1 without incrementing the serial so the next
+        # insert would have id=1 and fail.
+        policy = models.ProjectTraceRetentionPolicy(
+            name=token_hex(8),
+            cron_expression=TraceRetentionCronExpression(root="0 0 * * 0"),
+            rule=TraceRetentionRule(root=MaxDaysRule(max_days=0)),
+        )
+        async with db() as session:
+            session.add(policy)
+            await session.flush()
+        assert policy.id == 1

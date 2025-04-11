@@ -208,13 +208,13 @@ class Trace(Node):
         return connection_from_list(data=data, args=args)
 
     @strawberry.field(description="Annotations associated with the trace.")  # type: ignore
-    async def span_annotations(
+    async def trace_annotations(
         self,
         info: Info[Context, None],
         sort: Optional[TraceAnnotationSort] = None,
     ) -> list[TraceAnnotation]:
         async with info.context.db() as session:
-            stmt = select(models.TraceAnnotation).filter_by(span_rowid=self.trace_rowid)
+            stmt = select(models.TraceAnnotation).filter_by(trace_rowid=self.trace_rowid)
             if sort:
                 sort_col = getattr(models.TraceAnnotation, sort.col.value)
                 if sort.dir is SortDir.desc:
