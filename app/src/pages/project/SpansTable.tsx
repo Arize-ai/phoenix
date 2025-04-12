@@ -35,6 +35,7 @@ import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
+import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
@@ -86,8 +87,16 @@ function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
 
 const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
+  hasNext,
+  onLoadNext,
+  tableWidth,
+  isLoadingNext,
 }: {
   table: Table<T>;
+  hasNext: boolean;
+  onLoadNext: () => void;
+  isLoadingNext: boolean;
+  tableWidth: number;
 }) => {
   const navigate = useNavigate();
   return (
@@ -126,6 +135,14 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
           </tr>
         );
       })}
+      {hasNext ? (
+        <LoadMoreRow
+          onLoadMore={onLoadNext}
+          key="load-more"
+          width={tableWidth}
+          isLoadingNext={isLoadingNext}
+        />
+      ) : null}
     </tbody>
   );
 };
@@ -552,15 +569,17 @@ export function SpansTable(props: SpansTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = React.useMemo(() => {
+  const [columnSizeVars, tableWidth] = React.useMemo(() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
+    let tableWidth = 0;
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
       colSizes[`--header-${header.id}-size`] = header.getSize();
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
+      tableWidth += header.getSize();
     }
-    return colSizes;
+    return [colSizes, tableWidth];
     // Disabled lint as per tanstack docs linked above
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -685,9 +704,21 @@ export function SpansTable(props: SpansTableProps) {
           {isEmpty ? (
             <ProjectTableEmpty projectName={data.name} />
           ) : columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody table={table} />
+            <MemoizedTableBody
+              table={table}
+              hasNext={hasNext}
+              onLoadNext={() => loadNext(PAGE_SIZE)}
+              tableWidth={tableWidth}
+              isLoadingNext={isLoadingNext}
+            />
           ) : (
-            <TableBody table={table} />
+            <TableBody
+              table={table}
+              hasNext={hasNext}
+              onLoadNext={() => loadNext(PAGE_SIZE)}
+              tableWidth={tableWidth}
+              isLoadingNext={isLoadingNext}
+            />
           )}
         </table>
       </div>
