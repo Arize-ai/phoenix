@@ -204,12 +204,12 @@ class BedrockModel(BaseModel):
 
     def _parse_output(self, response: Any) -> Any:
         return response.get("output").get("message").get("content")[0]["text"]
-    
+
     def _model_supports_top_k(self) -> bool:
         """
         Some models do not support the topK parameter.
         Meta Llama and Titan models do not support the topK parameter
-        
+
         """
         models_that_do_not_support_top_k = ["meta.llama", "titan"]
         return not any(model in self.model_id for model in models_that_do_not_support_top_k)
