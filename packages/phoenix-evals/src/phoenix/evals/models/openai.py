@@ -504,10 +504,11 @@ def _is_base64(s: str) -> bool:
     except Exception:
         return False
 
+
 def _get_token_param_str(is_azure: bool, model: str) -> str:
     """
     Get the token parameter string for the given model.
-    OpenAI o1 and o3 models made a switch to use 
+    OpenAI o1 and o3 models made a switch to use
     max_completion_tokens and now all the models support it.
     However, Azure OpenAI models currently do not support
     max_completion_tokens unless it's an o1 or o3 model.
