@@ -2,6 +2,7 @@ import React from "react";
 import {
   createBrowserRouter,
   createRoutesFromElements,
+  Navigate,
   Route,
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
@@ -81,6 +82,13 @@ import {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
+      {/* 
+        Redirect /v1/traces to root path (/)
+        This route is commonly used by OpenTelemetry trace collectors, but users sometimes
+        accidentally try to access Phoenix through this URL in their browser, leading to confusion.
+        This redirect helps prevent those issues by sending them to the main application.
+      */}
+      <Route path="/v1/traces" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/reset-password"
