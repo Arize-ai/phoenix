@@ -4,7 +4,7 @@ description: >-
   make manual instrumentation easier.
 ---
 
-# Setup Tracing using Phoenix Decorators
+# Using Phoenix Decorators
 
 ## OpenInference OTEL Tracing
 
@@ -26,8 +26,17 @@ pip install openinference-semantic-conventions opentelemetry-api opentelemetry-s
 
 You can configure the tracer using either `TracerProvider` from `openinference.instrumentation` or using `phoenix.otel.register`.
 
-#### Using `TracerProvider`
+{% tabs %}
+{% tab title="Using phoenix.otel.register" %}
+```
+from phoenix.otel import register
 
+tracer_provider = register(protocol="http/protobuf", project_name="your project name")
+tracer = tracer_provider.get_tracer(__name__)
+```
+{% endtab %}
+
+{% tab title="Using TracerProvider" %}
 ```python
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -40,18 +49,10 @@ endpoint = "http://127.0.0.1:6006/v1/traces"
 resource = Resource(attributes={ResourceAttributes.PROJECT_NAME: "openinference-tracer"})
 tracer_provider = TracerProvider(resource=resource)
 tracer_provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(endpoint)))
-tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 tracer = tracer_provider.get_tracer(__name__)
 ```
-
-#### Using `phoenix.otel.register`
-
-```python
-from phoenix.otel import register
-
-tracer_provider = register(protocol="http/protobuf", project_name="your project name")
-tracer = tracer_provider.get_tracer(__name__)
-```
+{% endtab %}
+{% endtabs %}
 
 ***
 
