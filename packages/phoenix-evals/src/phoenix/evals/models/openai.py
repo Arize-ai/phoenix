@@ -457,7 +457,8 @@ class OpenAIModel(BaseModel):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters for calling OpenAI API."""
-        token_param_str = get_token_param_str(self._is_azure, self.model) # token param str depends on provider and model
+        # token param str depends on provider and model
+        token_param_str = _get_token_param_str(self._is_azure, self.model)
         params = {
             "frequency_penalty": self.frequency_penalty,
             "presence_penalty": self.presence_penalty,
@@ -503,11 +504,13 @@ def _is_base64(s: str) -> bool:
     except Exception:
         return False
 
-def get_token_param_str(is_azure: bool, model: str) -> str:
+def _get_token_param_str(is_azure: bool, model: str) -> str:
     """
     Get the token parameter string for the given model.
-    OpenAI o1 and o3 models made a switch to use max_completion_tokens and now all the models support it.
-    However, Azure OpenAI models currently do not support max_completion_tokens unless it's an o1 or o3 model.
+    OpenAI o1 and o3 models made a switch to use 
+    max_completion_tokens and now all the models support it.
+    However, Azure OpenAI models currently do not support
+    max_completion_tokens unless it's an o1 or o3 model.
     """
     if is_azure and not model.startswith("o1") and not model.startswith("o3"):
         return "max_tokens"
