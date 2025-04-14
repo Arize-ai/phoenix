@@ -83,10 +83,11 @@ const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
       {/* 
-        Redirect /v1/traces to root path (/)
-        This route is for OpenTelemetry trace collectors, but users sometimes accidentally
-        try to access Phoenix through this URL in their browser, leading to confusion.
-        This redirect helps prevent those issues by sending them to the main application.
+        Using /v1/* below redirects all /v1/* routes that don't have a GET method to the root path.
+        In particular, this redirects /v1/traces to the root path (/). This route is for the
+        OpenTelemetry trace collector, but users sometimes accidentally try to access Phoenix
+        through this URL in their browser, leading to confusion. This redirect helps prevent
+        those issues by sending them to the main application.
       */}
       <Route path="/v1/*" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
