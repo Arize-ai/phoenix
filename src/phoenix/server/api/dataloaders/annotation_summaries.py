@@ -92,7 +92,7 @@ class AnnotationSummaryDataLoader(DataLoader[Key, Result]):
             async with self._db() as session:
                 data = await session.stream(stmt)
                 async for annotation_name, group in groupby(data, lambda row: row.name):
-                    summary = AnnotationSummary(pd.DataFrame(group))
+                    summary = AnnotationSummary(name=annotation_name, df=pd.DataFrame(group))
                     for position in params[annotation_name]:
                         results[position] = summary
         return results
