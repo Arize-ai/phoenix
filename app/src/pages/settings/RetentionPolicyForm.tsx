@@ -75,7 +75,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
       numberOfDays: 400,
       schedule: "0 0 * * 0",
     },
-    reValidateMode: "onChange",
+    mode: "onChange",
   });
 
   const [numberOfDays, numberOfTraces, schedule] = watch([
