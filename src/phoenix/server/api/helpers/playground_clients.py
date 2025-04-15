@@ -457,6 +457,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "gpt-4.1-2025-04-14",
+        "gpt-4.1-mini-2025-04-14",
+        "gpt-4.1-nano-2025-04-14",
         "gpt-4o",
         "gpt-4o-2024-11-20",
         "gpt-4o-2024-08-06",
