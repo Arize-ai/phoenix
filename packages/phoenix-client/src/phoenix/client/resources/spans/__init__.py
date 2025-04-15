@@ -8,11 +8,8 @@ import httpx
 from phoenix.config import get_env_project_name
 from phoenix.datetime_utils import normalize_datetime
 
-# Use TYPE_CHECKING to avoid circular import at runtime
 if TYPE_CHECKING:
     import pandas as pd
-
-    from phoenix.client.client import AsyncClient, Client
 
 from phoenix.client.types.spans import (
     GetSpansResponseBody,
