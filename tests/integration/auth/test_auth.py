@@ -1019,7 +1019,7 @@ class TestSpanExporters:
         if use_admin_secret:
             assert (api_key := get_env_phoenix_admin_secret())
         else:
-            api_key = token_hex(16)
+            api_key = ""
         if method == "headers":
             # Must use all lower case for `authorization` because
             # otherwise it would crash the gRPC receiver.

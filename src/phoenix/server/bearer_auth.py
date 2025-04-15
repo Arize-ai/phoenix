@@ -52,7 +52,11 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
             scheme, _, token = header.partition(" ")
             if scheme.lower() != "bearer" or not token:
                 return None
-            if token == get_env_phoenix_admin_secret() and config.SYSTEM_USER_ID is not None:
+            if (
+                (admin_secret := get_env_phoenix_admin_secret())
+                and token == admin_secret
+                and config.SYSTEM_USER_ID is not None
+            ):
                 return AuthCredentials(), PhoenixSystemUser(UserId(config.SYSTEM_USER_ID))
         elif access_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
             token = access_token
@@ -111,7 +115,11 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                 scheme, _, token = datum.value.partition(" ")
                 if scheme.lower() != "bearer" or not token:
                     break
-                if token == get_env_phoenix_admin_secret() and config.SYSTEM_USER_ID is not None:
+                if (
+                    (admin_secret := get_env_phoenix_admin_secret())
+                    and token == admin_secret
+                    and config.SYSTEM_USER_ID is not None
+                ):
                     return await method(request_or_iterator, context)
                 claims = await self._token_store.read(Token(token))
                 if not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId)):
