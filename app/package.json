@@ -31,6 +31,7 @@
     "@uiw/react-codemirror": "^4.23.0",
     "codemirror-json-schema": "^0.7.8",
     "copy-to-clipboard": "^3.3.3",
+    "cron-parser": "^5.1.1",
     "cronstrue": "^2.59.0",
     "d3-format": "^3.1.0",
     "d3-scale-chromatic": "^3.1.0",

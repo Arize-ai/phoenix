@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44de54253ef3ceb18de55f439132a984>>
+ * @generated SignedSource<<28d8f8e109ecc4d30c216058bab9986c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -53,28 +53,38 @@ export type RetentionPoliciesTable_policies$key = {
 import RetentionPoliciesTablePoliciesQuery_graphql from './RetentionPoliciesTablePoliciesQuery.graphql';
 
 const node: ReaderFragment = (function(){
-var v0 = {
+var v0 = [
+  "projectTraceRetentionPolicies"
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v1 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v2 = {
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "maxCount",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -82,11 +92,37 @@ v3 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "after"
+    },
+    {
+      "defaultValue": 1000,
+      "kind": "LocalArgument",
+      "name": "first"
+    }
+  ],
   "kind": "Fragment",
   "metadata": {
+    "connection": [
+      {
+        "count": "first",
+        "cursor": "after",
+        "direction": "forward",
+        "path": (v0/*: any*/)
+      }
+    ],
     "refetch": {
-      "connection": null,
+      "connection": {
+        "forward": {
+          "count": "first",
+          "cursor": "after"
+        },
+        "backward": null,
+        "path": (v0/*: any*/)
+      },
       "fragmentPathInResult": [],
       "operation": RetentionPoliciesTablePoliciesQuery_graphql
     }
@@ -94,11 +130,11 @@ return {
   "name": "RetentionPoliciesTable_policies",
   "selections": [
     {
-      "alias": null,
+      "alias": "projectTraceRetentionPolicies",
       "args": null,
       "concreteType": "ProjectTraceRetentionPolicyConnection",
       "kind": "LinkedField",
-      "name": "projectTraceRetentionPolicies",
+      "name": "__RetentionPoliciesTable_projectTraceRetentionPolicies_connection",
       "plural": false,
       "selections": [
         {
@@ -117,8 +153,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v0/*: any*/),
                 (v1/*: any*/),
+                (v2/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -134,17 +170,11 @@ return {
                   "name": "rule",
                   "plural": false,
                   "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "__typename",
-                      "storageKey": null
-                    },
+                    (v3/*: any*/),
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v2/*: any*/)
+                        (v4/*: any*/)
                       ],
                       "type": "TraceRetentionRuleMaxCount",
                       "abstractKey": null
@@ -152,7 +182,7 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v3/*: any*/)
+                        (v5/*: any*/)
                       ],
                       "type": "TraceRetentionRuleMaxDays",
                       "abstractKey": null
@@ -160,8 +190,8 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v3/*: any*/),
-                        (v2/*: any*/)
+                        (v5/*: any*/),
+                        (v4/*: any*/)
                       ],
                       "type": "TraceRetentionRuleMaxDaysOrCount",
                       "abstractKey": null
@@ -193,8 +223,8 @@ return {
                           "name": "node",
                           "plural": false,
                           "selections": [
-                            (v1/*: any*/),
-                            (v0/*: any*/)
+                            (v2/*: any*/),
+                            (v1/*: any*/)
                           ],
                           "storageKey": null
                         }
@@ -203,8 +233,41 @@ return {
                     }
                   ],
                   "storageKey": null
-                }
+                },
+                (v3/*: any*/)
               ],
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "cursor",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "endCursor",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasNextPage",
               "storageKey": null
             }
           ],
@@ -219,6 +282,6 @@ return {
 };
 })();
 
-(node as any).hash = "feb1765a1377047f429634b1ed579dbc";
+(node as any).hash = "05f4dfa540c2b394a25b5a004349c49f";
 
 export default node;
