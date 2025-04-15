@@ -1,5 +1,19 @@
 # Changelog
 
+## [8.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.2...arize-phoenix-v8.25.0) (2025-04-15)
+
+
+### Features
+
+* Display tool call and tool result Ids in span details ([#7114](https://github.com/Arize-ai/phoenix/issues/7114)) ([4390d7a](https://github.com/Arize-ai/phoenix/commit/4390d7ad964da9fd28fa9658cb1b52d9efa82d29))
+
+
+### Bug Fixes
+
+* Do not refetch tables when trace/span details closed ([#7110](https://github.com/Arize-ai/phoenix/issues/7110)) ([c6a6b45](https://github.com/Arize-ai/phoenix/commit/c6a6b45bb9c3b1d4339db8d49068dc40d48a630d))
+* redirect GET v1/* to home ([#7139](https://github.com/Arize-ai/phoenix/issues/7139)) ([3790907](https://github.com/Arize-ai/phoenix/commit/37909070a64d1617bc119e8db8334e559c6e5fcf))
+* update gpt models for playground ([#7146](https://github.com/Arize-ai/phoenix/issues/7146)) ([41d0574](https://github.com/Arize-ai/phoenix/commit/41d0574174dc56b4a647371d03d0a43caff62ad2))
+
 ## [8.24.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.1...arize-phoenix-v8.24.2) (2025-04-10)
 
 
