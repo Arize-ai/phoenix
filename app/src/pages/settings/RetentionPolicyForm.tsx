@@ -34,7 +34,7 @@ const createPolicyDeletionSummaryText = ({
     typeof numberOfDays === "number" ? `older than ${numberOfDays} days` : "";
   const tracesPolicyString =
     typeof numberOfTraces === "number"
-      ? `more than ${numberOfTraces} traces`
+      ? `when there are more than ${numberOfTraces} traces`
       : "";
 
   const policyString =
@@ -61,7 +61,13 @@ const createPolicyScheduleSummaryText = ({
   return `Enforcement Schedule: ${scheduleString}`;
 };
 
-export function RetentionPolicyForm() {
+type RetentionPolicyFormProps = {
+  onSubmit: (params: RetentionPolicyFormParams) => void;
+  mode: "create" | "edit";
+  isSubmitting: boolean;
+};
+export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
+  const { onSubmit, mode, isSubmitting } = props;
   const { control, watch, handleSubmit } = useForm<RetentionPolicyFormParams>({
     defaultValues: {
       name: "New Policy",
@@ -78,16 +84,12 @@ export function RetentionPolicyForm() {
     "schedule",
   ]);
 
-  const onSubmit = (data: RetentionPolicyFormParams) => {
-    console.log(data);
-  };
-
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <View padding="size-200">
-        <Alert variant="info">
-          Currently retention policies are enforced once a week.
-        </Alert>
+      <Alert variant="info" banner>
+        Retention policies are enforced once a week.
+      </Alert>
+      <View padding="size-200" borderWidth="thin" borderColor="dark">
         <p>
           A retention policy can be defined so that either a certain number of
           traces or traces for a certain amount of time is retained in certain
@@ -118,6 +120,27 @@ export function RetentionPolicyForm() {
                 </TextField>
               )}
             />
+
+            <Controller
+              control={control}
+              name="numberOfDays"
+              rules={{
+                required: "Number of days is required. 0 means infinite.",
+                min: {
+                  value: 0,
+                  message: "Number of days must be at least 0",
+                },
+              }}
+              render={({ field }) => (
+                <NumberField step={100} size="S" {...field}>
+                  <Label>Number of Days</Label>
+                  <Input />
+                  <Text slot="description">
+                    The number of days that will be kept
+                  </Text>
+                </NumberField>
+              )}
+            />
             <Controller
               control={control}
               name="numberOfTraces"
@@ -139,25 +162,6 @@ export function RetentionPolicyForm() {
                   <Input />
                   <Text slot="description">
                     The number of traces that will be kept
-                  </Text>
-                </NumberField>
-              )}
-            />
-            <Controller
-              control={control}
-              name="numberOfDays"
-              rules={{
-                min: {
-                  value: 0,
-                  message: "Number of days must be at least 0",
-                },
-              }}
-              render={({ field }) => (
-                <NumberField step={100} size="S" {...field}>
-                  <Label>Number of Days</Label>
-                  <Input />
-                  <Text slot="description">
-                    The number of days that will be kept
                   </Text>
                 </NumberField>
               )}
@@ -240,8 +244,17 @@ export function RetentionPolicyForm() {
           <Button size="S" slot="close">
             Cancel
           </Button>
-          <Button size="S" variant="primary" type="submit">
-            Create
+          <Button
+            size="S"
+            variant="primary"
+            type="submit"
+            isDisabled={isSubmitting}
+          >
+            {isSubmitting
+              ? "Submitting..."
+              : mode === "create"
+                ? "Create"
+                : "Update"}
           </Button>
         </Flex>
       </View>

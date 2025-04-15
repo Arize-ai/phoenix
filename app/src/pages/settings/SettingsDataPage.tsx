@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
-import { css } from "@emotion/react";
 
 import { Card } from "@arizeai/components";
 
@@ -9,25 +8,19 @@ import {
   Button,
   Dialog,
   DialogTrigger,
-  Flex,
-  Form,
   Heading,
   Icon,
   Icons,
-  Input,
-  Label,
   Modal,
-  NumberField,
-  Text,
-  TextField,
-  View,
 } from "@phoenix/components";
+import { CanManageRetentionPolicy } from "@phoenix/components/auth";
 
+import { CreateRetentionPolicy } from "./CreateRetentionPolicy";
 import { RetentionPoliciesTable } from "./RetentionPoliciesTable";
-import { RetentionPolicyForm } from "./RetentionPolicyForm";
 import { settingsDataPageLoader } from "./settingsDataPageLoader";
 
 export function SettingsDataPage() {
+  const [fetchKey, setFetchKey] = useState(0);
   const loaderData = useLoaderData<typeof settingsDataPageLoader>();
   invariant(loaderData, "loaderData is required");
 
@@ -37,20 +30,34 @@ export function SettingsDataPage() {
       bodyStyle={{ padding: 0 }}
       variant="compact"
       extra={
-        <DialogTrigger>
-          <Button size="S" leadingVisual={<Icon svg={<Icons.PlusOutline />} />}>
-            New Policy
-          </Button>
-          <Modal>
-            <Dialog>
-              <Heading slot="title">New Retention Policy</Heading>
-              <RetentionPolicyForm />
-            </Dialog>
-          </Modal>
-        </DialogTrigger>
+        <CanManageRetentionPolicy>
+          <DialogTrigger>
+            <Button
+              size="S"
+              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+            >
+              New Policy
+            </Button>
+            <Modal>
+              <Dialog>
+                {({ close }) => (
+                  <>
+                    <Heading slot="title">New Retention Policy</Heading>
+                    <CreateRetentionPolicy
+                      onCreate={() => {
+                        setFetchKey(fetchKey + 1);
+                        close();
+                      }}
+                    />
+                  </>
+                )}
+              </Dialog>
+            </Modal>
+          </DialogTrigger>
+        </CanManageRetentionPolicy>
       }
     >
-      <RetentionPoliciesTable query={loaderData} />
+      <RetentionPoliciesTable query={loaderData} fetchKey={fetchKey} />
     </Card>
   );
 }
