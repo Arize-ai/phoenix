@@ -74,7 +74,7 @@ class Spans:
         normalized_end_time = normalize_datetime(end_time)
 
         request_body = SpanQueryRequestBody(
-            queries=list(query),
+            queries=[query],
             start_time=_to_iso_format(normalized_start_time),
             end_time=_to_iso_format(normalized_end_time),
             limit=limit,
@@ -185,7 +185,7 @@ class AsyncSpans:
         normalized_end_time = normalize_datetime(end_time)
 
         request_body = SpanQueryRequestBody(
-            queries=list(query),
+            queries=[query],
             start_time=_to_iso_format(normalized_start_time),
             end_time=_to_iso_format(normalized_end_time),
             limit=limit,
