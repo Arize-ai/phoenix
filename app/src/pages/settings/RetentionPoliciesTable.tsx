@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import { graphql, usePaginationFragment } from "react-relay";
 import {
   type ColumnDef,
   flexRender,
@@ -27,14 +27,21 @@ export const RetentionPoliciesTable = ({
    */
   fetchKey: number;
 }) => {
-  const [data, refetch] = useRefetchableFragment<
+  const { data, refetch } = usePaginationFragment<
     RetentionPoliciesTablePoliciesQuery,
     RetentionPoliciesTable_policies$key
   >(
     graphql`
       fragment RetentionPoliciesTable_policies on Query
-      @refetchable(queryName: "RetentionPoliciesTablePoliciesQuery") {
-        projectTraceRetentionPolicies {
+      @refetchable(queryName: "RetentionPoliciesTablePoliciesQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 1000 }
+      ) {
+        projectTraceRetentionPolicies(first: $first, after: $after)
+          @connection(
+            key: "RetentionPoliciesTable_projectTraceRetentionPolicies"
+          ) {
           edges {
             node {
               id

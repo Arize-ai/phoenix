@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f83835f2ad5e8902e30e507855cd5eb>>
+ * @generated SignedSource<<c180e6a9bbcbd157d7b3d6bccf158e31>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -61,28 +61,42 @@ v1 = [
     "variableName": "input"
   }
 ],
-v2 = {
+v2 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 1000
+  }
+],
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "maxCount",
   "storageKey": null
 },
-v5 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -151,7 +165,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": null,
+                "args": (v2/*: any*/),
                 "concreteType": "ProjectTraceRetentionPolicyConnection",
                 "kind": "LinkedField",
                 "name": "projectTraceRetentionPolicies",
@@ -173,8 +187,8 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v2/*: any*/),
                           (v3/*: any*/),
+                          (v4/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -190,17 +204,11 @@ return {
                             "name": "rule",
                             "plural": false,
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "__typename",
-                                "storageKey": null
-                              },
+                              (v5/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v4/*: any*/)
+                                  (v6/*: any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxCount",
                                 "abstractKey": null
@@ -208,7 +216,7 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v5/*: any*/)
+                                  (v7/*: any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDays",
                                 "abstractKey": null
@@ -216,8 +224,8 @@ return {
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
-                                  (v5/*: any*/),
-                                  (v4/*: any*/)
+                                  (v7/*: any*/),
+                                  (v6/*: any*/)
                                 ],
                                 "type": "TraceRetentionRuleMaxDaysOrCount",
                                 "abstractKey": null
@@ -249,8 +257,8 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*: any*/),
-                                      (v2/*: any*/)
+                                      (v4/*: any*/),
+                                      (v3/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -259,15 +267,57 @@ return {
                               }
                             ],
                             "storageKey": null
-                          }
+                          },
+                          (v5/*: any*/)
                         ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "cursor",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PageInfo",
+                    "kind": "LinkedField",
+                    "name": "pageInfo",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "endCursor",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "hasNextPage",
                         "storageKey": null
                       }
                     ],
                     "storageKey": null
                   }
                 ],
-                "storageKey": null
+                "storageKey": "projectTraceRetentionPolicies(first:1000)"
+              },
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "filters": null,
+                "handle": "connection",
+                "key": "RetentionPoliciesTable_projectTraceRetentionPolicies",
+                "kind": "LinkedHandle",
+                "name": "projectTraceRetentionPolicies"
               }
             ],
             "storageKey": null
@@ -278,12 +328,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "606b141232080d3d2b4ff4e75064cd94",
+    "cacheID": "12a0cf6ab2f80fe2096528b210217a40",
     "id": null,
     "metadata": {},
     "name": "CreateRetentionPolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateRetentionPolicyMutation(\n  $input: CreateProjectTraceRetentionPolicyInput!\n) {\n  createProjectTraceRetentionPolicy(input: $input) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n        projects {\n          edges {\n            node {\n              name\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateRetentionPolicyMutation(\n  $input: CreateProjectTraceRetentionPolicyInput!\n) {\n  createProjectTraceRetentionPolicy(input: $input) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n        projects {\n          edges {\n            node {\n              name\n              id\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
