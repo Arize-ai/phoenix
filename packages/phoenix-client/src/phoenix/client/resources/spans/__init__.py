@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Optional, cast
 
 import httpx
 
-from phoenix.config import get_env_project_name
 from phoenix.datetime_utils import normalize_datetime
 
 if TYPE_CHECKING:
