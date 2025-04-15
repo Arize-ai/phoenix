@@ -228,10 +228,13 @@ this_tool_name_should_be_overriden("input1", 1)
 
 ## Additional Features
 
+OpenInference Tracer shown above respects context Managers for [Suppressing Tracing](../advanced/suppress-tracing.md) & [Adding Metadata](../add-metadata/customize-spans.md)&#x20;
+
 ### Suppress Tracing
 
 ```python
 with suppress_tracing():
+    # this trace will not be recorded
     with tracer.start_as_current_span(
         "THIS-SPAN-SHOULD-NOT-BE-TRACED",
         openinference_span_kind="chain",
@@ -245,6 +248,7 @@ with suppress_tracing():
 
 ```python
 with using_attributes(session_id="123"):
+    # this trace has session id "123"
     with tracer.start_as_current_span(
         "chain-span-with-context-attributes",
         openinference_span_kind="chain",
@@ -253,7 +257,3 @@ with using_attributes(session_id="123"):
         span.set_output("output")
         span.set_status(Status(StatusCode.OK))
 ```
-
-***
-
-This documentation provides an overview of how to use OpenInference OTEL tracing decorators with chains, agents, and tools. For more details, refer to the OpenInference official documentation.
