@@ -12,12 +12,14 @@ from starlette.authentication import AuthCredentials, AuthenticationBackend, Bas
 from starlette.requests import HTTPConnection
 from starlette.status import HTTP_401_UNAUTHORIZED
 
+from phoenix import config
 from phoenix.auth import (
     PHOENIX_ACCESS_TOKEN_COOKIE_NAME,
     CanReadToken,
     ClaimSetStatus,
     Token,
 )
+from phoenix.config import get_env_phoenix_admin_secret
 from phoenix.db import enums
 from phoenix.db.enums import UserRole
 from phoenix.db.models import User as OrmUser
@@ -50,6 +52,8 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
             scheme, _, token = header.partition(" ")
             if scheme.lower() != "bearer" or not token:
                 return None
+            if token == get_env_phoenix_admin_secret() and config.SYSTEM_USER_ID is not None:
+                return AuthCredentials(), PhoenixSystemUser(UserId(config.SYSTEM_USER_ID))
         elif access_token := conn.cookies.get(PHOENIX_ACCESS_TOKEN_COOKIE_NAME):
             token = access_token
         else:
@@ -85,6 +89,15 @@ class PhoenixUser(BaseUser):
         return True
 
 
+class PhoenixSystemUser(PhoenixUser):
+    def __init__(self, user_id: UserId) -> None:
+        self._user_id = user_id
+
+    @cached_property
+    def is_admin(self) -> bool:
+        return True
+
+
 class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
     async def intercept(
         self,
@@ -98,6 +111,8 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                 scheme, _, token = datum.value.partition(" ")
                 if scheme.lower() != "bearer" or not token:
                     break
+                if token == get_env_phoenix_admin_secret() and config.SYSTEM_USER_ID is not None:
+                    return await method(request_or_iterator, context)
                 claims = await self._token_store.read(Token(token))
                 if not (isinstance(claims, UserClaimSet) and isinstance(claims.subject, UserId)):
                     break
@@ -124,6 +139,8 @@ async def is_authenticated(
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Invalid token")
     if websocket and not isinstance((user := websocket.user), PhoenixUser):
         raise WebSocketException(code=HTTP_401_UNAUTHORIZED, reason="Invalid token")
+    if isinstance(user, PhoenixSystemUser):
+        return
     claims = user.claims
     if claims.status is ClaimSetStatus.EXPIRED:
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED, detail="Expired token")

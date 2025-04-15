@@ -13,6 +13,7 @@ from sqlalchemy import (
     select,
 )
 
+from phoenix import config
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME,
@@ -54,6 +55,7 @@ class Facilitator:
         for fn in (
             _ensure_enums,
             _ensure_user_roles,
+            _get_system_user_id,
             partial(_ensure_admins, email_sender=self._email_sender),
         ):
             await fn(self._db)
@@ -128,6 +130,23 @@ async def _ensure_user_roles(db: DbSessionFactory) -> None:
             )
             session.add(admin_user)
         await session.flush()
+
+
+async def _get_system_user_id(db: DbSessionFactory) -> None:
+    """
+    Set the system user ID in the config. This is used to identify the system user in the database.
+    """
+    async with db() as session:
+        system_user_id = await session.scalar(
+            select(models.User.id)
+            .join(models.UserRole)
+            .where(models.UserRole.name == UserRole.SYSTEM.value)
+            .order_by(models.User.id)
+            .limit(1)
+        )
+    if system_user_id is None:
+        raise ValueError("System user not found in database")
+    config.SYSTEM_USER_ID = system_user_id
 
 
 async def _ensure_admins(
