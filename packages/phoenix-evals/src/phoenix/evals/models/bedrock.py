@@ -181,7 +181,7 @@ class BedrockModel(BaseModel):
         additional_model_request_fields: Dict[str, Union[int, Dict[str, Any]]] = {}
         # Only add top_k if specified and model supports it
         if self.top_k is not None and self._model_supports_top_k():
-            if "nova" in self.model_id:
+            if self.model_id.startswith(("amazon.nova", "us.amazon.nova")):
                 additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
             else:
                 additional_model_request_fields["top_k"] = self.top_k
