@@ -12,10 +12,9 @@ AnnotationType = Union[models.SpanAnnotation, models.TraceAnnotation]
 
 @strawberry.type
 class AnnotationSummary:
+    name: str
     df: Private[pd.DataFrame]
-
-    def __init__(self, dataframe: pd.DataFrame) -> None:
-        self.df = dataframe
+    simple_avg: Private[bool] = False
 
     @strawberry.field
     def count(self) -> int:
@@ -28,6 +27,19 @@ class AnnotationSummary:
 
     @strawberry.field
     def label_fractions(self) -> list[LabelFraction]:
+        if self.simple_avg:
+            if not (n := self.df.label_count.sum()):
+                return []
+            return [
+                LabelFraction(
+                    label=cast(str, row.label),
+                    fraction=row.label_count / n,
+                )
+                for row in self.df.loc[
+                    self.df.label.notna(),
+                    ["label", "label_count"],
+                ].itertuples()
+            ]
         return [
             LabelFraction(
                 label=row.label,
@@ -39,6 +51,10 @@ class AnnotationSummary:
 
     @strawberry.field
     def mean_score(self) -> Optional[float]:
+        if self.simple_avg:
+            if not (n := self.df.score_count.sum()):
+                return None
+            return cast(float, self.df.score_sum.sum() / n)
         avg_scores = self.df["avg_score"].dropna()
         if avg_scores.empty:
             return None
