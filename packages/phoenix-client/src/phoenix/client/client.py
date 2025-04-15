@@ -41,7 +41,7 @@ class Client:
                 headers=_update_headers(headers, api_key),
             )
         else:
-             self._client = http_client
+            self._client = http_client
 
     @property
     def _client(self) -> httpx.Client:
