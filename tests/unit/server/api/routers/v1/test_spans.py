@@ -47,7 +47,7 @@ async def test_querying_spans_with_new_client(
 ) -> None:
     legacy_df = cast(pd.DataFrame, legacy_px_client.get_spans_dataframe())
     df = cast(pd.DataFrame, px_client.spans.get_spans_dataframe())
-    assert legacy_df.equals(df[0])
+    assert legacy_df.equals(df)
 
 
 @pytest.mark.parametrize("sync", [False, True])

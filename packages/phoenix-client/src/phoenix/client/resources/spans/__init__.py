@@ -41,7 +41,7 @@ class Spans:
 
     def get_spans_dataframe(
         self,
-        query: Optional[SpanQuery],
+        query: Optional[SpanQuery] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
@@ -152,7 +152,7 @@ class AsyncSpans:
 
     async def get_spans_dataframe(
         self,
-        query: Optional[SpanQuery],
+        query: Optional[SpanQuery] = None,
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
