@@ -97,7 +97,7 @@ class PhoenixSystemUser(PhoenixUser):
     def __init__(self, user_id: UserId) -> None:
         self._user_id = user_id
 
-    @cached_property
+    @property
     def is_admin(self) -> bool:
         return True
 

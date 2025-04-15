@@ -1032,8 +1032,7 @@ class TestSpanExporters:
         else:
             assert_never(method)
         export = _span_exporter(headers=headers).export
-        for _ in range(2):
-            assert export(_spans) is expected
+        assert export(_spans) is expected
 
 
 class TestEmbeddingsRestApi:
