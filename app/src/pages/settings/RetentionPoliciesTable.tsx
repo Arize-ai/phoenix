@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import React, { useEffect, useMemo } from "react";
+import { graphql, usePaginationFragment } from "react-relay";
 import {
   type ColumnDef,
   flexRender,
@@ -18,17 +18,30 @@ import { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPo
 import { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
 export const RetentionPoliciesTable = ({
   query,
+  fetchKey,
 }: {
   query: RetentionPoliciesTable_policies$key;
+  /**
+   * A temporary workaround to force a refetch of the table when a new policy is created.
+   * This is because the refetchable fragment doesn't refetch when the data is updated.
+   */
+  fetchKey: number;
 }) => {
-  const [data] = useRefetchableFragment<
+  const { data, refetch } = usePaginationFragment<
     RetentionPoliciesTablePoliciesQuery,
     RetentionPoliciesTable_policies$key
   >(
     graphql`
       fragment RetentionPoliciesTable_policies on Query
-      @refetchable(queryName: "RetentionPoliciesTablePoliciesQuery") {
-        projectTraceRetentionPolicies {
+      @refetchable(queryName: "RetentionPoliciesTablePoliciesQuery")
+      @argumentDefinitions(
+        after: { type: "String", defaultValue: null }
+        first: { type: "Int", defaultValue: 1000 }
+      ) {
+        projectTraceRetentionPolicies(first: $first, after: $after)
+          @connection(
+            key: "RetentionPoliciesTable_projectTraceRetentionPolicies"
+          ) {
           edges {
             node {
               id
@@ -62,6 +75,21 @@ export const RetentionPoliciesTable = ({
     `,
     query
   );
+
+  /**
+   * This is a temporary workaround to force a refetch of the table when a new policy is created.
+   */
+  useEffect(() => {
+    if (fetchKey > 0) {
+      refetch(
+        {},
+        {
+          fetchPolicy: "network-only",
+        }
+      );
+    }
+  }, [fetchKey, refetch]);
+
   const tableData = data.projectTraceRetentionPolicies.edges.map(
     (edge) => edge.node
   );
