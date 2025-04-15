@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     import pandas as pd
 
 from phoenix.client.types.spans import (
-    GetSpansResponseBody,
-    SpanData,
     SpanQuery,
     SpanQueryRequestBody,
 )
@@ -29,12 +27,12 @@ class Spans:
 
     Example:
         Basic usage:
+        Basic usage:
             >>> from phoenix.client import Client
             >>> from phoenix.client.types.spans import SpanQuery
             >>> client = Client()
-            >>> query1 = SpanQuery().select("name", "span_id").where("name == 'my-span'")
-            >>> query2 = SpanQuery().where("attributes.tag == 'test'")
-            >>> df = client.spans.get_spans_dataframe(query1, query2, project_name="my-project")
+            >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
+            >>> df = client.spans.get_spans_dataframe(query=query)
 
     """
 
@@ -43,7 +41,7 @@ class Spans:
 
     def get_spans_dataframe(
         self,
-        *queries: SpanQuery,
+        query: Optional[SpanQuery],
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
@@ -55,12 +53,12 @@ class Spans:
         Retrieves spans based on the provided filter conditions.
 
         Args:
-            *queries: One or more SpanQuery objects defining the query criteria.
+            query: A SpanQuery object defining the query criteria.
             start_time: Optional start time for filtering.
             end_time: Optional end time for filtering.
             limit: Maximum number of spans to return.
             root_spans_only: Whether to return only root spans.
-            project_name: Optional project name to filter by. Defaults to env var PHOENIX_PROJECT_NAME.
+            project_name: Optional project name to filter by.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -70,13 +68,13 @@ class Spans:
             ImportError: If pandas is not installed
             TimeoutError: If the request times out.
         """
-        final_project_name = project_name or get_env_project_name()
-        final_queries = queries if queries else (SpanQuery(),)
+        project_name = project_name
+        query = query if query else SpanQuery()
         normalized_start_time = normalize_datetime(start_time)
         normalized_end_time = normalize_datetime(end_time)
 
         request_body = SpanQueryRequestBody(
-            queries=list(final_queries),
+            queries=list(query),
             start_time=_to_iso_format(normalized_start_time),
             end_time=_to_iso_format(normalized_end_time),
             limit=limit,
@@ -87,11 +85,10 @@ class Spans:
             response = self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
-                params={"project_name": final_project_name},
+                params={"project_name": project_name} if project_name else None,
                 json=request_body.to_dict(),
                 timeout=timeout,
             )
-            results = []
             content_type = response.headers.get("Content-Type")
             if isinstance(content_type, str) and "multipart/mixed" in content_type:
                 if "boundary=" in content_type:
@@ -107,7 +104,6 @@ class Spans:
                     if "Content-Type: application/json" in part:
                         json_string = part.split("\r\n\r\n", 1)[1].strip()
                         df = decode_df_from_json_string(json_string)
-                        results.append(df)
             else:
                 response.raise_for_status()
                 logger.warning("Received non-multipart response when expecting dataframe.")
@@ -134,7 +130,7 @@ class Spans:
             )
 
         response.raise_for_status()
-        return results
+        return df
 
 
 class AsyncSpans:
@@ -143,7 +139,6 @@ class AsyncSpans:
 
     Example:
         Basic usage:
-            >>> import asyncio
             >>> from phoenix.client import AsyncClient
             >>> from phoenix.client.types.spans import SpanQuery
             >>> client = AsyncClient()
@@ -157,7 +152,7 @@ class AsyncSpans:
 
     async def get_spans_dataframe(
         self,
-        *queries: SpanQuery,
+        query: Optional[SpanQuery],
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         limit: int = 1000,
@@ -169,12 +164,12 @@ class AsyncSpans:
         Retrieves spans based on the provided filter conditions.
 
         Args:
-            *queries: One or more SpanQuery objects defining the query criteria.
+            query: A SpanQuery object defining the query criteria.
             start_time: Optional start time for filtering.
             end_time: Optional end time for filtering.
             limit: Maximum number of spans to return.
             root_spans_only: Whether to return only root spans.
-            project_name: Optional project name to filter by. Defaults to env var PHOENIX_PROJECT_NAME.
+            project_name: Optional project name to filter by.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -184,13 +179,13 @@ class AsyncSpans:
             ImportError: If pandas is not installed
             TimeoutError: If the request times out.
         """
-        final_project_name = project_name or get_env_project_name()
-        final_queries = queries if queries else (SpanQuery(),)
+        project_name = project_name
+        query = query if query else SpanQuery()
         normalized_start_time = normalize_datetime(start_time)
         normalized_end_time = normalize_datetime(end_time)
 
         request_body = SpanQueryRequestBody(
-            queries=list(final_queries),
+            queries=list(query),
             start_time=_to_iso_format(normalized_start_time),
             end_time=_to_iso_format(normalized_end_time),
             limit=limit,
@@ -201,11 +196,10 @@ class AsyncSpans:
             response = await self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
-                params={"project_name": final_project_name},
+                params={"project_name": project_name} if project_name else None,
                 json=request_body.to_dict(),
                 timeout=timeout,
             )
-            results = []
             content_type = response.headers.get("Content-Type")
             if isinstance(content_type, str) and "multipart/mixed" in content_type:
                 if "boundary=" in content_type:
@@ -221,7 +215,6 @@ class AsyncSpans:
                     if "Content-Type: application/json" in part:
                         json_string = part.split("\r\n\r\n", 1)[1].strip()
                         df = decode_df_from_json_string(json_string)
-                        results.append(df)
             else:
                 response.raise_for_status()
                 logger.warning("Received non-multipart response when expecting dataframe.")
@@ -248,7 +241,7 @@ class AsyncSpans:
             )
 
         response.raise_for_status()
-        return results
+        return df
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
