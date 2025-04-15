@@ -1150,3 +1150,13 @@ SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").s
 PLAYGROUND_PROJECT_NAME = "playground"
 
 SYSTEM_USER_ID: Optional[int] = None
+"""
+The ID of the system user in the database.
+
+This value is set during application startup by the facilitator and is used to
+identify the system user for authentication purposes.
+
+When the PHOENIX_ADMIN_SECRET is used as a bearer token in API requests, the
+request is authenticated as the system user with the user_id set to this
+SYSTEM_USER_ID value (only if this variable is not None).
+"""
