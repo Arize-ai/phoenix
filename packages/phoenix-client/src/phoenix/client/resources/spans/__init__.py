@@ -135,7 +135,7 @@ class Spans:
         else:
             import pandas as pd
 
-            return pd.Dataframe()
+            return pd.DataFrame()
 
 
 class AsyncSpans:
@@ -253,7 +253,7 @@ class AsyncSpans:
         else:
             import pandas as pd
 
-            return pd.Dataframe()
+            return pd.DataFrame()
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
@@ -262,11 +262,11 @@ def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
 
 def decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     import pandas as pd
-    from pandas.io.json._table_schema import parse_table_schema
+    from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 
     df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
     df.index.names = [x.split("_", 1)[1] or None for x in df.index.names]  # type: ignore
-    return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)
+    return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)  # type: ignore
 
 
 class TimeoutError(Exception): ...
