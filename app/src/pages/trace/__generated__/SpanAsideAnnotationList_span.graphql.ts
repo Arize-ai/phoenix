@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<22a56ff0e836b6832cbb7f95b65593f1>>
+ * @generated SignedSource<<e598f36eb03ecd2b5efc3c0fffea8e5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,15 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SpanAsideAnnotationList_span$data = {
+  readonly filteredSpanAnnotations: ReadonlyArray<{
+    readonly annotatorKind: AnnotatorKind;
+    readonly createdAt: string;
+    readonly explanation: string | null;
+    readonly id: string;
+    readonly label: string | null;
+    readonly name: string;
+    readonly score: number | null;
+  }>;
   readonly project: {
     readonly annotationConfigs: {
       readonly configs: ReadonlyArray<{
@@ -23,13 +32,6 @@ export type SpanAsideAnnotationList_span$data = {
     };
     readonly id: string;
   };
-  readonly spanAnnotationsWithoutNotes: ReadonlyArray<{
-    readonly annotatorKind: AnnotatorKind;
-    readonly id: string;
-    readonly label: string | null;
-    readonly name: string;
-    readonly score: number | null;
-  }>;
   readonly " $fragmentType": "SpanAsideAnnotationList_span";
 };
 export type SpanAsideAnnotationList_span$key = {
@@ -53,7 +55,13 @@ v1 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterUserIds"
+    }
+  ],
   "kind": "Fragment",
   "metadata": null,
   "name": "SpanAsideAnnotationList_span",
@@ -120,18 +128,33 @@ return {
       "storageKey": null
     },
     {
-      "alias": "spanAnnotationsWithoutNotes",
+      "alias": "filteredSpanAnnotations",
       "args": [
         {
-          "kind": "Literal",
-          "name": "filter",
-          "value": {
-            "exclude": {
-              "names": [
-                "note"
-              ]
+          "fields": [
+            {
+              "kind": "Literal",
+              "name": "exclude",
+              "value": {
+                "names": [
+                  "note"
+                ]
+              }
+            },
+            {
+              "fields": [
+                {
+                  "kind": "Variable",
+                  "name": "userIds",
+                  "variableName": "filterUserIds"
+                }
+              ],
+              "kind": "ObjectValue",
+              "name": "include"
             }
-          }
+          ],
+          "kind": "ObjectValue",
+          "name": "filter"
         }
       ],
       "concreteType": "SpanAnnotation",
@@ -145,13 +168,6 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "label",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
           "name": "annotatorKind",
           "storageKey": null
         },
@@ -161,9 +177,30 @@ return {
           "kind": "ScalarField",
           "name": "score",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "label",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "explanation",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "createdAt",
+          "storageKey": null
         }
       ],
-      "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
+      "storageKey": null
     }
   ],
   "type": "Span",
@@ -171,6 +208,6 @@ return {
 };
 })();
 
-(node as any).hash = "52f333ffd91dd5c2c025ffac5e7cf1c7";
+(node as any).hash = "34bbaab16056d7dc138f8d8e22aa220d";
 
 export default node;

@@ -37,6 +37,8 @@ import {
   AnnotationFormProvider,
 } from "@phoenix/components/trace/AnnotationFormProvider";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
+import { Mutable } from "@phoenix/typeUtils";
 
 import { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
 import { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
@@ -158,7 +160,6 @@ function NewAnnotationCard(props: NewAnnotationCardProps) {
           projectId={projectId}
           spanId={spanNodeId}
           onClose={onClose}
-          renderNewAnnotationForm={null}
         />
       </Suspense>
     </Card>
@@ -254,26 +255,13 @@ function SpanAnnotationsList(props: {
     data.span
   );
   const spanNodeId = data.span.id;
-  const spanAnnotations = span.filteredSpanAnnotations;
+  const spanAnnotations = span.filteredSpanAnnotations as Mutable<
+    typeof span.filteredSpanAnnotations
+  >;
   const annotations = useMemo(() => {
     // we can only show one config per annotation name
     // so we need to group by name and pick the most recent one
-    return Object.values(
-      spanAnnotations.reduce(
-        (acc, annotation) => {
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = annotation;
-          } else if (
-            new Date(acc[annotation.name].createdAt) <
-            new Date(annotation.createdAt)
-          ) {
-            acc[annotation.name] = annotation;
-          }
-          return acc;
-        },
-        {} as Record<string, (typeof spanAnnotations)[number]>
-      )
-    );
+    return deduplicateAnnotationsByName(spanAnnotations);
   }, [spanAnnotations]);
   const currentAnnotationIds = useMemo(
     () => new Set(annotations.map((annotation) => annotation.id)),
@@ -287,13 +275,16 @@ function SpanAnnotationsList(props: {
       mutation SpanAnnotationsEditorDeleteAnnotationMutation(
         $spanId: GlobalID!
         $annotationIds: [GlobalID!]!
+        $filterUserIds: [GlobalID!]
       ) {
         deleteSpanAnnotations(input: { annotationIds: $annotationIds }) {
           query {
             node(id: $spanId) {
               ... on Span {
                 ...SpanAnnotationsEditor_spanAnnotations
+                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
+                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanFeedback_annotations
               }
             }
@@ -301,48 +292,16 @@ function SpanAnnotationsList(props: {
         }
       }
     `);
-
-  const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
-    graphql`
-      mutation SpanAnnotationsEditorEditAnnotationMutation(
-        $spanId: GlobalID!
-        $annotationId: GlobalID!
-        $name: String!
-        $label: String
-        $score: Float
-        $explanation: String
-      ) {
-        patchSpanAnnotations(
-          input: [
-            {
-              annotationId: $annotationId
-              name: $name
-              label: $label
-              score: $score
-              explanation: $explanation
-              annotatorKind: HUMAN
-            }
-          ]
-        ) {
-          query {
-            node(id: $spanId) {
-              ... on Span {
-                ...SpanAnnotationsEditor_spanAnnotations
-                ...SpanAsideAnnotationList_span
-                ...SpanFeedback_annotations
-              }
-            }
-          }
-        }
-      }
-    `
-  );
   const handleDelete = useCallback(
     (annotation: Annotation) =>
       new Promise<AnnotationFormMutationResult>((resolve) => {
         if (annotation.id) {
           commitDeleteAnnotation({
-            variables: { spanId: spanNodeId, annotationIds: [annotation.id] },
+            variables: {
+              spanId: spanNodeId,
+              annotationIds: [annotation.id],
+              filterUserIds: viewer?.id ? [viewer.id] : null,
+            },
             onCompleted: () => {
               resolve({
                 success: true,
@@ -361,7 +320,46 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId]
+    [commitDeleteAnnotation, spanNodeId, viewer?.id]
+  );
+
+  const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
+    graphql`
+      mutation SpanAnnotationsEditorEditAnnotationMutation(
+        $spanId: GlobalID!
+        $annotationId: GlobalID!
+        $name: String!
+        $label: String
+        $score: Float
+        $explanation: String
+        $filterUserIds: [GlobalID!]
+      ) {
+        patchSpanAnnotations(
+          input: [
+            {
+              annotationId: $annotationId
+              name: $name
+              label: $label
+              score: $score
+              explanation: $explanation
+              annotatorKind: HUMAN
+            }
+          ]
+        ) {
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...SpanAnnotationsEditor_spanAnnotations
+                  @arguments(filterUserIds: $filterUserIds)
+                ...SpanAsideAnnotationList_span
+                  @arguments(filterUserIds: $filterUserIds)
+                ...SpanFeedback_annotations
+              }
+            }
+          }
+        }
+      }
+    `
   );
   const handleEdit = useCallback(
     (data: Annotation) => {
@@ -377,6 +375,7 @@ function SpanAnnotationsList(props: {
                 label: data.label,
                 score: data.score,
                 explanation: data.explanation || null,
+                filterUserIds: viewer?.id ? [viewer.id] : null,
               },
               onCompleted: () => {
                 resolve({
@@ -394,7 +393,7 @@ function SpanAnnotationsList(props: {
         }
       });
     },
-    [commitEdit, spanNodeId]
+    [commitEdit, spanNodeId, viewer?.id]
   );
 
   const [commitCreateAnnotation] =
@@ -402,13 +401,16 @@ function SpanAnnotationsList(props: {
       mutation SpanAnnotationsEditorCreateAnnotationMutation(
         $input: CreateSpanAnnotationInput!
         $spanId: GlobalID!
+        $filterUserIds: [GlobalID!]
       ) {
         createSpanAnnotations(input: [$input]) {
           query {
             node(id: $spanId) {
               ... on Span {
                 ...SpanAnnotationsEditor_spanAnnotations
+                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
+                  @arguments(filterUserIds: $filterUserIds)
                 ...SpanFeedback_annotations
               }
             }
@@ -422,13 +424,14 @@ function SpanAnnotationsList(props: {
         commitCreateAnnotation({
           variables: {
             input: {
+              ...data,
               spanId: spanNodeId,
               annotatorKind: "HUMAN",
-              ...data,
               explanation: data.explanation || null,
               source: "APP",
             },
             spanId: spanNodeId,
+            filterUserIds: viewer?.id ? [viewer.id] : null,
           },
           onCompleted: () => {
             resolve({
@@ -443,7 +446,7 @@ function SpanAnnotationsList(props: {
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId]
+    [commitCreateAnnotation, spanNodeId, viewer?.id]
   );
 
   return (

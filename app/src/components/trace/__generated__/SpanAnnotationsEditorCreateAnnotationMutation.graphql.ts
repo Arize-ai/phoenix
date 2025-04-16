@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<215fbf5d749d797c2b2ae2a807a30d19>>
+ * @generated SignedSource<<c697c0cab44a27f701f79b4cc2357775>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,7 @@ export type CreateSpanAnnotationInput = {
   spanId: string;
 };
 export type SpanAnnotationsEditorCreateAnnotationMutation$variables = {
+  filterUserIds?: ReadonlyArray<string> | null;
   input: CreateSpanAnnotationInput;
   spanId: string;
 };
@@ -42,19 +43,22 @@ export type SpanAnnotationsEditorCreateAnnotationMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "spanId"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filterUserIds"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "spanId"
+},
+v3 = [
   {
     "items": [
       {
@@ -67,68 +71,70 @@ v1 = [
     "name": "input"
   }
 ],
-v2 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "spanId"
   }
 ],
-v3 = {
+v5 = [
+  {
+    "kind": "Variable",
+    "name": "filterUserIds",
+    "variableName": "filterUserIds"
+  }
+],
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v4 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v5 = {
-  "names": [
-    "note"
-  ]
-},
-v6 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotatorKind",
   "storageKey": null
 },
-v8 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v9 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "label",
   "storageKey": null
 },
-v10 = {
+v12 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "explanation",
   "storageKey": null
 },
-v11 = {
+v13 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -137,14 +143,18 @@ v11 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "SpanAnnotationsEditorCreateAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "createSpanAnnotations",
@@ -160,7 +170,7 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v4/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
@@ -170,12 +180,12 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       {
-                        "args": null,
+                        "args": (v5/*: any*/),
                         "kind": "FragmentSpread",
                         "name": "SpanAnnotationsEditor_spanAnnotations"
                       },
                       {
-                        "args": null,
+                        "args": (v5/*: any*/),
                         "kind": "FragmentSpread",
                         "name": "SpanAsideAnnotationList_span"
                       },
@@ -203,13 +213,17 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "SpanAnnotationsEditorCreateAnnotationMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "SpanAnnotationMutationPayload",
         "kind": "LinkedField",
         "name": "createSpanAnnotations",
@@ -225,18 +239,18 @@ return {
             "selections": [
               {
                 "alias": null,
-                "args": (v2/*: any*/),
+                "args": (v4/*: any*/),
                 "concreteType": null,
                 "kind": "LinkedField",
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/),
+                  (v6/*: any*/),
                   {
                     "kind": "TypeDiscriminator",
                     "abstractKey": "__isNode"
                   },
-                  (v4/*: any*/),
+                  (v7/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -248,14 +262,18 @@ return {
                               {
                                 "kind": "Literal",
                                 "name": "exclude",
-                                "value": (v5/*: any*/)
+                                "value": {
+                                  "names": [
+                                    "note"
+                                  ]
+                                }
                               },
                               {
                                 "fields": [
                                   {
-                                    "kind": "Literal",
+                                    "kind": "Variable",
                                     "name": "userIds",
-                                    "value": null
+                                    "variableName": "filterUserIds"
                                   }
                                 ],
                                 "kind": "ObjectValue",
@@ -271,15 +289,15 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v4/*: any*/),
-                          (v6/*: any*/),
                           (v7/*: any*/),
                           (v8/*: any*/),
                           (v9/*: any*/),
                           (v10/*: any*/),
-                          (v11/*: any*/)
+                          (v11/*: any*/),
+                          (v12/*: any*/),
+                          (v13/*: any*/)
                         ],
-                        "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]},\"include\":{\"userIds\":null}})"
+                        "storageKey": null
                       },
                       {
                         "alias": null,
@@ -289,7 +307,7 @@ return {
                         "name": "project",
                         "plural": false,
                         "selections": [
-                          (v4/*: any*/),
+                          (v7/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -314,11 +332,11 @@ return {
                                     "name": "node",
                                     "plural": false,
                                     "selections": [
-                                      (v3/*: any*/),
+                                      (v6/*: any*/),
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v4/*: any*/)
+                                          (v7/*: any*/)
                                         ],
                                         "type": "Node",
                                         "abstractKey": "__isNode"
@@ -326,7 +344,7 @@ return {
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
-                                          (v6/*: any*/)
+                                          (v8/*: any*/)
                                         ],
                                         "type": "AnnotationConfigBase",
                                         "abstractKey": "__isAnnotationConfigBase"
@@ -344,30 +362,6 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": "spanAnnotationsWithoutNotes",
-                        "args": [
-                          {
-                            "kind": "Literal",
-                            "name": "filter",
-                            "value": {
-                              "exclude": (v5/*: any*/)
-                            }
-                          }
-                        ],
-                        "concreteType": "SpanAnnotation",
-                        "kind": "LinkedField",
-                        "name": "spanAnnotations",
-                        "plural": true,
-                        "selections": [
-                          (v4/*: any*/),
-                          (v6/*: any*/),
-                          (v9/*: any*/),
-                          (v7/*: any*/),
-                          (v8/*: any*/)
-                        ],
-                        "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
-                      },
-                      {
                         "alias": null,
                         "args": null,
                         "concreteType": "SpanAnnotation",
@@ -375,11 +369,11 @@ return {
                         "name": "spanAnnotations",
                         "plural": true,
                         "selections": [
-                          (v4/*: any*/),
-                          (v6/*: any*/),
-                          (v9/*: any*/),
+                          (v7/*: any*/),
                           (v8/*: any*/),
+                          (v11/*: any*/),
                           (v10/*: any*/),
+                          (v12/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -387,7 +381,7 @@ return {
                             "name": "metadata",
                             "storageKey": null
                           },
-                          (v7/*: any*/),
+                          (v9/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -402,7 +396,7 @@ return {
                             "name": "source",
                             "storageKey": null
                           },
-                          (v11/*: any*/),
+                          (v13/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -418,7 +412,7 @@ return {
                             "name": "user",
                             "plural": false,
                             "selections": [
-                              (v4/*: any*/),
+                              (v7/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -455,16 +449,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "55738c348c5704a244ed17905ed94820",
+    "cacheID": "92257d5fde4d1000b6e735bbf68f57ef",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsEditorCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationsEditorCreateAnnotationMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: GlobalID!\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n          ...SpanAsideAnnotationList_span\n          ...SpanFeedback_annotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAsideAnnotationList_span on Span {\n  project {\n    id\n    annotationConfigs {\n      configs: edges {\n        config: node {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n        }\n      }\n    }\n  }\n  spanAnnotationsWithoutNotes: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
+    "text": "mutation SpanAnnotationsEditorCreateAnnotationMutation(\n  $input: CreateSpanAnnotationInput!\n  $spanId: GlobalID!\n  $filterUserIds: [GlobalID!]\n) {\n  createSpanAnnotations(input: [$input]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAsideAnnotationList_span_3lpqY\n          ...SpanFeedback_annotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAsideAnnotationList_span_3lpqY on Span {\n  project {\n    id\n    annotationConfigs {\n      configs: edges {\n        config: node {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n        }\n      }\n    }\n  }\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a4c55950524875c5931410742ed431fc";
+(node as any).hash = "5814bc1b21bc2589d73c6dc65a6168bb";
 
 export default node;

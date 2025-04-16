@@ -81,6 +81,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -181,9 +182,10 @@ export function SpanDetails({
     spanDetailsContainerDimensions?.width &&
     spanDetailsContainerDimensions.width <
       CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
+  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!) {
+      query SpanDetailsQuery($id: GlobalID!, $filterUserIds: [GlobalID!]) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -239,13 +241,14 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span
+            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
           }
         }
       }
     `,
     {
       id: spanNodeId,
+      filterUserIds: viewer?.id ? [viewer.id] : null,
     }
   );
 

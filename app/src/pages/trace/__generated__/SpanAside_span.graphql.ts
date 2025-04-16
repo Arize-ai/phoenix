@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2b5638bf0f85863e51878e2a111ae97f>>
+ * @generated SignedSource<<2d83c47ab466ddaa14ac0f3a6d453e0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -66,7 +66,13 @@ v1 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterUserIds"
+    }
+  ],
   "kind": "Fragment",
   "metadata": null,
   "name": "SpanAside_span",
@@ -263,7 +269,13 @@ return {
       "storageKey": null
     },
     {
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filterUserIds",
+          "variableName": "filterUserIds"
+        }
+      ],
       "kind": "FragmentSpread",
       "name": "SpanAsideAnnotationList_span"
     }
@@ -273,6 +285,6 @@ return {
 };
 })();
 
-(node as any).hash = "80654a9503478e25776809318c81dae4";
+(node as any).hash = "86300485c06dbf731028f996f71b0b0a";
 
 export default node;

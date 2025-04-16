@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
@@ -8,6 +8,7 @@ import { AnnotationLabel } from "@phoenix/components/annotation";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
 import { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
+import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
 import { SpanNotesEditor, SpanNotesEditorSkeleton } from "./SpanNotesEditor";
@@ -31,7 +32,8 @@ type SpanAsideProps = {
 export function SpanAside(props: SpanAsideProps) {
   const data = useFragment<SpanAside_span$key>(
     graphql`
-      fragment SpanAside_span on Span {
+      fragment SpanAside_span on Span
+      @argumentDefinitions(filterUserIds: { type: "[GlobalID!]" }) {
         id
         project {
           id
@@ -72,6 +74,7 @@ export function SpanAside(props: SpanAsideProps) {
         tokenCountPrompt
         tokenCountCompletion
         ...SpanAsideAnnotationList_span
+          @arguments(filterUserIds: $filterUserIds)
       }
     `,
     props.span
@@ -114,7 +117,8 @@ function SpanAsideAnnotationList(props: {
 }) {
   const data = useFragment<SpanAsideAnnotationList_span$key>(
     graphql`
-      fragment SpanAsideAnnotationList_span on Span {
+      fragment SpanAsideAnnotationList_span on Span
+      @argumentDefinitions(filterUserIds: { type: "[GlobalID!]" }) {
         project {
           id
           annotationConfigs {
@@ -130,14 +134,19 @@ function SpanAsideAnnotationList(props: {
             }
           }
         }
-        spanAnnotationsWithoutNotes: spanAnnotations(
-          filter: { exclude: { names: ["note"] } }
+        filteredSpanAnnotations: spanAnnotations(
+          filter: {
+            exclude: { names: ["note"] }
+            include: { userIds: $filterUserIds }
+          }
         ) {
           id
           name
-          label
           annotatorKind
           score
+          label
+          explanation
+          createdAt
         }
       }
     `,
@@ -151,8 +160,15 @@ function SpanAsideAnnotationList(props: {
       },
       {} as Record<string, boolean>
     );
-  const annotations = data.spanAnnotationsWithoutNotes.filter(
-    (annotation) => hasAnnotationConfigByName[annotation.name]
+  const filteredSpanAnnotations = data.filteredSpanAnnotations;
+  const annotations = useMemo(
+    () =>
+      deduplicateAnnotationsByName(
+        filteredSpanAnnotations.filter(
+          (annotation) => hasAnnotationConfigByName[annotation.name]
+        )
+      ),
+    [filteredSpanAnnotations, hasAnnotationConfigByName]
   );
   const hasAnnotations = annotations.length > 0;
   return (
