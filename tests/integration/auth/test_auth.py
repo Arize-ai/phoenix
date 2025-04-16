@@ -590,6 +590,15 @@ class TestPatchUser:
         with pytest.raises(Exception, match="role"):
             logged_in_user.patch_user(_DEFAULT_ADMIN, new_role=new_role)
 
+    def test_admin_cannot_change_role_for_self(
+        self,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(_ADMIN)
+        logged_in_user = u.log_in()
+        with pytest.raises(Exception, match="role"):
+            logged_in_user.patch_user(u, new_role=_MEMBER)
+
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
