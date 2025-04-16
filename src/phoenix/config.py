@@ -1138,8 +1138,8 @@ def verify_server_environment_variables() -> None:
     get_env_phoenix_admin_secret()
 
     # Notify users about deprecated environment variables if they are being used.
-    if _bool_val("PHOENIX_ENABLE_WEBSOCKETS"):
-        logger.info(
+    if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:
+        logger.warning(
             "The environment variable PHOENIX_ENABLE_WEBSOCKETS is deprecated "
             "because WebSocket is no longer necessary."
         )
