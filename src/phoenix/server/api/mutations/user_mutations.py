@@ -143,6 +143,8 @@ class UserMutationMixin:
             if input.new_role:
                 if user.email == DEFAULT_ADMIN_EMAIL:
                     raise Unauthorized("Cannot modify role for the default admin user")
+                if user_id == requester_id:
+                    raise Unauthorized("Cannot modify own role")
                 user_role_id = await session.scalar(_select_role_id_by_name(input.new_role.value))
                 if user_role_id is None:
                     raise NotFound(f"Role {input.new_role.value} not found")
