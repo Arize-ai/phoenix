@@ -31,6 +31,7 @@ export const TitledPanel = forwardRef<
     panelResizeHandleProps?: PanelResizeHandleProps;
     resizable?: boolean;
     bordered?: boolean;
+    disabled?: boolean;
   }>
 >(
   (
@@ -41,6 +42,7 @@ export const TitledPanel = forwardRef<
       panelResizeHandleProps,
       resizable = false,
       bordered = true,
+      disabled,
     },
     ref
   ) => {
@@ -98,6 +100,7 @@ export const TitledPanel = forwardRef<
           onClick={handleClick}
           collapsed={collapsed}
           bordered={bordered}
+          disabled={disabled}
         >
           {title}
         </PanelTitle>
@@ -133,6 +136,10 @@ const panelTitleCSS = css`
   }
   &:hover[disabled] {
     cursor: default;
+    background-color: unset;
+  }
+  &[disabled] {
+    opacity: var(--ac-opacity-disabled);
   }
   display: flex;
   align-items: center;
@@ -153,11 +160,13 @@ export const PanelTitle = ({
   children,
   collapsed,
   bordered,
+  disabled,
   ...props
 }: {
   children: React.ReactNode;
   collapsed?: boolean;
   bordered?: boolean;
+  disabled?: boolean;
 } & React.HTMLProps<HTMLButtonElement>) => {
   return (
     <button
@@ -166,7 +175,7 @@ export const PanelTitle = ({
       data-collapsed={collapsed}
       data-bordered={bordered}
       css={panelTitleCSS}
-      disabled={collapsed === undefined}
+      disabled={collapsed === undefined || disabled}
     >
       {collapsed !== undefined && (
         <Icon

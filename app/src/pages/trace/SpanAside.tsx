@@ -155,8 +155,16 @@ function SpanAsideAnnotationList(props: {
     (annotation) => hasAnnotationConfigByName[annotation.name]
   );
   const hasAnnotations = annotations.length > 0;
-  return hasAnnotations ? (
-    <TitledPanel title="Annotations" panelProps={{ order: 1, defaultSize: 65 }}>
+  return (
+    <TitledPanel
+      title="Annotations"
+      disabled={!hasAnnotations}
+      panelProps={{
+        order: 1,
+        defaultSize: hasAnnotations ? 65 : 0,
+        maxSize: hasAnnotations ? 65 : 0,
+      }}
+    >
       <View paddingY="size-100" paddingX="size-100">
         <ul css={annotationListCSS}>
           {annotations.map((annotation) => (
@@ -170,5 +178,5 @@ function SpanAsideAnnotationList(props: {
         </ul>
       </View>
     </TitledPanel>
-  ) : null;
+  );
 }
