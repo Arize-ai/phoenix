@@ -15,29 +15,41 @@ type FreeformAnnotationInputProps =
 export const FreeformAnnotationInput = forwardRef<
   HTMLDivElement,
   FreeformAnnotationInputProps
->(({ annotationConfig, containerRef, annotation, ...props }, ref) => {
-  return (
-    <Flex gap="size-50" alignItems="center">
-      <TextField
-        id={annotationConfig.id}
-        name={annotationConfig.name}
-        defaultValue={annotation?.label ?? undefined}
-        {...props}
-        ref={ref}
-        css={{
-          width: "100%",
-        }}
-      >
-        <Label>{annotationConfig.name}</Label>
-        <TextArea />
-        <Text slot="description">{annotationConfig.description}</Text>
-      </TextField>
-      <AnnotationInputExplanation
-        explanation={annotation?.explanation ?? undefined}
-        containerRef={containerRef}
-      />
-    </Flex>
-  );
-});
+>(
+  (
+    {
+      annotationConfig,
+      containerRef,
+      annotation,
+      onSubmitExplanation,
+      ...props
+    },
+    ref
+  ) => {
+    return (
+      <Flex gap="size-50" alignItems="center">
+        <TextField
+          id={annotationConfig.id}
+          name={annotationConfig.name}
+          defaultValue={annotation?.label ?? undefined}
+          {...props}
+          ref={ref}
+          css={{
+            width: "100%",
+          }}
+        >
+          <Label>{annotationConfig.name}</Label>
+          <TextArea />
+          <Text slot="description">{annotationConfig.description}</Text>
+        </TextField>
+        <AnnotationInputExplanation
+          annotation={annotation}
+          onSubmit={onSubmitExplanation}
+          containerRef={containerRef}
+        />
+      </Flex>
+    );
+  }
+);
 
 FreeformAnnotationInput.displayName = "FreeformAnnotationInput";

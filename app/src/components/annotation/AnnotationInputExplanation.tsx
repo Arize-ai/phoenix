@@ -15,22 +15,26 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { Annotation } from "@phoenix/components/annotation";
 import { Icon, Icons } from "@phoenix/components/icon";
 
 export const AnnotationInputExplanation = ({
-  explanation,
+  annotation,
   onSubmit,
   containerRef,
 }: {
-  explanation?: string;
+  annotation?: Annotation;
   onSubmit?: (explanation: string) => void;
   containerRef?: HTMLDivElement;
 }) => {
+  const fieldName = annotation?.name
+    ? `${annotation.name}.explanation`
+    : "explanation";
   return (
     <DialogTrigger>
       <TooltipTrigger placement="top">
         <TriggerWrap>
-          <Button variant="quiet" type="button">
+          <Button variant="quiet" type="button" isDisabled={!annotation?.id}>
             <Icon svg={<Icons.FileTextOutline />} />
           </Button>
         </TriggerWrap>
@@ -46,7 +50,7 @@ export const AnnotationInputExplanation = ({
                   onSubmit={(e) => {
                     e.preventDefault();
                     const formData = new FormData(e.target as HTMLFormElement);
-                    const explanation = formData.get("explanation");
+                    const explanation = formData.get(fieldName);
                     if (typeof explanation === "string") {
                       onSubmit?.(explanation);
                     }
@@ -54,7 +58,10 @@ export const AnnotationInputExplanation = ({
                   }}
                 >
                   <Flex direction="column" gap="size-100">
-                    <TextField name="explanation" defaultValue={explanation}>
+                    <TextField
+                      name={fieldName}
+                      defaultValue={annotation?.explanation ?? ""}
+                    >
                       <Label>Explanation</Label>
                       <TextArea rows={2} />
                       <Text slot="description">

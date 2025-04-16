@@ -46,7 +46,15 @@ export function SpanAnnotationInput(props: SpanAnnotationInputProps) {
               containerRef={containerRef ?? undefined}
               annotation={annotation}
               {...field}
-              selectedKey={_value?.label ?? null}
+              onSubmitExplanation={(explanation) => {
+                if (annotation?.id) {
+                  field.onChange({
+                    ...annotation,
+                    name: annotationConfig.name,
+                    explanation,
+                  });
+                }
+              }}
               onSelectionChange={(_selectedKey) => {
                 let selectedKey: Key | null = _selectedKey;
                 if (selectedKey === _value?.label) {
@@ -88,6 +96,15 @@ export function SpanAnnotationInput(props: SpanAnnotationInputProps) {
               containerRef={containerRef ?? undefined}
               annotation={annotation}
               {...field}
+              onSubmitExplanation={(explanation) => {
+                if (annotation?.id) {
+                  field.onChange({
+                    ...annotation,
+                    name: annotationConfig.name,
+                    explanation,
+                  });
+                }
+              }}
               value={_value?.score ?? undefined}
               onChange={(value) => {
                 field.onChange({
@@ -111,6 +128,15 @@ export function SpanAnnotationInput(props: SpanAnnotationInputProps) {
               containerRef={containerRef ?? undefined}
               annotation={annotation}
               {...field}
+              onSubmitExplanation={(explanation) => {
+                if (annotation?.id) {
+                  field.onChange({
+                    ...annotation,
+                    name: annotationConfig.name,
+                    explanation,
+                  });
+                }
+              }}
               value={_value?.label ?? ""}
               onChange={(value) => {
                 field.onChange({

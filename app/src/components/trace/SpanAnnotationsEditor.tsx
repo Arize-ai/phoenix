@@ -476,6 +476,7 @@ function SpanAnnotationsList(props: {
                 onDelete={handleDelete}
               >
                 <SpanAnnotationInput
+                  annotation={annotation}
                   annotationConfig={annotationConfig.config as AnnotationConfig}
                 />
               </AnnotationFormProvider>

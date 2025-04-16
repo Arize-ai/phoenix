@@ -24,46 +24,58 @@ type CategoricalAnnotationInputProps =
 export const CategoricalAnnotationInput = forwardRef<
   HTMLButtonElement,
   CategoricalAnnotationInputProps
->(({ annotationConfig, containerRef, annotation, ...props }, ref) => {
-  return (
-    <Flex gap="size-50" alignItems="center">
-      <Select
-        id={annotationConfig.id}
-        name={annotationConfig.name}
-        defaultSelectedKey={annotation?.label ?? undefined}
-        {...props}
-        css={{
-          width: "100%",
-        }}
-      >
-        <Label>{annotationConfig.name}</Label>
-        <Button ref={ref}>
-          <SelectValue />
-          <SelectChevronUpDownIcon />
-        </Button>
-        <Text slot="description">{annotationConfig.description}</Text>
-        <Popover UNSTABLE_portalContainer={containerRef}>
-          <ListBox
-            disallowEmptySelection={false}
-            selectionMode="none"
-            selectionBehavior="toggle"
-          >
-            {annotationConfig.values?.map((option) => (
-              <SelectItem key={option.label} id={option.label}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </ListBox>
-        </Popover>
-      </Select>
-      <div style={{ marginTop: 8 }}>
-        <AnnotationInputExplanation
-          explanation={annotation?.explanation ?? undefined}
-          containerRef={containerRef}
-        />
-      </div>
-    </Flex>
-  );
-});
+>(
+  (
+    {
+      annotationConfig,
+      containerRef,
+      annotation,
+      onSubmitExplanation,
+      ...props
+    },
+    ref
+  ) => {
+    return (
+      <Flex gap="size-50" alignItems="center">
+        <Select
+          id={annotationConfig.id}
+          name={annotationConfig.name}
+          defaultSelectedKey={annotation?.label ?? undefined}
+          {...props}
+          css={{
+            width: "100%",
+          }}
+        >
+          <Label>{annotationConfig.name}</Label>
+          <Button ref={ref}>
+            <SelectValue />
+            <SelectChevronUpDownIcon />
+          </Button>
+          <Text slot="description">{annotationConfig.description}</Text>
+          <Popover UNSTABLE_portalContainer={containerRef}>
+            <ListBox
+              disallowEmptySelection={false}
+              selectionMode="none"
+              selectionBehavior="toggle"
+            >
+              {annotationConfig.values?.map((option) => (
+                <SelectItem key={option.label} id={option.label}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </ListBox>
+          </Popover>
+        </Select>
+        <div style={{ marginTop: 8 }}>
+          <AnnotationInputExplanation
+            annotation={annotation}
+            onSubmit={onSubmitExplanation}
+            containerRef={containerRef}
+          />
+        </div>
+      </Flex>
+    );
+  }
+);
 
 CategoricalAnnotationInput.displayName = "CategoricalAnnotationInput";
