@@ -119,10 +119,6 @@ ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
 """
 Whether or not to log migrations. Defaults to true.
 """
-ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
-"""
-Whether or not to enable websockets. Defaults to None.
-"""
 
 ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
 """
@@ -572,10 +568,6 @@ def get_env_smtp_port() -> int:
 
 def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
-
-
-def get_env_enable_websockets() -> Optional[bool]:
-    return _bool_val(ENV_PHOENIX_ENABLE_WEBSOCKETS)
 
 
 @dataclass(frozen=True)
@@ -1144,6 +1136,13 @@ def verify_server_environment_variables() -> None:
     get_env_root_url()
     get_env_phoenix_secret()
     get_env_phoenix_admin_secret()
+
+    # Notify users about deprecated environment variables if they are being used.
+    if _bool_val("PHOENIX_ENABLE_WEBSOCKETS"):
+        logger.info(
+            "The environment variable PHOENIX_ENABLE_WEBSOCKETS is deprecated "
+            "because WebSocket is no longer necessary."
+        )
 
 
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))

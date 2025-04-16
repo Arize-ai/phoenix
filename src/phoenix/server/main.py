@@ -23,7 +23,6 @@ from phoenix.config import (
     get_env_db_logging_level,
     get_env_disable_migrations,
     get_env_enable_prometheus,
-    get_env_enable_websockets,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
@@ -355,13 +354,6 @@ def main() -> None:
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
 
-    # Get enable_websockets from environment variable or command line argument
-    enable_websockets = get_env_enable_websockets()
-    if args.enable_websockets is not None:
-        enable_websockets = args.enable_websockets.lower() == "true"
-    if enable_websockets is None:
-        enable_websockets = True
-
     allowed_origins = get_env_allowed_origins()
 
     # Print information about the server
@@ -374,7 +366,6 @@ def main() -> None:
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
-        websockets_enabled=enable_websockets,
         allowed_origins=allowed_origins,
     )
     if sys.platform.startswith("win"):
@@ -405,7 +396,6 @@ def main() -> None:
         db=factory,
         export_path=export_path,
         model=model,
-        enable_websockets=enable_websockets,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=corpus_model,
