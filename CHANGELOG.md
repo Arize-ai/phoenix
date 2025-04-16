@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.26.0...arize-phoenix-v8.26.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* disallow admin user to change their own role ([#7165](https://github.com/Arize-ai/phoenix/issues/7165)) ([48a79cc](https://github.com/Arize-ai/phoenix/commit/48a79ccda74323686e1de2d862c147865039723e))
+* **ui:** hide menu for changing role for self in UsersTable ([#7167](https://github.com/Arize-ai/phoenix/issues/7167)) ([44f7e67](https://github.com/Arize-ai/phoenix/commit/44f7e6725958213bc5833144ab7dc012af2a5310))
+
+## [8.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.25.0...arize-phoenix-v8.26.0) (2025-04-16)
+
+
+### Features
+
+* add PHOENIX_ADMIN_SECRET environment variable ([#7151](https://github.com/Arize-ai/phoenix/issues/7151)) ([bde184e](https://github.com/Arize-ai/phoenix/commit/bde184efda680fc212fdd4fd4346d66e9914cf38))
+* **tracing:** add load more and loading state to the infinite scroll ([#7132](https://github.com/Arize-ai/phoenix/issues/7132)) ([7e97c51](https://github.com/Arize-ai/phoenix/commit/7e97c519aa8813cfa1deff22b9b15cb49d723c00))
+
 ## [8.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.2...arize-phoenix-v8.25.0) (2025-04-15)
 
 

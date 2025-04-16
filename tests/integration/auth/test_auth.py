@@ -25,7 +25,7 @@ from opentelemetry.sdk.environment_variables import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
-from phoenix.config import get_env_root_url
+from phoenix.config import get_env_phoenix_admin_secret, get_env_root_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
@@ -590,6 +590,15 @@ class TestPatchUser:
         with pytest.raises(Exception, match="role"):
             logged_in_user.patch_user(_DEFAULT_ADMIN, new_role=new_role)
 
+    def test_admin_cannot_change_role_for_self(
+        self,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(_ADMIN)
+        logged_in_user = u.log_in()
+        with pytest.raises(Exception, match="role"):
+            logged_in_user.patch_user(u, new_role=_MEMBER)
+
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
@@ -995,6 +1004,44 @@ class TestSpanExporters:
         if api_key and expected is SpanExportResult.SUCCESS:
             _DEFAULT_ADMIN.delete_api_key(api_key)
             assert export(_spans) is SpanExportResult.FAILURE
+
+    @pytest.mark.parametrize(
+        "use_admin_secret,expected",
+        [
+            (True, SpanExportResult.SUCCESS),
+            (False, SpanExportResult.FAILURE),
+        ],
+    )
+    @pytest.mark.parametrize("method", ["headers", "setenv"])
+    def test_admin_secret(
+        self,
+        method: Literal["headers", "setenv"],
+        use_admin_secret: bool,
+        expected: SpanExportResult,
+        _span_exporter: _SpanExporterFactory,
+        _spans: Sequence[ReadableSpan],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_HEADERS, False)
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_TRACES_HEADERS, False)
+        headers: Optional[_Headers] = None
+        if use_admin_secret:
+            assert (api_key := get_env_phoenix_admin_secret())
+        else:
+            api_key = ""
+        if method == "headers":
+            # Must use all lower case for `authorization` because
+            # otherwise it would crash the gRPC receiver.
+            headers = dict(authorization=f"Bearer {api_key}")
+        elif method == "setenv":
+            monkeypatch.setenv(
+                OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                f"Authorization=Bearer {api_key}",
+            )
+        else:
+            assert_never(method)
+        export = _span_exporter(headers=headers).export
+        assert export(_spans) is expected
 
 
 class TestEmbeddingsRestApi:
