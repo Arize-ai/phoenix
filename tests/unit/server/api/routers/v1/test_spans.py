@@ -9,9 +9,9 @@ import pytest
 from faker import Faker
 from sqlalchemy import insert, select
 
+from phoenix import Client as LegacyClient
 from phoenix import TraceDataset
 from phoenix.client import Client
-from phoenix.client import Client as LegacyClient
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
@@ -46,11 +46,11 @@ async def test_querying_spans_with_new_client(
     span_data_with_documents: Any,
 ) -> None:
     legacy_df = cast(pd.DataFrame, legacy_px_client.get_spans_dataframe())
-    df = cast(pd.DataFrame, px_client.spans.get_spans_dataframe())
+    df = cast(pd.DataFrame, px_client.spans.get_spans_dataframe())  # type: ignore
     assert legacy_df.equals(df)
 
 
-@pytest.mark.xfail(reason="The spans client is not yet released")
+@pytest.mark.xfail(condition=True, reason="The spans client is not yet released")
 @pytest.mark.parametrize("sync", [False, True])
 async def test_rest_span_annotation(
     db: DbSessionFactory,
