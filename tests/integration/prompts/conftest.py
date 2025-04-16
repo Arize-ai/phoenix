@@ -9,6 +9,7 @@ import pytest
 from faker import Faker
 from phoenix.auth import DEFAULT_SECRET_LENGTH
 from phoenix.config import (
+    ENV_PHOENIX_ADMIN_SECRET,
     ENV_PHOENIX_DISABLE_RATE_LIMIT,
     ENV_PHOENIX_ENABLE_AUTH,
     ENV_PHOENIX_SECRET,
@@ -35,6 +36,7 @@ def _app(
         (ENV_PHOENIX_ENABLE_AUTH, "true"),
         (ENV_PHOENIX_DISABLE_RATE_LIMIT, "true"),
         (ENV_PHOENIX_SECRET, _secret),
+        (ENV_PHOENIX_ADMIN_SECRET, secrets.token_hex(DEFAULT_SECRET_LENGTH)),
     )
     with ExitStack() as stack:
         stack.enter_context(mock.patch.dict(os.environ, values))
