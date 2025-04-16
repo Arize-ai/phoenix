@@ -6,14 +6,13 @@ import {
   useLazyLoadQuery,
   useMutation,
 } from "react-relay";
+import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   Button,
-  Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -21,7 +20,6 @@ import {
   Link,
   ListBox,
   ListBoxItem,
-  Modal,
   Text,
   TextField,
   View,
@@ -74,10 +72,9 @@ const annotationTypeLabelMap: Record<AnnotationType, string> = {
 export function AnnotationConfigList(props: {
   projectId: string;
   spanId: string;
-  renderNewAnnotationForm: React.ReactNode;
 }) {
-  const [popoverRef, setPopoverRef] = useState<HTMLDivElement | null>(null);
-  const { projectId, renderNewAnnotationForm, spanId } = props;
+  const navigate = useNavigate();
+  const { projectId, spanId } = props;
   const [filter, setFilter] = useState<string>("");
   const { viewer } = useViewer();
   const viewerId = viewer?.id;
@@ -301,22 +298,19 @@ export function AnnotationConfigList(props: {
                 >
                   <Input placeholder="Search annotation configs" />
                 </TextField>
-                <DialogTrigger>
-                  <TooltipTrigger>
-                    <TriggerWrap>
-                      <Button aria-label="Create annotation config">
-                        <Icon svg={<Icons.PlusCircleOutline />} />
-                      </Button>
-                    </TriggerWrap>
-                    <Tooltip>Create new annotation config</Tooltip>
-                  </TooltipTrigger>
-                  <Modal
-                    isDismissable
-                    UNSTABLE_portalContainer={popoverRef ?? undefined}
-                  >
-                    <Dialog>{renderNewAnnotationForm}</Dialog>
-                  </Modal>
-                </DialogTrigger>
+                <TooltipTrigger>
+                  <TriggerWrap>
+                    <Button
+                      aria-label="Create annotation config"
+                      onPress={() => {
+                        navigate("/settings/annotations");
+                      }}
+                    >
+                      <Icon svg={<Icons.PlusCircleOutline />} />
+                    </Button>
+                  </TriggerWrap>
+                  <Tooltip>Create new annotation config</Tooltip>
+                </TooltipTrigger>
               </Flex>
             </View>
             <ListBox
@@ -396,7 +390,6 @@ export function AnnotationConfigList(props: {
           </Flex>
         </FocusScope>
       </View>
-      <div ref={setPopoverRef} />
     </>
   );
 }

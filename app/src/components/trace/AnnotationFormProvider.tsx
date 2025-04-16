@@ -31,9 +31,6 @@ type AnnotationFormProviderProps = {
   onError?: (annotation: Annotation, error: string) => void;
 };
 
-// TODO: update this so that it only updates one annotation at a time, on blur
-// - add a delete button that appears on hover beside the inputs
-// - move the explanation button to a clickable link next to the input label
 export const AnnotationFormProvider = ({
   annotation,
   annotationConfig,

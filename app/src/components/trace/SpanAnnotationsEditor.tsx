@@ -493,18 +493,13 @@ function NewAnnotationFromConfig(props: {
   projectId: string;
   spanId: string;
   onClose: () => void;
-  renderNewAnnotationForm: React.ReactNode;
 }) {
-  const { projectId, spanId, renderNewAnnotationForm } = props;
+  const { projectId, spanId } = props;
   return (
     <View minWidth={320}>
       <Suspense fallback={<Loading />}>
         <Flex direction="column" gap="size-100">
-          <AnnotationConfigList
-            projectId={projectId}
-            spanId={spanId}
-            renderNewAnnotationForm={renderNewAnnotationForm}
-          />
+          <AnnotationConfigList projectId={projectId} spanId={spanId} />
         </Flex>
       </Suspense>
     </View>
