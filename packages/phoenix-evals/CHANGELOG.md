@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.4...arize-phoenix-evals-v0.20.5) (2025-04-16)
+
+
+### Bug Fixes
+
+* Formatting of additionalModelRequestFields based on model ([#6943](https://github.com/Arize-ai/phoenix/issues/6943)) ([aec9541](https://github.com/Arize-ai/phoenix/commit/aec9541524e5aa1e91ea7c3bf96d8960f202ba35))
+
 ## [0.20.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.3...arize-phoenix-evals-v0.20.4) (2025-03-24)
 
 
