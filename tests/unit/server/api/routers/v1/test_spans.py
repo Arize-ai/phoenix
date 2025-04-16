@@ -39,6 +39,7 @@ async def test_span_round_tripping_with_docs(
     assert new_count == orig_count * 2
 
 
+@pytest.mark.xfail(condition=True, reason="The spans client is not yet released")
 async def test_querying_spans_with_new_client(
     legacy_px_client: LegacyClient,
     px_client: Client,
@@ -50,7 +51,6 @@ async def test_querying_spans_with_new_client(
     assert legacy_df.equals(df)
 
 
-@pytest.mark.xfail(condition=True, reason="The spans client is not yet released")
 @pytest.mark.parametrize("sync", [False, True])
 async def test_rest_span_annotation(
     db: DbSessionFactory,
