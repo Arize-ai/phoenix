@@ -50,6 +50,7 @@ async def test_querying_spans_with_new_client(
     assert legacy_df.equals(df)
 
 
+@pytest.mark.xfail(reason="The spans client is not yet released")
 @pytest.mark.parametrize("sync", [False, True])
 async def test_rest_span_annotation(
     db: DbSessionFactory,
