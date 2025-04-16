@@ -423,7 +423,7 @@ export function TracesTable(props: TracesTableProps) {
               {row.original.spanAnnotations.map((annotation) => {
                 return (
                   <AnnotationTooltip
-                    key={annotation.name}
+                    key={annotation.id}
                     annotation={annotation}
                     layout="horizontal"
                     width="500px"
