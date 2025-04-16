@@ -41,6 +41,7 @@ export const ProjectPageQueriesProjectConfigQuery = graphql`
     project: node(id: $id) {
       id
       ...ProjectConfigPage_projectConfigCard
+      ...ProjectRetentionPolicyCard_policy
     }
   }
 `;

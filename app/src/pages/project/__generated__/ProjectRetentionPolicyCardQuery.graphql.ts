@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<329b0e23fda1ab9c4c2ceeaa03672c55>>
+ * @generated SignedSource<<d3d70369e7cb7aed23eba1b6888b0927>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,18 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectPageQueriesProjectConfigQuery$variables = {
+export type ProjectRetentionPolicyCardQuery$variables = {
   id: string;
 };
-export type ProjectPageQueriesProjectConfigQuery$data = {
-  readonly project: {
-    readonly id: string;
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectConfigPage_projectConfigCard" | "ProjectRetentionPolicyCard_policy">;
+export type ProjectRetentionPolicyCardQuery$data = {
+  readonly node: {
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectRetentionPolicyCard_policy">;
   };
 };
-export type ProjectPageQueriesProjectConfigQuery = {
-  response: ProjectPageQueriesProjectConfigQuery$data;
-  variables: ProjectPageQueriesProjectConfigQuery$variables;
+export type ProjectRetentionPolicyCardQuery = {
+  response: ProjectRetentionPolicyCardQuery$data;
+  variables: ProjectRetentionPolicyCardQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -43,14 +42,14 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "__typename",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "id",
   "storageKey": null
 },
 v4 = {
@@ -79,22 +78,16 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectPageQueriesProjectConfigQuery",
+    "name": "ProjectRetentionPolicyCardQuery",
     "selections": [
       {
-        "alias": "project",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          {
-            "args": null,
-            "kind": "FragmentSpread",
-            "name": "ProjectConfigPage_projectConfigCard"
-          },
           {
             "args": null,
             "kind": "FragmentSpread",
@@ -111,36 +104,26 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectPageQueriesProjectConfigQuery",
+    "name": "ProjectRetentionPolicyCardQuery",
     "selections": [
       {
-        "alias": "project",
+        "alias": null,
         "args": (v1/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v3/*: any*/),
           (v2/*: any*/),
+          {
+            "kind": "TypeDiscriminator",
+            "abstractKey": "__isNode"
+          },
+          (v3/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
               (v4/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "gradientStartColor",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "gradientEndColor",
-                "storageKey": null
-              },
               {
                 "alias": null,
                 "args": null,
@@ -149,7 +132,7 @@ return {
                 "name": "traceRetentionPolicy",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
+                  (v3/*: any*/),
                   (v4/*: any*/),
                   {
                     "alias": null,
@@ -166,7 +149,7 @@ return {
                     "name": "rule",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      (v2/*: any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -208,16 +191,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "553eb5df09e74f2f6b52a5ec2a278e46",
+    "cacheID": "77c202af7295368d5d136811c06adc96",
     "id": null,
     "metadata": {},
-    "name": "ProjectPageQueriesProjectConfigQuery",
+    "name": "ProjectRetentionPolicyCardQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesProjectConfigQuery(\n  $id: GlobalID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ...ProjectConfigPage_projectConfigCard\n    ...ProjectRetentionPolicyCard_policy\n  }\n}\n\nfragment ProjectConfigPage_projectConfigCard on Project {\n  id\n  name\n  gradientStartColor\n  gradientEndColor\n}\n\nfragment ProjectRetentionPolicyCard_policy on Project {\n  id\n  name\n  traceRetentionPolicy {\n    id\n    name\n    cronExpression\n    rule {\n      __typename\n      ... on TraceRetentionRuleMaxDays {\n        maxDays\n      }\n      ... on TraceRetentionRuleMaxCount {\n        maxCount\n      }\n      ... on TraceRetentionRuleMaxDaysOrCount {\n        maxDays\n        maxCount\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectRetentionPolicyCardQuery(\n  $id: GlobalID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectRetentionPolicyCard_policy\n    __isNode: __typename\n    id\n  }\n}\n\nfragment ProjectRetentionPolicyCard_policy on Project {\n  id\n  name\n  traceRetentionPolicy {\n    id\n    name\n    cronExpression\n    rule {\n      __typename\n      ... on TraceRetentionRuleMaxDays {\n        maxDays\n      }\n      ... on TraceRetentionRuleMaxCount {\n        maxCount\n      }\n      ... on TraceRetentionRuleMaxDaysOrCount {\n        maxDays\n        maxCount\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f0461c4a98a8566ee21adff7afb9b518";
+(node as any).hash = "4fa3fab109a0fda0beab65fa1fcfb590";
 
 export default node;
