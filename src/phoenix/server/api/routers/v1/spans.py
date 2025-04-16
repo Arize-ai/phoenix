@@ -8,18 +8,14 @@ import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import Field
 from sqlalchemy import insert, select
-from sqlalchemy.dialects import postgresql, sqlite
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
-from typing_extensions import assert_never
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
@@ -244,8 +240,6 @@ async def annotate_spans(
 
     span_ids = {p.span_id for p in precursors}
     async with request.app.state.db() as session:
-        dialect_name = SupportedSQLDialect(session.bind.dialect.name)
-
         existing_spans = {
             span.span_id: span.id
             async for span in await session.stream_scalars(
@@ -261,38 +255,40 @@ async def annotate_spans(
             )
         inserted_ids = []
         for p in precursors:
-            values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
-            stmt = insert(models.SpanAnnotation).values(**values)
+            span_rowid = existing_spans[p.span_id]
+            name = p.row.name
+            identifier = p.row.identifier
 
-            if values.get("identifier") is not None:
-                update_fields = {
-                    "name": stmt.excluded.name,
-                    "label": stmt.excluded.label,
-                    "score": stmt.excluded.score,
-                    "explanation": stmt.excluded.explanation,
-                    "metadata_": stmt.excluded.metadata_,
-                    "annotator_kind": stmt.excluded.annotator_kind,
-                    "source": stmt.excluded.source,
-                    "user_id": stmt.excluded.user_id,
-                }
-                if dialect_name == SupportedSQLDialect.POSTGRESQL:
-                    pg_stmt = postgresql.insert(models.SpanAnnotation).values(**values)
-                    stmt = pg_stmt.on_conflict_do_update(
-                        constraint="uq_span_annotation_identifier_per_span", set_=update_fields
-                    )
-                elif dialect_name == SupportedSQLDialect.SQLITE:
-                    sqlite_stmt = sqlite.insert(models.SpanAnnotation).values(**values)
-                    stmt = sqlite_stmt.on_conflict_do_update(
-                        index_elements=["span_rowid", "identifier"],
-                        index_where=models.SpanAnnotation.identifier.isnot(None),
-                        set_=update_fields,
-                    )
-                else:
-                    assert_never(dialect_name)
+            # Check if an annotation with this span_rowid, name, and identifier already exists
+            q = select(models.SpanAnnotation).where(
+                models.SpanAnnotation.span_rowid == span_rowid,
+                models.SpanAnnotation.name == name,
+            )
+            if identifier is None:
+                q = q.where(models.SpanAnnotation.identifier.is_(None))
             else:
+                q = q.where(models.SpanAnnotation.identifier == identifier)
+
+            existing_annotation = await session.scalar(q)
+
+            if existing_annotation:
+                existing_annotation.label = p.row.label
+                existing_annotation.score = p.row.score
+                existing_annotation.explanation = p.row.explanation
+                existing_annotation.metadata_ = p.row.metadata_
+                existing_annotation.annotator_kind = p.row.annotator_kind
+                existing_annotation.source = p.row.source
+                existing_annotation.user_id = p.row.user_id
+                session.add(existing_annotation)
+                inserted_ids.append(existing_annotation.id)
+            else:
+                values = p.as_insertable(span_rowid).row
+                stmt = insert(models.SpanAnnotation).values(**values._asdict())
                 stmt = stmt.returning(models.SpanAnnotation.id)
-            result = await session.execute(stmt)
-            inserted_ids.append(result.scalar_one())
+                result = await session.execute(stmt)
+                inserted_ids.append(result.scalar_one())
+
+        await session.commit()
 
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSpansResponseBody(
