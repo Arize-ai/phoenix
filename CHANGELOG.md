@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.26.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.26.0...arize-phoenix-v8.26.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* disallow admin user to change their own role ([#7165](https://github.com/Arize-ai/phoenix/issues/7165)) ([48a79cc](https://github.com/Arize-ai/phoenix/commit/48a79ccda74323686e1de2d862c147865039723e))
+* **ui:** hide menu for changing role for self in UsersTable ([#7167](https://github.com/Arize-ai/phoenix/issues/7167)) ([44f7e67](https://github.com/Arize-ai/phoenix/commit/44f7e6725958213bc5833144ab7dc012af2a5310))
+
 ## [8.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.25.0...arize-phoenix-v8.26.0) (2025-04-16)
 
 
