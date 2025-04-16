@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43621190348252b447c705609085561b>>
+ * @generated SignedSource<<b357575f108f07f23e5cf192701c88c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -176,8 +176,35 @@ return {
                     "kind": "InlineFragment",
                     "selections": [
                       {
-                        "alias": null,
-                        "args": null,
+                        "alias": "filteredSpanAnnotations",
+                        "args": [
+                          {
+                            "fields": [
+                              {
+                                "kind": "Literal",
+                                "name": "exclude",
+                                "value": {
+                                  "names": [
+                                    "note"
+                                  ]
+                                }
+                              },
+                              {
+                                "fields": [
+                                  {
+                                    "kind": "Literal",
+                                    "name": "userIds",
+                                    "value": null
+                                  }
+                                ],
+                                "kind": "ObjectValue",
+                                "name": "include"
+                              }
+                            ],
+                            "kind": "ObjectValue",
+                            "name": "filter"
+                          }
+                        ],
                         "concreteType": "SpanAnnotation",
                         "kind": "LinkedField",
                         "name": "spanAnnotations",
@@ -220,7 +247,7 @@ return {
                             "storageKey": null
                           }
                         ],
-                        "storageKey": null
+                        "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]},\"include\":{\"userIds\":null}})"
                       }
                     ],
                     "type": "Span",
@@ -238,12 +265,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1ad21da2e4edf61876579ebc3fbc4443",
+    "cacheID": "dc647b61b3b6c9ed6772b5f2efe6ef96",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationActionMenuDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: GlobalID!\n  $spanId: GlobalID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: GlobalID!\n  $spanId: GlobalID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
   }
 };
 })();

@@ -20,21 +20,23 @@ import { Icon, Icons } from "@phoenix/components/icon";
 export const AnnotationInputExplanation = ({
   explanation,
   onSubmit,
+  containerRef,
 }: {
   explanation?: string;
   onSubmit?: (explanation: string) => void;
+  containerRef?: HTMLDivElement;
 }) => {
   return (
     <DialogTrigger>
       <TooltipTrigger placement="top">
         <TriggerWrap>
           <Button variant="quiet" type="button">
-            <Icon svg={<Icons.Edit2Outline />} />
+            <Icon svg={<Icons.FileTextOutline />} />
           </Button>
         </TriggerWrap>
         <Tooltip>Explain this score</Tooltip>
       </TooltipTrigger>
-      <Popover placement="bottom end">
+      <Popover placement="bottom end" UNSTABLE_portalContainer={containerRef}>
         <PopoverArrow />
         <Dialog>
           {({ close }) => (

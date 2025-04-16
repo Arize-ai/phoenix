@@ -5,55 +5,42 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { FocusScope } from "react-aria";
+import { FormProvider, useForm } from "react-hook-form";
 import {
   graphql,
+  useFragment,
   useLazyLoadQuery,
   useMutation,
-  useRefetchableFragment,
 } from "react-relay";
-import { css } from "@emotion/react";
 
 import { Card } from "@arizeai/components";
 
 import {
-  Alert,
   Button,
   Dialog,
   DialogTrigger,
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
   Flex,
-  Form,
   Icon,
   Icons,
-  Input,
-  Label,
-  ListBox,
-  ListBoxItem,
   Loading,
   Popover,
-  Text,
-  TextField,
   View,
 } from "@phoenix/components";
+import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
+import { AnnotationSaveButton } from "@phoenix/components/annotation/AnnotationSaveButton";
 import { Empty } from "@phoenix/components/Empty";
+import { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
+import { SpanAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorDeleteAnnotationMutation.graphql";
+import { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorSpanAnnotationsListQuery.graphql";
 import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
-import { useNotifySuccess } from "@phoenix/contexts";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 
-import {
-  SpanAnnotationsEditor_spanAnnotations$data,
-  SpanAnnotationsEditor_spanAnnotations$key,
-} from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
+import { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
 import { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
-import { SpanAnnotationsEditorNewAnnotationQuery } from "./__generated__/SpanAnnotationsEditorNewAnnotationQuery.graphql";
-import { SpanAnnotationsEditorQuery } from "./__generated__/SpanAnnotationsEditorQuery.graphql";
-import { SpanAnnotationsEditorSpanAnnotationsQuery } from "./__generated__/SpanAnnotationsEditorSpanAnnotationsQuery.graphql";
-import { AnnotatorKindToken } from "./AnnotatorKindToken";
-import { NewSpanAnnotationForm } from "./NewSpanAnnotationForm";
-import { SpanAnnotationActionMenu } from "./SpanAnnotationActionMenu";
-import { AnnotationFormData, SpanAnnotationForm } from "./SpanAnnotationForm";
+import { AnnotationFormData, SpanAnnotationInput } from "./SpanAnnotationInput";
+
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
   projectId: string;
@@ -64,37 +51,13 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
     null
   );
-  const notifySuccess = useNotifySuccess();
   return (
     <View height="100%" maxHeight="100%" overflow="auto">
       <Flex direction="column" height="100%">
-        <Suspense>
-          <EditSpanAnnotations
-            extraAnnotationCards={
-              newAnnotationName ? (
-                <NewSpanAnnotationDisclosure
-                  spanNodeId={spanNodeId}
-                  name={newAnnotationName}
-                  onDelete={() => {
-                    setNewAnnotationName(null);
-                  }}
-                  onCreated={() => {
-                    setNewAnnotationName(null);
-                    notifySuccess({
-                      title: `New Span Annotation`,
-                      message: `Annotation ${newAnnotationName} has been created.`,
-                    });
-                  }}
-                />
-              ) : null
-            }
-            {...props}
-          />
-        </Suspense>
         <View
           paddingY="size-100"
           paddingX="size-100"
-          borderTopWidth="thin"
+          borderBottomWidth="thin"
           borderColor="dark"
           width="100%"
           flex="none"
@@ -113,6 +76,9 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
             />
           </Flex>
         </View>
+        <Suspense>
+          <SpanAnnotationsList spanId={spanNodeId} projectId={projectId} />
+        </Suspense>
       </Flex>
     </View>
   );
@@ -177,7 +143,7 @@ type NewAnnotationCardProps = {
 };
 
 function NewAnnotationCard(props: NewAnnotationCardProps) {
-  const { projectId, spanNodeId, onAnnotationNameSelect, onClose } = props;
+  const { projectId, spanNodeId, onClose } = props;
   return (
     <Card
       title="Add Annotation from Config"
@@ -191,60 +157,89 @@ function NewAnnotationCard(props: NewAnnotationCardProps) {
           projectId={projectId}
           spanId={spanNodeId}
           onClose={onClose}
-          renderNewAnnotationForm={
-            <NewAnnotationInput
-              projectId={projectId}
-              spanId={spanNodeId}
-              onAnnotationNameSelect={onAnnotationNameSelect}
-              onClose={onClose}
-            />
-          }
+          renderNewAnnotationForm={null}
         />
       </Suspense>
     </Card>
   );
 }
-type EditSpanAnnotationsProps = SpanAnnotationsEditorProps & {
-  extraAnnotationCards?: React.ReactNode;
-};
 
-function EditSpanAnnotations(props: EditSpanAnnotationsProps) {
-  const data = useLazyLoadQuery<SpanAnnotationsEditorQuery>(
+function SpanAnnotationsList(props: {
+  spanId: string;
+  projectId: string;
+  extraAnnotationCards?: React.ReactNode;
+}) {
+  const { spanId, projectId, extraAnnotationCards } = props;
+  const { viewer } = useViewer();
+
+  const data = useLazyLoadQuery<SpanAnnotationsEditorSpanAnnotationsListQuery>(
     graphql`
-      query SpanAnnotationsEditorQuery($spanId: GlobalID!) {
+      query SpanAnnotationsEditorSpanAnnotationsListQuery(
+        $projectId: GlobalID!
+        $spanId: GlobalID!
+        $filterUserIds: [GlobalID!]
+      ) {
+        project: node(id: $projectId) {
+          id
+          ... on Project {
+            annotationConfigs {
+              configs: edges {
+                config: node {
+                  __typename
+                  ... on Node {
+                    id
+                  }
+                  ... on AnnotationConfigBase {
+                    name
+                    annotationType
+                    description
+                  }
+                  ... on CategoricalAnnotationConfig {
+                    optimizationDirection
+                    values {
+                      label
+                      score
+                    }
+                  }
+                  ... on ContinuousAnnotationConfig {
+                    lowerBound
+                    upperBound
+                    optimizationDirection
+                  }
+                  ... on FreeformAnnotationConfig {
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
         span: node(id: $spanId) {
           id
           ... on Span {
             ...SpanAnnotationsEditor_spanAnnotations
+              @arguments(filterUserIds: $filterUserIds)
           }
         }
       }
     `,
-    { spanId: props.spanNodeId },
-    { fetchPolicy: "store-and-network" }
+    {
+      projectId,
+      spanId,
+      filterUserIds: viewer?.id ? [viewer.id] : null,
+    }
   );
-  return (
-    <SpanAnnotationsList
-      span={data.span}
-      extraAnnotationCards={props.extraAnnotationCards}
-    />
-  );
-}
-
-function SpanAnnotationsList(props: {
-  span: SpanAnnotationsEditor_spanAnnotations$key;
-  extraAnnotationCards?: React.ReactNode;
-}) {
-  const { span, extraAnnotationCards } = props;
-  const [data] = useRefetchableFragment<
-    SpanAnnotationsEditorSpanAnnotationsQuery,
-    SpanAnnotationsEditor_spanAnnotations$key
-  >(
+  const span = useFragment<SpanAnnotationsEditor_spanAnnotations$key>(
     graphql`
       fragment SpanAnnotationsEditor_spanAnnotations on Span
-      @refetchable(queryName: "SpanAnnotationsEditorSpanAnnotationsQuery") {
+      @argumentDefinitions(filterUserIds: { type: "[GlobalID!]" }) {
         id
-        spanAnnotations {
+        filteredSpanAnnotations: spanAnnotations(
+          filter: {
+            exclude: { names: ["note"] }
+            include: { userIds: $filterUserIds }
+          }
+        ) {
           id
           name
           annotatorKind
@@ -254,100 +249,67 @@ function SpanAnnotationsList(props: {
         }
       }
     `,
-    span
+    data.span
   );
-
-  const annotations = data.spanAnnotations || [];
-  const hasAnnotations = annotations.length > 0;
-  const annotationLength = annotations.length;
-  return (
-    <View height="100%" maxHeight="100%" overflow="auto">
-      {!hasAnnotations && !extraAnnotationCards && (
-        <Empty graphicKey="documents" message="No annotations for this span" />
-      )}
-      <DisclosureGroup
-        key={annotationLength}
-        defaultExpandedKeys={[
-          ...annotations.map((annotation) => annotation.id),
-          "new-annotation",
-        ]}
-        size="S"
-      >
-        {annotations.map((annotation, idx) => (
-          <SpanAnnotationDisclosure
-            key={`${idx}_${annotation.name}`}
-            annotation={annotation}
-            spanNodeId={data.id}
-          />
-        ))}
-        {extraAnnotationCards}
-      </DisclosureGroup>
-    </View>
+  const spanNodeId = data.span.id;
+  const annotations = span.filteredSpanAnnotations;
+  const currentAnnotationsById = annotations.reduce(
+    (acc, annotation) => {
+      acc[annotation.id!] = annotation;
+      return acc;
+    },
+    {} as Record<string, Annotation>
   );
-}
+  const annotationConfigs = data.project?.annotationConfigs?.configs;
+  const annotationConfigsLength = annotationConfigs?.length ?? 0;
+  const values =
+    annotationConfigs?.reduce(
+      (acc, { config }) => {
+        const annotation = annotations.find(
+          (annotation) => annotation.name === config.name
+        );
+        if (annotation) {
+          acc[config.name!] = annotation;
+        } else {
+          acc[config.name!] = {
+            name: config.name!,
+            label: null,
+            score: null,
+            explanation: null,
+          };
+        }
+        return acc;
+      },
+      {} as Record<string, Annotation>
+    ) ?? ({} as Record<string, Annotation>);
 
-function NewSpanAnnotationDisclosure(props: {
-  spanNodeId: string;
-  name: string;
-  onDelete: () => void;
-  /**
-   * Callback when the annotation is created
-   */
-  onCreated: () => void;
-}) {
-  const { spanNodeId, name, onDelete, onCreated } = props;
+  const form = useForm({
+    values,
+    resetOptions: {
+      keepDirtyValues: true,
+      keepDirty: false,
+    },
+  });
 
-  return (
-    <Disclosure id={`new-annotation`}>
-      <DisclosureTrigger arrowPosition="start">
-        <Flex
-          gap="size-100"
-          alignItems="center"
-          width="100%"
-          justifyContent="space-between"
-          css={css`
-            .ac-button[data-size="compact"] {
-              padding: 0;
+  const [commitDeleteAnnotation, isCommittingDeleteAnnotation] =
+    useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
+      mutation SpanAnnotationsEditorDeleteAnnotationMutation(
+        $spanId: GlobalID!
+        $annotationIds: [GlobalID!]!
+      ) {
+        deleteSpanAnnotations(input: { annotationIds: $annotationIds }) {
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...SpanAnnotationsEditor_spanAnnotations
+                ...SpanAsideAnnotationList_span
+                ...SpanFeedback_annotations
+              }
             }
-          `}
-        >
-          {name}
-          <Flex direction="row" alignItems="center" gap="size-100">
-            <Button
-              size="S"
-              aria-label="delete annotation"
-              variant="quiet"
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-              onPress={onDelete}
-            />
-          </Flex>
-        </Flex>
-      </DisclosureTrigger>
-      <DisclosurePanel>
-        <Alert variant="info" banner>
-          Fill out the fields below and click save to create a new annotation.
-        </Alert>
-        <NewSpanAnnotationForm
-          annotationName={name}
-          spanNodeId={spanNodeId}
-          onCreated={onCreated}
-        />
-      </DisclosurePanel>
-    </Disclosure>
-  );
-}
-
-type Annotation = NonNullable<
-  SpanAnnotationsEditor_spanAnnotations$data["spanAnnotations"]
->[number];
-
-function SpanAnnotationDisclosure(props: {
-  annotation: Annotation;
-  spanNodeId: string;
-}) {
-  const { annotation, spanNodeId } = props;
-  const [error, setError] = useState<Error | null>(null);
-  const notifySuccess = useNotifySuccess();
+          }
+        }
+      }
+    `);
 
   const [commitEdit, isCommittingEdit] =
     useMutation<SpanAnnotationsEditorEditAnnotationMutation>(graphql`
@@ -375,209 +337,284 @@ function SpanAnnotationDisclosure(props: {
             node(id: $spanId) {
               ... on Span {
                 ...SpanAnnotationsEditor_spanAnnotations
+                ...SpanAsideAnnotationList_span
+                ...SpanFeedback_annotations
               }
             }
           }
         }
       }
     `);
-
-  const handleEdit = useCallback(
-    (data: AnnotationFormData) => {
-      startTransition(() => {
-        commitEdit({
-          variables: {
-            annotationId: annotation.id,
-            spanId: spanNodeId,
-            ...data,
-          },
+  const handleDelete = useCallback(
+    (annotationIds: string[]) =>
+      new Promise((resolve) => {
+        commitDeleteAnnotation({
+          variables: { spanId: spanNodeId, annotationIds },
           onCompleted: () => {
-            notifySuccess({
-              title: "Annotation Updated",
-              message: `Annotation ${annotation.name} has been updated.`,
+            resolve({
+              error: null,
+              title: "Annotation Deleted",
+              message: `${annotationIds.length} annotation${
+                annotationIds.length === 1 ? " has" : "s have"
+              } been deleted.`,
             });
           },
           onError: (error) => {
-            setError(error);
+            resolve({
+              error: error,
+            });
           },
         });
-      });
-    },
-    [annotation.id, annotation.name, commitEdit, notifySuccess, spanNodeId]
+      }),
+    [commitDeleteAnnotation, spanNodeId]
   );
-  return (
-    <Disclosure id={annotation.id}>
-      <DisclosureTrigger arrowPosition="start">
-        <Flex
-          gap="size-100"
-          alignItems="center"
-          width="100%"
-          justifyContent="space-between"
-          css={css`
-            button[data-size="compact"],
-            button {
-              padding: 0;
-            }
-          `}
-        >
-          {annotation.name}
-          <Flex direction="row" alignItems="center" gap="size-100">
-            {annotation.annotatorKind === "HUMAN" && (
-              <AnnotatorKindToken kind={annotation.annotatorKind} />
-            )}
-            <SpanAnnotationActionMenu
-              annotationId={annotation.id}
-              spanNodeId={spanNodeId}
-              annotationName={annotation.name}
-              onSpanAnnotationActionSuccess={(notifyProps) => {
-                notifySuccess(notifyProps);
-              }}
-              onSpanAnnotationActionError={(error: Error) => {
-                setError(error);
-              }}
-            />
-          </Flex>
-        </Flex>
-      </DisclosureTrigger>
-      <DisclosurePanel>
-        {error && (
-          <Alert variant="danger" banner>
-            {error.message}
-          </Alert>
-        )}
-        <SpanAnnotationForm
-          initialData={annotation}
-          isReadOnly={annotation.annotatorKind === "LLM"}
-          isSubmitting={isCommittingEdit}
-          onSubmit={(data) => {
-            handleEdit(data);
-          }}
-        />
-      </DisclosurePanel>
-    </Disclosure>
+  const { setError } = form;
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+  const handleEdit = useMemo(
+    () =>
+      (args: { annotationId: string; annotationName: string }) =>
+      (data: AnnotationFormData) => {
+        return new Promise((resolve) => {
+          if (args.annotationId) {
+            startTransition(() => {
+              commitEdit({
+                variables: {
+                  annotationId: args.annotationId,
+                  spanId: spanNodeId,
+                  ...data,
+                },
+                onCompleted: () => {
+                  resolve({
+                    error: null,
+                    title: "Annotation Updated",
+                    message: `Annotation ${args.annotationName} has been updated.`,
+                  });
+                },
+                onError: (error) => {
+                  setError(args.annotationName, {
+                    message: error.message,
+                  });
+                  resolve({
+                    error: error,
+                  });
+                },
+              });
+            });
+          }
+        });
+      },
+    [commitEdit, spanNodeId, setError]
   );
-}
 
-function NewAnnotationInput(props: {
-  projectId: string;
-  spanId: string;
-  /**
-   * Callback when an annotation name is selected
-   * @param name The name of the annotation
-   */
-  onAnnotationNameSelect: (name: string) => void;
-  /**
-   * Callback when the popover is closed
-   */
-  onClose: () => void;
-}) {
-  const { projectId, spanId, onAnnotationNameSelect, onClose } = props;
-  const data = useLazyLoadQuery<SpanAnnotationsEditorNewAnnotationQuery>(
-    graphql`
-      query SpanAnnotationsEditorNewAnnotationQuery(
-        $projectId: GlobalID!
+  const [commitCreateAnnotation, isCommittingCreateAnnotation] =
+    useMutation<SpanAnnotationsEditorCreateAnnotationMutation>(graphql`
+      mutation SpanAnnotationsEditorCreateAnnotationMutation(
+        $input: CreateSpanAnnotationInput!
         $spanId: GlobalID!
       ) {
-        project: node(id: $projectId) {
-          id
-          ... on Project {
-            spanAnnotationNames
-          }
-        }
-        span: node(id: $spanId) {
-          id
-          ... on Span {
-            spanAnnotations {
-              id
-              name
-              annotatorKind
+        createSpanAnnotations(input: [$input]) {
+          query {
+            node(id: $spanId) {
+              ... on Span {
+                ...SpanAnnotationsEditor_spanAnnotations
+                ...SpanAsideAnnotationList_span
+                ...SpanFeedback_annotations
+              }
             }
           }
         }
       }
-    `,
-    {
-      projectId,
-      spanId,
-    }
+    `);
+  const handleCreate = useCallback(
+    (data: AnnotationFormData) =>
+      new Promise((resolve) => {
+        commitCreateAnnotation({
+          variables: {
+            input: {
+              spanId: spanNodeId,
+              annotatorKind: "HUMAN",
+              ...data,
+              source: "APP",
+            },
+            spanId: spanNodeId,
+          },
+          onCompleted: () => {
+            resolve({
+              error: null,
+              title: "Annotation Created",
+              message: `Annotation ${data.name} has been created.`,
+            });
+          },
+          onError: (error) => {
+            setError(data.name, {
+              message: error.message,
+            });
+            resolve({
+              error: error,
+            });
+          },
+        });
+      }),
+    [commitCreateAnnotation, spanNodeId, setError]
   );
 
-  const [newName, setNewName] = useState<string>("");
-  const existingAnnotationNames = useMemo(() => {
-    return (
-      data?.span?.spanAnnotations?.map((annotation) => annotation.name) || []
-    );
-  }, [data.span.spanAnnotations]);
+  // TODO: update this so that it only updates one annotation at a time, on blur
+  // - add a delete button that appears on hover beside the inputs
+  // - move the explanation button to a clickable link next to the input label
+  const submit = form.handleSubmit(async (data) => {
+    try {
+      // step 1: accumulate the Ids of any existing annotations do not exist in the data, if so, delete them
+      // step 2: accumulate the Ids of any existing annotations that do exist in the data, if so, update them
+      // step 3: create any new annotations that do not exist in the data
+      // we will create an array for each of the steps, and then process the arrays with the proper mutation
+      // the incoming data is an object with the annotation/annotation config name as the key and the annotation data as the value
+      const allData = Object.values(data);
+      const annotationsToDelete: string[] = [];
+      const annotationsToEdit: (Annotation & { id: string })[] = [];
+      const annotationsToCreate: (Annotation & { id: undefined })[] = [];
+      for (const annotation of allData) {
+        if (
+          (annotation.id && !currentAnnotationsById[annotation.id]) ||
+          (annotation.id && annotation.score == null && !annotation.label) ||
+          (annotation.id &&
+            isNaN(annotation.score as number) &&
+            !annotation.label)
+        ) {
+          annotationsToDelete.push(annotation.id);
+          continue;
+        } else if (annotation.id && currentAnnotationsById[annotation.id]) {
+          annotationsToEdit.push({
+            ...currentAnnotationsById[annotation.id],
+            ...annotation,
+            id: annotation.id,
+          });
+          continue;
+        } else {
+          annotationsToCreate.push({ ...annotation, id: undefined });
+          continue;
+        }
+      }
 
-  const availableNames = useMemo(() => {
-    const names = data.project.spanAnnotationNames || [];
-    return names.filter((name) => !existingAnnotationNames.includes(name));
-  }, [data.project.spanAnnotationNames, existingAnnotationNames]);
-  const hasAvailableNames = availableNames.length > 0;
+      // do all of the deletes first
+      const annotationDeletes = await handleDelete(annotationsToDelete);
+      // concurrently edit the annotations
+      const annotationEdits = Promise.all(
+        annotationsToEdit.map((annotation) =>
+          handleEdit({
+            annotationId: annotation.id,
+            annotationName: annotation.name,
+          })(annotation)
+        )
+      );
+      // concurrently create the annotations
+      const annotationCreates = Promise.all(
+        annotationsToCreate.map((annotation) => handleCreate(annotation))
+      );
+      await Promise.all([
+        annotationDeletes,
+        annotationEdits,
+        annotationCreates,
+      ]);
+      const deletes = await annotationDeletes;
+      const edits = await annotationEdits;
+      const creates = await annotationCreates;
+      const allResults = [deletes, ...edits, ...creates];
+      const errors = allResults
+        .filter(
+          // @ts-expect-error promise types aren't being inferred by mutation resolvers
+          (result) => result?.error as string
+        )
+        .map((result) => result);
+      if (errors.length > 0) {
+        notifyError({
+          title: "Errors occurred while updating annotations",
+          message: errors.join("\n"),
+        });
+      }
+      const successes = allResults
+        .filter(
+          // @ts-expect-error promise types aren't being inferred by mutation resolvers
+          (result) => !result?.error
+        )
+        .map((result) => result);
+      if (successes.length > 0) {
+        notifySuccess({
+          title: "Annotations updated",
+          message: successes
+            .map((result) => {
+              // @ts-expect-error promise types aren't being inferred by mutation resolvers
+              return result?.message;
+            })
+            .join("\n"),
+        });
+      }
+    } catch (e) {
+      notifyError({
+        title: "Error updating annotations",
+        message: "An unknown error occurred while updating annotations",
+      });
+      // eslint-disable-next-line no-console
+      console.error(e);
+    }
+  });
+
   return (
-    <>
-      <View padding="size-200">
-        <Text size="S" weight="heavy">
-          New Annotation
-        </Text>
-        <Form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onAnnotationNameSelect(newName);
-            onClose();
-          }}
-        >
-          <Flex direction="row" gap="size-100" alignItems="end">
-            <TextField
-              autoFocus
-              value={newName}
-              onChange={(newName) => {
-                setNewName(newName);
-              }}
-              name="new-annotation-name"
-            >
-              <Label>Annotation Name</Label>
-              <Input placeholder="e.x. correctness" />
-            </TextField>
-            <Button variant="primary" type="submit">
-              Create
-            </Button>
-          </Flex>
-        </Form>
-      </View>
-      {hasAvailableNames && (
-        <>
-          <View
-            borderTopWidth="thin"
-            borderBottomWidth="thin"
-            borderColor="light"
-            paddingStart="size-200"
-            paddingTop="size-100"
-            paddingBottom="size-100"
-            backgroundColor="grey-300"
-          >
-            <label>select from existing</label>
-          </View>
-          <ListBox
-            selectionMode="single"
-            onSelectionChange={(keys) => {
-              // Single select so we can just use the first key
-              if (keys === "all" || keys.size === 0) {
-                return;
-              }
-              const nameKey = keys.values().next().value;
-              const name = nameKey as string;
-              setNewName(name || "");
-            }}
-            disabledKeys={existingAnnotationNames}
-          >
-            {availableNames.map((name) => (
-              <ListBoxItem key={name}>{name}</ListBoxItem>
-            ))}
-          </ListBox>
-        </>
+    <View
+      height="100%"
+      maxHeight="100%"
+      overflow="auto"
+      width="100%"
+      padding="size-200"
+    >
+      {!annotationConfigsLength && !extraAnnotationCards && (
+        <Empty
+          graphicKey="documents"
+          message="No annotation configurations for this project"
+        />
       )}
-    </>
+      {!!annotationConfigsLength && (
+        <FormProvider {...form}>
+          <form onSubmit={submit}>
+            <fieldset
+              key={annotationConfigsLength}
+              css={{
+                all: "unset",
+                width: "100%",
+              }}
+              disabled={
+                isCommittingCreateAnnotation ||
+                isCommittingEdit ||
+                isCommittingDeleteAnnotation
+              }
+            >
+              <FocusScope autoFocus>
+                {annotationConfigs?.map((annotationConfig, idx) => (
+                  <SpanAnnotationInput
+                    key={`${idx}_${annotationConfig.config.name}`}
+                    annotationConfig={
+                      annotationConfig.config as AnnotationConfig
+                    }
+                    annotation={annotations.find(
+                      (annotation) =>
+                        annotation.name === annotationConfig.config.name
+                    )}
+                  />
+                ))}
+                <View marginTop="size-200">
+                  <AnnotationSaveButton
+                    isDisabled={!form.formState.isDirty}
+                    type="submit"
+                  >
+                    Save Annotations
+                  </AnnotationSaveButton>
+                </View>
+              </FocusScope>
+            </fieldset>
+          </form>
+        </FormProvider>
+      )}
+    </View>
   );
 }
 

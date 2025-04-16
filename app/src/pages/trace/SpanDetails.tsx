@@ -382,6 +382,8 @@ export function SpanDetails({
           order={2}
           ref={asidePanelRef}
           defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          minSize={10}
+          collapsible
           onCollapse={() => {
             setIsAnnotatingSpans(false);
           }}

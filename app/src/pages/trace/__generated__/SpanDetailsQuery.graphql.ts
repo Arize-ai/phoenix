@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<717daad6200758d0e5b23493991a8a60>>
+ * @generated SignedSource<<ca64ae3646fc725b77b475fa5c94b59a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -361,6 +361,91 @@ v26 = {
     (v25/*: any*/)
   ],
   "storageKey": null
+},
+v27 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotatorKind",
+  "storageKey": null
+},
+v28 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v3/*: any*/)
+  ],
+  "type": "Node",
+  "abstractKey": "__isNode"
+},
+v29 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationType",
+  "storageKey": null
+},
+v30 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v31 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "CategoricalAnnotationValue",
+      "kind": "LinkedField",
+      "name": "values",
+      "plural": true,
+      "selections": [
+        (v23/*: any*/),
+        (v24/*: any*/)
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
+},
+v32 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "lowerBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "upperBound",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "optimizationDirection",
+      "storageKey": null
+    }
+  ],
+  "type": "ContinuousAnnotationConfig",
+  "abstractKey": null
+},
+v33 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v6/*: any*/)
+  ],
+  "type": "FreeformAnnotationConfig",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -506,13 +591,7 @@ return {
                     "name": "metadata",
                     "storageKey": null
                   },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "annotatorKind",
-                    "storageKey": null
-                  },
+                  (v27/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -585,9 +664,122 @@ return {
                 "name": "project",
                 "plural": false,
                 "selections": [
-                  (v3/*: any*/)
+                  (v3/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "AnnotationConfigConnection",
+                    "kind": "LinkedField",
+                    "name": "annotationConfigs",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "AnnotationConfigEdge",
+                        "kind": "LinkedField",
+                        "name": "edges",
+                        "plural": true,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "node",
+                            "plural": false,
+                            "selections": [
+                              (v2/*: any*/),
+                              (v28/*: any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v6/*: any*/),
+                                  (v29/*: any*/),
+                                  (v30/*: any*/)
+                                ],
+                                "type": "AnnotationConfigBase",
+                                "abstractKey": "__isAnnotationConfigBase"
+                              },
+                              (v31/*: any*/),
+                              (v32/*: any*/),
+                              (v33/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": "configs",
+                        "args": null,
+                        "concreteType": "AnnotationConfigEdge",
+                        "kind": "LinkedField",
+                        "name": "edges",
+                        "plural": true,
+                        "selections": [
+                          {
+                            "alias": "config",
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "node",
+                            "plural": false,
+                            "selections": [
+                              (v2/*: any*/),
+                              (v28/*: any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v6/*: any*/),
+                                  (v30/*: any*/),
+                                  (v29/*: any*/)
+                                ],
+                                "type": "AnnotationConfigBase",
+                                "abstractKey": "__isAnnotationConfigBase"
+                              },
+                              (v31/*: any*/),
+                              (v32/*: any*/),
+                              (v33/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
+              },
+              {
+                "alias": "spanAnnotationsWithoutNotes",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "filter",
+                    "value": {
+                      "exclude": {
+                        "names": [
+                          "note"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "concreteType": "SpanAnnotation",
+                "kind": "LinkedField",
+                "name": "spanAnnotations",
+                "plural": true,
+                "selections": [
+                  (v3/*: any*/),
+                  (v6/*: any*/),
+                  (v23/*: any*/),
+                  (v27/*: any*/),
+                  (v24/*: any*/)
+                ],
+                "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
               }
             ],
             "type": "Span",
@@ -599,12 +791,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1503db92a8f9120674dc4ac94c10b508",
+    "cacheID": "c7c992e7e3f95600a5070cd3bb619ee0",
     "id": null,
     "metadata": {},
     "name": "SpanDetailsQuery",
     "operationKind": "query",
-    "text": "query SpanDetailsQuery(\n  $id: GlobalID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        documentPosition\n        name\n        label\n        score\n        explanation\n      }\n      spanAnnotations {\n        id\n        name\n      }\n      ...SpanHeader_span\n      ...SpanFeedback_annotations\n      ...SpanAside_span\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  project {\n    id\n  }\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  spanAnnotations {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SpanHeader_span on Span {\n  name\n  spanKind\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountPrompt\n  tokenCountCompletion\n  tokenCountTotal\n}\n"
+    "text": "query SpanDetailsQuery(\n  $id: GlobalID!\n) {\n  span: node(id: $id) {\n    __typename\n    ... on Span {\n      id\n      spanId\n      trace {\n        id\n        traceId\n      }\n      name\n      spanKind\n      statusCode: propagatedStatusCode\n      statusMessage\n      startTime\n      parentId\n      latencyMs\n      tokenCountTotal\n      tokenCountPrompt\n      tokenCountCompletion\n      endTime\n      input {\n        value\n        mimeType\n      }\n      output {\n        value\n        mimeType\n      }\n      attributes\n      events {\n        name\n        message\n        timestamp\n      }\n      documentRetrievalMetrics {\n        evaluationName\n        ndcg\n        precision\n        hit\n      }\n      documentEvaluations {\n        documentPosition\n        name\n        label\n        score\n        explanation\n      }\n      spanAnnotations {\n        id\n        name\n      }\n      ...SpanHeader_span\n      ...SpanFeedback_annotations\n      ...SpanAside_span\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAsideAnnotationList_span on Span {\n  project {\n    id\n    annotationConfigs {\n      configs: edges {\n        config: node {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n        }\n      }\n    }\n  }\n  spanAnnotationsWithoutNotes: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    annotatorKind\n    score\n  }\n}\n\nfragment SpanAside_span on Span {\n  id\n  project {\n    id\n    ...AnnotationConfigListProjectAnnotationConfigFragment\n    annotationConfigs {\n      configs: edges {\n        config: node {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n            description\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            lowerBound\n            upperBound\n            optimizationDirection\n          }\n          ... on FreeformAnnotationConfig {\n            name\n          }\n        }\n      }\n    }\n  }\n  code: statusCode\n  startTime\n  endTime\n  tokenCountTotal\n  tokenCountPrompt\n  tokenCountCompletion\n  ...SpanAsideAnnotationList_span\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment SpanHeader_span on Span {\n  name\n  spanKind\n  code: statusCode\n  latencyMs\n  startTime\n  tokenCountPrompt\n  tokenCountCompletion\n  tokenCountTotal\n}\n"
   }
 };
 })();

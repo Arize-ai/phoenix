@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { forwardRef } from "react";
 
 import {
   Button,
@@ -16,34 +16,38 @@ import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { SelectProps } from "@phoenix/components/select";
 import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
-type CategoricalAnnotationInputProps = {
-  annotationConfig: AnnotationConfigCategorical;
-} & SelectProps;
+import { AnnotationInputPropsBase } from "./types";
 
-export const CategoricalAnnotationInput = ({
-  annotationConfig,
-  ...props
-}: CategoricalAnnotationInputProps) => {
-  const selectRef = useRef<HTMLDivElement>(null);
+type CategoricalAnnotationInputProps =
+  AnnotationInputPropsBase<AnnotationConfigCategorical> & SelectProps;
+
+export const CategoricalAnnotationInput = forwardRef<
+  HTMLButtonElement,
+  CategoricalAnnotationInputProps
+>(({ annotationConfig, containerRef, annotation, ...props }, ref) => {
   return (
     <Flex gap="size-50" alignItems="center">
       <Select
         id={annotationConfig.id}
         name={annotationConfig.name}
+        defaultSelectedKey={annotation?.label ?? undefined}
         {...props}
-        ref={selectRef}
         css={{
-          minWidth: "100%",
+          width: "100%",
         }}
       >
         <Label>{annotationConfig.name}</Label>
-        <Button>
+        <Button ref={ref}>
           <SelectValue />
           <SelectChevronUpDownIcon />
         </Button>
         <Text slot="description">{annotationConfig.description}</Text>
-        <Popover>
-          <ListBox>
+        <Popover UNSTABLE_portalContainer={containerRef}>
+          <ListBox
+            disallowEmptySelection={false}
+            selectionMode="none"
+            selectionBehavior="toggle"
+          >
             {annotationConfig.values?.map((option) => (
               <SelectItem key={option.label} id={option.label}>
                 {option.label}
@@ -53,8 +57,13 @@ export const CategoricalAnnotationInput = ({
         </Popover>
       </Select>
       <div style={{ marginTop: 8 }}>
-        <AnnotationInputExplanation />
+        <AnnotationInputExplanation
+          explanation={annotation?.explanation ?? undefined}
+          containerRef={containerRef}
+        />
       </div>
     </Flex>
   );
-};
+});
+
+CategoricalAnnotationInput.displayName = "CategoricalAnnotationInput";
