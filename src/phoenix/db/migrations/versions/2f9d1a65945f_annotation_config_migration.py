@@ -277,7 +277,7 @@ def downgrade() -> None:
     with op.batch_alter_table("span_annotations") as batch_op:
         batch_op.drop_index("uq_span_annotations_span_rowid_name_identifier_not_null")
         batch_op.drop_index("uq_span_annotations_span_rowid_name_null_identifier")
-        batch_op.drop_constraint("ck_span_annotations_`valid_source`", type_="check")
+        batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
         batch_op.drop_column("source")
@@ -293,7 +293,7 @@ def downgrade() -> None:
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.drop_index("uq_trace_annotations_trace_rowid_name_identifier_not_null")
         batch_op.drop_index("uq_trace_annotations_trace_rowid_name_null_identifier")
-        batch_op.drop_constraint("ck_trace_annotations_`valid_source`", type_="check")
+        batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
         batch_op.drop_column("source")
@@ -308,7 +308,7 @@ def downgrade() -> None:
 
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.drop_index("ix_document_annotations_identifier")
-        batch_op.drop_constraint("ck_document_annotations_`valid_source`", type_="check")
+        batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
         batch_op.drop_column("source")
