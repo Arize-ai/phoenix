@@ -8,8 +8,8 @@ import {
   Store,
 } from "relay-runtime";
 
-import { authFetch, refreshTokens } from "@phoenix/authFetch";
-import { BASE_URL, WS_BASE_URL } from "@phoenix/config";
+import { authFetch } from "@phoenix/authFetch";
+import { BASE_URL } from "@phoenix/config";
 
 import { isObject } from "./typeUtils";
 
