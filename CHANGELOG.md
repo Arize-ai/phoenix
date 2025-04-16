@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.26.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.25.0...arize-phoenix-v8.26.0) (2025-04-16)
+
+
+### Features
+
+* add PHOENIX_ADMIN_SECRET environment variable ([#7151](https://github.com/Arize-ai/phoenix/issues/7151)) ([bde184e](https://github.com/Arize-ai/phoenix/commit/bde184efda680fc212fdd4fd4346d66e9914cf38))
+* **tracing:** add load more and loading state to the infinite scroll ([#7132](https://github.com/Arize-ai/phoenix/issues/7132)) ([7e97c51](https://github.com/Arize-ai/phoenix/commit/7e97c519aa8813cfa1deff22b9b15cb49d723c00))
+
 ## [8.25.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.24.2...arize-phoenix-v8.25.0) (2025-04-15)
 
 
