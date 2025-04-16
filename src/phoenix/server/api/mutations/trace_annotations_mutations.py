@@ -2,13 +2,10 @@ from typing import Optional
 
 import strawberry
 from sqlalchemy import delete, insert, select
-from sqlalchemy.dialects import postgresql, sqlite
 from starlette.requests import Request
 from strawberry import UNSET, Info
-from typing_extensions import assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -42,11 +39,9 @@ class TraceAnnotationMutationMixin:
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
             user_id = int(user.identity)
 
-        processed_annotations: dict[int, models.TraceAnnotation] = {}
+        processed_annotations_map: dict[int, models.TraceAnnotation] = {}
 
         async with info.context.db() as session:
-            dialect_name = SupportedSQLDialect(session.bind.dialect.name)
-
             for idx, annotation_input in enumerate(input):
                 try:
                     trace_rowid = from_global_id_with_expected_type(
@@ -71,48 +66,51 @@ class TraceAnnotationMutationMixin:
                     "user_id": user_id,
                 }
 
-                stmt = insert(models.TraceAnnotation).values(**values)
+                identifier = annotation_input.identifier
+                processed_annotation: Optional[models.TraceAnnotation] = None
 
-                if values.get("identifier") is not None:
-                    update_fields = {
-                        "name": stmt.excluded.name,
-                        "label": stmt.excluded.label,
-                        "score": stmt.excluded.score,
-                        "explanation": stmt.excluded.explanation,
-                        "metadata_": stmt.excluded.metadata_,
-                        "annotator_kind": stmt.excluded.annotator_kind,
-                        "source": stmt.excluded.source,
-                        "user_id": stmt.excluded.user_id,
-                    }
-                    if dialect_name == SupportedSQLDialect.POSTGRESQL:
-                        pg_stmt = postgresql.insert(models.TraceAnnotation).values(**values)
-                        stmt = pg_stmt.on_conflict_do_update(
-                            constraint="uq_trace_annotation_identifier_per_trace",
-                            set_=update_fields,
-                        ).returning(models.TraceAnnotation)
-                    elif dialect_name == SupportedSQLDialect.SQLITE:
-                        sqlite_stmt = sqlite.insert(models.TraceAnnotation).values(**values)
-                        stmt = sqlite_stmt.on_conflict_do_update(
-                            index_elements=["trace_rowid", "identifier"],
-                            index_where=models.TraceAnnotation.identifier.isnot(None),
-                            set_=update_fields,
-                        ).returning(models.TraceAnnotation)
-                    else:
-                        assert_never(dialect_name)
+                # Check if an annotation with this trace_rowid, name, and identifier already exists
+                q = select(models.TraceAnnotation).where(
+                    models.TraceAnnotation.trace_rowid == trace_rowid,
+                    models.TraceAnnotation.name == annotation_input.name,
+                )
+                if identifier is None:
+                    q = q.where(models.TraceAnnotation.identifier.is_(None))
                 else:
+                    q = q.where(models.TraceAnnotation.identifier == identifier)
+
+                existing_annotation = await session.scalar(q)
+
+                if existing_annotation:
+                    # Update existing annotation
+                    existing_annotation.name = values["name"]
+                    existing_annotation.label = values["label"]
+                    existing_annotation.score = values["score"]
+                    existing_annotation.explanation = values["explanation"]
+                    existing_annotation.metadata_ = values["metadata_"]
+                    existing_annotation.annotator_kind = values["annotator_kind"]
+                    existing_annotation.source = values["source"]
+                    existing_annotation.user_id = values["user_id"]
+                    session.add(existing_annotation)
+                    processed_annotation = existing_annotation
+
+                if processed_annotation is None:
+                    stmt = insert(models.TraceAnnotation).values(**values)
                     stmt = stmt.returning(models.TraceAnnotation)
+                    result = await session.scalars(stmt)
+                    processed_annotation = result.one()
 
-                result = await session.scalars(stmt)
-                processed_annotation = result.one()
-                processed_annotations[idx] = processed_annotation
+                processed_annotations_map[idx] = processed_annotation
 
-        inserted_annotation_ids = tuple(anno.id for anno in processed_annotations.values())
+            await session.commit()
+
+        inserted_annotation_ids = tuple(anno.id for anno in processed_annotations_map.values())
         if inserted_annotation_ids:
             info.context.event_queue.put(TraceAnnotationInsertEvent(inserted_annotation_ids))
 
         returned_annotations = [
-            to_gql_trace_annotation(processed_annotations[i])
-            for i in sorted(processed_annotations.keys())
+            to_gql_trace_annotation(processed_annotations_map[i])
+            for i in sorted(processed_annotations_map.keys())
         ]
 
         return TraceAnnotationMutationPayload(
