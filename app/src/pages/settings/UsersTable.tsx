@@ -24,6 +24,7 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { isUserRole, normalizeUserRole } from "@phoenix/constants";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { UsersTable_users$key } from "./__generated__/UsersTable_users.graphql";
 import { UsersTableQuery } from "./__generated__/UsersTableQuery.graphql";
@@ -97,7 +98,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
       refetch({}, { fetchPolicy: "network-only" });
     });
   }, [refetch]);
-
+  const { viewer } = useViewer();
   type TableRow = (typeof tableData)[number];
   const columns = useMemo((): ColumnDef<TableRow>[] => {
     return [
@@ -128,7 +129,10 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         header: "role",
         accessorKey: "role",
         cell: ({ row }) => {
-          if (isDefaultAdminUser(row.original)) {
+          if (
+            isDefaultAdminUser(row.original) ||
+            (viewer && viewer.email == row.original.email)
+          ) {
             return normalizeUserRole(row.original.role);
           }
           return (
@@ -184,7 +188,7 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
         },
       },
     ];
-  }, [refetchTableData]);
+  }, [refetchTableData, viewer]);
 
   const table = useReactTable<TableRow>({
     columns,
