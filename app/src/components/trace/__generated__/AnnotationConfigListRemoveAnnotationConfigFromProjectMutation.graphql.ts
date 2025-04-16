@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<269dbf3798a9f50a9af03a93cafd0d3b>>
+ * @generated SignedSource<<dcb4ed2eca59c5920f15c26de0a5c60b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -453,6 +453,13 @@ return {
                             "kind": "ScalarField",
                             "name": "explanation",
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "createdAt",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -473,12 +480,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "83acc96a3191a08cf94d0044d984d1c5",
+    "cacheID": "d6fc7191d013d596fe4687954d42a27b",
     "id": null,
     "metadata": {},
     "name": "AnnotationConfigListRemoveAnnotationConfigFromProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(\n  $projectId: GlobalID!\n  $annotationConfigId: GlobalID!\n  $spanId: GlobalID!\n  $filterUserIds: [GlobalID!]\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...AnnotationConfigListProjectAnnotationConfigFragment\n        }\n        __isNode: __typename\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(\n  $projectId: GlobalID!\n  $annotationConfigId: GlobalID!\n  $spanId: GlobalID!\n  $filterUserIds: [GlobalID!]\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...AnnotationConfigListProjectAnnotationConfigFragment\n        }\n        __isNode: __typename\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
   }
 };
 })();

@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import { FocusScope } from "react-aria";
-import { FormProvider, useForm } from "react-hook-form";
 import {
   graphql,
   useFragment,
@@ -28,13 +27,15 @@ import {
   View,
 } from "@phoenix/components";
 import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
-import { AnnotationSaveButton } from "@phoenix/components/annotation/AnnotationSaveButton";
 import { Empty } from "@phoenix/components/Empty";
 import { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
 import { SpanAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorDeleteAnnotationMutation.graphql";
 import { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorSpanAnnotationsListQuery.graphql";
 import { AnnotationConfigList } from "@phoenix/components/trace/AnnotationConfigList";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import {
+  AnnotationFormMutationResult,
+  AnnotationFormProvider,
+} from "@phoenix/components/trace/AnnotationFormProvider";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 import { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
@@ -246,52 +247,42 @@ function SpanAnnotationsList(props: {
           score
           label
           explanation
+          createdAt
         }
       }
     `,
     data.span
   );
   const spanNodeId = data.span.id;
-  const annotations = span.filteredSpanAnnotations;
-  const currentAnnotationsById = annotations.reduce(
-    (acc, annotation) => {
-      acc[annotation.id!] = annotation;
-      return acc;
-    },
-    {} as Record<string, Annotation>
+  const spanAnnotations = span.filteredSpanAnnotations;
+  const annotations = useMemo(() => {
+    // we can only show one config per annotation name
+    // so we need to group by name and pick the most recent one
+    return Object.values(
+      spanAnnotations.reduce(
+        (acc, annotation) => {
+          if (!acc[annotation.name]) {
+            acc[annotation.name] = annotation;
+          } else if (
+            new Date(acc[annotation.name].createdAt) <
+            new Date(annotation.createdAt)
+          ) {
+            acc[annotation.name] = annotation;
+          }
+          return acc;
+        },
+        {} as Record<string, (typeof spanAnnotations)[number]>
+      )
+    );
+  }, [spanAnnotations]);
+  const currentAnnotationIds = useMemo(
+    () => new Set(annotations.map((annotation) => annotation.id)),
+    [annotations]
   );
   const annotationConfigs = data.project?.annotationConfigs?.configs;
   const annotationConfigsLength = annotationConfigs?.length ?? 0;
-  const values =
-    annotationConfigs?.reduce(
-      (acc, { config }) => {
-        const annotation = annotations.find(
-          (annotation) => annotation.name === config.name
-        );
-        if (annotation) {
-          acc[config.name!] = annotation;
-        } else {
-          acc[config.name!] = {
-            name: config.name!,
-            label: null,
-            score: null,
-            explanation: null,
-          };
-        }
-        return acc;
-      },
-      {} as Record<string, Annotation>
-    ) ?? ({} as Record<string, Annotation>);
 
-  const form = useForm({
-    values,
-    resetOptions: {
-      keepDirtyValues: true,
-      keepDirty: false,
-    },
-  });
-
-  const [commitDeleteAnnotation, isCommittingDeleteAnnotation] =
+  const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
       mutation SpanAnnotationsEditorDeleteAnnotationMutation(
         $spanId: GlobalID!
@@ -311,8 +302,8 @@ function SpanAnnotationsList(props: {
       }
     `);
 
-  const [commitEdit, isCommittingEdit] =
-    useMutation<SpanAnnotationsEditorEditAnnotationMutation>(graphql`
+  const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
+    graphql`
       mutation SpanAnnotationsEditorEditAnnotationMutation(
         $spanId: GlobalID!
         $annotationId: GlobalID!
@@ -344,70 +335,69 @@ function SpanAnnotationsList(props: {
           }
         }
       }
-    `);
+    `
+  );
   const handleDelete = useCallback(
-    (annotationIds: string[]) =>
-      new Promise((resolve) => {
-        commitDeleteAnnotation({
-          variables: { spanId: spanNodeId, annotationIds },
-          onCompleted: () => {
-            resolve({
-              error: null,
-              title: "Annotation Deleted",
-              message: `${annotationIds.length} annotation${
-                annotationIds.length === 1 ? " has" : "s have"
-              } been deleted.`,
-            });
-          },
-          onError: (error) => {
-            resolve({
-              error: error,
-            });
-          },
-        });
+    (annotation: Annotation) =>
+      new Promise<AnnotationFormMutationResult>((resolve) => {
+        if (annotation.id) {
+          commitDeleteAnnotation({
+            variables: { spanId: spanNodeId, annotationIds: [annotation.id] },
+            onCompleted: () => {
+              resolve({
+                success: true,
+              });
+            },
+            onError: (error) => {
+              resolve({
+                success: false,
+                error: error.message,
+              });
+            },
+          });
+        } else {
+          resolve({
+            success: true,
+          });
+        }
       }),
     [commitDeleteAnnotation, spanNodeId]
   );
-  const { setError } = form;
-  const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
-  const handleEdit = useMemo(
-    () =>
-      (args: { annotationId: string; annotationName: string }) =>
-      (data: AnnotationFormData) => {
-        return new Promise((resolve) => {
-          if (args.annotationId) {
-            startTransition(() => {
-              commitEdit({
-                variables: {
-                  annotationId: args.annotationId,
-                  spanId: spanNodeId,
-                  ...data,
-                },
-                onCompleted: () => {
-                  resolve({
-                    error: null,
-                    title: "Annotation Updated",
-                    message: `Annotation ${args.annotationName} has been updated.`,
-                  });
-                },
-                onError: (error) => {
-                  setError(args.annotationName, {
-                    message: error.message,
-                  });
-                  resolve({
-                    error: error,
-                  });
-                },
-              });
+  const handleEdit = useCallback(
+    (data: Annotation) => {
+      return new Promise<AnnotationFormMutationResult>((resolve) => {
+        const annotationId = data.id;
+        if (annotationId) {
+          startTransition(() => {
+            commitEdit({
+              variables: {
+                annotationId,
+                spanId: spanNodeId,
+                name: data.name,
+                label: data.label,
+                score: data.score,
+                explanation: data.explanation,
+              },
+              onCompleted: () => {
+                resolve({
+                  success: true,
+                });
+              },
+              onError: (error) => {
+                resolve({
+                  success: false,
+                  error: error.message,
+                });
+              },
             });
-          }
-        });
-      },
-    [commitEdit, spanNodeId, setError]
+          });
+        }
+      });
+    },
+    [commitEdit, spanNodeId]
   );
 
-  const [commitCreateAnnotation, isCommittingCreateAnnotation] =
+  const [commitCreateAnnotation] =
     useMutation<SpanAnnotationsEditorCreateAnnotationMutation>(graphql`
       mutation SpanAnnotationsEditorCreateAnnotationMutation(
         $input: CreateSpanAnnotationInput!
@@ -428,7 +418,7 @@ function SpanAnnotationsList(props: {
     `);
   const handleCreate = useCallback(
     (data: AnnotationFormData) =>
-      new Promise((resolve) => {
+      new Promise<AnnotationFormMutationResult>((resolve) => {
         commitCreateAnnotation({
           variables: {
             input: {
@@ -441,123 +431,19 @@ function SpanAnnotationsList(props: {
           },
           onCompleted: () => {
             resolve({
-              error: null,
-              title: "Annotation Created",
-              message: `Annotation ${data.name} has been created.`,
+              success: true,
             });
           },
           onError: (error) => {
-            setError(data.name, {
-              message: error.message,
-            });
             resolve({
-              error: error,
+              success: false,
+              error: error.message,
             });
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId, setError]
+    [commitCreateAnnotation, spanNodeId]
   );
-
-  // TODO: update this so that it only updates one annotation at a time, on blur
-  // - add a delete button that appears on hover beside the inputs
-  // - move the explanation button to a clickable link next to the input label
-  const submit = form.handleSubmit(async (data) => {
-    try {
-      // step 1: accumulate the Ids of any existing annotations do not exist in the data, if so, delete them
-      // step 2: accumulate the Ids of any existing annotations that do exist in the data, if so, update them
-      // step 3: create any new annotations that do not exist in the data
-      // we will create an array for each of the steps, and then process the arrays with the proper mutation
-      // the incoming data is an object with the annotation/annotation config name as the key and the annotation data as the value
-      const allData = Object.values(data);
-      const annotationsToDelete: string[] = [];
-      const annotationsToEdit: (Annotation & { id: string })[] = [];
-      const annotationsToCreate: (Annotation & { id: undefined })[] = [];
-      for (const annotation of allData) {
-        if (
-          (annotation.id && !currentAnnotationsById[annotation.id]) ||
-          (annotation.id && annotation.score == null && !annotation.label) ||
-          (annotation.id &&
-            isNaN(annotation.score as number) &&
-            !annotation.label)
-        ) {
-          annotationsToDelete.push(annotation.id);
-          continue;
-        } else if (annotation.id && currentAnnotationsById[annotation.id]) {
-          annotationsToEdit.push({
-            ...currentAnnotationsById[annotation.id],
-            ...annotation,
-            id: annotation.id,
-          });
-          continue;
-        } else {
-          annotationsToCreate.push({ ...annotation, id: undefined });
-          continue;
-        }
-      }
-
-      // do all of the deletes first
-      const annotationDeletes = await handleDelete(annotationsToDelete);
-      // concurrently edit the annotations
-      const annotationEdits = Promise.all(
-        annotationsToEdit.map((annotation) =>
-          handleEdit({
-            annotationId: annotation.id,
-            annotationName: annotation.name,
-          })(annotation)
-        )
-      );
-      // concurrently create the annotations
-      const annotationCreates = Promise.all(
-        annotationsToCreate.map((annotation) => handleCreate(annotation))
-      );
-      await Promise.all([
-        annotationDeletes,
-        annotationEdits,
-        annotationCreates,
-      ]);
-      const deletes = await annotationDeletes;
-      const edits = await annotationEdits;
-      const creates = await annotationCreates;
-      const allResults = [deletes, ...edits, ...creates];
-      const errors = allResults
-        .filter(
-          // @ts-expect-error promise types aren't being inferred by mutation resolvers
-          (result) => result?.error as string
-        )
-        .map((result) => result);
-      if (errors.length > 0) {
-        notifyError({
-          title: "Errors occurred while updating annotations",
-          message: errors.join("\n"),
-        });
-      }
-      const successes = allResults
-        .filter(
-          // @ts-expect-error promise types aren't being inferred by mutation resolvers
-          (result) => !result?.error
-        )
-        .map((result) => result);
-      if (successes.length > 0) {
-        notifySuccess({
-          title: "Annotations updated",
-          message: successes
-            .map((result) => {
-              // @ts-expect-error promise types aren't being inferred by mutation resolvers
-              return result?.message;
-            })
-            .join("\n"),
-        });
-      }
-    } catch (e) {
-      notifyError({
-        title: "Error updating annotations",
-        message: "An unknown error occurred while updating annotations",
-      });
-      // eslint-disable-next-line no-console
-      console.error(e);
-    }
-  });
 
   return (
     <View
@@ -574,45 +460,28 @@ function SpanAnnotationsList(props: {
         />
       )}
       {!!annotationConfigsLength && (
-        <FormProvider {...form}>
-          <form onSubmit={submit}>
-            <fieldset
-              key={annotationConfigsLength}
-              css={{
-                all: "unset",
-                width: "100%",
-              }}
-              disabled={
-                isCommittingCreateAnnotation ||
-                isCommittingEdit ||
-                isCommittingDeleteAnnotation
-              }
-            >
-              <FocusScope autoFocus>
-                {annotationConfigs?.map((annotationConfig, idx) => (
-                  <SpanAnnotationInput
-                    key={`${idx}_${annotationConfig.config.name}`}
-                    annotationConfig={
-                      annotationConfig.config as AnnotationConfig
-                    }
-                    annotation={annotations.find(
-                      (annotation) =>
-                        annotation.name === annotationConfig.config.name
-                    )}
-                  />
-                ))}
-                <View marginTop="size-200">
-                  <AnnotationSaveButton
-                    isDisabled={!form.formState.isDirty}
-                    type="submit"
-                  >
-                    Save Annotations
-                  </AnnotationSaveButton>
-                </View>
-              </FocusScope>
-            </fieldset>
-          </form>
-        </FormProvider>
+        <FocusScope autoFocus>
+          {annotationConfigs?.map((annotationConfig, idx) => {
+            const annotation = annotations.find(
+              (annotation) => annotation.name === annotationConfig.config.name
+            );
+            return (
+              <AnnotationFormProvider
+                key={`${idx}_${annotationConfig.config.name}_form`}
+                annotationConfig={annotationConfig.config as AnnotationConfig}
+                currentAnnotationIDs={currentAnnotationIds}
+                annotation={annotation}
+                onCreate={handleCreate}
+                onUpdate={handleEdit}
+                onDelete={handleDelete}
+              >
+                <SpanAnnotationInput
+                  annotationConfig={annotationConfig.config as AnnotationConfig}
+                />
+              </AnnotationFormProvider>
+            );
+          })}
+        </FocusScope>
       )}
     </View>
   );

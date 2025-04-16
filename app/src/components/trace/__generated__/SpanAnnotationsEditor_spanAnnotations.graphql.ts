@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78f8d1b06430439cb398e7fece8f7587>>
+ * @generated SignedSource<<d664c97ec5330479bbd4001edeb4aa4b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ import { FragmentRefs } from "relay-runtime";
 export type SpanAnnotationsEditor_spanAnnotations$data = {
   readonly filteredSpanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
+    readonly createdAt: string;
     readonly explanation: string | null;
     readonly id: string;
     readonly label: string | null;
@@ -119,6 +120,13 @@ return {
           "kind": "ScalarField",
           "name": "explanation",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "createdAt",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -129,6 +137,6 @@ return {
 };
 })();
 
-(node as any).hash = "487c5685bec6e7ab747c2bb17cb0bb2e";
+(node as any).hash = "4c41de57cca35fab9b6886cb9813ee56";
 
 export default node;

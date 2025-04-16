@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b357575f108f07f23e5cf192701c88c7>>
+ * @generated SignedSource<<68748a026179f91121c13358ffd912e4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -245,6 +245,13 @@ return {
                             "kind": "ScalarField",
                             "name": "explanation",
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "createdAt",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]},\"include\":{\"userIds\":null}})"
@@ -265,12 +272,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "dc647b61b3b6c9ed6772b5f2efe6ef96",
+    "cacheID": "d1c1a914bf6509499de5566b4095bccb",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationActionMenuDeleteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: GlobalID!\n  $spanId: GlobalID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n  }\n}\n"
+    "text": "mutation SpanAnnotationActionMenuDeleteMutation(\n  $annotationId: GlobalID!\n  $spanId: GlobalID!\n) {\n  deleteSpanAnnotations(input: {annotationIds: [$annotationId]}) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...SpanAnnotationsEditor_spanAnnotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
   }
 };
 })();
