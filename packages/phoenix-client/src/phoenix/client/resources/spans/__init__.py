@@ -89,6 +89,7 @@ class Spans:
                 timeout=timeout,
             )
             content_type = response.headers.get("Content-Type")
+            dfs: list["pd.DataFrame"] = []
             if isinstance(content_type, str) and "multipart/mixed" in content_type:
                 if "boundary=" in content_type:
                     boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
@@ -103,6 +104,7 @@ class Spans:
                     if "Content-Type: application/json" in part:
                         json_string = part.split("\r\n\r\n", 1)[1].strip()
                         df = decode_df_from_json_string(json_string)
+                        dfs.append(df)
             else:
                 response.raise_for_status()
                 logger.warning("Received non-multipart response when expecting dataframe.")
@@ -128,8 +130,11 @@ class Spans:
                 "Install it with 'pip install pandas'"
             )
 
-        response.raise_for_status()
-        return df
+        if dfs:
+            return dfs[0]  # we only expect one dataframe
+        else:
+            import pandas as pd
+            return pd.Dataframe()
 
 
 class AsyncSpans:
@@ -200,6 +205,7 @@ class AsyncSpans:
                 timeout=timeout,
             )
             content_type = response.headers.get("Content-Type")
+            dfs: list["pd.DataFrame"] = []
             if isinstance(content_type, str) and "multipart/mixed" in content_type:
                 if "boundary=" in content_type:
                     boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
@@ -214,6 +220,7 @@ class AsyncSpans:
                     if "Content-Type: application/json" in part:
                         json_string = part.split("\r\n\r\n", 1)[1].strip()
                         df = decode_df_from_json_string(json_string)
+                        dfs.append(df)
             else:
                 response.raise_for_status()
                 logger.warning("Received non-multipart response when expecting dataframe.")
@@ -240,7 +247,11 @@ class AsyncSpans:
             )
 
         response.raise_for_status()
-        return df
+        if dfs:
+            return dfs[0]  # we only expect one dataframe
+        else:
+            import pandas as pd
+            return pd.Dataframe()
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
