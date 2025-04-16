@@ -1,3 +1,4 @@
+from typing import Optional
 from urllib.parse import quote_plus
 
 import pytest
@@ -7,6 +8,7 @@ from starlette.datastructures import URL
 from phoenix.config import (
     ENV_PHOENIX_ADMINS,
     get_env_admins,
+    get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
     get_env_root_url,
 )
@@ -341,3 +343,98 @@ class TestGetEnvRootUrl:
         with pytest.raises(ValueError) as e:
             get_env_root_url()
         assert expected_error_msg in str(e.value)
+
+
+class TestGetEnvPhoenixAdminSecret:
+    @pytest.mark.parametrize(
+        "env_vars, expected_result",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": None,
+                },
+                None,
+                id="not_set",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "4fd8ea0caef4f6f87ca5a74912d51baf",
+                    "PHOENIX_SECRET": "57d2e6c8fda06190411e9bd342747ee8",
+                },
+                "4fd8ea0caef4f6f87ca5a74912d51baf",
+                id="valid_admin_secret",
+            ),
+        ],
+    )
+    def test_valid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, Optional[str]],
+        expected_result: Optional[str],
+    ) -> None:
+        for key, value in env_vars.items():
+            if value is None:
+                monkeypatch.delenv(key, raising=False)
+            else:
+                monkeypatch.setenv(key, value)
+        assert get_env_phoenix_admin_secret() == expected_result
+
+    @pytest.mark.parametrize(
+        "env_vars",
+        [
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "validadminsecret12345678901234567890",
+                    "PHOENIX_SECRET": None,
+                },
+                id="admin_secret_without_phoenix_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "validadminsecret12345678901234567890",
+                    "PHOENIX_SECRET": "",
+                },
+                id="admin_secret_with_empty_phoenix_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "validadminsecret12345678901234567890",
+                    "PHOENIX_SECRET": "validadminsecret12345678901234567890",
+                },
+                id="admin_secret_same_as_phoenix_secret",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "short",
+                    "PHOENIX_SECRET": "validsecret12345678901234567890",
+                },
+                id="admin_secret_too_short",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "12345678901234567890123456789012",
+                    "PHOENIX_SECRET": "validsecret12345678901234567890",
+                },
+                id="admin_secret_no_lowercase",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_ADMIN_SECRET": "abcdefghijklmnopqrstuvwxyzabcdef",
+                    "PHOENIX_SECRET": "validsecret12345678901234567890",
+                },
+                id="admin_secret_no_digit",
+            ),
+        ],
+    )
+    def test_invalid_inputs(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, Optional[str]],
+    ) -> None:
+        for key, value in env_vars.items():
+            if value is None or value == "":
+                monkeypatch.delenv(key, raising=False)
+            else:
+                monkeypatch.setenv(key, value)
+        with pytest.raises(ValueError):
+            get_env_phoenix_admin_secret()

@@ -39,6 +39,7 @@ from openai.types.chat.completion_create_params import CompletionCreateParamsBas
 from openai.types.shared_params import ResponseFormatJSONSchema
 from phoenix.client.types import PromptVersion
 from phoenix.client.utils.template_formatters import NO_OP_FORMATTER
+from phoenix.config import get_env_phoenix_admin_secret
 from pydantic import BaseModel, create_model
 
 from ...__generated__.graphql import (
@@ -979,10 +980,12 @@ class TestClient:
             params = prompt.format(formatter=NO_OP_FORMATTER)
             assert not DeepDiff(expected, {**params})
 
+    @pytest.mark.parametrize("use_phoenix_admin_secret", [True, False])
     @pytest.mark.parametrize("is_async", [True, False])
     async def test_version_tags(
         self,
         is_async: bool,
+        use_phoenix_admin_secret: bool,
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -998,7 +1001,11 @@ class TestClient:
         """
         # Set up test environment with logged-in user
         u1 = _get_user(_MEMBER).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
+        if use_phoenix_admin_secret:
+            assert (admin_secret := get_env_phoenix_admin_secret())
+            monkeypatch.setenv("PHOENIX_API_KEY", admin_secret)
+        else:
+            monkeypatch.setenv("PHOENIX_API_KEY", u1.create_api_key())
 
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
@@ -1053,9 +1060,12 @@ class TestClient:
         assert tags[0]["description"] == tag_description1
 
         # Verify tag is associated with the correct user
-        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id}}}}"
+        query = "query($id:GlobalID!){node(id:$id){... on PromptVersionTag{user{id username}}}}"
         res, _ = _gql(u1, query=query, variables={"id": tags[0]["id"]})
-        assert res["data"]["node"]["user"]["id"] == u1.gid
+        if use_phoenix_admin_secret:
+            assert res["data"]["node"]["user"]["username"] == "system"
+        else:
+            assert res["data"]["node"]["user"]["id"] == u1.gid
 
         # Create a second version of the same prompt
         prompt2 = await _await_or_return(
