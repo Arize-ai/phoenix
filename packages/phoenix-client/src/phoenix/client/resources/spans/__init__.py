@@ -134,6 +134,7 @@ class Spans:
             return dfs[0]  # we only expect one dataframe
         else:
             import pandas as pd
+
             return pd.Dataframe()
 
 
@@ -251,6 +252,7 @@ class AsyncSpans:
             return dfs[0]  # we only expect one dataframe
         else:
             import pandas as pd
+
             return pd.Dataframe()
 
 
