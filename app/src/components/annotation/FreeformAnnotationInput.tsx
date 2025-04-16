@@ -1,8 +1,9 @@
 import React, { forwardRef } from "react";
-import { Label, TextArea } from "react-aria-components";
+import { TextArea } from "react-aria-components";
 
 import { Flex, Text, TextField, TextFieldProps } from "@phoenix/components";
 import { AnnotationInputExplanation } from "@phoenix/components/annotation/AnnotationInputExplanation";
+import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
 
 import type {
   AnnotationConfigFreeform,
@@ -27,7 +28,12 @@ export const FreeformAnnotationInput = forwardRef<
     ref
   ) => {
     return (
-      <Flex gap="size-50" alignItems="center">
+      <Flex gap="size-50" alignItems="center" position="relative">
+        <AnnotationInputExplanation
+          annotation={annotation}
+          onSubmit={onSubmitExplanation}
+          containerRef={containerRef}
+        />
         <TextField
           id={annotationConfig.id}
           name={annotationConfig.name}
@@ -38,15 +44,10 @@ export const FreeformAnnotationInput = forwardRef<
             width: "100%",
           }}
         >
-          <Label>{annotationConfig.name}</Label>
+          <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
           <TextArea />
           <Text slot="description">{annotationConfig.description}</Text>
         </TextField>
-        <AnnotationInputExplanation
-          annotation={annotation}
-          onSubmit={onSubmitExplanation}
-          containerRef={containerRef}
-        />
       </Flex>
     );
   }

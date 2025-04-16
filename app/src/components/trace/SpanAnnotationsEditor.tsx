@@ -376,7 +376,7 @@ function SpanAnnotationsList(props: {
                 name: data.name,
                 label: data.label,
                 score: data.score,
-                explanation: data.explanation,
+                explanation: data.explanation || null,
               },
               onCompleted: () => {
                 resolve({
@@ -425,6 +425,7 @@ function SpanAnnotationsList(props: {
               spanId: spanNodeId,
               annotatorKind: "HUMAN",
               ...data,
+              explanation: data.explanation || null,
               source: "APP",
             },
             spanId: spanNodeId,

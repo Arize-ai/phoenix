@@ -3,7 +3,6 @@ import React, { forwardRef } from "react";
 import {
   Button,
   Flex,
-  Label,
   ListBox,
   Popover,
   Select,
@@ -12,6 +11,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { AnnotationInputExplanation } from "@phoenix/components/annotation/AnnotationInputExplanation";
+import { AnnotationInputLabel } from "@phoenix/components/annotation/AnnotationInputLabel";
 import { SelectChevronUpDownIcon } from "@phoenix/components/icon";
 import { SelectProps } from "@phoenix/components/select";
 import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
@@ -36,7 +36,12 @@ export const CategoricalAnnotationInput = forwardRef<
     ref
   ) => {
     return (
-      <Flex gap="size-50" alignItems="center">
+      <Flex gap="size-50" alignItems="center" position="relative">
+        <AnnotationInputExplanation
+          annotation={annotation}
+          onSubmit={onSubmitExplanation}
+          containerRef={containerRef}
+        />
         <Select
           id={annotationConfig.id}
           name={annotationConfig.name}
@@ -46,18 +51,14 @@ export const CategoricalAnnotationInput = forwardRef<
             width: "100%",
           }}
         >
-          <Label>{annotationConfig.name}</Label>
+          <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
           <Button ref={ref}>
             <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>
           <Text slot="description">{annotationConfig.description}</Text>
           <Popover UNSTABLE_portalContainer={containerRef}>
-            <ListBox
-              disallowEmptySelection={false}
-              selectionMode="none"
-              selectionBehavior="toggle"
-            >
+            <ListBox>
               {annotationConfig.values?.map((option) => (
                 <SelectItem key={option.label} id={option.label}>
                   {option.label}
@@ -66,13 +67,6 @@ export const CategoricalAnnotationInput = forwardRef<
             </ListBox>
           </Popover>
         </Select>
-        <div style={{ marginTop: 8 }}>
-          <AnnotationInputExplanation
-            annotation={annotation}
-            onSubmit={onSubmitExplanation}
-            containerRef={containerRef}
-          />
-        </div>
       </Flex>
     );
   }

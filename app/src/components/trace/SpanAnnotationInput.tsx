@@ -35,121 +35,125 @@ export function SpanAnnotationInput(props: SpanAnnotationInputProps) {
   const [containerRef, setContainerRef] = useState<HTMLDivElement | null>(null);
 
   return (
-    <div ref={setContainerRef}>
-      {annotationConfig.annotationType === "CATEGORICAL" && (
-        <Controller
-          control={control}
-          name={annotationConfig.name}
-          render={({ field: { value: _value, ...field } }) => (
-            <CategoricalAnnotationInput
-              annotationConfig={annotationConfig}
-              containerRef={containerRef ?? undefined}
-              annotation={annotation}
-              {...field}
-              onSubmitExplanation={(explanation) => {
-                if (annotation?.id) {
+    <>
+      <div>
+        {annotationConfig.annotationType === "CATEGORICAL" && (
+          <Controller
+            control={control}
+            name={annotationConfig.name}
+            render={({ field: { value: _value, ...field } }) => (
+              <CategoricalAnnotationInput
+                annotationConfig={annotationConfig}
+                containerRef={containerRef ?? undefined}
+                annotation={annotation}
+                {...field}
+                selectedKey={_value?.label}
+                onSubmitExplanation={(explanation) => {
+                  if (annotation?.id) {
+                    field.onChange({
+                      ...annotation,
+                      name: annotationConfig.name,
+                      explanation,
+                    });
+                  }
+                }}
+                onSelectionChange={(_selectedKey) => {
+                  let selectedKey: Key | null = _selectedKey;
+                  if (selectedKey === _value?.label) {
+                    selectedKey = null;
+                  }
+                  if (typeof selectedKey === "string" && selectedKey) {
+                    const newAnnotation: Annotation = {
+                      ...annotation,
+                      id: annotation?.id,
+                      name: annotationConfig.name,
+                      label: selectedKey,
+                      score:
+                        annotationConfig.values?.find(
+                          (value) => value.label === selectedKey
+                        )?.score ?? null,
+                    };
+                    field.onChange(newAnnotation);
+                  } else {
+                    field.onChange({
+                      ...annotation,
+                      id: annotation?.id,
+                      name: annotationConfig.name,
+                      label: null,
+                      score: null,
+                    });
+                  }
+                }}
+              />
+            )}
+          />
+        )}
+        {annotationConfig.annotationType === "CONTINUOUS" && (
+          <Controller
+            control={control}
+            name={annotationConfig.name}
+            render={({ field: { value: _value, ...field } }) => (
+              <ContinuousAnnotationInput
+                annotationConfig={annotationConfig}
+                containerRef={containerRef ?? undefined}
+                annotation={annotation}
+                {...field}
+                onSubmitExplanation={(explanation) => {
+                  if (annotation?.id) {
+                    field.onChange({
+                      ...annotation,
+                      name: annotationConfig.name,
+                      explanation,
+                    });
+                  }
+                }}
+                value={_value?.score ?? undefined}
+                onChange={(value) => {
                   field.onChange({
-                    ...annotation,
-                    name: annotationConfig.name,
-                    explanation,
-                  });
-                }
-              }}
-              onSelectionChange={(_selectedKey) => {
-                let selectedKey: Key | null = _selectedKey;
-                if (selectedKey === _value?.label) {
-                  selectedKey = null;
-                }
-                if (typeof selectedKey === "string" && selectedKey) {
-                  const newAnnotation: Annotation = {
                     ...annotation,
                     id: annotation?.id,
                     name: annotationConfig.name,
-                    label: selectedKey,
-                    score:
-                      annotationConfig.values?.find(
-                        (value) => value.label === selectedKey
-                      )?.score ?? null,
-                  };
-                  field.onChange(newAnnotation);
-                } else {
+                    score: value,
+                  });
+                }}
+              />
+            )}
+          />
+        )}
+        {annotationConfig.annotationType === "FREEFORM" && (
+          <Controller
+            control={control}
+            name={annotationConfig.name}
+            render={({ field: { value: _value, ...field } }) => (
+              <FreeformAnnotationInput
+                annotationConfig={annotationConfig}
+                containerRef={containerRef ?? undefined}
+                annotation={annotation}
+                {...field}
+                onSubmitExplanation={(explanation) => {
+                  if (annotation?.id) {
+                    field.onChange({
+                      ...annotation,
+                      name: annotationConfig.name,
+                      explanation,
+                    });
+                  }
+                }}
+                value={_value?.label ?? ""}
+                onChange={(value) => {
                   field.onChange({
                     ...annotation,
                     id: annotation?.id,
                     name: annotationConfig.name,
-                    label: null,
-                    score: null,
+                    label: value,
                   });
-                }
-              }}
-            />
-          )}
-        />
-      )}
-      {annotationConfig.annotationType === "CONTINUOUS" && (
-        <Controller
-          control={control}
-          name={annotationConfig.name}
-          render={({ field: { value: _value, ...field } }) => (
-            <ContinuousAnnotationInput
-              annotationConfig={annotationConfig}
-              containerRef={containerRef ?? undefined}
-              annotation={annotation}
-              {...field}
-              onSubmitExplanation={(explanation) => {
-                if (annotation?.id) {
-                  field.onChange({
-                    ...annotation,
-                    name: annotationConfig.name,
-                    explanation,
-                  });
-                }
-              }}
-              value={_value?.score ?? undefined}
-              onChange={(value) => {
-                field.onChange({
-                  ...annotation,
-                  id: annotation?.id,
-                  name: annotationConfig.name,
-                  score: value,
-                });
-              }}
-            />
-          )}
-        />
-      )}
-      {annotationConfig.annotationType === "FREEFORM" && (
-        <Controller
-          control={control}
-          name={annotationConfig.name}
-          render={({ field: { value: _value, ...field } }) => (
-            <FreeformAnnotationInput
-              annotationConfig={annotationConfig}
-              containerRef={containerRef ?? undefined}
-              annotation={annotation}
-              {...field}
-              onSubmitExplanation={(explanation) => {
-                if (annotation?.id) {
-                  field.onChange({
-                    ...annotation,
-                    name: annotationConfig.name,
-                    explanation,
-                  });
-                }
-              }}
-              value={_value?.label ?? ""}
-              onChange={(value) => {
-                field.onChange({
-                  ...annotation,
-                  id: annotation?.id,
-                  name: annotationConfig.name,
-                  label: value,
-                });
-              }}
-            />
-          )}
-        />
-      )}
-    </div>
+                }}
+              />
+            )}
+          />
+        )}
+      </div>
+      <div ref={setContainerRef} />
+    </>
   );
 }

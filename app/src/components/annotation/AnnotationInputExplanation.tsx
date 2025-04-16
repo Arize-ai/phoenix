@@ -1,14 +1,14 @@
 import React from "react";
 import { FocusScope } from "react-aria";
-import { Label, TextArea } from "react-aria-components";
-
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
+import { css } from "@emotion/react";
 
 import {
   Button,
   Dialog,
   DialogTrigger,
   Flex,
+  Input,
+  Label,
   Popover,
   PopoverArrow,
   Text,
@@ -16,7 +16,8 @@ import {
   View,
 } from "@phoenix/components";
 import { Annotation } from "@phoenix/components/annotation";
-import { Icon, Icons } from "@phoenix/components/icon";
+
+export const EXPLANATION_LABEL_WIDTH = "44px";
 
 export const AnnotationInputExplanation = ({
   annotation,
@@ -32,19 +33,40 @@ export const AnnotationInputExplanation = ({
     : "explanation";
   return (
     <DialogTrigger>
-      <TooltipTrigger placement="top">
-        <TriggerWrap>
-          <Button variant="quiet" type="button" isDisabled={!annotation?.id}>
-            <Icon svg={<Icons.FileTextOutline />} />
-          </Button>
-        </TriggerWrap>
-        <Tooltip>Explain this score</Tooltip>
-      </TooltipTrigger>
+      <Button
+        excludeFromTabOrder
+        type="button"
+        isDisabled={!annotation?.id}
+        className="annotation-input-explanation"
+        css={css`
+          position: absolute;
+          top: 0;
+          right: 4px;
+          width: ${EXPLANATION_LABEL_WIDTH};
+          background: none;
+          border: none;
+          padding: 0 !important;
+          line-height: unset;
+          color: var(--ac-global-link-color);
+          &:disabled {
+            cursor: default;
+            opacity: var(--ac-opacity-disabled);
+            color: var(--ac-global-text-color-900);
+          }
+          &:hover:not(:disabled) {
+            text-decoration: underline;
+            cursor: pointer;
+            background: none;
+          }
+        `}
+      >
+        Explain
+      </Button>
       <Popover placement="bottom end" UNSTABLE_portalContainer={containerRef}>
         <PopoverArrow />
         <Dialog>
           {({ close }) => (
-            <FocusScope autoFocus restoreFocus>
+            <FocusScope autoFocus contain restoreFocus>
               <View padding="size-100">
                 <form
                   onSubmit={(e) => {
@@ -61,14 +83,17 @@ export const AnnotationInputExplanation = ({
                     <TextField
                       name={fieldName}
                       defaultValue={annotation?.explanation ?? ""}
+                      css={{
+                        minWidth: "300px",
+                      }}
                     >
                       <Label>Explanation</Label>
-                      <TextArea rows={2} />
+                      <Input />
                       <Text slot="description">
                         Why did you give this score?
                       </Text>
                     </TextField>
-                    <Button variant="primary" type="submit">
+                    <Button type="submit" variant="primary">
                       Save
                     </Button>
                   </Flex>
