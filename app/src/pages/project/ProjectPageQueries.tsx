@@ -43,6 +43,7 @@ export const ProjectPageQueriesProjectConfigQuery = graphql`
       ...ProjectConfigPage_projectConfigCard
       ...ProjectRetentionPolicyCard_policy
     }
+    ...ProjectRetentionPolicyCard_query
   }
 `;
 

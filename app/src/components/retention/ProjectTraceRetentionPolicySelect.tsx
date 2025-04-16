@@ -1,4 +1,5 @@
 import React from "react";
+import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
@@ -11,39 +12,53 @@ import {
   SelectValue,
 } from "@phoenix/components";
 
-// Define retention policy options
-const retentionOptions = [
-  { id: "30days", name: "30 Days" },
-  { id: "60days", name: "60 Days" },
-  { id: "90days", name: "90 Days" },
-  { id: "180days", name: "180 Days" },
-  { id: "365days", name: "1 Year" },
-  { id: "forever", name: "Forever" },
-];
+import type { ProjectTraceRetentionPolicySelectFragment$key } from "./__generated__/ProjectTraceRetentionPolicySelectFragment.graphql";
 
 export interface ProjectTraceRetentionPolicySelectProps {
-  size?: "S" | "M";
-  isDisabled?: boolean;
-  isRequired?: boolean;
-  isInvalid?: boolean;
   defaultValue?: string;
   onChange?: (value: string) => void;
+  query: ProjectTraceRetentionPolicySelectFragment$key;
 }
 
 export function ProjectTraceRetentionPolicySelect({
-  size = "M",
-  isDisabled = false,
-  isRequired = false,
-  isInvalid = false,
-  defaultValue = "30days",
+  defaultValue,
   onChange,
+  query,
 }: ProjectTraceRetentionPolicySelectProps) {
+  const data = useFragment(
+    graphql`
+      fragment ProjectTraceRetentionPolicySelectFragment on Query {
+        projectTraceRetentionPolicies {
+          edges {
+            node {
+              id
+              name
+              cronExpression
+              rule {
+                ... on TraceRetentionRuleMaxCount {
+                  maxCount
+                }
+                ... on TraceRetentionRuleMaxDays {
+                  maxDays
+                }
+                ... on TraceRetentionRuleMaxDaysOrCount {
+                  maxDays
+                  maxCount
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    query
+  );
+  const retentionOptions = data.projectTraceRetentionPolicies.edges.map(
+    (edge) => edge.node
+  );
   return (
     <Select
-      size={size}
-      isDisabled={isDisabled}
-      isRequired={isRequired}
-      isInvalid={isInvalid}
+      size="S"
       defaultSelectedKey={defaultValue}
       onSelectionChange={(key) => onChange?.(key.toString())}
     >

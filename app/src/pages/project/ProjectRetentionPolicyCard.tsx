@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { graphql, useRefetchableFragment } from "react-relay";
+import { graphql, useFragment, useRefetchableFragment } from "react-relay";
 import cronstrue from "cronstrue";
 
 import { Card } from "@arizeai/components";
@@ -8,12 +8,24 @@ import { Flex, Link, Text, View } from "@phoenix/components";
 import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
 
 import { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
+import { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
 import { ProjectRetentionPolicyCardQuery } from "./__generated__/ProjectRetentionPolicyCardQuery.graphql";
+
 export const ProjectRetentionPolicyCard = ({
   project,
+  query,
 }: {
   project: ProjectRetentionPolicyCard_policy$key;
+  query: ProjectRetentionPolicyCard_query$key;
 }) => {
+  const queryKey = useFragment(
+    graphql`
+      fragment ProjectRetentionPolicyCard_query on Query {
+        ...ProjectTraceRetentionPolicySelectFragment
+      }
+    `,
+    query
+  );
   const [data] = useRefetchableFragment<
     ProjectRetentionPolicyCardQuery,
     ProjectRetentionPolicyCard_policy$key
@@ -70,6 +82,7 @@ export const ProjectRetentionPolicyCard = ({
             <ProjectTraceRetentionPolicySelect
               defaultValue={data.traceRetentionPolicy?.id}
               onChange={handleRetentionPolicyChange}
+              query={queryKey}
             />
           </section>
           <section>
