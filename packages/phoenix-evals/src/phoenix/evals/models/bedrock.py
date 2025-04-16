@@ -68,7 +68,7 @@ class BedrockModel(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 1024
     top_p: float = 1
-    top_k: int = 256
+    top_k: Optional[int] = None
     stop_sequences: List[str] = field(default_factory=list)
     session: Any = None
     client: Any = None
@@ -178,9 +178,13 @@ class BedrockModel(BaseModel):
         }
 
         # Add any extra parameters that aren't part of the Converse inferenceConfig parameter
-        additional_model_request_fields = {}
-        if self.top_k != 256:  # Only add if different from default
-            additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
+        additional_model_request_fields: Dict[str, Union[int, Dict[str, Any]]] = {}
+        # Only add top_k if specified and model supports it
+        if self.top_k is not None and self._model_supports_top_k():
+            if self.model_id.startswith(("amazon.nova", "us.amazon.nova")):
+                additional_model_request_fields["inferenceConfig"] = {"topK": self.top_k}
+            else:
+                additional_model_request_fields["top_k"] = self.top_k
 
         # Add any remaining extra parameters
         additional_model_request_fields.update(self.extra_parameters)
@@ -200,3 +204,12 @@ class BedrockModel(BaseModel):
 
     def _parse_output(self, response: Any) -> Any:
         return response.get("output").get("message").get("content")[0]["text"]
+
+    def _model_supports_top_k(self) -> bool:
+        """
+        Some models do not support the topK parameter.
+        Meta Llama and Titan models do not support the topK parameter
+
+        """
+        models_that_do_not_support_top_k = ["meta.llama", "titan"]
+        return not any(model in self.model_id for model in models_that_do_not_support_top_k)
