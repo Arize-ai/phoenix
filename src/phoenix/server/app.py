@@ -25,7 +25,6 @@ from urllib.parse import urlparse
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from sqlalchemy import select
@@ -122,6 +121,7 @@ from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
