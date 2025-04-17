@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6610f4569994b3db4da90451c90a1bf8>>
+ * @generated SignedSource<<0e33c5bf0a44913d025f26ec42d68b1f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,8 +28,6 @@ export type ProjectRetentionPolicyCard_policy$key = {
   readonly " $data"?: ProjectRetentionPolicyCard_policy$data;
   readonly " $fragmentSpreads": FragmentRefs<"ProjectRetentionPolicyCard_policy">;
 };
-
-import ProjectRetentionPolicyCardQuery_graphql from './ProjectRetentionPolicyCardQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -63,19 +61,7 @@ v3 = {
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": {
-    "refetch": {
-      "connection": null,
-      "fragmentPathInResult": [
-        "node"
-      ],
-      "operation": ProjectRetentionPolicyCardQuery_graphql,
-      "identifierInfo": {
-        "identifierField": "id",
-        "identifierQueryVariableName": "id"
-      }
-    }
-  },
+  "metadata": null,
   "name": "ProjectRetentionPolicyCard_policy",
   "selections": [
     (v0/*: any*/),
@@ -142,6 +128,6 @@ return {
 };
 })();
 
-(node as any).hash = "4fa3fab109a0fda0beab65fa1fcfb590";
+(node as any).hash = "6069a92b50f5083a8c8fbeee6982b6b5";
 
 export default node;

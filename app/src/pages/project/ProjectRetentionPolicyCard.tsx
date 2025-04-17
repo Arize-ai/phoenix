@@ -42,13 +42,9 @@ export const ProjectRetentionPolicyCard = ({
     `,
     query
   );
-  const [data] = useRefetchableFragment<
-    ProjectRetentionPolicyCardQuery,
-    ProjectRetentionPolicyCard_policy$key
-  >(
+  const data = useFragment<ProjectRetentionPolicyCard_policy$key>(
     graphql`
-      fragment ProjectRetentionPolicyCard_policy on Project
-      @refetchable(queryName: "ProjectRetentionPolicyCardQuery") {
+      fragment ProjectRetentionPolicyCard_policy on Project {
         id
         name
         traceRetentionPolicy {
