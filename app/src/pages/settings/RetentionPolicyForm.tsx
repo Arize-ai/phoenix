@@ -16,32 +16,12 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { createPolicyDeletionSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 export type RetentionPolicyFormParams = {
   name: string;
   numberOfTraces?: number;
   numberOfDays?: number;
   schedule: string;
-};
-
-const createPolicyDeletionSummaryText = ({
-  numberOfDays,
-  numberOfTraces,
-}: Pick<RetentionPolicyFormParams, "numberOfDays" | "numberOfTraces">) => {
-  if (numberOfDays === 0 && !numberOfTraces) {
-    return "This policy will not delete any traces.";
-  }
-  const daysPolicyString =
-    typeof numberOfDays === "number" ? `older than ${numberOfDays} days` : "";
-  const tracesPolicyString =
-    typeof numberOfTraces === "number"
-      ? `when there are more than ${numberOfTraces} traces`
-      : "";
-
-  const policyString =
-    daysPolicyString && tracesPolicyString
-      ? `${daysPolicyString} or ${tracesPolicyString}`
-      : daysPolicyString || tracesPolicyString;
-  return `This policy will delete traces ${policyString}`;
 };
 
 const createPolicyScheduleSummaryText = ({
