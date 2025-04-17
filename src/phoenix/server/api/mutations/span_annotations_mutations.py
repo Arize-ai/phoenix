@@ -107,12 +107,11 @@ class SpanAnnotationMutationMixin:
                     to_gql_span_annotation(processed_annotations_map[i])
                     for i in sorted(processed_annotations_map.keys())
                 ]
-
-                return SpanAnnotationMutationPayload(
-                    span_annotations=returned_annotations,
-                    query=Query(),
-                )
                 await session.commit()
+            return SpanAnnotationMutationPayload(
+                span_annotations=returned_annotations,
+                query=Query(),
+            )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_span_annotations(
