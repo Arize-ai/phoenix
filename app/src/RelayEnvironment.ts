@@ -1,11 +1,15 @@
-import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
+import fetchMultipart from "fetch-multipart-graphql";
 import {
   Environment,
   FetchFunction,
+  GraphQLResponse,
   Network,
   Observable,
   RecordSource,
+  RequestParameters,
   Store,
+  SubscribeFunction,
+  Variables,
 } from "relay-runtime";
 
 import { authFetch } from "@phoenix/authFetch";
@@ -101,7 +105,35 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const subscribe = createFetchMultipartSubscription("/graphql");
+const subscribe: SubscribeFunction = (
+  operation: RequestParameters,
+  variables: Variables
+) => {
+  return Observable.create<GraphQLResponse>((sink) => {
+    fetchMultipart("/graphql", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept:
+          "multipart/mixed;boundary=graphql;subscriptionSpec=1.0,application/json",
+      },
+      body: JSON.stringify({
+        operationName: operation.name,
+        query: operation.text as string,
+        variables,
+      }),
+      credentials: "include",
+      onNext: (parts: Array<{ payload?: GraphQLResponse }>) => {
+        parts.forEach((part: { payload?: GraphQLResponse }) => {
+          part?.payload && sink.next(part.payload);
+        });
+      },
+      onError: (err: unknown) =>
+        sink.error(err instanceof Error ? err : new Error(String(err))),
+      onComplete: () => sink.complete(),
+    });
+  });
+};
 
 // Export a singleton instance of Relay Environment configured with our network layer:
 export default new Environment({
