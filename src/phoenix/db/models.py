@@ -910,6 +910,26 @@ class DocumentAnnotation(Base):
 
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
+    __table_args__ = (
+        Index(
+            "uq_document_annotations_span_rowid_name_null_identifier",
+            "span_rowid",
+            "name",
+            unique=True,
+            postgresql_where=identifier.is_(None),
+            sqlite_where=identifier.is_(None),
+        ),
+        Index(
+            "uq_document_annotations_span_rowid_name_identifier_not_null",
+            "span_rowid",
+            "name",
+            "identifier",
+            unique=True,
+            postgresql_where=identifier.isnot(None),
+            sqlite_where=identifier.isnot(None),
+        ),
+    )
+
 
 class Dataset(Base):
     __tablename__ = "datasets"
