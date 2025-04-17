@@ -143,7 +143,7 @@ class TestSpanAnnotationMutations:
         variables1 = {"input": [base_input]}
         res1 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables1)
         assert not res1.errors
-        ann1 = res1.data["createSpanAnnotations"]["spanAnnotations"][0]
+        ann1 = res1.data["createSpanAnnotations"]["spanAnnotations"][0]  # type: ignore
         id1 = ann1["id"]
 
         # Upsert with updated fields
@@ -158,7 +158,7 @@ class TestSpanAnnotationMutations:
         variables2 = {"input": [updated_input]}
         res2 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables2)
         assert not res2.errors
-        ann2 = res2.data["createSpanAnnotations"]["spanAnnotations"][0]
+        ann2 = res2.data["createSpanAnnotations"]["spanAnnotations"][0]  # type: ignore
         id2 = ann2["id"]
 
         # IDs should match and values updated
@@ -188,7 +188,7 @@ class TestSpanAnnotationMutations:
         variables1 = {"input": [base_input]}
         res1 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables1)
         assert not res1.errors
-        ann1 = res1.data["createSpanAnnotations"]["spanAnnotations"][0]
+        ann1 = res1.data["createSpanAnnotations"]["spanAnnotations"][0]  # type: ignore
         id1 = ann1["id"]
 
         # Upsert with updated fields
@@ -203,7 +203,7 @@ class TestSpanAnnotationMutations:
         variables2 = {"input": [updated_input]}
         res2 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables2)
         assert not res2.errors
-        ann2 = res2.data["createSpanAnnotations"]["spanAnnotations"][0]
+        ann2 = res2.data["createSpanAnnotations"]["spanAnnotations"][0]  # type: ignore
         id2 = ann2["id"]
 
         # IDs should match and values updated
