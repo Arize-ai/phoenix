@@ -63,10 +63,34 @@ def upgrade() -> None:
         "ix_document_annotations_identifier",
         "document_annotations",
         ["identifier"],
+        unique=False,
+    )
+    op.create_index(
+        "uq_document_annotations_span_rowid_name_null_identifier",
+        "document_annotations",
+        ["span_rowid", "name"],
+        unique=True,
+        postgresql_where=sa.column("identifier").is_(None),
+        sqlite_where=sa.column("identifier").is_(None),
+    )
+    op.create_index(
+        "uq_document_annotations_span_rowid_name_identifier_not_null",
+        "document_annotations",
+        ["span_rowid", "name", "identifier"],
+        unique=True,
+        postgresql_where=sa.column("identifier").isnot(None),
+        sqlite_where=sa.column("identifier").isnot(None),
     )
 
 
 def downgrade() -> None:
+    op.drop_index(
+        "uq_document_annotations_span_rowid_name_identifier_not_null",
+        table_name="document_annotations",
+    )
+    op.drop_index(
+        "uq_document_annotations_span_rowid_name_null_identifier", table_name="document_annotations"
+    )
     op.drop_index("ix_document_annotations_identifier", table_name="document_annotations")
 
     op.drop_index(
