@@ -256,8 +256,9 @@ async def annotate_spans(
         inserted_ids = []
         for p in precursors:
             span_rowid = existing_spans[p.span_id]
-            name = p.row.name
-            identifier = p.row.identifier
+            annotation_model = p.obj
+            name = annotation_model.name
+            identifier = annotation_model.identifier
 
             # Check if an annotation with this span_rowid, name, and identifier already exists
             q = select(models.SpanAnnotation).where(
@@ -272,18 +273,34 @@ async def annotate_spans(
             existing_annotation = await session.scalar(q)
 
             if existing_annotation:
-                existing_annotation.label = p.row.label
-                existing_annotation.score = p.row.score
-                existing_annotation.explanation = p.row.explanation
-                existing_annotation.metadata_ = p.row.metadata_
-                existing_annotation.annotator_kind = p.row.annotator_kind
-                existing_annotation.source = p.row.source
-                existing_annotation.user_id = p.row.user_id
+                # Update existing annotation
+                existing_annotation.label = annotation_model.label
+                existing_annotation.score = annotation_model.score
+                existing_annotation.explanation = annotation_model.explanation
+                existing_annotation.metadata_ = annotation_model.metadata_
+                existing_annotation.annotator_kind = annotation_model.annotator_kind
+                existing_annotation.source = annotation_model.source
+                existing_annotation.user_id = annotation_model.user_id
                 session.add(existing_annotation)
                 inserted_ids.append(existing_annotation.id)
             else:
-                values = p.as_insertable(span_rowid).row
-                stmt = insert(models.SpanAnnotation).values(**values._asdict())
+                annotation_to_insert = p.as_insertable(span_rowid).row
+
+                insert_values = {
+                    "span_rowid": annotation_to_insert.span_rowid,
+                    "name": annotation_to_insert.name,
+                    "label": annotation_to_insert.label,
+                    "score": annotation_to_insert.score,
+                    "explanation": annotation_to_insert.explanation,
+                    "metadata_": annotation_to_insert.metadata_,
+                    "annotator_kind": annotation_to_insert.annotator_kind,
+                    "source": annotation_to_insert.source,
+                    "user_id": annotation_to_insert.user_id,
+                    "identifier": annotation_to_insert.identifier,
+                }
+
+                # Insert new annotation
+                stmt = insert(models.SpanAnnotation).values(**insert_values)
                 stmt = stmt.returning(models.SpanAnnotation.id)
                 result = await session.execute(stmt)
                 inserted_ids.append(result.scalar_one())
