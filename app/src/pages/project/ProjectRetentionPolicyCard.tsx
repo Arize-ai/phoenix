@@ -11,7 +11,11 @@ import { Card } from "@arizeai/components";
 
 import { Flex, Link, Text, View } from "@phoenix/components";
 import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
-import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import {
+  useNotifyError,
+  useNotifySuccess,
+  useViewerCanManageRetentionPolicy,
+} from "@phoenix/contexts";
 import { createPolicyDeletionSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
 import { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
@@ -26,6 +30,7 @@ export const ProjectRetentionPolicyCard = ({
   project: ProjectRetentionPolicyCard_policy$key;
   query: ProjectRetentionPolicyCard_query$key;
 }) => {
+  const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
 
@@ -131,7 +136,7 @@ export const ProjectRetentionPolicyCard = ({
               defaultValue={data.traceRetentionPolicy?.id}
               onChange={handleRetentionPolicyChange}
               query={queryKey}
-              isDisabled={isCommitting}
+              isDisabled={isCommitting || !canManageRetentionPolicy}
             />
           </section>
           <section>
