@@ -125,7 +125,7 @@ export const ProjectRetentionPolicyCard = ({
       }}
     >
       <View paddingX="size-200" paddingY="size-100">
-        <Flex direction="row" gap="size-200" alignItems="center">
+        <Flex direction="row" gap="size-400" alignItems="center">
           <section>
             <ProjectTraceRetentionPolicySelect
               defaultValue={data.traceRetentionPolicy?.id}
