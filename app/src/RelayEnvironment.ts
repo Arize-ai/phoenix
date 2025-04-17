@@ -101,7 +101,9 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const subscribe = createFetchMultipartSubscription("/graphql");
+const subscribe = createFetchMultipartSubscription("/graphql", {
+  fetch: authFetch,
+});
 
 // Export a singleton instance of Relay Environment configured with our network layer:
 export default new Environment({
