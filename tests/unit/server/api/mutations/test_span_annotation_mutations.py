@@ -12,17 +12,6 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.fixture(autouse=True)
-def disable_expire_on_commit_global():
-    """
-    Disable attribute expiration on commit for all AsyncSession instances so that
-    returned ORM objects retain fields like created_at and updated_at.
-    """
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    AsyncSession.expire_on_commit = False
-
-
-@pytest.fixture(autouse=True)
 async def span_data(db: DbSessionFactory) -> None:
     async with db() as session:
         project = models.Project(name="default")
