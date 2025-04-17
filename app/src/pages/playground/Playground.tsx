@@ -86,19 +86,13 @@ export function Playground(props: Partial<PlaygroundProps>) {
     );
   }, [setSearchParams]);
 
-  const streaming = window.Config.websocketsEnabled
-    ? playgroundStreamingEnabled
-    : false;
-
-  const showStreamingToggle = window.Config.websocketsEnabled;
-
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
   }
   return (
     <PlaygroundProvider
       {...props}
-      streaming={streaming}
+      streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
@@ -115,7 +109,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              {showStreamingToggle ? <PlaygroundStreamToggle /> : null}
+              <PlaygroundStreamToggle />
               <PlaygroundDatasetPicker />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />

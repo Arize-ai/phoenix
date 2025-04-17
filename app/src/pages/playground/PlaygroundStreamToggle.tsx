@@ -16,11 +16,6 @@ export function PlaygroundStreamToggle() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
-  // This toggle should never be shown if websockets are disabled
-  if (window.Config.websocketsEnabled === false) {
-    return null;
-  }
-
   return (
     <Switch
       labelPlacement="start"

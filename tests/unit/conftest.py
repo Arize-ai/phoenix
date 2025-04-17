@@ -201,7 +201,6 @@ async def app(
             umap_params=get_umap_parameters(None),
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
-            enable_websockets=True,
         )
         manager = await stack.enter_async_context(LifespanManager(app))
         yield manager.app
