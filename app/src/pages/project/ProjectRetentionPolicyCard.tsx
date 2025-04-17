@@ -1,10 +1,5 @@
 import React, { useMemo } from "react";
-import {
-  graphql,
-  useFragment,
-  useMutation,
-  useRefetchableFragment,
-} from "react-relay";
+import { graphql, useFragment, useMutation } from "react-relay";
 import cronstrue from "cronstrue";
 
 import { Card } from "@arizeai/components";
@@ -20,7 +15,6 @@ import { createPolicyDeletionSummaryText } from "@phoenix/utils/retentionPolicyU
 
 import { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
 import { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
-import { ProjectRetentionPolicyCardQuery } from "./__generated__/ProjectRetentionPolicyCardQuery.graphql";
 import { ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation } from "./__generated__/ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation.graphql";
 
 export const ProjectRetentionPolicyCard = ({
