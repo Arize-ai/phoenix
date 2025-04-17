@@ -27,6 +27,7 @@ import {
   ProjectPageQueriesProjectConfigQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
+import { ProjectRetentionPolicyCard } from "./ProjectRetentionPolicyCard";
 const projectConfigPageCSS = css`
   overflow-y: auto;
 `;
@@ -75,6 +76,7 @@ const ProjectConfigContent = ({
     <Flex direction="column" gap="size-200">
       <ProjectConfigCard project={data.project} />
       <ProjectAnnotationConfigCard projectId={data.project.id} />
+      <ProjectRetentionPolicyCard project={data.project} query={data} />
     </Flex>
   );
 };

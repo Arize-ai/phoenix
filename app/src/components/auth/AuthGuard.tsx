@@ -1,6 +1,9 @@
 import React, { PropsWithChildren, ReactNode } from "react";
 
-import { useViewer } from "@phoenix/contexts/ViewerContext";
+import {
+  useViewer,
+  useViewerCanManageRetentionPolicy,
+} from "@phoenix/contexts";
 
 type AuthGuardProps = {
   fallback?: ReactNode;
@@ -33,8 +36,8 @@ export function CanManageRetentionPolicy(
   props: PropsWithChildren<AuthGuardProps>
 ) {
   const { fallback = null, children } = props;
-  const { viewer } = useViewer();
-  if (viewer && viewer.role.name !== "ADMIN") {
+  const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
+  if (!canManageRetentionPolicy) {
     return <>{fallback}</>;
   }
   return children;
