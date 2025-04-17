@@ -1,13 +1,15 @@
-import pytest
 import datetime
 from typing import Any
+
+import pytest
 from strawberry.relay.types import GlobalID
 
+from phoenix.db import models
+from phoenix.server.api.types.AnnotationSource import AnnotationSource
+from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
-from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
-from phoenix.server.api.types.AnnotationSource import AnnotationSource
-from phoenix.db import models
+
 
 @pytest.fixture(autouse=True)
 def disable_expire_on_commit_global():
@@ -16,7 +18,9 @@ def disable_expire_on_commit_global():
     returned ORM objects retain fields like created_at and updated_at.
     """
     from sqlalchemy.ext.asyncio import AsyncSession
+
     AsyncSession.expire_on_commit = False
+
 
 @pytest.fixture(autouse=True)
 async def span_data(db: DbSessionFactory) -> None:
@@ -71,6 +75,7 @@ async def span_data(db: DbSessionFactory) -> None:
 
         await session.commit()
 
+
 class TestSpanAnnotationMutations:
     CREATE_SPAN_ANNOTATIONS_MUTATION = """
     mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {
@@ -116,9 +121,7 @@ class TestSpanAnnotationMutations:
         gql_client: AsyncGraphQLClient,
         variables: dict[str, Any],
     ) -> None:
-        result = await gql_client.execute(
-            self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables
-        )
+        result = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables)
         assert not result.errors
         assert result.data is not None
         data = result.data["createSpanAnnotations"]["spanAnnotations"][0]
@@ -145,28 +148,71 @@ class TestSpanAnnotationMutations:
             "explanation": "First",
             "annotatorKind": AnnotatorKind.HUMAN.name,
             "metadata": {},
-            "identifier": "conflict-id",
+            "identifier": "conflict",
             "source": AnnotationSource.APP.name,
         }
         variables1 = {"input": [base_input]}
-        res1 = await gql_client.execute(
-            self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables1
-        )
+        res1 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables1)
         assert not res1.errors
         ann1 = res1.data["createSpanAnnotations"]["spanAnnotations"][0]
         id1 = ann1["id"]
 
         # Upsert with updated fields
         updated_input = base_input.copy()
-        updated_input.update({
-            "label": "UPDATED_LABEL",
-            "score": 2.0,
-            "explanation": "Updated explanation",
-        })
-        variables2 = {"input": [updated_input]}
-        res2 = await gql_client.execute(
-            self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables2
+        updated_input.update(
+            {
+                "label": "UPDATED_LABEL",
+                "score": 2.0,
+                "explanation": "Updated explanation",
+            }
         )
+        variables2 = {"input": [updated_input]}
+        res2 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables2)
+        assert not res2.errors
+        ann2 = res2.data["createSpanAnnotations"]["spanAnnotations"][0]
+        id2 = ann2["id"]
+
+        # IDs should match and values updated
+        assert id1 == id2
+        assert ann2["label"] == "UPDATED_LABEL"
+        assert ann2["score"] == 2.0
+        assert ann2["explanation"] == "Updated explanation"
+
+    async def test_upsert_on_conflict_updates_existing_with_no_identifier(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # Initial creation
+        span_gid = str(GlobalID("Span", "2"))
+        base_input = {
+            "spanId": span_gid,
+            "name": "conflict_test",
+            "label": "FIRST_LABEL",
+            "score": 1.0,
+            "explanation": "First",
+            "annotatorKind": AnnotatorKind.HUMAN.name,
+            "metadata": {},
+            "identifier": None,  # Missing identifiers will upsert for backwards compatibility
+            "source": AnnotationSource.APP.name,
+        }
+        variables1 = {"input": [base_input]}
+        res1 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables1)
+        assert not res1.errors
+        ann1 = res1.data["createSpanAnnotations"]["spanAnnotations"][0]
+        id1 = ann1["id"]
+
+        # Upsert with updated fields
+        updated_input = base_input.copy()
+        updated_input.update(
+            {
+                "label": "UPDATED_LABEL",
+                "score": 2.0,
+                "explanation": "Updated explanation",
+            }
+        )
+        variables2 = {"input": [updated_input]}
+        res2 = await gql_client.execute(self.CREATE_SPAN_ANNOTATIONS_MUTATION, variables2)
         assert not res2.errors
         ann2 = res2.data["createSpanAnnotations"]["spanAnnotations"][0]
         id2 = ann2["id"]
