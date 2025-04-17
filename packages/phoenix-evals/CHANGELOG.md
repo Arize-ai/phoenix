@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.6](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.5...arize-phoenix-evals-v0.20.6) (2025-04-17)
+
+
+### Bug Fixes
+
+* azure max tokens update ([#7144](https://github.com/Arize-ai/phoenix/issues/7144)) ([ce72e76](https://github.com/Arize-ai/phoenix/commit/ce72e76242fef34dbe7eaa4544da7c12a37138cd))
+
 ## [0.20.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v0.20.4...arize-phoenix-evals-v0.20.5) (2025-04-16)
 
 
