@@ -17,6 +17,7 @@ import type { ProjectTraceRetentionPolicySelectFragment$key } from "./__generate
 export interface ProjectTraceRetentionPolicySelectProps {
   defaultValue?: string;
   onChange?: (value: string) => void;
+  isDisabled?: boolean;
   query: ProjectTraceRetentionPolicySelectFragment$key;
 }
 
@@ -24,6 +25,7 @@ export function ProjectTraceRetentionPolicySelect({
   defaultValue,
   onChange,
   query,
+  isDisabled,
 }: ProjectTraceRetentionPolicySelectProps) {
   const data = useFragment(
     graphql`
@@ -61,6 +63,7 @@ export function ProjectTraceRetentionPolicySelect({
       size="S"
       defaultSelectedKey={defaultValue}
       onSelectionChange={(key) => onChange?.(key.toString())}
+      isDisabled={isDisabled}
     >
       <Label>Retention Policy</Label>
       <Button>

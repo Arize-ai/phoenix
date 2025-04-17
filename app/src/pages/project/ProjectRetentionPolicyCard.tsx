@@ -1,15 +1,23 @@
 import React, { useMemo } from "react";
-import { graphql, useFragment, useRefetchableFragment } from "react-relay";
+import {
+  graphql,
+  useFragment,
+  useMutation,
+  useRefetchableFragment,
+} from "react-relay";
 import cronstrue from "cronstrue";
 
 import { Card } from "@arizeai/components";
 
 import { Flex, Link, Text, View } from "@phoenix/components";
 import { ProjectTraceRetentionPolicySelect } from "@phoenix/components/retention/ProjectTraceRetentionPolicySelect";
+import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
+import { createPolicyDeletionSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
 import { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
 import { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
 import { ProjectRetentionPolicyCardQuery } from "./__generated__/ProjectRetentionPolicyCardQuery.graphql";
+import { ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation } from "./__generated__/ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation.graphql";
 
 export const ProjectRetentionPolicyCard = ({
   project,
@@ -18,6 +26,9 @@ export const ProjectRetentionPolicyCard = ({
   project: ProjectRetentionPolicyCard_policy$key;
   query: ProjectRetentionPolicyCard_query$key;
 }) => {
+  const notifySuccess = useNotifySuccess();
+  const notifyError = useNotifyError();
+
   const queryKey = useFragment(
     graphql`
       fragment ProjectRetentionPolicyCard_query on Query {
@@ -57,13 +68,52 @@ export const ProjectRetentionPolicyCard = ({
     project
   );
 
+  const [commit, isCommitting] =
+    useMutation<ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation>(
+      graphql`
+        mutation ProjectRetentionPolicyCardSetProjectRetentionPolicyMutation(
+          $projectId: GlobalID!
+          $policyId: GlobalID!
+        ) {
+          patchProjectTraceRetentionPolicy(
+            input: { id: $policyId, addProjects: [$projectId] }
+          ) {
+            query {
+              node(id: $projectId) {
+                ... on Project {
+                  ...ProjectRetentionPolicyCard_policy
+                }
+              }
+            }
+          }
+        }
+      `
+    );
+
   const scheduleText = useMemo(() => {
     return cronstrue.toString(data.traceRetentionPolicy?.cronExpression || "");
   }, [data.traceRetentionPolicy?.cronExpression]);
 
-  const handleRetentionPolicyChange = (_policyId: string) => {
-    // Implementation for handling policy changes
-    // Replace console.log with actual implementation
+  const handleRetentionPolicyChange = (policyId: string) => {
+    commit({
+      variables: {
+        projectId: data.id,
+        policyId: policyId,
+      },
+      onCompleted: () => {
+        notifySuccess({
+          title: "Project retention policy updated",
+          message:
+            "The new policy will take effect at the configured schedule.",
+        });
+      },
+      onError: () => {
+        notifyError({
+          title: "Failed to update retention policy",
+          message: "Please try again.",
+        });
+      },
+    });
   };
 
   return (
@@ -75,19 +125,27 @@ export const ProjectRetentionPolicyCard = ({
       }}
     >
       <View paddingX="size-200" paddingY="size-100">
-        <Flex direction="row" gap="size-200">
+        <Flex direction="row" gap="size-200" alignItems="center">
           <section>
-            <b>Retention Policy</b>
-            <Text>{data.traceRetentionPolicy?.name}</Text>
             <ProjectTraceRetentionPolicySelect
               defaultValue={data.traceRetentionPolicy?.id}
               onChange={handleRetentionPolicyChange}
               query={queryKey}
+              isDisabled={isCommitting}
             />
           </section>
           <section>
-            <b>Schedule</b>
-            <Text>{scheduleText}</Text>
+            <Flex direction="column" gap="size-100">
+              <Text>
+                {createPolicyDeletionSummaryText({
+                  numberOfDays: data.traceRetentionPolicy?.rule?.maxDays,
+                  numberOfTraces: data.traceRetentionPolicy?.rule?.maxCount,
+                })}
+              </Text>
+              <Text>
+                <b>Schedule:</b> {scheduleText}
+              </Text>
+            </Flex>
           </section>
         </Flex>
       </View>
