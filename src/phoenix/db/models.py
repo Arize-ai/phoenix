@@ -902,7 +902,6 @@ class DocumentAnnotation(Base):
         String,
         nullable=True,
         index=True,
-        unique=True,
     )
     source: Mapped[str] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),

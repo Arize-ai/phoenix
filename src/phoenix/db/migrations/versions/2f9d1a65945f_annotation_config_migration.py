@@ -33,7 +33,6 @@ def upgrade() -> None:
                 "identifier",
                 sa.String,
                 nullable=True,
-                index=True,
             ),
         )
         batch_op.add_column(
@@ -56,20 +55,6 @@ def upgrade() -> None:
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
-        batch_op.create_index(
-            "uq_span_annotations_span_rowid_name_null_identifier",
-            ["span_rowid", "name"],
-            unique=True,
-            postgresql_where=sa.column("identifier").is_(None),
-            sqlite_where=sa.column("identifier").is_(None),
-        )
-        batch_op.create_index(
-            "uq_span_annotations_span_rowid_name_identifier_not_null",
-            ["span_rowid", "name", "identifier"],
-            unique=True,
-            postgresql_where=sa.column("identifier").isnot(None),
-            sqlite_where=sa.column("identifier").isnot(None),
-        )
 
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.add_column(
@@ -85,7 +70,6 @@ def upgrade() -> None:
                 "identifier",
                 sa.String,
                 nullable=True,
-                index=True,
             ),
         )
         batch_op.add_column(
@@ -108,20 +92,6 @@ def upgrade() -> None:
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
         batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
-        batch_op.create_index(
-            "uq_trace_annotations_trace_rowid_name_null_identifier",
-            ["trace_rowid", "name"],
-            unique=True,
-            postgresql_where=sa.column("identifier").is_(None),
-            sqlite_where=sa.column("identifier").is_(None),
-        )
-        batch_op.create_index(
-            "uq_trace_annotations_trace_rowid_name_identifier_not_null",
-            ["trace_rowid", "name", "identifier"],
-            unique=True,
-            postgresql_where=sa.column("identifier").isnot(None),
-            sqlite_where=sa.column("identifier").isnot(None),
-        )
 
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.add_column(
@@ -141,8 +111,6 @@ def upgrade() -> None:
                 "identifier",
                 sa.String,
                 nullable=True,
-                index=True,
-                unique=True,
             ),
         )
         batch_op.add_column(
@@ -275,8 +243,6 @@ def downgrade() -> None:
     op.drop_table("annotation_configs")
 
     with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.drop_index("uq_span_annotations_span_rowid_name_identifier_not_null")
-        batch_op.drop_index("uq_span_annotations_span_rowid_name_null_identifier")
         batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
@@ -291,8 +257,6 @@ def downgrade() -> None:
         )
 
     with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.drop_index("uq_trace_annotations_trace_rowid_name_identifier_not_null")
-        batch_op.drop_index("uq_trace_annotations_trace_rowid_name_null_identifier")
         batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
@@ -307,7 +271,6 @@ def downgrade() -> None:
         )
 
     with op.batch_alter_table("document_annotations") as batch_op:
-        batch_op.drop_index("ix_document_annotations_identifier")
         batch_op.drop_constraint("valid_source", type_="check")
         batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
