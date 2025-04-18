@@ -1,5 +1,3 @@
-opentelemetry-exporter-otlp-proto-http
-opentelemetry-sdk
 openinference-instrumentation-mcp>=1.1.0
 openinference-instrumentation-openai-agents>=0.1.8
 openinference-instrumentation-openai>=0.1.25
@@ -9,4 +7,4 @@ openai-agents
 fastmcp
 arize-phoenix-otel>=0.9.0
 openinference-semantic-conventions
-gradio>=5.25.2
+pydantic

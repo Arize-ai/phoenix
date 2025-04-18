@@ -8,7 +8,7 @@ from phoenix.otel import register
 
 load_dotenv()
 
-tracer_provider = register(auto_instrument=True)
+tracer_provider = register(auto_instrument=True, endpoint="http://localhost:6006/v1/traces")
 
 
 async def run(mcp_server: MCPServer):
@@ -28,10 +28,10 @@ async def run(mcp_server: MCPServer):
 
 async def main():
     async with MCPServerStdio(
-        name="Custom Server",
+        name="Financial Analysis Server",
         params={
             "command": "fastmcp",
-            "args": ["run", "example/server.py"],
+            "args": ["run", "./tutorials/mcp/tracing_between_mcp_client_and_server/server.py"],
         },
     ) as server:
         await run(server)
