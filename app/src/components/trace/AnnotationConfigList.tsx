@@ -2,18 +2,17 @@ import React, { startTransition, useCallback, useMemo, useState } from "react";
 import { FocusScope } from "react-aria";
 import {
   graphql,
+  useFragment,
   useLazyLoadQuery,
   useMutation,
-  useRefetchableFragment,
 } from "react-relay";
+import { useNavigate } from "react-router";
 import { css } from "@emotion/react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   Button,
-  Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -21,7 +20,6 @@ import {
   Link,
   ListBox,
   ListBoxItem,
-  Modal,
   Text,
   TextField,
   View,
@@ -29,12 +27,12 @@ import {
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { AnnotationConfigListAssociateAnnotationConfigWithProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAssociateAnnotationConfigWithProjectMutation.graphql";
 import { AnnotationConfigListProjectAnnotationConfigFragment$key } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigFragment.graphql";
-import { AnnotationConfigListProjectAnnotationConfigQuery } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigQuery.graphql";
 import {
   AnnotationConfigListQuery,
   AnnotationType,
 } from "@phoenix/components/trace/__generated__/AnnotationConfigListQuery.graphql";
 import { AnnotationConfigListRemoveAnnotationConfigFromProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListRemoveAnnotationConfigFromProjectMutation.graphql";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 
 const annotationListBoxCSS = css`
   padding: 0 var(--ac-global-dimension-size-100);
@@ -74,11 +72,12 @@ const annotationTypeLabelMap: Record<AnnotationType, string> = {
 export function AnnotationConfigList(props: {
   projectId: string;
   spanId: string;
-  renderNewAnnotationForm: React.ReactNode;
 }) {
-  const [popoverRef, setPopoverRef] = useState<HTMLDivElement | null>(null);
-  const { projectId, renderNewAnnotationForm } = props;
+  const navigate = useNavigate();
+  const { projectId, spanId } = props;
   const [filter, setFilter] = useState<string>("");
+  const { viewer } = useViewer();
+  const viewerId = viewer?.id;
   const data = useLazyLoadQuery<AnnotationConfigListQuery>(
     graphql`
       query AnnotationConfigListQuery($projectId: GlobalID!) {
@@ -95,7 +94,18 @@ export function AnnotationConfigList(props: {
               }
               ... on AnnotationConfigBase {
                 name
+                description
                 annotationType
+              }
+              ... on CategoricalAnnotationConfig {
+                values {
+                  label
+                  score
+                }
+              }
+              ... on ContinuousAnnotationConfig {
+                lowerBound
+                upperBound
               }
             }
           }
@@ -105,32 +115,42 @@ export function AnnotationConfigList(props: {
     { projectId }
   );
 
-  const [projectAnnotationData] = useRefetchableFragment<
-    AnnotationConfigListProjectAnnotationConfigQuery,
-    AnnotationConfigListProjectAnnotationConfigFragment$key
-  >(
-    graphql`
-      fragment AnnotationConfigListProjectAnnotationConfigFragment on Project
-      @refetchable(
-        queryName: "AnnotationConfigListProjectAnnotationConfigQuery"
-      ) {
-        annotationConfigs {
-          edges {
-            node {
-              ... on Node {
-                id
-              }
-              ... on AnnotationConfigBase {
-                name
-                annotationType
+  const projectAnnotationData =
+    useFragment<AnnotationConfigListProjectAnnotationConfigFragment$key>(
+      graphql`
+        fragment AnnotationConfigListProjectAnnotationConfigFragment on Project {
+          annotationConfigs {
+            edges {
+              node {
+                ... on Node {
+                  id
+                }
+                ... on AnnotationConfigBase {
+                  name
+                  annotationType
+                  description
+                }
+                ... on CategoricalAnnotationConfig {
+                  values {
+                    label
+                    score
+                  }
+                }
+                ... on ContinuousAnnotationConfig {
+                  lowerBound
+                  upperBound
+                  optimizationDirection
+                }
+                ... on FreeformAnnotationConfig {
+                  name
+                }
               }
             }
           }
         }
-      }
-    `,
-    data.project
-  );
+      `,
+      data.project
+    );
   // mutation to associate an annotation config with a project
   const [addAnnotationConfigToProjectMutation] =
     useMutation<AnnotationConfigListAssociateAnnotationConfigWithProjectMutation>(
@@ -138,6 +158,8 @@ export function AnnotationConfigList(props: {
         mutation AnnotationConfigListAssociateAnnotationConfigWithProjectMutation(
           $projectId: GlobalID!
           $annotationConfigId: GlobalID!
+          $spanId: GlobalID!
+          $filterUserIds: [GlobalID!]
         ) {
           addAnnotationConfigToProject(
             input: {
@@ -145,8 +167,20 @@ export function AnnotationConfigList(props: {
               annotationConfigId: $annotationConfigId
             }
           ) {
-            project {
-              ...AnnotationConfigListProjectAnnotationConfigFragment
+            query {
+              projectNode: node(id: $projectId) {
+                ... on Project {
+                  id
+                  ...AnnotationConfigListProjectAnnotationConfigFragment
+                }
+              }
+              node(id: $spanId) {
+                ... on Span {
+                  id
+                  ...SpanAnnotationsEditor_spanAnnotations
+                    @arguments(filterUserIds: $filterUserIds)
+                }
+              }
             }
           }
         }
@@ -159,6 +193,8 @@ export function AnnotationConfigList(props: {
         mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(
           $projectId: GlobalID!
           $annotationConfigId: GlobalID!
+          $spanId: GlobalID!
+          $filterUserIds: [GlobalID!]
         ) {
           removeAnnotationConfigFromProject(
             input: {
@@ -166,8 +202,20 @@ export function AnnotationConfigList(props: {
               annotationConfigId: $annotationConfigId
             }
           ) {
-            project {
-              ...AnnotationConfigListProjectAnnotationConfigFragment
+            query {
+              projectNode: node(id: $projectId) {
+                ... on Project {
+                  id
+                  ...AnnotationConfigListProjectAnnotationConfigFragment
+                }
+              }
+              node(id: $spanId) {
+                ... on Span {
+                  id
+                  ...SpanAnnotationsEditor_spanAnnotations
+                    @arguments(filterUserIds: $filterUserIds)
+                }
+              }
             }
           }
         }
@@ -181,11 +229,13 @@ export function AnnotationConfigList(props: {
           variables: {
             projectId,
             annotationConfigId,
+            spanId,
+            filterUserIds: viewerId ? [viewerId] : null,
           },
         });
       });
     },
-    [projectId, addAnnotationConfigToProjectMutation]
+    [projectId, addAnnotationConfigToProjectMutation, spanId, viewerId]
   );
 
   const removeAnnotationConfigFromProject = useCallback(
@@ -194,10 +244,12 @@ export function AnnotationConfigList(props: {
         variables: {
           projectId,
           annotationConfigId,
+          spanId,
+          filterUserIds: viewerId ? [viewerId] : null,
         },
       });
     },
-    [projectId, removeAnnotationConfigFromProjectMutation]
+    [projectId, removeAnnotationConfigFromProjectMutation, spanId, viewerId]
   );
 
   const allAnnotationConfigs = data.allAnnotationConfigs.edges;
@@ -246,22 +298,19 @@ export function AnnotationConfigList(props: {
                 >
                   <Input placeholder="Search annotation configs" />
                 </TextField>
-                <DialogTrigger>
-                  <TooltipTrigger>
-                    <TriggerWrap>
-                      <Button aria-label="Create annotation config">
-                        <Icon svg={<Icons.PlusCircleOutline />} />
-                      </Button>
-                    </TriggerWrap>
-                    <Tooltip>Create new annotation config</Tooltip>
-                  </TooltipTrigger>
-                  <Modal
-                    isDismissable
-                    UNSTABLE_portalContainer={popoverRef ?? undefined}
-                  >
-                    <Dialog>{renderNewAnnotationForm}</Dialog>
-                  </Modal>
-                </DialogTrigger>
+                <TooltipTrigger>
+                  <TriggerWrap>
+                    <Button
+                      aria-label="Create annotation config"
+                      onPress={() => {
+                        navigate("/settings/annotations");
+                      }}
+                    >
+                      <Icon svg={<Icons.PlusCircleOutline />} />
+                    </Button>
+                  </TriggerWrap>
+                  <Tooltip>Create new annotation config</Tooltip>
+                </TooltipTrigger>
               </Flex>
             </View>
             <ListBox
@@ -270,7 +319,7 @@ export function AnnotationConfigList(props: {
               selectionBehavior="toggle"
               aria-label="Annotation Configs"
               renderEmptyState={() => (
-                <View width="100%" height="100%">
+                <View width="100%" height="100%" paddingBottom="size-100">
                   <Flex
                     direction="column"
                     alignItems="center"
@@ -281,6 +330,7 @@ export function AnnotationConfigList(props: {
                         style={{
                           whiteSpace: "pre-wrap",
                           textAlign: "center",
+                          padding: 0,
                         }}
                       >
                         No annotation configs found for &quot;{filter}&quot;
@@ -341,7 +391,6 @@ export function AnnotationConfigList(props: {
           </Flex>
         </FocusScope>
       </View>
-      <div ref={setPopoverRef} />
     </>
   );
 }

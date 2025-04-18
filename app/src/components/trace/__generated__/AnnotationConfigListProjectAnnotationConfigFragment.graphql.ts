@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e7284c076f64bbca23b46ae623cec164>>
+ * @generated SignedSource<<f52c72efced47a398415bd4f6aa373ac>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,18 +10,26 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationConfigListProjectAnnotationConfigFragment$data = {
   readonly annotationConfigs: {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly annotationType?: AnnotationType;
+        readonly description?: string | null;
         readonly id?: string;
+        readonly lowerBound?: number | null;
         readonly name?: string;
+        readonly optimizationDirection?: OptimizationDirection;
+        readonly upperBound?: number | null;
+        readonly values?: ReadonlyArray<{
+          readonly label: string;
+          readonly score: number | null;
+        }>;
       };
     }>;
   };
-  readonly id: string;
   readonly " $fragmentType": "AnnotationConfigListProjectAnnotationConfigFragment";
 };
 export type AnnotationConfigListProjectAnnotationConfigFragment$key = {
@@ -29,32 +37,18 @@ export type AnnotationConfigListProjectAnnotationConfigFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"AnnotationConfigListProjectAnnotationConfigFragment">;
 };
 
-import AnnotationConfigListProjectAnnotationConfigQuery_graphql from './AnnotationConfigListProjectAnnotationConfigQuery.graphql';
-
 const node: ReaderFragment = (function(){
 var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "name",
   "storageKey": null
 };
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": {
-    "refetch": {
-      "connection": null,
-      "fragmentPathInResult": [
-        "node"
-      ],
-      "operation": AnnotationConfigListProjectAnnotationConfigQuery_graphql,
-      "identifierInfo": {
-        "identifierField": "id",
-        "identifierQueryVariableName": "id"
-      }
-    }
-  },
+  "metadata": null,
   "name": "AnnotationConfigListProjectAnnotationConfigFragment",
   "selections": [
     {
@@ -84,10 +78,70 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/)
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "id",
+                      "storageKey": null
+                    }
                   ],
                   "type": "Node",
                   "abstractKey": "__isNode"
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    (v0/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "annotationType",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "description",
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "AnnotationConfigBase",
+                  "abstractKey": "__isAnnotationConfigBase"
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CategoricalAnnotationValue",
+                      "kind": "LinkedField",
+                      "name": "values",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "label",
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "CategoricalAnnotationConfig",
+                  "abstractKey": null
                 },
                 {
                   "kind": "InlineFragment",
@@ -96,19 +150,34 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "name",
+                      "name": "lowerBound",
                       "storageKey": null
                     },
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "annotationType",
+                      "name": "upperBound",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "optimizationDirection",
                       "storageKey": null
                     }
                   ],
-                  "type": "AnnotationConfigBase",
-                  "abstractKey": "__isAnnotationConfigBase"
+                  "type": "ContinuousAnnotationConfig",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    (v0/*: any*/)
+                  ],
+                  "type": "FreeformAnnotationConfig",
+                  "abstractKey": null
                 }
               ],
               "storageKey": null
@@ -118,14 +187,13 @@ return {
         }
       ],
       "storageKey": null
-    },
-    (v0/*: any*/)
+    }
   ],
   "type": "Project",
   "abstractKey": null
 };
 })();
 
-(node as any).hash = "5a695ec16a3d4cc32260b23113d71674";
+(node as any).hash = "7bed597e9a0dc874ed67506a8a4f870c";
 
 export default node;
