@@ -24,7 +24,7 @@ last_eval_run_time = datetime.now() - timedelta(
 qa_spans_df = get_qa_with_reference(phoenix_client, start_time=last_eval_run_time)
 retriever_spans_df = get_retrieved_documents(phoenix_client, start_time=last_eval_run_time)
 eval_model = OpenAIModel(
-    model_name="gpt-4-turbo-preview",
+    model="gpt-4-turbo-preview",
 )
 hallucination_evaluator = HallucinationEvaluator(eval_model)
 qa_correctness_evaluator = QAEvaluator(eval_model)

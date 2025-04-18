@@ -406,6 +406,19 @@ def run_evals(
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
             which have the same number of rows as the input dataframe.
     """
+    #validation of variables against df columns 
+    df_columns = set(dataframe.columns)
+    for evaluator in evaluators:
+        template_vars = set(evaluator._template.variables)
+        missing_vars = template_vars - df_columns 
+        if missing_vars:
+            raise ValueError(
+                f"Template variables not found in dataframe columns for evaluator {evaluator.__class__.__name__}:\n"
+                f"Missing columns: {sorted(missing_vars)}\n"
+                f"Available columns: {sorted(df_columns)}\n"
+                f"Template variables: {sorted(template_vars)}"
+            )
+        
     # use the minimum default concurrency of all the models
     if concurrency is None:
         if len(evaluators) == 0:
