@@ -1118,6 +1118,15 @@ export interface components {
             type: "text";
             /** Text */
             text: string;
+            /**
+             * Subtype
+             * @enum {string}
+             */
+            subtype?: "thinking";
+            /** Signature */
+            signature?: string;
+            /** Redacted */
+            redacted?: boolean;
         };
         /** ToolCallContentPart */
         ToolCallContentPart: {
