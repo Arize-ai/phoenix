@@ -793,7 +793,7 @@ class SpanAnnotation(Base):
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -803,12 +803,31 @@ class SpanAnnotation(Base):
         String,
         nullable=True,
         index=True,
-        unique=True,
     )
     source: Mapped[str] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        Index(
+            "uq_span_annotations_span_rowid_name_null_identifier",
+            "span_rowid",
+            "name",
+            unique=True,
+            postgresql_where=identifier.is_(None),
+            sqlite_where=identifier.is_(None),
+        ),
+        Index(
+            "uq_span_annotations_span_rowid_name_identifier_not_null",
+            "span_rowid",
+            "name",
+            "identifier",
+            unique=True,
+            postgresql_where=identifier.isnot(None),
+            sqlite_where=identifier.isnot(None),
+        ),
+    )
 
 
 class TraceAnnotation(Base):
@@ -823,7 +842,7 @@ class TraceAnnotation(Base):
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -833,12 +852,31 @@ class TraceAnnotation(Base):
         String,
         nullable=True,
         index=True,
-        unique=True,
     )
     source: Mapped[str] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    __table_args__ = (
+        Index(
+            "uq_trace_annotations_trace_rowid_name_null_identifier",
+            "trace_rowid",
+            "name",
+            unique=True,
+            postgresql_where=identifier.is_(None),
+            sqlite_where=identifier.is_(None),
+        ),
+        Index(
+            "uq_trace_annotations_trace_rowid_name_identifier_not_null",
+            "trace_rowid",
+            "name",
+            "identifier",
+            unique=True,
+            postgresql_where=identifier.isnot(None),
+            sqlite_where=identifier.isnot(None),
+        ),
+    )
 
 
 class DocumentAnnotation(Base):
@@ -854,7 +892,7 @@ class DocumentAnnotation(Base):
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'HUMAN')", name="valid_annotator_kind"),
+        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -864,7 +902,6 @@ class DocumentAnnotation(Base):
         String,
         nullable=True,
         index=True,
-        unique=True,
     )
     source: Mapped[str] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
@@ -872,6 +909,26 @@ class DocumentAnnotation(Base):
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
+
+    __table_args__ = (
+        Index(
+            "uq_document_annotations_span_rowid_name_null_identifier",
+            "span_rowid",
+            "name",
+            unique=True,
+            postgresql_where=identifier.is_(None),
+            sqlite_where=identifier.is_(None),
+        ),
+        Index(
+            "uq_document_annotations_span_rowid_name_identifier_not_null",
+            "span_rowid",
+            "name",
+            "identifier",
+            unique=True,
+            postgresql_where=identifier.isnot(None),
+            sqlite_where=identifier.isnot(None),
+        ),
+    )
 
 
 class Dataset(Base):

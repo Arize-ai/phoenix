@@ -176,7 +176,7 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.85,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_1_annotation_1",
                 source="APP",
                 user_id=None,
             )
@@ -189,7 +189,7 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.95,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_1_annotation_2",
                 source="APP",
                 user_id=None,
             )
@@ -202,7 +202,7 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.3,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_1_annotation_3",
                 source="APP",
                 user_id=None,
             )
@@ -216,7 +216,7 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.85,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_2_annotation_1",
                 source="APP",
                 user_id=None,
             )
@@ -229,7 +229,7 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.3,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_2_annotation_2",
                 source="APP",
                 user_id=None,
             )
@@ -243,7 +243,7 @@ async def data_with_multiple_annotations(db: DbSessionFactory) -> None:
                 score=0.85,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_3_annotation_1",
                 source="APP",
                 user_id=None,
             )
@@ -312,7 +312,7 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_1_annotation_1",
                 source="APP",
                 user_id=None,
             )
@@ -325,7 +325,7 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_1_annotation_2",
                 source="APP",
                 user_id=None,
             )
@@ -338,7 +338,7 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.6,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="span_1_annotation_3",
                 source="APP",
                 user_id=None,
             )
