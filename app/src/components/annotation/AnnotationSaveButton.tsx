@@ -2,7 +2,7 @@ import React, { forwardRef } from "react";
 import { PressEvent } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
-import { Keyboard, VisuallyHidden } from "@phoenix/components";
+import { Flex, Keyboard, VisuallyHidden } from "@phoenix/components";
 import { Button, ButtonProps } from "@phoenix/components/button";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
@@ -11,7 +11,7 @@ type AnnotationSaveButtonProps = ButtonProps;
 export const AnnotationSaveButton = forwardRef<
   HTMLButtonElement,
   AnnotationSaveButtonProps
->(({ children, ...props }, ref) => {
+>(({ ...props }, ref) => {
   const modifierKey = useModifierKey();
   useHotkeys(
     "mod+enter",
@@ -27,22 +27,12 @@ export const AnnotationSaveButton = forwardRef<
     }
   );
   return (
-    <Button variant="primary" {...props} ref={ref}>
-      {(states) => (
-        <div
-          css={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: "var(--ac-global-dimension-static-size-200)",
-          }}
-        >
-          <span aria-hidden="true" />
-          {typeof children === "function"
-            ? children({
-                ...props,
-                ...states,
-              })
-            : children}
+    <Flex justifyContent="end" width="100%">
+      <Button
+        variant="primary"
+        {...props}
+        ref={ref}
+        trailingVisual={
           <Keyboard
             css={{
               justifyContent: "end",
@@ -55,9 +45,9 @@ export const AnnotationSaveButton = forwardRef<
             <VisuallyHidden>enter</VisuallyHidden>
             <span aria-hidden="true">⏎</span>
           </Keyboard>
-        </div>
-      )}
-    </Button>
+        }
+      />
+    </Flex>
   );
 });
 
