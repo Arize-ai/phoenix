@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d664c97ec5330479bbd4001edeb4aa4b>>
+ * @generated SignedSource<<e598f36eb03ecd2b5efc3c0fffea8e5d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
-export type SpanAnnotationsEditor_spanAnnotations$data = {
+export type SpanAsideAnnotationList_span$data = {
   readonly filteredSpanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
     readonly createdAt: string;
@@ -21,12 +21,22 @@ export type SpanAnnotationsEditor_spanAnnotations$data = {
     readonly name: string;
     readonly score: number | null;
   }>;
-  readonly id: string;
-  readonly " $fragmentType": "SpanAnnotationsEditor_spanAnnotations";
+  readonly project: {
+    readonly annotationConfigs: {
+      readonly configs: ReadonlyArray<{
+        readonly config: {
+          readonly id?: string;
+          readonly name?: string;
+        };
+      }>;
+    };
+    readonly id: string;
+  };
+  readonly " $fragmentType": "SpanAsideAnnotationList_span";
 };
-export type SpanAnnotationsEditor_spanAnnotations$key = {
-  readonly " $data"?: SpanAnnotationsEditor_spanAnnotations$data;
-  readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations">;
+export type SpanAsideAnnotationList_span$key = {
+  readonly " $data"?: SpanAsideAnnotationList_span$data;
+  readonly " $fragmentSpreads": FragmentRefs<"SpanAsideAnnotationList_span">;
 };
 
 const node: ReaderFragment = (function(){
@@ -35,6 +45,13 @@ var v0 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -47,9 +64,69 @@ return {
   ],
   "kind": "Fragment",
   "metadata": null,
-  "name": "SpanAnnotationsEditor_spanAnnotations",
+  "name": "SpanAsideAnnotationList_span",
   "selections": [
-    (v0/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Project",
+      "kind": "LinkedField",
+      "name": "project",
+      "plural": false,
+      "selections": [
+        (v0/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "AnnotationConfigConnection",
+          "kind": "LinkedField",
+          "name": "annotationConfigs",
+          "plural": false,
+          "selections": [
+            {
+              "alias": "configs",
+              "args": null,
+              "concreteType": "AnnotationConfigEdge",
+              "kind": "LinkedField",
+              "name": "edges",
+              "plural": true,
+              "selections": [
+                {
+                  "alias": "config",
+                  "args": null,
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "node",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v0/*: any*/)
+                      ],
+                      "type": "Node",
+                      "abstractKey": "__isNode"
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        (v1/*: any*/)
+                      ],
+                      "type": "AnnotationConfigBase",
+                      "abstractKey": "__isAnnotationConfigBase"
+                    }
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
     {
       "alias": "filteredSpanAnnotations",
       "args": [
@@ -86,13 +163,7 @@ return {
       "plural": true,
       "selections": [
         (v0/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
+        (v1/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -137,6 +208,6 @@ return {
 };
 })();
 
-(node as any).hash = "4c41de57cca35fab9b6886cb9813ee56";
+(node as any).hash = "34bbaab16056d7dc138f8d8e22aa220d";
 
 export default node;

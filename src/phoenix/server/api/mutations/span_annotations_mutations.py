@@ -133,12 +133,12 @@ class SpanAnnotationMutationMixin:
                 if patch.identifier is not UNSET:
                     span_annotation.identifier = patch.identifier
                 session.add(span_annotation)
-            await session.commit()
 
-        patched_annotations = [
-            to_gql_span_annotation(span_annotation)
-            for span_annotation in span_annotations_by_id.values()
-        ]
+            patched_annotations = [
+                to_gql_span_annotation(span_annotation)
+                for span_annotation in span_annotations_by_id.values()
+            ]
+
         info.context.event_queue.put(
             SpanAnnotationInsertEvent(tuple(span_annotations_by_id.keys()))
         )

@@ -201,6 +201,7 @@ export function SpansTable(props: SpansTableProps) {
                   value: truncatedValue
                 }
                 spanAnnotations {
+                  id
                   name
                   label
                   score
@@ -297,7 +298,7 @@ export function SpansTable(props: SpansTableProps) {
             {row.original.spanAnnotations.map((annotation) => {
               return (
                 <AnnotationTooltip
-                  key={annotation.name}
+                  key={annotation.id}
                   annotation={annotation}
                   layout="horizontal"
                   width="500px"
