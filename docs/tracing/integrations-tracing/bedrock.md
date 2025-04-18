@@ -60,8 +60,11 @@ print(response_body["completion"])
 
 Now that you have tracing setup, all calls to invoke\_model will be streamed to your running Phoenix for observability and evaluation.
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/bedrock_tracing_eval_medium.gif" %}
+
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock/examples/bedrock_example.py)
+* [Example Tracing Notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock/examples/bedrock_example.py)
+* Example Tracing & Eval Notebook
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock)
 * [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock/examples)
