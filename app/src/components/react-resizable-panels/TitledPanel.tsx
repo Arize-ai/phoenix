@@ -56,9 +56,7 @@ export const TitledPanel = forwardRef<
     const handleClick = () => {
       const panel = panelRef.current;
       if (panel?.isCollapsed()) {
-        // if the panel is collapsed when its size is below 35%, it will be expanded to at least 35%
-        // otherwise it will return to its pre-collapse size
-        panel?.expand(35);
+        panel?.expand();
       } else {
         panel?.collapse();
       }

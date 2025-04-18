@@ -21,13 +21,21 @@ export type AnnotationFormMutationResult =
     };
 
 type AnnotationFormProviderProps = {
+  /** If an annotation exists and matches the annotation config, it will become the default value for the form */
   annotation?: Annotation;
+  /** The annotation config that the form is for, this is required and determines form fields / submission logic */
   annotationConfig: AnnotationConfig;
+  /** The set of annotation IDs that should be checked against to determine update vs create behavior. This can be all IDs, or just a subset related to a project / span / etc. */
   currentAnnotationIDs: Set<string>;
+  /** The function to call to create an annotation */
   onCreate: (annotation: Annotation) => Promise<AnnotationFormMutationResult>;
+  /** The function to call to update an annotation */
   onUpdate: (annotation: Annotation) => Promise<AnnotationFormMutationResult>;
+  /** The function to call to delete an annotation */
   onDelete: (annotation: Annotation) => Promise<AnnotationFormMutationResult>;
+  /** The function to call when an annotation is successfully created / updated */
   onSuccess?: (annotation: Annotation) => void;
+  /** The function to call when an annotation is not successfully created / updated */
   onError?: (annotation: Annotation, error: string) => void;
 };
 

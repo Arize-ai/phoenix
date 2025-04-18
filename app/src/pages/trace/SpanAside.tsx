@@ -177,8 +177,8 @@ function SpanAsideAnnotationList(props: {
       disabled={!hasAnnotations}
       panelProps={{
         order: 1,
-        defaultSize: hasAnnotations ? 65 : 0,
-        maxSize: hasAnnotations ? 65 : 0,
+        defaultSize: hasAnnotations ? 20 : 0,
+        minSize: hasAnnotations ? 20 : 0,
       }}
     >
       <View paddingY="size-100" paddingX="size-100">

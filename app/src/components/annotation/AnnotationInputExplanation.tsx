@@ -16,8 +16,7 @@ import {
   View,
 } from "@phoenix/components";
 import { Annotation } from "@phoenix/components/annotation";
-
-export const EXPLANATION_LABEL_WIDTH = "44px";
+import { EXPLANATION_LABEL_WIDTH } from "@phoenix/components/annotation/constants";
 
 export const AnnotationInputExplanation = ({
   annotation,

@@ -46,6 +46,7 @@ export const CategoricalAnnotationInput = forwardRef<
           id={annotationConfig.id}
           name={annotationConfig.name}
           defaultSelectedKey={annotation?.label ?? undefined}
+          size="S"
           {...props}
           css={{
             width: "100%",
@@ -58,7 +59,7 @@ export const CategoricalAnnotationInput = forwardRef<
           </Button>
           <Text slot="description">{annotationConfig.description}</Text>
           <Popover UNSTABLE_portalContainer={containerRef}>
-            <ListBox>
+            <ListBox style={{ minHeight: "auto" }}>
               {annotationConfig.values?.map((option) => (
                 <SelectItem key={option.label} id={option.label}>
                   {option.label}

@@ -319,7 +319,7 @@ export function AnnotationConfigList(props: {
               selectionBehavior="toggle"
               aria-label="Annotation Configs"
               renderEmptyState={() => (
-                <View width="100%" height="100%">
+                <View width="100%" height="100%" paddingBottom="size-100">
                   <Flex
                     direction="column"
                     alignItems="center"
@@ -330,6 +330,7 @@ export function AnnotationConfigList(props: {
                         style={{
                           whiteSpace: "pre-wrap",
                           textAlign: "center",
+                          padding: 0,
                         }}
                       >
                         No annotation configs found for &quot;{filter}&quot;
