@@ -9,32 +9,46 @@ import pytest
 from faker import Faker
 from sqlalchemy import insert, select
 
-from phoenix import Client, TraceDataset
+from phoenix import Client as LegacyClient
+from phoenix import TraceDataset
+from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
 
 
 async def test_span_round_tripping_with_docs(
-    px_client: Client,
+    legacy_px_client: LegacyClient,
     dialect: str,
     span_data_with_documents: Any,
 ) -> None:
-    df = cast(pd.DataFrame, px_client.get_spans_dataframe())
+    df = cast(pd.DataFrame, legacy_px_client.get_spans_dataframe())
     new_ids = {span_id: getrandbits(64).to_bytes(8, "big").hex() for span_id in df.index}
     for span_id_col_name in ("context.span_id", "parent_id"):
         df.loc[:, span_id_col_name] = df.loc[:, span_id_col_name].map(new_ids.get)
     df = df.set_index("context.span_id", drop=False)
     doc_query = SpanQuery().explode("retrieval.documents", content="document.content")
-    orig_docs = cast(pd.DataFrame, px_client.query_spans(doc_query))
+    orig_docs = cast(pd.DataFrame, legacy_px_client.query_spans(doc_query))
     orig_count = len(orig_docs)
     assert orig_count
-    px_client.log_traces(TraceDataset(df))
+    legacy_px_client.log_traces(TraceDataset(df))
     await sleep(1)  # Wait for the spans to be inserted
-    docs = cast(pd.DataFrame, px_client.query_spans(doc_query))
+    docs = cast(pd.DataFrame, legacy_px_client.query_spans(doc_query))
     new_count = len(docs)
     assert new_count
     assert new_count == orig_count * 2
+
+
+@pytest.mark.xfail(condition=True, reason="The spans client is not yet released")
+async def test_querying_spans_with_new_client(
+    legacy_px_client: LegacyClient,
+    px_client: Client,
+    dialect: str,
+    span_data_with_documents: Any,
+) -> None:
+    legacy_df = cast(pd.DataFrame, legacy_px_client.get_spans_dataframe())
+    df = cast(pd.DataFrame, px_client.spans.get_spans_dataframe())  # type: ignore
+    assert legacy_df.equals(df)
 
 
 @pytest.mark.parametrize("sync", [False, True])

@@ -151,8 +151,8 @@ class Client(TraceDataExtractor):
             end_time = end_time or stop_time
         try:
             response = self._client.post(
-                headers={"accept": "application/json"},
                 url="v1/spans",
+                headers={"accept": "application/json"},
                 params={
                     "project_name": project_name,
                     "project-name": project_name,  # for backward-compatibility
