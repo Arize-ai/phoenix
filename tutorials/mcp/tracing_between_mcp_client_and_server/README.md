@@ -54,7 +54,7 @@ When properly instrumented, trace context is automatically propagated across the
 
 1. Run Phoenix locally, or connect to an [instance online](https://app.phoenix.arize.com)
 
-2. Update your .env file with OPENAI_API_KEY, and your PHOENIX_COLLECTOR_ENDPOINT. If you're using an online Phoenix instance or have auth enable, also set your PHOENIX_API_KEY.
+2. Update your .env file with `OPENAI_API_KEY`, and your `PHOENIX_COLLECTOR_ENDPOINT`. If you're using an online Phoenix instance or have auth enabled, also set your `PHOENIX_API_KEY`.
 
 3. Run the MCP client. The client code will spin up the server at run time in a separate process.
    ```bash
