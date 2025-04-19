@@ -1,5 +1,11 @@
 bases:
-  - ../../base
+  - ../base
 
 patchesStrategicMerge:
   - patches.yaml
+
+secretGenerator:
+- name: phoenix-secret
+  envs:
+  - .env
+  type: Opaque
