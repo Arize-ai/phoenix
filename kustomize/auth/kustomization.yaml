@@ -1,11 +1,11 @@
-bases:
-  - ../base
-
-patchesStrategicMerge:
-  - patches.yaml
-
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../base
+patches:
+- path: patches.yaml
 secretGenerator:
-- name: phoenix-secret
-  envs:
-  - .env
+- envs:
+  - .env.secret
+  name: phoenix-secret
   type: Opaque
