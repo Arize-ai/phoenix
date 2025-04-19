@@ -23,7 +23,7 @@ classifiers = [
 ]
 dependencies = [
   "scikit-learn",
-  "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
+  "numpy==2.0.2",
   "pandas>=1.0",
   "jinja2",
   "starlette>=0.46.0",
