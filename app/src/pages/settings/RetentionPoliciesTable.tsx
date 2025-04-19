@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { startTransition, useEffect, useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   type ColumnDef,
@@ -12,10 +12,15 @@ import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
+import {
+  useNotifySuccess,
+  useViewerCanManageRetentionPolicy,
+} from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
 import { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
+import { RetentionPolicyActionMenu } from "./RetentionPolicyActionMenu";
 export const RetentionPoliciesTable = ({
   query,
   fetchKey,
@@ -27,6 +32,8 @@ export const RetentionPoliciesTable = ({
    */
   fetchKey: number;
 }) => {
+  const notifySuccess = useNotifySuccess();
+  const canManageRetentionPolicy = useViewerCanManageRetentionPolicy();
   const { data, refetch } = usePaginationFragment<
     RetentionPoliciesTablePoliciesQuery,
     RetentionPoliciesTable_policies$key
@@ -94,8 +101,8 @@ export const RetentionPoliciesTable = ({
     (edge) => edge.node
   );
 
-  const columns: ColumnDef<(typeof tableData)[number]>[] = useMemo(
-    () => [
+  const columns: ColumnDef<(typeof tableData)[number]>[] = useMemo(() => {
+    const columns: ColumnDef<(typeof tableData)[number]>[] = [
       {
         header: "Name",
         accessorKey: "name",
@@ -156,9 +163,42 @@ export const RetentionPoliciesTable = ({
           );
         },
       },
-    ],
-    []
-  );
+    ];
+    if (canManageRetentionPolicy) {
+      columns.push({
+        id: "actions",
+        cell: ({ row }) => {
+          return (
+            <RetentionPolicyActionMenu
+              policyId={row.original.id}
+              policyName={row.original.name}
+              projectNames={row.original.projects.edges.map(
+                (edge) => edge.node.name
+              )}
+              onPolicyEdit={function (): void {
+                throw new Error("Function not implemented.");
+              }}
+              onPolicyDelete={() => {
+                notifySuccess({
+                  title: "Policy deleted",
+                  message: `Policy "${row.original.name}" was deleted`,
+                });
+                startTransition(() => {
+                  refetch(
+                    {},
+                    {
+                      fetchPolicy: "network-only",
+                    }
+                  );
+                });
+              }}
+            />
+          );
+        },
+      });
+    }
+    return columns;
+  }, [canManageRetentionPolicy, notifySuccess, refetch]);
 
   const table = useReactTable<(typeof tableData)[number]>({
     columns,
