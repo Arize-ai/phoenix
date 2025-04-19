@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15d6b44453b1e7aa781b5edd07316779>>
+ * @generated SignedSource<<a2268f1ea891d44215a6712f33669466>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,6 +40,7 @@ export type SpansTable_spans$data = {
         } | null;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly id: string;
           readonly label: string | null;
           readonly name: string;
           readonly score: number | null;
@@ -354,6 +355,7 @@ return {
                   "name": "spanAnnotations",
                   "plural": true,
                   "selections": [
+                    (v2/*: any*/),
                     (v1/*: any*/),
                     {
                       "alias": null,
@@ -484,6 +486,6 @@ return {
 };
 })();
 
-(node as any).hash = "3abfb2f2fae91e346221687ee5213714";
+(node as any).hash = "8e223ff418266ad84e2b10e73265406b";
 
 export default node;

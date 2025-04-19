@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39c9b6cbfecce15caf9fec3a77b79601>>
+ * @generated SignedSource<<d664c97ec5330479bbd4001edeb4aa4b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,23 +12,22 @@ import { ReaderFragment } from 'relay-runtime';
 export type AnnotatorKind = "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SpanAnnotationsEditor_spanAnnotations$data = {
-  readonly id: string;
-  readonly spanAnnotations: ReadonlyArray<{
+  readonly filteredSpanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
+    readonly createdAt: string;
     readonly explanation: string | null;
     readonly id: string;
     readonly label: string | null;
     readonly name: string;
     readonly score: number | null;
   }>;
+  readonly id: string;
   readonly " $fragmentType": "SpanAnnotationsEditor_spanAnnotations";
 };
 export type SpanAnnotationsEditor_spanAnnotations$key = {
   readonly " $data"?: SpanAnnotationsEditor_spanAnnotations$data;
   readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations">;
 };
-
-import SpanAnnotationsEditorSpanAnnotationsQuery_graphql from './SpanAnnotationsEditorSpanAnnotationsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = {
@@ -39,27 +38,48 @@ var v0 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
-  "kind": "Fragment",
-  "metadata": {
-    "refetch": {
-      "connection": null,
-      "fragmentPathInResult": [
-        "node"
-      ],
-      "operation": SpanAnnotationsEditorSpanAnnotationsQuery_graphql,
-      "identifierInfo": {
-        "identifierField": "id",
-        "identifierQueryVariableName": "id"
-      }
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterUserIds"
     }
-  },
+  ],
+  "kind": "Fragment",
+  "metadata": null,
   "name": "SpanAnnotationsEditor_spanAnnotations",
   "selections": [
     (v0/*: any*/),
     {
-      "alias": null,
-      "args": null,
+      "alias": "filteredSpanAnnotations",
+      "args": [
+        {
+          "fields": [
+            {
+              "kind": "Literal",
+              "name": "exclude",
+              "value": {
+                "names": [
+                  "note"
+                ]
+              }
+            },
+            {
+              "fields": [
+                {
+                  "kind": "Variable",
+                  "name": "userIds",
+                  "variableName": "filterUserIds"
+                }
+              ],
+              "kind": "ObjectValue",
+              "name": "include"
+            }
+          ],
+          "kind": "ObjectValue",
+          "name": "filter"
+        }
+      ],
       "concreteType": "SpanAnnotation",
       "kind": "LinkedField",
       "name": "spanAnnotations",
@@ -100,6 +120,13 @@ return {
           "kind": "ScalarField",
           "name": "explanation",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "createdAt",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -110,6 +137,6 @@ return {
 };
 })();
 
-(node as any).hash = "346128e2a5b9bceffc9511be191054ef";
+(node as any).hash = "4c41de57cca35fab9b6886cb9813ee56";
 
 export default node;

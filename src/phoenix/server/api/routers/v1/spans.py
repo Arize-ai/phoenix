@@ -7,7 +7,7 @@ from typing import Any, Literal, Optional
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
@@ -16,8 +16,7 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
@@ -181,6 +180,13 @@ class SpanAnnotation(V1RoutesBaseModel):
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
+    identifier: Optional[str] = Field(
+        default=None,
+        description=(
+            "The identifier of the annotation. "
+            "If provided, the annotation will be updated if it already exists."
+        ),
+    )
 
     def as_precursor(self) -> Precursors.SpanAnnotation:
         return Precursors.SpanAnnotation(
@@ -192,6 +198,9 @@ class SpanAnnotation(V1RoutesBaseModel):
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
                 metadata_=self.metadata or {},
+                identifier=self.identifier,
+                source="APP",
+                user_id=None,
             ),
         )
 
@@ -211,7 +220,7 @@ class AnnotateSpansResponseBody(ResponseBody[list[InsertedSpanAnnotation]]):
 @router.post(
     "/span_annotations",
     operation_id="annotateSpans",
-    summary="Create or update span annotations",
+    summary="Create span annotations",
     responses=add_errors_to_responses(
         [{"status_code": HTTP_404_NOT_FOUND, "description": "Span not found"}]
     ),
@@ -246,18 +255,12 @@ async def annotate_spans(
                 status_code=HTTP_404_NOT_FOUND,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
-            span_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.SpanAnnotation,
-                    unique_by=("name", "span_rowid"),
-                ).returning(models.SpanAnnotation.id)
+            result = await session.execute(
+                insert(models.SpanAnnotation).values(**values).returning(models.SpanAnnotation.id)
             )
-            inserted_ids.append(span_annotation_id)
+            inserted_ids.append(result.scalar_one())
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSpansResponseBody(
         data=[

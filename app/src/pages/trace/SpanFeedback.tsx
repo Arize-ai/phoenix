@@ -9,11 +9,14 @@ import {
 import { css } from "@emotion/react";
 
 import { JSONText } from "@phoenix/components/code/JSONText";
+import { Flex } from "@phoenix/components/layout/Flex";
 import { PreformattedTextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 
 import {
@@ -63,6 +66,25 @@ function SpanAnnotationsTable({
         },
       },
       {
+        header: "user",
+        accessorKey: "user",
+        size: 100,
+        cell: ({ row }) => {
+          const user = row.original.user;
+          const userName = user?.username || "system";
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <UserPicture
+                name={userName}
+                profilePictureUrl={user?.profilePictureUrl || null}
+                size={18}
+              />
+              <span>{userName}</span>
+            </Flex>
+          );
+        },
+      },
+      {
         header: "label",
         accessorKey: "label",
         size: 100,
@@ -79,6 +101,16 @@ function SpanAnnotationsTable({
         size: 400,
       },
       {
+        header: "source",
+        accessorKey: "source",
+        size: 100,
+      },
+      {
+        header: "identifier",
+        accessorKey: "identifier",
+        size: 100,
+      },
+      {
         header: "metadata",
         accessorKey: "metadata",
         minSize: 100,
@@ -90,6 +122,18 @@ function SpanAnnotationsTable({
             "--"
           );
         },
+      },
+      {
+        header: "created at",
+        accessorKey: "createdAt",
+        size: 100,
+        cell: TimestampCell,
+      },
+      {
+        header: "updated at",
+        accessorKey: "updatedAt",
+        size: 100,
+        cell: TimestampCell,
       },
       {
         header: "",
@@ -185,6 +229,15 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
           explanation
           metadata
           annotatorKind
+          identifier
+          source
+          createdAt
+          updatedAt
+          user {
+            id
+            username
+            profilePictureUrl
+          }
         }
       }
     `,

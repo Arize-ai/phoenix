@@ -30,7 +30,9 @@ const preview: Preview = {
     },
   },
   initialGlobals: {
-    theme: "light",
+    theme: window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light",
   },
   decorators: [
     // 👇 Defining the decorator in the preview file applies it to all stories

@@ -1,3 +1,4 @@
+from asyncio import sleep
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from contextlib import AbstractContextManager
@@ -1162,3 +1163,336 @@ class TestPrompts:
             user = version["promptVersion"]["user"]
             assert user is not None
             assert user["id"] == logged_in_user.gid
+
+
+class TestSpanAnnotations:
+    QUERY = """
+      mutation CreateSpanAnnotations($input: [CreateSpanAnnotationInput!]!) {
+        createSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      mutation PatchSpanAnnotations($input: [PatchAnnotationInput!]!) {
+        patchSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      mutation DeleteSpanAnnotations($input: DeleteAnnotationsInput!) {
+        deleteSpanAnnotations(input: $input) {
+          spanAnnotations {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      query GetSpanAnnotation($annotationId: GlobalID!) {
+        spanAnnotation: node(id: $annotationId) {
+          ... on SpanAnnotation {
+            ...SpanAnnotationFields
+          }
+        }
+      }
+
+      fragment SpanAnnotationFields on SpanAnnotation {
+        id
+        name
+        score
+        label
+        explanation
+        annotatorKind
+        metadata
+        source
+        identifier
+        spanId
+        user {
+          id
+          email
+          username
+        }
+      }
+    """
+
+    async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
+        self,
+        _spans: Sequence[ReadableSpan],
+        _get_user: _GetUser,
+    ) -> None:
+        annotation_creator = _get_user(_MEMBER)
+        logged_in_annotation_creator = annotation_creator.log_in()
+        member = _get_user(_MEMBER)
+        logged_in_member = member.log_in()
+        admin = _get_user(_ADMIN)
+        logged_in_admin = admin.log_in()
+
+        # Add spans
+        user_api_key = logged_in_annotation_creator.create_api_key()
+        headers = dict(authorization=f"Bearer {user_api_key}")
+        exporter = _http_span_exporter(headers=headers)
+        assert exporter.export(_spans) is SpanExportResult.SUCCESS
+        await sleep(0.1)  # wait for spans to be exported and written to disk
+
+        # Create span annotation
+        span_gid = str(GlobalID("Span", "1"))
+        response, _ = logged_in_annotation_creator.gql(
+            query=self.QUERY,
+            operation_name="CreateSpanAnnotations",
+            variables={
+                "input": {
+                    "spanId": span_gid,
+                    "name": "span-annotation-name",
+                    "annotatorKind": "HUMAN",
+                    "label": "correct",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "metadata": {},
+                    "identifier": "identifier",
+                    "source": "APP",
+                }
+            },
+        )
+
+        span_annotations = response["data"]["createSpanAnnotations"]["spanAnnotations"]
+        assert len(span_annotations) == 1
+        original_span_annotation = span_annotations[0]
+        annotation_id = original_span_annotation["id"]
+
+        # Only the user who created the annotation can patch
+        span_gid = str(GlobalID("Span", "1"))
+        for user in [logged_in_member, logged_in_admin]:
+            with pytest.raises(RuntimeError) as exc_info:
+                response, _ = user.gql(
+                    query=self.QUERY,
+                    operation_name="PatchSpanAnnotations",
+                    variables={
+                        "input": {
+                            "annotationId": annotation_id,
+                            "name": "patched-span-annotation-name",
+                            "annotatorKind": "LLM",
+                            "label": "incorrect",
+                            "score": 0,
+                            "explanation": "patched-explanation",
+                            "metadata": {"patched": "key"},
+                            "identifier": "patched-identifier",
+                        }
+                    },
+                )
+            assert "At least one span annotation is not associated with the current user." in str(
+                exc_info.value
+            )
+
+            # Check that the annotation remains unchanged
+            response, _ = user.gql(
+                query=self.QUERY,
+                operation_name="GetSpanAnnotation",
+                variables={"annotationId": annotation_id},
+            )
+            span_annotation = response["data"]["spanAnnotation"]
+            assert span_annotation == original_span_annotation
+
+        # Member who did not create the annotation cannot delete
+        with pytest.raises(RuntimeError) as exc_info:
+            logged_in_member.gql(
+                query=self.QUERY,
+                operation_name="DeleteSpanAnnotations",
+                variables={
+                    "input": {
+                        "annotationIds": [annotation_id],
+                    }
+                },
+            )
+        assert "At least one span annotation is not associated with the current user." in str(
+            exc_info.value
+        )
+
+        # Check that the annotation remains unchanged
+        response, _ = user.gql(
+            query=self.QUERY,
+            operation_name="GetSpanAnnotation",
+            variables={"annotationId": annotation_id},
+        )
+        span_annotation = response["data"]["spanAnnotation"]
+        assert span_annotation == original_span_annotation
+
+        # Admin can delete
+        response, _ = logged_in_admin.gql(
+            query=self.QUERY,
+            operation_name="DeleteSpanAnnotations",
+            variables={
+                "input": {
+                    "annotationIds": [annotation_id],
+                }
+            },
+        )
+
+
+class TestTraceAnnotations:
+    QUERY = """
+      mutation CreateTraceAnnotations($input: [CreateTraceAnnotationInput!]!) {
+        createTraceAnnotations(input: $input) {
+          traceAnnotations {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      mutation PatchTraceAnnotations($input: [PatchAnnotationInput!]!) {
+        patchTraceAnnotations(input: $input) {
+          traceAnnotations {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      mutation DeleteTraceAnnotations($input: DeleteAnnotationsInput!) {
+        deleteTraceAnnotations(input: $input) {
+          traceAnnotations {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      query GetTraceAnnotation($annotationId: GlobalID!) {
+        traceAnnotation: node(id: $annotationId) {
+          ... on TraceAnnotation {
+            ...TraceAnnotationFields
+          }
+        }
+      }
+
+      fragment TraceAnnotationFields on TraceAnnotation {
+        id
+        name
+        score
+        label
+        explanation
+        annotatorKind
+        metadata
+        source
+        identifier
+        traceId
+        user {
+          id
+          email
+          username
+        }
+      }
+    """
+
+    async def test_other_users_cannot_patch_and_only_creator_or_admin_can_delete(
+        self,
+        _spans: Sequence[ReadableSpan],
+        _get_user: _GetUser,
+    ) -> None:
+        annotation_creator = _get_user(_MEMBER)
+        logged_in_annotation_creator = annotation_creator.log_in()
+        member = _get_user(_MEMBER)
+        logged_in_member = member.log_in()
+        admin = _get_user(_ADMIN)
+        logged_in_admin = admin.log_in()
+
+        # Add spans
+        user_api_key = logged_in_annotation_creator.create_api_key()
+        headers = dict(authorization=f"Bearer {user_api_key}")
+        exporter = _http_span_exporter(headers=headers)
+        assert exporter.export(_spans) is SpanExportResult.SUCCESS
+        await sleep(0.1)  # wait for spans to be exported and written to disk
+
+        # Create trace annotation
+        trace_gid = str(GlobalID("Trace", "1"))
+        response, _ = logged_in_annotation_creator.gql(
+            query=self.QUERY,
+            operation_name="CreateTraceAnnotations",
+            variables={
+                "input": {
+                    "traceId": trace_gid,
+                    "name": "trace-annotation-name",
+                    "annotatorKind": "HUMAN",
+                    "label": "correct",
+                    "score": 1,
+                    "explanation": "explanation",
+                    "metadata": {},
+                    "identifier": "identifier",
+                    "source": "APP",
+                }
+            },
+        )
+
+        trace_annotations = response["data"]["createTraceAnnotations"]["traceAnnotations"]
+        assert len(trace_annotations) == 1
+        original_trace_annotation = trace_annotations[0]
+        annotation_id = original_trace_annotation["id"]
+
+        # Only the user who created the annotation can patch
+        trace_gid = str(GlobalID("Trace", "1"))
+        for user in [logged_in_member, logged_in_admin]:
+            with pytest.raises(RuntimeError) as exc_info:
+                response, _ = user.gql(
+                    query=self.QUERY,
+                    operation_name="PatchTraceAnnotations",
+                    variables={
+                        "input": {
+                            "annotationId": annotation_id,
+                            "name": "patched-trace-annotation-name",
+                            "annotatorKind": "LLM",
+                            "label": "incorrect",
+                            "score": 0,
+                            "explanation": "patched-explanation",
+                            "metadata": {"patched": "key"},
+                            "identifier": "patched-identifier",
+                        }
+                    },
+                )
+            assert "At least one trace annotation is not associated with the current user." in str(
+                exc_info.value
+            )
+
+            # Check that the annotation remains unchanged
+            response, _ = user.gql(
+                query=self.QUERY,
+                operation_name="GetTraceAnnotation",
+                variables={"annotationId": annotation_id},
+            )
+            trace_annotation = response["data"]["traceAnnotation"]
+            assert trace_annotation == original_trace_annotation
+
+        # Member who did not create the annotation cannot delete
+        with pytest.raises(RuntimeError) as exc_info:
+            logged_in_member.gql(
+                query=self.QUERY,
+                operation_name="DeleteTraceAnnotations",
+                variables={
+                    "input": {
+                        "annotationIds": [annotation_id],
+                    }
+                },
+            )
+        assert (
+            "At least one trace annotation is not associated with the current user "
+            "and the current user is not an admin." in str(exc_info.value)
+        )
+
+        # Check that the annotation remains unchanged
+        response, _ = user.gql(
+            query=self.QUERY,
+            operation_name="GetTraceAnnotation",
+            variables={"annotationId": annotation_id},
+        )
+        trace_annotation = response["data"]["traceAnnotation"]
+        assert trace_annotation == original_trace_annotation
+
+        # Admin can delete
+        response, _ = logged_in_admin.gql(
+            query=self.QUERY,
+            operation_name="DeleteTraceAnnotations",
+            variables={
+                "input": {
+                    "annotationIds": [annotation_id],
+                }
+            },
+        )

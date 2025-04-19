@@ -2,7 +2,7 @@ name: Typescript CI
 
 on:
   push:
-    branches: [main, sessions]
+    branches: [main, feat/annotations]
   pull_request:
     paths:
       - "app/**"

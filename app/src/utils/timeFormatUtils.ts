@@ -12,6 +12,7 @@ export const fullTimeFormatter = timeFormat("%x %H:%M:%S %p");
  */
 export const shortTimeFormatter = timeFormat("%H:%M %p");
 
+export const shortDateTimeFormatter = timeFormat("%x %H:%M %p");
 export const timeRangeFormatter = (timeRange: OpenTimeRange) => {
   if (timeRange.start && timeRange.end) {
     return `${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(timeRange.end)}`;

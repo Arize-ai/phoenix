@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28d7b1e76d4b4eb02f45faf80ed76984>>
+ * @generated SignedSource<<7b834763ecba5879473dd4a590579945>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type TraceHeaderRootSpanAnnotationsQuery$data = {
   readonly span: {
     readonly spanAnnotations?: ReadonlyArray<{
       readonly annotatorKind: AnnotatorKind;
+      readonly id: string;
       readonly label: string | null;
       readonly name: string;
       readonly score: number | null;
@@ -44,6 +45,13 @@ v1 = [
   }
 ],
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -54,6 +62,7 @@ v2 = {
       "name": "spanAnnotations",
       "plural": true,
       "selections": [
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -104,7 +113,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/)
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
@@ -133,34 +142,28 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
+          (v3/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
+          (v2/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "660fcce54b17ff01056ef96c4dcb3c35",
+    "cacheID": "14bb24503dc870a772d809d3377230eb",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderRootSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      spanAnnotations {\n        id\n        name\n        label\n        score\n        annotatorKind\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d506d0235a1602f740af082698950c65";
+(node as any).hash = "e85d7f018fc772b7ad328ee1d2b3a179";
 
 export default node;

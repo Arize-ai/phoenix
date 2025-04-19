@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -21,4 +22,10 @@ class Annotation:
     explanation: Optional[str] = strawberry.field(
         description="The annotator's explanation for the annotation result (i.e. "
         "score or label, or both) given to the subject."
+    )
+    created_at: datetime = strawberry.field(
+        description="The date and time when the annotation was created."
+    )
+    updated_at: datetime = strawberry.field(
+        description="The date and time when the annotation was last updated."
     )

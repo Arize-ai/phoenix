@@ -16,6 +16,7 @@ export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
         span: node(id: $spanId) {
           ... on Span {
             spanAnnotations {
+              id
               name
               label
               score
@@ -40,7 +41,7 @@ export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
       <Flex direction="row" gap="size-50">
         {spanAnnotations.map((annotation) => {
           return (
-            <AnnotationTooltip key={annotation.name} annotation={annotation}>
+            <AnnotationTooltip key={annotation.id} annotation={annotation}>
               <AnnotationLabel
                 annotation={annotation}
                 annotationDisplayPreference="label"
