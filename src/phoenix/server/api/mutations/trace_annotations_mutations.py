@@ -41,18 +41,19 @@ class TraceAnnotationMutationMixin:
 
         processed_annotations_map: dict[int, models.TraceAnnotation] = {}
 
-        async with info.context.db() as session:
-            for idx, annotation_input in enumerate(input):
-                try:
-                    trace_rowid = from_global_id_with_expected_type(
-                        annotation_input.trace_id, "Trace"
-                    )
-                except ValueError:
-                    raise BadRequest(
-                        f"Invalid trace ID for annotation at index {idx}: "
-                        f"{annotation_input.trace_id}"
-                    )
+        trace_rowids = []
+        for idx, annotation_input in enumerate(input):
+            try:
+                trace_rowid = from_global_id_with_expected_type(annotation_input.trace_id, "Trace")
+            except ValueError:
+                raise BadRequest(
+                    f"Invalid trace ID for annotation at index {idx}: "
+                    f"{annotation_input.trace_id}"
+                )
+            trace_rowids.append(trace_rowid)
 
+        async with info.context.db() as session:
+            for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
                 values = {
                     "trace_rowid": trace_rowid,
                     "name": annotation_input.name,
