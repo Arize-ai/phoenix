@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import Optional
 
 import strawberry
@@ -39,36 +38,79 @@ class SpanAnnotationMutationMixin:
         user_id: Optional[int] = None
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
             user_id = int(user.identity)
-        inserted_annotations: Sequence[models.SpanAnnotation] = []
-        async with info.context.db() as session:
-            values_list = [
-                dict(
-                    span_rowid=from_global_id_with_expected_type(annotation.span_id, "Span"),
-                    name=annotation.name,
-                    label=annotation.label,
-                    score=annotation.score,
-                    explanation=annotation.explanation,
-                    annotator_kind=annotation.annotator_kind.value,
-                    metadata_=annotation.metadata,
-                    identifier=annotation.identifier,
-                    source=annotation.source.value,
-                    user_id=user_id,
+
+        processed_annotations_map: dict[int, models.SpanAnnotation] = {}
+
+        span_rowids = []
+        for idx, annotation_input in enumerate(input):
+            try:
+                span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
+            except ValueError:
+                raise BadRequest(
+                    f"Invalid span ID for annotation at index {idx}: {annotation_input.span_id}"
                 )
-                for annotation in input
+            span_rowids.append(span_rowid)
+
+        async with info.context.db() as session:
+            for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
+                values = {
+                    "span_rowid": span_rowid,
+                    "name": annotation_input.name,
+                    "label": annotation_input.label,
+                    "score": annotation_input.score,
+                    "explanation": annotation_input.explanation,
+                    "annotator_kind": annotation_input.annotator_kind.value,
+                    "metadata_": annotation_input.metadata,
+                    "identifier": annotation_input.identifier,
+                    "source": annotation_input.source.value,
+                    "user_id": user_id,
+                }
+
+                identifier = annotation_input.identifier
+                processed_annotation: Optional[models.SpanAnnotation] = None
+
+                q = select(models.SpanAnnotation).where(
+                    models.SpanAnnotation.span_rowid == span_rowid,
+                    models.SpanAnnotation.name == annotation_input.name,
+                )
+                if identifier is None:
+                    q = q.where(models.SpanAnnotation.identifier.is_(None))
+                else:
+                    q = q.where(models.SpanAnnotation.identifier == identifier)
+
+                existing_annotation = await session.scalar(q)
+
+                if existing_annotation:
+                    existing_annotation.name = values["name"]
+                    existing_annotation.label = values["label"]
+                    existing_annotation.score = values["score"]
+                    existing_annotation.explanation = values["explanation"]
+                    existing_annotation.metadata_ = values["metadata_"]
+                    existing_annotation.annotator_kind = values["annotator_kind"]
+                    existing_annotation.source = values["source"]
+                    existing_annotation.user_id = values["user_id"]
+                    session.add(existing_annotation)
+                    processed_annotation = existing_annotation
+
+                if processed_annotation is None:
+                    stmt = insert(models.SpanAnnotation).values(**values)
+                    stmt = stmt.returning(models.SpanAnnotation)
+                    result = await session.scalars(stmt)
+                    processed_annotation = result.one()
+
+                processed_annotations_map[idx] = processed_annotation
+
+            inserted_annotation_ids = tuple(anno.id for anno in processed_annotations_map.values())
+            if inserted_annotation_ids:
+                info.context.event_queue.put(SpanAnnotationInsertEvent(inserted_annotation_ids))
+
+            returned_annotations = [
+                to_gql_span_annotation(processed_annotations_map[i])
+                for i in sorted(processed_annotations_map.keys())
             ]
-            stmt = (
-                insert(models.SpanAnnotation).values(values_list).returning(models.SpanAnnotation)
-            )
-            result = await session.scalars(stmt)
-            inserted_annotations = result.all()
-        if inserted_annotations:
-            info.context.event_queue.put(
-                SpanAnnotationInsertEvent(tuple(anno.id for anno in inserted_annotations))
-            )
+            await session.commit()
         return SpanAnnotationMutationPayload(
-            span_annotations=[
-                to_gql_span_annotation(annotation) for annotation in inserted_annotations
-            ],
+            span_annotations=returned_annotations,
             query=Query(),
         )
 
