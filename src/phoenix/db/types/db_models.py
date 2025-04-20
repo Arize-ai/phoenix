@@ -3,7 +3,11 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 
-class PromptModel(BaseModel):
+class DBBaseModel(BaseModel):
+    """
+    A base Pydantic model suitable for use with JSON columns in the database.
+    """
+
     model_config = ConfigDict(
         extra="forbid",  # disallow extra attributes
         use_enum_values=True,

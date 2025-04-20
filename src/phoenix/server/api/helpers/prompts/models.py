@@ -6,7 +6,7 @@ from typing import Any, Literal, Mapping, Optional, Union
 from pydantic import Field, RootModel, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
-from phoenix.db.types.db_models import UNDEFINED, PromptModel
+from phoenix.db.types.db_models import UNDEFINED, DBBaseModel
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.helpers.prompts.conversions.anthropic import AnthropicToolChoiceConversion
 from phoenix.server.api.helpers.prompts.conversions.openai import OpenAIToolChoiceConversion
@@ -32,18 +32,18 @@ class PromptTemplateFormat(str, Enum):
     NONE = "NONE"
 
 
-class TextContentPart(PromptModel):
+class TextContentPart(DBBaseModel):
     type: Literal["text"]
     text: str
 
 
-class ToolCallFunction(PromptModel):
+class ToolCallFunction(DBBaseModel):
     type: Literal["function"]
     name: str
     arguments: str
 
 
-class ToolCallContentPart(PromptModel):
+class ToolCallContentPart(DBBaseModel):
     type: Literal["tool_call"]
     tool_call_id: str
     tool_call: Annotated[
@@ -52,7 +52,7 @@ class ToolCallContentPart(PromptModel):
     ]
 
 
-class ToolResultContentPart(PromptModel):
+class ToolResultContentPart(DBBaseModel):
     type: Literal["tool_result"]
     tool_call_id: str
     tool_result: JSONSerializable
@@ -98,17 +98,17 @@ class RoleConversion:
         assert_never(role)
 
 
-class PromptMessage(PromptModel):
+class PromptMessage(DBBaseModel):
     role: Role
     content: Union[str, Annotated[list[ContentPart], Field(..., min_length=1)]]
 
 
-class PromptChatTemplate(PromptModel):
+class PromptChatTemplate(DBBaseModel):
     type: Literal["chat"]
     messages: list[PromptMessage]
 
 
-class PromptStringTemplate(PromptModel):
+class PromptStringTemplate(DBBaseModel):
     type: Literal["string"]
     template: str
 
@@ -126,12 +126,12 @@ class PromptTemplateRootModel(RootModel[PromptTemplate]):
     root: PromptTemplate
 
 
-class PromptToolFunction(PromptModel):
+class PromptToolFunction(DBBaseModel):
     type: Literal["function"]
     function: PromptToolFunctionDefinition
 
 
-class PromptToolFunctionDefinition(PromptModel):
+class PromptToolFunctionDefinition(DBBaseModel):
     name: str
     description: str = UNDEFINED
     parameters: dict[str, Any] = UNDEFINED
@@ -141,26 +141,26 @@ class PromptToolFunctionDefinition(PromptModel):
 PromptTool: TypeAlias = Annotated[Union[PromptToolFunction], Field(..., discriminator="type")]
 
 
-class PromptTools(PromptModel):
+class PromptTools(DBBaseModel):
     type: Literal["tools"]
     tools: Annotated[list[PromptTool], Field(..., min_length=1)]
     tool_choice: PromptToolChoice = UNDEFINED
     disable_parallel_tool_calls: bool = UNDEFINED
 
 
-class PromptToolChoiceNone(PromptModel):
+class PromptToolChoiceNone(DBBaseModel):
     type: Literal["none"]
 
 
-class PromptToolChoiceZeroOrMore(PromptModel):
+class PromptToolChoiceZeroOrMore(DBBaseModel):
     type: Literal["zero_or_more"]
 
 
-class PromptToolChoiceOneOrMore(PromptModel):
+class PromptToolChoiceOneOrMore(DBBaseModel):
     type: Literal["one_or_more"]
 
 
-class PromptToolChoiceSpecificFunctionTool(PromptModel):
+class PromptToolChoiceSpecificFunctionTool(DBBaseModel):
     type: Literal["specific_function"]
     function_name: str
 
@@ -176,7 +176,7 @@ PromptToolChoice: TypeAlias = Annotated[
 ]
 
 
-class PromptOpenAIJSONSchema(PromptModel):
+class PromptOpenAIJSONSchema(DBBaseModel):
     """
     Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L13
     """
@@ -190,7 +190,7 @@ class PromptOpenAIJSONSchema(PromptModel):
     strict: Optional[bool] = UNDEFINED
 
 
-class PromptOpenAIResponseFormatJSONSchema(PromptModel):
+class PromptOpenAIResponseFormatJSONSchema(DBBaseModel):
     """
     Based on https://github.com/openai/openai-python/blob/d16e6edde5a155626910b5758a0b939bfedb9ced/src/openai/types/shared/response_format_json_schema.py#L40
     """
@@ -199,12 +199,12 @@ class PromptOpenAIResponseFormatJSONSchema(PromptModel):
     type: Literal["json_schema"]
 
 
-class PromptResponseFormatJSONSchema(PromptModel):
+class PromptResponseFormatJSONSchema(DBBaseModel):
     type: Literal["json_schema"]
     json_schema: PromptResponseFormatJSONSchemaDefinition
 
 
-class PromptResponseFormatJSONSchemaDefinition(PromptModel):
+class PromptResponseFormatJSONSchemaDefinition(DBBaseModel):
     name: str
     description: str = UNDEFINED
     schema_: dict[str, Any] = Field(UNDEFINED, alias="schema")
@@ -272,7 +272,7 @@ def denormalize_response_format(
 
 
 # OpenAI tool definitions
-class OpenAIFunctionDefinition(PromptModel):
+class OpenAIFunctionDefinition(DBBaseModel):
     """
     Based on https://github.com/openai/openai-python/blob/1e07c9d839e7e96f02d0a4b745f379a43086334c/src/openai/types/shared_params/function_definition.py#L13
     """
@@ -283,7 +283,7 @@ class OpenAIFunctionDefinition(PromptModel):
     strict: Optional[bool] = UNDEFINED
 
 
-class OpenAIToolDefinition(PromptModel):
+class OpenAIToolDefinition(DBBaseModel):
     """
     Based on https://github.com/openai/openai-python/blob/1e07c9d839e7e96f02d0a4b745f379a43086334c/src/openai/types/chat/chat_completion_tool_param.py#L12
     """
@@ -293,7 +293,7 @@ class OpenAIToolDefinition(PromptModel):
 
 
 # Anthropic tool definitions
-class AnthropicCacheControlParam(PromptModel):
+class AnthropicCacheControlParam(DBBaseModel):
     """
     Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/cache_control_ephemeral_param.py#L10
     """
@@ -301,7 +301,7 @@ class AnthropicCacheControlParam(PromptModel):
     type: Literal["ephemeral"]
 
 
-class AnthropicToolDefinition(PromptModel):
+class AnthropicToolDefinition(DBBaseModel):
     """
     Based on https://github.com/anthropics/anthropic-sdk-python/blob/93cbbbde964e244f02bf1bd2b579c5fabce4e267/src/anthropic/types/tool_param.py#L22
     """
@@ -312,7 +312,7 @@ class AnthropicToolDefinition(PromptModel):
     description: str = UNDEFINED
 
 
-class PromptOpenAIInvocationParametersContent(PromptModel):
+class PromptOpenAIInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     max_tokens: int = UNDEFINED
     max_completion_tokens: int = UNDEFINED
@@ -323,7 +323,7 @@ class PromptOpenAIInvocationParametersContent(PromptModel):
     reasoning_effort: Literal["low", "medium", "high"] = UNDEFINED
 
 
-class PromptOpenAIInvocationParameters(PromptModel):
+class PromptOpenAIInvocationParameters(DBBaseModel):
     type: Literal["openai"]
     openai: PromptOpenAIInvocationParametersContent
 
@@ -332,21 +332,21 @@ class PromptAzureOpenAIInvocationParametersContent(PromptOpenAIInvocationParamet
     pass
 
 
-class PromptAzureOpenAIInvocationParameters(PromptModel):
+class PromptAzureOpenAIInvocationParameters(DBBaseModel):
     type: Literal["azure_openai"]
     azure_openai: PromptAzureOpenAIInvocationParametersContent
 
 
-class PromptAnthropicThinkingConfigDisabled(PromptModel):
+class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
     type: Literal["disabled"]
 
 
-class PromptAnthropicThinkingConfigEnabled(PromptModel):
+class PromptAnthropicThinkingConfigEnabled(DBBaseModel):
     type: Literal["enabled"]
     budget_tokens: int = Field(..., ge=1024)
 
 
-class PromptAnthropicInvocationParametersContent(PromptModel):
+class PromptAnthropicInvocationParametersContent(DBBaseModel):
     max_tokens: int
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
@@ -365,12 +365,12 @@ class PromptAnthropicInvocationParametersContent(PromptModel):
         return self
 
 
-class PromptAnthropicInvocationParameters(PromptModel):
+class PromptAnthropicInvocationParameters(DBBaseModel):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
 
 
-class PromptGoogleInvocationParametersContent(PromptModel):
+class PromptGoogleInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     max_output_tokens: int = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
@@ -380,7 +380,7 @@ class PromptGoogleInvocationParametersContent(PromptModel):
     top_k: int = UNDEFINED
 
 
-class PromptGoogleInvocationParameters(PromptModel):
+class PromptGoogleInvocationParameters(DBBaseModel):
     type: Literal["google"]
     google: PromptGoogleInvocationParametersContent
 
@@ -491,7 +491,7 @@ def denormalize_tools(
     tools: PromptTools, model_provider: ModelProvider
 ) -> tuple[list[dict[str, Any]], Optional[Any]]:
     assert tools.type == "tools"
-    denormalized_tools: list[PromptModel]
+    denormalized_tools: list[DBBaseModel]
     tool_choice: Optional[Any] = None
     if model_provider is ModelProvider.OPENAI or model_provider is ModelProvider.AZURE_OPENAI:
         denormalized_tools = [_prompt_to_openai_tool(tool) for tool in tools.tools]
