@@ -97,21 +97,19 @@ class SpanAnnotationMutationMixin:
 
                 processed_annotations_map[idx] = processed_annotation
 
-                inserted_annotation_ids = tuple(
-                    anno.id for anno in processed_annotations_map.values()
-                )
-                if inserted_annotation_ids:
-                    info.context.event_queue.put(SpanAnnotationInsertEvent(inserted_annotation_ids))
+            inserted_annotation_ids = tuple(anno.id for anno in processed_annotations_map.values())
+            if inserted_annotation_ids:
+                info.context.event_queue.put(SpanAnnotationInsertEvent(inserted_annotation_ids))
 
-                returned_annotations = [
-                    to_gql_span_annotation(processed_annotations_map[i])
-                    for i in sorted(processed_annotations_map.keys())
-                ]
-                await session.commit()
-            return SpanAnnotationMutationPayload(
-                span_annotations=returned_annotations,
-                query=Query(),
-            )
+            returned_annotations = [
+                to_gql_span_annotation(processed_annotations_map[i])
+                for i in sorted(processed_annotations_map.keys())
+            ]
+            await session.commit()
+        return SpanAnnotationMutationPayload(
+            span_annotations=returned_annotations,
+            query=Query(),
+        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
     async def patch_span_annotations(
