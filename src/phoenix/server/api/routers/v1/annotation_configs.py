@@ -57,30 +57,31 @@ class AnnotationConfigResponse(BaseModel):
     values: Optional[List[CategoricalAnnotationValue]] = None
 
 
-def annotation_config_to_response(config: models.AnnotationConfig) -> AnnotationConfigResponse:
+def annotation_config_to_response(
+    annotation_config: models.AnnotationConfig,
+) -> AnnotationConfigResponse:
     """Convert an AnnotationConfig SQLAlchemy model instance to our response model."""
+    config = annotation_config.config
     base: dict[str, Any] = {
-        "name": config.name,
-        "annotation_type": config.config.annotation_type,
-        "description": config.config.description,
+        "name": annotation_config.name,
+        "annotation_type": config.annotation_type,
+        "description": config.description,
     }
-    annotation_type = AnnotationType(config.config.annotation_type)
-    if annotation_type is AnnotationType.CONTINUOUS:
-        base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(config.id)))
-        base["optimization_direction"] = config.config.optimization_direction
-        base["lower_bound"] = config.config.lower_bound
-        base["upper_bound"] = config.config.upper_bound
-    elif annotation_type is AnnotationType.CATEGORICAL:
-        base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
-        base["optimization_direction"] = config.config.optimization_direction
+    if isinstance(config, ContinuousAnnotationConfigModel):
+        base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(annotation_config.id)))
+        base["optimization_direction"] = config.optimization_direction
+        base["lower_bound"] = config.lower_bound
+        base["upper_bound"] = config.upper_bound
+    elif isinstance(config, CategoricalAnnotationConfigModel):
+        base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(annotation_config.id)))
+        base["optimization_direction"] = config.optimization_direction
         base["values"] = [
-            CategoricalAnnotationValue(label=val.label, score=val.score)
-            for val in config.config.values
+            CategoricalAnnotationValue(label=val.label, score=val.score) for val in config.values
         ]
-    elif annotation_type is AnnotationType.FREEFORM:
-        base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
+    elif isinstance(config, FreeformAnnotationConfigModel):
+        base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(annotation_config.id)))
     else:
-        assert_never(annotation_type)
+        assert_never(config)
     return AnnotationConfigResponse(**base)
 
 
