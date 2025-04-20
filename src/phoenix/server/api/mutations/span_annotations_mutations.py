@@ -41,15 +41,18 @@ class SpanAnnotationMutationMixin:
 
         processed_annotations_map: dict[int, models.SpanAnnotation] = {}
 
-        async with info.context.db() as session:
-            for idx, annotation_input in enumerate(input):
-                try:
-                    span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
-                except ValueError:
-                    raise BadRequest(
-                        f"Invalid span ID for annotation at index {idx}: {annotation_input.span_id}"
-                    )
+        span_rowids = []
+        for idx, annotation_input in enumerate(input):
+            try:
+                span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
+            except ValueError:
+                raise BadRequest(
+                    f"Invalid span ID for annotation at index {idx}: {annotation_input.span_id}"
+                )
+            span_rowids.append(span_rowid)
 
+        async with info.context.db() as session:
+            for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
                 values = {
                     "span_rowid": span_rowid,
                     "name": annotation_input.name,
