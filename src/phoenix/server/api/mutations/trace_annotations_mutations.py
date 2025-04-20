@@ -1,11 +1,9 @@
-from collections.abc import Sequence
 from typing import Optional
 
 import strawberry
 from sqlalchemy import delete, insert, select
 from starlette.requests import Request
-from strawberry import UNSET
-from strawberry.types import Info
+from strawberry import UNSET, Info
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
@@ -41,36 +39,83 @@ class TraceAnnotationMutationMixin:
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
             user_id = int(user.identity)
 
-        inserted_annotations: Sequence[models.TraceAnnotation] = []
-        async with info.context.db() as session:
-            values_list = [
-                dict(
-                    trace_rowid=from_global_id_with_expected_type(annotation.trace_id, "Trace"),
-                    name=annotation.name,
-                    label=annotation.label,
-                    score=annotation.score,
-                    explanation=annotation.explanation,
-                    annotator_kind=annotation.annotator_kind.value,
-                    metadata_=annotation.metadata,
-                    identifier=annotation.identifier,
-                    source=annotation.source.value,
-                    user_id=user_id,
+        processed_annotations_map: dict[int, models.TraceAnnotation] = {}
+
+        trace_rowids = []
+        for idx, annotation_input in enumerate(input):
+            try:
+                trace_rowid = from_global_id_with_expected_type(annotation_input.trace_id, "Trace")
+            except ValueError:
+                raise BadRequest(
+                    f"Invalid trace ID for annotation at index {idx}: "
+                    f"{annotation_input.trace_id}"
                 )
-                for annotation in input
-            ]
-            stmt = (
-                insert(models.TraceAnnotation).values(values_list).returning(models.TraceAnnotation)
-            )
-            result = await session.scalars(stmt)
-            inserted_annotations = result.all()
-        if inserted_annotations:
-            info.context.event_queue.put(
-                TraceAnnotationInsertEvent(tuple(anno.id for anno in inserted_annotations))
-            )
+            trace_rowids.append(trace_rowid)
+
+        async with info.context.db() as session:
+            for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
+                values = {
+                    "trace_rowid": trace_rowid,
+                    "name": annotation_input.name,
+                    "label": annotation_input.label,
+                    "score": annotation_input.score,
+                    "explanation": annotation_input.explanation,
+                    "annotator_kind": annotation_input.annotator_kind.value,
+                    "metadata_": annotation_input.metadata,
+                    "identifier": annotation_input.identifier,
+                    "source": annotation_input.source.value,
+                    "user_id": user_id,
+                }
+
+                identifier = annotation_input.identifier
+                processed_annotation: Optional[models.TraceAnnotation] = None
+
+                # Check if an annotation with this trace_rowid, name, and identifier already exists
+                q = select(models.TraceAnnotation).where(
+                    models.TraceAnnotation.trace_rowid == trace_rowid,
+                    models.TraceAnnotation.name == annotation_input.name,
+                )
+                if identifier is None:
+                    q = q.where(models.TraceAnnotation.identifier.is_(None))
+                else:
+                    q = q.where(models.TraceAnnotation.identifier == identifier)
+
+                existing_annotation = await session.scalar(q)
+
+                if existing_annotation:
+                    # Update existing annotation
+                    existing_annotation.name = values["name"]
+                    existing_annotation.label = values["label"]
+                    existing_annotation.score = values["score"]
+                    existing_annotation.explanation = values["explanation"]
+                    existing_annotation.metadata_ = values["metadata_"]
+                    existing_annotation.annotator_kind = values["annotator_kind"]
+                    existing_annotation.source = values["source"]
+                    existing_annotation.user_id = values["user_id"]
+                    session.add(existing_annotation)
+                    processed_annotation = existing_annotation
+
+                if processed_annotation is None:
+                    stmt = insert(models.TraceAnnotation).values(**values)
+                    stmt = stmt.returning(models.TraceAnnotation)
+                    result = await session.scalars(stmt)
+                    processed_annotation = result.one()
+
+                processed_annotations_map[idx] = processed_annotation
+
+            await session.commit()
+
+        inserted_annotation_ids = tuple(anno.id for anno in processed_annotations_map.values())
+        if inserted_annotation_ids:
+            info.context.event_queue.put(TraceAnnotationInsertEvent(inserted_annotation_ids))
+
+        returned_annotations = [
+            to_gql_trace_annotation(processed_annotations_map[i])
+            for i in sorted(processed_annotations_map.keys())
+        ]
+
         return TraceAnnotationMutationPayload(
-            trace_annotations=[
-                to_gql_trace_annotation(annotation) for annotation in inserted_annotations
-            ],
+            trace_annotations=returned_annotations,
             query=Query(),
         )
 
