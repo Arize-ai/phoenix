@@ -19,28 +19,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "span_annotations",
-        sa.Column(
-            "identifier",
-            sa.String,
-            nullable=True,
-            index=True,
-            unique=True,
-        ),
-    )
-    op.add_column(
-        "span_annotations",
-        sa.Column(
-            "source",
-            sa.String,
-            sa.CheckConstraint(
-                "source IN ('API', 'APP')",
-                name="valid_source",
-            ),
-            nullable=False,
-        ),
-    )
     with op.batch_alter_table("span_annotations") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -50,29 +28,34 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
-    op.add_column(
-        "trace_annotations",
-        sa.Column(
-            "identifier",
-            sa.String,
-            nullable=True,
-            index=True,
-            unique=True,
-        ),
-    )
-    op.add_column(
-        "trace_annotations",
-        sa.Column(
-            "source",
-            sa.String,
-            sa.CheckConstraint(
-                "source IN ('API', 'APP')",
-                name="valid_source",
+        batch_op.add_column(
+            sa.Column(
+                "identifier",
+                sa.String,
+                nullable=True,
             ),
-            nullable=False,
-        ),
-    )
+        )
+        batch_op.add_column(
+            sa.Column(
+                "source",
+                sa.String,
+                sa.CheckConstraint(
+                    "source IN ('API', 'APP')",
+                    name="valid_source",
+                ),
+                nullable=False,
+            ),
+        )
+        batch_op.drop_constraint(
+            constraint_name="valid_annotator_kind",
+            type_="check",
+        )
+        batch_op.create_check_constraint(
+            constraint_name="valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
+        )
+        batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
+
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -82,29 +65,34 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
-    op.add_column(
-        "document_annotations",
-        sa.Column(
-            "identifier",
-            sa.String,
-            nullable=True,
-            index=True,
-            unique=True,
-        ),
-    )
-    op.add_column(
-        "document_annotations",
-        sa.Column(
-            "source",
-            sa.String,
-            sa.CheckConstraint(
-                "source IN ('API', 'APP')",
-                name="valid_source",
+        batch_op.add_column(
+            sa.Column(
+                "identifier",
+                sa.String,
+                nullable=True,
             ),
-            nullable=False,
-        ),
-    )
+        )
+        batch_op.add_column(
+            sa.Column(
+                "source",
+                sa.String,
+                sa.CheckConstraint(
+                    "source IN ('API', 'APP')",
+                    name="valid_source",
+                ),
+                nullable=False,
+            ),
+        )
+        batch_op.drop_constraint(
+            constraint_name="valid_annotator_kind",
+            type_="check",
+        )
+        batch_op.create_check_constraint(
+            constraint_name="valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
+        )
+        batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
+
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -117,6 +105,32 @@ def upgrade() -> None:
         batch_op.drop_constraint(
             "uq_document_annotations_name_span_rowid_document_position",
             type_="unique",
+        )
+        batch_op.add_column(
+            sa.Column(
+                "identifier",
+                sa.String,
+                nullable=True,
+            ),
+        )
+        batch_op.add_column(
+            sa.Column(
+                "source",
+                sa.String,
+                sa.CheckConstraint(
+                    "source IN ('API', 'APP')",
+                    name="valid_source",
+                ),
+                nullable=False,
+            ),
+        )
+        batch_op.drop_constraint(
+            constraint_name="valid_annotator_kind",
+            type_="check",
+        )
+        batch_op.create_check_constraint(
+            constraint_name="valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
 
     op.create_table(
@@ -229,32 +243,44 @@ def downgrade() -> None:
     op.drop_table("annotation_configs")
 
     with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.create_unique_constraint(
-            "uq_span_annotations_name_span_rowid",
-            ["name", "span_rowid"],
-        )
+        batch_op.drop_constraint("valid_source", type_="check")
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
-        batch_op.drop_constraint("ck_span_annotations_`valid_source`", type_="unique")
-    op.drop_column("span_annotations", "source")
-    op.drop_index("ix_span_annotations_identifier")
-    op.drop_column("span_annotations", "identifier")
+        batch_op.drop_column("source")
+        batch_op.drop_column("identifier")
+        batch_op.create_unique_constraint(
+            "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
+        )
+        batch_op.create_check_constraint(
+            "valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'HUMAN')",
+        )
+
     with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.create_unique_constraint(
-            "uq_trace_annotations_name_trace_rowid",
-            ["name", "trace_rowid"],
-        )
+        batch_op.drop_constraint("valid_source", type_="check")
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.drop_column("user_id")
-        batch_op.drop_constraint("ck_trace_annotations_`valid_source`", type_="unique")
-    op.drop_column("trace_annotations", "source")
-    op.drop_index("ix_trace_annotations_identifier")
-    op.drop_column("trace_annotations", "identifier")
+        batch_op.drop_column("source")
+        batch_op.drop_column("identifier")
+        batch_op.create_unique_constraint(
+            "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
+        )
+        batch_op.create_check_constraint(
+            "valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'HUMAN')",
+        )
+
     with op.batch_alter_table("document_annotations") as batch_op:
+        batch_op.drop_constraint("valid_source", type_="check")
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
+        batch_op.drop_column("user_id")
+        batch_op.drop_column("source")
+        batch_op.drop_column("identifier")
         batch_op.create_unique_constraint(
             "uq_document_annotations_name_span_rowid_document_position",
             ["name", "span_rowid", "document_position"],
         )
-        batch_op.drop_column("user_id")
-        batch_op.drop_constraint("ck_document_annotations_`valid_source`", type_="unique")
-    op.drop_column("document_annotations", "source")
-    op.drop_index("ix_document_annotations_identifier")
-    op.drop_column("document_annotations", "identifier")
+        batch_op.create_check_constraint(
+            "valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'HUMAN')",
+        )
