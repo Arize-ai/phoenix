@@ -1,0 +1,54 @@
+from enum import Enum
+from typing import Annotated, Literal, Optional, Union
+
+from pydantic import Field, RootModel
+from typing_extensions import TypeAlias
+
+from .db_models import DBBaseModel
+
+
+class AnnotationType(Enum):
+    CATEGORICAL = "CATEGORICAL"
+    CONTINUOUS = "CONTINUOUS"
+    FREEFORM = "FREEFORM"
+
+
+class OptimizationDirection(Enum):
+    MINIMIZE = "MINIMIZE"
+    MAXIMIZE = "MAXIMIZE"
+
+
+class _BaseAnnotationConfig(DBBaseModel):
+    description: Optional[str] = None
+
+
+class CategoricalAnnotationValue(DBBaseModel):
+    label: str
+    score: Optional[float] = None
+
+
+class CategoricalAnnotationConfig(_BaseAnnotationConfig):
+    annotation_type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
+    optimization_direction: OptimizationDirection
+    values: list[CategoricalAnnotationValue]
+
+
+class ContinuousAnnotationConfig(_BaseAnnotationConfig):
+    annotation_type: Literal[AnnotationType.CONTINUOUS.value]  # type: ignore[name-defined]
+    optimization_direction: OptimizationDirection
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+
+class FreeformAnnotationConfig(_BaseAnnotationConfig):
+    annotation_type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
+
+
+AnnotationConfigType: TypeAlias = Annotated[
+    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
+    Field(..., discriminator="annotation_type"),
+]
+
+
+class AnnotationConfig(RootModel[AnnotationConfigType]):
+    root: AnnotationConfigType
