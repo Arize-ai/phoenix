@@ -178,7 +178,7 @@ input CategoricalAnnotationConfigInput {
 
 input CategoricalAnnotationConfigValueInput {
   label: String!
-  score: Float = null
+  score: Float!
 }
 
 type CategoricalAnnotationValue {

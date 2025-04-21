@@ -48,7 +48,7 @@ ANNOTATION_TYPE_NAMES = (
 @strawberry.input
 class CategoricalAnnotationConfigValueInput:
     label: str
-    score: Optional[float] = None
+    score: float
 
 
 @strawberry.input

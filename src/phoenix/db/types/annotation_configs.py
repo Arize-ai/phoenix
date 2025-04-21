@@ -24,7 +24,7 @@ class _BaseAnnotationConfig(DBBaseModel):
 
 class CategoricalAnnotationValue(DBBaseModel):
     label: str
-    score: Optional[float] = None
+    score: float
 
 
 class CategoricalAnnotationConfig(_BaseAnnotationConfig):
