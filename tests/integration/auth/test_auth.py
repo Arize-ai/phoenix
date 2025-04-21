@@ -4,6 +4,7 @@ from contextlib import AbstractContextManager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from secrets import token_hex
 from typing import (
     Any,
     Generic,
@@ -11,7 +12,9 @@ from typing import (
     Optional,
     TypeVar,
 )
+from urllib.parse import urljoin
 
+import bs4
 import jwt
 import pytest
 import smtpdfix
@@ -22,6 +25,7 @@ from opentelemetry.sdk.environment_variables import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
+from phoenix.config import get_env_phoenix_admin_secret, get_env_root_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
@@ -45,6 +49,7 @@ from .._helpers import (
     _Email,
     _Expectation,
     _export_embeddings,
+    _extract_html,
     _GetUser,
     _GqlId,
     _grpc_span_exporter,
@@ -148,6 +153,35 @@ class TestLogIn:
         admin_user.delete_users(user)
         with _EXPECTATION_401:
             user.log_in()
+
+
+class TestWelcomeEmail:
+    @pytest.mark.parametrize("role", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize("send_welcome_email", [True, False])
+    def test_welcome_email_is_sent(
+        self,
+        role: UserRoleInput,
+        send_welcome_email: bool,
+        _get_user: _GetUser,
+        _smtpd: smtpdfix.AuthController,
+    ) -> None:
+        email = f"{token_hex(16)}@{token_hex(16)}.com"
+        profile = _Profile(email=email, password=token_hex(8), username=token_hex(8))
+        u = _create_user(
+            _get_user(_ADMIN),
+            role=role,
+            profile=profile,
+            send_welcome_email=send_welcome_email,
+        )
+        if send_welcome_email:
+            assert _smtpd.messages
+            assert (msg := _smtpd.messages[-1])["to"] == u.email
+            assert (soup := _extract_html(msg))
+            assert isinstance((link := soup.find(id="welcome-url")), bs4.Tag)
+            assert isinstance((url := link.get("href")), str)
+            assert url == urljoin(str(get_env_root_url()), "forgot-password")
+        else:
+            assert not _smtpd.messages or _smtpd.messages[-1]["to"] != u.email
 
 
 class TestPasswordReset:
@@ -556,6 +590,15 @@ class TestPatchUser:
         with pytest.raises(Exception, match="role"):
             logged_in_user.patch_user(_DEFAULT_ADMIN, new_role=new_role)
 
+    def test_admin_cannot_change_role_for_self(
+        self,
+        _get_user: _GetUser,
+    ) -> None:
+        u = _get_user(_ADMIN)
+        logged_in_user = u.log_in()
+        with pytest.raises(Exception, match="role"):
+            logged_in_user.patch_user(u, new_role=_MEMBER)
+
     @pytest.mark.parametrize(
         "role_or_user,expectation",
         [
@@ -961,6 +1004,44 @@ class TestSpanExporters:
         if api_key and expected is SpanExportResult.SUCCESS:
             _DEFAULT_ADMIN.delete_api_key(api_key)
             assert export(_spans) is SpanExportResult.FAILURE
+
+    @pytest.mark.parametrize(
+        "use_admin_secret,expected",
+        [
+            (True, SpanExportResult.SUCCESS),
+            (False, SpanExportResult.FAILURE),
+        ],
+    )
+    @pytest.mark.parametrize("method", ["headers", "setenv"])
+    def test_admin_secret(
+        self,
+        method: Literal["headers", "setenv"],
+        use_admin_secret: bool,
+        expected: SpanExportResult,
+        _span_exporter: _SpanExporterFactory,
+        _spans: Sequence[ReadableSpan],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_HEADERS, False)
+        monkeypatch.delenv(OTEL_EXPORTER_OTLP_TRACES_HEADERS, False)
+        headers: Optional[_Headers] = None
+        if use_admin_secret:
+            assert (api_key := get_env_phoenix_admin_secret())
+        else:
+            api_key = ""
+        if method == "headers":
+            # Must use all lower case for `authorization` because
+            # otherwise it would crash the gRPC receiver.
+            headers = dict(authorization=f"Bearer {api_key}")
+        elif method == "setenv":
+            monkeypatch.setenv(
+                OTEL_EXPORTER_OTLP_TRACES_HEADERS,
+                f"Authorization=Bearer {api_key}",
+            )
+        else:
+            assert_never(method)
+        export = _span_exporter(headers=headers).export
+        assert export(_spans) is expected
 
 
 class TestEmbeddingsRestApi:

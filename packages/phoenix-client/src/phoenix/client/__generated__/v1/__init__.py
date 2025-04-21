@@ -15,6 +15,11 @@ class CreateExperimentRequestBody(TypedDict):
     repetitions: NotRequired[int]
 
 
+class CreateProjectRequestBody(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
 class Dataset(TypedDict):
     id: str
     name: str
@@ -94,6 +99,12 @@ class ListDatasetsResponseBody(TypedDict):
 
 class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
+
+
+class Project(TypedDict):
+    name: str
+    id: str
+    description: NotRequired[str]
 
 
 class PromptData(TypedDict):
@@ -183,6 +194,17 @@ class PromptToolFunctionDefinition(TypedDict):
     strict: NotRequired[bool]
 
 
+class PromptVersionTag(TypedDict):
+    name: str
+    id: str
+    description: NotRequired[str]
+
+
+class PromptVersionTagData(TypedDict):
+    name: str
+    description: NotRequired[str]
+
+
 class SpanAnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -204,6 +226,14 @@ class ToolResultContentPart(TypedDict):
     type: Literal["tool_result"]
     tool_call_id: str
     tool_result: Optional[Union[bool, int, float, str, Mapping[str, Any], Sequence[Any]]]
+
+
+class UpdateProjectRequestBody(TypedDict):
+    description: NotRequired[str]
+
+
+class UpdateProjectResponseBody(TypedDict):
+    data: Project
 
 
 class UploadDatasetData(TypedDict):
@@ -228,8 +258,27 @@ class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
+class CreateProjectResponseBody(TypedDict):
+    data: Project
+
+
+class GetProjectResponseBody(TypedDict):
+    data: Project
+
+
+class GetProjectsResponseBody(TypedDict):
+    data: Sequence[Project]
+    next_cursor: Optional[str]
+
+
+class GetPromptVersionTagsResponseBody(TypedDict):
+    data: Sequence[PromptVersionTag]
+    next_cursor: Optional[str]
+
+
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
+    next_cursor: Optional[str]
 
 
 class HTTPValidationError(TypedDict):
@@ -356,3 +405,4 @@ class GetPromptResponseBody(TypedDict):
 
 class GetPromptVersionsResponseBody(TypedDict):
     data: Sequence[PromptVersion]
+    next_cursor: Optional[str]

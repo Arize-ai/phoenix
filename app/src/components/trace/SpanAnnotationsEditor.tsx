@@ -36,14 +36,12 @@ import {
   Input,
   Label,
   TextField,
-  Token,
   View,
 } from "@phoenix/components";
 import { Empty } from "@phoenix/components/Empty";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 import {
-  AnnotatorKind,
   SpanAnnotationsEditor_spanAnnotations$data,
   SpanAnnotationsEditor_spanAnnotations$key,
 } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
@@ -51,10 +49,10 @@ import { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/Spa
 import { SpanAnnotationsEditorNewAnnotationQuery } from "./__generated__/SpanAnnotationsEditorNewAnnotationQuery.graphql";
 import { SpanAnnotationsEditorQuery } from "./__generated__/SpanAnnotationsEditorQuery.graphql";
 import { SpanAnnotationsEditorSpanAnnotationsQuery } from "./__generated__/SpanAnnotationsEditorSpanAnnotationsQuery.graphql";
+import { AnnotatorKindToken } from "./AnnotatorKindToken";
 import { NewSpanAnnotationForm } from "./NewSpanAnnotationForm";
 import { SpanAnnotationActionMenu } from "./SpanAnnotationActionMenu";
 import { AnnotationFormData, SpanAnnotationForm } from "./SpanAnnotationForm";
-
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
   projectId: string;
@@ -413,7 +411,7 @@ function SpanAnnotationDisclosure(props: {
           {annotation.name}
           <Flex direction="row" alignItems="center" gap="size-100">
             {annotation.annotatorKind === "HUMAN" && (
-              <AnnotatorKindLabel kind={annotation.annotatorKind} />
+              <AnnotatorKindToken kind={annotation.annotatorKind} />
             )}
             <SpanAnnotationActionMenu
               annotationId={annotation.id}
@@ -445,22 +443,6 @@ function SpanAnnotationDisclosure(props: {
         />
       </DisclosurePanel>
     </Disclosure>
-  );
-}
-
-function AnnotatorKindLabel(props: { kind: AnnotatorKind }) {
-  const { kind } = props;
-  return (
-    <Token
-      size="S"
-      color={
-        kind === "HUMAN"
-          ? "var(--ac-global-color-blue-500) "
-          : "var(--ac-global-color-orange-500)"
-      }
-    >
-      {kind}
-    </Token>
   );
 }
 

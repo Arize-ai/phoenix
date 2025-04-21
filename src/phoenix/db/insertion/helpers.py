@@ -78,7 +78,7 @@ def _clean(
     kv: Iterable[tuple[str, KeyedColumnElement[Any]]],
 ) -> Iterator[tuple[str, KeyedColumnElement[Any]]]:
     for k, v in kv:
-        if v.primary_key or v.foreign_keys or k == "created_at":
+        if v.primary_key or k == "created_at":
             continue
         if k == "metadata_":
             yield "metadata", v

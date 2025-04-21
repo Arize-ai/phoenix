@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useState } from "react";
+import React, { PropsWithChildren } from "react";
 import { Dialog, DialogTrigger } from "react-aria-components";
 import { css } from "@emotion/react";
 
@@ -12,6 +12,7 @@ import {
   ListBoxItem,
   Popover,
   PopoverArrow,
+  SelectChevronUpDownIcon,
   TimeRangeForm,
   View,
 } from "@phoenix/components";
@@ -28,8 +29,7 @@ export type TimeRangeSelectorProps = {
 };
 
 const listBoxCSS = css`
-  width: 120px;
-  padding: var(--ac-global-dimension-size-50);
+  width: 130px;
 `;
 
 /**
@@ -52,87 +52,93 @@ function getDisplayText({ timeRangeKey, start, end }: OpenTimeRangeWithKey) {
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange } = props;
   const { timeRangeKey, start, end } = value;
-  const [isOpen, setOpen] = useState<boolean>(false);
   return (
     <DialogTrigger>
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
         isDisabled={isDisabled}
-        onPress={() => setOpen(true)}
       >
         {getDisplayText(value)}
+        <SelectChevronUpDownIcon />
       </Button>
-      <Popover placement="bottom end" isOpen={isOpen}>
+      <Popover placement="bottom end">
         <Dialog>
-          <PopoverArrow />
-          <Flex direction="row">
-            <CustomTimeRangeWrap visible={timeRangeKey === "custom"}>
-              {/* We force re-mount to reset the dirty state in the form */}
-              {timeRangeKey === "custom" && (
-                <Flex
-                  direction="column"
-                  gap="size-100"
-                  justifyContent="end"
-                  height="100%"
+          {({ close }) => (
+            <>
+              <PopoverArrow />
+              <Flex direction="row">
+                <CustomTimeRangeWrap visible={timeRangeKey === "custom"}>
+                  {/* We force re-mount to reset the dirty state in the form */}
+                  {timeRangeKey === "custom" && (
+                    <Flex
+                      direction="column"
+                      gap="size-100"
+                      justifyContent="end"
+                      height="100%"
+                    >
+                      <Heading level={4} weight="heavy">
+                        Time Range
+                      </Heading>
+                      <TimeRangeForm
+                        initialValue={{ start, end }}
+                        onSubmit={(timeRange) => {
+                          onChange &&
+                            onChange({
+                              timeRangeKey: "custom",
+                              ...timeRange,
+                            });
+                          close();
+                        }}
+                      />
+                    </Flex>
+                  )}
+                </CustomTimeRangeWrap>
+                <ListBox
+                  aria-label="time range preset selection"
+                  selectionMode="single"
+                  autoFocus
+                  selectedKeys={[timeRangeKey]}
+                  css={listBoxCSS}
+                  onSelectionChange={(selection) => {
+                    if (selection === "all") {
+                      close();
+                      return;
+                    }
+                    const timeRangeKey = selection.keys().next().value;
+                    if (!isTimeRangeKey(timeRangeKey)) {
+                      close();
+                      return;
+                    }
+                    if (timeRangeKey !== "custom") {
+                      // Compute the time range
+                      onChange({
+                        timeRangeKey,
+                        ...getTimeRangeFromLastNTimeRangeKey(timeRangeKey),
+                      });
+                      close();
+                      return;
+                    } else {
+                      onChange({
+                        timeRangeKey,
+                        start: start,
+                        end: end,
+                      });
+                    }
+                  }}
                 >
-                  <Heading level={4} weight="heavy">
-                    Time Range
-                  </Heading>
-                  <TimeRangeForm
-                    initialValue={{ start, end }}
-                    onSubmit={(timeRange) => {
-                      onChange &&
-                        onChange({
-                          timeRangeKey: "custom",
-                          ...timeRange,
-                        });
-                      setOpen(false);
-                    }}
-                  />
-                </Flex>
-              )}
-            </CustomTimeRangeWrap>
-            <ListBox
-              aria-label="time range preset selection"
-              selectionMode="single"
-              selectedKeys={[timeRangeKey]}
-              css={listBoxCSS}
-              onSelectionChange={(selection) => {
-                if (selection === "all" || selection.size === 0) {
-                  setOpen(false);
-                  return;
-                }
-                const timeRangeKey = selection.keys().next().value;
-                if (!isTimeRangeKey(timeRangeKey)) {
-                  return;
-                }
-                if (timeRangeKey !== "custom") {
-                  // Compute the time range
-                  onChange({
-                    timeRangeKey,
-                    ...getTimeRangeFromLastNTimeRangeKey(timeRangeKey),
-                  });
-                  setOpen(false);
-                } else {
-                  onChange({
-                    timeRangeKey,
-                    start: start,
-                    end: end,
-                  });
-                }
-              }}
-            >
-              {LAST_N_TIME_RANGES.map(({ key, label }) => (
-                <ListBoxItem key={key} id={key}>
-                  {label}
-                </ListBoxItem>
-              ))}
-              <ListBoxItem key="custom" id="custom">
-                Custom
-              </ListBoxItem>
-            </ListBox>
-          </Flex>
+                  {LAST_N_TIME_RANGES.map(({ key, label }) => (
+                    <ListBoxItem key={key} id={key}>
+                      {label}
+                    </ListBoxItem>
+                  ))}
+                  <ListBoxItem key="custom" id="custom">
+                    Custom
+                  </ListBoxItem>
+                </ListBox>
+              </Flex>
+            </>
+          )}
         </Dialog>
       </Popover>
     </DialogTrigger>

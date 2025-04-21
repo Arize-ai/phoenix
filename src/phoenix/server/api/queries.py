@@ -19,7 +19,7 @@ from phoenix.config import (
     getenv,
 )
 from phoenix.db import enums, models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, exclude_experiment_projects
 from phoenix.db.models import DatasetExample as OrmExample
 from phoenix.db.models import DatasetExampleRevision as OrmRevision
 from phoenix.db.models import DatasetVersion as OrmVersion
@@ -42,7 +42,6 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
-from phoenix.server.api.subscriptions import PLAYGROUND_PROJECT_NAME
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -69,6 +68,7 @@ from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_proje
 from phoenix.server.api.types.Prompt import Prompt, to_gql_prompt_from_orm
 from phoenix.server.api.types.PromptLabel import PromptLabel, to_gql_prompt_label
 from phoenix.server.api.types.PromptVersion import PromptVersion, to_gql_prompt_version
+from phoenix.server.api.types.PromptVersionTag import PromptVersionTag, to_gql_prompt_version_tag
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
@@ -232,18 +232,8 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = (
-            select(models.Project)
-            .outerjoin(
-                models.Experiment,
-                and_(
-                    models.Project.name == models.Experiment.project_name,
-                    models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
-                ),
-            )
-            .where(models.Experiment.project_name.is_(None))
-            .order_by(models.Project.id)
-        )
+        stmt = select(models.Project).order_by(models.Project.id)
+        stmt = exclude_experiment_projects(stmt)
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
             data = [
@@ -596,6 +586,11 @@ class Query:
                 ):
                     raise NotFound(f"Unknown prompt label: {id}")
             return to_gql_prompt_label(prompt_label)
+        elif type_name == PromptVersionTag.__name__:
+            async with info.context.db() as session:
+                if not (prompt_version_tag := await session.get(models.PromptVersionTag, node_id)):
+                    raise NotFound(f"Unknown prompt version tag: {id}")
+            return to_gql_prompt_version_tag(prompt_version_tag)
         raise NotFound(f"Unknown node type: {type_name}")
 
     @strawberry.field

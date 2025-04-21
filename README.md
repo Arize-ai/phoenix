@@ -10,7 +10,10 @@
     <a target="_blank" href="https://arize-ai.slack.com/join/shared_invite/zt-11t1vbu4x-xkBIHmOREQnYnYDH1GDfCg?__hstc=259489365.a667dfafcfa0169c8aee4178d115dc81.1733501603539.1733501603539.1733501603539.1&__hssc=259489365.1.1733501603539&__hsfp=3822854628&submissionGuid=381a0676-8f38-437b-96f2-fc10875658df#/shared-invite/email">
         <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
-    <a target="_blank" href="https://twitter.com/ArizePhoenix">
+     <a target="_blank" href="https://bsky.app/profile/arize-phoenix.bsky.social">
+        <img src="https://img.shields.io/badge/-phoenix-blue.svg?color=blue&labelColor=gray&logo=bluesky">
+    </a>
+    <a target="_blank" href="https://x.com/ArizePhoenix">
         <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=x">
     </a>
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
@@ -25,6 +28,9 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix/tags">
         <img src="https://img.shields.io/docker/v/arizephoenix/phoenix?sort=semver&logo=docker&label=image&color=blue">
     </a>
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp">
+        <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
+    </a>
 </p>
 
 Phoenix is an open-source AI observability platform designed for experimentation, evaluation, and troubleshooting. It provides:
@@ -34,7 +40,7 @@ Phoenix is an open-source AI observability platform designed for experimentation
 - [**_Datasets_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets) - Create versioned datasets of examples for experimentation, evaluation, and fine-tuning.
 - [**_Experiments_**](https://docs.arize.com/phoenix/datasets-and-experiments/overview-datasets#experiments) - Track and evaluate changes to prompts, LLMs, and retrieval.
 - [**_Playground_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts)- Optimize prompts, compare models, adjust parameters, and replay traced LLM calls.
-- [**_Prompt Mangement_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
+- [**_Prompt Management_**](https://docs.arize.com/phoenix/prompt-engineering/overview-prompts/prompt-management)- Manage and test prompt changes systematically using version control, tagging, and experimentation.
 
 Phoenix is vendor and language agnostic with out-of-the-box support for popular frameworks (🦙[LlamaIndex](https://docs.arize.com/phoenix/tracing/integrations-tracing/llamaindex), 🦜⛓[LangChain](https://docs.arize.com/phoenix/tracing/integrations-tracing/langchain), [Haystack](https://docs.arize.com/phoenix/tracing/integrations-tracing/haystack), 🧩[DSPy](https://docs.arize.com/phoenix/tracing/integrations-tracing/dspy), 🤗[smolagents](https://docs.arize.com/phoenix/tracing/integrations-tracing/hfsmolagents)) and LLM providers ([OpenAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/openai), [Bedrock](https://docs.arize.com/phoenix/tracing/integrations-tracing/bedrock), [MistralAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/mistralai), [VertexAI](https://docs.arize.com/phoenix/tracing/integrations-tracing/vertexai), [LiteLLM](https://docs.arize.com/phoenix/tracing/integrations-tracing/litellm), and more). For details on auto-instrumentation, check out the [OpenInference](https://github.com/Arize-ai/openinference) project.
 
@@ -49,6 +55,20 @@ pip install arize-phoenix
 ```
 
 Phoenix container images are available via [Docker Hub](https://hub.docker.com/r/arizephoenix/phoenix) and can be deployed using Docker or Kubernetes.
+
+## Packages
+
+The `arize-phoenix` package includes the entire Phoenix platfom. However if you have deployed the Phoenix platform, there are light-weight Python sub-packages and TypeScript packages that can be used in conjunction with the platfrom.
+
+### Subpackages
+
+| Package                                                                                             | Language                                                                                                                                     | Description                                                                                       |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [arize-phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-otel)           | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-otel)](https://pypi.org/project/arize-phoenix-otel/)                     | Provides a lightweight wrapper around OpenTelemetry primitives with Phoenix-aware defaults        |
+| [arize-phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client)       | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-client)](https://pypi.org/project/arize-phoenix-client/)                 | Lightweight client for interacting with the Phoenix server via its OpenAPI REST interface         |
+| [arize-phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-evals)         | Python [![PyPI Version](https://img.shields.io/pypi/v/arize-phoenix-evals)](https://pypi.org/project/arize-phoenix-evals/)                   | Tooling to evaluate LLM applications including RAG relevance, answer relevance, and more          |
+| [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | JavaScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) | Client for the Arize Phoenix API                                                                  |
+| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | JavaScript [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp)       | MCP server implementation for Arize Phoenix providing unified interface to Phoenix's capabilities |
 
 ## Tracing Integrations
 

@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.2.1...arize-phoenix-client-v1.3.0) (2025-04-09)
+
+
+### Features
+
+* allow project name as identifier in REST path for projects endpoints ([#7064](https://github.com/Arize-ai/phoenix/issues/7064)) ([8ccf2d7](https://github.com/Arize-ai/phoenix/commit/8ccf2d761100cefb2afc5a2d70690f9a5d15483e))
+* REST API for CRUD operations on projects ([#7006](https://github.com/Arize-ai/phoenix/issues/7006)) ([b30c7ff](https://github.com/Arize-ai/phoenix/commit/b30c7ff65ee418c225d54a6fd00d4f7f29ad84e8))
+
+## [1.2.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.2.0...arize-phoenix-client-v1.2.1) (2025-04-05)
+
+
+### Documentation
+
+* add nice headers ([#7044](https://github.com/Arize-ai/phoenix/issues/7044)) ([9151104](https://github.com/Arize-ai/phoenix/commit/9151104bd4aa69380849a441e3556a3adfa604ca))
+
+## [1.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.1.0...arize-phoenix-client-v1.2.0) (2025-04-03)
+
+
+### Features
+
+* add REST endpoints to list or create prompt version tags ([#6984](https://github.com/Arize-ai/phoenix/issues/6984)) ([959622d](https://github.com/Arize-ai/phoenix/commit/959622d335274a0cb59dbf6b78e94fe6f3613bd3))
+
+
+### Documentation
+
+* No subject (GITBOOK-1087) ([6fa5fd7](https://github.com/Arize-ai/phoenix/commit/6fa5fd71cdf57a9a5a7efc3e2822ad57497f3b5a))
+* No subject (GITBOOK-1090) ([024c49f](https://github.com/Arize-ai/phoenix/commit/024c49fe57487ee816317f798ec648331a866ae4))
+* No subject (GITBOOK-1099) ([b4357e3](https://github.com/Arize-ai/phoenix/commit/b4357e324a9444704fbf85370c193ef2ee59495f))
+
 ## [1.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.0.3...arize-phoenix-client-v1.1.0) (2025-03-07)
 
 
