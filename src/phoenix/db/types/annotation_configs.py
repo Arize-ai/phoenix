@@ -28,25 +28,25 @@ class CategoricalAnnotationValue(DBBaseModel):
 
 
 class CategoricalAnnotationConfig(_BaseAnnotationConfig):
-    annotation_type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
+    type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
     optimization_direction: OptimizationDirection
     values: list[CategoricalAnnotationValue]
 
 
 class ContinuousAnnotationConfig(_BaseAnnotationConfig):
-    annotation_type: Literal[AnnotationType.CONTINUOUS.value]  # type: ignore[name-defined]
+    type: Literal[AnnotationType.CONTINUOUS.value]  # type: ignore[name-defined]
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
 
 
 class FreeformAnnotationConfig(_BaseAnnotationConfig):
-    annotation_type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
+    type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
 
 
 AnnotationConfigType: TypeAlias = Annotated[
     Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
-    Field(..., discriminator="annotation_type"),
+    Field(..., discriminator="type"),
 ]
 
 

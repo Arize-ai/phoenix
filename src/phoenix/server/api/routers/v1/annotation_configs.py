@@ -64,7 +64,7 @@ def annotation_config_to_response(
     config = annotation_config.config
     base: dict[str, Any] = {
         "name": annotation_config.name,
-        "annotation_type": config.annotation_type,
+        "annotation_type": config.type,
         "description": config.description,
     }
     if isinstance(config, ContinuousAnnotationConfigModel):
@@ -163,7 +163,7 @@ async def create_continuous_annotation_config(
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
         config = ContinuousAnnotationConfigModel(
-            annotation_type=AnnotationType.CONTINUOUS.value,
+            type=AnnotationType.CONTINUOUS.value,
             description=payload.description,
             optimization_direction=payload.optimization_direction,
             lower_bound=payload.lower_bound,
@@ -196,7 +196,7 @@ async def create_categorical_annotation_config(
             for value in payload.values
         ]
         config = CategoricalAnnotationConfigModel(
-            annotation_type=AnnotationType.CATEGORICAL.value,
+            type=AnnotationType.CATEGORICAL.value,
             description=payload.description,
             optimization_direction=payload.optimization_direction,
             values=values,
@@ -224,7 +224,7 @@ async def create_freeform_annotation_config(
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
         config = FreeformAnnotationConfigModel(
-            annotation_type=AnnotationType.FREEFORM.value,
+            type=AnnotationType.FREEFORM.value,
             description=payload.description,
         )
         annotation_config = models.AnnotationConfig(

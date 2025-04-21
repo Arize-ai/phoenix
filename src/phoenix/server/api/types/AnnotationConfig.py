@@ -80,7 +80,7 @@ def to_gql_categorical_annotation_config(
     return CategoricalAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=config.annotation_type,
+        annotation_type=config.type,
         optimization_direction=config.optimization_direction,
         description=config.description,
         values=values,
@@ -95,7 +95,7 @@ def to_gql_continuous_annotation_config(
     return ContinuousAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=config.annotation_type,
+        annotation_type=config.type,
         optimization_direction=config.optimization_direction,
         description=config.description,
         lower_bound=config.lower_bound,
@@ -111,7 +111,7 @@ def to_gql_freeform_annotation_config(
     return FreeformAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=config.annotation_type,
+        annotation_type=config.type,
         description=config.description,
     )
 

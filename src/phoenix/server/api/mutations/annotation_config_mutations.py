@@ -187,7 +187,7 @@ class AnnotationConfigMutationMixin:
             for value in input.values
         ]
         config = CategoricalAnnotationConfigModel(
-            annotation_type=AnnotationType.CATEGORICAL.value,
+            type=AnnotationType.CATEGORICAL.value,
             description=input.description,
             optimization_direction=input.optimization_direction,
             values=values,
@@ -214,7 +214,7 @@ class AnnotationConfigMutationMixin:
         input: CreateContinuousAnnotationConfigInput,
     ) -> CreateContinuousAnnotationConfigPayload:
         config = ContinuousAnnotationConfigModel(
-            annotation_type=AnnotationType.CONTINUOUS.value,
+            type=AnnotationType.CONTINUOUS.value,
             description=input.description,
             optimization_direction=input.optimization_direction,
             lower_bound=input.lower_bound,
@@ -242,7 +242,7 @@ class AnnotationConfigMutationMixin:
         input: CreateFreeformAnnotationConfigInput,
     ) -> CreateFreeformAnnotationConfigPayload:
         config = FreeformAnnotationConfigModel(
-            annotation_type=AnnotationType.FREEFORM.value,
+            type=AnnotationType.FREEFORM.value,
             description=input.description,
         )
         async with info.context.db() as session:
@@ -274,7 +274,7 @@ class AnnotationConfigMutationMixin:
             for value in input.values
         ]
         config = CategoricalAnnotationConfigModel(
-            annotation_type=AnnotationType.CATEGORICAL.value,
+            type=AnnotationType.CATEGORICAL.value,
             description=input.description,
             optimization_direction=input.optimization_direction,
             values=values,
@@ -307,7 +307,7 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name=ContinuousAnnotationConfig.__name__
         )
         config = ContinuousAnnotationConfigModel(
-            annotation_type=AnnotationType.CONTINUOUS.value,
+            type=AnnotationType.CONTINUOUS.value,
             description=input.description,
             optimization_direction=input.optimization_direction,
             lower_bound=input.lower_bound,
@@ -341,7 +341,7 @@ class AnnotationConfigMutationMixin:
             global_id=input.config_id, expected_type_name=FreeformAnnotationConfig.__name__
         )
         config = FreeformAnnotationConfigModel(
-            annotation_type=AnnotationType.FREEFORM.value,
+            type=AnnotationType.FREEFORM.value,
             description=input.description,
         )
         async with info.context.db() as session:
