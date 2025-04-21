@@ -78,12 +78,4 @@ Each example in the dataset was evaluating using the `REF_LINK_EVAL_PROMPT_TEMPL
 
 <figure><img src="../../../.gitbook/assets/GPT-4 Ref Evals (3).png" alt=""><figcaption></figcaption></figure>
 
-#### GPT-3.5
-
-<figure><img src="../../../.gitbook/assets/GPT-3.5 Ref Link (1).png" alt="" width="563"><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-<figure><img src="../../../.gitbook/assets/GPT-4 Turbo Ref link.png" alt="" width="563"><figcaption></figcaption></figure>
-
-<table><thead><tr><th width="130">Reference Link Evals</th><th>GPT-4o</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>Claude V2</th><th>Palm 2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.96</mark></td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:red;">0.89</mark></td><td><mark style="color:red;">0.74</mark></td><td><mark style="color:green;">0.68</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.69</mark></td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:red;">0.43</mark></td><td><mark style="color:red;">0.48</mark></td><td><mark style="color:green;">0.98</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.86</mark></td><td><mark style="color:red;">0.58</mark></td><td><mark style="color:red;">0.58</mark></td><td><mark style="color:green;">0.80</mark></td></tr></tbody></table>
+<table><thead><tr><th width="130">Reference Link Evals</th><th>GPT-4o</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.96</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.79</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>

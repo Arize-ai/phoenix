@@ -72,16 +72,4 @@ Try it out!
 
 <div align="left"><figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.04.55 PM.png" alt=""><figcaption></figcaption></figure></div>
 
-#### GPT-3.5 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-18 at 12.05.02 PM (2).png" alt=""><figcaption></figcaption></figure>
-
-#### Claud V2 Results
-
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-10-28 at 9.58.08 AM.png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-<figure><img src="../../../.gitbook/assets/GPT-4 Turbo Summarization.png" alt=""><figcaption></figcaption></figure>
-
-<table><thead><tr><th width="122">Eval</th><th>GPT-4o</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>GPT-3.5 Instruct</th><th width="75">Palm 2 (Text Bison)</th><th>Claud V2</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.61</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.57</mark></td><td><mark style="color:purple;">0.75</mark></td><td></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.63</mark></td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.641</mark></td><td><mark style="color:green;">1.0</mark></td><td><mark style="color:red;">0.1</mark></td><td><mark style="color:red;">0.16</mark></td><td><mark style="color:red;">0.7</mark></td><td><mark style="color:purple;">0.61</mark></td><td></td></tr><tr><td>F1</td><td><mark style="color:green;">0.73</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:red;">0.18</mark></td><td><mark style="color:red;">0.280</mark></td><td><mark style="color:red;">0.63</mark></td><td><mark style="color:purple;">0.67</mark></td><td></td></tr></tbody></table>
+<table><thead><tr><th width="122">Eval</th><th>GPT-4o</th><th>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.79</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.63</mark></td><td><mark style="color:green;">0.88</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.73</mark></td><td><mark style="color:green;">0.83</mark></td></tr></tbody></table>

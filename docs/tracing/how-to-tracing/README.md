@@ -46,7 +46,7 @@ Create and customize spans for your use-case
 * [How to set a span's status](setup-tracing/custom-spans.md#set-span-status)
 * [How to record exceptions](setup-tracing/custom-spans.md#record-exceptions-in-spans)
 
-### [Instrument: TypeScript](broken-reference)
+### [javascript.md](setup-tracing/javascript.md "mention")
 
 ## [Querying Spans](importing-and-exporting-traces/extract-data-from-spans.md)
 

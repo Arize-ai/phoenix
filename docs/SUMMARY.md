@@ -3,13 +3,8 @@
 * [Arize Phoenix](README.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
-* [Examples](notebooks.md)
+* [Deployment](deployment.md)
 * [Environments](environments.md)
-* [Self-Hosting](deployment/README.md)
-  * [Configuration](deployment/configuration.md)
-  * [Docker](deployment/docker.md)
-  * [Kubernetes](deployment/kubernetes.md)
-  * [Authentication](deployment/authentication.md)
 
 ## 🔭 Tracing
 
@@ -29,14 +24,15 @@
   * [LangChain](tracing/integrations-tracing/langchain.md)
   * [LangGraph](tracing/integrations-tracing/langgraph.md)
   * [LiteLLM](tracing/integrations-tracing/litellm.md)
-  * [Haystack](tracing/integrations-tracing/haystack.md)
   * [Anthropic](tracing/integrations-tracing/anthropic.md)
-  * [VertexAI](tracing/integrations-tracing/vertexai.md)
   * [Bedrock](tracing/integrations-tracing/bedrock.md)
+  * [Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
+  * [VertexAI](tracing/integrations-tracing/vertexai.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
   * [Groq](tracing/integrations-tracing/groq.md)
   * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
   * [CrewAI](tracing/integrations-tracing/crewai.md)
+  * [Haystack](tracing/integrations-tracing/haystack.md)
   * [DSPy](tracing/integrations-tracing/dspy.md)
   * [Instructor](tracing/integrations-tracing/instructor.md)
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
@@ -44,6 +40,7 @@
   * [Vercel AI SDK](tracing/integrations-tracing/vercel-ai-sdk.md)
   * [LangFlow](tracing/integrations-tracing/langflow.md)
   * [BeeAI](tracing/integrations-tracing/beeai.md)
+  * [Flowise](tracing/integrations-tracing/flowise.md)
   * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [Guardrails AI](tracing/integrations-tracing/guardrails-ai.md)
@@ -75,7 +72,6 @@
   * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
   * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
 * [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Evaluate RAG](tracing/use-cases-tracing/rag-evaluation.md)
   * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 
 ## 📃 Prompt Engineering
@@ -107,10 +103,10 @@
 
 * [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
 * [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
-* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)
+* [Concepts: Datasets](datasets-and-experiments/concepts-datasets.md)
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
@@ -122,16 +118,11 @@
 
 ## 🧠 Evaluation
 
-* [Overview: Evals](evaluation/llm-evals.md)
+* [Overview: Evals](evaluation/llm-evals/README.md)
+  * [Agent Evaluation](evaluation/llm-evals/agent-evaluation.md)
 * [Quickstart: Evals](evaluation/evals.md)
-* [Concepts: Evals](evaluation/concepts-evals/README.md)
-  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
-  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
-  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
-  * [Evaluators](evaluation/concepts-evals/evaluation.md)
-  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 * [How to: Evals](evaluation/how-to-evals/README.md)
-  * [Use Phoenix Evaluators](evaluation/how-to-evals/running-pre-tested-evals/README.md)
+  * [Pre-Built Evals](evaluation/how-to-evals/running-pre-tested-evals/README.md)
     * [Hallucinations](evaluation/how-to-evals/running-pre-tested-evals/hallucinations.md)
     * [Q\&A on Retrieved Data](evaluation/how-to-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
     * [Retrieval (RAG) Relevance](evaluation/how-to-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
@@ -143,14 +134,26 @@
     * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
     * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Agent Path Convergence](evaluation/how-to-evals/running-pre-tested-evals/agent-path-convergence.md)
+    * [Agent Planning](evaluation/how-to-evals/running-pre-tested-evals/agent-planning.md)
+    * [Agent Reflection](evaluation/how-to-evals/running-pre-tested-evals/agent-reflection.md)
     * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
-  * [Bring Your Own Evaluator](evaluation/how-to-evals/bring-your-own-evaluator.md)
+  * [Eval Models](evaluation/how-to-evals/evaluation-models.md)
+  * [Build an Eval](evaluation/how-to-evals/bring-your-own-evaluator.md)
+  * [Build a Multimodal Eval](evaluation/how-to-evals/multimodal-evals.md)
   * [Online Evals](evaluation/how-to-evals/online-evals.md)
-  * [Multimodal Evals](evaluation/how-to-evals/multimodal-evals.md)
+  * [Evals API Reference](evaluation/how-to-evals/evals-reference.md)
+* [Concepts: Evals](evaluation/concepts-evals/README.md)
+  * [LLM as a Judge](evaluation/concepts-evals/llm-as-a-judge.md)
+  * [Eval Data Types](evaluation/concepts-evals/evaluation-types.md)
+  * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
+  * [Evaluators](evaluation/concepts-evals/evaluation.md)
+  * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 
 ***
 
 * [Use Cases: Evals](use-cases-evals/README.md)
+  * [Evaluate RAG](use-cases-evals/rag-evaluation.md)
   * [Evaluating a Data Agent](use-cases-evals/evaluating-a-data-agent.md)
 
 ## 🔎 Retrieval
@@ -179,31 +182,8 @@
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
-## ⌨️ API
-
-* [Session](api/session.md)
-* [Client](api/client.md)
-* [Evals](api/evals.md)
-* [Models](api/evaluation-models.md)
-
 ## 🔌 INTEGRATIONS
 
+* [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
-* [Flowise](integrations/flowise.md)
 * [Ragas](integrations/ragas.md)
-
-## 📚 Reference
-
-* [Frequently Asked Questions](reference/frequently-asked-questions.md)
-* [OpenInference](reference/open-inference.md)
-* [Resources](reference/resources.md)
-* [Contribute to Phoenix](reference/contribute-to-phoenix.md)
-* [Release Notes](reference/release-notes.md)
-
-***
-
-* [GitHub](https://github.com/Arize-ai/phoenix)
-* [Releases](https://github.com/Arize-ai/phoenix/releases)
-* [Python API](https://arize-phoenix.readthedocs.io/)
-* [OpenInference](https://github.com/Arize-ai/openinference)
-* [TypeScript API](https://arize-ai.github.io/phoenix/)

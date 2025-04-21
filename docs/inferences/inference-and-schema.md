@@ -50,7 +50,7 @@ Alternatively, provide a name for the inferences that will appear in the applica
 ds = px.Inferences(df, schema, name="training")
 ```
 
-`ds` is then passed as the `primary` or `reference` argument to [launch\_app](../api/session.md#phoenix.launch_app).
+`ds` is then passed as the `primary` or `reference` argument to [launch\_app](broken-reference).
 
 ## phoenix.Schema
 

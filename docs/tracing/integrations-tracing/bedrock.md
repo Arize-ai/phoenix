@@ -12,110 +12,7 @@ OpenInference Traces collect telemetry data about the execution of your LLM appl
 
 ## Launch Phoenix
 
-{% tabs %}
-{% tab title="Phoenix Cloud" %}
-**Sign up for Phoenix:**
-
-Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
-
-**Install packages:**
-
-```bash
-pip install arize-phoenix-otel
-```
-
-**Set your Phoenix endpoint and API Key:**
-
-```python
-import os
-
-# Add Phoenix API Key for tracing
-PHOENIX_API_KEY = "ADD YOUR API KEY"
-os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
-```
-
-Your **Phoenix API key** can be found on the Keys section of your [dashboard](https://app.phoenix.arize.com).
-{% endtab %}
-
-{% tab title="Command Line" %}
-**Launch your local Phoenix instance:**
-
-```bash
-pip install arize-phoenix
-phoenix serve
-```
-
-For details on customizing a local terminal deployment, see [Terminal Setup](https://docs.arize.com/phoenix/setup/environments#terminal).
-
-**Install packages:**
-
-```bash
-pip install arize-phoenix-otel
-```
-
-**Set your Phoenix endpoint:**
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-```
-
-See [Broken link](broken-reference "mention") for more details
-{% endtab %}
-
-{% tab title="Docker" %}
-**Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
-
-```bash
-docker pull arizephoenix/phoenix:latest
-```
-
-**Run your containerized instance:**
-
-```bash
-docker run -p 6006:6006 arizephoenix/phoenix:latest
-```
-
-This will expose the Phoenix on `localhost:6006`
-
-**Install packages:**
-
-```bash
-pip install arize-phoenix-otel
-```
-
-**Set your Phoenix endpoint:**
-
-```python
-import os
-
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
-```
-
-For more info on using Phoenix with Docker, see [#docker](bedrock.md#docker "mention")
-{% endtab %}
-
-{% tab title="Notebook" %}
-**Install packages:**
-
-```bash
-pip install arize-phoenix
-```
-
-**Launch Phoenix:**
-
-```python
-import phoenix as px
-px.launch_app()
-```
-
-{% hint style="info" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [Broken link](broken-reference "mention") or use one of the other deployment options to retain traces.
-{% endhint %}
-{% endtab %}
-{% endtabs %}
+{% include "../../.gitbook/includes/integrationsconfiguration.md" %}
 
 ## Install
 
@@ -163,8 +60,11 @@ print(response_body["completion"])
 
 Now that you have tracing setup, all calls to invoke\_model will be streamed to your running Phoenix for observability and evaluation.
 
+{% embed url="https://storage.googleapis.com/arize-phoenix-assets/assets/gifs/bedrock_tracing_eval_medium.gif" %}
+
 ## Resources
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock/examples/bedrock_example.py)
+* [Example Tracing Notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock/examples/bedrock_example.py)
+* Example Tracing & Eval Notebook
 * [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock)
 * [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-bedrock/examples)

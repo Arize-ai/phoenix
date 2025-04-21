@@ -79,16 +79,8 @@ Try it out!
 
 <figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.25.14 PM.png" alt=""><figcaption></figcaption></figure>
 
-#### GPT-3.5 Results
+<table><thead><tr><th width="116">Q&#x26;A Eval</th><th>GPT-4o</th><th>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">1</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.92</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.96</mark></td></tr></tbody></table>
 
-<figure><img src="../../../.gitbook/assets/Screenshot 2023-09-16 at 5.38.50 PM.png" alt=""><figcaption></figcaption></figure>
-
-#### Claude V2 Results
-
-<figure><img src="../../../.gitbook/assets/claude_v2_q_n_a.png" alt=""><figcaption></figcaption></figure>
-
-<table><thead><tr><th width="116">Q&#x26;A Eval</th><th>GPT-4o</th><th>GPT-4</th><th width="125">GPT-4 Turbo</th><th>Gemini Pro</th><th>GPT-3.5</th><th>GPT-3.5-turbo-instruct</th><th width="69">Palm (Text Bison)</th><th>Claude V2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">0.99</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:green;">1</mark></td><td><mark style="color:green;">1.0</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.92</mark></td><td><mark style="color:green;">0.98</mark></td><td><mark style="color:green;">0.98</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.64</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.96</mark></td><td><mark style="color:green;">0.99</mark></td><td><mark style="color:green;">0.99</mark></td><td><mark style="color:green;">0.90</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:green;">0.78</mark></td></tr></tbody></table>
-
-| Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
-| ----------- | ------- | ----------- | ------- |
-| 100 Samples | 124 Sec | 66 sec      | 67 sec  |
+| Throughput  | GPT-4   |
+| ----------- | ------- |
+| 100 Samples | 124 Sec |
