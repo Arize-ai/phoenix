@@ -8,7 +8,6 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, distinct, func, or_, select
-from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
 from strawberry import ID, UNSET, Private, lazy
@@ -560,24 +559,16 @@ class Project(Node):
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            annotation_configs = (
-                await session.stream_scalars(
-                    select(models.AnnotationConfig)
-                    .join(
-                        models.ProjectAnnotationConfig,
-                        models.AnnotationConfig.id
-                        == models.ProjectAnnotationConfig.annotation_config_id,
-                    )
-                    .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
-                    .order_by(models.AnnotationConfig.name)
-                    .options(
-                        joinedload(
-                            models.AnnotationConfig.categorical_annotation_config
-                        ).joinedload(models.CategoricalAnnotationConfig.values),
-                        joinedload(models.AnnotationConfig.continuous_annotation_config),
-                    )
+            annotation_configs = await session.stream_scalars(
+                select(models.AnnotationConfig)
+                .join(
+                    models.ProjectAnnotationConfig,
+                    models.AnnotationConfig.id
+                    == models.ProjectAnnotationConfig.annotation_config_id,
                 )
-            ).unique()
+                .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
+                .order_by(models.AnnotationConfig.name)
+            )
             data = [to_gql_annotation_config(config) async for config in annotation_configs]
         return connection_from_list(data=data, args=args)
 
