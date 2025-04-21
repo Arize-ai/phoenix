@@ -6,6 +6,7 @@ import sqlalchemy as sa
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
@@ -310,13 +311,12 @@ class TestProjectTraceRetentionPolicyMutations:
 
         This test verifies that attempting to delete the default policy results in a BadRequest error.
         """  # noqa: E501
-        from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-        from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
         # Create a GlobalID for the default policy
         default_policy_gid = str(
             GlobalID(
-                ProjectTraceRetentionPolicy.__name__, str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID)
+                ProjectTraceRetentionPolicy.__name__,
+                str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID),
             )
         )
 
