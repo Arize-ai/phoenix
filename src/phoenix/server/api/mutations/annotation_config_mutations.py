@@ -9,6 +9,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
     AnnotationType,
     CategoricalAnnotationValue,
     OptimizationDirection,
@@ -45,6 +46,78 @@ ANNOTATION_TYPE_NAMES = (
     ContinuousAnnotationConfig.__name__,
     FreeformAnnotationConfig.__name__,
 )
+
+
+@strawberry.input
+class CategoricalAnnotationConfigValueInput:
+    label: str
+    score: Optional[float] = None
+
+
+@strawberry.input
+class CategoricalAnnotationConfigInput:
+    name: str
+    description: Optional[str] = None
+    optimization_direction: OptimizationDirection
+    values: list[CategoricalAnnotationConfigValueInput]
+
+
+@strawberry.input
+class ContinuousAnnotationConfigInput:
+    name: str
+    description: Optional[str] = None
+    optimization_direction: OptimizationDirection
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+
+@strawberry.input
+class FreeformAnnotationConfigInput:
+    name: str
+    description: Optional[str] = None
+
+
+@strawberry.input(one_of=True)
+class AnnotationConfigInput:
+    categorical: Optional[CategoricalAnnotationConfigInput] = strawberry.UNSET
+    continuous: Optional[ContinuousAnnotationConfigInput] = strawberry.UNSET
+    freeform: Optional[FreeformAnnotationConfigInput] = strawberry.UNSET
+
+    def __post_init__(self) -> None:
+        if (
+            sum(
+                [
+                    self.categorical is not strawberry.UNSET,
+                    self.continuous is not strawberry.UNSET,
+                    self.freeform is not strawberry.UNSET,
+                ]
+            )
+            != 1
+        ):
+            raise BadRequest("Exactly one of categorical, continuous, or freeform must be set")
+
+
+@strawberry.input
+class CreateAnnotationConfigInput:
+    annotation_config: AnnotationConfigInput
+
+
+@strawberry.type
+class CreateAnnotationConfigPayload:
+    query: Query
+    annotation_config: AnnotationConfig
+
+
+@strawberry.input
+class UpdateAnnotationConfigInput:
+    id: GlobalID
+    annotation_config: AnnotationConfigInput
+
+
+@strawberry.type
+class UpdateAnnotationConfigPayload:
+    query: Query
+    annotation_config: AnnotationConfig
 
 
 @strawberry.input
@@ -174,8 +247,125 @@ class UpdateFreeformAnnotationConfigPayload:
     annotation_config: FreeformAnnotationConfig
 
 
+def to_pydantic_categorical_annotation_config(
+    input: CategoricalAnnotationConfigInput,
+) -> CategoricalAnnotationConfigModel:
+    return CategoricalAnnotationConfigModel(
+        annotation_type=AnnotationType.CATEGORICAL.value,
+        description=input.description,
+        optimization_direction=input.optimization_direction,
+        values=[
+            CategoricalAnnotationValue(label=value.label, score=value.score)
+            for value in input.values
+        ],
+    )
+
+
+def to_pydantic_continuous_annotation_config(
+    input: ContinuousAnnotationConfigInput,
+) -> ContinuousAnnotationConfigModel:
+    return ContinuousAnnotationConfigModel(
+        annotation_type=AnnotationType.CONTINUOUS.value,
+        description=input.description,
+        optimization_direction=input.optimization_direction,
+        lower_bound=input.lower_bound,
+        upper_bound=input.upper_bound,
+    )
+
+
+def to_pydantic_freeform_annotation_config(
+    input: FreeformAnnotationConfigInput,
+) -> FreeformAnnotationConfigModel:
+    return FreeformAnnotationConfigModel(
+        annotation_type=AnnotationType.FREEFORM.value,
+        description=input.description,
+    )
+
+
 @strawberry.type
 class AnnotationConfigMutationMixin:
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    async def create_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: CreateAnnotationConfigInput,
+    ) -> CreateAnnotationConfigPayload:
+        input_annotation_config = input.annotation_config
+        config: AnnotationConfigType
+        name: str
+        if categorical_input := input_annotation_config.categorical:
+            name = categorical_input.name
+            config = to_pydantic_categorical_annotation_config(categorical_input)
+        elif continuous_input := input_annotation_config.continuous:
+            name = input_annotation_config.continuous.name
+            config = to_pydantic_continuous_annotation_config(continuous_input)
+        elif freeform_input := input_annotation_config.freeform:
+            name = freeform_input.name
+            config = to_pydantic_freeform_annotation_config(freeform_input)
+        else:
+            raise BadRequest("No annotation config provided")
+
+        async with info.context.db() as session:
+            annotation_config = models.AnnotationConfig(
+                name=name,
+                config=config,
+            )
+            session.add(annotation_config)
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"Annotation configuration with name '{name}' already exists")
+        return CreateAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=to_gql_annotation_config(annotation_config),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    async def update_annotation_config(
+        self,
+        info: Info[Context, None],
+        input: UpdateAnnotationConfigInput,
+    ) -> UpdateAnnotationConfigPayload:
+        try:
+            config_id = int(input.id.node_id)
+        except ValueError:
+            raise BadRequest("Invalid annotation config ID")
+
+        if input.id.type_name not in ANNOTATION_TYPE_NAMES:
+            raise BadRequest("Invalid annotation config ID")
+
+        input_annotation_config = input.annotation_config
+        config: AnnotationConfigType
+        name: str
+        if categorical_input := input_annotation_config.categorical:
+            name = categorical_input.name
+            config = to_pydantic_categorical_annotation_config(categorical_input)
+        elif continuous_input := input_annotation_config.continuous:
+            name = input_annotation_config.continuous.name
+            config = to_pydantic_continuous_annotation_config(continuous_input)
+        elif freeform_input := input_annotation_config.freeform:
+            name = freeform_input.name
+            config = to_pydantic_freeform_annotation_config(freeform_input)
+        else:
+            raise BadRequest("No annotation config provided")
+
+        async with info.context.db() as session:
+            annotation_config = await session.get(models.AnnotationConfig, config_id)
+            if not annotation_config:
+                raise NotFound("Annotation config not found")
+
+            annotation_config.name = name
+            annotation_config.config = config
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict(f"Annotation configuration with name '{name}' already exists")
+
+        return UpdateAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=to_gql_annotation_config(annotation_config),
+        )
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def create_categorical_annotation_config(
         self,
