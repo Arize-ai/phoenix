@@ -113,6 +113,7 @@ export const RetentionPolicyActionMenu = ({
                 setDialog(null);
                 onPolicyDelete();
               }}
+              isDisabled={isDeleting}
               leadingVisual={
                 isDeleting ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
               }
