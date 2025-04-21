@@ -118,7 +118,8 @@
 
 ## 🧠 Evaluation
 
-* [Overview: Evals](evaluation/llm-evals.md)
+* [Overview: Evals](evaluation/llm-evals/README.md)
+  * [Agent Evaluation](evaluation/llm-evals/agent-evaluation.md)
 * [Quickstart: Evals](evaluation/evals.md)
 * [How to: Evals](evaluation/how-to-evals/README.md)
   * [Pre-Built Evals](evaluation/how-to-evals/running-pre-tested-evals/README.md)
@@ -133,6 +134,9 @@
     * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
     * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Agent Path Convergence](evaluation/how-to-evals/running-pre-tested-evals/agent-path-convergence.md)
+    * [Agent Planning](evaluation/how-to-evals/running-pre-tested-evals/agent-planning.md)
+    * [Agent Reflection](evaluation/how-to-evals/running-pre-tested-evals/agent-reflection.md)
     * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
   * [Eval Models](evaluation/how-to-evals/evaluation-models.md)
   * [Build an Eval](evaluation/how-to-evals/bring-your-own-evaluator.md)

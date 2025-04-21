@@ -1,6 +1,6 @@
-# Langflow
+# LangFlow
 
-Langflow is an open-source visual framework that enables developers to rapidly design, prototype, and deploy custom applications powered by large language models (LLMs). Built on top of LangChain,&#x20;
+Langflow is an open-source visual framework that enables developers to rapidly design, prototype, and deploy custom applications powered by large language models (LLMs). Built on top of LangChain,
 
 Langflow users can now seamlessly observe their LLM workflows through Arize Phoenix. This integration allows developers to gain granular visibility into the performance and behavior of their Langflow applications. By leveraging Arize AI's observability platform, users can capture detailed telemetry data from their Langflow pipelines, enabling them to identify bottlenecks, trace the flow of requests, and ensure the reliability and efficiency of their LLM-powered systems. This enhanced observability empowers teams to debug issues faster, optimize performance, and maintain high-quality user experiences across their LLM applications.
 
@@ -10,11 +10,11 @@ Navigate to the Langflow GitHub repo and pull the project down
 
 {% @github-files/github-code-block url="https://github.com/langflow-ai/langflow" %}
 
-## Create .env file&#x20;
+## Create .env file
 
 Navigate to the repo and create a `.env` file with all the Arize Phoenix variables.
 
-You can use the  `.env.example` as a template to create the `.env` file
+You can use the `.env.example` as a template to create the `.env` file
 
 <figure><img src="../../.gitbook/assets/image (7).png" alt=""><figcaption></figcaption></figure>
 
@@ -41,11 +41,11 @@ Go into your terminal into the Langflow directory and run the following commands
 
 {% embed url="http://localhost:3000/" %}
 
-<figure><img src="../../.gitbook/assets/image (1).png" alt=""><figcaption><p>Add New Flow</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/image (1) (1).png" alt=""><figcaption><p>Add New Flow</p></figcaption></figure>
 
 ## Create a Flow
 
-In this example, we'll use Simple Agent for this tutorial&#x20;
+In this example, we'll use Simple Agent for this tutorial
 
 <figure><img src="../../.gitbook/assets/image (4).png" alt=""><figcaption></figcaption></figure>
 
