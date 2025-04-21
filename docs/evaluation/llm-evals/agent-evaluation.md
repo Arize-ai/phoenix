@@ -115,4 +115,4 @@ See our [Agent Reflection evaluation template](../how-to-evals/running-pre-teste
 
 Through a combination of the evaluations above, you can get a far more accurate picture of how your agent is performing.
 
-For an example of using these evals in combination, see [evaluating-a-data-agent.md](../../use-cases-evals/evaluating-a-data-agent.md "mention")
+For an example of using these evals in combination, see [Evaluating an Agent](https://docs.arize.com/phoenix/cookbook/evaluation/evaluate-an-agent)
