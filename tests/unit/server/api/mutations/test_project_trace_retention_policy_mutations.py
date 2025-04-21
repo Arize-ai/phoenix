@@ -299,3 +299,44 @@ class TestProjectTraceRetentionPolicyMutations:
         assert resp.data
         policy = resp.data["node"]["traceRetentionPolicy"]
         assert policy["name"] == "Default"  # Project2 now also uses default policy
+
+    async def test_cannot_delete_default_policy(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """
+        Test that the default project trace retention policy cannot be deleted.
+
+        This test verifies that attempting to delete the default policy results in a BadRequest error.
+        """  # noqa: E501
+        from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+        from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+
+        # Create a GlobalID for the default policy
+        default_policy_gid = str(
+            GlobalID(
+                ProjectTraceRetentionPolicy.__name__, str(DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID)
+            )
+        )
+
+        # Attempt to delete the default policy
+        resp = await gql_client.execute(
+            self.CRUD,
+            operation_name="Delete",
+            variables={"input": {"id": default_policy_gid}},
+        )
+
+        # Verify the deletion was rejected with a BadRequest error
+        assert resp.errors
+        assert len(resp.errors) == 1
+        assert "Cannot delete the default project trace retention policy" in resp.errors[0].message
+
+        # Verify the default policy still exists in the database
+        async with db() as session:
+            stmt = sa.select(models.ProjectTraceRetentionPolicy).filter_by(
+                id=DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+            )
+            default_policy = await session.scalar(stmt)
+            assert default_policy is not None
+            assert default_policy.name == "Default"

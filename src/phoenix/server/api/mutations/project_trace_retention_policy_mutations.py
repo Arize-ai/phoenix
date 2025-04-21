@@ -8,6 +8,7 @@ from strawberry import UNSET, Info
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.types.trace_retention import (
     MaxCountRule,
     MaxDaysOrCountRule,
@@ -206,6 +207,8 @@ class ProjectTraceRetentionPolicyMutationMixin:
         input: DeleteProjectTraceRetentionPolicyInput,
     ) -> ProjectTraceRetentionPolicyMutationPayload:
         id_ = from_global_id_with_expected_type(input.id, ProjectTraceRetentionPolicy.__name__)
+        if id_ == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID:
+            raise BadRequest("Cannot delete the default project trace retention policy. ")
         stmt = (
             sa.delete(models.ProjectTraceRetentionPolicy)
             .where(models.ProjectTraceRetentionPolicy.id == id_)
