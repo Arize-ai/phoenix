@@ -175,8 +175,11 @@ export const RetentionPoliciesTable = ({
               projectNames={row.original.projects.edges.map(
                 (edge) => edge.node.name
               )}
-              onPolicyEdit={function (): void {
-                throw new Error("Function not implemented.");
+              onPolicyEdit={() => {
+                notifySuccess({
+                  title: "Policy Updated",
+                  message: `Policy "${row.original.name}" was updated and will take effect shortly.`,
+                });
               }}
               onPolicyDelete={() => {
                 notifySuccess({

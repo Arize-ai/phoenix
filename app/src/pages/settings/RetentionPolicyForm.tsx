@@ -4,7 +4,6 @@ import { CronExpressionParser } from "cron-parser";
 import cronstrue from "cronstrue";
 
 import {
-  Alert,
   Button,
   Flex,
   Form,
@@ -45,11 +44,13 @@ type RetentionPolicyFormProps = {
   onSubmit: (params: RetentionPolicyFormParams) => void;
   mode: "create" | "edit";
   isSubmitting: boolean;
+  defaultValues?: RetentionPolicyFormParams;
+  onCancel?: () => void;
 };
 export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
-  const { onSubmit, mode, isSubmitting } = props;
+  const { onSubmit, mode, isSubmitting, defaultValues } = props;
   const { control, watch, handleSubmit } = useForm<RetentionPolicyFormParams>({
-    defaultValues: {
+    defaultValues: defaultValues ?? {
       name: "New Policy",
       numberOfTraces: undefined,
       numberOfDays: 400,
@@ -66,10 +67,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
-      <Alert variant="info" banner>
-        Retention policies are enforced once a week.
-      </Alert>
-      <View padding="size-200" borderWidth="thin" borderColor="dark">
+      <View padding="size-200">
         <p>
           A retention policy can be defined so that either a certain number of
           traces or traces for a certain amount of time is retained in certain
@@ -221,7 +219,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
         borderColor="dark"
       >
         <Flex direction="row" justifyContent="end" gap="size-100">
-          <Button size="S" slot="close">
+          <Button size="S" slot="close" onPress={props.onCancel}>
             Cancel
           </Button>
           <Button

@@ -1,10 +1,22 @@
-import React, { ReactNode, useCallback, useState } from "react";
+import React, { ReactNode, Suspense, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
+import {
+  Button,
+  Flex,
+  Icon,
+  Icons,
+  Loading,
+  Text,
+  View,
+} from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+
+import { EditRetentionPolicy } from "./EditRetentionPolicy";
+
+const DEFAULT_POLICY_NAME = "Default";
 
 enum RetentionPolicyAction {
   EDIT = "editPolicy",
@@ -29,11 +41,27 @@ export const RetentionPolicyActionMenu = ({
   onPolicyEdit,
   onPolicyDelete,
 }: RetentionPolicyActionMenuProps) => {
+  const canDelete = policyName !== DEFAULT_POLICY_NAME;
   const [dialog, setDialog] = useState<ReactNode>(null);
 
   const onEdit = useCallback(() => {
-    onPolicyEdit();
-  }, [onPolicyEdit]);
+    setDialog(
+      <Dialog size="M" title="Edit Retention Policy">
+        <Suspense fallback={<Loading />}>
+          <EditRetentionPolicy
+            policyId={policyId}
+            onEditCompleted={() => {
+              onPolicyEdit();
+              setDialog(null);
+            }}
+            onCancel={() => {
+              setDialog(null);
+            }}
+          />
+        </Suspense>
+      </Dialog>
+    );
+  }, [onPolicyEdit, policyId]);
 
   const [deletePolicy, isDeleting] = useMutation(graphql`
     mutation RetentionPolicyActionMenuDeletePolicyMutation(
@@ -107,8 +135,8 @@ export const RetentionPolicyActionMenu = ({
   return (
     <StopPropagation>
       <ActionMenu
-        buttonVariant="quiet"
         buttonSize="compact"
+        disabledKeys={canDelete ? [] : [RetentionPolicyAction.DELETE]}
         align="end"
         onAction={(action) => {
           switch (action as RetentionPolicyAction) {
