@@ -65,7 +65,7 @@ class ProjectAnnotationConfigAssociation:
     annotation_config_id: GlobalID
 
 
-def to_gql_categorical_annotation_config(
+def _to_gql_categorical_annotation_config(
     annotation_config: models.AnnotationConfig,
 ) -> CategoricalAnnotationConfig:
     config = annotation_config.config
@@ -87,7 +87,7 @@ def to_gql_categorical_annotation_config(
     )
 
 
-def to_gql_continuous_annotation_config(
+def _to_gql_continuous_annotation_config(
     annotation_config: models.AnnotationConfig,
 ) -> ContinuousAnnotationConfig:
     config = annotation_config.config
@@ -103,7 +103,7 @@ def to_gql_continuous_annotation_config(
     )
 
 
-def to_gql_freeform_annotation_config(
+def _to_gql_freeform_annotation_config(
     annotation_config: models.AnnotationConfig,
 ) -> FreeformAnnotationConfig:
     config = annotation_config.config
@@ -122,9 +122,9 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
     """
     config = annotation_config.config
     if isinstance(config, ContinuousAnnotationConfigModel):
-        return to_gql_continuous_annotation_config(annotation_config)
+        return _to_gql_continuous_annotation_config(annotation_config)
     if isinstance(config, CategoricalAnnotationConfigModel):
-        return to_gql_categorical_annotation_config(annotation_config)
+        return _to_gql_categorical_annotation_config(annotation_config)
     if isinstance(config, FreeformAnnotationConfigModel):
-        return to_gql_freeform_annotation_config(annotation_config)
+        return _to_gql_freeform_annotation_config(annotation_config)
     assert_never(annotation_config)

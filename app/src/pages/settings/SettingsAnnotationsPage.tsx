@@ -45,37 +45,21 @@ const SettingsAnnotations = ({
     }
   `);
 
-  const [createContinuousAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageCreateContinuousAnnotationConfigMutation(
-      $input: CreateContinuousAnnotationConfigInput!
+  const [createAnnotationConfig] = useMutation(graphql`
+    mutation SettingsAnnotationsPageCreateAnnotationConfigMutation(
+      $input: CreateAnnotationConfigInput!
     ) {
-      createContinuousAnnotationConfig(input: $input) {
+      createAnnotationConfig(input: $input) {
         annotationConfig {
-          id
-        }
-      }
-    }
-  `);
-
-  const [createCategoricalAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageCreateCategoricalAnnotationConfigMutation(
-      $input: CreateCategoricalAnnotationConfigInput!
-    ) {
-      createCategoricalAnnotationConfig(input: $input) {
-        annotationConfig {
-          id
-        }
-      }
-    }
-  `);
-
-  const [createFreeformAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageCreateFreeformAnnotationConfigMutation(
-      $input: CreateFreeformAnnotationConfigInput!
-    ) {
-      createFreeformAnnotationConfig(input: $input) {
-        annotationConfig {
-          id
+          ... on ContinuousAnnotationConfig {
+            id
+          }
+          ... on CategoricalAnnotationConfig {
+            id
+          }
+          ... on FreeformAnnotationConfig {
+            id
+          }
         }
       }
     }
@@ -95,63 +79,30 @@ const SettingsAnnotations = ({
   ) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id: _, annotationType, ...config } = _config;
-    switch (annotationType) {
-      case "CONTINUOUS":
-        createContinuousAnnotationConfig({
-          variables: { input: config },
-          onCompleted,
-          onError: parseError(onError),
-        });
-        break;
-      case "CATEGORICAL":
-        createCategoricalAnnotationConfig({
-          variables: { input: config },
-          onCompleted,
-          onError: parseError(onError),
-        });
-        break;
-      case "FREEFORM":
-        createFreeformAnnotationConfig({
-          variables: { input: config },
-          onCompleted,
-          onError: parseError(onError),
-        });
-        break;
-    }
+    const key = annotationType.toLowerCase();
+    createAnnotationConfig({
+      variables: { input: { annotationConfig: { [key]: config } } },
+      onCompleted,
+      onError: parseError(onError),
+    });
     revalidate();
   };
 
-  const [updateContinuousAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageUpdateContinuousAnnotationConfigMutation(
-      $input: UpdateContinuousAnnotationConfigInput!
+  const [updateAnnotationConfig] = useMutation(graphql`
+    mutation SettingsAnnotationsPageUpdateAnnotationConfigMutation(
+      $input: UpdateAnnotationConfigInput!
     ) {
-      updateContinuousAnnotationConfig(input: $input) {
+      updateAnnotationConfig(input: $input) {
         annotationConfig {
-          id
-        }
-      }
-    }
-  `);
-
-  const [updateCategoricalAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageUpdateCategoricalAnnotationConfigMutation(
-      $input: UpdateCategoricalAnnotationConfigInput!
-    ) {
-      updateCategoricalAnnotationConfig(input: $input) {
-        annotationConfig {
-          id
-        }
-      }
-    }
-  `);
-
-  const [updateFreeformAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageUpdateFreeformAnnotationConfigMutation(
-      $input: UpdateFreeformAnnotationConfigInput!
-    ) {
-      updateFreeformAnnotationConfig(input: $input) {
-        annotationConfig {
-          id
+          ... on ContinuousAnnotationConfig {
+            id
+          }
+          ... on CategoricalAnnotationConfig {
+            id
+          }
+          ... on FreeformAnnotationConfig {
+            id
+          }
         }
       }
     }
@@ -166,44 +117,19 @@ const SettingsAnnotations = ({
   ) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, annotationType, ...config } = _config;
-    switch (annotationType) {
-      case "CONTINUOUS":
-        updateContinuousAnnotationConfig({
-          variables: {
-            input: {
-              ...config,
-              configId: id,
-            },
+    const key = annotationType.toLowerCase();
+    updateAnnotationConfig({
+      variables: {
+        input: {
+          id,
+          annotationConfig: {
+            [key]: config,
           },
-          onCompleted,
-          onError: parseError(onError),
-        });
-        break;
-      case "CATEGORICAL":
-        updateCategoricalAnnotationConfig({
-          variables: {
-            input: {
-              ...config,
-              configId: id,
-            },
-          },
-          onCompleted,
-          onError: parseError(onError),
-        });
-        break;
-      case "FREEFORM":
-        updateFreeformAnnotationConfig({
-          variables: {
-            input: {
-              ...config,
-              configId: id,
-            },
-          },
-          onCompleted,
-          onError: parseError(onError),
-        });
-        break;
-    }
+        },
+      },
+      onCompleted,
+      onError: parseError(onError),
+    });
     revalidate();
   };
 
