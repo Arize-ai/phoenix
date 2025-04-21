@@ -562,7 +562,7 @@ export interface components {
          * AnnotationType
          * @enum {string}
          */
-        AnnotationType: "CONTINUOUS" | "CATEGORICAL" | "FREEFORM";
+        AnnotationType: "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
         /** CategoricalAnnotationValue */
         CategoricalAnnotationValue: {
             /** Label */
