@@ -1,18 +1,23 @@
-from enum import Enum
-from typing import Annotated, List, Optional, Union
+from typing import Annotated, Optional, Union
 
 import strawberry
 from strawberry.relay import GlobalID, Node, NodeID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-
-
-@strawberry.enum
-class AnnotationType(Enum):
-    CATEGORICAL = "CATEGORICAL"
-    CONTINUOUS = "CONTINUOUS"
-    FREEFORM = "FREEFORM"
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    OptimizationDirection,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    FreeformAnnotationConfig as FreeformAnnotationConfigModel,
+)
 
 
 @strawberry.interface
@@ -20,12 +25,6 @@ class AnnotationConfigBase:
     name: str
     description: Optional[str]
     annotation_type: AnnotationType
-
-
-@strawberry.enum
-class OptimizationDirection(Enum):
-    MINIMIZE = "MINIMIZE"
-    MAXIMIZE = "MAXIMIZE"
 
 
 @strawberry.type
@@ -38,7 +37,7 @@ class CategoricalAnnotationValue:
 class CategoricalAnnotationConfig(Node, AnnotationConfigBase):
     id_attr: NodeID[int]
     optimization_direction: OptimizationDirection
-    values: List[CategoricalAnnotationValue]
+    values: list[CategoricalAnnotationValue]
 
 
 @strawberry.type
@@ -69,23 +68,21 @@ class ProjectAnnotationConfigAssociation:
 def to_gql_categorical_annotation_config(
     annotation_config: models.AnnotationConfig,
 ) -> CategoricalAnnotationConfig:
-    gql_annotation_type = AnnotationType(annotation_config.annotation_type)
-    assert gql_annotation_type is AnnotationType.CATEGORICAL
-    categorical_config = annotation_config.categorical_annotation_config
-    assert categorical_config is not None
+    config = annotation_config.config
+    assert isinstance(config, CategoricalAnnotationConfigModel)
     values = [
         CategoricalAnnotationValue(
             label=val.label,
             score=val.score,
         )
-        for val in categorical_config.values
+        for val in config.values
     ]
     return CategoricalAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=AnnotationType.CATEGORICAL,
-        optimization_direction=OptimizationDirection(categorical_config.optimization_direction),
-        description=annotation_config.description,
+        annotation_type=config.type,
+        optimization_direction=config.optimization_direction,
+        description=config.description,
         values=values,
     )
 
@@ -93,31 +90,29 @@ def to_gql_categorical_annotation_config(
 def to_gql_continuous_annotation_config(
     annotation_config: models.AnnotationConfig,
 ) -> ContinuousAnnotationConfig:
-    gql_annotation_type = AnnotationType(annotation_config.annotation_type)
-    assert gql_annotation_type is AnnotationType.CONTINUOUS
-    continuous_config = annotation_config.continuous_annotation_config
-    assert continuous_config is not None
+    config = annotation_config.config
+    assert isinstance(config, ContinuousAnnotationConfigModel)
     return ContinuousAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=AnnotationType.CONTINUOUS,
-        optimization_direction=OptimizationDirection(continuous_config.optimization_direction),
-        description=annotation_config.description,
-        lower_bound=continuous_config.lower_bound,
-        upper_bound=continuous_config.upper_bound,
+        annotation_type=config.type,
+        optimization_direction=config.optimization_direction,
+        description=config.description,
+        lower_bound=config.lower_bound,
+        upper_bound=config.upper_bound,
     )
 
 
 def to_gql_freeform_annotation_config(
     annotation_config: models.AnnotationConfig,
 ) -> FreeformAnnotationConfig:
-    gql_annotation_type = AnnotationType(annotation_config.annotation_type)
-    assert gql_annotation_type is AnnotationType.FREEFORM
+    config = annotation_config.config
+    assert isinstance(config, FreeformAnnotationConfigModel)
     return FreeformAnnotationConfig(
         id_attr=annotation_config.id,
         name=annotation_config.name,
-        annotation_type=AnnotationType.FREEFORM,
-        description=annotation_config.description,
+        annotation_type=config.type,
+        description=config.description,
     )
 
 
@@ -125,11 +120,11 @@ def to_gql_annotation_config(annotation_config: models.AnnotationConfig) -> Anno
     """
     Convert an SQLAlchemy AnnotationConfig instance to one of the GraphQL types.
     """
-    gql_annotation_type = AnnotationType(annotation_config.annotation_type)
-    if gql_annotation_type is AnnotationType.CONTINUOUS:
+    config = annotation_config.config
+    if isinstance(config, ContinuousAnnotationConfigModel):
         return to_gql_continuous_annotation_config(annotation_config)
-    elif gql_annotation_type == AnnotationType.CATEGORICAL:
+    if isinstance(config, CategoricalAnnotationConfigModel):
         return to_gql_categorical_annotation_config(annotation_config)
-    elif gql_annotation_type is AnnotationType.FREEFORM:
+    if isinstance(config, FreeformAnnotationConfigModel):
         return to_gql_freeform_annotation_config(annotation_config)
     assert_never(annotation_config)

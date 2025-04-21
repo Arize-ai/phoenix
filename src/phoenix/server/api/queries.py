@@ -698,17 +698,9 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         async with info.context.db() as session:
-            stmt = (
-                select(models.AnnotationConfig)
-                .order_by(models.AnnotationConfig.name)
-                .options(
-                    joinedload(models.AnnotationConfig.continuous_annotation_config),
-                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
-                        models.CategoricalAnnotationConfig.values
-                    ),
-                )
+            configs = await session.stream_scalars(
+                select(models.AnnotationConfig).order_by(models.AnnotationConfig.name)
             )
-            configs = (await session.stream_scalars(stmt)).unique()
             data = [to_gql_annotation_config(config) async for config in configs]
             return connection_from_list(data=data, args=args)
 

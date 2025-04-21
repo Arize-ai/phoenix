@@ -1,11 +1,9 @@
 import logging
-from enum import Enum
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel
 from sqlalchemy import delete, select
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
@@ -16,6 +14,22 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    OptimizationDirection,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue as CategoricalAnnotationValueModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    FreeformAnnotationConfig as FreeformAnnotationConfigModel,
+)
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     ContinuousAnnotationConfig,
@@ -32,17 +46,6 @@ class CategoricalAnnotationValue(BaseModel):
     score: Optional[float] = None
 
 
-class OptimizationDirection(Enum):
-    MINIMIZE = "MINIMIZE"
-    MAXIMIZE = "MAXIMIZE"
-
-
-class AnnotationType(Enum):
-    CONTINUOUS = "CONTINUOUS"
-    CATEGORICAL = "CATEGORICAL"
-    FREEFORM = "FREEFORM"
-
-
 class AnnotationConfigResponse(BaseModel):
     id: str
     name: str
@@ -54,30 +57,31 @@ class AnnotationConfigResponse(BaseModel):
     values: Optional[List[CategoricalAnnotationValue]] = None
 
 
-def annotation_config_to_response(config: models.AnnotationConfig) -> AnnotationConfigResponse:
+def annotation_config_to_response(
+    annotation_config: models.AnnotationConfig,
+) -> AnnotationConfigResponse:
     """Convert an AnnotationConfig SQLAlchemy model instance to our response model."""
+    config = annotation_config.config
     base: dict[str, Any] = {
-        "name": config.name,
-        "annotation_type": config.annotation_type,
+        "name": annotation_config.name,
+        "annotation_type": config.type,
         "description": config.description,
     }
-    annotation_type = AnnotationType(config.annotation_type)
-    if annotation_type is AnnotationType.CONTINUOUS:
-        base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(config.id)))
-        base["optimization_direction"] = config.continuous_annotation_config.optimization_direction
-        base["lower_bound"] = config.continuous_annotation_config.lower_bound
-        base["upper_bound"] = config.continuous_annotation_config.upper_bound
-    elif annotation_type is AnnotationType.CATEGORICAL:
-        base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(config.id)))
-        base["optimization_direction"] = config.categorical_annotation_config.optimization_direction
+    if isinstance(config, ContinuousAnnotationConfigModel):
+        base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(annotation_config.id)))
+        base["optimization_direction"] = config.optimization_direction
+        base["lower_bound"] = config.lower_bound
+        base["upper_bound"] = config.upper_bound
+    elif isinstance(config, CategoricalAnnotationConfigModel):
+        base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(annotation_config.id)))
+        base["optimization_direction"] = config.optimization_direction
         base["values"] = [
-            CategoricalAnnotationValue(label=val.label, score=val.score)
-            for val in config.categorical_annotation_config.values
+            CategoricalAnnotationValue(label=val.label, score=val.score) for val in config.values
         ]
-    elif annotation_type is AnnotationType.FREEFORM:
-        base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(config.id)))
+    elif isinstance(config, FreeformAnnotationConfigModel):
+        base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(annotation_config.id)))
     else:
-        assert_never(annotation_type)
+        assert_never(config)
     return AnnotationConfigResponse(**base)
 
 
@@ -117,15 +121,7 @@ async def list_annotation_configs(
 ) -> List[AnnotationConfigResponse]:
     async with request.app.state.db() as session:
         result = await session.execute(
-            select(models.AnnotationConfig)
-            .options(
-                selectinload(models.AnnotationConfig.continuous_annotation_config),
-                selectinload(models.AnnotationConfig.categorical_annotation_config).selectinload(
-                    models.CategoricalAnnotationConfig.values
-                ),
-            )
-            .order_by(models.AnnotationConfig.name)
-            .limit(limit)
+            select(models.AnnotationConfig).order_by(models.AnnotationConfig.name).limit(limit)
         )
         configs = result.scalars().all()
         return [annotation_config_to_response(config) for config in configs]
@@ -141,12 +137,7 @@ async def get_annotation_config_by_name_or_id(
     config_identifier: str = Path(..., description="ID or name of the annotation configuration"),
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
-        query = select(models.AnnotationConfig).options(
-            selectinload(models.AnnotationConfig.continuous_annotation_config),
-            selectinload(models.AnnotationConfig.categorical_annotation_config).selectinload(
-                models.CategoricalAnnotationConfig.values
-            ),
-        )
+        query = select(models.AnnotationConfig)
         # Try to interpret the identifier as an integer ID; if not, use it as a name.
         try:
             db_id = _get_annotation_config_db_id(config_identifier)
@@ -171,17 +162,17 @@ async def create_continuous_annotation_config(
     payload: CreateContinuousAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
-        annotation_config = models.AnnotationConfig(
-            name=payload.name,
-            annotation_type="CONTINUOUS",
+        config = ContinuousAnnotationConfigModel(
+            type=AnnotationType.CONTINUOUS.value,
             description=payload.description,
-        )
-        continuous_annotation_config = models.ContinuousAnnotationConfig(
-            optimization_direction=payload.optimization_direction.value,
+            optimization_direction=payload.optimization_direction,
             lower_bound=payload.lower_bound,
             upper_bound=payload.upper_bound,
         )
-        annotation_config.continuous_annotation_config = continuous_annotation_config
+        annotation_config = models.AnnotationConfig(
+            name=payload.name,
+            config=config,
+        )
         session.add(annotation_config)
         try:
             await session.commit()
@@ -200,22 +191,20 @@ async def create_categorical_annotation_config(
     payload: CreateCategoricalAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
+        values = [
+            CategoricalAnnotationValueModel(label=value.label, score=value.score)
+            for value in payload.values
+        ]
+        config = CategoricalAnnotationConfigModel(
+            type=AnnotationType.CATEGORICAL.value,
+            description=payload.description,
+            optimization_direction=payload.optimization_direction,
+            values=values,
+        )
         annotation_config = models.AnnotationConfig(
             name=payload.name,
-            annotation_type="CATEGORICAL",
-            description=payload.description,
+            config=config,
         )
-        categorical_annotation_config = models.CategoricalAnnotationConfig(
-            optimization_direction=payload.optimization_direction.value,
-        )
-        for value in payload.values:
-            categorical_annotation_config.values.append(
-                models.CategoricalAnnotationValue(
-                    label=value.label,
-                    score=value.score,
-                )
-            )
-        annotation_config.categorical_annotation_config = categorical_annotation_config
         session.add(annotation_config)
         try:
             await session.commit()
@@ -234,10 +223,13 @@ async def create_freeform_annotation_config(
     payload: CreateFreeformAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
     async with request.app.state.db() as session:
+        config = FreeformAnnotationConfigModel(
+            type=AnnotationType.FREEFORM.value,
+            description=payload.description,
+        )
         annotation_config = models.AnnotationConfig(
             name=payload.name,
-            annotation_type="FREEFORM",
-            description=payload.description,
+            config=config,
         )
         session.add(annotation_config)
         try:
