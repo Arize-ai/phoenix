@@ -2669,8 +2669,8 @@
       "AnnotationType": {
         "type": "string",
         "enum": [
-          "CONTINUOUS",
           "CATEGORICAL",
+          "CONTINUOUS",
           "FREEFORM"
         ],
         "title": "AnnotationType"

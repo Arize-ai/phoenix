@@ -45,6 +45,12 @@ from sqlalchemy.sql.functions import coalesce
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfig as AnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.trace_retention import TraceRetentionCronExpression, TraceRetentionRule
@@ -369,6 +375,22 @@ class _TraceRetentionRule(TypeDecorator[TraceRetentionRule]):
     ) -> Optional[TraceRetentionRule]:
         assert value and isinstance(value, dict)
         return TraceRetentionRule.model_validate(value)
+
+
+class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
+    # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[AnnotationConfigType], _: Dialect
+    ) -> Optional[dict[str, Any]]:
+        return AnnotationConfigModel(root=value).model_dump() if value is not None else None
+
+    def process_result_value(
+        self, value: Optional[str], _: Dialect
+    ) -> Optional[AnnotationConfigType]:
+        return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
 
 class ExperimentRunOutput(TypedDict, total=False):
@@ -1436,94 +1458,7 @@ class AnnotationConfig(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    annotation_type: Mapped[str] = mapped_column(
-        String,
-        CheckConstraint(
-            "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM')",
-            name="valid_annotation_type",
-        ),
-        nullable=False,
-    )
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-    continuous_annotation_config = relationship(
-        "ContinuousAnnotationConfig", back_populates="annotation_config", uselist=False
-    )
-    categorical_annotation_config = relationship(
-        "CategoricalAnnotationConfig", back_populates="annotation_config", uselist=False
-    )
-
-
-class ContinuousAnnotationConfig(Base):
-    __tablename__ = "continuous_annotation_configs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    annotation_config_id: Mapped[int] = mapped_column(
-        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    optimization_direction: Mapped[str] = mapped_column(
-        String,
-        CheckConstraint(
-            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
-            name="valid_optimization_direction",
-        ),
-        nullable=False,
-    )
-    lower_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    upper_bound: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
-    annotation_config = relationship(
-        "AnnotationConfig", back_populates="continuous_annotation_config"
-    )
-
-
-class CategoricalAnnotationConfig(Base):
-    __tablename__ = "categorical_annotation_configs"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    annotation_config_id: Mapped[int] = mapped_column(
-        ForeignKey("annotation_configs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    optimization_direction: Mapped[str] = mapped_column(
-        String,
-        CheckConstraint(
-            "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
-            name="valid_optimization_direction",
-        ),
-        nullable=False,
-    )
-
-    annotation_config = relationship(
-        "AnnotationConfig", back_populates="categorical_annotation_config"
-    )
-    values = relationship(
-        "CategoricalAnnotationValue",
-        back_populates="categorical_annotation_config",
-        cascade="all, delete-orphan",
-    )
-
-
-class CategoricalAnnotationValue(Base):
-    __tablename__ = "categorical_annotation_values"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    categorical_annotation_config_id: Mapped[int] = mapped_column(
-        ForeignKey("categorical_annotation_configs.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    label: Mapped[str] = mapped_column(String, nullable=False)
-    score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
-    categorical_annotation_config = relationship(
-        "CategoricalAnnotationConfig", back_populates="values"
-    )
-
-    __table_args__ = (UniqueConstraint("categorical_annotation_config_id", "label"),)
+    config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
 
 
 class ProjectAnnotationConfig(Base):

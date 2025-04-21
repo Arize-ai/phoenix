@@ -6,16 +6,43 @@ Create Date: 2025-02-06 10:17:15.726197
 
 """
 
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import JSON
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.ext.compiler import compiles
 
 # revision identifiers, used by Alembic.
 revision: str = "2f9d1a65945f"
 down_revision: Union[str, None] = "bc8fea3c2bc8"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+
+class JSONB(JSON):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    __visit_name__ = "JSONB"
+
+
+@compiles(JSONB, "sqlite")
+def _(*args: Any, **kwargs: Any) -> str:
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    return "JSONB"
+
+
+JSON_ = (
+    JSON()
+    .with_variant(
+        postgresql.JSONB(),
+        "postgresql",
+    )
+    .with_variant(
+        JSONB(),
+        "sqlite",
+    )
+)
 
 
 def upgrade() -> None:
@@ -137,78 +164,7 @@ def upgrade() -> None:
         "annotation_configs",
         sa.Column("id", sa.Integer, primary_key=True),
         sa.Column("name", sa.String, nullable=False, unique=True),
-        sa.Column(
-            "annotation_type",
-            sa.String,
-            sa.CheckConstraint(
-                "annotation_type IN ('CATEGORICAL', 'CONTINUOUS', 'FREEFORM')",
-                name="valid_annotation_type",
-            ),
-            nullable=False,
-        ),
-        sa.Column("description", sa.String, nullable=True),
-    )
-
-    op.create_table(
-        "continuous_annotation_configs",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "annotation_config_id",
-            sa.Integer,
-            sa.ForeignKey("annotation_configs.id", ondelete="CASCADE"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "optimization_direction",
-            sa.String,
-            sa.CheckConstraint(
-                "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
-                name="valid_optimization_direction",
-            ),
-            nullable=False,
-        ),
-        sa.Column("lower_bound", sa.Float, nullable=True),
-        sa.Column("upper_bound", sa.Float, nullable=True),
-    )
-
-    op.create_table(
-        "categorical_annotation_configs",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "annotation_config_id",
-            sa.Integer,
-            sa.ForeignKey("annotation_configs.id", ondelete="CASCADE"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column(
-            "optimization_direction",
-            sa.String,
-            sa.CheckConstraint(
-                "optimization_direction IN ('MINIMIZE', 'MAXIMIZE')",
-                name="valid_optimization_direction",
-            ),
-            nullable=False,
-        ),
-    )
-
-    op.create_table(
-        "categorical_annotation_values",
-        sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column(
-            "categorical_annotation_config_id",
-            sa.Integer,
-            sa.ForeignKey("categorical_annotation_configs.id", ondelete="CASCADE"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column("label", sa.String, nullable=False),
-        sa.Column("score", sa.Float, nullable=True),
-        sa.UniqueConstraint(
-            "categorical_annotation_config_id",
-            "label",
-        ),
+        sa.Column("config", JSON_, nullable=False),
     )
 
     op.create_table(
@@ -237,9 +193,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("project_annotation_configs")
-    op.drop_table("categorical_annotation_values")
-    op.drop_table("categorical_annotation_configs")
-    op.drop_table("continuous_annotation_configs")
     op.drop_table("annotation_configs")
 
     with op.batch_alter_table("span_annotations") as batch_op:

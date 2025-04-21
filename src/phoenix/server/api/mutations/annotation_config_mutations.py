@@ -1,25 +1,36 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, select, tuple_
+from sqlalchemy import delete, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
-from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    FreeformAnnotationConfig as FreeformAnnotationConfigModel,
+)
 from phoenix.server.api.auth import IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationConfig import (
     AnnotationConfig,
-    AnnotationType,
     CategoricalAnnotationConfig,
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
-    OptimizationDirection,
     ProjectAnnotationConfigAssociation,
     to_gql_annotation_config,
     to_gql_categorical_annotation_config,
@@ -171,23 +182,21 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: CreateCategoricalAnnotationConfigInput,
     ) -> CreateCategoricalAnnotationConfigPayload:
+        values = [
+            CategoricalAnnotationValue(label=value.label, score=value.score)
+            for value in input.values
+        ]
+        config = CategoricalAnnotationConfigModel(
+            type=AnnotationType.CATEGORICAL.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            values=values,
+        )
         async with info.context.db() as session:
             annotation_config = models.AnnotationConfig(
                 name=input.name,
-                annotation_type=AnnotationType.CATEGORICAL.value,
-                description=input.description,
+                config=config,
             )
-            categorical_annotation_config = models.CategoricalAnnotationConfig(
-                optimization_direction=input.optimization_direction.value,
-            )
-            for value in input.values:
-                categorical_annotation_config.values.append(
-                    models.CategoricalAnnotationValue(
-                        label=value.label,
-                        score=value.score,
-                    )
-                )
-            annotation_config.categorical_annotation_config = categorical_annotation_config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -204,18 +213,18 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: CreateContinuousAnnotationConfigInput,
     ) -> CreateContinuousAnnotationConfigPayload:
+        config = ContinuousAnnotationConfigModel(
+            type=AnnotationType.CONTINUOUS.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            lower_bound=input.lower_bound,
+            upper_bound=input.upper_bound,
+        )
         async with info.context.db() as session:
             annotation_config = models.AnnotationConfig(
                 name=input.name,
-                annotation_type=AnnotationType.CONTINUOUS.value,
-                description=input.description,
+                config=config,
             )
-            continuous_annotation_config = models.ContinuousAnnotationConfig(
-                optimization_direction=input.optimization_direction.value,
-                lower_bound=input.lower_bound,
-                upper_bound=input.upper_bound,
-            )
-            annotation_config.continuous_annotation_config = continuous_annotation_config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -232,21 +241,24 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: CreateFreeformAnnotationConfigInput,
     ) -> CreateFreeformAnnotationConfigPayload:
+        config = FreeformAnnotationConfigModel(
+            type=AnnotationType.FREEFORM.value,
+            description=input.description,
+        )
         async with info.context.db() as session:
-            config = models.AnnotationConfig(
+            annotation_config = models.AnnotationConfig(
                 name=input.name,
-                annotation_type="FREEFORM",
-                description=input.description,
+                config=config,
             )
-            session.add(config)
+            session.add(annotation_config)
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise Conflict(f"Annotation configuration with name '{input.name}' already exists")
-            return CreateFreeformAnnotationConfigPayload(
-                query=Query(),
-                annotation_config=to_gql_freeform_annotation_config(config),
-            )
+        return CreateFreeformAnnotationConfigPayload(
+            query=Query(),
+            annotation_config=to_gql_freeform_annotation_config(annotation_config),
+        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
     async def update_categorical_annotation_config(
@@ -257,43 +269,23 @@ class AnnotationConfigMutationMixin:
         config_id = from_global_id_with_expected_type(
             global_id=input.config_id, expected_type_name=CategoricalAnnotationConfig.__name__
         )
+        values = [
+            CategoricalAnnotationValue(label=value.label, score=value.score)
+            for value in input.values
+        ]
+        config = CategoricalAnnotationConfigModel(
+            type=AnnotationType.CATEGORICAL.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            values=values,
+        )
         async with info.context.db() as session:
-            annotation_config = await session.scalar(
-                select(models.AnnotationConfig)
-                .options(
-                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
-                        models.CategoricalAnnotationConfig.values
-                    )
-                )
-                .where(models.AnnotationConfig.id == config_id)
-            )
+            annotation_config = await session.get(models.AnnotationConfig, config_id)
             if not annotation_config:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
 
             annotation_config.name = input.name
-            annotation_config.description = input.description
-
-            assert annotation_config.categorical_annotation_config is not None
-            annotation_config.categorical_annotation_config.optimization_direction = (
-                input.optimization_direction.value
-            )
-
-            await session.execute(
-                delete(models.CategoricalAnnotationValue).where(
-                    models.CategoricalAnnotationValue.categorical_annotation_config_id
-                    == annotation_config.categorical_annotation_config.id
-                )
-            )
-
-            annotation_config.categorical_annotation_config.values.clear()
-            for val in input.values:
-                annotation_config.categorical_annotation_config.values.append(
-                    models.CategoricalAnnotationValue(
-                        label=val.label,
-                        score=val.score,
-                    )
-                )
-
+            annotation_config.config = config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -314,25 +306,20 @@ class AnnotationConfigMutationMixin:
         config_id = from_global_id_with_expected_type(
             global_id=input.config_id, expected_type_name=ContinuousAnnotationConfig.__name__
         )
+        config = ContinuousAnnotationConfigModel(
+            type=AnnotationType.CONTINUOUS.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            lower_bound=input.lower_bound,
+            upper_bound=input.upper_bound,
+        )
         async with info.context.db() as session:
-            annotation_config = await session.scalar(
-                select(models.AnnotationConfig)
-                .options(joinedload(models.AnnotationConfig.continuous_annotation_config))
-                .where(models.AnnotationConfig.id == config_id)
-            )
+            annotation_config = await session.get(models.AnnotationConfig, config_id)
             if not annotation_config:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
 
             annotation_config.name = input.name
-            annotation_config.description = input.description
-
-            assert annotation_config.continuous_annotation_config is not None
-            annotation_config.continuous_annotation_config.optimization_direction = (
-                input.optimization_direction.value
-            )
-            annotation_config.continuous_annotation_config.lower_bound = input.lower_bound
-            annotation_config.continuous_annotation_config.upper_bound = input.upper_bound
-
+            annotation_config.config = config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -353,16 +340,17 @@ class AnnotationConfigMutationMixin:
         config_id = from_global_id_with_expected_type(
             global_id=input.config_id, expected_type_name=FreeformAnnotationConfig.__name__
         )
+        config = FreeformAnnotationConfigModel(
+            type=AnnotationType.FREEFORM.value,
+            description=input.description,
+        )
         async with info.context.db() as session:
-            annotation_config = await session.scalar(
-                select(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
-            )
+            annotation_config = await session.get(models.AnnotationConfig, config_id)
             if not annotation_config:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
 
             annotation_config.name = input.name
-            annotation_config.description = input.description
-
+            annotation_config.config = config
             session.add(annotation_config)
             try:
                 await session.commit()
@@ -385,20 +373,12 @@ class AnnotationConfigMutationMixin:
         config_id = int(input.config_id.node_id)
         async with info.context.db() as session:
             annotation_config = await session.scalar(
-                select(models.AnnotationConfig)
+                delete(models.AnnotationConfig)
                 .where(models.AnnotationConfig.id == config_id)
-                .options(
-                    joinedload(models.AnnotationConfig.continuous_annotation_config),
-                    joinedload(models.AnnotationConfig.categorical_annotation_config).joinedload(
-                        models.CategoricalAnnotationConfig.values
-                    ),
-                )
+                .returning(models.AnnotationConfig)
             )
             if annotation_config is None:
                 raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-            await session.execute(
-                delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_id)
-            )
         return DeleteAnnotationConfigPayload(
             query=Query(),
             annotation_config=to_gql_annotation_config(annotation_config),
