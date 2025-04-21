@@ -186,11 +186,6 @@ type CategoricalAnnotationValue {
   score: Float
 }
 
-input CategoricalAnnotationValueInput {
-  label: String!
-  score: Float = null
-}
-
 type ChatCompletionFunctionCall {
   name: String!
   arguments: String!
@@ -389,18 +384,6 @@ input CreateApiKeyInput {
   expiresAt: DateTime
 }
 
-input CreateCategoricalAnnotationConfigInput {
-  name: String!
-  optimizationDirection: OptimizationDirection!
-  description: String = null
-  values: [CategoricalAnnotationValueInput!]!
-}
-
-type CreateCategoricalAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: CategoricalAnnotationConfig!
-}
-
 input CreateChatPromptInput {
   name: Identifier!
   description: String = null
@@ -413,33 +396,10 @@ input CreateChatPromptVersionInput {
   tags: [SetPromptVersionTagInput!] = null
 }
 
-input CreateContinuousAnnotationConfigInput {
-  name: String!
-  optimizationDirection: OptimizationDirection!
-  description: String = null
-  lowerBound: Float = null
-  upperBound: Float = null
-}
-
-type CreateContinuousAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: ContinuousAnnotationConfig!
-}
-
 input CreateDatasetInput {
   name: String!
   description: String
   metadata: JSON
-}
-
-input CreateFreeformAnnotationConfigInput {
-  name: String!
-  description: String = null
-}
-
-type CreateFreeformAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: FreeformAnnotationConfig!
 }
 
 input CreateProjectTraceRetentionPolicyInput {
@@ -1424,12 +1384,6 @@ input ModelsInput {
 type Mutation {
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
-  createCategoricalAnnotationConfig(input: CreateCategoricalAnnotationConfigInput!): CreateCategoricalAnnotationConfigPayload!
-  createContinuousAnnotationConfig(input: CreateContinuousAnnotationConfigInput!): CreateContinuousAnnotationConfigPayload!
-  createFreeformAnnotationConfig(input: CreateFreeformAnnotationConfigInput!): CreateFreeformAnnotationConfigPayload!
-  updateCategoricalAnnotationConfig(input: UpdateCategoricalAnnotationConfigInput!): UpdateCategoricalAnnotationConfigPayload!
-  updateContinuousAnnotationConfig(input: UpdateContinuousAnnotationConfigInput!): UpdateContinuousAnnotationConfigPayload!
-  updateFreeformAnnotationConfig(input: UpdateFreeformAnnotationConfigInput!): UpdateFreeformAnnotationConfigPayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
   addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
   removeAnnotationConfigFromProject(input: [RemoveAnnotationConfigFromProjectInput!]!): RemoveAnnotationConfigFromProjectPayload!
@@ -2542,44 +2496,6 @@ input UpdateAnnotationConfigInput {
 type UpdateAnnotationConfigPayload {
   query: Query!
   annotationConfig: AnnotationConfig!
-}
-
-input UpdateCategoricalAnnotationConfigInput {
-  configId: GlobalID!
-  name: String!
-  optimizationDirection: OptimizationDirection!
-  description: String = null
-  values: [CategoricalAnnotationValueInput!]!
-}
-
-type UpdateCategoricalAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: CategoricalAnnotationConfig!
-}
-
-input UpdateContinuousAnnotationConfigInput {
-  configId: GlobalID!
-  name: String!
-  optimizationDirection: OptimizationDirection!
-  description: String = null
-  lowerBound: Float = null
-  upperBound: Float = null
-}
-
-type UpdateContinuousAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: ContinuousAnnotationConfig!
-}
-
-input UpdateFreeformAnnotationConfigInput {
-  configId: GlobalID!
-  name: String!
-  description: String = null
-}
-
-type UpdateFreeformAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: FreeformAnnotationConfig!
 }
 
 type User implements Node {
