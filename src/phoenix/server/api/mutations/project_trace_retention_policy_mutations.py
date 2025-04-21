@@ -208,7 +208,7 @@ class ProjectTraceRetentionPolicyMutationMixin:
     ) -> ProjectTraceRetentionPolicyMutationPayload:
         id_ = from_global_id_with_expected_type(input.id, ProjectTraceRetentionPolicy.__name__)
         if id_ == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID:
-            raise BadRequest("Cannot delete the default project trace retention policy. ")
+            raise BadRequest("Cannot delete the default project trace retention policy.")
         stmt = (
             sa.delete(models.ProjectTraceRetentionPolicy)
             .where(models.ProjectTraceRetentionPolicy.id == id_)
