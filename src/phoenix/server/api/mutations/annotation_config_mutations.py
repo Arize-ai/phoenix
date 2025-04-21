@@ -157,7 +157,7 @@ def to_pydantic_categorical_annotation_config(
     input: CategoricalAnnotationConfigInput,
 ) -> CategoricalAnnotationConfigModel:
     return CategoricalAnnotationConfigModel(
-        annotation_type=AnnotationType.CATEGORICAL.value,
+        type=AnnotationType.CATEGORICAL.value,
         description=input.description,
         optimization_direction=input.optimization_direction,
         values=[
@@ -171,7 +171,7 @@ def to_pydantic_continuous_annotation_config(
     input: ContinuousAnnotationConfigInput,
 ) -> ContinuousAnnotationConfigModel:
     return ContinuousAnnotationConfigModel(
-        annotation_type=AnnotationType.CONTINUOUS.value,
+        type=AnnotationType.CONTINUOUS.value,
         description=input.description,
         optimization_direction=input.optimization_direction,
         lower_bound=input.lower_bound,
@@ -183,7 +183,7 @@ def to_pydantic_freeform_annotation_config(
     input: FreeformAnnotationConfigInput,
 ) -> FreeformAnnotationConfigModel:
     return FreeformAnnotationConfigModel(
-        annotation_type=AnnotationType.FREEFORM.value,
+        type=AnnotationType.FREEFORM.value,
         description=input.description,
     )
 
