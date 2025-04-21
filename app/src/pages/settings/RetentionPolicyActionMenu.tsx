@@ -87,7 +87,7 @@ export const RetentionPolicyActionMenu = ({
             <Text color="danger">
               {`This policy is associated with the following projects: ${projectNames.join(
                 ", "
-              )}. These projects will fall back to the default policy`}
+              )}. These projects will fall back to the default policy.`}
             </Text>
           )}
         </View>
