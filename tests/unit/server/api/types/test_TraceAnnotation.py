@@ -93,7 +93,7 @@ async def test_annotating_a_trace(
                     "explanation": "This is a test annotation.",
                     "metadata": {},
                     "identifier": None,
-                    "source": "APP",
+                    "source": "API",
                 }
             ]
         },
@@ -114,7 +114,7 @@ async def test_annotating_a_trace(
     assert orm_annotation.explanation == "This is a test annotation."
     assert orm_annotation.metadata_ == dict()
     assert orm_annotation.identifier is None
-    assert orm_annotation.source == "APP"
+    assert orm_annotation.source == "API"
     assert orm_annotation.user_id is None
 
     response = await gql_client.execute(
