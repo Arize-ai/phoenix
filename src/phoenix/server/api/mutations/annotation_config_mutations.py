@@ -282,10 +282,7 @@ class AnnotationConfigMutationMixin:
         for config_gid in input.ids:
             if (type_name := config_gid.type_name) not in ANNOTATION_TYPE_NAMES:
                 raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-            config_id = int(config_gid.node_id)
-            if config_id in config_ids:
-                raise BadRequest("Duplicate annotation config IDs provided")
-            config_ids.add(config_id)
+            config_ids.add(int(config_gid.node_id))
 
         async with info.context.db() as session:
             result = await session.scalars(
