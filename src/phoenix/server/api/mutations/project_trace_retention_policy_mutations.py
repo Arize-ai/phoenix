@@ -173,7 +173,11 @@ class ProjectTraceRetentionPolicyMutationMixin:
             policy = await session.get(models.ProjectTraceRetentionPolicy, id_)
             if not policy:
                 raise NotFound(f"ProjectTraceRetentionPolicy with ID={input.id} not found")
-            if isinstance(input.name, str):
+            if isinstance(input.name, str) and input.name != policy.name:
+                if id_ == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID:
+                    raise BadRequest(
+                        "Cannot change the name of the default project trace retention policy"
+                    )
                 policy.name = input.name
             if isinstance(input.cron_expression, str):
                 policy.cron_expression = TraceRetentionCronExpression(root=input.cron_expression)
