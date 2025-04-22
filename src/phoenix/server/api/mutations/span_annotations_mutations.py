@@ -13,6 +13,7 @@ from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanA
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.bearer_auth import PhoenixUser
@@ -53,6 +54,16 @@ class SpanAnnotationMutationMixin:
 
         async with info.context.db() as session:
             for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
+                resolved_identifier = annotation_input.identifier
+                if annotation_input.source == AnnotationSource.APP:
+                    # Ensure that the annotation has a per-user identifier if submitted via the UI
+                    if user_id is not None:
+                        username = await session.scalar(
+                            select(models.User.username).where(models.User.id == user_id)
+                        )
+                        resolved_identifier = f"px-app:{username}"
+                    else:
+                        resolved_identifier = "px-app"
                 values = {
                     "span_rowid": span_rowid,
                     "name": annotation_input.name,
@@ -61,7 +72,7 @@ class SpanAnnotationMutationMixin:
                     "explanation": annotation_input.explanation,
                     "annotator_kind": annotation_input.annotator_kind.value,
                     "metadata_": annotation_input.metadata,
-                    "identifier": annotation_input.identifier,
+                    "identifier": resolved_identifier,
                     "source": annotation_input.source.value,
                     "user_id": user_id,
                 }
