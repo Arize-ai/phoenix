@@ -161,7 +161,7 @@ async def test_annotating_a_trace(
     assert orm_annotation.explanation == "Updated explanation"
     assert orm_annotation.metadata_ == {"updated": True}
     assert orm_annotation.identifier == "updated-identifier"
-    assert orm_annotation.source == "APP"
+    assert orm_annotation.source == "API"
     assert orm_annotation.user_id is None
 
     response = await gql_client.execute(

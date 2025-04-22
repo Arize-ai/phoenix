@@ -77,17 +77,16 @@ class SpanAnnotationMutationMixin:
                     "user_id": user_id,
                 }
 
-                identifier = annotation_input.identifier
                 processed_annotation: Optional[models.SpanAnnotation] = None
 
                 q = select(models.SpanAnnotation).where(
                     models.SpanAnnotation.span_rowid == span_rowid,
                     models.SpanAnnotation.name == annotation_input.name,
                 )
-                if identifier is None:
+                if resolved_identifier is None:
                     q = q.where(models.SpanAnnotation.identifier.is_(None))
                 else:
-                    q = q.where(models.SpanAnnotation.identifier == identifier)
+                    q = q.where(models.SpanAnnotation.identifier == resolved_identifier)
 
                 existing_annotation = await session.scalar(q)
 
