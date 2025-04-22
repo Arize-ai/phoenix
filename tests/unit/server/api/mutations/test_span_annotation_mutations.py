@@ -96,7 +96,7 @@ class TestSpanAnnotationMutations:
                             "annotatorKind": AnnotatorKind.HUMAN.name,
                             "metadata": {},
                             "identifier": None,
-                            "source": AnnotationSource.APP.name,
+                            "source": AnnotationSource.API.name,
                         }
                     ]
                 },
