@@ -97,7 +97,9 @@ const columns = [
           }
           let tokens = row.values.map(
             (value: { label: string }, index: number) => (
-              <Token key={index}>{value.label}</Token>
+              <Token key={index} title={value.label}>
+                <Truncate maxWidth="40px">{value.label}</Truncate>
+              </Token>
             )
           );
           if (row.values.length > 5) {
