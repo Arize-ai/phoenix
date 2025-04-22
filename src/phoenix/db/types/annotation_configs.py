@@ -38,7 +38,9 @@ def has_unique_labels(values: list[CategoricalAnnotationValue]) -> list[Categori
     for value in values:
         label = value.label
         if label in labels:
-            raise ValueError("Values for categorical annotation config must have unique labels")
+            raise ValueError(
+                f'Values for categorical annotation config have duplicate label: "{label}"'
+            )
         labels.add(label)
     return values
 
