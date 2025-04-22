@@ -60,6 +60,7 @@ from .._helpers import (
     _log_in,
     _log_out,
     _LoggedInUser,
+    _OIDCServer,
     _Password,
     _patch_user,
     _patch_viewer,
@@ -74,6 +75,106 @@ from .._helpers import (
 NOW = datetime.now(timezone.utc)
 _decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
+
+
+class TestOIDC:
+    """Tests for OpenID Connect (OIDC) authentication flow.
+
+    This class tests the OIDC signup process, including user creation,
+    token generation, and handling of conflicts with existing users.
+    """
+
+    async def test_signup(
+        self,
+        _oidc_server: _OIDCServer,
+    ) -> None:
+        """Test the complete OIDC signup flow.
+
+        Verifies that:
+        1. The OAuth2 flow redirects correctly
+        2. A new user is created with MEMBER role
+        3. Access and refresh tokens are generated
+        4. Subsequent OIDC flows generate new tokens
+        """
+        client = _httpx_client()
+
+        # Start the OAuth2 flow
+        response = client.post(f"oauth2/{_oidc_server}/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+        cookies = dict(response.cookies)  # Save cookies for reuse
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert (email := _oidc_server.user_email)
+        admin = _DEFAULT_ADMIN.log_in()
+        users = {u.profile.email: u for u in admin.list_users()}
+        assert email not in users
+
+        # Complete the flow by calling the token endpoint
+        response = client.get(callback_url)
+        assert response.status_code == 302
+
+        # Verify we got access
+        assert (access_token := response.cookies.get("phoenix-access-token"))
+        assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
+
+        # Verify that the user was created
+        users = {u.profile.email: u for u in admin.list_users()}
+        assert email in users
+        assert users[email].role is UserRoleInput.MEMBER
+
+        # If user go through OIDC flow again, new access token should be created
+        response = _httpx_client(cookies=cookies).get(callback_url)
+        assert (new_access_token := response.cookies.get("phoenix-access-token"))
+        assert (new_refresh_token := response.cookies.get("phoenix-refresh-token"))
+        assert new_access_token != access_token
+        assert new_refresh_token != refresh_token
+
+    async def test_signup_conflict_for_local_user_with_password(
+        self,
+        _oidc_server: _OIDCServer,
+    ) -> None:
+        """Test OIDC signup when a user with the same email already exists.
+
+        Verifies that:
+        1. The system detects the email conflict
+        2. The user is redirected to the login page
+        3. No access tokens are granted
+        """
+        client = _httpx_client()
+
+        # Start the OAuth2 flow
+        response = client.post(f"oauth2/{_oidc_server}/login")
+        assert response.status_code == 302
+        auth_url = response.headers["location"]
+
+        # Follow the redirect to the OIDC server
+        response = client.get(auth_url)
+        assert response.status_code == 302
+        callback_url = response.headers["location"]
+
+        # Verify that the user is not already created
+        assert (email := _oidc_server.user_email)
+        admin = _DEFAULT_ADMIN.log_in()
+        users = {u.profile.email: u for u in admin.list_users()}
+        assert email not in users
+
+        # Create the user with password
+        admin.create_user(profile=_Profile(email, token_hex(8), token_hex(8)))
+
+        # Verify that user is redirected to /login
+        response = client.get(callback_url)
+        assert response.status_code == 307
+        assert response.headers["location"].startswith("/login")
+
+        # Verify no access is granted
+        assert not response.cookies.get("phoenix-access-token")
+        assert not response.cookies.get("phoenix-refresh-token")
 
 
 class TestOriginAndReferer:
