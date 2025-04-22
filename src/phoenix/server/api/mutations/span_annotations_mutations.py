@@ -54,6 +54,8 @@ class SpanAnnotationMutationMixin:
 
         async with info.context.db() as session:
             if annotation_input.source == AnnotationSource.APP:
+                # Ensure that the annotation has a per-user identifier if submitted via
+                # the UI
                 username = ""
                 if user_id is not None:
                     username = await session.scalar(
