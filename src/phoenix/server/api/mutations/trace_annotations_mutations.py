@@ -13,6 +13,7 @@ from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTrac
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation, to_gql_trace_annotation
 from phoenix.server.bearer_auth import PhoenixUser
@@ -54,6 +55,16 @@ class TraceAnnotationMutationMixin:
 
         async with info.context.db() as session:
             for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
+                resolved_identifier = annotation_input.identifier
+                if annotation_input.source == AnnotationSource.APP:
+                    # Ensure that the annotation has a per-user identifier if submitted via the UI
+                    if user_id is not None:
+                        username = await session.scalar(
+                            select(models.User.username).where(models.User.id == user_id)
+                        )
+                        resolved_identifier = f"px-app:{username}"
+                    else:
+                        resolved_identifier = "px-app"
                 values = {
                     "trace_rowid": trace_rowid,
                     "name": annotation_input.name,
@@ -62,7 +73,7 @@ class TraceAnnotationMutationMixin:
                     "explanation": annotation_input.explanation,
                     "annotator_kind": annotation_input.annotator_kind.value,
                     "metadata_": annotation_input.metadata,
-                    "identifier": annotation_input.identifier,
+                    "identifier": resolved_identifier,
                     "source": annotation_input.source.value,
                     "user_id": user_id,
                 }
