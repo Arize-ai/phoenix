@@ -37,6 +37,7 @@ export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
           label
           score
           annotatorKind
+          createdAt
         }
         spanAnnotationSummaries {
           name
@@ -50,33 +51,37 @@ export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
     `,
     query.span
   );
-  const spanAnnotationSummariesByAnnotationName =
-    span.spanAnnotationSummaries?.reduce(
-      (acc, summary) => {
-        acc[summary.name] = summary;
-        return acc;
-      },
-      {} as Record<string, (typeof span.spanAnnotationSummaries)[number]>
-    ) ?? {};
   const spanAnnotations = span.spanAnnotations ?? [];
+  const latestSpanAnnotationByName = spanAnnotations.reduce(
+    (acc, annotation) => {
+      if (!acc[annotation.name]) {
+        acc[annotation.name] = annotation;
+      } else if (
+        new Date(annotation.createdAt) >
+        new Date(acc[annotation.name].createdAt)
+      ) {
+        acc[annotation.name] = annotation;
+      }
+      return acc;
+    },
+    {} as Record<string, (typeof spanAnnotations)[number]>
+  );
   const hasAnnotations = spanAnnotations.length > 0;
   return hasAnnotations ? (
     <Flex direction="column" gap="size-50">
       <Flex direction="row" gap="size-200">
-        {spanAnnotations.map((annotation) => {
+        {span.spanAnnotationSummaries.map((summary) => {
+          const latestAnnotation = latestSpanAnnotationByName[summary.name];
           return (
-            <AnnotationTooltip key={annotation.id} annotation={annotation}>
-              <Summary name={annotation.name}>
+            <AnnotationTooltip
+              key={latestAnnotation.id}
+              annotation={latestAnnotation}
+            >
+              <Summary name={latestAnnotation.name}>
                 <SummaryValue
-                  name={annotation.name}
-                  meanScore={
-                    spanAnnotationSummariesByAnnotationName[annotation.name]
-                      ?.meanScore
-                  }
-                  labelFractions={
-                    spanAnnotationSummariesByAnnotationName[annotation.name]
-                      ?.labelFractions
-                  }
+                  name={latestAnnotation.name}
+                  meanScore={summary.meanScore}
+                  labelFractions={summary.labelFractions}
                 />
               </Summary>
             </AnnotationTooltip>

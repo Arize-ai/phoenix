@@ -85,6 +85,7 @@ export function AnnotationTooltip({
                   direction="row"
                   justifyContent="space-between"
                   wrap="wrap"
+                  gap="size-100"
                 >
                   <Text weight="heavy" color="inherit">
                     created at

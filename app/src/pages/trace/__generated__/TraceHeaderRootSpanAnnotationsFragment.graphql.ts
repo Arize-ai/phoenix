@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c034c06cfeec462e1423f4b1a5b39325>>
+ * @generated SignedSource<<ad23db94dc7674e4bc3e2d5f5785337e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type TraceHeaderRootSpanAnnotationsFragment$data = {
   }>;
   readonly spanAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
+    readonly createdAt: string;
     readonly id: string;
     readonly label: string | null;
     readonly name: string;
@@ -85,6 +86,13 @@ return {
           "kind": "ScalarField",
           "name": "annotatorKind",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "createdAt",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -133,6 +141,6 @@ return {
 };
 })();
 
-(node as any).hash = "f5023b7821128e4e0a06b4306880749a";
+(node as any).hash = "99785d04c1c1cd371cc131d327383180";
 
 export default node;
