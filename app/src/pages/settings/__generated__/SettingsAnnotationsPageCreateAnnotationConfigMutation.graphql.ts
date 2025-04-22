@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b87fbc9443bf6fe3a41cd8afcc9fed7>>
+ * @generated SignedSource<<83363bf3727276ff471b7a0e1288aee8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,7 @@ export type CategoricalAnnotationConfigInput = {
 };
 export type CategoricalAnnotationConfigValueInput = {
   label: string;
-  score?: number | null;
+  score: number;
 };
 export type ContinuousAnnotationConfigInput = {
   description?: string | null;
