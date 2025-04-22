@@ -54,9 +54,8 @@ class SpanAnnotationMutationMixin:
 
         async with info.context.db() as session:
             if annotation_input.source == AnnotationSource.APP:
-                # Ensure that the annotation has a per-user identifier if submitted via
-                # the UI
-                username = ""
+                # Ensure that the annotation has a per-user identifier if submitted via the UI
+                resolved_identifier = annotation_input.identifier
                 if user_id is not None:
                     username = await session.scalar(
                         select(models.User.username).where(models.User.id == user_id)
@@ -64,8 +63,6 @@ class SpanAnnotationMutationMixin:
                     resolved_identifier = f"px-app:{username}"
                 else:
                     resolved_identifier = "px-app"
-            else:
-                resolved_identifier = annotation_input.identifier
             for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
                 values = {
                     "span_rowid": span_rowid,
