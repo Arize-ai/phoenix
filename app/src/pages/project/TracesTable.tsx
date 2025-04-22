@@ -450,12 +450,14 @@ export function TracesTable(props: TracesTableProps) {
                       annotation={annotation}
                       annotationDisplayPreference="none"
                     >
-                      <SummaryValue
-                        name={annotation.name}
-                        labelFractions={labelFractions}
-                        meanScore={meanScore}
-                        size="S"
-                      />
+                      {meanScore ? (
+                        <SummaryValue
+                          name={annotation.name}
+                          labelFractions={labelFractions}
+                          meanScore={meanScore}
+                          size="S"
+                        />
+                      ) : null}
                     </AnnotationLabel>
                   </AnnotationTooltip>
                 );
