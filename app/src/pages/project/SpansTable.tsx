@@ -46,6 +46,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -222,6 +223,14 @@ export function SpansTable(props: SpansTableProps) {
                   score
                   annotatorKind
                 }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -311,6 +320,11 @@ export function SpansTable(props: SpansTableProps) {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanAnnotations.map((annotation) => {
+              const summary = row.original.spanAnnotationSummaries?.find(
+                (summary) => summary.name === annotation.name
+              );
+              const labelFractions = summary?.labelFractions;
+              const meanScore = summary?.meanScore;
               return (
                 <AnnotationTooltip
                   key={annotation.id}
@@ -323,8 +337,15 @@ export function SpansTable(props: SpansTableProps) {
                 >
                   <AnnotationLabel
                     annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
+                    annotationDisplayPreference="none"
+                  >
+                    <SummaryValue
+                      name={annotation.name}
+                      labelFractions={labelFractions}
+                      meanScore={meanScore}
+                      size="S"
+                    />
+                  </AnnotationLabel>
                 </AnnotationTooltip>
               );
             })}

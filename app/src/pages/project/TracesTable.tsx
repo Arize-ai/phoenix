@@ -45,6 +45,7 @@ import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -249,6 +250,14 @@ export function TracesTable(props: TracesTableProps) {
                   score
                   annotatorKind
                 }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -390,6 +399,8 @@ export function TracesTable(props: TracesTableProps) {
     [visibleAnnotationColumnNames]
   );
 
+  type AnnotationSummary =
+    (typeof data.rootSpans.edges)[number]["rootSpan"]["spanAnnotationSummaries"];
   const annotationColumns: ColumnDef<TableRow>[] = useMemo(
     () => [
       {
@@ -420,6 +431,11 @@ export function TracesTable(props: TracesTableProps) {
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
               {row.original.spanAnnotations.map((annotation) => {
+                const summary = (
+                  row.original.spanAnnotationSummaries as AnnotationSummary
+                )?.find((summary) => summary.name === annotation.name);
+                const labelFractions = summary?.labelFractions;
+                const meanScore = summary?.meanScore;
                 return (
                   <AnnotationTooltip
                     key={annotation.id}
@@ -432,8 +448,15 @@ export function TracesTable(props: TracesTableProps) {
                   >
                     <AnnotationLabel
                       annotation={annotation}
-                      annotationDisplayPreference="label"
-                    />
+                      annotationDisplayPreference="none"
+                    >
+                      <SummaryValue
+                        name={annotation.name}
+                        labelFractions={labelFractions}
+                        meanScore={meanScore}
+                        size="S"
+                      />
+                    </AnnotationLabel>
                   </AnnotationTooltip>
                 );
               })}

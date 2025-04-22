@@ -1,4 +1,4 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
@@ -71,7 +71,8 @@ export function AnnotationLabel({
   onClick,
   annotationDisplayPreference = "score",
   className,
-}: {
+  children,
+}: PropsWithChildren<{
   annotation: Annotation;
   onClick?: () => void;
   /**
@@ -84,7 +85,7 @@ export function AnnotationLabel({
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
   className?: string;
-}) {
+}>) {
   const clickable = typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
     annotation,
@@ -127,6 +128,7 @@ export function AnnotationLabel({
             <Text size="XS">{labelValue}</Text>
           </div>
         )}
+        {children}
         {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
       </Flex>
     </div>

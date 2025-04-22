@@ -12,6 +12,7 @@ import {
   useChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
+import { ComponentSize, SizingProps } from "@phoenix/components/types";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
@@ -122,15 +123,61 @@ export function Summary({
   );
 }
 
+const SizesMap: Record<
+  ComponentSize,
+  {
+    chart: {
+      width: number;
+      height: number;
+    };
+    pie: {
+      innerRadius: number;
+      outerRadius: number;
+    };
+  }
+> = {
+  M: {
+    chart: {
+      width: 24,
+      height: 24,
+    },
+    pie: {
+      innerRadius: 8,
+      outerRadius: 11,
+    },
+  },
+  S: {
+    chart: {
+      width: 16,
+      height: 16,
+    },
+    pie: {
+      innerRadius: 6,
+      outerRadius: 8,
+    },
+  },
+  L: {
+    chart: {
+      width: 32,
+      height: 32,
+    },
+    pie: {
+      innerRadius: 10,
+      outerRadius: 13,
+    },
+  },
+};
+
 export function SummaryValue({
   name,
   meanScore,
   labelFractions,
+  size = "M",
 }: {
   name: string;
   meanScore?: number | null;
   labelFractions?: readonly { label: string; fraction: number }[];
-}) {
+} & SizingProps) {
   const chartColors = useChartColors();
   const primaryColor = useWordColor(name);
   const colors = [
@@ -146,21 +193,22 @@ export function SummaryValue({
   if (!hasMeanScore && !hasLabelFractions) {
     return <Text size="L">--</Text>;
   }
+  const chartDimensions = SizesMap[size].chart;
+  const pieDimensions = SizesMap[size].pie;
 
   return (
     <TooltipTrigger delay={0} placement="bottom">
       <TriggerWrap>
         <Flex direction="row" alignItems="center" gap="size-50">
           {hasLabelFractions ? (
-            <PieChart width={24} height={24}>
+            <PieChart {...chartDimensions}>
               <Pie
                 data={labelFractions}
                 dataKey="fraction"
                 nameKey="label"
                 cx="50%"
                 cy="50%"
-                innerRadius={8}
-                outerRadius={11}
+                {...pieDimensions}
                 strokeWidth={0}
                 stroke="transparent"
               >
@@ -173,7 +221,9 @@ export function SummaryValue({
               </Pie>
             </PieChart>
           ) : null}
-          <Text size="L">{hasMeanScore ? formatFloat(meanScore) : "--"}</Text>
+          <Text size={size === "S" ? size : "L"}>
+            {hasMeanScore ? formatFloat(meanScore) : "--"}
+          </Text>
         </Flex>
       </TriggerWrap>
       <HelpTooltip>
