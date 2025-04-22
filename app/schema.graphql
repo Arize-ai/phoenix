@@ -646,15 +646,6 @@ type DbTableStats {
   numBytes: Float!
 }
 
-input DeleteAnnotationConfigInput {
-  configId: GlobalID!
-}
-
-type DeleteAnnotationConfigPayload {
-  query: Query!
-  annotationConfig: AnnotationConfig!
-}
-
 input DeleteAnnotationConfigsInput {
   ids: [GlobalID!]!
 }
@@ -1393,7 +1384,6 @@ input ModelsInput {
 type Mutation {
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
-  deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
   deleteAnnotationConfigs(input: DeleteAnnotationConfigsInput!): DeleteAnnotationConfigsPayload!
   addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
   removeAnnotationConfigFromProject(input: [RemoveAnnotationConfigFromProjectInput!]!): RemoveAnnotationConfigFromProjectPayload!

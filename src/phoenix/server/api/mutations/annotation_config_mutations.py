@@ -118,17 +118,6 @@ class UpdateAnnotationConfigPayload:
 
 
 @strawberry.input
-class DeleteAnnotationConfigInput:
-    config_id: GlobalID
-
-
-@strawberry.type
-class DeleteAnnotationConfigPayload:
-    query: Query
-    annotation_config: AnnotationConfig
-
-
-@strawberry.input
 class DeleteAnnotationConfigsInput:
     ids: list[GlobalID]
 
@@ -279,28 +268,6 @@ class AnnotationConfigMutationMixin:
                 raise Conflict(f"Annotation configuration with name '{name}' already exists")
 
         return UpdateAnnotationConfigPayload(
-            query=Query(),
-            annotation_config=to_gql_annotation_config(annotation_config),
-        )
-
-    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
-    async def delete_annotation_config(
-        self,
-        info: Info[Context, None],
-        input: DeleteAnnotationConfigInput,
-    ) -> DeleteAnnotationConfigPayload:
-        if (type_name := input.config_id.type_name) not in ANNOTATION_TYPE_NAMES:
-            raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-        config_id = int(input.config_id.node_id)
-        async with info.context.db() as session:
-            annotation_config = await session.scalar(
-                delete(models.AnnotationConfig)
-                .where(models.AnnotationConfig.id == config_id)
-                .returning(models.AnnotationConfig)
-            )
-            if annotation_config is None:
-                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-        return DeleteAnnotationConfigPayload(
             query=Query(),
             annotation_config=to_gql_annotation_config(annotation_config),
         )
