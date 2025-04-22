@@ -54,17 +54,17 @@ class TraceAnnotationMutationMixin:
             trace_rowids.append(trace_rowid)
 
         async with info.context.db() as session:
-            if annotation_input.source == AnnotationSource.APP:
-                # Ensure that the annotation has a per-user identifier if submitted via the UI
-                resolved_identifier = annotation_input.identifier
-                if user_id is not None:
-                    username = await session.scalar(
-                        select(models.User.username).where(models.User.id == user_id)
-                    )
-                    resolved_identifier = f"px-app:{username}"
-                else:
-                    resolved_identifier = "px-app"
             for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
+                resolved_identifier = annotation_input.identifier
+                if annotation_input.source == AnnotationSource.APP:
+                    # Ensure that the annotation has a per-user identifier if submitted via the UI
+                    if user_id is not None:
+                        username = await session.scalar(
+                            select(models.User.username).where(models.User.id == user_id)
+                        )
+                        resolved_identifier = f"px-app:{username}"
+                    else:
+                        resolved_identifier = "px-app"
                 values = {
                     "trace_rowid": trace_rowid,
                     "name": annotation_input.name,
