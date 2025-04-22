@@ -4,7 +4,15 @@ import { useLoaderData, useRevalidator } from "react-router";
 
 import { Card } from "@arizeai/components";
 
-import { Button, DialogTrigger, Icon, Icons, Modal } from "@phoenix/components";
+import {
+  Button,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Modal,
+  View,
+} from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/pages/settings/AnnotationConfigDialog";
 import { AnnotationConfigTable } from "@phoenix/pages/settings/AnnotationConfigTable";
 import { SettingsAnnotationsPageLoaderData } from "@phoenix/pages/settings/settingsAnnotationsPageLoader";
@@ -152,7 +160,16 @@ const SettingsAnnotations = ({
     <Card
       title="Annotation Configs"
       variant="compact"
-      bodyStyle={{ padding: 0 }}
+      bodyStyle={{
+        padding: 0,
+        // Subtract the height of the card header. Without this, the last row of the table is cut off.
+        // TODO: Remove this once we refactor the card to use the new design system
+        // we can solve with height variables, or with flex grow throughout the card so that the card children are aware of their own height
+        maxHeight: "calc(100% - 47px)",
+        flex: "1 1 auto",
+        display: "flex",
+        flexDirection: "column",
+      }}
       extra={
         <DialogTrigger>
           <Button size="S">
@@ -167,11 +184,15 @@ const SettingsAnnotations = ({
         </DialogTrigger>
       }
     >
-      <AnnotationConfigTable
-        annotationConfigs={data}
-        onEditAnnotationConfig={handleEditAnnotationConfig}
-        onDeleteAnnotationConfig={handleDeleteAnnotationConfig}
-      />
+      <Flex direction="column" flex="1 1 auto">
+        <View height="100%" overflow="auto">
+          <AnnotationConfigTable
+            annotationConfigs={data}
+            onEditAnnotationConfig={handleEditAnnotationConfig}
+            onDeleteAnnotationConfig={handleDeleteAnnotationConfig}
+          />
+        </View>
+      </Flex>
     </Card>
   );
 };

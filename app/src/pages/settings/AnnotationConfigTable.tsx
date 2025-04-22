@@ -231,11 +231,7 @@ export const AnnotationConfigTable = ({
   };
 
   return (
-    <div
-      css={css`
-        overflow: auto;
-      `}
-    >
+    <>
       <table
         css={tableCSS}
         style={{
@@ -321,6 +317,6 @@ export const AnnotationConfigTable = ({
           onDeleteAnnotationConfig={onDeleteAnnotationConfig}
         />
       )}
-    </div>
+    </>
   );
 };
