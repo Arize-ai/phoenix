@@ -78,7 +78,6 @@ class TraceAnnotationMutationMixin:
                     "user_id": user_id,
                 }
 
-                identifier = annotation_input.identifier
                 processed_annotation: Optional[models.TraceAnnotation] = None
 
                 # Check if an annotation with this trace_rowid, name, and identifier already exists
@@ -86,10 +85,10 @@ class TraceAnnotationMutationMixin:
                     models.TraceAnnotation.trace_rowid == trace_rowid,
                     models.TraceAnnotation.name == annotation_input.name,
                 )
-                if identifier is None:
+                if resolved_identifier is None:
                     q = q.where(models.TraceAnnotation.identifier.is_(None))
                 else:
-                    q = q.where(models.TraceAnnotation.identifier == identifier)
+                    q = q.where(models.TraceAnnotation.identifier == resolved_identifier)
 
                 existing_annotation = await session.scalar(q)
 
