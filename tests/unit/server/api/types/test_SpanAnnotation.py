@@ -92,7 +92,7 @@ async def test_annotating_a_span(
                     "score": 0.95,
                     "explanation": "This is a test annotation.",
                     "metadata": {},
-                    "source": "APP",
+                    "source": "API",
                 }
             ]
         },

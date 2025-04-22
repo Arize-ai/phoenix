@@ -93,7 +93,7 @@ async def test_annotating_a_trace(
                     "explanation": "This is a test annotation.",
                     "metadata": {},
                     "identifier": None,
-                    "source": "APP",
+                    "source": "API",
                 }
             ]
         },
