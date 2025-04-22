@@ -48,17 +48,12 @@ export function AnnotationSummary({ annotationName }: AnnotationSummaryProps) {
     }
   );
   return (
-    <Flex direction="column" flex="none">
-      <Text elementType="h3" size="S" color="text-700">
-        {annotationName}
-      </Text>
-      <Suspense fallback={<Text size="L">--</Text>}>
-        <AnnotationSummaryValue
-          annotationName={annotationName}
-          project={data.project}
-        />
-      </Suspense>
-    </Flex>
+    <Summary name={annotationName}>
+      <AnnotationSummaryValue
+        annotationName={annotationName}
+        project={data.project}
+      />
+    </Summary>
   );
 }
 
@@ -101,8 +96,43 @@ function AnnotationSummaryValue(props: {
     });
   }, [fetchKey, refetch]);
 
+  return (
+    <SummaryValue
+      name={annotationName}
+      meanScore={data?.spanAnnotationSummary?.meanScore}
+      labelFractions={data?.spanAnnotationSummary?.labelFractions}
+    />
+  );
+}
+
+export function Summary({
+  children,
+  name,
+}: {
+  children: React.ReactNode;
+  name: string;
+}) {
+  return (
+    <Flex direction="column" flex="none">
+      <Text elementType="h3" size="S" color="text-700">
+        {name}
+      </Text>
+      <Suspense fallback={<Text size="L">--</Text>}>{children}</Suspense>
+    </Flex>
+  );
+}
+
+export function SummaryValue({
+  name,
+  meanScore,
+  labelFractions,
+}: {
+  name: string;
+  meanScore?: number | null;
+  labelFractions?: readonly { label: string; fraction: number }[];
+}) {
   const chartColors = useChartColors();
-  const primaryColor = useWordColor(annotationName);
+  const primaryColor = useWordColor(name);
   const colors = [
     primaryColor,
     chartColors.default,
@@ -110,8 +140,6 @@ function AnnotationSummaryValue(props: {
     chartColors.gray400,
     chartColors.gray200,
   ];
-  const meanScore = data?.spanAnnotationSummary?.meanScore;
-  const labelFractions = data?.spanAnnotationSummary?.labelFractions;
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions =
     Array.isArray(labelFractions) && labelFractions.length > 0;

@@ -292,6 +292,7 @@ export function TracesTable(props: TracesTableProps) {
                         precision
                         hit
                       }
+                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }

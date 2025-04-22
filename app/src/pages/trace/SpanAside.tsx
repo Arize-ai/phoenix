@@ -73,6 +73,7 @@ export function SpanAside(props: SpanAsideProps) {
         tokenCountTotal
         tokenCountPrompt
         tokenCountCompletion
+        ...TraceHeaderRootSpanAnnotationsFragment
         ...SpanAsideAnnotationList_span
           @arguments(filterUserIds: $filterUserIds)
       }

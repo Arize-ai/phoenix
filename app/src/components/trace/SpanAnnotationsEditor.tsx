@@ -281,6 +281,7 @@ function SpanAnnotationsList(props: {
           query {
             node(id: $spanId) {
               ... on Span {
+                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
@@ -349,6 +350,7 @@ function SpanAnnotationsList(props: {
           query {
             node(id: $spanId) {
               ... on Span {
+                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
@@ -407,6 +409,7 @@ function SpanAnnotationsList(props: {
           query {
             node(id: $spanId) {
               ... on Span {
+                ...TraceHeaderRootSpanAnnotationsFragment
                 ...SpanAnnotationsEditor_spanAnnotations
                   @arguments(filterUserIds: $filterUserIds)
                 ...SpanAsideAnnotationList_span
