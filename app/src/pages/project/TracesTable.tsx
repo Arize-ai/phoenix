@@ -27,7 +27,15 @@ import { css } from "@emotion/react";
 
 import { Content, ContextualHelp } from "@arizeai/components";
 
-import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Link,
+  Text,
+  View,
+} from "@phoenix/components";
 import {
   AnnotationLabel,
   AnnotationTooltip,
@@ -249,6 +257,7 @@ export function TracesTable(props: TracesTableProps) {
                   label
                   score
                   annotatorKind
+                  createdAt
                 }
                 spanAnnotationSummaries {
                   labelFractions {
@@ -294,6 +303,7 @@ export function TracesTable(props: TracesTableProps) {
                         label
                         score
                         annotatorKind
+                        createdAt
                       }
                       documentRetrievalMetrics {
                         evaluationName
@@ -430,38 +440,54 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
-              {row.original.spanAnnotations.map((annotation) => {
-                const summary = (
-                  row.original.spanAnnotationSummaries as AnnotationSummary
-                )?.find((summary) => summary.name === annotation.name);
-                const labelFractions = summary?.labelFractions;
-                const meanScore = summary?.meanScore;
-                return (
-                  <AnnotationTooltip
-                    key={annotation.id}
-                    annotation={annotation}
-                    layout="horizontal"
-                    width="500px"
-                    extra={
-                      <AnnotationTooltipFilterActions annotation={annotation} />
-                    }
-                  >
-                    <AnnotationLabel
-                      annotation={annotation}
-                      annotationDisplayPreference="none"
-                    >
-                      {meanScore ? (
-                        <SummaryValue
-                          name={annotation.name}
-                          labelFractions={labelFractions}
-                          meanScore={meanScore}
-                          size="S"
+              {(row.original.spanAnnotationSummaries as AnnotationSummary).map(
+                (summary) => {
+                  const latestAnnotation = row.original.spanAnnotations
+                    .slice()
+                    .sort((a, b) => {
+                      return (
+                        new Date(b.createdAt).getTime() -
+                        new Date(a.createdAt).getTime()
+                      );
+                    })
+                    .find((annotation) => annotation.name === summary.name);
+                  const labelFractions = summary?.labelFractions;
+                  const meanScore = summary?.meanScore;
+                  if (!latestAnnotation) {
+                    return null;
+                  }
+                  return (
+                    <AnnotationTooltip
+                      key={latestAnnotation.id}
+                      annotation={latestAnnotation}
+                      layout="horizontal"
+                      width="500px"
+                      leadingExtra={
+                        <Text weight="heavy">Latest annotation</Text>
+                      }
+                      extra={
+                        <AnnotationTooltipFilterActions
+                          annotation={latestAnnotation}
                         />
-                      ) : null}
-                    </AnnotationLabel>
-                  </AnnotationTooltip>
-                );
-              })}
+                      }
+                    >
+                      <AnnotationLabel
+                        annotation={latestAnnotation}
+                        annotationDisplayPreference="none"
+                      >
+                        {meanScore ? (
+                          <SummaryValue
+                            name={latestAnnotation.name}
+                            labelFractions={labelFractions}
+                            meanScore={meanScore}
+                            size="S"
+                          />
+                        ) : null}
+                      </AnnotationLabel>
+                    </AnnotationTooltip>
+                  );
+                }
+              )}
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">

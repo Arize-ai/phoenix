@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3116f81a2312651ea896396894d0ad2e>>
+ * @generated SignedSource<<66ab042f81d7993ee95ea4bf89ea70c5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,6 +48,7 @@ export type SpansTable_spans$data = {
         }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly createdAt: string;
           readonly id: string;
           readonly label: string | null;
           readonly name: string;
@@ -386,6 +387,13 @@ return {
                       "kind": "ScalarField",
                       "name": "annotatorKind",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "createdAt",
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -533,6 +541,6 @@ return {
 };
 })();
 
-(node as any).hash = "82bc63d718bf682965f28651f54680a5";
+(node as any).hash = "aa697a4d0a1e7be8e90c44177718f516";
 
 export default node;

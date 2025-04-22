@@ -27,6 +27,7 @@ import {
   Icon,
   Icons,
   Link,
+  Text,
   ToggleButton,
   ToggleButtonGroup,
   View,
@@ -222,6 +223,7 @@ export function SpansTable(props: SpansTableProps) {
                   label
                   score
                   annotatorKind
+                  createdAt
                 }
                 spanAnnotationSummaries {
                   labelFractions {
@@ -319,29 +321,41 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanAnnotations.map((annotation) => {
-              const summary = row.original.spanAnnotationSummaries?.find(
-                (summary) => summary.name === annotation.name
-              );
+            {row.original.spanAnnotationSummaries.map((summary) => {
+              const latestAnnotation = row.original.spanAnnotations
+                .slice()
+                .sort((a, b) => {
+                  return (
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime()
+                  );
+                })
+                .find((annotation) => annotation.name === summary.name);
               const labelFractions = summary?.labelFractions;
               const meanScore = summary?.meanScore;
+              if (!latestAnnotation) {
+                return null;
+              }
               return (
                 <AnnotationTooltip
-                  key={annotation.id}
-                  annotation={annotation}
+                  key={latestAnnotation.id}
+                  annotation={latestAnnotation}
                   layout="horizontal"
                   width="500px"
+                  leadingExtra={<Text weight="heavy">Latest annotation</Text>}
                   extra={
-                    <AnnotationTooltipFilterActions annotation={annotation} />
+                    <AnnotationTooltipFilterActions
+                      annotation={latestAnnotation}
+                    />
                   }
                 >
                   <AnnotationLabel
-                    annotation={annotation}
+                    annotation={latestAnnotation}
                     annotationDisplayPreference="none"
                   >
                     {meanScore ? (
                       <SummaryValue
-                        name={annotation.name}
+                        name={latestAnnotation.name}
                         labelFractions={labelFractions}
                         meanScore={meanScore}
                         size="S"

@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { Text, View } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
 
 import { useSpanFilterCondition } from "./SpanFilterConditionContext";
 
@@ -59,6 +59,11 @@ export function AnnotationTooltipFilterActions(
     }
     return filters;
   }, [name, label, score]);
+
+  if (filters.length === 0) {
+    return null;
+  }
+
   return (
     <View
       borderStartWidth="thin"
@@ -67,31 +72,34 @@ export function AnnotationTooltipFilterActions(
       paddingEnd="size-100"
       marginStart="size-200"
       width={300}
+      minHeight={160}
     >
-      <Text weight="heavy">Filters</Text>
-
-      <ul
-        css={css`
-          display: flex;
-          flex-direction: row;
-          gap: var(--ac-global-dimension-size-100);
-          color: var(--ac-global-color-primary);
-          padding: var(--ac-global-dimension-size-100) 0;
-          flex-wrap: wrap;
-        `}
-      >
-        {filters.map((filter) => (
-          <li key={filter.filterName}>
-            <FilterItem
-              onClick={() => {
-                appendFilterCondition(filter.filterCondition);
-              }}
-            >
-              {filter.filterName}
-            </FilterItem>
-          </li>
-        ))}
-      </ul>
+      <Flex direction="column" gap="size-100" height="100%">
+        <Text weight="heavy">Filters</Text>
+        <ul
+          css={css`
+            display: flex;
+            height: 100%;
+            flex-direction: row;
+            gap: var(--ac-global-dimension-size-100);
+            color: var(--ac-global-color-primary);
+            padding: var(--ac-global-dimension-size-100) 0;
+            flex-wrap: wrap;
+          `}
+        >
+          {filters.map((filter) => (
+            <li key={filter.filterName}>
+              <FilterItem
+                onClick={() => {
+                  appendFilterCondition(filter.filterCondition);
+                }}
+              >
+                {filter.filterName}
+              </FilterItem>
+            </li>
+          ))}
+        </ul>
+      </Flex>
     </View>
   );
 }

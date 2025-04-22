@@ -14,6 +14,7 @@ export interface Annotation {
   score?: number | null;
   explanation?: string | null;
   annotatorKind?: string;
+  createdAt?: string;
 }
 
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
