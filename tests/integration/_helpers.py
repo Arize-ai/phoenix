@@ -1258,7 +1258,7 @@ class _OIDCServer:
                     "subject_types_supported": ["public"],
                     "id_token_signing_alg_values_supported": ["HS256"],
                     "scopes_supported": ["openid", "profile", "email"],
-                    "token_endpoint_auth_methods_supported": ["client_secret_post"],
+                    "token_endpoint_auth_methods_supported": ["client_secret_basic"],
                     "claims_supported": [
                         "sub",
                         "iss",
