@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<acea4279b21f37d7d19c487bc950d7b0>>
+ * @generated SignedSource<<3422641644534afcfe75a4c6c9bedc32>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,22 +9,22 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DeleteAnnotationConfigInput = {
-  configId: string;
+export type DeleteAnnotationConfigsInput = {
+  ids: ReadonlyArray<string>;
 };
-export type SettingsAnnotationsPageDeleteAnnotationConfigMutation$variables = {
-  input: DeleteAnnotationConfigInput;
+export type SettingsAnnotationsPageDeleteAnnotationConfigsMutation$variables = {
+  input: DeleteAnnotationConfigsInput;
 };
-export type SettingsAnnotationsPageDeleteAnnotationConfigMutation$data = {
-  readonly deleteAnnotationConfig: {
-    readonly annotationConfig: {
+export type SettingsAnnotationsPageDeleteAnnotationConfigsMutation$data = {
+  readonly deleteAnnotationConfigs: {
+    readonly annotationConfigs: ReadonlyArray<{
       readonly __typename: string;
-    };
+    }>;
   };
 };
-export type SettingsAnnotationsPageDeleteAnnotationConfigMutation = {
-  response: SettingsAnnotationsPageDeleteAnnotationConfigMutation$data;
-  variables: SettingsAnnotationsPageDeleteAnnotationConfigMutation$variables;
+export type SettingsAnnotationsPageDeleteAnnotationConfigsMutation = {
+  response: SettingsAnnotationsPageDeleteAnnotationConfigsMutation$data;
+  variables: SettingsAnnotationsPageDeleteAnnotationConfigsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -54,14 +54,14 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SettingsAnnotationsPageDeleteAnnotationConfigMutation",
+    "name": "SettingsAnnotationsPageDeleteAnnotationConfigsMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "concreteType": "DeleteAnnotationConfigPayload",
+        "concreteType": "DeleteAnnotationConfigsPayload",
         "kind": "LinkedField",
-        "name": "deleteAnnotationConfig",
+        "name": "deleteAnnotationConfigs",
         "plural": false,
         "selections": [
           {
@@ -69,8 +69,8 @@ return {
             "args": null,
             "concreteType": null,
             "kind": "LinkedField",
-            "name": "annotationConfig",
-            "plural": false,
+            "name": "annotationConfigs",
+            "plural": true,
             "selections": [
               (v2/*: any*/)
             ],
@@ -87,14 +87,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SettingsAnnotationsPageDeleteAnnotationConfigMutation",
+    "name": "SettingsAnnotationsPageDeleteAnnotationConfigsMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "concreteType": "DeleteAnnotationConfigPayload",
+        "concreteType": "DeleteAnnotationConfigsPayload",
         "kind": "LinkedField",
-        "name": "deleteAnnotationConfig",
+        "name": "deleteAnnotationConfigs",
         "plural": false,
         "selections": [
           {
@@ -102,8 +102,8 @@ return {
             "args": null,
             "concreteType": null,
             "kind": "LinkedField",
-            "name": "annotationConfig",
-            "plural": false,
+            "name": "annotationConfigs",
+            "plural": true,
             "selections": [
               (v2/*: any*/),
               {
@@ -129,16 +129,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b6b9260d58a6721c5dc81f7596766a39",
+    "cacheID": "26434e94a78f9d52aa61c8e885eb5ca3",
     "id": null,
     "metadata": {},
-    "name": "SettingsAnnotationsPageDeleteAnnotationConfigMutation",
+    "name": "SettingsAnnotationsPageDeleteAnnotationConfigsMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAnnotationsPageDeleteAnnotationConfigMutation(\n  $input: DeleteAnnotationConfigInput!\n) {\n  deleteAnnotationConfig(input: $input) {\n    annotationConfig {\n      __typename\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n"
+    "text": "mutation SettingsAnnotationsPageDeleteAnnotationConfigsMutation(\n  $input: DeleteAnnotationConfigsInput!\n) {\n  deleteAnnotationConfigs(input: $input) {\n    annotationConfigs {\n      __typename\n      ... on Node {\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "705e44815f407f6f7403516604019253";
+(node as any).hash = "b9c71db625b896a55591c5d5e88a2929";
 
 export default node;

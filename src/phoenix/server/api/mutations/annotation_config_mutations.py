@@ -118,14 +118,14 @@ class UpdateAnnotationConfigPayload:
 
 
 @strawberry.input
-class DeleteAnnotationConfigInput:
-    config_id: GlobalID
+class DeleteAnnotationConfigsInput:
+    ids: list[GlobalID]
 
 
 @strawberry.type
-class DeleteAnnotationConfigPayload:
+class DeleteAnnotationConfigsPayload:
     query: Query
-    annotation_config: AnnotationConfig
+    annotation_configs: list[AnnotationConfig]
 
 
 @strawberry.input
@@ -273,25 +273,35 @@ class AnnotationConfigMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
-    async def delete_annotation_config(
+    async def delete_annotation_configs(
         self,
         info: Info[Context, None],
-        input: DeleteAnnotationConfigInput,
-    ) -> DeleteAnnotationConfigPayload:
-        if (type_name := input.config_id.type_name) not in ANNOTATION_TYPE_NAMES:
-            raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-        config_id = int(input.config_id.node_id)
+        input: DeleteAnnotationConfigsInput,
+    ) -> DeleteAnnotationConfigsPayload:
+        config_ids = set()
+        for config_gid in input.ids:
+            if (type_name := config_gid.type_name) not in ANNOTATION_TYPE_NAMES:
+                raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
+            config_ids.add(int(config_gid.node_id))
+
         async with info.context.db() as session:
-            annotation_config = await session.scalar(
+            result = await session.scalars(
                 delete(models.AnnotationConfig)
-                .where(models.AnnotationConfig.id == config_id)
+                .where(models.AnnotationConfig.id.in_(config_ids))
                 .returning(models.AnnotationConfig)
             )
-            if annotation_config is None:
-                raise NotFound(f"Annotation configuration with ID '{input.config_id}' not found")
-        return DeleteAnnotationConfigPayload(
+            deleted_annotation_configs = result.all()
+            if len(deleted_annotation_configs) < len(config_ids):
+                await session.rollback()
+                raise NotFound(
+                    "Could not find one or more annotation configs to delete, deletion aborted."
+                )
+        return DeleteAnnotationConfigsPayload(
             query=Query(),
-            annotation_config=to_gql_annotation_config(annotation_config),
+            annotation_configs=[
+                to_gql_annotation_config(annotation_config)
+                for annotation_config in deleted_annotation_configs
+            ],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
