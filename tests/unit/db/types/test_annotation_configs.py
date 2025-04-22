@@ -33,7 +33,7 @@ from phoenix.db.types.annotation_configs import (
             ],
             pytest.raises(
                 ValueError,
-                match="Values for categorical annotation config must have unique labels",
+                match='Values for categorical annotation config has duplicate label: "A"',
             ),
             id="duplicate-labels-raise-validation-error",
         ),
