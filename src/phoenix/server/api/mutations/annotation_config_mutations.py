@@ -129,6 +129,17 @@ class DeleteAnnotationConfigPayload:
 
 
 @strawberry.input
+class DeleteAnnotationConfigsInput:
+    ids: list[GlobalID]
+
+
+@strawberry.type
+class DeleteAnnotationConfigsPayload:
+    query: Query
+    annotation_configs: list[AnnotationConfig]
+
+
+@strawberry.input
 class AddAnnotationConfigToProjectInput:
     project_id: GlobalID
     annotation_config_id: GlobalID
@@ -292,6 +303,41 @@ class AnnotationConfigMutationMixin:
         return DeleteAnnotationConfigPayload(
             query=Query(),
             annotation_config=to_gql_annotation_config(annotation_config),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
+    async def delete_annotation_configs(
+        self,
+        info: Info[Context, None],
+        input: DeleteAnnotationConfigsInput,
+    ) -> DeleteAnnotationConfigsPayload:
+        config_ids = set()
+        for config_gid in input.ids:
+            if (type_name := config_gid.type_name) not in ANNOTATION_TYPE_NAMES:
+                raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
+            config_id = int(config_gid.node_id)
+            if config_id in config_ids:
+                raise BadRequest("Duplicate annotation config IDs provided")
+            config_ids.add(config_id)
+
+        async with info.context.db() as session:
+            result = await session.scalars(
+                delete(models.AnnotationConfig)
+                .where(models.AnnotationConfig.id.in_(config_ids))
+                .returning(models.AnnotationConfig)
+            )
+            deleted_annotation_configs = result.all()
+            if len(deleted_annotation_configs) < len(config_ids):
+                await session.rollback()
+                raise NotFound(
+                    "Could not find one or more annotation configs to delete, deletion aborted."
+                )
+        return DeleteAnnotationConfigsPayload(
+            query=Query(),
+            annotation_configs=[
+                to_gql_annotation_config(annotation_config)
+                for annotation_config in deleted_annotation_configs
+            ],
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]

@@ -33,12 +33,12 @@ const SettingsAnnotations = ({
     annotations
   );
 
-  const [deleteAnnotationConfig] = useMutation(graphql`
-    mutation SettingsAnnotationsPageDeleteAnnotationConfigMutation(
-      $input: DeleteAnnotationConfigInput!
+  const [deleteAnnotationConfigs] = useMutation(graphql`
+    mutation SettingsAnnotationsPageDeleteAnnotationConfigsMutation(
+      $input: DeleteAnnotationConfigsInput!
     ) {
-      deleteAnnotationConfig(input: $input) {
-        annotationConfig {
+      deleteAnnotationConfigs(input: $input) {
+        annotationConfigs {
           __typename
         }
       }
@@ -140,8 +140,8 @@ const SettingsAnnotations = ({
       onError,
     }: { onCompleted?: () => void; onError?: (error: string) => void } = {}
   ) => {
-    deleteAnnotationConfig({
-      variables: { input: { configId: id } },
+    deleteAnnotationConfigs({
+      variables: { input: { ids: [id] } },
       onCompleted,
       onError: parseError(onError),
     });

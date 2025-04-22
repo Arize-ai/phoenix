@@ -655,6 +655,15 @@ type DeleteAnnotationConfigPayload {
   annotationConfig: AnnotationConfig!
 }
 
+input DeleteAnnotationConfigsInput {
+  ids: [GlobalID!]!
+}
+
+type DeleteAnnotationConfigsPayload {
+  query: Query!
+  annotationConfigs: [AnnotationConfig!]!
+}
+
 input DeleteAnnotationsInput {
   annotationIds: [GlobalID!]!
 }
@@ -1385,6 +1394,7 @@ type Mutation {
   createAnnotationConfig(input: CreateAnnotationConfigInput!): CreateAnnotationConfigPayload!
   updateAnnotationConfig(input: UpdateAnnotationConfigInput!): UpdateAnnotationConfigPayload!
   deleteAnnotationConfig(input: DeleteAnnotationConfigInput!): DeleteAnnotationConfigPayload!
+  deleteAnnotationConfigs(input: DeleteAnnotationConfigsInput!): DeleteAnnotationConfigsPayload!
   addAnnotationConfigToProject(input: [AddAnnotationConfigToProjectInput!]!): AddAnnotationConfigToProjectPayload!
   removeAnnotationConfigFromProject(input: [RemoveAnnotationConfigFromProjectInput!]!): RemoveAnnotationConfigFromProjectPayload!
   createSystemApiKey(input: CreateApiKeyInput!): CreateSystemApiKeyMutationPayload!
