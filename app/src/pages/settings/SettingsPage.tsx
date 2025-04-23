@@ -18,7 +18,6 @@ const settingsPageInnerCSS = css`
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  height: 100%;
 `;
 
 export function SettingsPage() {
