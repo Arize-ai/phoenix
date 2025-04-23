@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ad23db94dc7674e4bc3e2d5f5785337e>>
+ * @generated SignedSource<<08fd4dbe127fe1a836c5d08148b20acd>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,25 +9,9 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type TraceHeaderRootSpanAnnotationsFragment$data = {
-  readonly spanAnnotationSummaries: ReadonlyArray<{
-    readonly labelFractions: ReadonlyArray<{
-      readonly fraction: number;
-      readonly label: string;
-    }>;
-    readonly meanScore: number | null;
-    readonly name: string;
-  }>;
-  readonly spanAnnotations: ReadonlyArray<{
-    readonly annotatorKind: AnnotatorKind;
-    readonly createdAt: string;
-    readonly id: string;
-    readonly label: string | null;
-    readonly name: string;
-    readonly score: number | null;
-  }>;
+  readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
   readonly " $fragmentType": "TraceHeaderRootSpanAnnotationsFragment";
 };
 export type TraceHeaderRootSpanAnnotationsFragment$key = {
@@ -35,112 +19,22 @@ export type TraceHeaderRootSpanAnnotationsFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"TraceHeaderRootSpanAnnotationsFragment">;
 };
 
-const node: ReaderFragment = (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "name",
-  "storageKey": null
-},
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-};
-return {
+const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
   "name": "TraceHeaderRootSpanAnnotationsFragment",
   "selections": [
     {
-      "alias": null,
       "args": null,
-      "concreteType": "SpanAnnotation",
-      "kind": "LinkedField",
-      "name": "spanAnnotations",
-      "plural": true,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "id",
-          "storageKey": null
-        },
-        (v0/*: any*/),
-        (v1/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "score",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "annotatorKind",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "createdAt",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "AnnotationSummary",
-      "kind": "LinkedField",
-      "name": "spanAnnotationSummaries",
-      "plural": true,
-      "selections": [
-        (v0/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "LabelFraction",
-          "kind": "LinkedField",
-          "name": "labelFractions",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "fraction",
-              "storageKey": null
-            },
-            (v1/*: any*/)
-          ],
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "meanScore",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
+      "kind": "FragmentSpread",
+      "name": "AnnotationSummaryGroup"
     }
   ],
   "type": "Span",
   "abstractKey": null
 };
-})();
 
-(node as any).hash = "99785d04c1c1cd371cc131d327383180";
+(node as any).hash = "1926def8a20ce2131c00ccd01efe9fb6";
 
 export default node;

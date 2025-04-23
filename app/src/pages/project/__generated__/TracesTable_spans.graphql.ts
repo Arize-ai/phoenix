@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<41f0b169474850086aa51377357c817b>>
+ * @generated SignedSource<<eea05b2e0cf26a4dc59e1e5a1f2134a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -60,7 +60,7 @@ export type TracesTable_spans$data = {
                 readonly id: string;
                 readonly traceId: string;
               };
-              readonly " $fragmentSpreads": FragmentRefs<"TraceHeaderRootSpanAnnotationsFragment">;
+              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "TraceHeaderRootSpanAnnotationsFragment">;
             };
           }>;
         };
@@ -81,14 +81,6 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
-        readonly spanAnnotationSummaries: ReadonlyArray<{
-          readonly labelFractions: ReadonlyArray<{
-            readonly fraction: number;
-            readonly label: string;
-          }>;
-          readonly meanScore: number | null;
-          readonly name: string;
-        }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
           readonly createdAt: string;
@@ -106,6 +98,7 @@ export type TracesTable_spans$data = {
           readonly numSpans: number;
           readonly traceId: string;
         };
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
   };
@@ -211,13 +204,6 @@ v11 = {
 v12 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-},
-v13 = {
-  "alias": null,
-  "args": null,
   "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
   "name": "spanAnnotations",
@@ -225,7 +211,13 @@ v13 = {
   "selections": [
     (v2/*: any*/),
     (v1/*: any*/),
-    (v12/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -249,6 +241,11 @@ v13 = {
     }
   ],
   "storageKey": null
+},
+v13 = {
+  "args": null,
+  "kind": "FragmentSpread",
+  "name": "AnnotationSummaryGroup"
 },
 v14 = {
   "alias": null,
@@ -465,45 +462,8 @@ return {
                   ],
                   "storageKey": null
                 },
+                (v12/*: any*/),
                 (v13/*: any*/),
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "AnnotationSummary",
-                  "kind": "LinkedField",
-                  "name": "spanAnnotationSummaries",
-                  "plural": true,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "LabelFraction",
-                      "kind": "LinkedField",
-                      "name": "labelFractions",
-                      "plural": true,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "fraction",
-                          "storageKey": null
-                        },
-                        (v12/*: any*/)
-                      ],
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "meanScore",
-                      "storageKey": null
-                    },
-                    (v1/*: any*/)
-                  ],
-                  "storageKey": null
-                },
                 (v14/*: any*/),
                 {
                   "alias": null,
@@ -585,6 +545,7 @@ return {
                               ],
                               "storageKey": null
                             },
+                            (v12/*: any*/),
                             (v13/*: any*/),
                             (v14/*: any*/),
                             {
@@ -667,6 +628,6 @@ return {
 };
 })();
 
-(node as any).hash = "e708a2cd0f0cc761a982a1176534ad87";
+(node as any).hash = "79a9c9c88c1df396edd0a1fa15c22473";
 
 export default node;

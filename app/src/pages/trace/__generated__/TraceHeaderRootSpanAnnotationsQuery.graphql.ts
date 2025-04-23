@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9c00d6e915d716d3db3e51a29ca60a3>>
+ * @generated SignedSource<<f76627542db79968168e72bebfa2abaf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -160,7 +160,6 @@ return {
                 "name": "spanAnnotationSummaries",
                 "plural": true,
                 "selections": [
-                  (v3/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -186,7 +185,8 @@ return {
                     "kind": "ScalarField",
                     "name": "meanScore",
                     "storageKey": null
-                  }
+                  },
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -205,12 +205,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5f68b200e5eadf21b2adfe42a1ac38d7",
+    "cacheID": "79cb464de23b96436d61222f926a2845",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderRootSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      ...TraceHeaderRootSpanAnnotationsFragment\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n  }\n  spanAnnotationSummaries {\n    name\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n  }\n}\n"
+    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: GlobalID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      ...TraceHeaderRootSpanAnnotationsFragment\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
   }
 };
 })();

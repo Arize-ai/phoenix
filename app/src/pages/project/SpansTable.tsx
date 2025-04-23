@@ -27,15 +27,11 @@ import {
   Icon,
   Icons,
   Link,
-  Text,
   ToggleButton,
   ToggleButtonGroup,
   View,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationSummaryGroup } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -47,7 +43,6 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -55,7 +50,6 @@ import {
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
-import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
@@ -239,6 +233,7 @@ export function SpansTable(props: SpansTableProps) {
                   precision
                   hit
                 }
+                ...AnnotationSummaryGroup
               }
             }
           }
@@ -321,50 +316,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanAnnotationSummaries.map((summary) => {
-              const latestAnnotation = row.original.spanAnnotations
-                .slice()
-                .sort((a, b) => {
-                  return (
-                    new Date(b.createdAt).getTime() -
-                    new Date(a.createdAt).getTime()
-                  );
-                })
-                .find((annotation) => annotation.name === summary.name);
-              const labelFractions = summary?.labelFractions;
-              const meanScore = summary?.meanScore;
-              if (!latestAnnotation) {
-                return null;
-              }
-              return (
-                <AnnotationTooltip
-                  key={latestAnnotation.id}
-                  annotation={latestAnnotation}
-                  layout="horizontal"
-                  width="500px"
-                  leadingExtra={<Text weight="heavy">Latest annotation</Text>}
-                  extra={
-                    <AnnotationTooltipFilterActions
-                      annotation={latestAnnotation}
-                    />
-                  }
-                >
-                  <AnnotationLabel
-                    annotation={latestAnnotation}
-                    annotationDisplayPreference="none"
-                  >
-                    {meanScore ? (
-                      <SummaryValue
-                        name={latestAnnotation.name}
-                        labelFractions={labelFractions}
-                        meanScore={meanScore}
-                        size="S"
-                      />
-                    ) : null}
-                  </AnnotationLabel>
-                </AnnotationTooltip>
-              );
-            })}
+            <AnnotationSummaryGroup span={row.original} showFilterActions />
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
               return (
                 <>

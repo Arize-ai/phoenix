@@ -106,24 +106,8 @@ export function SessionDetails(props: SessionDetailsProps) {
                     cumulativeTokenCountPrompt
                     latencyMs
                     startTime
-                    spanAnnotations {
-                      id
-                      createdAt
-                      name
-                      label
-                      score
-                      explanation
-                      annotatorKind
-                    }
-                    spanAnnotationSummaries {
-                      name
-                      labelFractions {
-                        label
-                        fraction
-                      }
-                      meanScore
-                    }
                     spanId
+                    ...AnnotationSummaryGroup
                   }
                 }
               }

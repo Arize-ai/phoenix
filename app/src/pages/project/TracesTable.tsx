@@ -27,19 +27,8 @@ import { css } from "@emotion/react";
 
 import { Content, ContextualHelp } from "@arizeai/components";
 
-import {
-  Flex,
-  Heading,
-  Icon,
-  Icons,
-  Link,
-  Text,
-  View,
-} from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
+import { AnnotationSummaryGroup } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -53,7 +42,6 @@ import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -62,7 +50,6 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -259,14 +246,7 @@ export function TracesTable(props: TracesTableProps) {
                   annotatorKind
                   createdAt
                 }
-                spanAnnotationSummaries {
-                  labelFractions {
-                    fraction
-                    label
-                  }
-                  meanScore
-                  name
-                }
+                ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -305,6 +285,7 @@ export function TracesTable(props: TracesTableProps) {
                         annotatorKind
                         createdAt
                       }
+                      ...AnnotationSummaryGroup
                       documentRetrievalMetrics {
                         evaluationName
                         ndcg
@@ -409,8 +390,6 @@ export function TracesTable(props: TracesTableProps) {
     [visibleAnnotationColumnNames]
   );
 
-  type AnnotationSummary =
-    (typeof data.rootSpans.edges)[number]["rootSpan"]["spanAnnotationSummaries"];
   const annotationColumns: ColumnDef<TableRow>[] = useMemo(
     () => [
       {
@@ -440,54 +419,7 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
-              {(row.original.spanAnnotationSummaries as AnnotationSummary).map(
-                (summary) => {
-                  const latestAnnotation = row.original.spanAnnotations
-                    .slice()
-                    .sort((a, b) => {
-                      return (
-                        new Date(b.createdAt).getTime() -
-                        new Date(a.createdAt).getTime()
-                      );
-                    })
-                    .find((annotation) => annotation.name === summary.name);
-                  const labelFractions = summary?.labelFractions;
-                  const meanScore = summary?.meanScore;
-                  if (!latestAnnotation) {
-                    return null;
-                  }
-                  return (
-                    <AnnotationTooltip
-                      key={latestAnnotation.id}
-                      annotation={latestAnnotation}
-                      layout="horizontal"
-                      width="500px"
-                      leadingExtra={
-                        <Text weight="heavy">Latest annotation</Text>
-                      }
-                      extra={
-                        <AnnotationTooltipFilterActions
-                          annotation={latestAnnotation}
-                        />
-                      }
-                    >
-                      <AnnotationLabel
-                        annotation={latestAnnotation}
-                        annotationDisplayPreference="none"
-                      >
-                        {meanScore ? (
-                          <SummaryValue
-                            name={latestAnnotation.name}
-                            labelFractions={labelFractions}
-                            meanScore={meanScore}
-                            size="S"
-                          />
-                        ) : null}
-                      </AnnotationLabel>
-                    </AnnotationTooltip>
-                  );
-                }
-              )}
+              <AnnotationSummaryGroup span={row.original} showFilterActions />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">
