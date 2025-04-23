@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<056a059231c248e076ec0bead48f8030>>
+ * @generated SignedSource<<cabcc5fcf6ca0c3e4709fd19454f770c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type SpanAnnotationsEditorEditAnnotationMutation$data = {
   readonly patchSpanAnnotations: {
     readonly query: {
       readonly node: {
-        readonly " $fragmentSpreads": FragmentRefs<"SpanAnnotationsEditor_spanAnnotations" | "SpanAsideAnnotationList_span" | "SpanFeedback_annotations" | "TraceHeaderRootSpanAnnotationsFragment">;
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "SpanAnnotationsEditor_spanAnnotations" | "SpanAsideAnnotationList_span" | "SpanFeedback_annotations" | "TraceHeaderRootSpanAnnotationsFragment">;
       };
     };
   };
@@ -225,6 +225,11 @@ return {
                   {
                     "kind": "InlineFragment",
                     "selections": [
+                      {
+                        "args": null,
+                        "kind": "FragmentSpread",
+                        "name": "AnnotationSummaryGroup"
+                      },
                       {
                         "args": null,
                         "kind": "FragmentSpread",
@@ -542,16 +547,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "adf31add25ae36034fbd1a6e5774baf1",
+    "cacheID": "cb6cabeab2e1ce9c3d521c56079bea6b",
     "id": null,
     "metadata": {},
     "name": "SpanAnnotationsEditorEditAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanAnnotationsEditorEditAnnotationMutation(\n  $spanId: GlobalID!\n  $annotationId: GlobalID!\n  $name: String!\n  $label: String\n  $score: Float\n  $explanation: String\n  $filterUserIds: [GlobalID!]\n) {\n  patchSpanAnnotations(input: [{annotationId: $annotationId, name: $name, label: $label, score: $score, explanation: $explanation, annotatorKind: HUMAN}]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...TraceHeaderRootSpanAnnotationsFragment\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAsideAnnotationList_span_3lpqY\n          ...SpanFeedback_annotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAsideAnnotationList_span_3lpqY on Span {\n  project {\n    id\n    annotationConfigs {\n      configs: edges {\n        config: node {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n        }\n      }\n    }\n  }\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
+    "text": "mutation SpanAnnotationsEditorEditAnnotationMutation(\n  $spanId: GlobalID!\n  $annotationId: GlobalID!\n  $name: String!\n  $label: String\n  $score: Float\n  $explanation: String\n  $filterUserIds: [GlobalID!]\n) {\n  patchSpanAnnotations(input: [{annotationId: $annotationId, name: $name, label: $label, score: $score, explanation: $explanation, annotatorKind: HUMAN}]) {\n    query {\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          ...AnnotationSummaryGroup\n          ...TraceHeaderRootSpanAnnotationsFragment\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n          ...SpanAsideAnnotationList_span_3lpqY\n          ...SpanFeedback_annotations\n        }\n        __isNode: __typename\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanAsideAnnotationList_span_3lpqY on Span {\n  project {\n    id\n    annotationConfigs {\n      configs: edges {\n        config: node {\n          __typename\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            name\n          }\n        }\n      }\n    }\n  }\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n\nfragment SpanFeedback_annotations on Span {\n  id\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    explanation\n    metadata\n    annotatorKind\n    identifier\n    source\n    createdAt\n    updatedAt\n    user {\n      id\n      username\n      profilePictureUrl\n    }\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c7a7e5030ae332af907a50269fe758d8";
+(node as any).hash = "c254b63b1d6b8c91cac75800642123d3";
 
 export default node;
