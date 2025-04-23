@@ -1,7 +1,7 @@
 from typing import Annotated, Optional, Union
 
 import strawberry
-from strawberry.relay import GlobalID, Node, NodeID
+from strawberry.relay import Node, NodeID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
@@ -57,12 +57,6 @@ AnnotationConfig: TypeAlias = Annotated[
     Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
     strawberry.union("AnnotationConfig"),
 ]
-
-
-@strawberry.type
-class ProjectAnnotationConfigAssociation:
-    project_id: GlobalID
-    annotation_config_id: GlobalID
 
 
 def _to_gql_categorical_annotation_config(

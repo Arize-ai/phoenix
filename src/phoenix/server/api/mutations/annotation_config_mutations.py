@@ -32,7 +32,6 @@ from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
-    ProjectAnnotationConfigAssociation,
     to_gql_annotation_config,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -150,7 +149,6 @@ class RemoveAnnotationConfigFromProjectInput:
 class RemoveAnnotationConfigFromProjectPayload:
     query: Query
     project: Project
-    project_annotation_config_associations: list[ProjectAnnotationConfigAssociation]
 
 
 def to_pydantic_categorical_annotation_config(
@@ -346,7 +344,7 @@ class AnnotationConfigMutationMixin:
             )
             if (type_name := item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
                 raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-            annotation_config_id = item.annotation_config_id.node_id
+            annotation_config_id = int(item.annotation_config_id.node_id)
             project_annotation_config_associations.add((project_id, annotation_config_id))
         async with info.context.db() as session:
             result = await session.scalars(
@@ -366,11 +364,4 @@ class AnnotationConfigMutationMixin:
         return RemoveAnnotationConfigFromProjectPayload(
             query=Query(),
             project=Project(project_rowid=project_id),
-            project_annotation_config_associations=[
-                ProjectAnnotationConfigAssociation(
-                    project_id=item.project_id,
-                    annotation_config_id=item.annotation_config_id,
-                )
-                for item in input
-            ],
         )

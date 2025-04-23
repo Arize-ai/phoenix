@@ -1598,11 +1598,6 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
 }
 
-type ProjectAnnotationConfigAssociation {
-  projectId: GlobalID!
-  annotationConfigId: GlobalID!
-}
-
 """A connection to a list of items."""
 type ProjectConnection {
   """Pagination data for this connection"""
@@ -1952,7 +1947,6 @@ input RemoveAnnotationConfigFromProjectInput {
 type RemoveAnnotationConfigFromProjectPayload {
   query: Query!
   project: Project!
-  projectAnnotationConfigAssociations: [ProjectAnnotationConfigAssociation!]!
 }
 
 type ResponseFormat {
