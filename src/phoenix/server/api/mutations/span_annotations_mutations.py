@@ -164,7 +164,7 @@ class SpanAnnotationMutationMixin:
             result = await session.scalars(stmt)
             processed_annotation = result.one()
 
-            info.context.event_queue.put(SpanAnnotationInsertEvent(processed_annotation.id))
+            info.context.event_queue.put(SpanAnnotationInsertEvent((processed_annotation.id,)))
             returned_annotation = to_gql_span_annotation(processed_annotation)
             await session.commit()
         return SpanAnnotationMutationPayload(
