@@ -24,17 +24,7 @@ class TestAnnotationConfigMutations:
     mutation CreateCategoricalAnnotationConfig($input: CreateAnnotationConfigInput!) {
         createAnnotationConfig(input: $input) {
             annotationConfig {
-                ... on CategoricalAnnotationConfig {
-                    id
-                    name
-                    annotationType
-                    optimizationDirection
-                    description
-                    values {
-                        label
-                        score
-                    }
-                }
+                ...CategoricalAnnotationConfigFields
             }
         }
     }
@@ -42,17 +32,7 @@ class TestAnnotationConfigMutations:
     mutation UpdateCategoricalAnnotationConfig($input: UpdateAnnotationConfigInput!) {
         updateAnnotationConfig(input: $input) {
             annotationConfig {
-                ... on CategoricalAnnotationConfig {
-                    id
-                    name
-                    annotationType
-                    optimizationDirection
-                    description
-                    values {
-                        label
-                        score
-                    }
-                }
+                ...CategoricalAnnotationConfigFields
             }
         }
     }
@@ -61,17 +41,7 @@ class TestAnnotationConfigMutations:
         annotationConfigs(first: 10) {
             edges {
                 node {
-                    ... on CategoricalAnnotationConfig {
-                        id
-                        name
-                        annotationType
-                        optimizationDirection
-                        description
-                        values {
-                            label
-                            score
-                        }
-                    }
+                    ...CategoricalAnnotationConfigFields
                 }
             }
         }
@@ -83,17 +53,7 @@ class TestAnnotationConfigMutations:
                 annotationConfigs {
                     edges {
                         node {
-                            ... on CategoricalAnnotationConfig {
-                                id
-                                name
-                                annotationType
-                                optimizationDirection
-                                description
-                                values {
-                                    label
-                                    score
-                                }
-                            }
+                            ...CategoricalAnnotationConfigFields
                         }
                     }
                 }
@@ -107,17 +67,7 @@ class TestAnnotationConfigMutations:
                 annotationConfigs {
                     edges {
                         node {
-                            ... on CategoricalAnnotationConfig {
-                                id
-                                name
-                                annotationType
-                                optimizationDirection
-                                description
-                                values {
-                                    label
-                                    score
-                                }
-                            }
+                            ...CategoricalAnnotationConfigFields
                         }
                     }
                 }
@@ -132,18 +82,20 @@ class TestAnnotationConfigMutations:
     mutation DeleteAnnotationConfigs($input: DeleteAnnotationConfigsInput!) {
         deleteAnnotationConfigs(input: $input) {
             annotationConfigs {
-                ... on CategoricalAnnotationConfig {
-                    id
-                    name
-                    annotationType
-                    optimizationDirection
-                    description
-                    values {
-                        label
-                        score
-                    }
-                }
+                ...CategoricalAnnotationConfigFields
             }
+        }
+    }
+
+    fragment CategoricalAnnotationConfigFields on CategoricalAnnotationConfig {
+        id
+        name
+        annotationType
+        optimizationDirection
+        description
+        values {
+            label
+            score
         }
     }
     """
