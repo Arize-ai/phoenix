@@ -107,11 +107,21 @@ export function SessionDetails(props: SessionDetailsProps) {
                     latencyMs
                     startTime
                     spanAnnotations {
+                      id
+                      createdAt
                       name
                       label
                       score
                       explanation
                       annotatorKind
+                    }
+                    spanAnnotationSummaries {
+                      name
+                      labelFractions {
+                        label
+                        fraction
+                      }
+                      meanScore
                     }
                     spanId
                   }

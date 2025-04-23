@@ -15,6 +15,7 @@ import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -151,18 +152,48 @@ function RootSpanDetails({
           <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
             <Text>Feedback</Text>
             <Flex gap={"size-50"} direction={"column"}>
-              {rootSpan.spanAnnotations.length > 0
-                ? rootSpan.spanAnnotations.map((annotation) => (
-                    <AnnotationTooltip
-                      key={annotation.name}
-                      annotation={annotation}
-                    >
-                      <AnnotationLabel
-                        annotation={annotation}
-                        annotationDisplayPreference="label"
-                      />
-                    </AnnotationTooltip>
-                  ))
+              {rootSpan.spanAnnotationSummaries.length > 0
+                ? rootSpan.spanAnnotationSummaries.map((summary) => {
+                    const latestAnnotation = rootSpan.spanAnnotations
+                      .slice()
+                      .sort((a, b) => {
+                        return (
+                          new Date(b.createdAt).getTime() -
+                          new Date(a.createdAt).getTime()
+                        );
+                      })
+                      .find((annotation) => annotation.name === summary.name);
+                    const labelFractions = summary?.labelFractions;
+                    const meanScore = summary?.meanScore;
+                    if (!latestAnnotation) {
+                      return null;
+                    }
+                    return (
+                      <AnnotationTooltip
+                        key={latestAnnotation.id}
+                        annotation={latestAnnotation}
+                        layout="horizontal"
+                        width="500px"
+                        leadingExtra={
+                          <Text weight="heavy">Latest annotation</Text>
+                        }
+                      >
+                        <AnnotationLabel
+                          annotation={latestAnnotation}
+                          annotationDisplayPreference="none"
+                        >
+                          {meanScore ? (
+                            <SummaryValue
+                              name={latestAnnotation.name}
+                              labelFractions={labelFractions}
+                              meanScore={meanScore}
+                              size="S"
+                            />
+                          ) : null}
+                        </AnnotationLabel>
+                      </AnnotationTooltip>
+                    );
+                  })
                 : "--"}
             </Flex>
           </Flex>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0201f3f1d37d413eed0774de949bfbfb>>
+ * @generated SignedSource<<73becc73e502fdbabdef2662fcad6b4e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,9 +46,19 @@ export type SessionDetailsQuery$data = {
             readonly project: {
               readonly id: string;
             };
+            readonly spanAnnotationSummaries: ReadonlyArray<{
+              readonly labelFractions: ReadonlyArray<{
+                readonly fraction: number;
+                readonly label: string;
+              }>;
+              readonly meanScore: number | null;
+              readonly name: string;
+            }>;
             readonly spanAnnotations: ReadonlyArray<{
               readonly annotatorKind: AnnotatorKind;
+              readonly createdAt: string;
               readonly explanation: string | null;
+              readonly id: string;
               readonly label: string | null;
               readonly name: string;
               readonly score: number | null;
@@ -106,6 +116,20 @@ v3 = [
   }
 ],
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v6 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -290,20 +314,16 @@ v4 = {
                       "name": "spanAnnotations",
                       "plural": true,
                       "selections": [
+                        (v2/*: any*/),
                         {
                           "alias": null,
                           "args": null,
                           "kind": "ScalarField",
-                          "name": "name",
+                          "name": "createdAt",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "label",
-                          "storageKey": null
-                        },
+                        (v4/*: any*/),
+                        (v5/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -323,6 +343,44 @@ v4 = {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "annotatorKind",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "AnnotationSummary",
+                      "kind": "LinkedField",
+                      "name": "spanAnnotationSummaries",
+                      "plural": true,
+                      "selections": [
+                        (v4/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "concreteType": "LabelFraction",
+                          "kind": "LinkedField",
+                          "name": "labelFractions",
+                          "plural": true,
+                          "selections": [
+                            (v5/*: any*/),
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "fraction",
+                              "storageKey": null
+                            }
+                          ],
+                          "storageKey": null
+                        },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "meanScore",
                           "storageKey": null
                         }
                       ],
@@ -366,7 +424,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v6/*: any*/)
         ],
         "storageKey": null
       }
@@ -395,7 +453,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
+          (v6/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -407,16 +465,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "537f0044aba3bca68c76ef30c43a810c",
+    "cacheID": "e67b24562757b280601c697d6235ddda",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            id\n            traceId\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              spanId\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query SessionDetailsQuery(\n  $id: GlobalID!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      numTraces\n      tokenUsage {\n        total\n        completion\n        prompt\n      }\n      sessionId\n      latencyP50: traceLatencyMsQuantile(probability: 0.5)\n      traces {\n        edges {\n          trace: node {\n            id\n            traceId\n            rootSpan {\n              id\n              attributes\n              project {\n                id\n              }\n              input {\n                value\n                mimeType\n              }\n              output {\n                value\n                mimeType\n              }\n              cumulativeTokenCountTotal\n              cumulativeTokenCountCompletion\n              cumulativeTokenCountPrompt\n              latencyMs\n              startTime\n              spanAnnotations {\n                id\n                createdAt\n                name\n                label\n                score\n                explanation\n                annotatorKind\n              }\n              spanAnnotationSummaries {\n                name\n                labelFractions {\n                  label\n                  fraction\n                }\n                meanScore\n              }\n              spanId\n            }\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "48d10974b52b961361ff750b74e21d8e";
+(node as any).hash = "5a2b13d0a4b2ef361e0442abe302cc4a";
 
 export default node;
