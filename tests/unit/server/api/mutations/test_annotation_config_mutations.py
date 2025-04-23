@@ -203,7 +203,7 @@ class TestAnnotationConfigMutations:
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
         assert len(configs) == 1
-        assert configs[0]["node"]["id"] == config_id
+        assert configs[0]["node"] == created_config
 
         # Update the annotation config
         update_input = {
