@@ -3529,7 +3529,8 @@
         "type": "string",
         "enum": [
           "MINIMIZE",
-          "MAXIMIZE"
+          "MAXIMIZE",
+          "NONE"
         ],
         "title": "OptimizationDirection"
       },
