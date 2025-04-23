@@ -8,6 +8,7 @@ input AddAnnotationConfigToProjectInput {
 type AddAnnotationConfigToProjectPayload {
   query: Query!
   project: Project!
+  projectAnnotationConfigAssociations: [ProjectAnnotationConfigAssociation!]!
 }
 
 input AddExamplesToDatasetInput {

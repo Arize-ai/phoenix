@@ -138,6 +138,7 @@ class AddAnnotationConfigToProjectInput:
 class AddAnnotationConfigToProjectPayload:
     query: Query
     project: Project
+    project_annotation_config_associations: list[ProjectAnnotationConfigAssociation]
 
 
 @strawberry.input
@@ -331,6 +332,13 @@ class AnnotationConfigMutationMixin:
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
                 project=Project(project_rowid=project_id),
+                project_annotation_config_associations=[
+                    ProjectAnnotationConfigAssociation(
+                        project_id=item.project_id,
+                        annotation_config_id=item.annotation_config_id,
+                    )
+                    for item in input
+                ],
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]

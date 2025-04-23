@@ -62,6 +62,19 @@ class TestAnnotationConfigMutations:
         }
     }
 
+    mutation DeleteAnnotationConfigs($input: DeleteAnnotationConfigsInput!) {
+        deleteAnnotationConfigs(input: $input) {
+            annotationConfigs {
+                ... on CategoricalAnnotationConfig {
+                    ...CategoricalAnnotationConfigFields
+                }
+                ... on ContinuousAnnotationConfig {
+                    ...ContinuousAnnotationConfigFields
+                }
+            }
+        }
+    }
+
     mutation AddAnnotationConfigToProject($input: [AddAnnotationConfigToProjectInput!]!) {
         addAnnotationConfigToProject(input: $input) {
             project {
@@ -77,6 +90,10 @@ class TestAnnotationConfigMutations:
                         }
                     }
                 }
+            }
+            projectAnnotationConfigAssociations {
+                projectId
+                annotationConfigId
             }
         }
     }
@@ -100,19 +117,6 @@ class TestAnnotationConfigMutations:
             projectAnnotationConfigAssociations {
                 projectId
                 annotationConfigId
-            }
-        }
-    }
-
-    mutation DeleteAnnotationConfigs($input: DeleteAnnotationConfigsInput!) {
-        deleteAnnotationConfigs(input: $input) {
-            annotationConfigs {
-                ... on CategoricalAnnotationConfig {
-                    ...CategoricalAnnotationConfigFields
-                }
-                ... on ContinuousAnnotationConfig {
-                    ...ContinuousAnnotationConfigFields
-                }
             }
         }
     }
@@ -256,7 +260,15 @@ class TestAnnotationConfigMutations:
             "edges"
         ]
         assert len(project_configs) == 1
-        assert project_configs[0]["node"]["id"] == config_id
+        assert project_configs[0]["node"] == expected_config
+        project_config_associations = data["addAnnotationConfigToProject"][
+            "projectAnnotationConfigAssociations"
+        ]
+        assert len(project_config_associations) == 1
+        assert project_config_associations[0] == {
+            "projectId": project_id,
+            "annotationConfigId": config_id,
+        }
 
         # Remove annotation config from project
         remove_from_project_input = {
@@ -417,7 +429,15 @@ class TestAnnotationConfigMutations:
             "edges"
         ]
         assert len(project_configs) == 1
-        assert project_configs[0]["node"]["id"] == config_id
+        assert project_configs[0]["node"] == expected_config
+        project_config_associations = data["addAnnotationConfigToProject"][
+            "projectAnnotationConfigAssociations"
+        ]
+        assert len(project_config_associations) == 1
+        assert project_config_associations[0] == {
+            "projectId": project_id,
+            "annotationConfigId": config_id,
+        }
 
         # Remove annotation config from project
         remove_from_project_input = {
