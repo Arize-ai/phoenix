@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d83c47ab466ddaa14ac0f3a6d453e0e>>
+ * @generated SignedSource<<0ff04a6c431d48c0f9cfb2345f081496>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpanAside_span$data = {
