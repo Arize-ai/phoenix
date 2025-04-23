@@ -21,34 +21,28 @@ async def project(db: DbSessionFactory) -> models.Project:
 
 class TestAnnotationConfigMutations:
     QUERY = """
-    mutation CreateCategoricalAnnotationConfig($input: CreateAnnotationConfigInput!) {
+    mutation CreateAnnotationConfig($input: CreateAnnotationConfigInput!) {
         createAnnotationConfig(input: $input) {
             annotationConfig {
-                ...CategoricalAnnotationConfigFields
+                ... on CategoricalAnnotationConfig {
+                    ...CategoricalAnnotationConfigFields
+                }
+                ... on ContinuousAnnotationConfig {
+                    ...ContinuousAnnotationConfigFields
+                }
             }
         }
     }
 
-    mutation CreateContinuousAnnotationConfig($input: CreateAnnotationConfigInput!) {
-        createAnnotationConfig(input: $input) {
-            annotationConfig {
-                ...ContinuousAnnotationConfigFields
-            }
-        }
-    }
-
-    mutation UpdateCategoricalAnnotationConfig($input: UpdateAnnotationConfigInput!) {
+    mutation UpdateAnnotationConfig($input: UpdateAnnotationConfigInput!) {
         updateAnnotationConfig(input: $input) {
             annotationConfig {
-                ...CategoricalAnnotationConfigFields
-            }
-        }
-    }
-
-    mutation UpdateContinuousAnnotationConfig($input: UpdateAnnotationConfigInput!) {
-        updateAnnotationConfig(input: $input) {
-            annotationConfig {
-                ...ContinuousAnnotationConfigFields
+                ... on CategoricalAnnotationConfig {
+                    ...CategoricalAnnotationConfigFields
+                }
+                ... on ContinuousAnnotationConfig {
+                    ...ContinuousAnnotationConfigFields
+                }
             }
         }
     }
@@ -170,7 +164,7 @@ class TestAnnotationConfigMutations:
         create_response = await gql_client.execute(
             query=self.QUERY,
             variables=create_input,
-            operation_name="CreateCategoricalAnnotationConfig",
+            operation_name="CreateAnnotationConfig",
         )
         assert not create_response.errors
         assert (data := create_response.data) is not None
@@ -226,7 +220,7 @@ class TestAnnotationConfigMutations:
         update_response = await gql_client.execute(
             query=self.QUERY,
             variables=update_input,
-            operation_name="UpdateCategoricalAnnotationConfig",
+            operation_name="UpdateAnnotationConfig",
         )
         assert not update_response.errors
         assert (data := update_response.data) is not None
@@ -340,7 +334,7 @@ class TestAnnotationConfigMutations:
         create_response = await gql_client.execute(
             query=self.QUERY,
             variables=create_input,
-            operation_name="CreateContinuousAnnotationConfig",
+            operation_name="CreateAnnotationConfig",
         )
         assert not create_response.errors
         assert (data := create_response.data) is not None
@@ -386,7 +380,7 @@ class TestAnnotationConfigMutations:
         update_response = await gql_client.execute(
             query=self.QUERY,
             variables=update_input,
-            operation_name="UpdateContinuousAnnotationConfig",
+            operation_name="UpdateAnnotationConfig",
         )
         assert not update_response.errors
         assert (data := update_response.data) is not None
