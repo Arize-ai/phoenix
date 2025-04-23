@@ -354,7 +354,7 @@ class AnnotationConfigMutationMixin:
             )
             if (type_name := item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
                 raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-            annotation_config_id = item.annotation_config_id.node_id
+            annotation_config_id = int(item.annotation_config_id.node_id)
             project_annotation_config_associations.add((project_id, annotation_config_id))
         async with info.context.db() as session:
             result = await session.scalars(
