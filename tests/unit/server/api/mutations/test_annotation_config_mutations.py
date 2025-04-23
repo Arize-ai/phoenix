@@ -20,142 +20,132 @@ async def project(db: DbSessionFactory) -> models.Project:
 
 
 class TestAnnotationConfigMutations:
-    CREATE_CATEGORICAL_ANNOTATION_CONFIG_MUTATION = """
-      mutation ($input: CreateAnnotationConfigInput!) {
+    QUERY = """
+    mutation CreateCategoricalAnnotationConfig($input: CreateAnnotationConfigInput!) {
         createAnnotationConfig(input: $input) {
-          annotationConfig {
-            ... on CategoricalAnnotationConfig {
-              id
-              name
-              annotationType
-              optimizationDirection
-              description
-              values {
-                label
-                score
-              }
+            annotationConfig {
+                ... on CategoricalAnnotationConfig {
+                    id
+                    name
+                    annotationType
+                    optimizationDirection
+                    description
+                    values {
+                        label
+                        score
+                    }
+                }
             }
-          }
         }
-      }
-    """
+    }
 
-    UPDATE_CATEGORICAL_ANNOTATION_CONFIG_MUTATION = """
-      mutation ($input: UpdateAnnotationConfigInput!) {
+    mutation UpdateCategoricalAnnotationConfig($input: UpdateAnnotationConfigInput!) {
         updateAnnotationConfig(input: $input) {
-          annotationConfig {
-            ... on CategoricalAnnotationConfig {
-              id
-              name
-              annotationType
-              optimizationDirection
-              description
-              values {
-                label
-                score
-              }
+            annotationConfig {
+                ... on CategoricalAnnotationConfig {
+                    id
+                    name
+                    annotationType
+                    optimizationDirection
+                    description
+                    values {
+                        label
+                        score
+                    }
+                }
             }
-          }
         }
-      }
-    """
+    }
 
-    LIST_ANNOTATION_CONFIGS_QUERY = """
-      {
+    query ListAnnotationConfigs {
         annotationConfigs(first: 10) {
-          edges {
-            node {
-              ... on CategoricalAnnotationConfig {
-                id
-                name
-                annotationType
-                optimizationDirection
-                description
-                values {
-                  label
-                  score
+            edges {
+                node {
+                    ... on CategoricalAnnotationConfig {
+                        id
+                        name
+                        annotationType
+                        optimizationDirection
+                        description
+                        values {
+                            label
+                            score
+                        }
+                    }
                 }
-              }
             }
-          }
         }
-      }
-    """
+    }
 
-    ADD_ANNOTATION_CONFIG_TO_PROJECT_MUTATION = """
-      mutation ($input: [AddAnnotationConfigToProjectInput!]!) {
+    mutation AddAnnotationConfigToProject($input: [AddAnnotationConfigToProjectInput!]!) {
         addAnnotationConfigToProject(input: $input) {
-          project {
-            annotationConfigs {
-              edges {
-                node {
-                  ... on CategoricalAnnotationConfig {
-                    id
-                    name
-                    annotationType
-                    optimizationDirection
-                    description
-                    values {
-                      label
-                      score
+            project {
+                annotationConfigs {
+                    edges {
+                        node {
+                            ... on CategoricalAnnotationConfig {
+                                id
+                                name
+                                annotationType
+                                optimizationDirection
+                                description
+                                values {
+                                    label
+                                    score
+                                }
+                            }
+                        }
                     }
-                  }
                 }
-              }
             }
-          }
         }
-      }
-    """
+    }
 
-    REMOVE_ANNOTATION_CONFIG_FROM_PROJECT_MUTATION = """
-      mutation ($input: [RemoveAnnotationConfigFromProjectInput!]!) {
+    mutation RemoveAnnotationConfigFromProject($input: [RemoveAnnotationConfigFromProjectInput!]!) {
         removeAnnotationConfigFromProject(input: $input) {
-          project {
+            project {
+                annotationConfigs {
+                    edges {
+                        node {
+                            ... on CategoricalAnnotationConfig {
+                                id
+                                name
+                                annotationType
+                                optimizationDirection
+                                description
+                                values {
+                                    label
+                                    score
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            projectAnnotationConfigAssociations {
+                projectId
+                annotationConfigId
+            }
+        }
+    }
+
+    mutation DeleteAnnotationConfigs($input: DeleteAnnotationConfigsInput!) {
+        deleteAnnotationConfigs(input: $input) {
             annotationConfigs {
-              edges {
-                node {
-                  ... on CategoricalAnnotationConfig {
+                ... on CategoricalAnnotationConfig {
                     id
                     name
                     annotationType
                     optimizationDirection
                     description
                     values {
-                      label
-                      score
+                        label
+                        score
                     }
-                  }
                 }
-              }
             }
-          }
-          projectAnnotationConfigAssociations {
-            projectId
-            annotationConfigId
-          }
         }
-      }
-    """
-
-    DELETE_ANNOTATION_CONFIGS_MUTATION = """
-      mutation ($input: DeleteAnnotationConfigsInput!) {
-        deleteAnnotationConfigs(input: $input) {
-          annotationConfigs {
-            ... on CategoricalAnnotationConfig {
-              id
-              name
-              annotationType
-              optimizationDirection
-              description
-              values {
-                label
-                score
-              }
-            }
-          }
-        }
-      }
+    }
     """
 
     async def test_categorical_annotation_config_crud_operations(
@@ -180,8 +170,9 @@ class TestAnnotationConfigMutations:
             }
         }
         create_response = await gql_client.execute(
-            self.CREATE_CATEGORICAL_ANNOTATION_CONFIG_MUTATION,
-            create_input,
+            query=self.QUERY,
+            variables=create_input,
+            operation_name="CreateCategoricalAnnotationConfig",
         )
         assert not create_response.errors
         assert (data := create_response.data) is not None
@@ -207,7 +198,10 @@ class TestAnnotationConfigMutations:
         assert created_config == expected_config
 
         # List annotation configs
-        list_response = await gql_client.execute(self.LIST_ANNOTATION_CONFIGS_QUERY)
+        list_response = await gql_client.execute(
+            query=self.QUERY,
+            operation_name="ListAnnotationConfigs",
+        )
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
@@ -232,8 +226,9 @@ class TestAnnotationConfigMutations:
             }
         }
         update_response = await gql_client.execute(
-            self.UPDATE_CATEGORICAL_ANNOTATION_CONFIG_MUTATION,
-            update_input,
+            query=self.QUERY,
+            variables=update_input,
+            operation_name="UpdateCategoricalAnnotationConfig",
         )
         assert not update_response.errors
         assert (data := update_response.data) is not None
@@ -259,8 +254,9 @@ class TestAnnotationConfigMutations:
             ]
         }
         add_response = await gql_client.execute(
-            self.ADD_ANNOTATION_CONFIG_TO_PROJECT_MUTATION,
-            add_to_project_input,
+            query=self.QUERY,
+            variables=add_to_project_input,
+            operation_name="AddAnnotationConfigToProject",
         )
         assert not add_response.errors
         assert (data := add_response.data) is not None
@@ -280,8 +276,9 @@ class TestAnnotationConfigMutations:
             ]
         }
         remove_response = await gql_client.execute(
-            self.REMOVE_ANNOTATION_CONFIG_FROM_PROJECT_MUTATION,
-            remove_from_project_input,
+            query=self.QUERY,
+            variables=remove_from_project_input,
+            operation_name="RemoveAnnotationConfigFromProject",
         )
         assert not remove_response.errors
         assert (data := remove_response.data) is not None
@@ -303,8 +300,9 @@ class TestAnnotationConfigMutations:
             }
         }
         delete_response = await gql_client.execute(
-            self.DELETE_ANNOTATION_CONFIGS_MUTATION,
-            delete_input,
+            query=self.QUERY,
+            variables=delete_input,
+            operation_name="DeleteAnnotationConfigs",
         )
         assert not delete_response.errors
         assert (data := delete_response.data) is not None
@@ -313,7 +311,10 @@ class TestAnnotationConfigMutations:
         assert deleted_configs[0] == expected_config
 
         # Verify the config is deleted by listing
-        list_response = await gql_client.execute(self.LIST_ANNOTATION_CONFIGS_QUERY)
+        list_response = await gql_client.execute(
+            query=self.QUERY,
+            operation_name="ListAnnotationConfigs",
+        )
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
