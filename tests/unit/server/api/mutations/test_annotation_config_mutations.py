@@ -8,7 +8,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 
 @pytest.fixture
-async def project(db: DbSessionFactory) -> None:
+async def project(db: DbSessionFactory) -> models.Project:
     """Inserts a project into the database."""
     async with db() as session:
         project = models.Project(
@@ -16,6 +16,7 @@ async def project(db: DbSessionFactory) -> None:
         )
         session.add(project)
         await session.flush()
+    return project
 
 
 class TestAnnotationConfigMutations:
@@ -161,7 +162,7 @@ class TestAnnotationConfigMutations:
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
-        project: None,
+        project: models.Project,
     ) -> None:
         # Create a categorical annotation config
         create_input = {
@@ -238,7 +239,7 @@ class TestAnnotationConfigMutations:
         assert updated_config["values"][1]["score"] == 0.0
 
         # Add annotation config to project
-        project_id = str(GlobalID("Project", "1"))
+        project_id = str(GlobalID("Project", str(project.id)))
         add_to_project_input = {
             "input": [
                 {
