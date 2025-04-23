@@ -531,9 +531,16 @@ def _lifespan(
 
 
 @router.get("/healthz")
-async def check_healthz(_: Request) -> PlainTextResponse:
+async def check_healthz(
+    request: Request,
+) -> PlainTextResponse:
+    try:
+        async with request.app.state.db() as session:
+            await session.execute(select(1))
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        return PlainTextResponse("Service Unavailable", status_code=503)
     return PlainTextResponse("OK")
-
 
 def create_graphql_router(
     *,
