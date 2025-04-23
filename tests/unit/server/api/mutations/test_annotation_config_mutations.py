@@ -20,141 +20,141 @@ async def project(db: DbSessionFactory) -> None:
 
 class TestAnnotationConfigMutations:
     CREATE_CATEGORICAL_ANNOTATION_CONFIG_MUTATION = """
-    mutation ($input: CreateAnnotationConfigInput!) {
+      mutation ($input: CreateAnnotationConfigInput!) {
         createAnnotationConfig(input: $input) {
-            annotationConfig {
-                ... on CategoricalAnnotationConfig {
-                    id
-                    name
-                    annotationType
-                    optimizationDirection
-                    description
-                    values {
-                        label
-                        score
-                    }
-                }
+          annotationConfig {
+            ... on CategoricalAnnotationConfig {
+              id
+              name
+              annotationType
+              optimizationDirection
+              description
+              values {
+                label
+                score
+              }
             }
+          }
         }
-    }
+      }
     """
 
     UPDATE_CATEGORICAL_ANNOTATION_CONFIG_MUTATION = """
-    mutation ($input: UpdateAnnotationConfigInput!) {
+      mutation ($input: UpdateAnnotationConfigInput!) {
         updateAnnotationConfig(input: $input) {
-            annotationConfig {
-                ... on CategoricalAnnotationConfig {
-                    id
-                    name
-                    annotationType
-                    optimizationDirection
-                    description
-                    values {
-                        label
-                        score
-                    }
-                }
+          annotationConfig {
+            ... on CategoricalAnnotationConfig {
+              id
+              name
+              annotationType
+              optimizationDirection
+              description
+              values {
+                label
+                score
+              }
             }
+          }
         }
-    }
+      }
     """
 
     LIST_ANNOTATION_CONFIGS_QUERY = """
-    {
+      {
         annotationConfigs(first: 10) {
-            edges {
-                node {
-                    ... on CategoricalAnnotationConfig {
-                        id
-                        name
-                        annotationType
-                        optimizationDirection
-                        description
-                        values {
-                            label
-                            score
-                        }
-                    }
+          edges {
+            node {
+              ... on CategoricalAnnotationConfig {
+                id
+                name
+                annotationType
+                optimizationDirection
+                description
+                values {
+                  label
+                  score
                 }
+              }
             }
+          }
         }
-    }
+      }
     """
 
     ADD_ANNOTATION_CONFIG_TO_PROJECT_MUTATION = """
-    mutation ($input: [AddAnnotationConfigToProjectInput!]!) {
+      mutation ($input: [AddAnnotationConfigToProjectInput!]!) {
         addAnnotationConfigToProject(input: $input) {
-            project {
-                annotationConfigs {
-                    edges {
-                        node {
-                            ... on CategoricalAnnotationConfig {
-                                id
-                                name
-                                annotationType
-                                optimizationDirection
-                                description
-                                values {
-                                    label
-                                    score
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    """
-
-    REMOVE_ANNOTATION_CONFIG_FROM_PROJECT_MUTATION = """
-    mutation ($input: [RemoveAnnotationConfigFromProjectInput!]!) {
-        removeAnnotationConfigFromProject(input: $input) {
-            project {
-                annotationConfigs {
-                    edges {
-                        node {
-                            ... on CategoricalAnnotationConfig {
-                                id
-                                name
-                                annotationType
-                                optimizationDirection
-                                description
-                                values {
-                                    label
-                                    score
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            projectAnnotationConfigAssociations {
-                projectId
-                annotationConfigId
-            }
-        }
-    }
-    """
-
-    DELETE_ANNOTATION_CONFIGS_MUTATION = """
-    mutation ($input: DeleteAnnotationConfigsInput!) {
-        deleteAnnotationConfigs(input: $input) {
+          project {
             annotationConfigs {
-                ... on CategoricalAnnotationConfig {
+              edges {
+                node {
+                  ... on CategoricalAnnotationConfig {
                     id
                     name
                     annotationType
                     optimizationDirection
                     description
                     values {
-                        label
-                        score
+                      label
+                      score
                     }
+                  }
                 }
+              }
             }
+          }
         }
-    }
+      }
+    """
+
+    REMOVE_ANNOTATION_CONFIG_FROM_PROJECT_MUTATION = """
+      mutation ($input: [RemoveAnnotationConfigFromProjectInput!]!) {
+        removeAnnotationConfigFromProject(input: $input) {
+          project {
+            annotationConfigs {
+              edges {
+                node {
+                  ... on CategoricalAnnotationConfig {
+                    id
+                    name
+                    annotationType
+                    optimizationDirection
+                    description
+                    values {
+                      label
+                      score
+                    }
+                  }
+                }
+              }
+            }
+          }
+          projectAnnotationConfigAssociations {
+            projectId
+            annotationConfigId
+          }
+        }
+      }
+    """
+
+    DELETE_ANNOTATION_CONFIGS_MUTATION = """
+      mutation ($input: DeleteAnnotationConfigsInput!) {
+        deleteAnnotationConfigs(input: $input) {
+          annotationConfigs {
+            ... on CategoricalAnnotationConfig {
+              id
+              name
+              annotationType
+              optimizationDirection
+              description
+              values {
+                label
+                score
+              }
+            }
+          }
+        }
+      }
     """
 
     async def test_categorical_annotation_config_lifecycle(
