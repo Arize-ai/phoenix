@@ -257,11 +257,14 @@ export const AnnotationConfigDialog = ({
                           </Radio>
                         ))}
                         <Text marginTop="auto" slot="description">
-                          Maximize - higher the score the better - e.g.
+                          Maximize - higher the score the better - e.g.,
                           correctness
                           <br />
-                          Minimize - lower the score the better - e.g.
+                          Minimize - lower the score the better - e.g.,
                           hallucinations
+                          <br />
+                          None - higher is not better or worse
+                          <br />
                         </Text>
                       </RadioGroup>
                     )}
