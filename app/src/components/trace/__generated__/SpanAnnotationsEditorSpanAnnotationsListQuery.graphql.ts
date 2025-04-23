@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dbbc5112a6dfad4f8a292c0e89665a5f>>
+ * @generated SignedSource<<5a5900c3cfb28a34aa24fb0a576b2ff3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type SpanAnnotationsEditorSpanAnnotationsListQuery$variables = {
   filterUserIds?: ReadonlyArray<string> | null;
   projectId: string;

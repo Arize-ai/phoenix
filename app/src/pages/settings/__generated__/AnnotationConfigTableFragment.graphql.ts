@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a256364adb61fd90e1279504fded6f6c>>
+ * @generated SignedSource<<f88c57b8b8e1f70d774c1b377d6fd85c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationConfigTableFragment$data = {
   readonly annotationConfigs: {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b87fbc9443bf6fe3a41cd8afcc9fed7>>
+ * @generated SignedSource<<e4dd88c0553f80d09def13c7989f3f04>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type CreateAnnotationConfigInput = {
   annotationConfig: AnnotationConfigInput;
 };
