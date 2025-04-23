@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 import strawberry
@@ -9,11 +10,15 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.input_types.CreateSpanAnnotationInput import CreateSpanAnnotationInput
+from phoenix.server.api.input_types.CreateSpanAnnotationInput import (
+    CreateSpanAnnotationInput,
+    CreateSpanNoteInput,
+)
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
+from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation, to_gql_span_annotation
 from phoenix.server.bearer_auth import PhoenixUser
@@ -121,6 +126,49 @@ class SpanAnnotationMutationMixin:
             await session.commit()
         return SpanAnnotationMutationPayload(
             span_annotations=returned_annotations,
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
+    async def create_span_note(
+        self, info: Info[Context, None], annotation_input: CreateSpanNoteInput
+    ) -> SpanAnnotationMutationPayload:
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+
+        try:
+            span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
+        except ValueError:
+            raise BadRequest(f"Invalid span ID: {annotation_input.span_id}")
+
+        async with info.context.db() as session:
+            timestamp = datetime.now().isoformat()
+            note_identifier = f"px-span-note:{timestamp}"
+            values = {
+                "span_rowid": span_rowid,
+                "name": "note",
+                "label": None,
+                "score": None,
+                "explanation": annotation_input.note,
+                "annotator_kind": AnnotatorKind.HUMAN.value,
+                "metadata_": dict(),
+                "identifier": note_identifier,
+                "source": AnnotationSource.APP.value,
+                "user_id": user_id,
+            }
+
+            stmt = insert(models.SpanAnnotation).values(**values)
+            stmt = stmt.returning(models.SpanAnnotation)
+            result = await session.scalars(stmt)
+            processed_annotation = result.one()
+
+            info.context.event_queue.put(SpanAnnotationInsertEvent((processed_annotation.id,)))
+            returned_annotation = to_gql_span_annotation(processed_annotation)
+            await session.commit()
+        return SpanAnnotationMutationPayload(
+            span_annotations=[returned_annotation],
             query=Query(),
         )
 
