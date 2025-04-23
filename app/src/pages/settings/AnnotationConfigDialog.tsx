@@ -38,6 +38,7 @@ const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const optimizationDirections = [
   "MAXIMIZE",
   "MINIMIZE",
+  "NONE",
 ] satisfies AnnotationConfigOptimizationDirection[];
 
 const types = [
