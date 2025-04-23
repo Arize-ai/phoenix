@@ -426,6 +426,11 @@ input CreateSpanAnnotationInput {
   source: AnnotationSource!
 }
 
+input CreateSpanCommentInput {
+  spanId: GlobalID!
+  comment: String!
+}
+
 type CreateSystemApiKeyMutationPayload {
   jwt: String!
   apiKey: SystemApiKey!
@@ -1429,6 +1434,7 @@ type Mutation {
   setPromptLabel(input: SetPromptLabelInput!): PromptLabelMutationPayload!
   unsetPromptLabel(input: UnsetPromptLabelInput!): PromptLabelMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
+  createSpanComment(annotationInput: CreateSpanCommentInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!

@@ -19,3 +19,9 @@ class CreateSpanAnnotationInput:
     metadata: JSON = strawberry.field(default_factory=dict)
     identifier: Optional[str] = None
     source: AnnotationSource
+
+
+@strawberry.input
+class CreateSpanCommentInput:
+    span_id: GlobalID
+    comment: str
