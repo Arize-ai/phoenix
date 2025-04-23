@@ -32,7 +32,6 @@ from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     ContinuousAnnotationConfig,
     FreeformAnnotationConfig,
-    ProjectAnnotationConfigAssociation,
     to_gql_annotation_config,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -138,7 +137,6 @@ class AddAnnotationConfigToProjectInput:
 class AddAnnotationConfigToProjectPayload:
     query: Query
     project: Project
-    project_annotation_config_associations: list[ProjectAnnotationConfigAssociation]
 
 
 @strawberry.input
@@ -151,7 +149,6 @@ class RemoveAnnotationConfigFromProjectInput:
 class RemoveAnnotationConfigFromProjectPayload:
     query: Query
     project: Project
-    project_annotation_config_associations: list[ProjectAnnotationConfigAssociation]
 
 
 def to_pydantic_categorical_annotation_config(
@@ -332,13 +329,6 @@ class AnnotationConfigMutationMixin:
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
                 project=Project(project_rowid=project_id),
-                project_annotation_config_associations=[
-                    ProjectAnnotationConfigAssociation(
-                        project_id=item.project_id,
-                        annotation_config_id=item.annotation_config_id,
-                    )
-                    for item in input
-                ],
             )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly])  # type: ignore[misc]
@@ -374,11 +364,4 @@ class AnnotationConfigMutationMixin:
         return RemoveAnnotationConfigFromProjectPayload(
             query=Query(),
             project=Project(project_rowid=project_id),
-            project_annotation_config_associations=[
-                ProjectAnnotationConfigAssociation(
-                    project_id=item.project_id,
-                    annotation_config_id=item.annotation_config_id,
-                )
-                for item in input
-            ],
         )

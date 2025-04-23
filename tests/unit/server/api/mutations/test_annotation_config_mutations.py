@@ -106,10 +106,6 @@ class TestAnnotationConfigMutations:
                     }
                 }
             }
-            projectAnnotationConfigAssociations {
-                projectId
-                annotationConfigId
-            }
         }
     }
 
@@ -131,10 +127,6 @@ class TestAnnotationConfigMutations:
                         }
                     }
                 }
-            }
-            projectAnnotationConfigAssociations {
-                projectId
-                annotationConfigId
             }
         }
     }
@@ -283,14 +275,6 @@ class TestAnnotationConfigMutations:
         ]
         assert len(project_configs) == 1
         assert project_configs[0]["node"] == expected_config
-        project_config_associations = data["addAnnotationConfigToProject"][
-            "projectAnnotationConfigAssociations"
-        ]
-        assert len(project_config_associations) == 1
-        assert project_config_associations[0] == {
-            "projectId": project_id,
-            "annotationConfigId": config_id,
-        }
 
         # Remove annotation config from project
         remove_response = await gql_client.execute(
@@ -311,12 +295,6 @@ class TestAnnotationConfigMutations:
             "edges"
         ]
         assert len(project_configs) == 0
-        associations = data["removeAnnotationConfigFromProject"][
-            "projectAnnotationConfigAssociations"
-        ]
-        assert len(associations) == 1
-        assert associations[0]["projectId"] == project_id
-        assert associations[0]["annotationConfigId"] == config_id
 
         # Delete the annotation config
         delete_response = await gql_client.execute(
@@ -447,14 +425,6 @@ class TestAnnotationConfigMutations:
         ]
         assert len(project_configs) == 1
         assert project_configs[0]["node"] == expected_config
-        project_config_associations = data["addAnnotationConfigToProject"][
-            "projectAnnotationConfigAssociations"
-        ]
-        assert len(project_config_associations) == 1
-        assert project_config_associations[0] == {
-            "projectId": project_id,
-            "annotationConfigId": config_id,
-        }
 
         # Remove annotation config from project
         remove_response = await gql_client.execute(
@@ -475,12 +445,6 @@ class TestAnnotationConfigMutations:
             "edges"
         ]
         assert len(project_configs) == 0
-        associations = data["removeAnnotationConfigFromProject"][
-            "projectAnnotationConfigAssociations"
-        ]
-        assert len(associations) == 1
-        assert associations[0]["projectId"] == project_id
-        assert associations[0]["annotationConfigId"] == config_id
 
         # Delete the annotation config
         delete_response = await gql_client.execute(
@@ -599,14 +563,6 @@ class TestAnnotationConfigMutations:
         ]
         assert len(project_configs) == 1
         assert project_configs[0]["node"] == expected_config
-        project_config_associations = data["addAnnotationConfigToProject"][
-            "projectAnnotationConfigAssociations"
-        ]
-        assert len(project_config_associations) == 1
-        assert project_config_associations[0] == {
-            "projectId": project_id,
-            "annotationConfigId": config_id,
-        }
 
         # Remove annotation config from project
         remove_response = await gql_client.execute(
@@ -627,12 +583,6 @@ class TestAnnotationConfigMutations:
             "edges"
         ]
         assert len(project_configs) == 0
-        associations = data["removeAnnotationConfigFromProject"][
-            "projectAnnotationConfigAssociations"
-        ]
-        assert len(associations) == 1
-        assert associations[0]["projectId"] == project_id
-        assert associations[0]["annotationConfigId"] == config_id
 
         # Delete the annotation config
         delete_response = await gql_client.execute(
