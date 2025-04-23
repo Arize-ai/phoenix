@@ -536,15 +536,15 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 @router.get("/readyz")
 async def check_readyz(
-    _: Request, db: DbSessionFactory = Depends(_db)
+    request: Request
 ) -> JSONResponse:
     try:
-        async with db() as session:
+        async with request.app.state.db() as session:
             await session.execute(select(1))
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
-        return JSONResponse({"database": "DOWN", "pythonServer": "UP"}, status_code=503)
-    return JSONResponse({"database": "UP", "pythonServer": "UP"})
+        raise HTTPException(status_code=503, detail="database unreachable")
+    return JSONResponse({})
 
 
 def create_graphql_router(
