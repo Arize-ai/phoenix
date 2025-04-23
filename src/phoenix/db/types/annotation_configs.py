@@ -16,6 +16,7 @@ class AnnotationType(Enum):
 class OptimizationDirection(Enum):
     MINIMIZE = "MINIMIZE"
     MAXIMIZE = "MAXIMIZE"
+    NONE = "NONE"
 
 
 class _BaseAnnotationConfig(DBBaseModel):
