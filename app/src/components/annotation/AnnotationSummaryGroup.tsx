@@ -61,13 +61,22 @@ export const AnnotationSummaryGroup = ({
       }),
     [spanAnnotationSummaries]
   );
-  const sortedAnnotationsByCreatedAt = useMemo(
+  const latestAnnotationsByName = useMemo(
     () =>
-      spanAnnotations.slice().sort((a, b) => {
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      }),
+      spanAnnotations.reduce(
+        (acc, annotation) => {
+          if (!acc[annotation.name]) {
+            acc[annotation.name] = annotation;
+          } else if (
+            new Date(annotation.createdAt) >
+            new Date(acc[annotation.name].createdAt)
+          ) {
+            acc[annotation.name] = annotation;
+          }
+          return acc;
+        },
+        {} as Record<string, (typeof spanAnnotations)[number]>
+      ),
     [spanAnnotations]
   );
   if (spanAnnotationSummaries.length === 0 && renderEmptyState) {
@@ -79,9 +88,7 @@ export const AnnotationSummaryGroup = ({
     return (
       <Flex direction="row" gap="size-200">
         {sortedSummariesByName.map((summary) => {
-          const latestAnnotation = sortedAnnotationsByCreatedAt.find(
-            (annotation) => annotation.name === summary.name
-          );
+          const latestAnnotation = latestAnnotationsByName[summary.name];
           if (!latestAnnotation) {
             return null;
           }
@@ -107,9 +114,7 @@ export const AnnotationSummaryGroup = ({
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
       {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = sortedAnnotationsByCreatedAt.find(
-          (annotation) => annotation.name === summary.name
-        );
+        const latestAnnotation = latestAnnotationsByName[summary.name];
         const labelFractions = summary?.labelFractions;
         const meanScore = summary?.meanScore;
         if (!latestAnnotation) {
