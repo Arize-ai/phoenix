@@ -1456,6 +1456,7 @@ type NumericRange {
 enum OptimizationDirection {
   MINIMIZE
   MAXIMIZE
+  NONE
 }
 
 """Information to aid in pagination."""
