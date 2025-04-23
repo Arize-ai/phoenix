@@ -158,9 +158,8 @@ class TestAnnotationConfigMutations:
       }
     """
 
-    async def test_categorical_annotation_config_lifecycle(
+    async def test_categorical_annotation_config_crud_operations(
         self,
-        db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
         project: models.Project,
     ) -> None:
@@ -188,14 +187,24 @@ class TestAnnotationConfigMutations:
         assert (data := create_response.data) is not None
         created_config = data["createAnnotationConfig"]["annotationConfig"]
         config_id = created_config["id"]
-        assert created_config["name"] == "Test Categorical Config"
-        assert created_config["description"] == "Test description"
-        assert created_config["optimizationDirection"] == "MAXIMIZE"
-        assert len(created_config["values"]) == 2
-        assert created_config["values"][0]["label"] == "Good"
-        assert created_config["values"][0]["score"] == 1.0
-        assert created_config["values"][1]["label"] == "Bad"
-        assert created_config["values"][1]["score"] == 0.0
+        expected_config = {
+            "name": "Test Categorical Config",
+            "id": config_id,
+            "description": "Test description",
+            "annotationType": "CATEGORICAL",
+            "optimizationDirection": "MAXIMIZE",
+            "values": [
+                {
+                    "label": "Good",
+                    "score": 1.0,
+                },
+                {
+                    "label": "Bad",
+                    "score": 0.0,
+                },
+            ],
+        }
+        assert created_config == expected_config
 
         # List annotation configs
         list_response = await gql_client.execute(self.LIST_ANNOTATION_CONFIGS_QUERY)
@@ -229,14 +238,15 @@ class TestAnnotationConfigMutations:
         assert not update_response.errors
         assert (data := update_response.data) is not None
         updated_config = data["updateAnnotationConfig"]["annotationConfig"]
-        assert updated_config["name"] == "Updated Categorical Config"
-        assert updated_config["description"] == "Updated description"
-        assert updated_config["optimizationDirection"] == "MINIMIZE"
-        assert len(updated_config["values"]) == 2
-        assert updated_config["values"][0]["label"] == "Excellent"
-        assert updated_config["values"][0]["score"] == 1.0
-        assert updated_config["values"][1]["label"] == "Poor"
-        assert updated_config["values"][1]["score"] == 0.0
+        expected_config = {
+            "name": "Updated Categorical Config",
+            "id": config_id,
+            "description": "Updated description",
+            "annotationType": "CATEGORICAL",
+            "optimizationDirection": "MINIMIZE",
+            "values": [{"label": "Excellent", "score": 1.0}, {"label": "Poor", "score": 0.0}],
+        }
+        assert updated_config == expected_config
 
         # Add annotation config to project
         project_id = str(GlobalID("Project", str(project.id)))
@@ -300,7 +310,7 @@ class TestAnnotationConfigMutations:
         assert (data := delete_response.data) is not None
         deleted_configs = data["deleteAnnotationConfigs"]["annotationConfigs"]
         assert len(deleted_configs) == 1
-        assert deleted_configs[0]["id"] == config_id
+        assert deleted_configs[0] == expected_config
 
         # Verify the config is deleted by listing
         list_response = await gql_client.execute(self.LIST_ANNOTATION_CONFIGS_QUERY)
