@@ -22,6 +22,6 @@ class CreateSpanAnnotationInput:
 
 
 @strawberry.input
-class CreateSpanCommentInput:
+class CreateSpanNoteInput:
     span_id: GlobalID
-    comment: str
+    note: str

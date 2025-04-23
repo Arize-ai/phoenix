@@ -12,7 +12,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.input_types.CreateSpanAnnotationInput import (
     CreateSpanAnnotationInput,
-    CreateSpanCommentInput,
+    CreateSpanNoteInput,
 )
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -130,8 +130,8 @@ class SpanAnnotationMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsLocked])  # type: ignore
-    async def create_span_comment(
-        self, info: Info[Context, None], annotation_input: CreateSpanCommentInput
+    async def create_span_note(
+        self, info: Info[Context, None], annotation_input: CreateSpanNoteInput
     ) -> SpanAnnotationMutationPayload:
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
@@ -145,16 +145,16 @@ class SpanAnnotationMutationMixin:
 
         async with info.context.db() as session:
             timestamp = datetime.now().isoformat()
-            comment_identifier = f"px-span-comment:{timestamp}"
+            note_identifier = f"px-span-note:{timestamp}"
             values = {
                 "span_rowid": span_rowid,
-                "name": "px-span-comment",
+                "name": "note",
                 "label": None,
                 "score": None,
-                "explanation": annotation_input.comment,
+                "explanation": annotation_input.note,
                 "annotator_kind": AnnotatorKind.HUMAN.value,
                 "metadata_": dict(),
-                "identifier": comment_identifier,
+                "identifier": note_identifier,
                 "source": AnnotationSource.APP.value,
                 "user_id": user_id,
             }
