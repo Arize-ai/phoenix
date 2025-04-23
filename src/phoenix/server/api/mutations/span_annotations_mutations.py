@@ -139,9 +139,9 @@ class SpanAnnotationMutationMixin:
             user_id = int(user.identity)
 
         try:
-            span_rowid = from_global_id_with_expected_type(input.span_id, "Span")
+            span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
         except ValueError:
-            raise BadRequest(f"Invalid span ID: {input.span_id}")
+            raise BadRequest(f"Invalid span ID: {annotation_input.span_id}")
 
         async with info.context.db() as session:
             timestamp = datetime.now().isoformat()
