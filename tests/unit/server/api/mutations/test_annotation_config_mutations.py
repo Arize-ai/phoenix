@@ -175,24 +175,23 @@ class TestAnnotationConfigMutations:
         project: models.Project,
     ) -> None:
         # Create a categorical annotation config
-        create_input = {
-            "input": {
-                "annotationConfig": {
-                    "categorical": {
-                        "name": "Test Categorical Config",
-                        "description": "Test description",
-                        "optimizationDirection": "MAXIMIZE",
-                        "values": [
-                            {"label": "Good", "score": 1.0},
-                            {"label": "Bad", "score": 0.0},
-                        ],
-                    }
-                }
-            }
-        }
         create_response = await gql_client.execute(
             query=self.QUERY,
-            variables=create_input,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "categorical": {
+                            "name": "Test Categorical Config",
+                            "description": "Test description",
+                            "optimizationDirection": "MAXIMIZE",
+                            "values": [
+                                {"label": "Good", "score": 1.0},
+                                {"label": "Bad", "score": 0.0},
+                            ],
+                        }
+                    }
+                }
+            },
             operation_name="CreateAnnotationConfig",
         )
         assert not create_response.errors
@@ -230,25 +229,24 @@ class TestAnnotationConfigMutations:
         assert configs[0]["node"] == created_config
 
         # Update the annotation config
-        update_input = {
-            "input": {
-                "id": config_id,
-                "annotationConfig": {
-                    "categorical": {
-                        "name": "Updated Categorical Config",
-                        "description": "Updated description",
-                        "optimizationDirection": "MINIMIZE",
-                        "values": [
-                            {"label": "Excellent", "score": 1.0},
-                            {"label": "Poor", "score": 0.0},
-                        ],
-                    }
-                },
-            }
-        }
         update_response = await gql_client.execute(
             query=self.QUERY,
-            variables=update_input,
+            variables={
+                "input": {
+                    "id": config_id,
+                    "annotationConfig": {
+                        "categorical": {
+                            "name": "Updated Categorical Config",
+                            "description": "Updated description",
+                            "optimizationDirection": "MINIMIZE",
+                            "values": [
+                                {"label": "Excellent", "score": 1.0},
+                                {"label": "Poor", "score": 0.0},
+                            ],
+                        }
+                    },
+                }
+            },
             operation_name="UpdateAnnotationConfig",
         )
         assert not update_response.errors
@@ -266,17 +264,16 @@ class TestAnnotationConfigMutations:
 
         # Add annotation config to project
         project_id = str(GlobalID("Project", str(project.id)))
-        add_to_project_input = {
-            "input": [
-                {
-                    "projectId": project_id,
-                    "annotationConfigId": config_id,
-                }
-            ]
-        }
         add_response = await gql_client.execute(
             query=self.QUERY,
-            variables=add_to_project_input,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
             operation_name="AddAnnotationConfigToProject",
         )
         assert not add_response.errors
@@ -296,17 +293,16 @@ class TestAnnotationConfigMutations:
         }
 
         # Remove annotation config from project
-        remove_from_project_input = {
-            "input": [
-                {
-                    "projectId": project_id,
-                    "annotationConfigId": config_id,
-                }
-            ]
-        }
         remove_response = await gql_client.execute(
             query=self.QUERY,
-            variables=remove_from_project_input,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
             operation_name="RemoveAnnotationConfigFromProject",
         )
         assert not remove_response.errors
@@ -323,14 +319,13 @@ class TestAnnotationConfigMutations:
         assert associations[0]["annotationConfigId"] == config_id
 
         # Delete the annotation config
-        delete_input = {
-            "input": {
-                "ids": [config_id],
-            }
-        }
         delete_response = await gql_client.execute(
             query=self.QUERY,
-            variables=delete_input,
+            variables={
+                "input": {
+                    "ids": [config_id],
+                }
+            },
             operation_name="DeleteAnnotationConfigs",
         )
         assert not delete_response.errors
@@ -355,22 +350,21 @@ class TestAnnotationConfigMutations:
         project: models.Project,
     ) -> None:
         # Create a continuous annotation config
-        create_input = {
-            "input": {
-                "annotationConfig": {
-                    "continuous": {
-                        "name": "Test Continuous Config",
-                        "description": "Test description",
-                        "optimizationDirection": "MAXIMIZE",
-                        "lowerBound": 0.0,
-                        "upperBound": 1.0,
-                    }
-                }
-            }
-        }
         create_response = await gql_client.execute(
             query=self.QUERY,
-            variables=create_input,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "continuous": {
+                            "name": "Test Continuous Config",
+                            "description": "Test description",
+                            "optimizationDirection": "MAXIMIZE",
+                            "lowerBound": 0.0,
+                            "upperBound": 1.0,
+                        }
+                    }
+                }
+            },
             operation_name="CreateAnnotationConfig",
         )
         assert not create_response.errors
@@ -400,23 +394,22 @@ class TestAnnotationConfigMutations:
         assert configs[0]["node"] == created_config
 
         # Update the annotation config
-        update_input = {
-            "input": {
-                "id": config_id,
-                "annotationConfig": {
-                    "continuous": {
-                        "name": "Updated Continuous Config",
-                        "description": "Updated description",
-                        "optimizationDirection": "MINIMIZE",
-                        "lowerBound": -1.0,
-                        "upperBound": 2.0,
-                    }
-                },
-            }
-        }
         update_response = await gql_client.execute(
             query=self.QUERY,
-            variables=update_input,
+            variables={
+                "input": {
+                    "id": config_id,
+                    "annotationConfig": {
+                        "continuous": {
+                            "name": "Updated Continuous Config",
+                            "description": "Updated description",
+                            "optimizationDirection": "MINIMIZE",
+                            "lowerBound": -1.0,
+                            "upperBound": 2.0,
+                        }
+                    },
+                }
+            },
             operation_name="UpdateAnnotationConfig",
         )
         assert not update_response.errors
@@ -435,17 +428,16 @@ class TestAnnotationConfigMutations:
 
         # Add annotation config to project
         project_id = str(GlobalID("Project", str(project.id)))
-        add_to_project_input = {
-            "input": [
-                {
-                    "projectId": project_id,
-                    "annotationConfigId": config_id,
-                }
-            ]
-        }
         add_response = await gql_client.execute(
             query=self.QUERY,
-            variables=add_to_project_input,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
             operation_name="AddAnnotationConfigToProject",
         )
         assert not add_response.errors
@@ -465,17 +457,16 @@ class TestAnnotationConfigMutations:
         }
 
         # Remove annotation config from project
-        remove_from_project_input = {
-            "input": [
-                {
-                    "projectId": project_id,
-                    "annotationConfigId": config_id,
-                }
-            ]
-        }
         remove_response = await gql_client.execute(
             query=self.QUERY,
-            variables=remove_from_project_input,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
             operation_name="RemoveAnnotationConfigFromProject",
         )
         assert not remove_response.errors
@@ -492,14 +483,13 @@ class TestAnnotationConfigMutations:
         assert associations[0]["annotationConfigId"] == config_id
 
         # Delete the annotation config
-        delete_input = {
-            "input": {
-                "ids": [config_id],
-            }
-        }
         delete_response = await gql_client.execute(
             query=self.QUERY,
-            variables=delete_input,
+            variables={
+                "input": {
+                    "ids": [config_id],
+                }
+            },
             operation_name="DeleteAnnotationConfigs",
         )
         assert not delete_response.errors
@@ -524,19 +514,18 @@ class TestAnnotationConfigMutations:
         project: models.Project,
     ) -> None:
         # Create a freeform annotation config
-        create_input = {
-            "input": {
-                "annotationConfig": {
-                    "freeform": {
-                        "name": "Test Freeform Config",
-                        "description": "Test description",
-                    }
-                }
-            }
-        }
         create_response = await gql_client.execute(
             query=self.QUERY,
-            variables=create_input,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "Test Freeform Config",
+                            "description": "Test description",
+                        }
+                    }
+                }
+            },
             operation_name="CreateAnnotationConfig",
         )
         assert not create_response.errors
@@ -563,20 +552,19 @@ class TestAnnotationConfigMutations:
         assert configs[0]["node"] == created_config
 
         # Update the annotation config
-        update_input = {
-            "input": {
-                "id": config_id,
-                "annotationConfig": {
-                    "freeform": {
-                        "name": "Updated Freeform Config",
-                        "description": "Updated description",
-                    }
-                },
-            }
-        }
         update_response = await gql_client.execute(
             query=self.QUERY,
-            variables=update_input,
+            variables={
+                "input": {
+                    "id": config_id,
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "Updated Freeform Config",
+                            "description": "Updated description",
+                        }
+                    },
+                }
+            },
             operation_name="UpdateAnnotationConfig",
         )
         assert not update_response.errors
@@ -592,17 +580,16 @@ class TestAnnotationConfigMutations:
 
         # Add annotation config to project
         project_id = str(GlobalID("Project", str(project.id)))
-        add_to_project_input = {
-            "input": [
-                {
-                    "projectId": project_id,
-                    "annotationConfigId": config_id,
-                }
-            ]
-        }
         add_response = await gql_client.execute(
             query=self.QUERY,
-            variables=add_to_project_input,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
             operation_name="AddAnnotationConfigToProject",
         )
         assert not add_response.errors
@@ -622,17 +609,16 @@ class TestAnnotationConfigMutations:
         }
 
         # Remove annotation config from project
-        remove_from_project_input = {
-            "input": [
-                {
-                    "projectId": project_id,
-                    "annotationConfigId": config_id,
-                }
-            ]
-        }
         remove_response = await gql_client.execute(
             query=self.QUERY,
-            variables=remove_from_project_input,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
             operation_name="RemoveAnnotationConfigFromProject",
         )
         assert not remove_response.errors
@@ -649,14 +635,13 @@ class TestAnnotationConfigMutations:
         assert associations[0]["annotationConfigId"] == config_id
 
         # Delete the annotation config
-        delete_input = {
-            "input": {
-                "ids": [config_id],
-            }
-        }
         delete_response = await gql_client.execute(
             query=self.QUERY,
-            variables=delete_input,
+            variables={
+                "input": {
+                    "ids": [config_id],
+                }
+            },
             operation_name="DeleteAnnotationConfigs",
         )
         assert not delete_response.errors
