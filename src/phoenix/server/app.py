@@ -534,10 +534,9 @@ def _lifespan(
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
+
 @router.get("/readyz")
-async def check_readyz(
-    request: Request
-) -> JSONResponse:
+async def check_readyz(request: Request) -> JSONResponse:
     try:
         async with request.app.state.db() as session:
             await session.execute(select(1))
