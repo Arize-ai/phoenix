@@ -897,7 +897,7 @@ export interface components {
          * OptimizationDirection
          * @enum {string}
          */
-        OptimizationDirection: "MINIMIZE" | "MAXIMIZE";
+        OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
         /** Project */
         Project: {
             /** Name */
