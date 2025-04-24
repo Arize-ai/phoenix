@@ -3,7 +3,7 @@ from typing import Optional
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.server.api.routers.oauth2 import (
@@ -209,9 +209,23 @@ async def test_sign_in_existing_oauth2_user(
     allowed: bool,
 ) -> None:
     if user:
-        user.email = user_info.email if allowed else f"{token_hex(8)}@example.com"
+        email = user_info.email if allowed else f"{token_hex(8)}@example.com"
         async with db() as session:
-            session.add(user)
+            # For some strange reason PostgreSQL insists on UPDATE instead of
+            # INSERT when using session.add(user), so we have to INSERT manually
+            # session.add(user)
+            await session.execute(
+                insert(models.User).values(
+                    email=email,
+                    user_role_id=user.user_role_id,
+                    username=user.username,
+                    password_hash=user.password_hash,
+                    password_salt=user.password_salt,
+                    reset_password=user.reset_password,
+                    oauth2_client_id=user.oauth2_client_id,
+                    oauth2_user_id=user.oauth2_user_id,
+                )
+            )
     async with db() as session:
         if not user or not allowed:
             with pytest.raises(SignInNotAllowed):
@@ -227,7 +241,7 @@ async def test_sign_in_existing_oauth2_user(
             user_info=user_info,
         )
     async with db() as session:
-        db_user = await session.scalar(select(models.User).filter_by(id=user.id))
+        db_user = await session.scalar(select(models.User).filter_by(email=email))
     assert db_user
     assert db_user.oauth2_client_id == oauth2_client_id
     assert db_user.oauth2_user_id == user_info.idp_user_id

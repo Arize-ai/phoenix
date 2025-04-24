@@ -318,7 +318,8 @@ async def _sign_in_existing_oauth2_user(
         SignInNotAllowed: When sign-in is not allowed for the user
     """
     email = user_info.email
-    user = await _find_user_by_email(session, email)
+    stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
+    user = await session.scalar(stmt)
     if (
         user is None
         or user.password_hash is not None
@@ -340,25 +341,6 @@ async def _sign_in_existing_oauth2_user(
         user.oauth2_user_id = user_info.idp_user_id
     if user in session.dirty:
         await session.flush()
-    return user
-
-
-async def _find_user_by_email(
-    session: AsyncSession,
-    email: str,
-) -> Optional[models.User]:
-    """
-    Finds a user by email.
-
-    Args:
-        session: The database session
-        email: The user's email
-
-    Returns:
-        The user object or None if not found
-    """
-    stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
-    user: Optional[models.User] = await session.scalar(stmt)
     return user
 
 
