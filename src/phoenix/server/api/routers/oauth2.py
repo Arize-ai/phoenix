@@ -371,9 +371,9 @@ async def _create_or_update_user(
         idp_user_id=user_info.idp_user_id,
     )
     if user is None:
-        return await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
+        user = await _create_user(session, oauth2_client_id=oauth2_client_id, user_info=user_info)
     if user.email != user_info.email:
-        return await _update_user_email(session, user_id=user.id, email=user_info.email)
+        user = await _update_user_email(session, user_id=user.id, email=user_info.email)
     return user
 
 
