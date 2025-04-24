@@ -14,7 +14,7 @@ Here's a real example from our test data:
 ```
 Original input order: ['QVZZCJFR', 'DAUFW', 'DXRMYF', 'SEETRJBUU', ...]
 
-JSON output: {                 | JSONB output: {
+JSON output: {                | JSONB output: {
   "QVZZCJFR": 8,              |   "B": 1,
   "DAUFW": 5,                 |   "XT": 2,
   "DXRMYF": 6,                |   "RHD": 3,
