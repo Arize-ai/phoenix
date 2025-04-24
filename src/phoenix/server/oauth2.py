@@ -19,8 +19,13 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
     client_cls = AsyncHttpxOAuth2Client
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, allow_sign_up: bool, **kwargs: Any) -> None:
         super().__init__(framework=None, *args, **kwargs)
+        self._allow_sign_up = allow_sign_up
+
+    @property
+    def allow_sign_up(self) -> bool:
+        return self._allow_sign_up
 
 
 class OAuth2Clients:
@@ -35,6 +40,7 @@ class OAuth2Clients:
             client_secret=config.client_secret,
             server_metadata_url=config.oidc_config_url,
             client_kwargs={"scope": "openid email profile"},
+            allow_sign_up=config.allow_sign_up,
         )
         assert isinstance(client, OAuth2Client)
         self._clients[config.idp_name] = client

@@ -577,6 +577,7 @@ class OAuth2ClientConfig:
     client_id: str
     client_secret: str
     oidc_config_url: str
+    allow_sign_up: bool
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -608,6 +609,7 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
+        allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -624,6 +626,7 @@ class OAuth2ClientConfig:
             client_id=client_id,
             client_secret=client_secret,
             oidc_config_url=oidc_config_url,
+            allow_sign_up=allow_sign_up,
         )
 
 
@@ -634,12 +637,17 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP)$"
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
+def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_ALLOW_SIGN_UP".upper()
+    return _bool_val(env_var, True)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent

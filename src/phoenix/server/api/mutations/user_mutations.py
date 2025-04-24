@@ -24,6 +24,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import enums, models
+from phoenix.db.constants import TBD_OAUTH2_CLIENT_ID_PREFIX, TBD_OAUTH2_USER_ID_PREFIX
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
@@ -93,16 +94,25 @@ class UserMutationMixin:
         input: CreateUserInput,
     ) -> UserMutationPayload:
         validate_email_format(email := input.email)
-        validate_password_format(password := input.password)
-        salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-        password_hash = await info.context.hash_password(password, salt)
-        user = models.User(
-            reset_password=True,
-            username=input.username,
-            email=email,
-            password_hash=password_hash,
-            password_salt=salt,
-        )
+        if input.password:
+            validate_password_format(password := input.password)
+            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+            password_hash = await info.context.hash_password(password, salt)
+            user = models.User(
+                reset_password=True,
+                username=input.username,
+                email=email,
+                password_hash=password_hash,
+                password_salt=salt,
+            )
+        else:
+            user = models.User(
+                reset_password=False,
+                username=input.username,
+                email=email,
+                oauth2_client_id=f"{TBD_OAUTH2_CLIENT_ID_PREFIX}{secrets.token_hex(8)}",
+                oauth2_user_id=f"{TBD_OAUTH2_USER_ID_PREFIX}{secrets.token_hex(8)}",
+            )
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
             user_role_id = await session.scalar(_select_role_id_by_name(input.role.value))

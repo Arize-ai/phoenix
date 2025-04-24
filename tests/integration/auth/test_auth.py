@@ -80,26 +80,43 @@ _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
 class TestOIDC:
     """Tests for OpenID Connect (OIDC) authentication flow.
 
-    This class tests the OIDC signup process, including user creation,
-    token generation, and handling of conflicts with existing users.
-    """
+    This class tests the OIDC sign-in and sign-up processes, including:
+    - User authentication via OIDC
+    - New user creation during OIDC sign-in
+    - Token generation and validation
+    - Handling of conflicts with existing users
+    - Configuration options like allow_sign_up
+    - Error handling for invalid credentials
+    """  # noqa: E501
 
-    async def test_signup(
+    @pytest.mark.parametrize("allow_sign_up", [True, False])
+    async def test_sign_in(
         self,
+        allow_sign_up: bool,
         _oidc_server: _OIDCServer,
     ) -> None:
-        """Test the complete OIDC signup flow.
+        """Test the complete OIDC sign-in flow with different allow_sign_up settings.
 
-        Verifies that:
-        1. The OAuth2 flow redirects correctly
-        2. A new user is created with MEMBER role
-        3. Access and refresh tokens are generated
-        4. Subsequent OIDC flows generate new tokens
-        """
+        This test verifies:
+        1. The OAuth2 flow redirects correctly to the OIDC provider
+        2. When allow_sign_up is True:
+           - A new user is created with MEMBER role
+           - Access and refresh tokens are generated
+           - Subsequent OIDC flows generate new tokens for the same user
+        3. When allow_sign_up is False:
+           - Users are redirected to login with an error message
+           - No access tokens are granted
+           - If a user without a password exists, they can still sign in
+        """  # noqa: E501
         client = _httpx_client()
+        url = (
+            f"oauth2/{_oidc_server}/login"
+            if allow_sign_up
+            else f"oauth2/{_oidc_server}_no_sign_up/login"
+        )
 
         # Start the OAuth2 flow
-        response = client.post(f"oauth2/{_oidc_server}/login")
+        response = client.post(url)
         assert response.status_code == 302
         auth_url = response.headers["location"]
         cookies = dict(response.cookies)  # Save cookies for reuse
@@ -117,9 +134,45 @@ class TestOIDC:
 
         # Complete the flow by calling the token endpoint
         response = client.get(callback_url)
-        assert response.status_code == 302
+
+        if not allow_sign_up:
+            # Verify that user is redirected to /login
+            assert response.status_code == 307
+            assert "/login" in response.headers["location"]
+
+            # Verify no access is granted
+            assert not response.cookies.get("phoenix-access-token")
+            assert not response.cookies.get("phoenix-refresh-token")
+
+            # Create the user without password
+            admin.create_user(profile=_Profile(email, "", token_hex(8)))
+
+            # If user go through OIDC flow again, access should be granted
+            response = _httpx_client(cookies=cookies).get(callback_url)
+
+            # Verify that user is redirected not to /login
+            assert response.status_code == 302
+            assert "/login" not in response.headers["location"]
+
+            # Verify we got access
+            assert (access_token := response.cookies.get("phoenix-access-token"))
+            assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
+
+            # Verify that the user was created
+            users = {u.profile.email: u for u in admin.list_users()}
+            assert email in users
+            assert users[email].role is UserRoleInput.MEMBER
+
+            # If user go through OIDC flow again, new access token should be created
+            response = _httpx_client(cookies=cookies).get(callback_url)
+            assert (new_access_token := response.cookies.get("phoenix-access-token"))
+            assert (new_refresh_token := response.cookies.get("phoenix-refresh-token"))
+            assert new_access_token != access_token
+            assert new_refresh_token != refresh_token
+            return
 
         # Verify we got access
+        assert response.status_code == 302
         assert (access_token := response.cookies.get("phoenix-access-token"))
         assert (refresh_token := response.cookies.get("phoenix-refresh-token"))
 
@@ -135,21 +188,30 @@ class TestOIDC:
         assert new_access_token != access_token
         assert new_refresh_token != refresh_token
 
-    async def test_signup_conflict_for_local_user_with_password(
+    @pytest.mark.parametrize("allow_sign_up", [True, False])
+    async def test_sign_in_conflict_for_local_user_with_password(
         self,
+        allow_sign_up: bool,
         _oidc_server: _OIDCServer,
     ) -> None:
-        """Test OIDC signup when a user with the same email already exists.
+        """Test OIDC sign-in when a user with the same email already exists with password authentication.
 
-        Verifies that:
-        1. The system detects the email conflict
-        2. The user is redirected to the login page
-        3. No access tokens are granted
-        """
+        This test verifies:
+        1. The system detects the email conflict with an existing user
+        2. The user is redirected to the login page with an appropriate error message
+        3. No access tokens are granted to the OIDC user
+        4. The existing user's credentials remain unchanged
+        5. This behavior is consistent regardless of the allow_sign_up setting
+        """  # noqa: E501
         client = _httpx_client()
+        url = (
+            f"oauth2/{_oidc_server}/login"
+            if allow_sign_up
+            else f"oauth2/{_oidc_server}_no_sign_up/login"
+        )
 
         # Start the OAuth2 flow
-        response = client.post(f"oauth2/{_oidc_server}/login")
+        response = client.post(url)
         assert response.status_code == 302
         auth_url = response.headers["location"]
 
@@ -170,7 +232,7 @@ class TestOIDC:
         # Verify that user is redirected to /login
         response = client.get(callback_url)
         assert response.status_code == 307
-        assert response.headers["location"].startswith("/login")
+        assert "/login" in response.headers["location"]
 
         # Verify no access is granted
         assert not response.cookies.get("phoenix-access-token")
