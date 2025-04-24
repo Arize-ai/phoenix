@@ -35,7 +35,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import PlainTextResponse, Response
+from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.staticfiles import StaticFiles
 from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
@@ -533,6 +533,17 @@ def _lifespan(
 @router.get("/healthz")
 async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
+
+
+@router.get("/readyz")
+async def check_readyz(request: Request) -> JSONResponse:
+    try:
+        async with request.app.state.db() as session:
+            await session.execute(select(1))
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        raise HTTPException(status_code=503, detail="database unreachable")
+    return JSONResponse({})
 
 
 def create_graphql_router(
