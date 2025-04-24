@@ -241,7 +241,7 @@ async def test_sign_in_existing_oauth2_user(
             user_info=user_info,
         )
     async with db() as session:
-        db_user = await session.scalar(select(models.User).filter_by(email=email))
+        db_user = await session.scalar(select(models.User).filter_by(email=user_info.email))
     assert db_user
     assert db_user.oauth2_client_id == oauth2_client_id
     assert db_user.oauth2_user_id == user_info.idp_user_id
