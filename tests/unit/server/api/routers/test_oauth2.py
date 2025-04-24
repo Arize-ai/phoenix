@@ -9,7 +9,7 @@ from phoenix.db import models
 from phoenix.server.api.routers.oauth2 import (
     SignInNotAllowed,
     UserInfo,
-    _sign_in_existing_oauth2_user,
+    _get_existing_oauth2_user,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -200,7 +200,7 @@ from phoenix.server.types import DbSessionFactory
         ),
     ],
 )
-async def test_sign_in_existing_oauth2_user(
+async def test_get_existing_oauth2_user(
     httpx_client: httpx.AsyncClient,  # include this fixture to initialize the app
     db: DbSessionFactory,
     user: Optional[models.User],
@@ -227,17 +227,22 @@ async def test_sign_in_existing_oauth2_user(
     async with db() as session:
         if not user or not allowed:
             with pytest.raises(SignInNotAllowed):
-                await _sign_in_existing_oauth2_user(
+                await _get_existing_oauth2_user(
                     session,
                     oauth2_client_id=oauth2_client_id,
                     user_info=user_info,
                 )
             return
-        await _sign_in_existing_oauth2_user(
+        db_user = await _get_existing_oauth2_user(
             session,
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
         )
+    assert db_user
+    assert db_user.oauth2_client_id == oauth2_client_id
+    assert db_user.oauth2_user_id == user_info.idp_user_id
+
+    # Check that the user in the database
     async with db() as session:
         db_user = await session.scalar(select(models.User).filter_by(email=user_info.email))
     assert db_user

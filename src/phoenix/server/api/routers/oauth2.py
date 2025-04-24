@@ -284,7 +284,7 @@ async def _process_oauth2_user(
         EmailAlreadyInUse: When the email is already in use by another account
     """  # noqa: E501
     if not allow_sign_up:
-        return await _sign_in_existing_oauth2_user(
+        return await _get_existing_oauth2_user(
             session,
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
@@ -296,7 +296,7 @@ async def _process_oauth2_user(
     )
 
 
-async def _sign_in_existing_oauth2_user(
+async def _get_existing_oauth2_user(
     session: AsyncSession,
     /,
     *,
@@ -304,7 +304,16 @@ async def _sign_in_existing_oauth2_user(
     user_info: UserInfo,
 ) -> models.User:
     """
-    Signs in an existing user with OAuth2 credentials.
+    Signs in an existing user with OAuth2 credentials by looking up the user by email.
+
+    This function attempts to find a user with the provided email and verifies that:
+    1. The user exists
+    2. The user does not have a password set (password_hash is None)
+    3. The user has OAuth2 credentials set
+    4. The user's OAuth2 credentials match the provided ones, or are temporary placeholders
+
+    If the user has temporary OAuth2 credentials (prefixed with TBD_OAUTH2_CLIENT_ID_ or
+    TBD_OAUTH2_USER_ID_), these are updated with the actual credentials from the OAuth2 provider.
 
     Args:
         session: The database session
@@ -315,8 +324,9 @@ async def _sign_in_existing_oauth2_user(
         The signed-in user
 
     Raises:
-        SignInNotAllowed: When sign-in is not allowed for the user
-    """
+        SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist, has a
+            password, or has mismatched OAuth2 credentials)
+    """  # noqa: E501
     email = user_info.email
     stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
     user = await session.scalar(stmt)
@@ -326,11 +336,11 @@ async def _sign_in_existing_oauth2_user(
         or user.oauth2_client_id is None
         or user.oauth2_user_id is None
         or (
-            user_info.idp_user_id != user.oauth2_user_id
+            user.oauth2_user_id != user_info.idp_user_id
             and not user.oauth2_user_id.startswith(TBD_OAUTH2_USER_ID_PREFIX)
         )
         or (
-            oauth2_client_id != user.oauth2_client_id
+            user.oauth2_client_id != oauth2_client_id
             and not user.oauth2_client_id.startswith(TBD_OAUTH2_CLIENT_ID_PREFIX)
         )
     ):
