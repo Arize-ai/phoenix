@@ -242,7 +242,7 @@ async def test_get_existing_oauth2_user(
     assert db_user.oauth2_client_id == oauth2_client_id
     assert db_user.oauth2_user_id == user_info.idp_user_id
 
-    # Check that the user in the database
+    # Check that the user in the database has matching credentials
     async with db() as session:
         db_user = await session.scalar(select(models.User).filter_by(email=user_info.email))
     assert db_user
