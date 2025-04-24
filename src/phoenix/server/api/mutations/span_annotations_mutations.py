@@ -40,6 +40,9 @@ class SpanAnnotationMutationMixin:
         if not input:
             raise BadRequest("No span annotations provided.")
 
+        if any(d.name == "note" for d in input):
+            raise BadRequest("Span notes are not supported in this endpoint.")
+
         assert isinstance(request := info.context.request, Request)
         user_id: Optional[int] = None
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):

@@ -209,6 +209,9 @@ class AnnotationConfigMutationMixin:
         else:
             raise BadRequest("No annotation config provided")
 
+        if name == "note":
+            raise BadRequest("The name 'note' is reserved for span notes")
+
         async with info.context.db() as session:
             annotation_config = models.AnnotationConfig(
                 name=name,
@@ -252,6 +255,9 @@ class AnnotationConfigMutationMixin:
             config = to_pydantic_freeform_annotation_config(freeform_input)
         else:
             raise BadRequest("No annotation config provided")
+
+        if name == "note":
+            raise BadRequest("The name 'note' is reserved for span notes")
 
         async with info.context.db() as session:
             annotation_config = await session.get(models.AnnotationConfig, config_id)
