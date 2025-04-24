@@ -110,8 +110,8 @@ class UserMutationMixin:
                 reset_password=False,
                 username=input.username,
                 email=email,
-                oauth2_client_id=f"{TBD_OAUTH2_CLIENT_ID_PREFIX}{secrets.token_hex(8)}",
-                oauth2_user_id=f"{TBD_OAUTH2_USER_ID_PREFIX}{secrets.token_hex(8)}",
+                oauth2_client_id=f"{TBD_OAUTH2_CLIENT_ID_PREFIX}{secrets.token_hex(4)}",
+                oauth2_user_id=f"{TBD_OAUTH2_USER_ID_PREFIX}{secrets.token_hex(4)}",
             )
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
