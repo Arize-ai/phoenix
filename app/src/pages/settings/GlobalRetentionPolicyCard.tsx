@@ -12,8 +12,10 @@ import {
   Form,
   Input,
   Label,
+  Link,
   NumberField,
   Text,
+  View,
 } from "@phoenix/components";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { GlobalRetentionPolicyCardMutation } from "@phoenix/pages/settings/__generated__/GlobalRetentionPolicyCardMutation.graphql";
@@ -129,63 +131,86 @@ export const GlobalRetentionPolicyCard = () => {
   );
 
   return (
-    <Card title="Default Project Retention Policy" variant="compact">
-      <Flex direction="column" gap="size-200">
-        <Text>
-          The default retention policy for all projects that do not have their
-          own custom retention policy. <br />
-          Traces that are older than the specified number of days will be
-          deleted automatically in order to free up storage space.
-        </Text>
-        <Form onSubmit={handleSubmit(onSubmit)}>
-          <Flex gap="size-200" alignItems="center">
-            <Controller
-              control={control}
-              name="maxDays"
-              rules={{
-                validate: (value) => {
-                  if (isNaN(value)) {
-                    return "Maximum trace retention is required. Set to 0 to disable.";
-                  }
-                  return true;
-                },
-                min: {
-                  value: 0,
-                  message: "Maximum trace retention must be at least 0 days",
-                },
-                required:
-                  "Maximum trace retention is required. Set to 0 to disable.",
-              }}
-              render={({ field, fieldState }) => (
-                <NumberField
-                  {...field}
-                  css={css`
-                    width: fit-content;
-                  `}
-                  minValue={0}
-                  isInvalid={!!fieldState.error}
-                >
-                  <Label>Maximum Trace Retention in Days</Label>
-                  <Input />
-                  {fieldState.error ? (
-                    <FieldError>{fieldState.error?.message}</FieldError>
-                  ) : (
-                    <Text slot="description">
-                      A value of 0 days will disable the default trace retention
-                      policy.
-                    </Text>
+    <Card
+      title="Default Project Retention Policy"
+      variant="compact"
+      bodyStyle={{
+        padding: 0,
+      }}
+    >
+      <View padding="size-200">
+        <Flex direction="row" gap="size-200" justifyContent="space-between">
+          <View paddingTop="size-100">
+            <Text>
+              The default retention policy for all projects that do not have
+              their own custom retention policy. Traces that are older than the
+              specified number of days will be deleted automatically in order to
+              free up storage space.
+            </Text>
+          </View>
+          <View width="1000px">
+            <Form onSubmit={handleSubmit(onSubmit)}>
+              <Flex gap="size-100" direction="row" alignItems="center">
+                <Controller
+                  control={control}
+                  name="maxDays"
+                  rules={{
+                    validate: (value) => {
+                      if (isNaN(value)) {
+                        return "Maximum trace retention is required. Set to 0 to disable.";
+                      }
+                      return true;
+                    },
+                    min: {
+                      value: 0,
+                      message:
+                        "Maximum trace retention must be at least 0 days",
+                    },
+                    required:
+                      "Maximum trace retention is required. Set to 0 to disable.",
+                  }}
+                  render={({ field, fieldState }) => (
+                    <NumberField
+                      {...field}
+                      minValue={0}
+                      isInvalid={!!fieldState.error}
+                    >
+                      <Label>Maximum Trace Retention in Days</Label>
+                      <Input />
+                      {fieldState.error ? (
+                        <FieldError>{fieldState.error?.message}</FieldError>
+                      ) : (
+                        <Text slot="description">
+                          0 days is equal to no policy.
+                        </Text>
+                      )}
+                    </NumberField>
                   )}
-                </NumberField>
-              )}
-            />
-            <div>
-              <Button type="submit" isDisabled={!isDirty}>
-                Update
-              </Button>
-            </div>
-          </Flex>
-        </Form>
-      </Flex>
+                />
+                <div
+                  css={css`
+                    margin-top: 3px;
+                  `}
+                >
+                  <Button type="submit" isDisabled={!isDirty}>
+                    Update
+                  </Button>
+                </div>
+              </Flex>
+            </Form>
+          </View>
+        </Flex>
+      </View>
+      <View
+        paddingX="size-200"
+        paddingY="size-100"
+        borderTopWidth="thin"
+        borderColor="dark"
+      >
+        <Flex direction="row" justifyContent="end">
+          <Link to="/settings/data">All Retention Policies</Link>
+        </Flex>
+      </View>
     </Card>
   );
 };
