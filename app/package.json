@@ -48,7 +48,7 @@
     "react-markdown": "^9.0.1",
     "react-relay": "^18.2.0",
     "react-resizable-panels": "^2.1.7",
-    "react-router": "^7.4.0",
+    "react-router": "^7.5.2",
     "recharts": "^2.12.7",
     "relay-runtime": "^18.2.0",
     "remark-gfm": "^4.0.0",
