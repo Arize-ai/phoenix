@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.26.3...arize-phoenix-v8.27.0) (2025-04-24)
+
+
+### Features
+
+* Add /readyz endpoint to confirm database connectivity ([#7262](https://github.com/Arize-ai/phoenix/issues/7262)) ([ec11ed3](https://github.com/Arize-ai/phoenix/commit/ec11ed31c3501e91d66282dedaa5a4e0cbaedd58))
+* **tracing:** scroll selected span into view when navigating to a trace ([#7227](https://github.com/Arize-ai/phoenix/issues/7227)) ([970c721](https://github.com/Arize-ai/phoenix/commit/970c721187a2b9024452ff7cef9a89a599d42bec))
+
+
+### Documentation
+
+* Update README.md ([#7213](https://github.com/Arize-ai/phoenix/issues/7213)) ([dc27c32](https://github.com/Arize-ai/phoenix/commit/dc27c322c1f73fa696f34e650129ee54dec9a96f))
+
 ## [8.26.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.26.2...arize-phoenix-v8.26.3) (2025-04-18)
 
 
