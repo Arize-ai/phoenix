@@ -238,7 +238,7 @@ async def annotate_spans(
     filtered_span_annotations = list(filter(lambda d: d.name != "note", span_annotations))
     if len(filtered_span_annotations) != len(span_annotations):
         warnings.warn(
-            "Span notes are not supported in this endpoint. They will be ignored.",
+            "Span annotations with the name 'note' are not supported in this endpoint. They will be ignored.",
             UserWarning,
         )
     precursors = [d.as_precursor() for d in filtered_span_annotations]
