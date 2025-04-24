@@ -321,6 +321,8 @@ async def _sign_in_existing_oauth2_user(
     user = await _find_user_by_email(session, email)
     if (
         user is None
+        or user.password_hash
+        or user.password_salt
         or user.oauth2_client_id is None
         or user.oauth2_user_id is None
         or _cannot_sign_in(user, oauth2_client_id, user_info.idp_user_id)
