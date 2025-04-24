@@ -1,3 +1,4 @@
+import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -233,7 +234,17 @@ async def annotate_spans(
 ) -> AnnotateSpansResponseBody:
     if not request_body.data:
         return AnnotateSpansResponseBody(data=[])
-    precursors = [d.as_precursor() for d in request_body.data]
+    span_annotations = request_body.data
+    filtered_span_annotations = list(filter(lambda d: d.name != "note", span_annotations))
+    if len(filtered_span_annotations) != len(span_annotations):
+        warnings.warn(
+            (
+                "Span annotations with the name 'note' are not supported in this endpoint. "
+                "They will be ignored."
+            ),
+            UserWarning,
+        )
+    precursors = [d.as_precursor() for d in filtered_span_annotations]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateSpansResponseBody(data=[])
