@@ -210,10 +210,10 @@ class UserInfo:
     def __post_init__(self) -> None:
         object.__setattr__(self, "idp_user_id", self.idp_user_id.strip())
         object.__setattr__(self, "email", self.email.strip())
-        if self.username is None:
-            object.__setattr__(self, "username", self.email.strip())
-        if self.profile_picture_url is None:
-            object.__setattr__(self, "profile_picture_url", None)
+        if username := self.username:
+            object.__setattr__(self, "username", username.strip())
+        if profile_picture_url := self.profile_picture_url:
+            object.__setattr__(self, "profile_picture_url", profile_picture_url.strip())
 
 
 def _validate_token_data(token_data: dict[str, Any]) -> None:
@@ -256,14 +256,19 @@ async def _process_oauth2_user(
     """
     Processes an OAuth2 user, either signing in an existing user or creating/updating one.
 
-    This function handles two main scenarios:
+    This function handles two main scenarios based on the allow_sign_up parameter:
     1. When sign-up is not allowed (allow_sign_up=False):
        - Checks if the user exists and can sign in with the given OAuth2 credentials
-       - Updates placeholder OAuth2 credentials if needed
+       - Updates placeholder OAuth2 credentials if needed (e.g., temporary IDs)
+       - If the user doesn't exist or has a password set, raises SignInNotAllowed
     2. When sign-up is allowed (allow_sign_up=True):
-       - Finds the user by OAuth2 credentials
-       - Creates a new user if one doesn't exist
+       - Finds the user by OAuth2 credentials (client_id and user_id)
+       - Creates a new user if one doesn't exist, with default member role
        - Updates the user's email if it has changed
+       - Handles username conflicts by adding a random suffix if needed
+
+    The allow_sign_up parameter is typically controlled by the PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP
+    environment variable for the specific identity provider.
 
     Args:
         session: The database session
@@ -275,9 +280,9 @@ async def _process_oauth2_user(
         The user object
 
     Raises:
-        SignInNotAllowed: When sign-in is not allowed for the user
+        SignInNotAllowed: When sign-in is not allowed for the user (user doesn't exist or has a password)
         EmailAlreadyInUse: When the email is already in use by another account
-    """
+    """  # noqa: E501
     if not allow_sign_up:
         return await _sign_in_existing_oauth2_user(
             session,

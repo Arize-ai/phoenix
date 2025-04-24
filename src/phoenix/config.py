@@ -632,9 +632,42 @@ class OAuth2ClientConfig:
 
 def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
-    Get OAuth2 settings from environment variables.
-    """
+    Retrieves and validates OAuth2/OpenID Connect (OIDC) identity provider configurations from environment variables.
 
+    This function scans the environment for OAuth2 configuration variables and returns a list of
+    configured identity providers. It supports multiple identity providers simultaneously.
+
+    Environment Variable Pattern:
+        PHOENIX_OAUTH2_{IDP_NAME}_{CONFIG_TYPE}
+
+    Required Environment Variables for each IDP:
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS)
+
+    Optional Environment Variables:
+        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
+        When set to False, the system will check if the user exists in the database by their email address.
+        If the user does not exist or has a password set, they will be redirected to the login page with
+        an error message.
+
+    Returns:
+        list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
+            Each OAuth2ClientConfig contains the validated configuration for one identity provider.
+
+    Raises:
+        ValueError: If required environment variables are missing or invalid.
+            Specifically, if the OIDC configuration URL is not HTTPS (except for localhost).
+
+    Example:
+        To configure Google as an identity provider, set these environment variables:
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
+        PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+        PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
+        PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+    """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
         r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP)$"
@@ -646,6 +679,22 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
 
 def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
+    """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
+
+    This function determines whether new user registration is allowed for the specified identity provider.
+    When set to False, the system will check if the user exists in the database by their email address.
+    If the user does not exist or has a password set, they will be redirected to the login page with
+    an error message.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if new user registration is allowed (default), False otherwise
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Controls whether new user registration is allowed (defaults to True if not set)
+    """  # noqa: E501
     env_var = f"PHOENIX_OAUTH2_{idp_name}_ALLOW_SIGN_UP".upper()
     return _bool_val(env_var, True)
 
