@@ -321,11 +321,17 @@ async def _sign_in_existing_oauth2_user(
     user = await _find_user_by_email(session, email)
     if (
         user is None
-        or user.password_hash
-        or user.password_salt
+        or user.password_hash is not None
         or user.oauth2_client_id is None
         or user.oauth2_user_id is None
-        or _cannot_sign_in(user, oauth2_client_id, user_info.idp_user_id)
+        or (
+            user_info.idp_user_id != user.oauth2_user_id
+            and not user.oauth2_user_id.startswith(TBD_OAUTH2_USER_ID_PREFIX)
+        )
+        or (
+            oauth2_client_id != user.oauth2_client_id
+            and not user.oauth2_client_id.startswith(TBD_OAUTH2_CLIENT_ID_PREFIX)
+        )
     ):
         raise SignInNotAllowed(f"Sign in is not allowed for {email}.")
     if user.oauth2_client_id.startswith(TBD_OAUTH2_CLIENT_ID_PREFIX):
@@ -354,37 +360,6 @@ async def _find_user_by_email(
     stmt = select(models.User).filter_by(email=email).options(joinedload(models.User.role))
     user: Optional[models.User] = await session.scalar(stmt)
     return user
-
-
-def _cannot_sign_in(
-    user: models.User,
-    oauth2_client_id: str,
-    oauth2_user_id: str,
-) -> bool:
-    """
-    Checks if a user cannot sign in with the given OAuth2 credentials.
-
-    Args:
-        user: The user object or None if not found
-        oauth2_client_id: The ID of the OAuth2 client
-        oauth2_user_id: The user ID from the OAuth2 provider
-
-    Returns:
-        True if the user cannot sign in, False otherwise
-    """
-    return (
-        user.password_hash is not None
-        or user.oauth2_client_id is None
-        or user.oauth2_user_id is None
-        or (
-            oauth2_user_id != user.oauth2_user_id
-            and not user.oauth2_user_id.startswith(TBD_OAUTH2_USER_ID_PREFIX)
-        )
-        or (
-            oauth2_client_id != user.oauth2_client_id
-            and not user.oauth2_client_id.startswith(TBD_OAUTH2_CLIENT_ID_PREFIX)
-        )
-    )
 
 
 async def _create_or_update_user(
