@@ -233,14 +233,14 @@ async def test_get_existing_oauth2_user(
                     user_info=user_info,
                 )
             return
-        db_user = await _get_existing_oauth2_user(
+        oauth2_user = await _get_existing_oauth2_user(
             session,
             oauth2_client_id=oauth2_client_id,
             user_info=user_info,
         )
-    assert db_user
-    assert db_user.oauth2_client_id == oauth2_client_id
-    assert db_user.oauth2_user_id == user_info.idp_user_id
+    assert oauth2_user
+    assert oauth2_user.oauth2_client_id == oauth2_client_id
+    assert oauth2_user.oauth2_user_id == user_info.idp_user_id
 
     # Check that the user in the database has matching credentials
     async with db() as session:
