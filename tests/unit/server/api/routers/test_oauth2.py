@@ -209,14 +209,12 @@ async def test_sign_in_existing_oauth2_user(
     allowed: bool,
 ) -> None:
     if user:
-        email = user_info.email if allowed else f"{token_hex(8)}@example.com"
         async with db() as session:
             # For some strange reason PostgreSQL insists on UPDATE instead of
-            # INSERT when using session.add(user), so we have to INSERT manually
-            # session.add(user)
+            # INSERT when using session.add(user), so we INSERT manually.
             await session.execute(
                 insert(models.User).values(
-                    email=email,
+                    email=user_info.email,
                     user_role_id=user.user_role_id,
                     username=user.username,
                     password_hash=user.password_hash,
