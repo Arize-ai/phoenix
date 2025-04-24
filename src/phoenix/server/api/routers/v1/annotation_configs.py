@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel
@@ -161,6 +161,8 @@ async def create_continuous_annotation_config(
     request: Request,
     payload: CreateContinuousAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
+    _reserve_note_annotation_name(payload)
+
     async with request.app.state.db() as session:
         config = ContinuousAnnotationConfigModel(
             type=AnnotationType.CONTINUOUS.value,
@@ -190,6 +192,8 @@ async def create_categorical_annotation_config(
     request: Request,
     payload: CreateCategoricalAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
+    _reserve_note_annotation_name(payload)
+
     async with request.app.state.db() as session:
         values = [
             CategoricalAnnotationValueModel(label=value.label, score=value.score)
@@ -222,6 +226,8 @@ async def create_freeform_annotation_config(
     request: Request,
     payload: CreateFreeformAnnotationConfigPayload,
 ) -> AnnotationConfigResponse:
+    _reserve_note_annotation_name(payload)
+
     async with request.app.state.db() as session:
         config = FreeformAnnotationConfigModel(
             type=AnnotationType.FREEFORM.value,
@@ -279,3 +285,18 @@ def _get_annotation_config_db_id(config_gid: str) -> int:
     ):
         raise ValueError(f"Invalid annotation configuration ID: {config_gid}")
     return node_id
+
+
+def _reserve_note_annotation_name(
+    payload: Union[
+        CreateCategoricalAnnotationConfigPayload,
+        CreateContinuousAnnotationConfigPayload,
+        CreateFreeformAnnotationConfigPayload,
+    ],
+) -> str:
+    name = payload.name
+    if name == "note":
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST, detail="The name 'note' is reserved for span notes"
+        )
+    return name
