@@ -58,9 +58,12 @@ export const AnnotationSummaryGroup = ({
   const { spanAnnotations, spanAnnotationSummaries } = data;
   const sortedSummariesByName = useMemo(
     () =>
-      spanAnnotationSummaries.slice().sort((a, b) => {
-        return a.name.localeCompare(b.name);
-      }),
+      spanAnnotationSummaries
+        // Note annotations are not displayed in summary groups
+        .filter((summary) => summary.name !== "note")
+        .sort((a, b) => {
+          return a.name.localeCompare(b.name);
+        }),
     [spanAnnotationSummaries]
   );
   const latestAnnotationsByName = useMemo(
