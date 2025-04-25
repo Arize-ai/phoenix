@@ -87,27 +87,7 @@ class Spans:
                 json=request_body.to_dict(),
                 timeout=timeout,
             )
-            content_type = response.headers.get("Content-Type")
-            dfs: list["pd.DataFrame"] = []
-            if isinstance(content_type, str) and "multipart/mixed" in content_type:
-                if "boundary=" in content_type:
-                    boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
-                else:
-                    raise ValueError(
-                        "Boundary not found in Content-Type header for multipart/mixed response"
-                    )
-                boundary = f"--{boundary_token}"
-                text = response.text
-                while boundary in text:
-                    part, text = text.split(boundary, 1)
-                    if "Content-Type: application/json" in part:
-                        json_string = part.split("\r\n\r\n", 1)[1].strip()
-                        df = decode_df_from_json_string(json_string)
-                        dfs.append(df)
-            else:
-                response.raise_for_status()
-                logger.warning("Received non-multipart response when expecting dataframe.")
-                pass
+            return _process_span_dataframe(response)
         except httpx.TimeoutException as error:
             error_message = (
                 (
@@ -128,13 +108,6 @@ class Spans:
                 "pandas is required to use get_spans_dataframe. "
                 "Install it with 'pip install pandas'"
             )
-
-        if dfs:
-            return dfs[0]  # we only expect one dataframe
-        else:
-            import pandas as pd
-
-            return pd.DataFrame()
 
 
 class AsyncSpans:
@@ -204,27 +177,8 @@ class AsyncSpans:
                 json=request_body.to_dict(),
                 timeout=timeout,
             )
-            content_type = response.headers.get("Content-Type")
-            dfs: list["pd.DataFrame"] = []
-            if isinstance(content_type, str) and "multipart/mixed" in content_type:
-                if "boundary=" in content_type:
-                    boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
-                else:
-                    raise ValueError(
-                        "Boundary not found in Content-Type header for multipart/mixed response"
-                    )
-                boundary = f"--{boundary_token}"
-                text = response.text
-                while boundary in text:
-                    part, text = text.split(boundary, 1)
-                    if "Content-Type: application/json" in part:
-                        json_string = part.split("\r\n\r\n", 1)[1].strip()
-                        df = decode_df_from_json_string(json_string)
-                        dfs.append(df)
-            else:
-                response.raise_for_status()
-                logger.warning("Received non-multipart response when expecting dataframe.")
-                pass
+            await response.aread()
+            return _process_span_dataframe(response)
         except httpx.TimeoutException as error:
             error_message = (
                 (
@@ -245,14 +199,6 @@ class AsyncSpans:
                 "pandas is required to use get_spans_dataframe. "
                 "Install it with 'pip install pandas'"
             )
-
-        response.raise_for_status()
-        if dfs:
-            return dfs[0]  # we only expect one dataframe
-        else:
-            import pandas as pd
-
-            return pd.DataFrame()
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
@@ -281,6 +227,37 @@ def normalize_datetime(
     if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
         dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
     return dt.astimezone(timezone.utc)
+
+
+
+
+def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
+    """Processes the httpx response to extract a pandas DataFrame, handling multipart responses."""
+    import pandas as pd
+
+    content_type = response.headers.get("Content-Type")
+    dfs: list["pd.DataFrame"] = []
+    if isinstance(content_type, str) and "multipart/mixed" in content_type:
+        if "boundary=" in content_type:
+            boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
+        else:
+            raise ValueError("Boundary not found in Content-Type header for multipart/mixed response")
+        boundary = f"--{boundary_token}"
+        text = response.text
+        while boundary in text:
+            part, text = text.split(boundary, 1)
+            if "Content-Type: application/json" in part:
+                json_string = part.split("\r\n\r\n", 1)[1].strip()
+                df = decode_df_from_json_string(json_string)
+                dfs.append(df)
+    else:
+        response.raise_for_status()
+        logger.warning("Received non-multipart response when expecting dataframe.")
+
+    if dfs:
+        return dfs[0]  # we only expect one dataframe
+    else:
+        return pd.DataFrame()
 
 
 class TimeoutError(Exception): ...
