@@ -516,6 +516,17 @@ class Span(Node):
         )
         return [to_gql_span_annotation(annotation) for annotation in annotations]
 
+    @strawberry.field(description=("Notes associated with the span."))  # type: ignore
+    async def span_notes(
+        self,
+        info: Info[Context, None],
+    ) -> list[SpanAnnotation]:
+        span_id = self.span_rowid
+        annotations = await info.context.data_loaders.span_annotations.load(span_id)
+        annotations = [annotation for annotation in annotations if annotation.name == "note"]
+        annotations.sort(key=lambda annotation: getattr(annotation, "created_at"), reverse=False)
+        return [to_gql_span_annotation(annotation) for annotation in annotations]
+
     @strawberry.field(description="Summarizes each annotation (by name) associated with the span")  # type: ignore
     async def span_annotation_summaries(
         self,

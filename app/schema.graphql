@@ -2068,6 +2068,9 @@ type Span implements Node {
   """
   spanAnnotations(sort: SpanAnnotationSort, filter: SpanAnnotationFilter = null): [SpanAnnotation!]!
 
+  """Notes associated with the span."""
+  spanNotes: [SpanAnnotation!]!
+
   """Summarizes each annotation (by name) associated with the span"""
   spanAnnotationSummaries(filter: SpanAnnotationFilter = null): [AnnotationSummary!]!
 
