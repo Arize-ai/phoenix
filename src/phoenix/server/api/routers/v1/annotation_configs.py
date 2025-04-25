@@ -238,13 +238,12 @@ async def create_annotation_config(
 
 @router.delete(
     "/annotation_configs/{config_id}",
-    response_model=bool,
     summary="Delete an annotation configuration",
 )
 async def delete_annotation_config(
     request: Request,
     config_id: str = Path(..., description="ID of the annotation configuration"),
-) -> bool:
+) -> AnnotationConfigWithID:
     config_gid = GlobalID.from_id(config_id)
     if config_gid.type_name not in (
         CategoricalAnnotationConfig.__name__,
@@ -256,14 +255,18 @@ async def delete_annotation_config(
         )
     config_rowid = int(config_gid.node_id)
     async with request.app.state.db() as session:
-        stmt = delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_rowid)
-        result = await session.execute(stmt)
-        if result.rowcount == 0:
+        stmt = (
+            delete(models.AnnotationConfig)
+            .where(models.AnnotationConfig.id == config_rowid)
+            .returning(models.AnnotationConfig)
+        )
+        annotation_config = await session.scalar(stmt)
+        if annotation_config is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
             )
         await session.commit()
-    return True
+    return db_to_api_annotation_config(annotation_config)
 
 
 def _get_annotation_config_db_id(config_gid: str) -> int:
