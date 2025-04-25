@@ -1,7 +1,7 @@
 """change jsonb to json for prompts
 
 Revision ID: 8a3764fe7f1a
-Revises: 8c9ff7c78bce
+Revises: bb8139330879
 Create Date: 2025-04-25 07:04:26.102957
 
 """
@@ -15,7 +15,7 @@ from sqlalchemy.ext.compiler import compiles
 
 # revision identifiers, used by Alembic.
 revision: str = "8a3764fe7f1a"
-down_revision: Union[str, None] = "8c9ff7c78bce"
+down_revision: Union[str, None] = "bb8139330879"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
