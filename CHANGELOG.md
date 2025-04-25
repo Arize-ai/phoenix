@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.27.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.27.0...arize-phoenix-v8.27.1) (2025-04-25)
+
+
+### Bug Fixes
+
+* Allow scroll on settings pages ([#7284](https://github.com/Arize-ai/phoenix/issues/7284)) ([c25b071](https://github.com/Arize-ai/phoenix/commit/c25b07143b9c714b75e3d9655ca9db161542acb0))
+
 ## [8.27.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.26.3...arize-phoenix-v8.27.0) (2025-04-24)
 
 
