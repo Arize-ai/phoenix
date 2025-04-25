@@ -43,8 +43,8 @@ def test_change_jsonb_to_json_for_prompts(
         prompt_id = conn.execute(
             text(
                 """
-                INSERT INTO prompts (name, description, metadata)
-                VALUES ('test_prompt', 'Test prompt for migration', '{}')
+                INSERT INTO prompts (name, metadata)
+                VALUES ('test_prompt', '{}')
                 RETURNING id
                 """
             )
@@ -55,12 +55,12 @@ def test_change_jsonb_to_json_for_prompts(
             text(
                 """
                 INSERT INTO prompt_versions (
-                    prompt_id, description, template_type, template_format,
+                    prompt_id, template_type, template_format,
                     template, invocation_parameters, tools, response_format,
                     model_provider, model_name, metadata
                 )
                 VALUES (
-                    :prompt_id, 'Test prompt version', 'CHAT', 'F_STRING',
+                    :prompt_id, 'CHAT', 'F_STRING',
                     '{}', '{}', :tools, :response_format,
                     'OPENAI', 'gpt-4', '{}'
                 )
