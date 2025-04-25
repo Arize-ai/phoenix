@@ -64,6 +64,55 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Create an annotation configuration",
+        "operationId": "create_annotation_config_v1_annotation_configs_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnotationConfigPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/annotation_configs/{config_identifier}": {
@@ -106,159 +155,6 @@
               }
             },
             "description": "Forbidden"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/annotation_configs/continuous": {
-      "post": {
-        "tags": [
-          "annotation_configs"
-        ],
-        "summary": "Create a continuous annotation configuration",
-        "operationId": "create_continuous_annotation_config_v1_annotation_configs_continuous_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateContinuousAnnotationConfigPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnnotationConfigResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/annotation_configs/categorical": {
-      "post": {
-        "tags": [
-          "annotation_configs"
-        ],
-        "summary": "Create a categorical annotation configuration",
-        "operationId": "create_categorical_annotation_config_v1_annotation_configs_categorical_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateCategoricalAnnotationConfigPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnnotationConfigResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/annotation_configs/freeform": {
-      "post": {
-        "tags": [
-          "annotation_configs"
-        ],
-        "summary": "Create a freeform annotation configuration",
-        "operationId": "create_freeform_annotation_config_v1_annotation_configs_freeform_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateFreeformAnnotationConfigPayload"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnnotationConfigResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
           },
           "422": {
             "description": "Validation Error",
@@ -2675,6 +2571,48 @@
         ],
         "title": "AnnotationType"
       },
+      "CategoricalAnnotationConfigPayload": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CATEGORICAL",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction",
+          "values"
+        ],
+        "title": "CategoricalAnnotationConfigPayload"
+      },
       "CategoricalAnnotationValue": {
         "properties": {
           "label": {
@@ -2699,14 +2637,16 @@
         ],
         "title": "CategoricalAnnotationValue"
       },
-      "CreateCategoricalAnnotationConfigPayload": {
+      "ContinuousAnnotationConfigPayload": {
         "properties": {
           "name": {
             "type": "string",
             "title": "Name"
           },
-          "optimization_direction": {
-            "$ref": "#/components/schemas/OptimizationDirection"
+          "type": {
+            "type": "string",
+            "const": "CONTINUOUS",
+            "title": "Type"
           },
           "description": {
             "anyOf": [
@@ -2719,65 +2659,8 @@
             ],
             "title": "Description"
           },
-          "values": {
-            "items": {
-              "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
-            },
-            "type": "array",
-            "title": "Values"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "optimization_direction",
-          "values"
-        ],
-        "title": "CreateCategoricalAnnotationConfigPayload"
-      },
-      "CreateCategoricalAnnotationValuePayload": {
-        "properties": {
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score"
-          }
-        },
-        "type": "object",
-        "required": [
-          "label"
-        ],
-        "title": "CreateCategoricalAnnotationValuePayload"
-      },
-      "CreateContinuousAnnotationConfigPayload": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
           "optimization_direction": {
             "$ref": "#/components/schemas/OptimizationDirection"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
           },
           "lower_bound": {
             "anyOf": [
@@ -2805,9 +2688,56 @@
         "type": "object",
         "required": [
           "name",
+          "type",
           "optimization_direction"
         ],
-        "title": "CreateContinuousAnnotationConfigPayload"
+        "title": "ContinuousAnnotationConfigPayload"
+      },
+      "CreateAnnotationConfigPayload": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CategoricalAnnotationConfigPayload"
+          },
+          {
+            "$ref": "#/components/schemas/ContinuousAnnotationConfigPayload"
+          },
+          {
+            "$ref": "#/components/schemas/FreeformAnnotationConfigPayload"
+          }
+        ],
+        "title": "CreateAnnotationConfigPayload",
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigPayload",
+            "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigPayload",
+            "FREEFORM": "#/components/schemas/FreeformAnnotationConfigPayload"
+          }
+        }
+      },
+      "CreateCategoricalAnnotationValuePayload": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "CreateCategoricalAnnotationValuePayload"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -2882,30 +2812,6 @@
           "data"
         ],
         "title": "CreateExperimentResponseBody"
-      },
-      "CreateFreeformAnnotationConfigPayload": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "CreateFreeformAnnotationConfigPayload"
       },
       "CreateProjectRequestBody": {
         "properties": {
@@ -3212,6 +3118,36 @@
           "updated_at"
         ],
         "title": "Experiment"
+      },
+      "FreeformAnnotationConfigPayload": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "FREEFORM",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type"
+        ],
+        "title": "FreeformAnnotationConfigPayload"
       },
       "GetDatasetResponseBody": {
         "properties": {
