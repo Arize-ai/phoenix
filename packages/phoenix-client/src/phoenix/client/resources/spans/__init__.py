@@ -229,8 +229,6 @@ def normalize_datetime(
     return dt.astimezone(timezone.utc)
 
 
-
-
 def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
     """Processes the httpx response to extract a pandas DataFrame, handling multipart responses."""
     import pandas as pd
@@ -241,7 +239,9 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         if "boundary=" in content_type:
             boundary_token = content_type.split("boundary=")[1].split(";", 1)[0]
         else:
-            raise ValueError("Boundary not found in Content-Type header for multipart/mixed response")
+            raise ValueError(
+                "Boundary not found in Content-Type header for multipart/mixed response"
+            )
         boundary = f"--{boundary_token}"
         text = response.text
         while boundary in text:
