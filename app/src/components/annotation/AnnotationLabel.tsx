@@ -72,8 +72,14 @@ export function AnnotationLabel({
   annotationDisplayPreference = "score",
   className,
   children,
+  clickable: _clickable,
+  showClickableIcon = true,
 }: PropsWithChildren<{
   annotation: Annotation;
+  /** Override clickable detection. By default, clickable will only be true if onClick is provided. */
+  clickable?: boolean;
+  /** Whether to show the click affordance icon when clickable is true. */
+  showClickableIcon?: boolean;
   onClick?: () => void;
   /**
    * The preferred value to display in the annotation label.
@@ -86,7 +92,7 @@ export function AnnotationLabel({
   annotationDisplayPreference?: AnnotationDisplayPreference;
   className?: string;
 }>) {
-  const clickable = typeof onClick == "function";
+  const clickable = _clickable ?? typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
     annotation,
     annotationDisplayPreference
@@ -104,9 +110,11 @@ export function AnnotationLabel({
           : `Annotation: ${annotation.name}`
       }
       onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onClick && onClick();
+        if (onClick) {
+          e.stopPropagation();
+          e.preventDefault();
+          onClick();
+        }
       }}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
@@ -129,7 +137,9 @@ export function AnnotationLabel({
           </div>
         )}
         {children}
-        {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
+        {clickable && showClickableIcon ? (
+          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        ) : null}
       </Flex>
     </div>
   );

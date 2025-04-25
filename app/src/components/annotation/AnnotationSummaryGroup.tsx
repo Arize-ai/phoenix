@@ -5,10 +5,12 @@ import { css } from "@emotion/react";
 import { Flex, Text } from "@phoenix/components";
 import { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
+import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import { AnnotationTooltip } from "@phoenix/components/annotation/AnnotationTooltip";
 import {
   Summary,
   SummaryValue,
+  SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
 import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 
@@ -121,7 +123,7 @@ export const AnnotationSummaryGroup = ({
           return null;
         }
         return (
-          <AnnotationTooltip
+          <AnnotationSummaryPopover
             key={latestAnnotation.id}
             annotation={latestAnnotation}
             layout="horizontal"
@@ -137,17 +139,20 @@ export const AnnotationSummaryGroup = ({
               annotation={latestAnnotation}
               annotationDisplayPreference="none"
               css={annotationLabelCSS}
+              clickable
+              showClickableIcon={false}
             >
               {meanScore ? (
-                <SummaryValue
+                <SummaryValuePreview
                   name={latestAnnotation.name}
                   labelFractions={labelFractions}
                   meanScore={meanScore}
                   size="S"
+                  disableAnimation
                 />
               ) : null}
             </AnnotationLabel>
-          </AnnotationTooltip>
+          </AnnotationSummaryPopover>
         );
       })}
     </Flex>

@@ -6,6 +6,7 @@ import { Cell, Pie, PieChart } from "recharts";
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
   ChartTooltipItem,
@@ -13,9 +14,10 @@ import {
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ComponentSize, SizingProps } from "@phoenix/components/types";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
-import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
+import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationSummaryQuery } from "./__generated__/AnnotationSummaryQuery.graphql";
 import { AnnotationSummaryValueFragment$key } from "./__generated__/AnnotationSummaryValueFragment.graphql";
@@ -115,8 +117,8 @@ export function Summary({
 }) {
   return (
     <Flex direction="column" flex="none">
-      <Text elementType="h3" size="S" color="text-700">
-        {name}
+      <Text elementType="h3" size="S" color="text-700" title={name}>
+        <Truncate maxWidth="120px">{name}</Truncate>
       </Text>
       <Suspense fallback={<Text size="L">--</Text>}>{children}</Suspense>
     </Flex>
@@ -168,16 +170,7 @@ const SizesMap: Record<
   },
 };
 
-export function SummaryValue({
-  name,
-  meanScore,
-  labelFractions,
-  size = "M",
-}: {
-  name: string;
-  meanScore?: number | null;
-  labelFractions?: readonly { label: string; fraction: number }[];
-} & SizingProps) {
+function useAnnotationSummaryChartColors(name: string) {
   const chartColors = useChartColors();
   const primaryColor = useWordColor(name);
   const colors = [
@@ -187,6 +180,60 @@ export function SummaryValue({
     chartColors.gray400,
     chartColors.gray200,
   ];
+  return colors;
+}
+
+export function SummaryValue({
+  name,
+  meanScore,
+  labelFractions,
+  size = "M",
+  disableAnimation = false,
+}: SummaryValuePreviewProps) {
+  const hasMeanScore = typeof meanScore === "number";
+  const hasLabelFractions =
+    Array.isArray(labelFractions) && labelFractions.length > 0;
+  if (!hasMeanScore && !hasLabelFractions) {
+    return <Text size="L">--</Text>;
+  }
+
+  return (
+    <TooltipTrigger delay={0} placement="bottom">
+      <TriggerWrap>
+        <SummaryValuePreview
+          name={name}
+          meanScore={meanScore}
+          labelFractions={labelFractions}
+          size={size}
+          disableAnimation={disableAnimation}
+        />
+      </TriggerWrap>
+      <HelpTooltip>
+        <SummaryValueBreakdown
+          annotationName={name}
+          labelFractions={labelFractions}
+          meanScore={meanScore}
+        />
+      </HelpTooltip>
+    </TooltipTrigger>
+  );
+}
+
+type SummaryValuePreviewProps = {
+  name: string;
+  meanScore?: number | null;
+  labelFractions?: readonly { label: string; fraction: number }[];
+  disableAnimation?: boolean;
+} & SizingProps;
+
+export function SummaryValuePreview({
+  name,
+  meanScore,
+  labelFractions,
+  size = "M",
+  disableAnimation,
+}: SummaryValuePreviewProps) {
+  const colors = useAnnotationSummaryChartColors(name);
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions =
     Array.isArray(labelFractions) && labelFractions.length > 0;
@@ -195,64 +242,78 @@ export function SummaryValue({
   }
   const chartDimensions = SizesMap[size].chart;
   const pieDimensions = SizesMap[size].pie;
-
   return (
-    <TooltipTrigger delay={0} placement="bottom">
-      <TriggerWrap>
-        <Flex direction="row" alignItems="center" gap="size-50">
-          {hasLabelFractions ? (
-            <PieChart {...chartDimensions}>
-              <Pie
-                data={labelFractions}
-                dataKey="fraction"
-                nameKey="label"
-                cx="50%"
-                cy="50%"
-                {...pieDimensions}
-                strokeWidth={0}
-                stroke="transparent"
-              >
-                {labelFractions.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={colors[index % colors.length]}
-                  />
-                ))}
-              </Pie>
-            </PieChart>
-          ) : null}
-          <Text size={size === "S" ? size : "L"}>
-            {hasMeanScore ? formatFloat(meanScore) : "--"}
-          </Text>
-        </Flex>
-      </TriggerWrap>
-      <HelpTooltip>
-        <View width="size-2400">
-          <Flex direction="column" gap="size-50">
-            {hasLabelFractions && (
-              <ul>
-                {labelFractions.map((entry, index) => (
-                  <li key={entry.label}>
-                    <ChartTooltipItem
-                      color={colors[index % colors.length]}
-                      name={entry.label}
-                      shape="square"
-                      value={formatPercent(entry.fraction * 100)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-            {hasLabelFractions && hasMeanScore ? <ChartTooltipDivider /> : null}
-            {hasMeanScore ? (
-              <Flex direction="row" justifyContent="space-between">
-                <Text>mean</Text>
-                <Text>{formatFloat(meanScore)}</Text>
-              </Flex>
-            ) : null}
+    <Flex
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      gap="size-100"
+    >
+      {hasLabelFractions ? (
+        <PieChart {...chartDimensions}>
+          <Pie
+            data={labelFractions}
+            dataKey="fraction"
+            nameKey="label"
+            cx="50%"
+            cy="50%"
+            {...pieDimensions}
+            strokeWidth={0}
+            stroke="transparent"
+            animationDuration={disableAnimation ? 0 : undefined}
+          >
+            {labelFractions.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={colors[index % colors.length]}
+              />
+            ))}
+          </Pie>
+        </PieChart>
+      ) : null}
+      <MeanScore value={meanScore} size={size === "S" ? size : "L"} />
+    </Flex>
+  );
+}
+
+export function SummaryValueBreakdown({
+  annotationName,
+  labelFractions,
+  meanScore,
+}: {
+  annotationName: string;
+  labelFractions?: readonly { label: string; fraction: number }[];
+  meanScore?: number | null;
+}) {
+  const colors = useAnnotationSummaryChartColors(annotationName);
+  const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
+  const hasLabelFractions =
+    Array.isArray(labelFractions) && labelFractions.length > 0;
+  return (
+    <View width="size-2400">
+      <Flex direction="column" gap="size-50">
+        {hasLabelFractions && (
+          <ul>
+            {labelFractions.map((entry, index) => (
+              <li key={entry.label}>
+                <ChartTooltipItem
+                  color={colors[index % colors.length]}
+                  name={entry.label}
+                  shape="square"
+                  value={formatPercent(entry.fraction * 100)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {hasLabelFractions && hasMeanScore ? <ChartTooltipDivider /> : null}
+        {hasMeanScore ? (
+          <Flex direction="row" justifyContent="space-between">
+            <Text>mean score</Text>
+            <MeanScore value={meanScore} />
           </Flex>
-        </View>
-      </HelpTooltip>
-    </TooltipTrigger>
+        ) : null}
+      </Flex>
+    </View>
   );
 }
