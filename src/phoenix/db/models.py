@@ -274,7 +274,7 @@ class _PromptTemplate(TypeDecorator[PromptTemplate]):
 class _Tools(TypeDecorator[PromptTools]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = JSON_
+    impl = JSON
 
     def process_bind_param(
         self, value: Optional[PromptTools], _: Dialect
@@ -290,7 +290,7 @@ class _Tools(TypeDecorator[PromptTools]):
 class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = JSON_
+    impl = JSON
 
     def process_bind_param(
         self, value: Optional[PromptResponseFormat], _: Dialect
