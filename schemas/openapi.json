@@ -36,7 +36,25 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/AnnotationConfigResponse"
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                      },
+                      {
+                        "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                      }
+                    ],
+                    "discriminator": {
+                      "propertyName": "type",
+                      "mapping": {
+                        "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                        "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                        "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                      }
+                    }
                   },
                   "title": "Response List Annotation Configs V1 Annotation Configs Get"
                 }
@@ -87,7 +105,26 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  },
+                  "title": "Response Create Annotation Config V1 Annotation Configs Post"
                 }
               }
             }
@@ -141,7 +178,26 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AnnotationConfigResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  },
+                  "title": "Response Get Annotation Config By Name Or Id V1 Annotation Configs  Config Identifier  Get"
                 }
               }
             }
@@ -170,6 +226,87 @@
       }
     },
     "/v1/annotation_configs/{config_id}": {
+      "put": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Update an annotation configuration",
+        "operationId": "update_annotation_config_v1_annotation_configs__config_id__put",
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the annotation configuration",
+              "title": "Config Id"
+            },
+            "description": "ID of the annotation configuration"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnotationConfigPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  },
+                  "title": "Response Update Annotation Config V1 Annotation Configs  Config Id  Put"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "annotation_configs"
@@ -195,7 +332,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "boolean",
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                    }
+                  },
                   "title": "Response Delete Annotation Config V1 Annotation Configs  Config Id  Delete"
                 }
               }
@@ -2483,94 +2638,6 @@
         ],
         "title": "AnnotateSpansResponseBody"
       },
-      "AnnotationConfigResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "annotation_type": {
-            "$ref": "#/components/schemas/AnnotationType"
-          },
-          "optimization_direction": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/OptimizationDirection"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "lower_bound": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Lower Bound"
-          },
-          "upper_bound": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Upper Bound"
-          },
-          "values": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/CategoricalAnnotationValue"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Values"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "annotation_type"
-        ],
-        "title": "AnnotationConfigResponse"
-      },
-      "AnnotationType": {
-        "type": "string",
-        "enum": [
-          "CATEGORICAL",
-          "CONTINUOUS",
-          "FREEFORM"
-        ],
-        "title": "AnnotationType"
-      },
       "CategoricalAnnotationConfigPayload": {
         "properties": {
           "name": {
@@ -2598,7 +2665,7 @@
           },
           "values": {
             "items": {
-              "$ref": "#/components/schemas/CreateCategoricalAnnotationValuePayload"
+              "$ref": "#/components/schemas/CategoricalAnnotationValue"
             },
             "type": "array",
             "title": "Values"
@@ -2612,6 +2679,53 @@
           "values"
         ],
         "title": "CategoricalAnnotationConfigPayload"
+      },
+      "CategoricalAnnotationConfigWithID": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CATEGORICAL",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/CategoricalAnnotationValue"
+            },
+            "type": "array",
+            "title": "Values"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction",
+          "values",
+          "id"
+        ],
+        "title": "CategoricalAnnotationConfigWithID"
       },
       "CategoricalAnnotationValue": {
         "properties": {
@@ -2693,6 +2807,67 @@
         ],
         "title": "ContinuousAnnotationConfigPayload"
       },
+      "ContinuousAnnotationConfigWithID": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "CONTINUOUS",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "optimization_direction": {
+            "$ref": "#/components/schemas/OptimizationDirection"
+          },
+          "lower_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bound"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "optimization_direction",
+          "id"
+        ],
+        "title": "ContinuousAnnotationConfigWithID"
+      },
       "CreateAnnotationConfigPayload": {
         "oneOf": [
           {
@@ -2714,30 +2889,6 @@
             "FREEFORM": "#/components/schemas/FreeformAnnotationConfigPayload"
           }
         }
-      },
-      "CreateCategoricalAnnotationValuePayload": {
-        "properties": {
-          "label": {
-            "type": "string",
-            "title": "Label"
-          },
-          "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score"
-          }
-        },
-        "type": "object",
-        "required": [
-          "label"
-        ],
-        "title": "CreateCategoricalAnnotationValuePayload"
       },
       "CreateExperimentRequestBody": {
         "properties": {
@@ -3148,6 +3299,41 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigPayload"
+      },
+      "FreeformAnnotationConfigWithID": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "const": "FREEFORM",
+            "title": "Type"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "id"
+        ],
+        "title": "FreeformAnnotationConfigWithID"
       },
       "GetDatasetResponseBody": {
         "properties": {
