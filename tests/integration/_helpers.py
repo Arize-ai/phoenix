@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import ssl
 import sys
 from abc import ABC, abstractmethod
 from base64 import b64decode, urlsafe_b64encode
@@ -31,7 +32,7 @@ from typing import (
     Union,
     cast,
 )
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 from urllib.request import urlopen
 
 import bs4
@@ -59,11 +60,14 @@ from phoenix.auth import (
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
 )
 from phoenix.config import (
+    ENV_PHOENIX_TLS_CA_FILE,
+    ENV_PHOENIX_TLS_CERT_FILE,
+    ENV_PHOENIX_TLS_ENABLED,
+    ENV_PHOENIX_TLS_VERIFY_CLIENT,
     get_base_url,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_grpc_port,
-    get_env_host,
     get_env_smtp_mail_from,
 )
 from phoenix.server.api.auth import IsAdmin
@@ -410,11 +414,28 @@ def _grpc_span_exporter(
 ) -> SpanExporter:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    endpoint = f"http://{host}:{get_env_grpc_port()}"
+    endpoint = _change_port(get_base_url(), get_env_grpc_port())
     return OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
+
+
+def _change_port(url: str, new_port: int) -> str:
+    # Parse the URL
+    parsed_url = urlparse(url)
+
+    # Replace the netloc part with the new port
+    netloc = parsed_url.netloc
+    if ":" in netloc:
+        # If there's already a port, replace it
+        netloc = netloc.split(":")[0] + f":{new_port}"
+    else:
+        # If there's no port, add it
+        netloc = netloc + f":{new_port}"
+
+    # Create a new parsed URL with the updated netloc
+    updated_parts = parsed_url._replace(netloc=netloc)
+
+    # Combine the parts back into a URL
+    return urlunparse(updated_parts)
 
 
 class _RandomIdGenerator(IdGenerator):
@@ -607,6 +628,7 @@ def _httpx_client(
         pass
     else:
         assert_never(auth)
+    ssl_context = _get_ssl_context()
     # Having no timeout is useful when stepping through the debugger on the server side.
     return httpx.Client(
         timeout=None,
@@ -615,10 +637,23 @@ def _httpx_client(
         base_url=get_base_url(),
         transport=_LogTransport(
             _DefaultAdminTokenSequestration(
-                transport or httpx.HTTPTransport(),
+                transport or httpx.HTTPTransport(verify=ssl_context or False),
             )
         ),
     )
+
+
+def _get_ssl_context() -> Optional[ssl.SSLContext]:
+    if os.environ.get(ENV_PHOENIX_TLS_ENABLED) != "true":
+        return None
+    context = ssl.create_default_context()
+    ca_file = os.environ.get(ENV_PHOENIX_TLS_CERT_FILE)
+    context.load_verify_locations(cafile=ca_file)
+    if os.environ.get(ENV_PHOENIX_TLS_VERIFY_CLIENT) != "true":
+        return context
+    assert (cert_file := os.environ.get(ENV_PHOENIX_TLS_CA_FILE))
+    context.load_cert_chain(certfile=cert_file)
+    return context
 
 
 @contextmanager
@@ -635,23 +670,24 @@ def _server() -> Iterator[None]:
     time_limit = time() + t
     timed_out = False
     url = urljoin(get_base_url(), "healthz")
+    ssl_context = _get_ssl_context()
     while not timed_out and _is_alive(process):
         sleep(0.1)
         try:
-            urlopen(url)
+            urlopen(url, context=ssl_context)
             break
         except BaseException:
             timed_out = time() > time_limit
     try:
         if timed_out:
-            raise TimeoutError(f"Server did not start within {t} seconds.")
+            raise TimeoutError(f"Server {url} did not start within {t} seconds.")
         assert _is_alive(process)
         with lock:
             for line in log:
                 print(line, end="")
             log.clear()
         yield
-        process.terminate()
+        process.kill()
         process.wait(10)
     finally:
         for line in log:

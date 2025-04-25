@@ -8,6 +8,11 @@ from unittest import mock
 
 import pytest
 from faker import Faker
+from opentelemetry.sdk.environment_variables import (
+    OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE,
+    OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY,
+)
 from phoenix.auth import DEFAULT_SECRET_LENGTH
 from phoenix.config import (
     ENV_PHOENIX_ADMIN_SECRET,
@@ -21,13 +26,18 @@ from phoenix.config import (
     ENV_PHOENIX_SMTP_PORT,
     ENV_PHOENIX_SMTP_USERNAME,
     ENV_PHOENIX_SMTP_VALIDATE_CERTS,
+    ENV_PHOENIX_TLS_CA_FILE,
+    ENV_PHOENIX_TLS_CERT_FILE,
+    ENV_PHOENIX_TLS_ENABLED,
+    ENV_PHOENIX_TLS_KEY_FILE,
+    ENV_PHOENIX_TLS_VERIFY_CLIENT,
     get_env_smtp_hostname,
     get_env_smtp_password,
     get_env_smtp_port,
     get_env_smtp_username,
 )
 from smtpdfix import AuthController, Config, SMTPDFix
-from smtpdfix.certs import _generate_certs
+from smtpdfix.certs import Cert, _generate_certs
 
 from .._helpers import _OIDCServer, _Secret, _server
 
@@ -44,6 +54,7 @@ def _app(
     _ports: Iterator[int],
     _secret: _Secret,
     _env_phoenix_sql_database_url: Any,
+    _env_tls: Any,
     _oidc_server: _OIDCServer,
     _fake: Faker,
 ) -> Iterator[None]:
@@ -78,14 +89,51 @@ def _app(
         yield
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _env_tls(
+    _tls_certs_server: Cert,
+    _tls_certs_client: Cert,
+) -> Iterator[None]:
+    values = (
+        (ENV_PHOENIX_TLS_ENABLED, "true"),
+        (ENV_PHOENIX_TLS_CERT_FILE, str(_tls_certs_server.cert.resolve())),
+        (ENV_PHOENIX_TLS_KEY_FILE, str(_tls_certs_server.key[0].resolve())),
+        (ENV_PHOENIX_TLS_CA_FILE, str(_tls_certs_client.cert.resolve())),
+        (ENV_PHOENIX_TLS_VERIFY_CLIENT, "true"),
+        (OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE, str(_tls_certs_server.cert.resolve())),
+        (OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE, str(_tls_certs_client.cert.resolve())),
+        (OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY, str(_tls_certs_client.cert.resolve())),
+    )
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch.dict(os.environ, values))
+        yield
+
+
+@pytest.fixture(scope="module")
+def _tls_certs_server(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Cert:
+    """Fixture that provides TLS certificates in a temporary directory."""
+    path = tmp_path_factory.mktemp("certs_server")
+    return _generate_certs(path, separate_key=True)
+
+
+@pytest.fixture(scope="module")
+def _tls_certs_client(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Cert:
+    """Fixture that provides TLS certificates in a temporary directory."""
+    path = tmp_path_factory.mktemp("certs_client")
+    return _generate_certs(path, separate_key=False)
+
+
 @pytest.fixture(scope="module")
 def _smtpd(
     _app: Any,
-    tmp_path_factory: pytest.TempPathFactory,
+    _tls_certs_server: Cert,
 ) -> Iterator[AuthController]:
-    path = tmp_path_factory.mktemp("certs")
-    cert, _ = _generate_certs(path, separate_key=False)
-    os.environ["SMTPD_SSL_CERTIFICATE_FILE"] = str(cert.resolve())
+    os.environ["SMTPD_SSL_CERTIFICATE_FILE"] = str(_tls_certs_server.cert.resolve())
+    os.environ["SMTPD_SSL_KEY_FILE"] = str(_tls_certs_server.key[0].resolve())
     config = Config()
     config.login_username = get_env_smtp_username()
     config.login_password = get_env_smtp_password()

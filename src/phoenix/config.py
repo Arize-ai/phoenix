@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
@@ -239,6 +239,204 @@ When set to None, CORS is disabled.
 ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FASTAPI_MIDDLEWARE_PATHS"
 ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
 ENV_PHOENIX_GRPC_INTERCEPTOR_PATHS = "PHOENIX_GRPC_INTERCEPTOR_PATHS"
+
+ENV_PHOENIX_TLS_ENABLED = "PHOENIX_TLS_ENABLED"
+"""
+Whether to enable TLS for Phoenix HTTP and gRPC servers.
+"""
+ENV_PHOENIX_TLS_CERT_FILE = "PHOENIX_TLS_CERT_FILE"
+"""
+Path to the TLS certificate file for HTTPS connections.
+When set, Phoenix will use HTTPS instead of HTTP for all connections.
+"""
+ENV_PHOENIX_TLS_KEY_FILE = "PHOENIX_TLS_KEY_FILE"
+"""
+Path to the TLS private key file for HTTPS connections.
+Required when PHOENIX_TLS_CERT_FILE is set.
+"""
+ENV_PHOENIX_TLS_KEY_FILE_PASSWORD = "PHOENIX_TLS_KEY_FILE_PASSWORD"
+"""
+Password for the TLS private key file if it's encrypted.
+Only needed if the private key file requires a password.
+"""
+ENV_PHOENIX_TLS_CA_FILE = "PHOENIX_TLS_CA_FILE"
+"""
+Path to the Certificate Authority (CA) file for client certificate verification.
+Used when PHOENIX_TLS_VERIFY_CLIENT is set to true.
+"""
+ENV_PHOENIX_TLS_VERIFY_CLIENT = "PHOENIX_TLS_VERIFY_CLIENT"
+"""
+Whether to verify client certificates for mutual TLS (mTLS) authentication.
+When set to true, clients must provide valid certificates signed by the CA specified in
+PHOENIX_TLS_CA_FILE.
+"""
+
+
+@dataclass(frozen=True)
+class TLSConfig:
+    cert_file: Path
+    key_file: Path
+    key_file_password: Optional[str]
+    _cert_data: bytes = field(default=b"", init=False, repr=False)
+    _key_data: bytes = field(default=b"", init=False, repr=False)
+
+    @property
+    def cert_data(self) -> bytes:
+        """Get the certificate data, reading from file if not cached."""
+        if not self._cert_data:
+            with open(self.cert_file, "rb") as f:
+                object.__setattr__(self, "_cert_data", f.read())
+        return self._cert_data
+
+    @property
+    def key_data(self) -> bytes:
+        """Get the key data, reading from file if not cached."""
+        if not self._key_data:
+            with open(self.key_file, "rb") as f:
+                object.__setattr__(self, "_key_data", f.read())
+        return self._key_data
+
+    def get_decrypted_private_key(self) -> Optional[bytes]:
+        """
+        Load and decrypt the private key using the password if provided.
+
+        Returns:
+            Optional[bytes]: The decrypted private key in PEM format, or None if decryption fails.
+
+        Raises:
+            ValueError: If the key file cannot be read or decrypted.
+        """
+        from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives.serialization import (
+            Encoding,
+            NoEncryption,
+            PrivateFormat,
+            load_pem_private_key,
+        )
+
+        try:
+            # Convert password to bytes if it exists
+            password_bytes = self.key_file_password.encode() if self.key_file_password else None
+
+            # Load the key (decrypting if password is provided)
+            private_key = load_pem_private_key(
+                self.key_data,
+                password=password_bytes,
+                backend=default_backend(),
+            )
+
+            # Convert to PEM format without encryption
+            decrypted_pem = private_key.private_bytes(
+                encoding=Encoding.PEM,
+                format=PrivateFormat.PKCS8,
+                encryption_algorithm=NoEncryption(),
+            )
+
+            return decrypted_pem
+        except Exception as e:
+            raise ValueError(f"Failed to decrypt private key: {e}")
+
+
+@dataclass(frozen=True)
+class TLSConfigVerifyClient(TLSConfig):
+    """TLS configuration with client verification enabled."""
+
+    ca_file: Path
+    _ca_data: bytes = field(default=b"", init=False, repr=False)
+
+    @property
+    def ca_data(self) -> bytes:
+        """Get the CA certificate data, reading from file if not cached."""
+        if not self._ca_data:
+            with open(self.ca_file, "rb") as f:
+                object.__setattr__(self, "_ca_data", f.read())
+        return self._ca_data
+
+
+def get_env_tls_enabled() -> bool:
+    """
+    Gets the value of the PHOENIX_TLS_ENABLED environment variable.
+
+    Returns:
+        bool: True if TLS is enabled, False otherwise. Defaults to False if the environment
+        variable is not set.
+    """  # noqa: E501
+    return _bool_val(ENV_PHOENIX_TLS_ENABLED, False)
+
+
+def get_env_tls_verify_client() -> bool:
+    """
+    Gets the value of the PHOENIX_TLS_VERIFY_CLIENT environment variable.
+
+    Returns:
+        bool: True if client certificate verification is enabled, False otherwise. Defaults to False
+        if the environment variable is not set.
+    """  # noqa: E501
+    return _bool_val(ENV_PHOENIX_TLS_VERIFY_CLIENT, False)
+
+
+def get_env_tls_config() -> Optional[TLSConfig]:
+    """
+    Retrieves and validates TLS configuration from environment variables.
+
+    Returns:
+        Optional[TLSConfig]: A configuration object containing TLS settings, or None if TLS is disabled.
+        If client verification is enabled, returns TLSConfigVerifyClient instead.
+
+    The function reads the following environment variables:
+    - PHOENIX_TLS_ENABLED: Whether TLS is enabled (defaults to False)
+    - PHOENIX_TLS_CERT_FILE: Path to the TLS certificate file
+    - PHOENIX_TLS_KEY_FILE: Path to the TLS private key file
+    - PHOENIX_TLS_KEY_FILE_PASSWORD: Password for the TLS private key file
+    - PHOENIX_TLS_CA_FILE: Path to the Certificate Authority file (required for client verification)
+    - PHOENIX_TLS_VERIFY_CLIENT: Whether to verify client certificates
+
+    Raises:
+        ValueError: If required files are missing or don't exist when TLS is enabled
+    """  # noqa: E501
+    # Check if TLS is enabled
+    if not get_env_tls_enabled():
+        return None
+
+    # Get certificate file path if specified
+    if not (cert_file_str := getenv(ENV_PHOENIX_TLS_CERT_FILE)):
+        raise ValueError("PHOENIX_TLS_CERT_FILE must be set when PHOENIX_TLS_ENABLED is true")
+    cert_file = Path(cert_file_str)
+
+    # Get private key file path if specified
+    if not (key_file_str := getenv(ENV_PHOENIX_TLS_KEY_FILE)):
+        raise ValueError("PHOENIX_TLS_KEY_FILE must be set when PHOENIX_TLS_ENABLED is true")
+    key_file = Path(key_file_str)
+
+    # Get private key password if specified
+    key_file_password = getenv(ENV_PHOENIX_TLS_KEY_FILE_PASSWORD)
+
+    # Validate certificate and key files
+    _validate_file_exists_and_is_readable(cert_file, "certificate")
+    _validate_file_exists_and_is_readable(key_file, "key")
+
+    # If client verification is enabled, validate CA file and return TLSConfigVerifyClient
+    if get_env_tls_verify_client():
+        if not (ca_file_str := getenv(ENV_PHOENIX_TLS_CA_FILE)):
+            raise ValueError(
+                "PHOENIX_TLS_CA_FILE must be set when PHOENIX_TLS_VERIFY_CLIENT is true"
+            )
+
+        ca_file = Path(ca_file_str)
+        _validate_file_exists_and_is_readable(ca_file, "CA")
+
+        return TLSConfigVerifyClient(
+            cert_file=cert_file,
+            key_file=key_file,
+            key_file_password=key_file_password,
+            ca_file=ca_file,
+        )
+
+    return TLSConfig(
+        cert_file=cert_file,
+        key_file=key_file,
+        key_file_password=key_file_password,
+    )
 
 
 def server_instrumentation_is_enabled() -> bool:
@@ -956,7 +1154,8 @@ def get_env_root_url() -> URL:
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    return URL(urljoin(f"http://{host}:{get_env_port()}", get_env_host_root_path()))
+    scheme = "https" if get_env_tls_enabled() else "http"
+    return URL(urljoin(f"{scheme}://{host}:{get_env_port()}", get_env_host_root_path()))
 
 
 def get_base_url() -> str:
@@ -964,7 +1163,8 @@ def get_base_url() -> str:
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    base_url = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+    scheme = "https" if get_env_tls_enabled() else "http"
+    base_url = get_env_collector_endpoint() or f"{scheme}://{host}:{get_env_port()}"
     return base_url if base_url.endswith("/") else base_url + "/"
 
 
@@ -1159,3 +1359,30 @@ When the PHOENIX_ADMIN_SECRET is used as a bearer token in API requests, the
 request is authenticated as the system user with the user_id set to this
 SYSTEM_USER_ID value (only if this variable is not None).
 """
+
+
+def _validate_file_exists_and_is_readable(
+    file_path: Path,
+    description: str,
+    check_non_empty: bool = True,
+) -> None:
+    """
+    Validate that a file exists, is readable, and optionally has non-zero size.
+
+    Args:
+        file_path: Path to the file to validate
+        description: Description of the file for error messages (e.g., "certificate", "key", "CA")
+        check_non_empty: Whether to check if the file has non-zero size. Defaults to True.
+
+    Raises:
+        ValueError: If the path is not a file, isn't readable, or has zero size (if check_non_empty is True)
+    """  # noqa: E501
+    if not file_path.is_file():
+        raise ValueError(f"{description} path is not a file: {file_path}")
+    if check_non_empty and file_path.stat().st_size == 0:
+        raise ValueError(f"{description} file is empty: {file_path}")
+    try:
+        with open(file_path, "rb") as f:
+            f.read(1)  # Read just one byte to verify readability
+    except Exception as e:
+        raise ValueError(f"{description} file is not readable: {e}")
