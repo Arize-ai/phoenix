@@ -1,11 +1,9 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, tzinfo
 from io import StringIO
 from typing import TYPE_CHECKING, Optional, cast
 
 import httpx
-
-from phoenix.datetime_utils import normalize_datetime
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -18,6 +16,7 @@ from phoenix.client.types.spans import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
+_LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
 
 
 class Spans:
@@ -267,6 +266,21 @@ def decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     df = cast(pd.DataFrame, parse_table_schema(StringIO(obj).read(), False))
     df.index.names = [x.split("_", 1)[1] or None for x in df.index.names]  # type: ignore
     return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)  # type: ignore[override,unused-ignore]
+
+
+def normalize_datetime(
+    dt: Optional[datetime],
+    tz: Optional[tzinfo] = None,
+) -> Optional[datetime]:
+    """
+    If the input datetime is timezone-naive, it is localized as local timezone
+    unless tzinfo is specified.
+    """
+    if not isinstance(dt, datetime):
+        return None
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        dt = dt.replace(tzinfo=tz if tz else _LOCAL_TIMEZONE)
+    return dt.astimezone(timezone.utc)
 
 
 class TimeoutError(Exception): ...
