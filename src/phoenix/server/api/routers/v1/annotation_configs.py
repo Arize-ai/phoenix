@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Any, List, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel, Field, RootModel
@@ -47,56 +47,12 @@ class CategoricalAnnotationValue(BaseModel):
     score: Optional[float] = None
 
 
-class AnnotationConfigResponse(BaseModel):
-    id: str
-    name: str
-    annotation_type: AnnotationType
-    optimization_direction: Optional[OptimizationDirection] = None
-    description: Optional[str] = None
-    lower_bound: Optional[float] = None
-    upper_bound: Optional[float] = None
-    values: Optional[List[CategoricalAnnotationValue]] = None
-
-
-def annotation_config_to_response(
-    annotation_config: models.AnnotationConfig,
-) -> AnnotationConfigResponse:
-    """Convert an AnnotationConfig SQLAlchemy model instance to our response model."""
-    config = annotation_config.config
-    base: dict[str, Any] = {
-        "name": annotation_config.name,
-        "annotation_type": config.type,
-        "description": config.description,
-    }
-    if isinstance(config, ContinuousAnnotationConfigModel):
-        base["id"] = str(GlobalID(ContinuousAnnotationConfig.__name__, str(annotation_config.id)))
-        base["optimization_direction"] = config.optimization_direction
-        base["lower_bound"] = config.lower_bound
-        base["upper_bound"] = config.upper_bound
-    elif isinstance(config, CategoricalAnnotationConfigModel):
-        base["id"] = str(GlobalID(CategoricalAnnotationConfig.__name__, str(annotation_config.id)))
-        base["optimization_direction"] = config.optimization_direction
-        base["values"] = [
-            CategoricalAnnotationValue(label=val.label, score=val.score) for val in config.values
-        ]
-    elif isinstance(config, FreeformAnnotationConfigModel):
-        base["id"] = str(GlobalID(FreeformAnnotationConfig.__name__, str(annotation_config.id)))
-    else:
-        assert_never(config)
-    return AnnotationConfigResponse(**base)
-
-
-class CreateCategoricalAnnotationValuePayload(BaseModel):
-    label: str
-    score: Optional[float] = None
-
-
 class CategoricalAnnotationConfigPayload(BaseModel):
     name: str
     type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
     description: Optional[str] = None
     optimization_direction: OptimizationDirection
-    values: List[CreateCategoricalAnnotationValuePayload]
+    values: List[CategoricalAnnotationValue]
 
 
 class ContinuousAnnotationConfigPayload(BaseModel):
@@ -124,6 +80,67 @@ AnnotationConfigPayloadType: TypeAlias = Annotated[
 ]
 
 
+class CategoricalAnnotationConfigWithID(CategoricalAnnotationConfigPayload):
+    id: str
+
+
+class ContinuousAnnotationConfigWithID(ContinuousAnnotationConfigPayload):
+    id: str
+
+
+class FreeformAnnotationConfigWithID(FreeformAnnotationConfigPayload):
+    id: str
+
+
+AnnotationConfigWithID: TypeAlias = Annotated[
+    Union[
+        CategoricalAnnotationConfigWithID,
+        ContinuousAnnotationConfigWithID,
+        FreeformAnnotationConfigWithID,
+    ],
+    Field(..., discriminator="type"),
+]
+
+
+def db_to_api_annotation_config(
+    annotation_config: models.AnnotationConfig,
+) -> AnnotationConfigWithID:
+    config = annotation_config.config
+    name = annotation_config.name
+    type_ = config.type
+    description = config.description
+    if isinstance(config, ContinuousAnnotationConfigModel):
+        return ContinuousAnnotationConfigWithID(
+            id=str(GlobalID(ContinuousAnnotationConfig.__name__, str(annotation_config.id))),
+            name=name,
+            type=type_,
+            description=description,
+            optimization_direction=config.optimization_direction,
+            lower_bound=config.lower_bound,
+            upper_bound=config.upper_bound,
+        )
+    if isinstance(config, CategoricalAnnotationConfigModel):
+        return CategoricalAnnotationConfigWithID(
+            id=str(GlobalID(CategoricalAnnotationConfig.__name__, str(annotation_config.id))),
+            name=name,
+            type=type_,
+            description=description,
+            optimization_direction=config.optimization_direction,
+            values=[
+                CategoricalAnnotationValue(label=val.label, score=val.score)
+                for val in config.values
+            ],
+        )
+    if isinstance(config, FreeformAnnotationConfigModel):
+        return FreeformAnnotationConfigWithID(
+            id=str(GlobalID(FreeformAnnotationConfig.__name__, str(annotation_config.id))),
+            name=name,
+            type=type_,
+            description=description,
+        )
+    assert_never(config)
+
+
 class CreateAnnotationConfigPayload(RootModel[AnnotationConfigPayloadType]):
     root: AnnotationConfigPayloadType
 
@@ -135,13 +152,13 @@ class CreateAnnotationConfigPayload(RootModel[AnnotationConfigPayloadType]):
 async def list_annotation_configs(
     request: Request,
     limit: int = Query(50, gt=0, description="Maximum number of configs to return"),
-) -> List[AnnotationConfigResponse]:
+) -> List[AnnotationConfigWithID]:
     async with request.app.state.db() as session:
         result = await session.execute(
             select(models.AnnotationConfig).order_by(models.AnnotationConfig.name).limit(limit)
         )
         configs = result.scalars().all()
-        return [annotation_config_to_response(config) for config in configs]
+        return [db_to_api_annotation_config(config) for config in configs]
 
 
 @router.get(
@@ -151,7 +168,7 @@ async def list_annotation_configs(
 async def get_annotation_config_by_name_or_id(
     request: Request,
     config_identifier: str = Path(..., description="ID or name of the annotation configuration"),
-) -> AnnotationConfigResponse:
+) -> AnnotationConfigWithID:
     async with request.app.state.db() as session:
         query = select(models.AnnotationConfig)
         # Try to interpret the identifier as an integer ID; if not, use it as a name.
@@ -165,7 +182,7 @@ async def get_annotation_config_by_name_or_id(
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
             )
-        return annotation_config_to_response(config)
+        return db_to_api_annotation_config(config)
 
 
 @router.post(
@@ -175,7 +192,7 @@ async def get_annotation_config_by_name_or_id(
 async def create_annotation_config(
     request: Request,
     payload: CreateAnnotationConfigPayload,
-) -> AnnotationConfigResponse:
+) -> AnnotationConfigWithID:
     input_config = payload.root
     db_config: AnnotationConfigType
     _reserve_note_annotation_name(input_config)
@@ -216,7 +233,7 @@ async def create_annotation_config(
             await session.commit()
         except Exception as e:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
-        return annotation_config_to_response(annotation_config)
+        return db_to_api_annotation_config(annotation_config)
 
 
 @router.delete(
