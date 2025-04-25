@@ -3,6 +3,7 @@ import React, { CSSProperties, ReactNode } from "react";
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Text, View } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { Annotation } from "./types";
@@ -44,12 +45,16 @@ export function AnnotationTooltip({
               <Text weight="heavy" color="inherit" size="L" elementType="h3">
                 {annotation.name}
               </Text>
-              <View paddingTop="size-50" minWidth="150px">
+              <View paddingTop="size-100" minWidth="150px">
                 <Flex direction="row" justifyContent="space-between">
                   <Text weight="heavy" color="inherit">
                     label
                   </Text>
-                  <Text color="inherit">{annotation.label || "--"}</Text>
+                  <Text color="inherit" title={annotation.label ?? undefined}>
+                    <Truncate maxWidth="200px">
+                      {annotation.label || "--"}
+                    </Truncate>
+                  </Text>
                 </Flex>
                 <Flex direction="row" justifyContent="space-between">
                   <Text weight="heavy" color="inherit">

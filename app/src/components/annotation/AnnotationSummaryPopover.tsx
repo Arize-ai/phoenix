@@ -1,5 +1,8 @@
-import React, { CSSProperties, ReactNode } from "react";
-import { Pressable } from "react-aria";
+import React, { CSSProperties, ReactNode, useMemo } from "react";
+import { FocusScope, Pressable } from "react-aria";
+import { css } from "@emotion/react";
+
+import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import {
   Dialog,
@@ -10,115 +13,177 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { tableCSS } from "@phoenix/components/table/styles";
+import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { Truncate } from "@phoenix/components/utility/Truncate";
+import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { Annotation } from "./types";
 
 export function AnnotationSummaryPopover({
-  annotation,
+  annotations,
   children,
-  extra,
-  layout = "vertical",
   width,
-  leadingExtra,
+  meanScore,
+  showFilterActions,
 }: {
-  leadingExtra?: ReactNode;
-  annotation: Annotation;
+  /** Annotations of the same name */
+  annotations: Annotation[] | readonly Annotation[];
   children: ReactNode;
-  layout?: "horizontal" | "vertical";
-  extra?: ReactNode;
   width?: CSSProperties["width"];
+  meanScore?: number | null;
+  showFilterActions?: boolean;
 }) {
+  const filteredAnnotations = useMemo(
+    () =>
+      annotations.filter(
+        (annotation) => annotation.label != null || annotation.score != null
+      ),
+    [annotations]
+  );
+  const prototypicalAnnotation = filteredAnnotations[0];
+  if (!prototypicalAnnotation) {
+    return null;
+  }
   return (
     <DialogTrigger>
       <Pressable>
         <span role="button">{children}</span>
       </Pressable>
-      <Popover style={{ minWidth: width }}>
-        <PopoverArrow />
-        <Dialog>
-          <View padding="size-200">
-            <Flex
-              direction={layout === "horizontal" ? "row" : "column"}
-              alignItems="start"
-            >
-              <Flex
-                direction="column"
-                gap="size-100"
-                height="100%"
-                justifyContent="space-between"
-              >
-                {leadingExtra}
-                <View>
-                  <Text
-                    weight="heavy"
-                    color="inherit"
-                    size="L"
-                    elementType="h3"
+      <StopPropagation>
+        <Popover
+          shouldCloseOnInteractOutside={() => true}
+          style={{ minWidth: width }}
+        >
+          <PopoverArrow />
+          <Dialog
+            css={css`
+              border-radius: var(--ac-global-radius-200);
+            `}
+          >
+            <FocusScope autoFocus contain restoreFocus>
+              <View>
+                <Flex direction="column">
+                  <View
+                    borderBottomWidth="thin"
+                    borderColor="dark"
+                    paddingX="size-200"
+                    paddingY="size-100"
                   >
-                    {annotation.name}
-                  </Text>
-                  <View paddingTop="size-50" minWidth="150px">
-                    <Flex direction="row" justifyContent="space-between">
-                      <Text weight="heavy" color="inherit">
-                        label
-                      </Text>
-                      <Text color="inherit">{annotation.label || "--"}</Text>
-                    </Flex>
-                    <Flex direction="row" justifyContent="space-between">
-                      <Text weight="heavy" color="inherit">
-                        score
-                      </Text>
-                      <Text color="inherit">
-                        {floatFormatter(annotation.score)}
-                      </Text>
-                    </Flex>
-                    {annotation.annotatorKind ? (
-                      <Flex direction="row" justifyContent="space-between">
-                        <Text weight="heavy" color="inherit">
-                          annotator kind
+                    <Flex width="100%" justifyContent="space-between">
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <AnnotationColorSwatch
+                          size="L"
+                          annotationName={prototypicalAnnotation.name}
+                        />
+                        <Text
+                          weight="heavy"
+                          title={prototypicalAnnotation.name}
+                          size="L"
+                        >
+                          <Truncate maxWidth="300px">
+                            {prototypicalAnnotation.name}
+                          </Truncate>
                         </Text>
-                        <Text color="inherit">{annotation.annotatorKind}</Text>
                       </Flex>
-                    ) : null}
+                      <TooltipTrigger delay={0} placement="top">
+                        <TriggerWrap>
+                          <MeanScore
+                            size="L"
+                            value={meanScore}
+                            fallback={null}
+                          />
+                        </TriggerWrap>
+                        <Tooltip>
+                          <PopoverArrow />
+                          <Text>Mean Score</Text>
+                        </Tooltip>
+                      </TooltipTrigger>
+                    </Flex>
                   </View>
-                  {annotation.explanation ? (
-                    <View paddingTop="size-50">
-                      <Flex direction="column">
-                        <Text weight="heavy" color="inherit">
-                          explanation
-                        </Text>
-                        <View maxHeight="300px" overflow="auto">
-                          <Text color="inherit">{annotation.explanation}</Text>
-                        </View>
-                      </Flex>
-                    </View>
-                  ) : null}
-                  {annotation.createdAt ? (
-                    <Flex
-                      direction="row"
-                      justifyContent="space-between"
-                      wrap="wrap"
-                      gap="size-100"
-                    >
-                      <Text weight="heavy" color="inherit">
-                        created at
-                      </Text>
-                      <Text color="inherit">
-                        {new Date(annotation.createdAt)
-                          .toLocaleString()
-                          .split(",")
-                          .join(",\n")}
-                      </Text>
-                    </Flex>
-                  ) : null}
-                </View>
-              </Flex>
-              {extra}
-            </Flex>
-          </View>
-        </Dialog>
-      </Popover>
+                  <View overflow="auto" maxHeight="300px" position="relative">
+                    <table css={tableCSS}>
+                      <thead>
+                        <tr>
+                          <th>Author</th>
+                          <th>Label</th>
+                          <th>Score</th>
+                          <th>Filter</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredAnnotations.map((annotation) => (
+                          <tr
+                            css={css`
+                              padding-left: var(ac-global-dimensions-size-200);
+                            `}
+                            key={annotation.id}
+                          >
+                            {
+                              <td>
+                                <Flex
+                                  wrap="nowrap"
+                                  gap="size-200"
+                                  alignItems="center"
+                                >
+                                  <UserPicture
+                                    name={annotation?.user?.username}
+                                    profilePictureUrl={
+                                      annotation?.user?.profilePictureUrl
+                                    }
+                                    size={16}
+                                  />
+                                  <Text size="M" weight="heavy">
+                                    {annotation?.user?.username ?? "system"}
+                                  </Text>
+                                </Flex>
+                              </td>
+                            }
+                            <td>
+                              {annotation.label ? (
+                                <Text
+                                  size="M"
+                                  weight="heavy"
+                                  title={annotation.label}
+                                >
+                                  <Truncate maxWidth="150px">
+                                    {annotation.label}
+                                  </Truncate>
+                                </Text>
+                              ) : null}
+                            </td>
+                            <td>
+                              <Text size="M" weight="heavy">
+                                {annotation.score
+                                  ? formatFloat(annotation.score)
+                                  : null}
+                              </Text>
+                            </td>
+
+                            {showFilterActions ? (
+                              <td>
+                                <Flex justifyContent="end" flexGrow={1}>
+                                  <AnnotationTooltipFilterActions
+                                    annotation={annotation}
+                                  />
+                                </Flex>
+                              </td>
+                            ) : null}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </View>
+                </Flex>
+              </View>
+            </FocusScope>
+          </Dialog>
+        </Popover>
+      </StopPropagation>
     </DialogTrigger>
   );
 }

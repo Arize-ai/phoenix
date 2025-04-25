@@ -6,7 +6,7 @@ import { SizingProps, StylableProps } from "@phoenix/components/types";
 import { useTheme } from "@phoenix/contexts";
 
 interface TokenProps
-  extends Omit<HTMLProps<HTMLDivElement>, "size" | "css">,
+  extends Omit<HTMLProps<HTMLDivElement>, "size" | "css" | "onClick">,
     StylableProps,
     SizingProps {
   children?: React.ReactNode;

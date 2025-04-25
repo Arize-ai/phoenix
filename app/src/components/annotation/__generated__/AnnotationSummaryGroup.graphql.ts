@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a2ca4b220cb2c07544b5c0c1c889eee0>>
+ * @generated SignedSource<<440cb1b980663970816a229a0dc98b7e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,10 @@ export type AnnotationSummaryGroup$data = {
     readonly label: string | null;
     readonly name: string;
     readonly score: number | null;
+    readonly user: {
+      readonly profilePictureUrl: string | null;
+      readonly username: string;
+    } | null;
   }>;
   readonly " $fragmentType": "AnnotationSummaryGroup";
 };
@@ -93,6 +97,31 @@ return {
           "kind": "ScalarField",
           "name": "createdAt",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "User",
+          "kind": "LinkedField",
+          "name": "user",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "username",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "profilePictureUrl",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -141,6 +170,6 @@ return {
 };
 })();
 
-(node as any).hash = "6b508c4c3dd16144142f7465025f27c7";
+(node as any).hash = "9a6530a7ec9655188e6fbcbe43faa912";
 
 export default node;

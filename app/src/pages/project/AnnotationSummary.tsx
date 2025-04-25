@@ -117,7 +117,7 @@ export function Summary({
 }) {
   return (
     <Flex direction="column" flex="none">
-      <Text elementType="h3" size="S" color="text-700" title={name}>
+      <Text elementType="h3" size="S" color="text-700">
         <Truncate maxWidth="120px">{name}</Truncate>
       </Text>
       <Suspense fallback={<Text size="L">--</Text>}>{children}</Suspense>

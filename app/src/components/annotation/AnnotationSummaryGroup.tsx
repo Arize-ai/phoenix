@@ -12,7 +12,6 @@ import {
   SummaryValue,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
-import { AnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 
 const annotationLabelCSS = css`
   min-height: 20px;
@@ -42,6 +41,10 @@ export const AnnotationSummaryGroup = ({
           score
           annotatorKind
           createdAt
+          user {
+            username
+            profilePictureUrl
+          }
         }
         spanAnnotationSummaries {
           labelFractions {
@@ -66,21 +69,26 @@ export const AnnotationSummaryGroup = ({
         }),
     [spanAnnotationSummaries]
   );
-  const latestAnnotationsByName = useMemo(
+  // newest first
+  const annotationsByName = useMemo(
     () =>
       spanAnnotations.reduce(
         (acc, annotation) => {
           if (!acc[annotation.name]) {
-            acc[annotation.name] = annotation;
-          } else if (
-            new Date(annotation.createdAt) >
-            new Date(acc[annotation.name].createdAt)
-          ) {
-            acc[annotation.name] = annotation;
+            acc[annotation.name] = [annotation];
+          } else {
+            acc[annotation.name] = [annotation, ...acc[annotation.name]].sort(
+              (a, b) => {
+                return (
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+                );
+              }
+            );
           }
           return acc;
         },
-        {} as Record<string, (typeof spanAnnotations)[number]>
+        {} as Record<string, typeof spanAnnotations>
       ),
     [spanAnnotations]
   );
@@ -93,7 +101,7 @@ export const AnnotationSummaryGroup = ({
     return (
       <Flex direction="row" gap="size-200">
         {sortedSummariesByName.map((summary) => {
-          const latestAnnotation = latestAnnotationsByName[summary.name];
+          const latestAnnotation = annotationsByName[summary.name][0];
           if (!latestAnnotation) {
             return null;
           }
@@ -119,7 +127,7 @@ export const AnnotationSummaryGroup = ({
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
       {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = latestAnnotationsByName[summary.name];
+        const latestAnnotation = annotationsByName[summary.name][0];
         const labelFractions = summary?.labelFractions;
         const meanScore = summary?.meanScore;
         if (!latestAnnotation) {
@@ -128,15 +136,10 @@ export const AnnotationSummaryGroup = ({
         return (
           <AnnotationSummaryPopover
             key={latestAnnotation.id}
-            annotation={latestAnnotation}
-            layout="horizontal"
+            annotations={annotationsByName[summary.name]}
             width="500px"
-            leadingExtra={<Text weight="heavy">Latest annotation</Text>}
-            extra={
-              showFilterActions ? (
-                <AnnotationTooltipFilterActions annotation={latestAnnotation} />
-              ) : null
-            }
+            meanScore={meanScore}
+            showFilterActions={showFilterActions}
           >
             <AnnotationLabel
               annotation={latestAnnotation}
