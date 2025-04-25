@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Dependancies
 
-The client should be as light-weight as possible as it is meant to be integrated into applications directly with no impact on the runtime. This means it should never depend on the core `phoenix` package and should only depend on things under the `phoenix.client` sub-module. The client must never depend on modules that are related to a server such as `starlette`, `sqlalchamy`, `pg` and so on.
+The client should be as light-weight as possible as it is meant to be integrated into applications directly with no impact on the runtime. This means it should never depend on the core `phoenix` package and should only depend on things under the `phoenix.client` sub-module. The client must never depend on modules that are related to a server such as `starlette`, `sqlalchamy`, `pg` and so on. For libraries like `pandas`, implement lazy importing (importing within the specific function that requires it) rather than importing at the top-level.
 
 ## Syntax
 
