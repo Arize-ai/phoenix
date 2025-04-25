@@ -32,7 +32,7 @@ def test_change_jsonb_to_json_for_prompts(
     # Run the migration that creates the prompt_versions table
     _up(_engine, _alembic_config, "bc8fea3c2bc8")
 
-    # Sample data for testing - intentionally using keys in non-alphabetical order
+    # Sample data for testing - intentionally using keys in arbitrary order
     # to demonstrate the difference between JSONB and JSON in PostgreSQL
     tools_data = {"ZZZ": 3, "Z": 1, "ZZ": 2}
     response_format_data = {"ZZZ": 3, "Z": 1, "ZZ": 2}
