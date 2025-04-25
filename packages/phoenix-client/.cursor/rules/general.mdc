@@ -46,7 +46,7 @@ The client should make affordances to push and pull data from the phoenix server
 For example:
 
 ```python
-client.log_annotations_dataframe(dataframe)
+client.log_annotations_dataframe(dataframe=dataframe)
 df = client.get_spans_dataframe(project_name="default")
 ```
 
