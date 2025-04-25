@@ -24,7 +24,7 @@ client.prompts.get("prompt_version_id")
 Prefer:
 
 ```python
-client.prompts.get(prompt_version_id: "prompt_version_id")
+client.prompts.get(prompt_version_id="prompt_version_id")
 ```
 
 Methods should be prefixed with an action:
