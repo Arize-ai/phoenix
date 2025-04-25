@@ -445,18 +445,14 @@ def main() -> None:
     )
 
     if tls_config:
-        try:
-            # Configure SSL context with certificate and key
-            server_config.ssl_keyfile = str(tls_config.key_file)
-            server_config.ssl_certfile = str(tls_config.cert_file)
+        # Configure SSL context with certificate and key
+        server_config.ssl_keyfile = str(tls_config.key_file)
+        server_config.ssl_certfile = str(tls_config.cert_file)
 
-            # If CA file is provided and client verification is enabled
-            if isinstance(tls_config, TLSConfigVerifyClient):
-                server_config.ssl_ca_certs = str(tls_config.ca_file)
-                server_config.ssl_cert_reqs = CERT_REQUIRED
-        except Exception as e:
-            print(f"Error configuring TLS: {e}")
-            sys.exit(1)
+        # If CA file is provided and client verification is enabled
+        if isinstance(tls_config, TLSConfigVerifyClient):
+            server_config.ssl_ca_certs = str(tls_config.ca_file)
+            server_config.ssl_cert_reqs = CERT_REQUIRED
 
     server = Server(config=server_config)
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
