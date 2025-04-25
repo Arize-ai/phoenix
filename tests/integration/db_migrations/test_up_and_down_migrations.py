@@ -308,3 +308,8 @@ def test_up_and_down_migrations(
         _up(_engine, _alembic_config, "bb8139330879")
         _down(_engine, _alembic_config, "8c9ff7c78bce")
     _up(_engine, _alembic_config, "bb8139330879")
+
+    for _ in range(2):
+        _up(_engine, _alembic_config, "8a3764fe7f1a")
+        _down(_engine, _alembic_config, "bb8139330879")
+    _up(_engine, _alembic_config, "8a3764fe7f1a")
