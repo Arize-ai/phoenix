@@ -1,7 +1,7 @@
 """create project trace retention policies table
 
 Revision ID: bb8139330879
-Revises: 8c9ff7c78bce
+Revises: 8a3764fe7f1a
 Create Date: 2025-02-27 15:57:18.752472
 
 """
@@ -41,7 +41,7 @@ JSON_ = (
 
 # revision identifiers, used by Alembic.
 revision: str = "bb8139330879"
-down_revision: Union[str, None] = "8c9ff7c78bce"
+down_revision: Union[str, None] = "8a3764fe7f1a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
