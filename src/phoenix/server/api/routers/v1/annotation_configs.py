@@ -2,7 +2,7 @@ import logging
 from typing import Annotated, List, Literal, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from pydantic import BaseModel, Field, RootModel
+from pydantic import Field, RootModel
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -33,6 +33,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
+from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     ContinuousAnnotationConfig,
@@ -44,12 +45,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["annotation_configs"])
 
 
-class CategoricalAnnotationValue(BaseModel):
+class CategoricalAnnotationValue(V1RoutesBaseModel):
     label: str
     score: Optional[float] = None
 
 
-class CategoricalAnnotationConfigPayload(BaseModel):
+class CategoricalAnnotationConfigPayload(V1RoutesBaseModel):
     name: str
     type: Literal[AnnotationType.CATEGORICAL.value]  # type: ignore[name-defined]
     description: Optional[str] = None
@@ -57,7 +58,7 @@ class CategoricalAnnotationConfigPayload(BaseModel):
     values: List[CategoricalAnnotationValue]
 
 
-class ContinuousAnnotationConfigPayload(BaseModel):
+class ContinuousAnnotationConfigPayload(V1RoutesBaseModel):
     name: str
     type: Literal[AnnotationType.CONTINUOUS.value]  # type: ignore[name-defined]
     description: Optional[str] = None
@@ -66,7 +67,7 @@ class ContinuousAnnotationConfigPayload(BaseModel):
     upper_bound: Optional[float] = None
 
 
-class FreeformAnnotationConfigPayload(BaseModel):
+class FreeformAnnotationConfigPayload(V1RoutesBaseModel):
     name: str
     type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
     description: Optional[str] = None
