@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List annotation configurations */
+        /**
+         * List annotation configurations
+         * @description Retrieve a paginated list of all annotation configurations in the system.
+         */
         get: operations["list_annotation_configs_v1_annotation_configs_get"];
         put?: never;
         /** Create an annotation configuration */
@@ -786,6 +789,13 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** GetAnnotationConfigsResponseBody */
+        GetAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
             data: components["schemas"]["DatasetWithExampleCount"];
@@ -1362,6 +1372,8 @@ export interface operations {
     list_annotation_configs_v1_annotation_configs_get: {
         parameters: {
             query?: {
+                /** @description Cursor for pagination (base64-encoded annotation config ID) */
+                cursor?: string | null;
                 /** @description Maximum number of configs to return */
                 limit?: number;
             };
@@ -1371,13 +1383,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description A list of annotation configurations with pagination information */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"])[];
+                    "application/json": components["schemas"]["GetAnnotationConfigsResponseBody"];
                 };
             };
             /** @description Forbidden */
