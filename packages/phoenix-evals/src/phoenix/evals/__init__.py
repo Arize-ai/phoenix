@@ -1,4 +1,5 @@
 from .classify import llm_classify, run_evals
+from .declarative import declarative_eval
 from .default_templates import (
     CODE_FUNCTIONALITY_PROMPT_RAILS_MAP,
     CODE_FUNCTIONALITY_PROMPT_TEMPLATE,
@@ -92,6 +93,7 @@ __all__ = [
     "TOOL_CALLING_PROMPT_RAILS_MAP",
     "NOT_PARSABLE",
     "run_evals",
+    "declarative_eval",
     "LLMEvaluator",
     "HallucinationEvaluator",
     "QAEvaluator",
