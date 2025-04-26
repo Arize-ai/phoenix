@@ -153,37 +153,51 @@ async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
     assert "The name 'note' is reserved" in response.text
 
 
+@pytest.mark.parametrize(
+    "annotation_config",
+    [
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.CATEGORICAL.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "values": [
+                    {"label": "Good", "score": 1.0},
+                    {"label": "Bad", "score": 0.0},
+                ],
+            },
+            id="categorical",
+        ),
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.CONTINUOUS.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "lower_bound": 0.0,
+                "upper_bound": 1.0,
+            },
+            id="continuous",
+        ),
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.FREEFORM.value,
+                "description": "Test description",
+            },
+            id="freeform",
+        ),
+    ],
+)
 async def test_cannot_create_annotation_config_with_duplicate_name(
     httpx_client: AsyncClient,
+    annotation_config: dict[str, Any],
 ) -> None:
-    response = await httpx_client.post(
-        "/v1/annotation_configs",
-        json={
-            "name": "config-name",
-            "type": AnnotationType.CATEGORICAL.value,
-            "description": "Test description",
-            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-            "values": [
-                {"label": "Good", "score": 1.0},
-                {"label": "Bad", "score": 0.0},
-            ],
-        },
-    )
+    response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
     assert response.status_code == HTTP_200_OK
 
     # Try to create another config with same name
-    response = await httpx_client.post(
-        "/v1/annotation_configs",
-        json={
-            "name": "config-name",
-            "type": AnnotationType.CATEGORICAL.value,
-            "description": "Test description",
-            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-            "values": [
-                {"label": "Good", "score": 1.0},
-                {"label": "Bad", "score": 0.0},
-            ],
-        },
-    )
+    response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
     assert response.status_code == HTTP_409_CONFLICT
     assert "name of the annotation configuration is already taken" in response.text
