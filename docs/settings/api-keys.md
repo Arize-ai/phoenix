@@ -38,9 +38,13 @@ This key is particularly useful for:
 * Deploying Phoenix as a sidecar application
 * Programmatically generating authentication to send traces, datasets, etc. without requiring login
 
-This secret is set via the `PHOENIX_ADMIN_SECRET` environment variable. We recommend removing this value from your deployment once you have created a system key.
+This secret is set via the `PHOENIX_ADMIN_SECRET` environment variable.&#x20;
 
-### Key Expiration
+{% hint style="danger" %}
+We recommend removing this value from your deployment once you have created a system key.
+{% endhint %}
+
+## Key Expiration
 
 Both System and User API keys support expiration dates. Setting expirations can:
 
