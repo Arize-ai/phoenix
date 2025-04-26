@@ -12,8 +12,27 @@
           "annotation_configs"
         ],
         "summary": "List annotation configurations",
+        "description": "Retrieve a paginated list of all annotation configurations in the system.",
         "operationId": "list_annotation_configs_v1_annotation_configs_get",
         "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded annotation config ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded annotation config ID)"
+          },
           {
             "name": "limit",
             "in": "query",
@@ -22,7 +41,7 @@
               "type": "integer",
               "exclusiveMinimum": 0,
               "description": "Maximum number of configs to return",
-              "default": 50,
+              "default": 100,
               "title": "Limit"
             },
             "description": "Maximum number of configs to return"
@@ -30,33 +49,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "A list of annotation configurations with pagination information",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "oneOf": [
-                      {
-                        "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
-                      },
-                      {
-                        "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
-                      }
-                    ],
-                    "discriminator": {
-                      "propertyName": "type",
-                      "mapping": {
-                        "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
-                        "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
-                        "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
-                      }
-                    }
-                  },
-                  "title": "Response List Annotation Configs V1 Annotation Configs Get"
+                  "$ref": "#/components/schemas/GetAnnotationConfigsResponseBody"
                 }
               }
             }
@@ -3334,6 +3331,52 @@
           "id"
         ],
         "title": "FreeformAnnotationConfigWithID"
+      },
+      "GetAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAnnotationConfigsResponseBody"
       },
       "GetDatasetResponseBody": {
         "properties": {
