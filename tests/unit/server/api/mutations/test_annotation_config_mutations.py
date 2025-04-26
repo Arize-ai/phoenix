@@ -167,20 +167,21 @@ class TestAnnotationConfigMutations:
         project: models.Project,
     ) -> None:
         # Create a categorical annotation config
+        create_annotation_config = {
+            "name": "Test Categorical Config",
+            "description": "Test description",
+            "optimizationDirection": "MAXIMIZE",
+            "values": [
+                {"label": "Good", "score": 1.0},
+                {"label": "Bad", "score": 0.0},
+            ],
+        }
         create_response = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
                     "annotationConfig": {
-                        "categorical": {
-                            "name": "Test Categorical Config",
-                            "description": "Test description",
-                            "optimizationDirection": "MAXIMIZE",
-                            "values": [
-                                {"label": "Good", "score": 1.0},
-                                {"label": "Bad", "score": 0.0},
-                            ],
-                        }
+                        "categorical": create_annotation_config,
                     }
                 }
             },
@@ -190,23 +191,9 @@ class TestAnnotationConfigMutations:
         assert (data := create_response.data) is not None
         created_config = data["createAnnotationConfig"]["annotationConfig"]
         config_id = created_config["id"]
-        expected_config = {
-            "name": "Test Categorical Config",
-            "id": config_id,
-            "description": "Test description",
-            "annotationType": "CATEGORICAL",
-            "optimizationDirection": "MAXIMIZE",
-            "values": [
-                {
-                    "label": "Good",
-                    "score": 1.0,
-                },
-                {
-                    "label": "Bad",
-                    "score": 0.0,
-                },
-            ],
-        }
+        expected_config = create_annotation_config
+        expected_config["id"] = config_id
+        expected_config["annotationType"] = "CATEGORICAL"
         assert created_config == expected_config
 
         # List annotation configs
@@ -221,21 +208,22 @@ class TestAnnotationConfigMutations:
         assert configs[0]["node"] == created_config
 
         # Update the annotation config
+        update_annotation_config = {
+            "name": "Updated Categorical Config",
+            "description": "Updated description",
+            "optimizationDirection": "MINIMIZE",
+            "values": [
+                {"label": "Excellent", "score": 1.0},
+                {"label": "Poor", "score": 0.0},
+            ],
+        }
         update_response = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
                     "id": config_id,
                     "annotationConfig": {
-                        "categorical": {
-                            "name": "Updated Categorical Config",
-                            "description": "Updated description",
-                            "optimizationDirection": "MINIMIZE",
-                            "values": [
-                                {"label": "Excellent", "score": 1.0},
-                                {"label": "Poor", "score": 0.0},
-                            ],
-                        }
+                        "categorical": update_annotation_config,
                     },
                 }
             },
@@ -244,14 +232,9 @@ class TestAnnotationConfigMutations:
         assert not update_response.errors
         assert (data := update_response.data) is not None
         updated_config = data["updateAnnotationConfig"]["annotationConfig"]
-        expected_config = {
-            "name": "Updated Categorical Config",
-            "id": config_id,
-            "description": "Updated description",
-            "annotationType": "CATEGORICAL",
-            "optimizationDirection": "MINIMIZE",
-            "values": [{"label": "Excellent", "score": 1.0}, {"label": "Poor", "score": 0.0}],
-        }
+        expected_config = update_annotation_config
+        expected_config["id"] = config_id
+        expected_config["annotationType"] = "CATEGORICAL"
         assert updated_config == expected_config
 
         # Add annotation config to project
