@@ -250,7 +250,7 @@ async def annotation_configs(db: DbSessionFactory) -> list[models.AnnotationConf
                 config=CategoricalAnnotationConfig(
                     type=AnnotationType.CATEGORICAL.value,
                     description=f"config-description-{index}",
-                    optimization_direction=OptimizationDirection.MAXIMIZE.value,
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
                     values=[
                         CategoricalAnnotationValue(label="Good", score=1.0),
                         CategoricalAnnotationValue(label="Bad", score=0.0),
