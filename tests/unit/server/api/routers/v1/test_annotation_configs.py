@@ -8,7 +8,14 @@ from starlette.status import (
     HTTP_409_CONFLICT,
 )
 
-from phoenix.db.types.annotation_configs import AnnotationType, OptimizationDirection
+from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
+from phoenix.server.types import DbSessionFactory
 
 
 @pytest.mark.parametrize(
@@ -227,3 +234,82 @@ async def test_cannot_create_annotation_config_with_duplicate_name(
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
     assert response.status_code == HTTP_409_CONFLICT
     assert "name of the annotation configuration is already taken" in response.text
+
+
+@pytest.fixture
+async def annotation_configs(db: DbSessionFactory) -> list[models.AnnotationConfig]:
+    """
+    Creates five annotation configs.
+    """
+    configs = []
+    async with db() as session:
+        for index in range(5):
+            config = models.AnnotationConfig(
+                name=f"config-name-{index}",
+                config=CategoricalAnnotationConfig(
+                    type=AnnotationType.CATEGORICAL.value,
+                    description=f"config-description-{index}",
+                    optimization_direction=OptimizationDirection.MAXIMIZE.value,
+                    values=[
+                        CategoricalAnnotationValue(label="Good", score=1.0),
+                        CategoricalAnnotationValue(label="Bad", score=0.0),
+                    ],
+                ),
+            )
+            session.add(config)
+            configs.append(config)
+        await session.flush()
+    return configs
+
+
+@pytest.mark.parametrize(
+    "limit,expected_page_size,has_next_page",
+    [
+        pytest.param(4, 4, True, id="page_size_less_than_total_has_next_page"),
+        pytest.param(5, 5, False, id="page_size_equals_total_no_next_page"),
+        pytest.param(6, 5, False, id="page_size_greater_than_total_no_next_page"),
+    ],
+)
+async def test_list_annotation_configs_pagination_without_cursor(
+    httpx_client: AsyncClient,
+    annotation_configs: list[models.AnnotationConfig],
+    limit: int,
+    expected_page_size: int,
+    has_next_page: bool,
+) -> None:
+    response = await httpx_client.get(f"/v1/annotation_configs?limit={limit}")
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert len(data["data"]) == expected_page_size
+    assert (data["next_cursor"] is not None) == has_next_page
+
+
+@pytest.mark.parametrize(
+    "limit,expected_page_size,has_next_page",
+    [
+        pytest.param(2, 2, True, id="page_size_less_than_remaining_has_next_page"),
+        pytest.param(3, 3, False, id="page_size_equals_remaining_no_next_page"),
+        pytest.param(4, 3, False, id="page_size_greater_than_remaining_no_next_page"),
+    ],
+)
+async def test_list_annotation_configs_pagination_with_cursor(
+    httpx_client: AsyncClient,
+    annotation_configs: list[models.AnnotationConfig],
+    limit: int,
+    expected_page_size: int,
+    has_next_page: bool,
+) -> None:
+    # First get first page
+    first_response = await httpx_client.get("/v1/annotation_configs?limit=2")
+    assert first_response.status_code == HTTP_200_OK
+    first_data = first_response.json()
+    assert len(first_data["data"]) == 2
+    cursor = first_data["next_cursor"]
+    assert cursor is not None
+
+    # Then get second page using cursor
+    response = await httpx_client.get(f"/v1/annotation_configs?limit={limit}&cursor={cursor}")
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert len(data["data"]) == expected_page_size
+    assert (data["next_cursor"] is not None) == has_next_page
