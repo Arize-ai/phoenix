@@ -15,26 +15,8 @@ async def test_categorical_annotation_config_crud_operations(
     httpx_client: AsyncClient,
 ) -> None:
     # Create a categorical annotation config
-    create_response = await httpx_client.post(
-        "/v1/annotation_configs",
-        json={
-            "name": "categorical-config-name",
-            "type": AnnotationType.CATEGORICAL.value,
-            "description": "Test description",
-            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-            "values": [
-                {"label": "Good", "score": 1.0},
-                {"label": "Bad", "score": 0.0},
-            ],
-        },
-    )
-    assert create_response.status_code == HTTP_200_OK
-    created_config = create_response.json()
-    config_id = created_config["id"]
-
-    expected_config = {
+    create_config = {
         "name": "categorical-config-name",
-        "id": config_id,
         "type": AnnotationType.CATEGORICAL.value,
         "description": "Test description",
         "optimization_direction": OptimizationDirection.MAXIMIZE.value,
@@ -43,6 +25,16 @@ async def test_categorical_annotation_config_crud_operations(
             {"label": "Bad", "score": 0.0},
         ],
     }
+    create_response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json=create_config,
+    )
+    assert create_response.status_code == HTTP_200_OK
+    created_config = create_response.json()
+    config_id = created_config["id"]
+
+    expected_config = create_config
+    expected_config["id"] = config_id
     assert created_config == expected_config
 
     # List annotation configs
@@ -63,24 +55,8 @@ async def test_categorical_annotation_config_crud_operations(
     assert get_by_name_response.json() == created_config
 
     # Update the annotation config
-    update_response = await httpx_client.put(
-        f"/v1/annotation_configs/{config_id}",
-        json={
-            "name": "updated-categorical-config-name",
-            "type": AnnotationType.CATEGORICAL.value,
-            "description": "Updated description",
-            "optimization_direction": OptimizationDirection.MINIMIZE.value,
-            "values": [
-                {"label": "Excellent", "score": 1.0},
-                {"label": "Poor", "score": 0.0},
-            ],
-        },
-    )
-    assert update_response.status_code == HTTP_200_OK
-    updated_config = update_response.json()
-    expected_updated_config = {
+    update_config = {
         "name": "updated-categorical-config-name",
-        "id": config_id,
         "type": AnnotationType.CATEGORICAL.value,
         "description": "Updated description",
         "optimization_direction": OptimizationDirection.MINIMIZE.value,
@@ -89,6 +65,14 @@ async def test_categorical_annotation_config_crud_operations(
             {"label": "Poor", "score": 0.0},
         ],
     }
+    update_response = await httpx_client.put(
+        f"/v1/annotation_configs/{config_id}",
+        json=update_config,
+    )
+    assert update_response.status_code == HTTP_200_OK
+    updated_config = update_response.json()
+    expected_updated_config = update_config
+    expected_updated_config["id"] = config_id
     assert updated_config == expected_updated_config
 
     # Delete the annotation config
