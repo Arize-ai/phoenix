@@ -408,7 +408,89 @@ class TestAnnotationConfigMutations:
             operation_name="CreateAnnotationConfig",
         )
         assert response.data is None
-        assert response.errors is not None
+        assert response.errors
         assert len(response.errors) == 1
         error = response.errors[0]
+        assert "The name 'note' is reserved for span notes" in error.message
+
+    @pytest.mark.parametrize(
+        ("update_config", "annotation_type"),
+        [
+            pytest.param(
+                {
+                    "name": "note",
+                    "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "values": [
+                        {"label": "Good", "score": 1.0},
+                        {"label": "Bad", "score": 0.0},
+                    ],
+                },
+                AnnotationType.CATEGORICAL.value,
+                id="categorical",
+            ),
+            pytest.param(
+                {
+                    "name": "note",
+                    "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "lowerBound": 0.0,
+                    "upperBound": 1.0,
+                },
+                AnnotationType.CONTINUOUS.value,
+                id="continuous",
+            ),
+            pytest.param(
+                {
+                    "name": "note",
+                    "description": "Test description",
+                },
+                AnnotationType.FREEFORM.value,
+                id="freeform",
+            ),
+        ],
+    )
+    async def test_cannot_update_annotation_config_with_reserved_name_for_notes(
+        self,
+        gql_client: AsyncGraphQLClient,
+        update_config: dict[str, Any],
+        annotation_type: str,
+    ) -> None:
+        annotation_type_key = annotation_type.lower()
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "config-name",
+                            "description": "config-description",
+                        },
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert create_response.data is not None
+        assert not create_response.errors
+        created_config = create_response.data["createAnnotationConfig"]["annotationConfig"]
+        config_id = created_config["id"]
+
+        # Try to update with reserved name
+        update_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": config_id,
+                    "annotationConfig": {
+                        annotation_type_key: update_config,
+                    },
+                }
+            },
+            operation_name="UpdateAnnotationConfig",
+        )
+        assert update_response.data is None
+        assert update_response.errors
+        assert len(update_response.errors) == 1
+        error = update_response.errors[0]
         assert "The name 'note' is reserved for span notes" in error.message
