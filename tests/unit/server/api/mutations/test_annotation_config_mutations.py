@@ -679,3 +679,62 @@ class TestAnnotationConfigMutations:
         assert len(response.errors) == 1
         error = response.errors[0]
         assert "Annotation config not found" in error.message
+
+    async def test_delete_annotation_configs_aborts_if_some_configs_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # Create a categorical annotation config
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "categorical": {
+                            "name": "test-config",
+                            "description": "test description",
+                            "optimizationDirection": "MAXIMIZE",
+                            "values": [
+                                {"label": "Good", "score": 1.0},
+                                {"label": "Bad", "score": 0.0},
+                            ],
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert create_response.data is not None
+        assert not create_response.errors
+        config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
+
+        # Try to delete the existing config along with a non-existent one
+        non_existent_id = str(GlobalID(type_name="CategoricalAnnotationConfig", node_id="999999"))
+        delete_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "ids": [config_id, non_existent_id],
+                }
+            },
+            operation_name="DeleteAnnotationConfigs",
+        )
+        assert delete_response.data is None
+        assert delete_response.errors
+        assert len(delete_response.errors) == 1
+        error = delete_response.errors[0]
+        assert (
+            "Could not find one or more annotation configs to delete, deletion aborted"
+            in error.message
+        )
+
+        # Verify the config still exists by listing
+        list_response = await gql_client.execute(
+            query=self.QUERY,
+            operation_name="ListAnnotationConfigs",
+        )
+        assert not list_response.errors
+        assert (data := list_response.data) is not None
+        configs = data["annotationConfigs"]["edges"]
+        assert len(configs) == 1
+        assert configs[0]["node"]["id"] == config_id
