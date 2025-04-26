@@ -11,20 +11,72 @@ from starlette.status import (
 from phoenix.db.types.annotation_configs import AnnotationType, OptimizationDirection
 
 
-async def test_categorical_annotation_config_crud_operations(
+@pytest.mark.parametrize(
+    "create_config,update_config",
+    [
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.CATEGORICAL.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "values": [
+                    {"label": "Good", "score": 1.0},
+                    {"label": "Bad", "score": 0.0},
+                ],
+            },
+            {
+                "name": "updated-config-name",
+                "type": AnnotationType.CATEGORICAL.value,
+                "description": "Updated description",
+                "optimization_direction": OptimizationDirection.MINIMIZE.value,
+                "values": [
+                    {"label": "Excellent", "score": 1.0},
+                    {"label": "Poor", "score": 0.0},
+                ],
+            },
+            id="categorical",
+        ),
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.CONTINUOUS.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "lower_bound": 0.0,
+                "upper_bound": 100.0,
+            },
+            {
+                "name": "updated-config-name",
+                "type": AnnotationType.CONTINUOUS.value,
+                "description": "Updated description",
+                "optimization_direction": OptimizationDirection.MINIMIZE.value,
+                "lower_bound": -10.0,
+                "upper_bound": 10.0,
+            },
+            id="continuous",
+        ),
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.FREEFORM.value,
+                "description": "Test description",
+            },
+            {
+                "name": "updated-config-name",
+                "type": AnnotationType.FREEFORM.value,
+                "description": "Updated description",
+            },
+            id="freeform",
+        ),
+    ],
+)
+async def test_crud_operations(
     httpx_client: AsyncClient,
+    create_config: dict[str, Any],
+    update_config: dict[str, Any],
 ) -> None:
     # Create a categorical annotation config
-    create_config = {
-        "name": "categorical-config-name",
-        "type": AnnotationType.CATEGORICAL.value,
-        "description": "Test description",
-        "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-        "values": [
-            {"label": "Good", "score": 1.0},
-            {"label": "Bad", "score": 0.0},
-        ],
-    }
     create_response = await httpx_client.post(
         "/v1/annotation_configs",
         json=create_config,
@@ -50,21 +102,11 @@ async def test_categorical_annotation_config_crud_operations(
     assert get_response.json() == created_config
 
     # Get config by name
-    get_by_name_response = await httpx_client.get("/v1/annotation_configs/categorical-config-name")
+    get_by_name_response = await httpx_client.get("/v1/annotation_configs/config-name")
     assert get_by_name_response.status_code == HTTP_200_OK
     assert get_by_name_response.json() == created_config
 
     # Update the annotation config
-    update_config = {
-        "name": "updated-categorical-config-name",
-        "type": AnnotationType.CATEGORICAL.value,
-        "description": "Updated description",
-        "optimization_direction": OptimizationDirection.MINIMIZE.value,
-        "values": [
-            {"label": "Excellent", "score": 1.0},
-            {"label": "Poor", "score": 0.0},
-        ],
-    }
     update_response = await httpx_client.put(
         f"/v1/annotation_configs/{config_id}",
         json=update_config,
