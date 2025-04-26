@@ -1,8 +1,12 @@
+from copy import deepcopy
+from typing import Any
+
 import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import AnnotationType
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -161,27 +165,79 @@ class TestAnnotationConfigMutations:
     }
     """
 
-    async def test_categorical_annotation_config_crud_operations(
+    @pytest.mark.parametrize(
+        "create_config,update_config,annotation_type",
+        [
+            pytest.param(
+                {
+                    "name": "Test Categorical Config",
+                    "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "values": [
+                        {"label": "Good", "score": 1.0},
+                        {"label": "Bad", "score": 0.0},
+                    ],
+                },
+                {
+                    "name": "Updated Categorical Config",
+                    "description": "Updated description",
+                    "optimizationDirection": "MINIMIZE",
+                    "values": [
+                        {"label": "Excellent", "score": 1.0},
+                        {"label": "Poor", "score": 0.0},
+                    ],
+                },
+                AnnotationType.CATEGORICAL.value,
+                id="categorical",
+            ),
+            pytest.param(
+                {
+                    "name": "Test Continuous Config",
+                    "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "lowerBound": 0.0,
+                    "upperBound": 1.0,
+                },
+                {
+                    "name": "Updated Continuous Config",
+                    "description": "Updated description",
+                    "optimizationDirection": "MINIMIZE",
+                    "lowerBound": -1.0,
+                    "upperBound": 2.0,
+                },
+                AnnotationType.CONTINUOUS.value,
+                id="continuous",
+            ),
+            pytest.param(
+                {
+                    "name": "Test Freeform Config",
+                    "description": "Test description",
+                },
+                {
+                    "name": "Updated Freeform Config",
+                    "description": "Updated description",
+                },
+                AnnotationType.FREEFORM.value,
+                id="freeform",
+            ),
+        ],
+    )
+    async def test_annotation_config_crud_operations(
         self,
         gql_client: AsyncGraphQLClient,
         project: models.Project,
+        create_config: dict[str, Any],
+        update_config: dict[str, Any],
+        annotation_type: str,
     ) -> None:
         # Create a categorical annotation config
-        create_annotation_config = {
-            "name": "Test Categorical Config",
-            "description": "Test description",
-            "optimizationDirection": "MAXIMIZE",
-            "values": [
-                {"label": "Good", "score": 1.0},
-                {"label": "Bad", "score": 0.0},
-            ],
-        }
+        annotation_type_key = annotation_type.lower()
         create_response = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
                     "annotationConfig": {
-                        "categorical": create_annotation_config,
+                        annotation_type_key: create_config,
                     }
                 }
             },
@@ -191,9 +247,9 @@ class TestAnnotationConfigMutations:
         assert (data := create_response.data) is not None
         created_config = data["createAnnotationConfig"]["annotationConfig"]
         config_id = created_config["id"]
-        expected_config = create_annotation_config
+        expected_config = deepcopy(create_config)
         expected_config["id"] = config_id
-        expected_config["annotationType"] = "CATEGORICAL"
+        expected_config["annotationType"] = annotation_type
         assert created_config == expected_config
 
         # List annotation configs
@@ -208,22 +264,13 @@ class TestAnnotationConfigMutations:
         assert configs[0]["node"] == created_config
 
         # Update the annotation config
-        update_annotation_config = {
-            "name": "Updated Categorical Config",
-            "description": "Updated description",
-            "optimizationDirection": "MINIMIZE",
-            "values": [
-                {"label": "Excellent", "score": 1.0},
-                {"label": "Poor", "score": 0.0},
-            ],
-        }
         update_response = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
                     "id": config_id,
                     "annotationConfig": {
-                        "categorical": update_annotation_config,
+                        annotation_type_key: update_config,
                     },
                 }
             },
@@ -232,297 +279,9 @@ class TestAnnotationConfigMutations:
         assert not update_response.errors
         assert (data := update_response.data) is not None
         updated_config = data["updateAnnotationConfig"]["annotationConfig"]
-        expected_config = update_annotation_config
+        expected_config = deepcopy(update_config)
         expected_config["id"] = config_id
-        expected_config["annotationType"] = "CATEGORICAL"
-        assert updated_config == expected_config
-
-        # Add annotation config to project
-        project_id = str(GlobalID("Project", str(project.id)))
-        add_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": [
-                    {
-                        "projectId": project_id,
-                        "annotationConfigId": config_id,
-                    }
-                ]
-            },
-            operation_name="AddAnnotationConfigToProject",
-        )
-        assert not add_response.errors
-        assert (data := add_response.data) is not None
-        project_configs = data["addAnnotationConfigToProject"]["project"]["annotationConfigs"][
-            "edges"
-        ]
-        assert len(project_configs) == 1
-        assert project_configs[0]["node"] == expected_config
-
-        # Remove annotation config from project
-        remove_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": [
-                    {
-                        "projectId": project_id,
-                        "annotationConfigId": config_id,
-                    }
-                ]
-            },
-            operation_name="RemoveAnnotationConfigFromProject",
-        )
-        assert not remove_response.errors
-        assert (data := remove_response.data) is not None
-        project_configs = data["removeAnnotationConfigFromProject"]["project"]["annotationConfigs"][
-            "edges"
-        ]
-        assert len(project_configs) == 0
-
-        # Delete the annotation config
-        delete_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": {
-                    "ids": [config_id],
-                }
-            },
-            operation_name="DeleteAnnotationConfigs",
-        )
-        assert not delete_response.errors
-        assert (data := delete_response.data) is not None
-        deleted_configs = data["deleteAnnotationConfigs"]["annotationConfigs"]
-        assert len(deleted_configs) == 1
-        assert deleted_configs[0] == expected_config
-
-        # Verify the config is deleted by listing
-        list_response = await gql_client.execute(
-            query=self.QUERY,
-            operation_name="ListAnnotationConfigs",
-        )
-        assert not list_response.errors
-        assert (data := list_response.data) is not None
-        configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 0
-
-    async def test_continuous_annotation_config_crud_operations(
-        self,
-        gql_client: AsyncGraphQLClient,
-        project: models.Project,
-    ) -> None:
-        # Create a continuous annotation config
-        create_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": {
-                    "annotationConfig": {
-                        "continuous": {
-                            "name": "Test Continuous Config",
-                            "description": "Test description",
-                            "optimizationDirection": "MAXIMIZE",
-                            "lowerBound": 0.0,
-                            "upperBound": 1.0,
-                        }
-                    }
-                }
-            },
-            operation_name="CreateAnnotationConfig",
-        )
-        assert not create_response.errors
-        assert (data := create_response.data) is not None
-        created_config = data["createAnnotationConfig"]["annotationConfig"]
-        config_id = created_config["id"]
-        expected_config = {
-            "name": "Test Continuous Config",
-            "id": config_id,
-            "description": "Test description",
-            "annotationType": "CONTINUOUS",
-            "optimizationDirection": "MAXIMIZE",
-            "lowerBound": 0.0,
-            "upperBound": 1.0,
-        }
-        assert created_config == expected_config
-
-        # List annotation configs
-        list_response = await gql_client.execute(
-            query=self.QUERY,
-            operation_name="ListAnnotationConfigs",
-        )
-        assert not list_response.errors
-        assert (data := list_response.data) is not None
-        configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 1
-        assert configs[0]["node"] == created_config
-
-        # Update the annotation config
-        update_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": {
-                    "id": config_id,
-                    "annotationConfig": {
-                        "continuous": {
-                            "name": "Updated Continuous Config",
-                            "description": "Updated description",
-                            "optimizationDirection": "MINIMIZE",
-                            "lowerBound": -1.0,
-                            "upperBound": 2.0,
-                        }
-                    },
-                }
-            },
-            operation_name="UpdateAnnotationConfig",
-        )
-        assert not update_response.errors
-        assert (data := update_response.data) is not None
-        updated_config = data["updateAnnotationConfig"]["annotationConfig"]
-        expected_config = {
-            "name": "Updated Continuous Config",
-            "id": config_id,
-            "description": "Updated description",
-            "annotationType": "CONTINUOUS",
-            "optimizationDirection": "MINIMIZE",
-            "lowerBound": -1.0,
-            "upperBound": 2.0,
-        }
-        assert updated_config == expected_config
-
-        # Add annotation config to project
-        project_id = str(GlobalID("Project", str(project.id)))
-        add_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": [
-                    {
-                        "projectId": project_id,
-                        "annotationConfigId": config_id,
-                    }
-                ]
-            },
-            operation_name="AddAnnotationConfigToProject",
-        )
-        assert not add_response.errors
-        assert (data := add_response.data) is not None
-        project_configs = data["addAnnotationConfigToProject"]["project"]["annotationConfigs"][
-            "edges"
-        ]
-        assert len(project_configs) == 1
-        assert project_configs[0]["node"] == expected_config
-
-        # Remove annotation config from project
-        remove_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": [
-                    {
-                        "projectId": project_id,
-                        "annotationConfigId": config_id,
-                    }
-                ]
-            },
-            operation_name="RemoveAnnotationConfigFromProject",
-        )
-        assert not remove_response.errors
-        assert (data := remove_response.data) is not None
-        project_configs = data["removeAnnotationConfigFromProject"]["project"]["annotationConfigs"][
-            "edges"
-        ]
-        assert len(project_configs) == 0
-
-        # Delete the annotation config
-        delete_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": {
-                    "ids": [config_id],
-                }
-            },
-            operation_name="DeleteAnnotationConfigs",
-        )
-        assert not delete_response.errors
-        assert (data := delete_response.data) is not None
-        deleted_configs = data["deleteAnnotationConfigs"]["annotationConfigs"]
-        assert len(deleted_configs) == 1
-        assert deleted_configs[0] == expected_config
-
-        # Verify the config is deleted by listing
-        list_response = await gql_client.execute(
-            query=self.QUERY,
-            operation_name="ListAnnotationConfigs",
-        )
-        assert not list_response.errors
-        assert (data := list_response.data) is not None
-        configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 0
-
-    async def test_freeform_annotation_config_crud_operations(
-        self,
-        gql_client: AsyncGraphQLClient,
-        project: models.Project,
-    ) -> None:
-        # Create a freeform annotation config
-        create_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": {
-                    "annotationConfig": {
-                        "freeform": {
-                            "name": "Test Freeform Config",
-                            "description": "Test description",
-                        }
-                    }
-                }
-            },
-            operation_name="CreateAnnotationConfig",
-        )
-        assert not create_response.errors
-        assert (data := create_response.data) is not None
-        created_config = data["createAnnotationConfig"]["annotationConfig"]
-        config_id = created_config["id"]
-        expected_config = {
-            "name": "Test Freeform Config",
-            "id": config_id,
-            "description": "Test description",
-            "annotationType": "FREEFORM",
-        }
-        assert created_config == expected_config
-
-        # List annotation configs
-        list_response = await gql_client.execute(
-            query=self.QUERY,
-            operation_name="ListAnnotationConfigs",
-        )
-        assert not list_response.errors
-        assert (data := list_response.data) is not None
-        configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 1
-        assert configs[0]["node"] == created_config
-
-        # Update the annotation config
-        update_response = await gql_client.execute(
-            query=self.QUERY,
-            variables={
-                "input": {
-                    "id": config_id,
-                    "annotationConfig": {
-                        "freeform": {
-                            "name": "Updated Freeform Config",
-                            "description": "Updated description",
-                        }
-                    },
-                }
-            },
-            operation_name="UpdateAnnotationConfig",
-        )
-        assert not update_response.errors
-        assert (data := update_response.data) is not None
-        updated_config = data["updateAnnotationConfig"]["annotationConfig"]
-        expected_config = {
-            "name": "Updated Freeform Config",
-            "id": config_id,
-            "description": "Updated description",
-            "annotationType": "FREEFORM",
-        }
+        expected_config["annotationType"] = annotation_type
         assert updated_config == expected_config
 
         # Add annotation config to project
