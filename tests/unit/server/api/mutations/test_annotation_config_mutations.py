@@ -351,3 +351,64 @@ class TestAnnotationConfigMutations:
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
         assert len(configs) == 0
+
+    @pytest.mark.parametrize(
+        "config,annotation_type",
+        [
+            pytest.param(
+                {
+                    "name": "note",
+                    "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "values": [
+                        {"label": "Good", "score": 1.0},
+                        {"label": "Bad", "score": 0.0},
+                    ],
+                },
+                AnnotationType.CATEGORICAL.value,
+                id="categorical",
+            ),
+            pytest.param(
+                {
+                    "name": "note",
+                    "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "lowerBound": 0.0,
+                    "upperBound": 1.0,
+                },
+                AnnotationType.CONTINUOUS.value,
+                id="continuous",
+            ),
+            pytest.param(
+                {
+                    "name": "note",
+                    "description": "Test description",
+                },
+                AnnotationType.FREEFORM.value,
+                id="freeform",
+            ),
+        ],
+    )
+    async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
+        self,
+        gql_client: AsyncGraphQLClient,
+        config: dict[str, Any],
+        annotation_type: str,
+    ) -> None:
+        annotation_type_key = annotation_type.lower()
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        annotation_type_key: config,
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert response.data is None
+        assert response.errors is not None
+        assert len(response.errors) == 1
+        error = response.errors[0]
+        assert "The name 'note' is reserved for span notes" in error.message
