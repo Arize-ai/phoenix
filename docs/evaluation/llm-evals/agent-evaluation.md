@@ -111,7 +111,7 @@ See our Agent Reflection evaluation template for a more specific example.
 
 See our [Agent Reflection evaluation template](../how-to-evals/running-pre-tested-evals/agent-reflection.md) for a specific example.
 
-## Putting it all together
+## Putting it all Together
 
 Through a combination of the evaluations above, you can get a far more accurate picture of how your agent is performing.
 
