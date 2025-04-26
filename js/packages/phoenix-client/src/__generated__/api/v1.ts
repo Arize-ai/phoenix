@@ -14,7 +14,8 @@ export interface paths {
         /** List annotation configurations */
         get: operations["list_annotation_configs_v1_annotation_configs_get"];
         put?: never;
-        post?: never;
+        /** Create an annotation configuration */
+        post: operations["create_annotation_config_v1_annotation_configs_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -38,57 +39,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/annotation_configs/continuous": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a continuous annotation configuration */
-        post: operations["create_continuous_annotation_config_v1_annotation_configs_continuous_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/annotation_configs/categorical": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a categorical annotation configuration */
-        post: operations["create_categorical_annotation_config_v1_annotation_configs_categorical_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/annotation_configs/freeform": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create a freeform annotation configuration */
-        post: operations["create_freeform_annotation_config_v1_annotation_configs_freeform_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/annotation_configs/{config_id}": {
         parameters: {
             query?: never;
@@ -97,7 +47,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Update an annotation configuration */
+        put: operations["update_annotation_config_v1_annotation_configs__config_id__put"];
         post?: never;
         /** Delete an annotation configuration */
         delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
@@ -541,28 +492,38 @@ export interface components {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
         };
-        /** AnnotationConfigResponse */
-        AnnotationConfigResponse: {
-            /** Id */
-            id: string;
+        /** CategoricalAnnotationConfigPayload */
+        CategoricalAnnotationConfigPayload: {
             /** Name */
             name: string;
-            annotation_type: components["schemas"]["AnnotationType"];
-            optimization_direction?: components["schemas"]["OptimizationDirection"] | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CATEGORICAL";
             /** Description */
             description?: string | null;
-            /** Lower Bound */
-            lower_bound?: number | null;
-            /** Upper Bound */
-            upper_bound?: number | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
             /** Values */
-            values?: components["schemas"]["CategoricalAnnotationValue"][] | null;
+            values: components["schemas"]["CategoricalAnnotationValue"][];
         };
-        /**
-         * AnnotationType
-         * @enum {string}
-         */
-        AnnotationType: "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
+        /** CategoricalAnnotationConfigWithID */
+        CategoricalAnnotationConfigWithID: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CATEGORICAL";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Values */
+            values: components["schemas"]["CategoricalAnnotationValue"][];
+            /** Id */
+            id: string;
+        };
         /** CategoricalAnnotationValue */
         CategoricalAnnotationValue: {
             /** Label */
@@ -570,35 +531,44 @@ export interface components {
             /** Score */
             score?: number | null;
         };
-        /** CreateCategoricalAnnotationConfigPayload */
-        CreateCategoricalAnnotationConfigPayload: {
+        /** ContinuousAnnotationConfigPayload */
+        ContinuousAnnotationConfigPayload: {
             /** Name */
             name: string;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CONTINUOUS";
             /** Description */
             description?: string | null;
-            /** Values */
-            values: components["schemas"]["CreateCategoricalAnnotationValuePayload"][];
-        };
-        /** CreateCategoricalAnnotationValuePayload */
-        CreateCategoricalAnnotationValuePayload: {
-            /** Label */
-            label: string;
-            /** Score */
-            score?: number | null;
-        };
-        /** CreateContinuousAnnotationConfigPayload */
-        CreateContinuousAnnotationConfigPayload: {
-            /** Name */
-            name: string;
             optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Description */
-            description?: string | null;
             /** Lower Bound */
             lower_bound?: number | null;
             /** Upper Bound */
             upper_bound?: number | null;
         };
+        /** ContinuousAnnotationConfigWithID */
+        ContinuousAnnotationConfigWithID: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CONTINUOUS";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+            /** Id */
+            id: string;
+        };
+        /** CreateAnnotationConfigPayload */
+        CreateAnnotationConfigPayload: components["schemas"]["CategoricalAnnotationConfigPayload"] | components["schemas"]["ContinuousAnnotationConfigPayload"] | components["schemas"]["FreeformAnnotationConfigPayload"];
         /**
          * CreateExperimentRequestBody
          * @description Details of the experiment to be created
@@ -636,13 +606,6 @@ export interface components {
         /** CreateExperimentResponseBody */
         CreateExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
-        };
-        /** CreateFreeformAnnotationConfigPayload */
-        CreateFreeformAnnotationConfigPayload: {
-            /** Name */
-            name: string;
-            /** Description */
-            description?: string | null;
         };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
@@ -796,6 +759,32 @@ export interface components {
              * @description The last update timestamp of the experiment
              */
             updated_at: string;
+        };
+        /** FreeformAnnotationConfigPayload */
+        FreeformAnnotationConfigPayload: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FREEFORM";
+            /** Description */
+            description?: string | null;
+        };
+        /** FreeformAnnotationConfigWithID */
+        FreeformAnnotationConfigWithID: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FREEFORM";
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
         };
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
@@ -1388,7 +1377,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnnotationConfigResponse"][];
+                    "application/json": (components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"])[];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_annotation_config_v1_annotation_configs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAnnotationConfigPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
                 };
             };
             /** @description Forbidden */
@@ -1429,7 +1460,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnnotationConfigResponse"];
+                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
                 };
             };
             /** @description Forbidden */
@@ -1452,16 +1483,19 @@ export interface operations {
             };
         };
     };
-    create_continuous_annotation_config_v1_annotation_configs_continuous_post: {
+    update_annotation_config_v1_annotation_configs__config_id__put: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                /** @description ID of the annotation configuration */
+                config_id: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateContinuousAnnotationConfigPayload"];
+                "application/json": components["schemas"]["CreateAnnotationConfigPayload"];
             };
         };
         responses: {
@@ -1471,91 +1505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AnnotationConfigResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_categorical_annotation_config_v1_annotation_configs_categorical_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateCategoricalAnnotationConfigPayload"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotationConfigResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_freeform_annotation_config_v1_annotation_configs_freeform_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateFreeformAnnotationConfigPayload"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AnnotationConfigResponse"];
+                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
                 };
             };
             /** @description Forbidden */
@@ -1596,7 +1546,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": boolean;
+                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
                 };
             };
             /** @description Forbidden */
