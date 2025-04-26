@@ -1,7 +1,9 @@
+from typing import Any
+
+import pytest
 from httpx import AsyncClient
 from starlette.status import (
     HTTP_200_OK,
-    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
@@ -105,23 +107,49 @@ async def test_categorical_annotation_config_crud_operations(
     assert get_response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.parametrize(
+    "annotation_config",
+    [
+        pytest.param(
+            {
+                "name": "note",
+                "type": AnnotationType.CATEGORICAL.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "values": [
+                    {"label": "Good", "score": 1.0},
+                    {"label": "Bad", "score": 0.0},
+                ],
+            },
+            id="categorical",
+        ),
+        pytest.param(
+            {
+                "name": "note",
+                "type": AnnotationType.CONTINUOUS.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "lower_bound": 0.0,
+                "upper_bound": 1.0,
+            },
+            id="continuous",
+        ),
+        pytest.param(
+            {
+                "name": "note",
+                "type": AnnotationType.FREEFORM.value,
+                "description": "Test description",
+            },
+            id="freeform",
+        ),
+    ],
+)
 async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
     httpx_client: AsyncClient,
+    annotation_config: dict[str, Any],
 ) -> None:
-    response = await httpx_client.post(
-        "/v1/annotation_configs",
-        json={
-            "name": "note",
-            "type": AnnotationType.CATEGORICAL.value,
-            "description": "Test description",
-            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-            "values": [
-                {"label": "Good", "score": 1.0},
-                {"label": "Bad", "score": 0.0},
-            ],
-        },
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
+    response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
+    assert response.status_code == HTTP_409_CONFLICT
     assert "The name 'note' is reserved" in response.text
 
 

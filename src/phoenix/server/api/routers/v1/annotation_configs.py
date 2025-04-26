@@ -421,6 +421,6 @@ def _reserve_note_annotation_name(payload: AnnotationConfigPayloadType) -> str:
     name = payload.name
     if name == "note":
         raise HTTPException(
-            status_code=HTTP_400_BAD_REQUEST, detail="The name 'note' is reserved for span notes"
+            status_code=HTTP_409_CONFLICT, detail="The name 'note' is reserved for span notes"
         )
     return name
