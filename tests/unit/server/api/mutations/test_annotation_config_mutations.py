@@ -494,3 +494,69 @@ class TestAnnotationConfigMutations:
         assert len(update_response.errors) == 1
         error = update_response.errors[0]
         assert "The name 'note' is reserved for span notes" in error.message
+
+    @pytest.mark.parametrize(
+        ("annotation_type", "config"),
+        [
+            pytest.param(
+                AnnotationType.CATEGORICAL.value,
+                {
+                    "name": "duplicate-name",
+                    "description": "config description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "values": [
+                        {"label": "Good", "score": 1.0},
+                        {"label": "Bad", "score": 0.0},
+                    ],
+                },
+                id="categorical",
+            ),
+            pytest.param(
+                AnnotationType.CONTINUOUS.value,
+                {
+                    "name": "duplicate-name",
+                    "description": "config description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "lowerBound": 0.0,
+                    "upperBound": 1.0,
+                },
+                id="continuous",
+            ),
+            pytest.param(
+                AnnotationType.FREEFORM.value,
+                {
+                    "name": "duplicate-name",
+                    "description": "config description",
+                },
+                id="freeform",
+            ),
+        ],
+    )
+    async def test_cannot_create_annotation_config_with_duplicate_name(
+        self,
+        gql_client: AsyncGraphQLClient,
+        annotation_type: str,
+        config: dict[str, Any],
+    ) -> None:
+        annotation_type_key = annotation_type.lower()
+
+        # Create first config
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"input": {"annotationConfig": {annotation_type_key: config}}},
+            operation_name="CreateAnnotationConfig",
+        )
+        assert create_response.data is not None
+        assert not create_response.errors
+
+        # Try to create duplicate config
+        duplicate_create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={"input": {"annotationConfig": {annotation_type_key: config}}},
+            operation_name="CreateAnnotationConfig",
+        )
+        assert duplicate_create_response.data is None
+        assert duplicate_create_response.errors
+        assert len(duplicate_create_response.errors) == 1
+        error = duplicate_create_response.errors[0]
+        assert "Annotation configuration with name 'duplicate-name' already exists" in error.message
