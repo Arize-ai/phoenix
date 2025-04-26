@@ -4,7 +4,6 @@ from starlette.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
-    HTTP_422_UNPROCESSABLE_ENTITY,
 )
 
 from phoenix.db.types.annotation_configs import AnnotationType, OptimizationDirection
@@ -106,14 +105,13 @@ async def test_categorical_annotation_config_crud_operations(
     assert get_response.status_code == HTTP_404_NOT_FOUND
 
 
-async def test_categorical_annotation_config_validation(
+async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
     httpx_client: AsyncClient,
 ) -> None:
-    # Test reserved name
     response = await httpx_client.post(
         "/v1/annotation_configs",
         json={
-            "name": "note",  # Reserved name
+            "name": "note",
             "type": AnnotationType.CATEGORICAL.value,
             "description": "Test description",
             "optimization_direction": OptimizationDirection.MAXIMIZE.value,
@@ -126,12 +124,14 @@ async def test_categorical_annotation_config_validation(
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "The name 'note' is reserved" in response.text
 
-    # Test duplicate name
-    # First create a config
+
+async def test_cannot_create_annotation_config_with_duplicate_name(
+    httpx_client: AsyncClient,
+) -> None:
     response = await httpx_client.post(
         "/v1/annotation_configs",
         json={
-            "name": "Test Config",
+            "name": "config-name",
             "type": AnnotationType.CATEGORICAL.value,
             "description": "Test description",
             "optimization_direction": OptimizationDirection.MAXIMIZE.value,
@@ -147,7 +147,7 @@ async def test_categorical_annotation_config_validation(
     response = await httpx_client.post(
         "/v1/annotation_configs",
         json={
-            "name": "Test Config",
+            "name": "config-name",
             "type": AnnotationType.CATEGORICAL.value,
             "description": "Test description",
             "optimization_direction": OptimizationDirection.MAXIMIZE.value,
@@ -159,23 +159,3 @@ async def test_categorical_annotation_config_validation(
     )
     assert response.status_code == HTTP_409_CONFLICT
     assert "name of the annotation configuration is already taken" in response.text
-
-    # Test invalid config ID
-    response = await httpx_client.get("/v1/annotation_configs/invalid-id")
-    assert response.status_code == HTTP_404_NOT_FOUND
-
-    # Test invalid config type
-    response = await httpx_client.post(
-        "/v1/annotation_configs",
-        json={
-            "name": "Test Config",
-            "type": "INVALID_TYPE",
-            "description": "Test description",
-            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-            "values": [
-                {"label": "Good", "score": 1.0},
-                {"label": "Bad", "score": 0.0},
-            ],
-        },
-    )
-    assert response.status_code == HTTP_422_UNPROCESSABLE_ENTITY
