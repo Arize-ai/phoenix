@@ -7,18 +7,19 @@ async def test_categorical_annotation_config_crud_operations(
     httpx_client: AsyncClient,
 ) -> None:
     # Create a categorical annotation config
-    create_payload = {
-        "name": "categorical-config-name",
-        "type": AnnotationType.CATEGORICAL.value,
-        "description": "Test description",
-        "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-        "values": [
-            {"label": "Good", "score": 1.0},
-            {"label": "Bad", "score": 0.0},
-        ],
-    }
-
-    create_response = await httpx_client.post("/v1/annotation_configs", json=create_payload)
+    create_response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json={
+            "name": "categorical-config-name",
+            "type": AnnotationType.CATEGORICAL.value,
+            "description": "Test description",
+            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+            "values": [
+                {"label": "Good", "score": 1.0},
+                {"label": "Bad", "score": 0.0},
+            ],
+        },
+    )
     assert create_response.status_code == 200
     created_config = create_response.json()
     config_id = created_config["id"]
@@ -54,19 +55,18 @@ async def test_categorical_annotation_config_crud_operations(
     assert get_by_name_response.json() == created_config
 
     # Update the annotation config
-    update_payload = {
-        "name": "updated-categorical-config-name",
-        "type": AnnotationType.CATEGORICAL.value,
-        "description": "Updated description",
-        "optimization_direction": OptimizationDirection.MINIMIZE.value,
-        "values": [
-            {"label": "Excellent", "score": 1.0},
-            {"label": "Poor", "score": 0.0},
-        ],
-    }
-
     update_response = await httpx_client.put(
-        f"/v1/annotation_configs/{config_id}", json=update_payload
+        f"/v1/annotation_configs/{config_id}",
+        json={
+            "name": "updated-categorical-config-name",
+            "type": AnnotationType.CATEGORICAL.value,
+            "description": "Updated description",
+            "optimization_direction": OptimizationDirection.MINIMIZE.value,
+            "values": [
+                {"label": "Excellent", "score": 1.0},
+                {"label": "Poor", "score": 0.0},
+            ],
+        },
     )
     assert update_response.status_code == 200
     updated_config = update_response.json()
@@ -102,32 +102,54 @@ async def test_categorical_annotation_config_crud_operations(
 async def test_categorical_annotation_config_validation(
     httpx_client: AsyncClient,
 ) -> None:
-    """Test validation for categorical annotation configs."""
-
     # Test reserved name
-    create_payload = {
-        "name": "note",  # Reserved name
-        "type": AnnotationType.CATEGORICAL.value,
-        "description": "Test description",
-        "optimization_direction": OptimizationDirection.MAXIMIZE.value,
-        "values": [
-            {"label": "Good", "score": 1.0},
-            {"label": "Bad", "score": 0.0},
-        ],
-    }
-
-    response = await httpx_client.post("/v1/annotation_configs", json=create_payload)
+    response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json={
+            "name": "note",  # Reserved name
+            "type": AnnotationType.CATEGORICAL.value,
+            "description": "Test description",
+            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+            "values": [
+                {"label": "Good", "score": 1.0},
+                {"label": "Bad", "score": 0.0},
+            ],
+        },
+    )
     assert response.status_code == 400
     assert "The name 'note' is reserved" in response.text
 
     # Test duplicate name
     # First create a config
-    create_payload["name"] = "Test Config"
-    response = await httpx_client.post("/v1/annotation_configs", json=create_payload)
+    response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json={
+            "name": "Test Config",
+            "type": AnnotationType.CATEGORICAL.value,
+            "description": "Test description",
+            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+            "values": [
+                {"label": "Good", "score": 1.0},
+                {"label": "Bad", "score": 0.0},
+            ],
+        },
+    )
     assert response.status_code == 200
 
     # Try to create another config with same name
-    response = await httpx_client.post("/v1/annotation_configs", json=create_payload)
+    response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json={
+            "name": "Test Config",
+            "type": AnnotationType.CATEGORICAL.value,
+            "description": "Test description",
+            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+            "values": [
+                {"label": "Good", "score": 1.0},
+                {"label": "Bad", "score": 0.0},
+            ],
+        },
+    )
     assert response.status_code == 409
     assert "name of the annotation configuration is already taken" in response.text
 
@@ -136,6 +158,17 @@ async def test_categorical_annotation_config_validation(
     assert response.status_code == 404
 
     # Test invalid config type
-    create_payload["type"] = "INVALID_TYPE"
-    response = await httpx_client.post("/v1/annotation_configs", json=create_payload)
+    response = await httpx_client.post(
+        "/v1/annotation_configs",
+        json={
+            "name": "Test Config",
+            "type": "INVALID_TYPE",
+            "description": "Test description",
+            "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+            "values": [
+                {"label": "Good", "score": 1.0},
+                {"label": "Bad", "score": 0.0},
+            ],
+        },
+    )
     assert response.status_code == 422  # Validation error
