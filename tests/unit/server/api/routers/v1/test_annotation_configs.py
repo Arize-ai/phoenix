@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, Optional
 
 import pytest
@@ -183,6 +184,60 @@ async def test_cannot_create_annotation_config_with_reserved_name_for_notes(
     annotation_config: dict[str, Any],
 ) -> None:
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
+    assert response.status_code == HTTP_409_CONFLICT
+    assert "The name 'note' is reserved" in response.text
+
+
+@pytest.mark.parametrize(
+    "annotation_config",
+    [
+        pytest.param(
+            {
+                "name": "test-config",
+                "type": AnnotationType.CATEGORICAL.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "values": [
+                    {"label": "Good", "score": 1.0},
+                    {"label": "Bad", "score": 0.0},
+                ],
+            },
+            id="categorical",
+        ),
+        pytest.param(
+            {
+                "name": "test-config",
+                "type": AnnotationType.CONTINUOUS.value,
+                "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "lower_bound": 0.0,
+                "upper_bound": 1.0,
+            },
+            id="continuous",
+        ),
+        pytest.param(
+            {
+                "name": "test-config",
+                "type": AnnotationType.FREEFORM.value,
+                "description": "Test description",
+            },
+            id="freeform",
+        ),
+    ],
+)
+async def test_cannot_update_annotation_config_name_to_reserved_name_for_notes(
+    httpx_client: AsyncClient,
+    annotation_config: dict[str, Any],
+) -> None:
+    # First create a config
+    response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
+    assert response.status_code == HTTP_200_OK
+    config_id = response.json()["id"]
+
+    # Try to update the name to "note"
+    update_config = deepcopy(annotation_config)
+    update_config["name"] = "note"
+    response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
     assert response.status_code == HTTP_409_CONFLICT
     assert "The name 'note' is reserved" in response.text
 
