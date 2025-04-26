@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from httpx import AsyncClient
@@ -7,6 +7,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
+from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -263,11 +264,26 @@ async def annotation_configs(db: DbSessionFactory) -> list[models.AnnotationConf
 
 
 @pytest.mark.parametrize(
-    "limit,expected_page_size,has_next_page",
+    "limit,expected_page_size,expected_next_cursor",
     [
-        pytest.param(4, 4, True, id="page_size_less_than_total_has_next_page"),
-        pytest.param(5, 5, False, id="page_size_equals_total_no_next_page"),
-        pytest.param(6, 5, False, id="page_size_greater_than_total_no_next_page"),
+        pytest.param(
+            4,
+            4,
+            str(GlobalID("CategoricalAnnotationConfig", str(1))),
+            id="page_size_less_than_total_has_next_cursor",
+        ),
+        pytest.param(
+            5,
+            5,
+            None,
+            id="page_size_equals_total_no_next_cursor",
+        ),
+        pytest.param(
+            6,
+            5,
+            None,
+            id="page_size_greater_than_total_no_next_cursor",
+        ),
     ],
 )
 async def test_list_annotation_configs_pagination_without_cursor(
@@ -275,21 +291,36 @@ async def test_list_annotation_configs_pagination_without_cursor(
     annotation_configs: list[models.AnnotationConfig],
     limit: int,
     expected_page_size: int,
-    has_next_page: bool,
+    expected_next_cursor: Optional[str],
 ) -> None:
     response = await httpx_client.get(f"/v1/annotation_configs?limit={limit}")
     assert response.status_code == HTTP_200_OK
     data = response.json()
     assert len(data["data"]) == expected_page_size
-    assert (data["next_cursor"] is not None) == has_next_page
+    assert data["next_cursor"] == expected_next_cursor
 
 
 @pytest.mark.parametrize(
-    "limit,expected_page_size,has_next_page",
+    "limit,expected_page_size,expected_next_cursor",
     [
-        pytest.param(2, 2, True, id="page_size_less_than_remaining_has_next_page"),
-        pytest.param(3, 3, False, id="page_size_equals_remaining_no_next_page"),
-        pytest.param(4, 3, False, id="page_size_greater_than_remaining_no_next_page"),
+        pytest.param(
+            2,
+            2,
+            str(GlobalID("CategoricalAnnotationConfig", str(1))),
+            id="page_size_less_than_remaining_has_next_cursor",
+        ),
+        pytest.param(
+            3,
+            3,
+            None,
+            id="page_size_equals_remaining_no_next_cursor",
+        ),
+        pytest.param(
+            4,
+            3,
+            None,
+            id="page_size_greater_than_remaining_no_next_cursor",
+        ),
     ],
 )
 async def test_list_annotation_configs_pagination_with_cursor(
@@ -297,7 +328,7 @@ async def test_list_annotation_configs_pagination_with_cursor(
     annotation_configs: list[models.AnnotationConfig],
     limit: int,
     expected_page_size: int,
-    has_next_page: bool,
+    expected_next_cursor: Optional[str],
 ) -> None:
     # First get first page
     first_response = await httpx_client.get("/v1/annotation_configs?limit=2")
@@ -312,4 +343,4 @@ async def test_list_annotation_configs_pagination_with_cursor(
     assert response.status_code == HTTP_200_OK
     data = response.json()
     assert len(data["data"]) == expected_page_size
-    assert (data["next_cursor"] is not None) == has_next_page
+    assert data["next_cursor"] == expected_next_cursor
