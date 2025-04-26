@@ -72,7 +72,7 @@ async def declarative_eval(
     exit_on_error: bool = True,
     run_sync: bool = False,
     concurrency: Optional[int] = None,
-    progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("declarative_eval"),
+    progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
 ) -> pd.DataFrame:
     """
     Evaluates data using an LLM with a Pydantic schema to structure the output.
@@ -126,7 +126,6 @@ async def declarative_eval(
         # Update the field mappings
         field_mappings = new_field_mappings
 
-    print("field_mappings", field_mappings)
 
         
     def _map_template(data: pd.Series) -> str:
@@ -137,9 +136,12 @@ async def declarative_eval(
         )
         return output_str
 
-    async def _run_llm_eval_async() -> List[Tuple[pd.Series, Dict[str, Any], Optional[str]]]:
+    async def _run_llm_eval_async(row_data: Tuple[int, pd.Series]) -> Tuple[pd.Series, Dict[str, Any], Optional[str], float]:
+        # Guard clause
         if type(model) is OpenAI:
             raise ValueError("OpenAI is not supported for async operations")
+        idx, row = row_data
+
         # Handle async request        
         async def _make_request(idx: int, row: pd.Series) -> Tuple[int, pd.Series, BaseModel, Optional[str], float]:
             try:
@@ -155,28 +157,33 @@ async def declarative_eval(
                 parsed_response = response.choices[0].message.parsed
                 end_time = time.time()
                 execution_seconds = end_time - start_time
+                printif(verbose, f"\n\nIndex: {idx}\nExecution time: {execution_seconds} s\nStructured output: {parsed_response.model_dump_json(indent=2)}\n\n")
                 return idx, row, parsed_response, None, execution_seconds
             except Exception as e:
                 return idx, row, None, str(e), 0
         
-        # create tasks
-        tasks = []
-        for idx, (_, row) in enumerate(dataframe.iterrows()):
-            tasks.append(_make_request(idx, row))
+        result = await _make_request(idx, row)
 
-        results = [None] * len(tasks)
-        with tqdm(total=len(tasks), desc="Running Declarative Evaluations") as pbar:
-            for coro in asyncio.as_completed(tasks):
-                idx, row, parsed_response, error, execution_seconds = await coro
-                results[idx] = (row, parsed_response, error, execution_seconds)
-                pbar.update(1)
+        # # create tasks
+        # tasks = []
+        # for idx, (_, row) in enumerate(dataframe.iterrows()):
+        #     tasks.append(_make_request(idx, row))
+
+        # results = [None] * len(tasks)
+        # with tqdm(total=len(tasks), desc="Running Declarative Evaluations") as pbar:
+        #     for coro in asyncio.as_completed(tasks):
+        #         idx, row, parsed_response, error, execution_seconds = await coro
+        #         results[idx] = (row, parsed_response, error, execution_seconds)
+        #         pbar.update(1)
         
-        return results
+        return result
     
 
-    def _run_llm_eval_sync() -> List[Tuple[pd.Series, Dict[str, Any]]]:
+    def _run_llm_eval_sync(row_data: Tuple[int, pd.Series]) -> Tuple[pd.Series, Dict[str, Any]]:
         if type(model) is AsyncOpenAI:
             raise ValueError("AsyncOpenAI is not supported for sync operations")
+        
+        idx, row = row_data
         def _make_request(idx: int, row: pd.Series) -> Tuple[int, pd.Series, BaseModel, Optional[str], float]:
             try:
                 start_time = time.time()
@@ -194,11 +201,12 @@ async def declarative_eval(
                 return idx, row, parsed_response, None, execution_seconds
             except Exception as e:
                 return idx, row, None, str(e), 0
-        results = [None] * len(dataframe)
-        for idx, (_, row) in enumerate(dataframe.iterrows()):
-            idx, row, parsed_response, error, execution_seconds = _make_request(idx, row)
-            results[idx] = (row, parsed_response, error, execution_seconds)
-        return results
+        result = _make_request(idx, row)
+        # results = [None] * len(dataframe)
+        # for idx, (_, row) in enumerate(dataframe.iterrows()):
+        #     idx, row, parsed_response, error, execution_seconds = _make_request(idx, row)
+        #     results[idx] = (row, parsed_response, error, execution_seconds)
+        return result
     
     def _get_nested_value(obj: Dict[str, Any], path: str) -> Any:
         parts = path.split('.')
@@ -229,14 +237,54 @@ async def declarative_eval(
     def _parse_results(results: List[Tuple[pd.Series, BaseModel, Optional[str], float]]) -> List[Tuple[pd.Series, Dict[str, Any]]]:
         results_data = []
         for result in results:
-            results_data.append((result[0], _extract_data_using_field_mappings(result)))
+            _idx, row, model_response, error, execution_seconds = result
+            results_data.append((result[0], _extract_data_using_field_mappings(
+                (row, model_response, error, execution_seconds)
+            )))
         return results_data
-    
-    
-    
-    results = await _run_llm_eval_async()
+
+
+    # # USING EXECUTOR (cannot be used without acceptable model)
+    # fallback_return_value = (pd.Series(), {}, None, 0)
+    # executor = get_executor_on_sync_context(
+    #     _run_llm_eval_sync,
+    #     _run_llm_eval_async,
+    #     run_sync=run_sync,
+    #     concurrency=concurrency,
+    #     tqdm_bar_format=progress_bar_format,
+    #     max_retries=max_retries,
+    #     exit_on_error=exit_on_error,
+    #     fallback_return_value=fallback_return_value,
+    # )    
+
+    # inputs = [
+    #     row for _, row in dataframe.iterrows()
+    # ]
+    # print("inputs", inputs)
+    # import pdb; pdb.set_trace()
+    # results, execution_details = executor.run(inputs)
+    # print("results", results)
+    # print("execution_details", execution_details)
+
+    inputs = [
+        (idx, row) for idx, row in dataframe.iterrows()
+    ]
+    results = []
+    with tqdm(total=len(inputs), desc="Running Declarative Evaluations") as pbar:
+        tasks = []
+        for input in inputs:
+            task = _run_llm_eval_async(input)
+            tasks.append(task)
+        
+        for task in asyncio.as_completed(tasks):
+            result = await task
+            results.append(result)
+            pbar.update(1)
     # results = _run_llm_eval_sync()
     results_data = _parse_results(results)
+
+
+    
 
     rows = []
     outcome_results = []
