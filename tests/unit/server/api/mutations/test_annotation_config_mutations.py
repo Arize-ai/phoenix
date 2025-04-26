@@ -654,3 +654,28 @@ class TestAnnotationConfigMutations:
             "Annotation configuration with name 'collide-config-name' already exists"
             in error.message
         )
+
+    async def test_update_annotation_config_not_found_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": str(GlobalID(type_name="CategoricalAnnotationConfig", node_id="999999")),
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "test-config",
+                            "description": "test description",
+                        }
+                    },
+                }
+            },
+            operation_name="UpdateAnnotationConfig",
+        )
+        assert response.data is None
+        assert response.errors
+        assert len(response.errors) == 1
+        error = response.errors[0]
+        assert "Annotation config not found" in error.message
