@@ -27,6 +27,25 @@ from phoenix.evals.utils import (
 
 
 def transform_field_mappings_for_explanation(field_mappings: Dict[str, str]) -> Dict[str, str]:
+    """
+    Transforms field mappings to work with a schema that includes an explanation field.
+
+    This function takes field mappings that point to fields within a schema and transforms them
+    to work with a schema that wraps the original schema and adds an explanation field.
+
+    Args:
+        field_mappings (Dict[str, str]): A dictionary mapping target field names to paths
+            within the original schema. For example, {"conciseness.label": "conciseness.is_concise"}.
+
+    Returns:
+        Dict[str, str]: A new dictionary with transformed field mappings where each value is
+            prefixed with "schema." and an additional "explanation" mapping is added.
+
+    Example:
+        >>> field_mappings = {"conciseness.label": "conciseness.is_concise"}
+        >>> transform_field_mappings_for_explanation(field_mappings)
+        {"conciseness.label": "schema.conciseness.is_concise", "explanation": "explanation"}
+    """  # noqa: E501
     new_field_mappings = {}
     for key, value in field_mappings.items():
         new_field_mappings[key] = f"schema.{value}"
@@ -42,7 +61,7 @@ async def declarative_eval(
     field_mappings: Dict[
         str, str
     ],  # key is the openinference target field value, value is the path to the field in the schema
-    system_instruction: Optional[str] = None,
+    system_instruction: str = "You will be provided the input passed to the llm and the generated output data to evaluate according to the specified schema.",  # noqa: E501
     verbose: bool = False,
     include_prompt: bool = False,
     include_response: bool = False,
@@ -55,8 +74,102 @@ async def declarative_eval(
     progress_bar_format: Optional[str] = get_tqdm_progress_bar_formatter("llm_classify"),
 ) -> pd.DataFrame:
     """
-    Evaluates data using an LLM with a Pydantic schema to structure the output.
-    """
+    Evaluates data using a declarative schema with an LLM.
+
+    This function evaluates each row of the input data using a declarative schema with an LLM.
+    It returns a pandas DataFrame with the evaluation results mapped according to the provided field mappings.
+
+    Args:
+        data (Union[pd.DataFrame, List[Any]]): A collection of data to evaluate with columns
+            that match the template variables "attributes.llm.input_messages" and
+            "attributes.llm.output_messages".
+
+        model (Union[OpenAI, AsyncOpenAI]): An OpenAI client instance to use for evaluation.
+
+        schema (BaseModel): A Pydantic model class defining the evaluation schema.
+
+        field_mappings (Dict[str, str]): A dictionary mapping target field names to paths
+            within the schema. For example, {"conciseness.label": "conciseness.is_concise"}.
+
+        system_instruction (str): A system message to guide the evaluation, defaults to
+            "You will be provided the input passed to the llm and the generated output data to evaluate according to the specified schema.".
+
+        verbose (bool): If True, prints detailed information during evaluation. Default is False.
+
+        include_prompt (bool): Not currently used.
+
+        include_response (bool): Not currently used.
+
+        include_exceptions (bool): Not currently used.
+
+        provide_explanation (bool): If True, adds an explanation field to the schema and output. Default is False.
+
+        max_retries (int): Not currently used.
+
+        exit_on_error (bool): Not currently used.
+
+        run_sync (bool): Not currently used.
+
+        concurrency (Optional[int]): Not currently used.
+
+        progress_bar_format (Optional[str]): Format for the progress bar. If None, progress bar is disabled.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the evaluation results with columns mapped according
+            to the field_mappings parameter along with the execution time and any exceptions.
+            The DataFrame has the same length and index as the input data.
+
+    Raises:
+        ValueError: If the input data doesn't contain required columns or if field mappings are invalid.
+
+    Example:
+        ```python
+        # Define a schema with nested models
+        class Conciseness(BaseModel):
+            is_concise: bool = Field(..., description="Whether the output is concise")
+
+        class Formatting(BaseModel):
+            language: Literal["High", "Average", "Low"] = Field(
+                ..., description="The complexity of the formatting used in the output"
+            )
+
+        class Schema(BaseModel):
+            conciseness: Conciseness = Field(..., description="A custom evaluation of the output")
+            formatting: Formatting = Field(..., description="A custom evaluation of the output")
+
+        # Prepare sample data
+        data = pd.DataFrame({
+            "attributes.llm.input_messages": [
+                [{"role": "user", "content": "What is 2+2?"}],
+                [{"role": "user", "content": "Who was the first president?"}],
+            ],
+            "attributes.llm.output_messages": [
+                [{"role": "assistant", "content": "Whenever you add those two numbers, you get 4"}],
+                [{"role": "assistant", "content": "George Washington"}],
+            ],
+        })
+
+        # Define field mappings
+        field_mappings = {
+            "conciseness.label": "conciseness.is_concise",
+            "formatting.label": "formatting.language",
+        }
+
+        # Run the evaluation
+        result = await declarative_eval(
+            data=data,
+            model=openai_client,
+            schema=Schema,
+            field_mappings=field_mappings,
+        )
+
+        # Result will be a DataFrame with columns:
+        # - conciseness.label (containing boolean values)
+        # - formatting.label (containing "High", "Average", or "Low")
+        # - execution_seconds (execution time)
+        # - exceptions (any errors encountered)
+        ```
+    """  # noqa: E501
 
     formatter = MustacheBaseTemplateFormatter()
     template = PromptPartTemplate(
@@ -72,11 +185,6 @@ async def declarative_eval(
         ```
         """,
     )
-
-    default_system_instruction = """
-    You will be provided the input passed to the llm
-    and the generated output data to evaluate according to the specified schema.
-    """
 
     # Convert data to consistent format
     if isinstance(data, pd.DataFrame):
@@ -127,7 +235,7 @@ async def declarative_eval(
                     messages=[
                         {
                             "role": "system",
-                            "content": system_instruction or default_system_instruction,
+                            "content": system_instruction,
                         },
                         {"role": "user", "content": _map_template(row)},
                     ],
@@ -179,7 +287,7 @@ async def declarative_eval(
                     messages=[
                         {
                             "role": "system",
-                            "content": system_instruction or default_system_instruction,
+                            "content": system_instruction,
                         },
                         {"role": "user", "content": _map_template(row)},
                     ],
