@@ -1,3 +1,4 @@
+
 import time
 from phoenix.client.utils.template_formatters import MustacheBaseTemplateFormatter
 from phoenix.evals.models import BaseModel
@@ -56,6 +57,14 @@ from openai import OpenAI, AsyncOpenAI
 from tqdm import tqdm
 import asyncio
 import aiohttp
+
+def transform_field_mappings_for_explanation(field_mappings: Dict[str, str]) -> Dict[str, str]:
+    new_field_mappings = {}
+    for key, value in field_mappings.items():
+        new_field_mappings[key] = f"schema.{value}"
+    # Override the explanation field mapping
+    new_field_mappings["explanation"] = "explanation"
+    return new_field_mappings
 
 async def declarative_eval(
     data: Union[pd.DataFrame, List[Any]],
@@ -118,13 +127,7 @@ async def declarative_eval(
         schema = ExplainedSchema
 
         # Update the field mappings
-        new_field_mappings = {}
-        for key, value in field_mappings.items():
-            new_field_mappings[key] = f"schema.{value}"
-        # Override the explanation field mapping
-        new_field_mappings["explanation"] = "explanation"
-        # Update the field mappings
-        field_mappings = new_field_mappings
+        field_mappings = transform_field_mappings_for_explanation(field_mappings)
 
 
         
