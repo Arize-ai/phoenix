@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Annotated, Literal, Optional, Union
 
-from pydantic import AfterValidator, Field, RootModel
-from typing_extensions import TypeAlias
+from pydantic import AfterValidator, Field, RootModel, model_validator
+from typing_extensions import Self, TypeAlias
 
 from .db_models import DBBaseModel
 
@@ -23,8 +23,14 @@ class _BaseAnnotationConfig(DBBaseModel):
     description: Optional[str] = None
 
 
+def is_non_empty_label(label: str) -> str:
+    if not label:
+        raise ValueError("Label must be non-empty")
+    return label
+
+
 class CategoricalAnnotationValue(DBBaseModel):
-    label: str
+    label: Annotated[str, AfterValidator(is_non_empty_label)]
     score: Optional[float] = None
 
 
@@ -61,6 +67,16 @@ class ContinuousAnnotationConfig(_BaseAnnotationConfig):
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
+
+    @model_validator(mode="after")
+    def check_bounds(self) -> Self:
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and self.lower_bound >= self.upper_bound
+        ):
+            raise ValueError("Lower bound must be strictly less than upper bound")
+        return self
 
 
 class FreeformAnnotationConfig(_BaseAnnotationConfig):
