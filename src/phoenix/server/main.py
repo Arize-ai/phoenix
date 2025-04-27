@@ -420,8 +420,10 @@ def main() -> None:
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
-    # Start the server
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        pass # don't bother the user with a stack trace on Ctrl-C
 
 
 def initialize_settings() -> None:
