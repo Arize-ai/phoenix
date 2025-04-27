@@ -833,7 +833,7 @@ class TestAnnotationConfigMutations:
         error = duplicate_add_response.errors[0]
         assert "The annotation config has already been added to the project" in error.message
 
-    async def test_remove_annotation_config_from_project_rollback_on_not_found(
+    async def test_removing_unknown_annotation_config_from_project_rolls_back(
         self,
         gql_client: AsyncGraphQLClient,
         project: models.Project,
