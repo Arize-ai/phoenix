@@ -585,6 +585,31 @@ class TestAnnotationConfigMutations:
         error = duplicate_create_response.errors[0]
         assert "Annotation configuration with name 'duplicate-name' already exists" in error.message
 
+    async def test_create_categorical_config_with_empty_values_returns_expected_error(
+        self, gql_client: AsyncGraphQLClient
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "categorical": {
+                            "name": "test_categorical",
+                            "optimizationDirection": "NONE",
+                            "values": [],  # empty values are disallowed
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+
+        assert response.data is None
+        assert response.errors
+        assert len(response.errors) == 1
+        error = response.errors[0]
+        assert "Values must be non-empty" in error.message
+
     @pytest.mark.parametrize(
         ("annotation_type", "config"),
         [

@@ -151,39 +151,48 @@ class RemoveAnnotationConfigFromProjectPayload:
     project: Project
 
 
-def to_pydantic_categorical_annotation_config(
+def _to_pydantic_categorical_annotation_config(
     input: CategoricalAnnotationConfigInput,
 ) -> CategoricalAnnotationConfigModel:
-    return CategoricalAnnotationConfigModel(
-        type=AnnotationType.CATEGORICAL.value,
-        description=input.description,
-        optimization_direction=input.optimization_direction,
-        values=[
-            CategoricalAnnotationValue(label=value.label, score=value.score)
-            for value in input.values
-        ],
-    )
+    try:
+        return CategoricalAnnotationConfigModel(
+            type=AnnotationType.CATEGORICAL.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            values=[
+                CategoricalAnnotationValue(label=value.label, score=value.score)
+                for value in input.values
+            ],
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
 
 
-def to_pydantic_continuous_annotation_config(
+def _to_pydantic_continuous_annotation_config(
     input: ContinuousAnnotationConfigInput,
 ) -> ContinuousAnnotationConfigModel:
-    return ContinuousAnnotationConfigModel(
-        type=AnnotationType.CONTINUOUS.value,
-        description=input.description,
-        optimization_direction=input.optimization_direction,
-        lower_bound=input.lower_bound,
-        upper_bound=input.upper_bound,
-    )
+    try:
+        return ContinuousAnnotationConfigModel(
+            type=AnnotationType.CONTINUOUS.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            lower_bound=input.lower_bound,
+            upper_bound=input.upper_bound,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
 
 
-def to_pydantic_freeform_annotation_config(
+def _to_pydantic_freeform_annotation_config(
     input: FreeformAnnotationConfigInput,
 ) -> FreeformAnnotationConfigModel:
-    return FreeformAnnotationConfigModel(
-        type=AnnotationType.FREEFORM.value,
-        description=input.description,
-    )
+    try:
+        return FreeformAnnotationConfigModel(
+            type=AnnotationType.FREEFORM.value,
+            description=input.description,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
 
 
 @strawberry.type
@@ -199,13 +208,13 @@ class AnnotationConfigMutationMixin:
         name: str
         if categorical_input := input_annotation_config.categorical:
             name = categorical_input.name
-            config = to_pydantic_categorical_annotation_config(categorical_input)
+            config = _to_pydantic_categorical_annotation_config(categorical_input)
         elif continuous_input := input_annotation_config.continuous:
             name = input_annotation_config.continuous.name
-            config = to_pydantic_continuous_annotation_config(continuous_input)
+            config = _to_pydantic_continuous_annotation_config(continuous_input)
         elif freeform_input := input_annotation_config.freeform:
             name = freeform_input.name
-            config = to_pydantic_freeform_annotation_config(freeform_input)
+            config = _to_pydantic_freeform_annotation_config(freeform_input)
         else:
             raise BadRequest("No annotation config provided")
 
@@ -246,13 +255,13 @@ class AnnotationConfigMutationMixin:
         name: str
         if categorical_input := input_annotation_config.categorical:
             name = categorical_input.name
-            config = to_pydantic_categorical_annotation_config(categorical_input)
+            config = _to_pydantic_categorical_annotation_config(categorical_input)
         elif continuous_input := input_annotation_config.continuous:
             name = input_annotation_config.continuous.name
-            config = to_pydantic_continuous_annotation_config(continuous_input)
+            config = _to_pydantic_continuous_annotation_config(continuous_input)
         elif freeform_input := input_annotation_config.freeform:
             name = freeform_input.name
-            config = to_pydantic_freeform_annotation_config(freeform_input)
+            config = _to_pydantic_freeform_annotation_config(freeform_input)
         else:
             raise BadRequest("No annotation config provided")
 
