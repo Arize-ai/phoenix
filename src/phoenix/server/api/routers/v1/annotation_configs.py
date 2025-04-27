@@ -375,27 +375,45 @@ def _reserve_note_annotation_name(payload: AnnotationConfigPayloadType) -> str:
 
 def _to_db_annotation_config(input_config: AnnotationConfigPayloadType) -> AnnotationConfigType:
     if isinstance(input_config, ContinuousAnnotationConfigPayload):
-        return ContinuousAnnotationConfigModel(
-            type=AnnotationType.CONTINUOUS.value,
-            description=input_config.description,
-            optimization_direction=input_config.optimization_direction,
-            lower_bound=input_config.lower_bound,
-            upper_bound=input_config.upper_bound,
-        )
+        return _to_db_continuous_annotation_config(input_config)
     if isinstance(input_config, CategoricalAnnotationConfigPayload):
-        values = [
-            CategoricalAnnotationValueModel(label=value.label, score=value.score)
-            for value in input_config.values
-        ]
-        return CategoricalAnnotationConfigModel(
-            type=AnnotationType.CATEGORICAL.value,
-            description=input_config.description,
-            optimization_direction=input_config.optimization_direction,
-            values=values,
-        )
+        return _to_db_categorical_annotation_config(input_config)
     if isinstance(input_config, FreeformAnnotationConfigPayload):
-        return FreeformAnnotationConfigModel(
-            type=AnnotationType.FREEFORM.value,
-            description=input_config.description,
-        )
+        return _to_db_freeform_annotation_config(input_config)
     assert_never(input_config)
+
+
+def _to_db_continuous_annotation_config(
+    input_config: ContinuousAnnotationConfigPayload,
+) -> ContinuousAnnotationConfigModel:
+    return ContinuousAnnotationConfigModel(
+        type=AnnotationType.CONTINUOUS.value,
+        description=input_config.description,
+        optimization_direction=input_config.optimization_direction,
+        lower_bound=input_config.lower_bound,
+        upper_bound=input_config.upper_bound,
+    )
+
+
+def _to_db_categorical_annotation_config(
+    input_config: CategoricalAnnotationConfigPayload,
+) -> CategoricalAnnotationConfigModel:
+    values = [
+        CategoricalAnnotationValueModel(label=value.label, score=value.score)
+        for value in input_config.values
+    ]
+    return CategoricalAnnotationConfigModel(
+        type=AnnotationType.CATEGORICAL.value,
+        description=input_config.description,
+        optimization_direction=input_config.optimization_direction,
+        values=values,
+    )
+
+
+def _to_db_freeform_annotation_config(
+    input_config: FreeformAnnotationConfigPayload,
+) -> FreeformAnnotationConfigModel:
+    return FreeformAnnotationConfigModel(
+        type=AnnotationType.FREEFORM.value,
+        description=input_config.description,
+    )
