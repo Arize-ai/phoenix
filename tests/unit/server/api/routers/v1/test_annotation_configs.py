@@ -5,6 +5,7 @@ import pytest
 from httpx import AsyncClient
 from starlette.status import (
     HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
     HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
 )
@@ -353,6 +354,32 @@ async def test_updated_annotation_config_name_cannot_collide_with_existing_confi
     response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
     assert response.status_code == HTTP_409_CONFLICT
     assert "name of the annotation configuration is already taken" in response.text
+
+
+async def test_update_continuous_annotation_config_with_invalid_bounds_returns_expected_error(
+    httpx_client: AsyncClient,
+) -> None:
+    # First create a valid continuous config
+    config = {
+        "name": "test-config",
+        "type": AnnotationType.CONTINUOUS.value,
+        "description": "test description",
+        "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+        "lower_bound": 0.0,
+        "upper_bound": 1.0,
+    }
+    response = await httpx_client.post("/v1/annotation_configs", json=config)
+    assert response.status_code == HTTP_200_OK
+    config_id = response.json()["id"]
+
+    # Try to update with invalid bounds
+    update_config = config.copy()
+    update_config["lower_bound"] = 1.0
+    update_config["upper_bound"] = 0.0
+
+    response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "Lower bound must be strictly less than upper bound" in response.text
 
 
 @pytest.fixture
