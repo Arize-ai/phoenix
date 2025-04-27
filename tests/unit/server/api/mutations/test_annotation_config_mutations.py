@@ -810,3 +810,102 @@ class TestAnnotationConfigMutations:
         assert len(duplicate_add_response.errors) == 1
         error = duplicate_add_response.errors[0]
         assert "The annotation config has already been added to the project" in error.message
+
+    async def test_remove_annotation_config_from_project_rollback_on_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+        project: models.Project,
+    ) -> None:
+        # First create an annotation config
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "test-config",
+                            "description": "test description",
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert create_response.data is not None
+        assert not create_response.errors
+        config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
+        project_id = str(GlobalID("Project", str(project.id)))
+
+        # Add the config to the project
+        add_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
+            operation_name="AddAnnotationConfigToProject",
+        )
+        assert not add_response.errors
+
+        # Try to remove both the existing config and a non-existent one
+        fake_config_id = str(GlobalID("CategoricalAnnotationConfig", "999"))
+        remove_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    },
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": fake_config_id,
+                    },
+                ]
+            },
+            operation_name="RemoveAnnotationConfigFromProject",
+        )
+
+        # Verify the operation failed
+        assert remove_response.data is None
+        assert remove_response.errors
+        assert len(remove_response.errors) == 1
+        error = remove_response.errors[0]
+        assert "Could not find one or more input project annotation configs" in error.message
+
+        # Verify the original config is still associated with the project
+        query_response = await gql_client.execute(
+            query="""
+                query GetProject($id: GlobalID!) {
+                    project: node(id: $id) {
+                        ... on Project {
+                            annotationConfigs {
+                                edges {
+                                    annotationConfig: node {
+                                        ... on CategoricalAnnotationConfig {
+                                            id
+                                        }
+                                        ... on ContinuousAnnotationConfig {
+                                            id
+                                        }
+                                        ... on FreeformAnnotationConfig {
+                                            id
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            """,
+            variables={"id": project_id},
+        )
+        assert not query_response.errors
+        assert (data := query_response.data) is not None
+        project_configs = data["project"]["annotationConfigs"]["edges"]
+        assert len(project_configs) == 1
+        assert project_configs[0]["annotationConfig"]["id"] == config_id
