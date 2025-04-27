@@ -23,24 +23,28 @@ class _BaseAnnotationConfig(DBBaseModel):
     description: Optional[str] = None
 
 
-def is_non_empty_label(label: str) -> str:
+def _categorical_value_label_is_non_empty_string(label: str) -> str:
     if not label:
         raise ValueError("Label must be non-empty")
     return label
 
 
 class CategoricalAnnotationValue(DBBaseModel):
-    label: Annotated[str, AfterValidator(is_non_empty_label)]
+    label: Annotated[str, AfterValidator(_categorical_value_label_is_non_empty_string)]
     score: Optional[float] = None
 
 
-def is_non_empty(values: list[CategoricalAnnotationValue]) -> list[CategoricalAnnotationValue]:
+def _categorical_values_are_non_empty_list(
+    values: list[CategoricalAnnotationValue],
+) -> list[CategoricalAnnotationValue]:
     if not values:
         raise ValueError("Values must be non-empty")
     return values
 
 
-def has_unique_labels(values: list[CategoricalAnnotationValue]) -> list[CategoricalAnnotationValue]:
+def _categorical_values_have_unique_labels(
+    values: list[CategoricalAnnotationValue],
+) -> list[CategoricalAnnotationValue]:
     labels = set()
     for value in values:
         label = value.label
@@ -57,8 +61,8 @@ class CategoricalAnnotationConfig(_BaseAnnotationConfig):
     optimization_direction: OptimizationDirection
     values: Annotated[
         list[CategoricalAnnotationValue],
-        AfterValidator(is_non_empty),
-        AfterValidator(has_unique_labels),
+        AfterValidator(_categorical_values_are_non_empty_list),
+        AfterValidator(_categorical_values_have_unique_labels),
     ]
 
 
