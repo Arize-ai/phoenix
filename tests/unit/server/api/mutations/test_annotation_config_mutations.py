@@ -6,7 +6,9 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import AnnotationType
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -739,3 +741,72 @@ class TestAnnotationConfigMutations:
         configs = data["annotationConfigs"]["edges"]
         assert len(configs) == 1
         assert configs[0]["node"]["id"] == config_id
+
+    async def test_cannot_add_same_annotation_config_to_project_twice(
+        self,
+        gql_client: AsyncGraphQLClient,
+        project: models.Project,
+    ) -> None:
+        # Create a categorical annotation config
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "categorical": {
+                            "name": "test-config",
+                            "description": "test description",
+                            "optimizationDirection": "MAXIMIZE",
+                            "values": [
+                                {"label": "Good", "score": 1.0},
+                                {"label": "Bad", "score": 0.0},
+                            ],
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
+        project_id = str(GlobalID("Project", str(project.id)))
+
+        # Add the config to the project
+        add_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
+            operation_name="AddAnnotationConfigToProject",
+        )
+        assert not add_response.errors
+        assert (data := add_response.data) is not None
+        project_configs = data["addAnnotationConfigToProject"]["project"]["annotationConfigs"][
+            "edges"
+        ]
+        assert len(project_configs) == 1
+        project_config = project_configs[0]["node"]
+        assert project_config["id"] == config_id
+
+        # Try to add the same config again
+        duplicate_add_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
+            operation_name="AddAnnotationConfigToProject",
+        )
+        assert duplicate_add_response.data is None
+        assert duplicate_add_response.errors
+        assert len(duplicate_add_response.errors) == 1
+        error = duplicate_add_response.errors[0]
+        assert "The annotation config has already been added to the project" in error.message
