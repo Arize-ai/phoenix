@@ -292,6 +292,69 @@ async def test_cannot_create_annotation_config_with_duplicate_name(
     assert "name of the annotation configuration is already taken" in response.text
 
 
+@pytest.mark.parametrize(
+    "config",
+    [
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.CATEGORICAL.value,
+                "description": "config description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "values": [
+                    {"label": "Good", "score": 1.0},
+                    {"label": "Bad", "score": 0.0},
+                ],
+            },
+            id="categorical",
+        ),
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.CONTINUOUS.value,
+                "description": "config description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "lower_bound": 0.0,
+                "upper_bound": 1.0,
+            },
+            id="continuous",
+        ),
+        pytest.param(
+            {
+                "name": "config-name",
+                "type": AnnotationType.FREEFORM.value,
+                "description": "config description",
+            },
+            id="freeform",
+        ),
+    ],
+)
+async def test_updated_annotation_config_name_cannot_collide_with_existing_config_name(
+    httpx_client: AsyncClient,
+    config: dict[str, Any],
+) -> None:
+    # Create first config
+    first_config = {
+        "name": "collide-config-name",
+        "type": AnnotationType.FREEFORM.value,
+        "description": "config description",
+    }
+    response = await httpx_client.post("/v1/annotation_configs", json=first_config)
+    assert response.status_code == HTTP_200_OK
+
+    # Create second config
+    response = await httpx_client.post("/v1/annotation_configs", json=config)
+    assert response.status_code == HTTP_200_OK
+    config_id = response.json()["id"]
+
+    # Try to update second config name to collide with first
+    update_config = config.copy()
+    update_config["name"] = "collide-config-name"
+    response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
+    assert response.status_code == HTTP_409_CONFLICT
+    assert "name of the annotation configuration is already taken" in response.text
+
+
 @pytest.fixture
 async def annotation_configs(db: DbSessionFactory) -> list[models.AnnotationConfig]:
     """
