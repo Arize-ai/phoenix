@@ -137,6 +137,28 @@ class TestAnnotationConfigMutations:
         }
     }
 
+    query GetProject($id: GlobalID!) {
+        project: node(id: $id) {
+            ... on Project {
+                annotationConfigs {
+                    edges {
+                        annotationConfig: node {
+                            ... on CategoricalAnnotationConfig {
+                                ...CategoricalAnnotationConfigFields
+                            }
+                            ... on ContinuousAnnotationConfig {
+                                ...ContinuousAnnotationConfigFields
+                            }
+                            ... on FreeformAnnotationConfig {
+                                ...FreeformAnnotationConfigFields
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fragment CategoricalAnnotationConfigFields on CategoricalAnnotationConfig {
         id
         name
@@ -879,30 +901,9 @@ class TestAnnotationConfigMutations:
 
         # Verify the original config is still associated with the project
         query_response = await gql_client.execute(
-            query="""
-                query GetProject($id: GlobalID!) {
-                    project: node(id: $id) {
-                        ... on Project {
-                            annotationConfigs {
-                                edges {
-                                    annotationConfig: node {
-                                        ... on CategoricalAnnotationConfig {
-                                            id
-                                        }
-                                        ... on ContinuousAnnotationConfig {
-                                            id
-                                        }
-                                        ... on FreeformAnnotationConfig {
-                                            id
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            """,
+            query=self.QUERY,
             variables={"id": project_id},
+            operation_name="GetProject",
         )
         assert not query_response.errors
         assert (data := query_response.data) is not None
