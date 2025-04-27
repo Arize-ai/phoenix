@@ -730,6 +730,33 @@ class TestAnnotationConfigMutations:
         error = response.errors[0]
         assert "Annotation config not found" in error.message
 
+    async def test_create_continuous_annotation_config_with_invalid_bounds_returns_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "continuous": {
+                            "name": "test-config",
+                            "description": "test description",
+                            "optimizationDirection": "MAXIMIZE",
+                            "lowerBound": 1.0,
+                            "upperBound": 0.0,
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert response.data is None
+        assert response.errors
+        assert len(response.errors) == 1
+        error = response.errors[0]
+        assert "Lower bound must be strictly less than upper bound" in error.message
+
     async def test_delete_annotation_configs_aborts_if_some_configs_not_found(
         self,
         gql_client: AsyncGraphQLClient,
