@@ -255,36 +255,10 @@ async def create_annotation_config(
     payload: CreateAnnotationConfigPayload,
 ) -> AnnotationConfigWithID:
     input_config = payload.root
-    db_config: AnnotationConfigType
     _reserve_note_annotation_name(input_config)
-    async with request.app.state.db() as session:
-        if isinstance(input_config, ContinuousAnnotationConfigPayload):
-            db_config = ContinuousAnnotationConfigModel(
-                type=AnnotationType.CONTINUOUS.value,
-                description=input_config.description,
-                optimization_direction=input_config.optimization_direction,
-                lower_bound=input_config.lower_bound,
-                upper_bound=input_config.upper_bound,
-            )
-        elif isinstance(input_config, CategoricalAnnotationConfigPayload):
-            values = [
-                CategoricalAnnotationValueModel(label=value.label, score=value.score)
-                for value in input_config.values
-            ]
-            db_config = CategoricalAnnotationConfigModel(
-                type=AnnotationType.CATEGORICAL.value,
-                description=input_config.description,
-                optimization_direction=input_config.optimization_direction,
-                values=values,
-            )
-        elif isinstance(input_config, FreeformAnnotationConfigPayload):
-            db_config = FreeformAnnotationConfigModel(
-                type=AnnotationType.FREEFORM.value,
-                description=input_config.description,
-            )
-        else:
-            assert_never(input_config)
 
+    async with request.app.state.db() as session:
+        db_config = _to_db_annotation_config(input_config)
         annotation_config = models.AnnotationConfig(
             name=input_config.name,
             config=db_config,
@@ -330,34 +304,7 @@ async def update_annotation_config(
                 status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
             )
 
-        db_config: AnnotationConfigType
-        if isinstance(input_config, ContinuousAnnotationConfigPayload):
-            db_config = ContinuousAnnotationConfigModel(
-                type=AnnotationType.CONTINUOUS.value,
-                description=input_config.description,
-                optimization_direction=input_config.optimization_direction,
-                lower_bound=input_config.lower_bound,
-                upper_bound=input_config.upper_bound,
-            )
-        elif isinstance(input_config, CategoricalAnnotationConfigPayload):
-            values = [
-                CategoricalAnnotationValueModel(label=value.label, score=value.score)
-                for value in input_config.values
-            ]
-            db_config = CategoricalAnnotationConfigModel(
-                type=AnnotationType.CATEGORICAL.value,
-                description=input_config.description,
-                optimization_direction=input_config.optimization_direction,
-                values=values,
-            )
-        elif isinstance(input_config, FreeformAnnotationConfigPayload):
-            db_config = FreeformAnnotationConfigModel(
-                type=AnnotationType.FREEFORM.value,
-                description=input_config.description,
-            )
-        else:
-            assert_never(input_config)
-
+        db_config = _to_db_annotation_config(input_config)
         existing_config.name = input_config.name
         existing_config.config = db_config
 
@@ -424,3 +371,31 @@ def _reserve_note_annotation_name(payload: AnnotationConfigPayloadType) -> str:
             status_code=HTTP_409_CONFLICT, detail="The name 'note' is reserved for span notes"
         )
     return name
+
+
+def _to_db_annotation_config(input_config: AnnotationConfigPayloadType) -> AnnotationConfigType:
+    if isinstance(input_config, ContinuousAnnotationConfigPayload):
+        return ContinuousAnnotationConfigModel(
+            type=AnnotationType.CONTINUOUS.value,
+            description=input_config.description,
+            optimization_direction=input_config.optimization_direction,
+            lower_bound=input_config.lower_bound,
+            upper_bound=input_config.upper_bound,
+        )
+    if isinstance(input_config, CategoricalAnnotationConfigPayload):
+        values = [
+            CategoricalAnnotationValueModel(label=value.label, score=value.score)
+            for value in input_config.values
+        ]
+        return CategoricalAnnotationConfigModel(
+            type=AnnotationType.CATEGORICAL.value,
+            description=input_config.description,
+            optimization_direction=input_config.optimization_direction,
+            values=values,
+        )
+    if isinstance(input_config, FreeformAnnotationConfigPayload):
+        return FreeformAnnotationConfigModel(
+            type=AnnotationType.FREEFORM.value,
+            description=input_config.description,
+        )
+    assert_never(input_config)
