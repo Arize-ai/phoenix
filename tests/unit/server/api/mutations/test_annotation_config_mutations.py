@@ -730,11 +730,12 @@ class TestAnnotationConfigMutations:
         error = response.errors[0]
         assert "Annotation config not found" in error.message
 
-    async def test_create_continuous_annotation_config_with_invalid_bounds_returns_expected_error(
+    async def test_update_continuous_annotation_config_with_invalid_bounds_returns_expected_error(
         self,
         gql_client: AsyncGraphQLClient,
     ) -> None:
-        response = await gql_client.execute(
+        # First create a valid continuous config
+        create_response = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
@@ -743,13 +744,35 @@ class TestAnnotationConfigMutations:
                             "name": "test-config",
                             "description": "test description",
                             "optimizationDirection": "MAXIMIZE",
-                            "lowerBound": 1.0,
-                            "upperBound": 0.0,
+                            "lowerBound": 0.0,
+                            "upperBound": 1.0,
                         }
                     }
                 }
             },
             operation_name="CreateAnnotationConfig",
+        )
+        assert create_response.data is not None
+        config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
+
+        # Try to update with invalid bounds
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "id": config_id,
+                    "annotationConfig": {
+                        "continuous": {
+                            "name": "test-config",
+                            "description": "test description",
+                            "optimizationDirection": "MAXIMIZE",
+                            "lowerBound": 1.0,
+                            "upperBound": 0.0,
+                        }
+                    },
+                }
+            },
+            operation_name="UpdateAnnotationConfig",
         )
         assert response.data is None
         assert response.errors
