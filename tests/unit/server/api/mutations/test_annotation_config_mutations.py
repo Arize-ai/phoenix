@@ -789,6 +789,7 @@ class TestAnnotationConfigMutations:
             },
             operation_name="CreateAnnotationConfig",
         )
+        assert create_response.data is not None
         config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
         project_id = str(GlobalID("Project", str(project.id)))
 
