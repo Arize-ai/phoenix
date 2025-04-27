@@ -293,6 +293,20 @@ async def test_cannot_create_annotation_config_with_duplicate_name(
     assert "name of the annotation configuration is already taken" in response.text
 
 
+async def test_create_categorical_config_with_empty_values_returns_expected_error(
+    httpx_client: AsyncClient,
+) -> None:
+    config = {
+        "name": "test_categorical",
+        "type": AnnotationType.CATEGORICAL.value,
+        "optimization_direction": OptimizationDirection.NONE.value,
+        "values": [],  # empty values are disallowed
+    }
+    response = await httpx_client.post("/v1/annotation_configs", json=config)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "Values must be non-empty" in response.text
+
+
 @pytest.mark.parametrize(
     "config",
     [
