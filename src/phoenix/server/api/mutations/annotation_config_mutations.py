@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, tuple_
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
@@ -323,19 +323,50 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: list[AddAnnotationConfigToProjectInput],
     ) -> AddAnnotationConfigToProjectPayload:
-        async with info.context.db() as session:
-            for item in input:
-                project_id = from_global_id_with_expected_type(
-                    global_id=item.project_id, expected_type_name="Project"
+        if not input:
+            raise BadRequest("No project annotation config associations provided")
+        project_annotation_config_ids: dict[
+            tuple[int, int], None
+        ] = {}  # use a dict to deduplicate while preserving order
+        for item in input:
+            project_id = from_global_id_with_expected_type(
+                global_id=item.project_id, expected_type_name="Project"
+            )
+            if (item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
+                raise BadRequest(
+                    f"Invalidation ID for annotation config: {str(item.annotation_config_id)}"
                 )
-                if (type_name := item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
-                    raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-                annotation_config_id = int(item.annotation_config_id.node_id)
+            annotation_config_id = int(item.annotation_config_id.node_id)
+            project_annotation_config_ids[(project_id, annotation_config_id)] = None
+        project_ids = [project_id for project_id, _ in project_annotation_config_ids]
+        annotation_config_ids = [
+            annotation_config_id for _, annotation_config_id in project_annotation_config_ids
+        ]
+
+        async with info.context.db() as session:
+            result = await session.scalars(
+                select(models.Project.id).where(models.Project.id.in_(project_ids))
+            )
+            resolved_project_ids = result.all()
+            if set(project_ids) - set(resolved_project_ids):
+                raise NotFound("One or more projects were not found")
+
+            result = await session.scalars(
+                select(models.AnnotationConfig.id).where(
+                    models.AnnotationConfig.id.in_(annotation_config_ids)
+                )
+            )
+            resolved_annotation_config_ids = result.all()
+            if set(annotation_config_ids) - set(resolved_annotation_config_ids):
+                raise NotFound("One or more annotation configs were not found")
+
+            for project_id, annotation_config_id in zip(project_ids, annotation_config_ids):
                 project_annotation_config = models.ProjectAnnotationConfig(
                     project_id=project_id,
                     annotation_config_id=annotation_config_id,
                 )
                 session.add(project_annotation_config)
+
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):

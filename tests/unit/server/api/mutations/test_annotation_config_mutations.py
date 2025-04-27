@@ -909,6 +909,75 @@ class TestAnnotationConfigMutations:
         error = duplicate_add_response.errors[0]
         assert "The annotation config has already been added to the project" in error.message
 
+    async def test_adding_annotation_config_to_nonexistent_project_fails_with_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # First create an annotation config
+        create_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "test-config",
+                            "description": "test description",
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert create_response.data is not None
+        assert not create_response.errors
+        config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
+
+        # Try to add the config to a non-existent project
+        nonexistent_project_id = str(GlobalID("Project", "999"))
+        add_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": [
+                    {
+                        "projectId": nonexistent_project_id,
+                        "annotationConfigId": config_id,
+                    }
+                ]
+            },
+            operation_name="AddAnnotationConfigToProject",
+        )
+        assert add_response.data is None
+        assert add_response.errors
+        assert len(add_response.errors) == 1
+        error = add_response.errors[0]
+        assert error.message == "One or more projects were not found"
+
+    async def test_adding_nonexistent_annotation_config_to_project_fails_with_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        project: models.Project,
+    ) -> None:
+        project_id = str(GlobalID("Project", str(project.id)))
+        nonexistent_config_id = str(GlobalID("CategoricalAnnotationConfig", "999"))
+
+        add_response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": [
+                    {
+                        "projectId": project_id,
+                        "annotationConfigId": nonexistent_config_id,
+                    }
+                ]
+            },
+            operation_name="AddAnnotationConfigToProject",
+        )
+        assert add_response.data is None
+        assert add_response.errors
+        assert len(add_response.errors) == 1
+        error = add_response.errors[0]
+        assert error.message == "One or more annotation configs were not found"
+
     async def test_removing_unknown_annotation_config_from_project_rolls_back(
         self,
         gql_client: AsyncGraphQLClient,
