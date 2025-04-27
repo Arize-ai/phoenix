@@ -634,22 +634,23 @@ class TestAnnotationConfigMutations:
         assert not create_response.errors
         config_id = create_response.data["createAnnotationConfig"]["annotationConfig"]["id"]
 
-        # Try to create duplicate config
-        config["name"] = "collide-config-name"
-        duplicate_create_response = await gql_client.execute(
+        # Try to update the name to collide with the existing config
+        update_config = deepcopy(config)
+        update_config["name"] = "collide-config-name"
+        update_response = await gql_client.execute(
             query=self.QUERY,
             variables={
                 "input": {
                     "id": config_id,
-                    "annotationConfig": {annotation_type_key: config},
+                    "annotationConfig": {annotation_type_key: update_config},
                 },
             },
             operation_name="UpdateAnnotationConfig",
         )
-        assert duplicate_create_response.data is None
-        assert duplicate_create_response.errors
-        assert len(duplicate_create_response.errors) == 1
-        error = duplicate_create_response.errors[0]
+        assert update_response.data is None
+        assert update_response.errors
+        assert len(update_response.errors) == 1
+        error = update_response.errors[0]
         assert (
             "Annotation configuration with name 'collide-config-name' already exists"
             in error.message
