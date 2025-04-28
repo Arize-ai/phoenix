@@ -447,6 +447,7 @@ def main() -> None:
     if tls_config:
         # Configure SSL context with certificate and key
         server_config.ssl_keyfile = str(tls_config.key_file)
+        server_config.ssl_keyfile_password = tls_config.key_file_password
         server_config.ssl_certfile = str(tls_config.cert_file)
 
         # If CA file is provided and client verification is enabled

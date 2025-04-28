@@ -274,15 +274,35 @@ PHOENIX_TLS_CA_FILE.
 
 @dataclass(frozen=True)
 class TLSConfig:
+    """Configuration for TLS (Transport Layer Security) connections.
+
+    This class manages TLS certificates and private keys for secure connections.
+    It handles reading certificate and key files, and decrypting private keys
+    if they are password-protected.
+
+    Attributes:
+        cert_file: Path to the TLS certificate file
+        key_file: Path to the TLS private key file
+        key_file_password: Optional password for decrypting the private key
+        _cert_data: Cached certificate data (internal use)
+        _key_data: Cached decrypted key data (internal use)
+        _decrypted_key_data: Cached decrypted key data (internal use)
+    """
+
     cert_file: Path
     key_file: Path
     key_file_password: Optional[str]
     _cert_data: bytes = field(default=b"", init=False, repr=False)
     _key_data: bytes = field(default=b"", init=False, repr=False)
+    _decrypted_key_data: Optional[bytes] = field(default=None, init=False, repr=False)
 
     @property
     def cert_data(self) -> bytes:
-        """Get the certificate data, reading from file if not cached."""
+        """Get the certificate data, reading from file if not cached.
+
+        Returns:
+            bytes: The certificate data in PEM format
+        """
         if not self._cert_data:
             with open(self.cert_file, "rb") as f:
                 object.__setattr__(self, "_cert_data", f.read())
@@ -290,29 +310,49 @@ class TLSConfig:
 
     @property
     def key_data(self) -> bytes:
-        """Get the key data, reading from file if not cached."""
-        if not self._key_data:
-            with open(self.key_file, "rb") as f:
-                object.__setattr__(self, "_key_data", f.read())
-        return self._key_data
+        """Get the decrypted key data, reading from file if not cached.
 
-    def get_decrypted_private_key(self) -> Optional[bytes]:
-        """
-        Load and decrypt the private key using the password if provided.
+        This property reads the private key file and decrypts it if a password
+        is provided. The decrypted key is cached for subsequent accesses.
 
         Returns:
-            Optional[bytes]: The decrypted private key in PEM format, or None if decryption fails.
+            bytes: The decrypted private key data in PEM format
 
         Raises:
-            ValueError: If the key file cannot be read or decrypted.
+            ValueError: If the cryptography library is not installed or if
+                decryption fails
         """
-        from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.serialization import (
-            Encoding,
-            NoEncryption,
-            PrivateFormat,
-            load_pem_private_key,
-        )
+        if not self._key_data:
+            self._read_and_cache_key_data()
+        return self._key_data
+
+    def _read_and_cache_key_data(self) -> None:
+        """Read and decrypt the private key file, then cache the result.
+
+        This method reads the private key file, decrypts it if a password
+        is provided, and stores the decrypted key in the _key_data attribute.
+
+        Raises:
+            ValueError: If the cryptography library is not installed or if
+                decryption fails
+        """
+        try:
+            from cryptography.hazmat.backends import default_backend
+            from cryptography.hazmat.primitives.serialization import (
+                Encoding,
+                NoEncryption,
+                PrivateFormat,
+                load_pem_private_key,
+            )
+        except ImportError:
+            raise ValueError(
+                "The cryptography library is needed to read private keys for "
+                "TLS configuration. Please install it with: pip install cryptography"
+            )
+
+        # First read the key file
+        with open(self.key_file, "rb") as f:
+            key_data = f.read()
 
         try:
             # Convert password to bytes if it exists
@@ -320,7 +360,7 @@ class TLSConfig:
 
             # Load the key (decrypting if password is provided)
             private_key = load_pem_private_key(
-                self.key_data,
+                key_data,
                 password=password_bytes,
                 backend=default_backend(),
             )
@@ -331,10 +371,9 @@ class TLSConfig:
                 format=PrivateFormat.PKCS8,
                 encryption_algorithm=NoEncryption(),
             )
-
-            return decrypted_pem
         except Exception as e:
             raise ValueError(f"Failed to decrypt private key: {e}")
+        object.__setattr__(self, "_key_data", decrypted_pem)
 
 
 @dataclass(frozen=True)
