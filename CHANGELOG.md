@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.28.0...arize-phoenix-v8.28.1) (2025-04-28)
+
+
+### Bug Fixes
+
+* Improve browser compatibility for Table sizing features ([#7321](https://github.com/Arize-ai/phoenix/issues/7321)) ([a7c03ec](https://github.com/Arize-ai/phoenix/commit/a7c03ec7e623c51fe89bdbcf95ebfcc8c42caf4f))
+* simplify homeLoaderQuery ([#7336](https://github.com/Arize-ai/phoenix/issues/7336)) ([d92d037](https://github.com/Arize-ai/phoenix/commit/d92d037d4d37d55ce6dd12b87381c2196471ebd2))
+
 ## [8.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.27.1...arize-phoenix-v8.28.0) (2025-04-28)
 
 
