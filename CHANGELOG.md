@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.28.1...arize-phoenix-v8.29.0) (2025-04-28)
+
+
+### Features
+
+* environment variables for TLS ([#7296](https://github.com/Arize-ai/phoenix/issues/7296)) ([91e8875](https://github.com/Arize-ai/phoenix/commit/91e8875b169976a0e25fc2c48aa381859048ea09))
+
 ## [8.28.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.28.0...arize-phoenix-v8.28.1) (2025-04-28)
 
 
