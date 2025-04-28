@@ -2,7 +2,6 @@
 description: >-
   Instrument LLM calls to AWS Bedrock via the boto3 client using the
   BedrockInstrumentor
-hidden: true
 ---
 
 # Bedrock Agents
