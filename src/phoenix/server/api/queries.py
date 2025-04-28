@@ -427,11 +427,8 @@ class Query:
     @strawberry.field
     async def functionality(self, info: Info[Context, None]) -> "Functionality":
         has_model_inferences = not info.context.model.is_empty
-        async with info.context.db() as session:
-            has_traces = (await session.scalar(select(models.Trace).limit(1))) is not None
         return Functionality(
             model_inferences=has_model_inferences,
-            tracing=has_traces,
         )
 
     @strawberry.field

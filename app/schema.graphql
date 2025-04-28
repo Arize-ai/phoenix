@@ -1016,9 +1016,6 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
-
-  """Generative tracing records are available for analysis"""
-  tracing: Boolean!
 }
 
 type GenerativeModel {
