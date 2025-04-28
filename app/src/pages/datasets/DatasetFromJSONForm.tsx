@@ -54,7 +54,7 @@ export function DatasetFromJSONForm(props: CreateDatasetFromJSONFormProps) {
   const onSubmit = useCallback(
     (data: CreateDatasetFromJSONParams) => {
       if (!jsonData) {
-        onDatasetCreateError(new Error("No JSON data available"));
+        onDatasetCreateError(new Error("No JSON file has been uploaded"));
         return;
       }
 
@@ -71,7 +71,9 @@ export function DatasetFromJSONForm(props: CreateDatasetFromJSONFormProps) {
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error(response.statusText || "Failed to create dataset");
+            throw onDatasetCreateError(
+              new Error(response.statusText || "Failed to create dataset")
+            );
           }
           return response.json();
         })
@@ -80,9 +82,6 @@ export function DatasetFromJSONForm(props: CreateDatasetFromJSONFormProps) {
             name: data.name,
             id: res["data"]["dataset_id"],
           });
-        })
-        .catch((error) => {
-          onDatasetCreateError(error);
         });
     },
     [onDatasetCreateError, onDatasetCreated, jsonData]
@@ -112,7 +111,7 @@ export function DatasetFromJSONForm(props: CreateDatasetFromJSONFormProps) {
               value={value.toString()}
             >
               <Label>Dataset Name</Label>
-              <Input placeholder="e.x. Golden Dataset" />
+              <Input placeholder="e.g., Golden Dataset" />
               {error?.message ? (
                 <FieldError>{error.message}</FieldError>
               ) : (
@@ -135,7 +134,7 @@ export function DatasetFromJSONForm(props: CreateDatasetFromJSONFormProps) {
               value={value.toString()}
             >
               <Label>Description</Label>
-              <TextArea placeholder="e.x. A dataset for structured data extraction" />
+              <TextArea placeholder="e.g., A dataset for structured data extraction" />
               {error?.message ? (
                 <FieldError>{error.message}</FieldError>
               ) : (

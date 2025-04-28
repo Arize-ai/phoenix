@@ -131,7 +131,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
               value={value.toString()}
             >
               <Label>Dataset Name</Label>
-              <Input placeholder="e.x. Golden Dataset" />
+              <Input placeholder="e.g., Golden Dataset" />
               {error?.message ? (
                 <FieldError>{error.message}</FieldError>
               ) : (
@@ -154,7 +154,7 @@ export function DatasetFromCSVForm(props: CreateDatasetFromCSVFormProps) {
               value={value.toString()}
             >
               <Label>Description</Label>
-              <TextArea placeholder="e.x. A dataset for structured data extraction" />
+              <TextArea placeholder="e.g., A dataset for structured data extraction" />
               {error?.message ? (
                 <FieldError>{error.message}</FieldError>
               ) : (
