@@ -59,7 +59,8 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=True,
+                nullable=False,
+                index=False,  # the index must be added in a separate step
             ),
         )
         batch_op.add_column(
@@ -82,6 +83,10 @@ def upgrade() -> None:
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_span_annotations_name_span_rowid_identifier",
+            ["name", "span_rowid", "identifier"],
+        )
 
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.add_column(
@@ -96,7 +101,8 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=True,
+                nullable=False,
+                index=False,  # the index must be added in a separate step
             ),
         )
         batch_op.add_column(
@@ -119,6 +125,10 @@ def upgrade() -> None:
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
         )
         batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_trace_annotations_name_trace_rowid_identifier",
+            ["name", "trace_rowid", "identifier"],
+        )
 
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.add_column(
@@ -129,15 +139,12 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        batch_op.drop_constraint(
-            "uq_document_annotations_name_span_rowid_document_position",
-            type_="unique",
-        )
         batch_op.add_column(
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=True,
+                nullable=False,
+                index=False,  # the index must be added in a separate step
             ),
         )
         batch_op.add_column(
@@ -158,6 +165,14 @@ def upgrade() -> None:
         batch_op.create_check_constraint(
             constraint_name="valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'CODE', 'HUMAN')",
+        )
+        batch_op.drop_constraint(
+            "uq_document_annotations_name_span_rowid_document_position",
+            type_="unique",
+        )
+        batch_op.create_unique_constraint(
+            "uq_document_annotations_name_span_rowid_document_pos_identifier",  # manually specify a name since the auto-generated name is longer than the 63 character limit of Postgres  # noqa: E501
+            ["name", "span_rowid", "document_position", "identifier"],
         )
 
     op.create_table(
@@ -190,136 +205,76 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "ix_span_annotations_identifier", "span_annotations", ["identifier"], unique=False
-    )
-    op.create_index(
-        "uq_span_annotations_span_rowid_name_null_identifier",
+        "ix_span_annotations_identifier",
         "span_annotations",
-        ["span_rowid", "name"],
-        unique=True,
-        postgresql_where=sa.column("identifier").is_(None),
-        sqlite_where=sa.column("identifier").is_(None),
+        ["identifier"],
+        unique=False,
     )
     op.create_index(
-        "uq_span_annotations_span_rowid_name_identifier_not_null",
-        "span_annotations",
-        ["span_rowid", "name", "identifier"],
-        unique=True,
-        postgresql_where=sa.column("identifier").isnot(None),
-        sqlite_where=sa.column("identifier").isnot(None),
-    )
-
-    op.create_index(
-        "ix_trace_annotations_identifier", "trace_annotations", ["identifier"], unique=False
-    )
-    op.create_index(
-        "uq_trace_annotations_trace_rowid_name_null_identifier",
+        "ix_trace_annotations_identifier",
         "trace_annotations",
-        ["trace_rowid", "name"],
-        unique=True,
-        postgresql_where=sa.column("identifier").is_(None),
-        sqlite_where=sa.column("identifier").is_(None),
+        ["identifier"],
+        unique=False,
     )
-    op.create_index(
-        "uq_trace_annotations_trace_rowid_name_identifier_not_null",
-        "trace_annotations",
-        ["trace_rowid", "name", "identifier"],
-        unique=True,
-        postgresql_where=sa.column("identifier").isnot(None),
-        sqlite_where=sa.column("identifier").isnot(None),
-    )
-
     op.create_index(
         "ix_document_annotations_identifier",
         "document_annotations",
         ["identifier"],
         unique=False,
     )
-    op.create_index(
-        "uq_document_annotations_span_rowid_name_null_identifier",
-        "document_annotations",
-        ["span_rowid", "name"],
-        unique=True,
-        postgresql_where=sa.column("identifier").is_(None),
-        sqlite_where=sa.column("identifier").is_(None),
-    )
-    op.create_index(
-        "uq_document_annotations_span_rowid_name_identifier_not_null",
-        "document_annotations",
-        ["span_rowid", "name", "identifier"],
-        unique=True,
-        postgresql_where=sa.column("identifier").isnot(None),
-        sqlite_where=sa.column("identifier").isnot(None),
-    )
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "uq_document_annotations_span_rowid_name_identifier_not_null",
-        table_name="document_annotations",
-    )
-    op.drop_index(
-        "uq_document_annotations_span_rowid_name_null_identifier", table_name="document_annotations"
-    )
     op.drop_index("ix_document_annotations_identifier", table_name="document_annotations")
-
-    op.drop_index(
-        "uq_trace_annotations_trace_rowid_name_identifier_not_null", table_name="trace_annotations"
-    )
-    op.drop_index(
-        "uq_trace_annotations_trace_rowid_name_null_identifier", table_name="trace_annotations"
-    )
     op.drop_index("ix_trace_annotations_identifier", table_name="trace_annotations")
-
-    op.drop_index(
-        "uq_span_annotations_span_rowid_name_identifier_not_null", table_name="span_annotations"
-    )
-    op.drop_index(
-        "uq_span_annotations_span_rowid_name_null_identifier", table_name="span_annotations"
-    )
     op.drop_index("ix_span_annotations_identifier", table_name="span_annotations")
     op.drop_table("project_annotation_configs")
     op.drop_table("annotation_configs")
 
-    with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.drop_constraint("valid_source", type_="check")
-        batch_op.drop_constraint("valid_annotator_kind", type_="check")
-        batch_op.drop_column("user_id")
-        batch_op.drop_column("source")
-        batch_op.drop_column("identifier")
-        batch_op.create_unique_constraint(
-            "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
-        )
-        batch_op.create_check_constraint(
-            "valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'HUMAN')",
-        )
-
-    with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.drop_constraint("valid_source", type_="check")
-        batch_op.drop_constraint("valid_annotator_kind", type_="check")
-        batch_op.drop_column("user_id")
-        batch_op.drop_column("source")
-        batch_op.drop_column("identifier")
-        batch_op.create_unique_constraint(
-            "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
-        )
-        batch_op.create_check_constraint(
-            "valid_annotator_kind",
-            condition="annotator_kind IN ('LLM', 'HUMAN')",
-        )
-
     with op.batch_alter_table("document_annotations") as batch_op:
-        batch_op.drop_constraint("valid_source", type_="check")
-        batch_op.drop_constraint("valid_annotator_kind", type_="check")
-        batch_op.drop_column("user_id")
-        batch_op.drop_column("source")
-        batch_op.drop_column("identifier")
+        batch_op.drop_constraint(
+            "uq_document_annotations_name_span_rowid_document_pos_identifier", type_="unique"
+        )
         batch_op.create_unique_constraint(
             "uq_document_annotations_name_span_rowid_document_position",
             ["name", "span_rowid", "document_position"],
         )
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
         batch_op.create_check_constraint(
             "valid_annotator_kind",
             condition="annotator_kind IN ('LLM', 'HUMAN')",
         )
+        batch_op.drop_constraint("valid_source", type_="check")
+        batch_op.drop_column("source")
+        batch_op.drop_column("identifier")
+        batch_op.drop_column("user_id")
+
+    with op.batch_alter_table("trace_annotations") as batch_op:
+        batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid_identifier", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
+        )
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
+        batch_op.create_check_constraint(
+            "valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'HUMAN')",
+        )
+        batch_op.drop_constraint("valid_source", type_="check")
+        batch_op.drop_column("source")
+        batch_op.drop_column("identifier")
+        batch_op.drop_column("user_id")
+
+    with op.batch_alter_table("span_annotations") as batch_op:
+        batch_op.drop_constraint("uq_span_annotations_name_span_rowid_identifier", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
+        )
+        batch_op.drop_constraint("valid_annotator_kind", type_="check")
+        batch_op.create_check_constraint(
+            "valid_annotator_kind",
+            condition="annotator_kind IN ('LLM', 'HUMAN')",
+        )
+        batch_op.drop_constraint("valid_source", type_="check")
+        batch_op.drop_column("source")
+        batch_op.drop_column("identifier")
+        batch_op.drop_column("user_id")
