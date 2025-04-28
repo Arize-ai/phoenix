@@ -546,7 +546,6 @@ function TableBody<T>({ table }: { table: Table<T> }) {
               <td
                 key={cell.id}
                 style={{
-                  height: 1,
                   width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
                   padding: 0,
                 }}
