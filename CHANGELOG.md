@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.28.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.27.1...arize-phoenix-v8.28.0) (2025-04-28)
+
+
+### Features
+
+* gracefully handle ctrl-c ([#7305](https://github.com/Arize-ai/phoenix/issues/7305)) ([6365934](https://github.com/Arize-ai/phoenix/commit/63659344d288b1a4742ebb1a78b9108c6b9f72c6))
+
+
+### Bug Fixes
+
+* use float for token count summaries ([#7319](https://github.com/Arize-ai/phoenix/issues/7319)) ([783a385](https://github.com/Arize-ai/phoenix/commit/783a385ce9842e6646545e3af4c35698279f7d0c))
+
 ## [8.27.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.27.0...arize-phoenix-v8.27.1) (2025-04-25)
 
 
