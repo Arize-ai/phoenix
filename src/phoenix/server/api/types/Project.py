@@ -138,7 +138,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> int:
+    ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("total", self.project_rowid, time_range, filter_condition),
         )
@@ -149,7 +149,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> int:
+    ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("prompt", self.project_rowid, time_range, filter_condition),
         )
@@ -160,7 +160,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> int:
+    ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("completion", self.project_rowid, time_range, filter_condition),
         )
