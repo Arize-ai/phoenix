@@ -3,6 +3,9 @@ import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
 export const tableCSS = css`
+  // fixes table row sizing issues with full height cell children
+  // this enables features like hovering anywhere on a cell to display controls
+  height: fit-content;
   font-size: var(--ac-global-font-size-s);
   width: 100%;
   border-collapse: separate;
@@ -62,6 +65,8 @@ export const tableCSS = css`
   }
   tbody:not(.is-empty) {
     tr {
+      // when paired with table.height:fit-content, allows table cells and their children to fill entire row height
+      height: 100%;
       &:not(:last-of-type) {
         & > td {
           border-bottom: 1px solid var(--ac-global-border-color-default);
