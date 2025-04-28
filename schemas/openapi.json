@@ -12,8 +12,27 @@
           "annotation_configs"
         ],
         "summary": "List annotation configurations",
+        "description": "Retrieve a paginated list of all annotation configurations in the system.",
         "operationId": "list_annotation_configs_v1_annotation_configs_get",
         "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded annotation config ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded annotation config ID)"
+          },
           {
             "name": "limit",
             "in": "query",
@@ -22,7 +41,7 @@
               "type": "integer",
               "exclusiveMinimum": 0,
               "description": "Maximum number of configs to return",
-              "default": 50,
+              "default": 100,
               "title": "Limit"
             },
             "description": "Maximum number of configs to return"
@@ -30,33 +49,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "A list of annotation configurations with pagination information",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "oneOf": [
-                      {
-                        "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
-                      },
-                      {
-                        "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
-                      },
-                      {
-                        "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
-                      }
-                    ],
-                    "discriminator": {
-                      "propertyName": "type",
-                      "mapping": {
-                        "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
-                        "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
-                        "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
-                      }
-                    }
-                  },
-                  "title": "Response List Annotation Configs V1 Annotation Configs Get"
+                  "$ref": "#/components/schemas/GetAnnotationConfigsResponseBody"
                 }
               }
             }
@@ -375,6 +372,85 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_name}/span_annotations": {
+      "get": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Get span & document-level annotations for a list of span_ids",
+        "operationId": "listAnnotationsBySpanIds",
+        "parameters": [
+          {
+            "name": "project_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Name of the project",
+              "title": "Project Name"
+            },
+            "description": "Name of the project"
+          },
+          {
+            "name": "span_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "description": "One or more span_id values (repeat the query param to send multiple)",
+              "title": "Span Ids"
+            },
+            "description": "One or more span_id values (repeat the query param to send multiple)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanAnnotationsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project or spans not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
           }
         }
       }
@@ -2610,7 +2686,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/SpanAnnotation"
+              "$ref": "#/components/schemas/phoenix__server__api__routers__v1__spans__SpanAnnotation"
             },
             "type": "array",
             "title": "Data"
@@ -3334,6 +3410,52 @@
           "id"
         ],
         "title": "FreeformAnnotationConfigWithID"
+      },
+      "GetAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfigWithID"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfigWithID"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfigWithID"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigWithID",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigWithID",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfigWithID"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetAnnotationConfigsResponseBody"
       },
       "GetDatasetResponseBody": {
         "properties": {
@@ -4664,72 +4786,6 @@
         ],
         "title": "PromptVersionTagData"
       },
-      "SpanAnnotation": {
-        "properties": {
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "The name of the annotation"
-          },
-          "annotator_kind": {
-            "type": "string",
-            "enum": [
-              "LLM",
-              "HUMAN"
-            ],
-            "title": "Annotator Kind",
-            "description": "The kind of annotator used for the annotation"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SpanAnnotationResult"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The result of the annotation"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata",
-            "description": "Metadata for the annotation"
-          },
-          "identifier": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists."
-          }
-        },
-        "type": "object",
-        "required": [
-          "span_id",
-          "name",
-          "annotator_kind"
-        ],
-        "title": "SpanAnnotation"
-      },
       "SpanAnnotationResult": {
         "properties": {
           "label": {
@@ -4771,6 +4827,34 @@
         },
         "type": "object",
         "title": "SpanAnnotationResult"
+      },
+      "SpanAnnotationsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/phoenix__server__api__routers__v1__annotations__SpanAnnotation"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SpanAnnotationsResponseBody"
       },
       "TextContentPart": {
         "properties": {
@@ -4987,6 +5071,183 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "phoenix__server__api__routers__v1__annotations__SpanAnnotation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "title": "Annotator Kind"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "span_id",
+          "name",
+          "label",
+          "score",
+          "explanation",
+          "metadata",
+          "annotator_kind",
+          "created_at",
+          "updated_at",
+          "identifier",
+          "source",
+          "user_id"
+        ],
+        "title": "SpanAnnotation"
+      },
+      "phoenix__server__api__routers__v1__spans__SpanAnnotation": {
+        "properties": {
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry Span ID (hex format w/o 0x prefix)"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the annotation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the annotation"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpanAnnotationResult"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The result of the annotation"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the annotation"
+          },
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier",
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists."
+          }
+        },
+        "type": "object",
+        "required": [
+          "span_id",
+          "name",
+          "annotator_kind"
+        ],
+        "title": "SpanAnnotation"
       }
     }
   }

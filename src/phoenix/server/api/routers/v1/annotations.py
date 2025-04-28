@@ -17,9 +17,10 @@ from phoenix.db import models
 from phoenix.server.api.types.node import GlobalID
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 
-from .models import V1RoutesBaseModel, add_errors_to_responses
+from .models import V1RoutesBaseModel
 from .utils import (
     PaginatedResponseBody,
+    add_errors_to_responses,
 )
 
 logger = logging.getLogger(__name__)
