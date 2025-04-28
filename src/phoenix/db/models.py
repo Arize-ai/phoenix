@@ -8,6 +8,7 @@ from sqlalchemy import (
     JSON,
     NUMERIC,
     TIMESTAMP,
+    BigInteger,
     CheckConstraint,
     ColumnElement,
     Dialect,
@@ -490,6 +491,7 @@ class ProjectSession(Base):
 
 class Trace(Base):
     __tablename__ = "traces"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -539,6 +541,7 @@ class Trace(Base):
 
 class Span(Base):
     __tablename__ = "spans"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     trace_rowid: Mapped[int] = mapped_column(
         ForeignKey("traces.id", ondelete="CASCADE"),
         index=True,
