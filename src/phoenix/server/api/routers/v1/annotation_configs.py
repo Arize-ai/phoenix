@@ -34,6 +34,7 @@ from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.api.routers.v1.utils import PaginatedResponseBody
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     ContinuousAnnotationConfig,
@@ -144,24 +145,81 @@ def db_to_api_annotation_config(
     assert_never(config)
 
 
+def _get_annotation_global_id(annotation_config: models.AnnotationConfig) -> GlobalID:
+    config = annotation_config.config
+    if isinstance(config, ContinuousAnnotationConfigModel):
+        return GlobalID(ContinuousAnnotationConfig.__name__, str(annotation_config.id))
+    if isinstance(config, CategoricalAnnotationConfigModel):
+        return GlobalID(CategoricalAnnotationConfig.__name__, str(annotation_config.id))
+    if isinstance(config, FreeformAnnotationConfigModel):
+        return GlobalID(FreeformAnnotationConfig.__name__, str(annotation_config.id))
+    assert_never(config)
+
+
 class CreateAnnotationConfigPayload(RootModel[AnnotationConfigPayloadType]):
     root: AnnotationConfigPayloadType
+
+
+class GetAnnotationConfigsResponseBody(PaginatedResponseBody[AnnotationConfigWithID]):
+    pass
 
 
 @router.get(
     "/annotation_configs",
     summary="List annotation configurations",
+    description="Retrieve a paginated list of all annotation configurations in the system.",
+    response_description="A list of annotation configurations with pagination information",
 )
 async def list_annotation_configs(
     request: Request,
-    limit: int = Query(50, gt=0, description="Maximum number of configs to return"),
-) -> List[AnnotationConfigWithID]:
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Cursor for pagination (base64-encoded annotation config ID)",
+    ),
+    limit: int = Query(100, gt=0, description="Maximum number of configs to return"),
+) -> GetAnnotationConfigsResponseBody:
+    cursor_id: Optional[int] = None
+    if cursor:
+        try:
+            cursor_gid = GlobalID.from_id(cursor)
+        except ValueError:
+            raise HTTPException(
+                detail=f"Invalid cursor: {cursor}",
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+        if cursor_gid.type_name not in (
+            CategoricalAnnotationConfig.__name__,
+            ContinuousAnnotationConfig.__name__,
+            FreeformAnnotationConfig.__name__,
+        ):
+            raise HTTPException(
+                detail=f"Invalid cursor: {cursor}",
+                status_code=HTTP_400_BAD_REQUEST,
+            )
+        cursor_id = int(cursor_gid.node_id)
+
     async with request.app.state.db() as session:
-        result = await session.execute(
-            select(models.AnnotationConfig).order_by(models.AnnotationConfig.name).limit(limit)
+        query = (
+            select(models.AnnotationConfig)
+            .order_by(models.AnnotationConfig.id.desc())
+            .limit(limit + 1)  # overfetch by 1 to check if there are more results
         )
-        configs = result.scalars().all()
-        return [db_to_api_annotation_config(config) for config in configs]
+        if cursor_id is not None:
+            query = query.where(models.AnnotationConfig.id <= cursor_id)
+
+        result = await session.scalars(query)
+        configs = result.all()
+
+        next_cursor = None
+        if len(configs) == limit + 1:
+            last_config = configs[-1]
+            next_cursor = str(_get_annotation_global_id(last_config))
+            configs = configs[:-1]
+
+        return GetAnnotationConfigsResponseBody(
+            next_cursor=next_cursor,
+            data=[db_to_api_annotation_config(config) for config in configs],
+        )
 
 
 @router.get(
