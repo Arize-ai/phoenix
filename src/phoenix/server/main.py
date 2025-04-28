@@ -423,7 +423,7 @@ def main() -> None:
     try:
         server.run()
     except KeyboardInterrupt:
-        pass # don't bother the user with a stack trace on Ctrl-C
+        pass  # don't bother the user with a stack trace on Ctrl-C
 
 
 def initialize_settings() -> None:
