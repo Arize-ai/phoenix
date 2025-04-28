@@ -381,8 +381,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get span & document-level annotations for a list of span_ids",
-        "operationId": "listAnnotationsBySpanIds",
+        "summary": "Get span annotations for a list of span_ids",
+        "operationId": "listSpanAnnotationsBySpanIds",
         "parameters": [
           {
             "name": "project_name",
@@ -409,6 +409,37 @@
               "title": "Span Ids"
             },
             "description": "One or more span_id values (repeat the query param to send multiple)"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor (a GlobalID for a SpanAnnotation). Pass the value returned in `next_cursor` to fetch the next page.",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor (a GlobalID for a SpanAnnotation). Pass the value returned in `next_cursor` to fetch the next page."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Max annotations to return; server will internally fetch `limit+1` to decide the next cursor. Default is 100.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Max annotations to return; server will internally fetch `limit+1` to decide the next cursor. Default is 100."
           }
         ],
         "responses": {

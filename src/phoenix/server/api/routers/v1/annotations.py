@@ -52,8 +52,8 @@ class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):
 
 @router.get(
     "/projects/{project_name}/span_annotations",
-    operation_id="listAnnotationsBySpanIds",
-    summary="Get span & document-level annotations for a list of span_ids",
+    operation_id="listSpanAnnotationsBySpanIds",
+    summary="Get span annotations for a list of span_ids",
     status_code=HTTP_200_OK,
     responses=add_errors_to_responses(
         [
@@ -70,6 +70,21 @@ async def list_annotations(
         description="One or more span_id values (repeat the query param to send multiple)",
         min_length=1,
     ),
+    cursor: Optional[str] = Query(
+        default=None,
+        description=(
+            "Opaque cursor (a GlobalID for a SpanAnnotation). "
+            "Pass the value returned in `next_cursor` to fetch the next page."
+        ),
+    ),
+    limit: int = Query(
+        default=100,
+        gt=0,
+        description=(
+            "Max annotations to return; server will internally fetch `limit+1` to decide the next "
+            "cursor. Default is 100."
+        ),
+    ),
 ) -> SpanAnnotationsResponseBody:
     async with request.app.state.db() as session:
         project = await session.scalar(
@@ -81,7 +96,7 @@ async def list_annotations(
             )
 
         span_subquery = (
-            select(models.Span.id.label("rowid"), models.Span.span_id.label("span_id"))
+            select(models.Span.id.label("rowid"), models.Span.span_id)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .where(
                 and_(
@@ -91,7 +106,6 @@ async def list_annotations(
             )
             .subquery()
         )
-
         span_rows = {row.span_id: row.rowid async for row in await session.stream(span_subquery)}
         if not span_rows:
             raise HTTPException(
@@ -99,7 +113,7 @@ async def list_annotations(
                 status_code=HTTP_404_NOT_FOUND,
             )
 
-        span_ann_stmt = (
+        query = (
             select(
                 span_subquery.c.span_id,
                 models.SpanAnnotation,
@@ -108,12 +122,32 @@ async def list_annotations(
                 span_subquery,
                 span_subquery.c.rowid == models.SpanAnnotation.span_rowid,
             )
-            .order_by(models.SpanAnnotation.created_at.asc())
+            .order_by(models.SpanAnnotation.id.desc())
+            .limit(limit + 1)  # grab one extra so we can see if there’s another page
         )
 
-        span_annos = {}
-        async for span_id, anno in await session.stream(span_ann_stmt):
-            span_annos.setdefault(span_id, []).append(
+        if cursor:
+            try:
+                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+            except ValueError:
+                raise HTTPException(
+                    detail=f"Invalid cursor format: {cursor}",
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            query = query.filter(models.SpanAnnotation.id <= cursor_rowid)
+
+        rows: list[tuple[str, models.SpanAnnotation]] = [
+            r async for r in await session.stream(query)
+        ]
+
+        next_cursor: Optional[str] = None
+        if len(rows) == limit + 1:
+            *rows, extra = rows  # drop the extra row
+            next_cursor = str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(extra.SpanAnnotation.id)))  # type: ignore[attr-defined]
+
+        data: list[SpanAnnotation] = []
+        for span_id, anno in rows:
+            data.append(
                 SpanAnnotation(
                     id=str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(anno.id))),
                     span_id=span_id,
@@ -131,13 +165,4 @@ async def list_annotations(
                 )
             )
 
-    data: list[SpanAnnotation] = []
-    for span_id in span_ids:
-        data.append(
-            SpanAnnotation(
-                span_id=span_id,
-                span_annotations=span_annos.get(span_id, []),
-            )
-        )
-
-    return SpanAnnotationsResponseBody(data=data)
+    return SpanAnnotationsResponseBody(data=data, next_cursor=next_cursor)
