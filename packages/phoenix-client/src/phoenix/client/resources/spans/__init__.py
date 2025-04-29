@@ -80,6 +80,8 @@ class Spans:
         }
 
         try:
+            import pandas as pd  # type: ignore
+
             response = self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
@@ -171,6 +173,8 @@ class AsyncSpans:
         }
 
         try:
+            import pandas as pd  # type: ignore
+
             response = await self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
