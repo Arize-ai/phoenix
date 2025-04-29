@@ -58,20 +58,20 @@ class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):
         ]
     ),
 )
-async def list_annotations(
+async def list_span_annotations(
     request: Request,
     project_name: str = Path(description="Name of the project"),
     span_ids: list[str] = Query(
-        ..., min_length=1, description="Repeat to supply multiple span_ids"
+        ..., min_length=1, description="One or more span id to fetch annotations for"
     ),
     cursor: Optional[str] = Query(
-        default=None, description="Opaque cursor (GlobalID of a SpanAnnotation)"
+        default=None, description="A cursor for pagination"
     ),
     limit: int = Query(
         default=10,
         gt=0,
         le=10000,
-        description="Page size; the server fetches one extra row to compute `next_cursor`",
+        description="The maximum number of annotations to return in a single request",
     ),
 ) -> SpanAnnotationsResponseBody:
     span_ids = list({*span_ids})

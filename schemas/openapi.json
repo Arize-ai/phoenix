@@ -405,10 +405,10 @@
                 "type": "string"
               },
               "minItems": 1,
-              "description": "One or more span_id values (repeat the query param to send multiple)",
+              "description": "One or more span id to fetch annotations for",
               "title": "Span Ids"
             },
-            "description": "One or more span_id values (repeat the query param to send multiple)"
+            "description": "One or more span id to fetch annotations for"
           },
           {
             "name": "cursor",
@@ -423,10 +423,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Opaque cursor (a GlobalID for a SpanAnnotation). Pass the value returned in `next_cursor` to fetch the next page.",
+              "description": "A cursor for pagination",
               "title": "Cursor"
             },
-            "description": "Opaque cursor (a GlobalID for a SpanAnnotation). Pass the value returned in `next_cursor` to fetch the next page."
+            "description": "A cursor for pagination"
           },
           {
             "name": "limit",
@@ -434,12 +434,13 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 10000,
               "exclusiveMinimum": 0,
-              "description": "Max annotations to return; server will internally fetch `limit+1` to decide the next cursor. Default is 100.",
-              "default": 100,
+              "description": "The maximum number of annotations to return in a single request",
+              "default": 10,
               "title": "Limit"
             },
-            "description": "Max annotations to return; server will internally fetch `limit+1` to decide the next cursor. Default is 100."
+            "description": "The maximum number of annotations to return in a single request"
           }
         ],
         "responses": {
@@ -5187,7 +5188,7 @@
           "user_id": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "string"
               },
               {
                 "type": "null"
