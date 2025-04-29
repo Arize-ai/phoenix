@@ -6,11 +6,14 @@ from typing import Any, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from sqlalchemy import exists, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
 
@@ -47,9 +50,9 @@ class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):
 
 
 @router.get(
-    "/projects/{project_name}/span_annotations",
+    "/projects/{project_identifier}/span_annotations",
     operation_id="listSpanAnnotationsBySpanIds",
-    summary="Get span annotations for a list of span_ids",
+    summary="Get span annotations for a list of span_ids.",
     status_code=HTTP_200_OK,
     responses=add_errors_to_responses(
         [
@@ -60,7 +63,13 @@ class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):
 )
 async def list_span_annotations(
     request: Request,
-    project_name: str = Path(description="Name of the project"),
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name as "
+            "the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) "
+            "characters."
+        )
+    ),
     span_ids: list[str] = Query(
         ..., min_length=1, description="One or more span id to fetch annotations for"
     ),
@@ -80,13 +89,19 @@ async def list_span_annotations(
         )
 
     async with request.app.state.db() as session:
+        project = await _get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
         stmt = (
             select(models.Span.span_id, models.SpanAnnotation)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .join(models.Project, models.Trace.project_rowid == models.Project.id)
             .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
             .where(
-                models.Project.name == project_name,
+                models.Project.id == project.id,
                 models.Span.span_id.in_(span_ids),
             )
             .order_by(models.SpanAnnotation.id.desc())
@@ -111,14 +126,6 @@ async def list_span_annotations(
             next_cursor = str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(extra[1].id)))
 
         if not rows:
-            project_exists = await session.scalar(
-                select(exists().where(models.Project.name == project_name))
-            )
-            if not project_exists:
-                raise HTTPException(
-                    detail=f"Project '{project_name}' not found", status_code=HTTP_404_NOT_FOUND
-                )
-
             spans_exist = await session.scalar(
                 select(
                     exists().where(
@@ -126,7 +133,7 @@ async def list_span_annotations(
                         models.Span.trace_rowid.in_(
                             select(models.Trace.id)
                             .join(models.Project)
-                            .where(models.Project.name == project_name)
+                            .where(models.Project.id == project.id)
                         ),
                     )
                 )
@@ -159,3 +166,51 @@ async def list_span_annotations(
         ]
 
     return SpanAnnotationsResponseBody(data=data, next_cursor=next_cursor)
+
+
+async def _get_project_by_identifier(
+    session: AsyncSession,
+    project_identifier: str,
+) -> models.Project:
+    """
+    Get a project by its ID or name.
+
+    Args:
+        session: The database session.
+        project_identifier: The project ID or name.
+
+    Returns:
+        The project object.
+
+    Raises:
+        HTTPException: If the identifier format is invalid or the project is not found.
+    """
+    # Try to parse as a GlobalID first
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(project_identifier),
+            ProjectNodeType.__name__,
+        )
+    except Exception:
+        try:
+            name = project_identifier
+        except HTTPException:
+            raise HTTPException(
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid project identifier format: {project_identifier}",
+            )
+        stmt = select(models.Project).filter_by(name=name)
+        project = await session.scalar(stmt)
+        if project is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with name {name} not found",
+            )
+    else:
+        project = await session.get(models.Project, id_)
+        if project is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail=f"Project with ID {project_identifier} not found",
+            )
+    return project
