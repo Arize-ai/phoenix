@@ -7,10 +7,11 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_422_UNPROCESSABLE_ENTITY,
 )
+from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.server.api.types.node import GlobalID, from_global_id_with_expected_type
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 
 from .models import V1RoutesBaseModel
