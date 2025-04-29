@@ -8,9 +8,9 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from sqlalchemy import exists, select
 from starlette.requests import Request
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.types.node import GlobalID
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
 
@@ -75,8 +75,8 @@ async def list_span_annotations(
     span_ids = list({*span_ids})
     if len(span_ids) > MAX_SPAN_IDS:
         raise HTTPException(
-            f"Too many span_ids supplied: {len(span_ids)} (max {MAX_SPAN_IDS})",
-            HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Too many span_ids supplied: {len(span_ids)} (max {MAX_SPAN_IDS})",
         )
 
     async with request.app.state.db() as session:
@@ -97,7 +97,10 @@ async def list_span_annotations(
             try:
                 cursor_id = int(GlobalID.from_id(cursor).node_id)
             except ValueError:
-                raise HTTPException("Invalid cursor value", HTTP_422_UNPROCESSABLE_ENTITY)
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Invalid cursor value",
+                )
             stmt = stmt.where(models.SpanAnnotation.id <= cursor_id)
 
         rows: list[Tuple[str, models.SpanAnnotation]] = [r async for r in session.stream(stmt)]
