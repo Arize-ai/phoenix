@@ -31,10 +31,7 @@ import {
   ToggleButtonGroup,
   View,
 } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -53,7 +50,6 @@ import {
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
-import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
@@ -221,6 +217,15 @@ export function SpansTable(props: SpansTableProps) {
                   label
                   score
                   annotatorKind
+                  createdAt
+                }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
                 }
                 documentRetrievalMetrics {
                   evaluationName
@@ -228,6 +233,7 @@ export function SpansTable(props: SpansTableProps) {
                   precision
                   hit
                 }
+                ...AnnotationSummaryGroup
               }
             }
           }
@@ -310,24 +316,10 @@ export function SpansTable(props: SpansTableProps) {
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
-            {row.original.spanAnnotations.map((annotation) => {
-              return (
-                <AnnotationTooltip
-                  key={annotation.id}
-                  annotation={annotation}
-                  layout="horizontal"
-                  width="500px"
-                  extra={
-                    <AnnotationTooltipFilterActions annotation={annotation} />
-                  }
-                >
-                  <AnnotationLabel
-                    annotation={annotation}
-                    annotationDisplayPreference="label"
-                  />
-                </AnnotationTooltip>
-              );
-            })}
+            <AnnotationSummaryGroupTokens
+              span={row.original}
+              showFilterActions
+            />
             {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
               return (
                 <>

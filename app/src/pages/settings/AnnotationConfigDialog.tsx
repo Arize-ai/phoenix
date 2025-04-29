@@ -66,7 +66,7 @@ export const AnnotationConfigDialog = ({
   const { control, handleSubmit, watch } = useForm<AnnotationConfig>({
     defaultValues: initialAnnotationConfig || {
       annotationType: "CATEGORICAL",
-      values: [{ label: "", score: 0 }],
+      values: [{ label: "", score: null }],
       optimizationDirection: "MAXIMIZE",
     },
   });
@@ -173,7 +173,7 @@ export const AnnotationConfigDialog = ({
                     required: "Name is required",
                   }}
                   render={({ field, fieldState: { error } }) => (
-                    <TextField {...field} isInvalid={!!error}>
+                    <TextField {...field} isInvalid={!!error} autoFocus>
                       <Label>Annotation Name</Label>
                       <Input placeholder="e.g. correctness" />
                       <FieldError>{error?.message}</FieldError>
@@ -370,6 +370,7 @@ export const AnnotationConfigDialog = ({
                               {...field}
                               aria-label={`Value ${index + 1}`}
                               isInvalid={!!error}
+                              autoFocus={index > 0}
                             >
                               <Input
                                 placeholder={`e.g. ${ALPHABET[index % ALPHABET.length]}`}
@@ -381,9 +382,6 @@ export const AnnotationConfigDialog = ({
                         <Controller
                           control={control}
                           name={`values.${index}.score`}
-                          rules={{
-                            required: "Score is required",
-                          }}
                           render={({ field, fieldState: { error } }) => (
                             <NumberField
                               {...field}
@@ -400,7 +398,9 @@ export const AnnotationConfigDialog = ({
                                 gap="size-100"
                                 alignItems="center"
                               >
-                                <Input placeholder={`${index}`} />
+                                <Input
+                                  placeholder={`e.g. ${index} (optional)`}
+                                />
                               </Flex>
                               <FieldError>{error?.message}</FieldError>
                             </NumberField>
@@ -415,7 +415,7 @@ export const AnnotationConfigDialog = ({
                       <Button
                         type="button"
                         onPress={() => {
-                          append({ label: "", score: fields.length });
+                          append({ label: "", score: null });
                         }}
                       >
                         <Icon svg={<Icons.PlusOutline />} />

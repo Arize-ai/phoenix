@@ -14,6 +14,11 @@ export interface Annotation {
   score?: number | null;
   explanation?: string | null;
   annotatorKind?: string;
+  createdAt?: string;
+  user?: {
+    username: string;
+    profilePictureUrl?: string | null;
+  } | null;
 }
 
 export type AnnotationInputPropsBase<T extends AnnotationConfig> = {

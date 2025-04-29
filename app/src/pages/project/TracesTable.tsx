@@ -28,10 +28,7 @@ import { css } from "@emotion/react";
 import { Content, ContextualHelp } from "@arizeai/components";
 
 import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -53,7 +50,6 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -248,7 +244,9 @@ export function TracesTable(props: TracesTableProps) {
                   label
                   score
                   annotatorKind
+                  createdAt
                 }
+                ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -285,13 +283,16 @@ export function TracesTable(props: TracesTableProps) {
                         label
                         score
                         annotatorKind
+                        createdAt
                       }
+                      ...AnnotationSummaryGroup
                       documentRetrievalMetrics {
                         evaluationName
                         ndcg
                         precision
                         hit
                       }
+                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }
@@ -418,24 +419,10 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
-              {row.original.spanAnnotations.map((annotation) => {
-                return (
-                  <AnnotationTooltip
-                    key={annotation.id}
-                    annotation={annotation}
-                    layout="horizontal"
-                    width="500px"
-                    extra={
-                      <AnnotationTooltipFilterActions annotation={annotation} />
-                    }
-                  >
-                    <AnnotationLabel
-                      annotation={annotation}
-                      annotationDisplayPreference="label"
-                    />
-                  </AnnotationTooltip>
-                );
-              })}
+              <AnnotationSummaryGroupTokens
+                span={row.original}
+                showFilterActions
+              />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">

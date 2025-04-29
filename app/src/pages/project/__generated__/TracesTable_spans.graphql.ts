@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<680f2c3471984fd01a4b98afcb92bc9b>>
+ * @generated SignedSource<<eea05b2e0cf26a4dc59e1e5a1f2134a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,6 +46,7 @@ export type TracesTable_spans$data = {
               readonly parentId: string | null;
               readonly spanAnnotations: ReadonlyArray<{
                 readonly annotatorKind: AnnotatorKind;
+                readonly createdAt: string;
                 readonly id: string;
                 readonly label: string | null;
                 readonly name: string;
@@ -59,6 +60,7 @@ export type TracesTable_spans$data = {
                 readonly id: string;
                 readonly traceId: string;
               };
+              readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "TraceHeaderRootSpanAnnotationsFragment">;
             };
           }>;
         };
@@ -81,6 +83,7 @@ export type TracesTable_spans$data = {
         readonly parentId: string | null;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
+          readonly createdAt: string;
           readonly id: string;
           readonly label: string | null;
           readonly name: string;
@@ -95,6 +98,7 @@ export type TracesTable_spans$data = {
           readonly numSpans: number;
           readonly traceId: string;
         };
+        readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
       };
     }>;
   };
@@ -227,11 +231,23 @@ v12 = {
       "kind": "ScalarField",
       "name": "annotatorKind",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "createdAt",
+      "storageKey": null
     }
   ],
   "storageKey": null
 },
 v13 = {
+  "args": null,
+  "kind": "FragmentSpread",
+  "name": "AnnotationSummaryGroup"
+},
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -448,6 +464,7 @@ return {
                 },
                 (v12/*: any*/),
                 (v13/*: any*/),
+                (v14/*: any*/),
                 {
                   "alias": null,
                   "args": [
@@ -529,7 +546,13 @@ return {
                               "storageKey": null
                             },
                             (v12/*: any*/),
-                            (v13/*: any*/)
+                            (v13/*: any*/),
+                            (v14/*: any*/),
+                            {
+                              "args": null,
+                              "kind": "FragmentSpread",
+                              "name": "TraceHeaderRootSpanAnnotationsFragment"
+                            }
                           ],
                           "storageKey": null
                         }
@@ -605,6 +628,6 @@ return {
 };
 })();
 
-(node as any).hash = "946e6d9bfbf43ac9def8bfcc2ff30661";
+(node as any).hash = "79a9c9c88c1df396edd0a1fa15c22473";
 
 export default node;
