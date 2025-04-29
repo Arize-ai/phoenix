@@ -226,6 +226,11 @@ type SummaryValuePreviewProps = {
   meanScore?: number | null;
   labelFractions?: readonly { label: string; fraction: number }[];
   disableAnimation?: boolean;
+  /**
+   * Fallback to display when there is no mean score.
+   * Set to null to not display a fallback.
+   * @default "--"
+   */
   meanScoreFallback?: React.ReactNode;
 } & SizingProps;
 
