@@ -1,31 +1,28 @@
+# phoenix/server/api/v1/routers/annotations.py
 from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from sqlalchemy import and_, select
+from sqlalchemy import and_, exists, select
 from starlette.requests import Request
-from starlette.status import (
-    HTTP_200_OK,
-    HTTP_404_NOT_FOUND,
-    HTTP_422_UNPROCESSABLE_ENTITY,
-)
+from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from phoenix.db import models
 from phoenix.server.api.types.node import GlobalID
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
+from phoenix.server.api.types.User import User as UserNodeType
 
 from .models import V1RoutesBaseModel
-from .utils import (
-    PaginatedResponseBody,
-    add_errors_to_responses,
-)
+from .utils import PaginatedResponseBody, add_errors_to_responses
 
 logger = logging.getLogger(__name__)
 
 SPAN_ANNOTATION_NODE_NAME = SpanAnnotationNodeType.__name__
+USER_NODE_NAME = UserNodeType.__name__
+MAX_SPAN_IDS = 1000
 
 router = APIRouter(tags=["annotations"])
 
@@ -43,10 +40,10 @@ class SpanAnnotation(V1RoutesBaseModel):
     updated_at: datetime
     identifier: Optional[str]
     source: str
-    user_id: Optional[int]
+    user_id: Optional[str]
 
 
-class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):
+class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):  # type: ignore[misc]
     pass
 
 
@@ -66,103 +63,109 @@ async def list_annotations(
     request: Request,
     project_name: str = Path(description="Name of the project"),
     span_ids: list[str] = Query(
-        ...,  # required
-        description="One or more span_id values (repeat the query param to send multiple)",
-        min_length=1,
+        ..., description="Repeat to supply multiple span_ids", min_length=1
     ),
     cursor: Optional[str] = Query(
-        default=None,
-        description=(
-            "Opaque cursor (a GlobalID for a SpanAnnotation). "
-            "Pass the value returned in `next_cursor` to fetch the next page."
-        ),
+        default=None, description="Opaque cursor (GlobalID of a SpanAnnotation)"
     ),
     limit: int = Query(
-        default=100,
+        default=10,
         gt=0,
-        description=(
-            "Max annotations to return; server will internally fetch `limit+1` to decide the next "
-            "cursor. Default is 100."
-        ),
+        le=10000,
+        description="Page size; server always pulls one extra row to compute next_cursor",
     ),
 ) -> SpanAnnotationsResponseBody:
     async with request.app.state.db() as session:
-        project = await session.scalar(
-            select(models.Project).where(models.Project.name == project_name)
-        )
-        if project is None:
+        span_ids = list(set(span_ids))  # remove duplicates
+        if len(span_ids) > MAX_SPAN_IDS:
             raise HTTPException(
-                detail=f"Project '{project_name}' not found", status_code=HTTP_404_NOT_FOUND
+                detail=f"Too many span_ids supplied: {len(span_ids)}. Max is {MAX_SPAN_IDS}.",
+                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        span_subquery = (
-            select(models.Span.id.label("rowid"), models.Span.span_id)
+        stmt = (
+            select(
+                models.Span.span_id,
+                models.SpanAnnotation,
+            )
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
             .where(
                 and_(
-                    models.Trace.project_rowid == project.id,
+                    models.Project.name == project_name,  # project filter in-line
                     models.Span.span_id.in_(span_ids),
                 )
             )
-            .subquery()
-        )
-        span_rows = {row.span_id: row.rowid async for row in await session.stream(span_subquery)}
-        if not span_rows:
-            raise HTTPException(
-                detail="None of the supplied span_ids exist in this project",
-                status_code=HTTP_404_NOT_FOUND,
-            )
-
-        query = (
-            select(
-                span_subquery.c.span_id,
-                models.SpanAnnotation,
-            )
-            .join(
-                span_subquery,
-                span_subquery.c.rowid == models.SpanAnnotation.span_rowid,
-            )
             .order_by(models.SpanAnnotation.id.desc())
-            .limit(limit + 1)  # grab one extra so we can see if there’s another page
+            .limit(limit + 1)
         )
 
         if cursor:
             try:
-                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+                cursor_id = int(GlobalID.from_id(cursor).node_id)
             except ValueError:
-                raise HTTPException(
-                    detail=f"Invalid cursor format: {cursor}",
-                    status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-                )
-            query = query.filter(models.SpanAnnotation.id <= cursor_rowid)
+                raise HTTPException("Invalid cursor value", HTTP_422_UNPROCESSABLE_ENTITY)
+            stmt = stmt.filter(models.SpanAnnotation.id <= cursor_id)
 
-        rows: list[tuple[str, models.SpanAnnotation]] = [
-            r async for r in await session.stream(query)
+        rows: list[Tuple[str, models.SpanAnnotation]] = [
+            r async for r in await session.stream(stmt)
         ]
 
         next_cursor: Optional[str] = None
         if len(rows) == limit + 1:
-            *rows, extra = rows  # drop the extra row
-            next_cursor = str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(extra.SpanAnnotation.id)))  # type: ignore[attr-defined]
+            *rows, extra = rows
+            next_cursor = str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(extra[1].id)))
 
-        data: list[SpanAnnotation] = []
-        for span_id, anno in rows:
-            data.append(
-                SpanAnnotation(
-                    id=str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(anno.id))),
-                    span_id=span_id,
-                    name=anno.name,
-                    label=anno.label,
-                    score=anno.score,
-                    explanation=anno.explanation,
-                    metadata=anno.metadata_,
-                    annotator_kind=anno.annotator_kind,
-                    created_at=anno.created_at,
-                    updated_at=anno.updated_at,
-                    identifier=anno.identifier,
-                    source=anno.source,
-                    user_id=anno.user_id,
+        if not rows:
+            project_exists = await session.scalar(
+                exists().where(models.Project.name == project_name).select()
+            )
+            if not project_exists:
+                raise HTTPException(
+                    detail=f"Project '{project_name}' not found", status_code=HTTP_404_NOT_FOUND
+                )
+
+            spans_exist = await session.scalar(
+                exists()
+                .select()
+                .where(
+                    and_(
+                        models.Span.span_id.in_(span_ids),
+                        models.Span.trace_rowid.in_(
+                            select(models.Trace.id)
+                            .join(models.Project)
+                            .where(models.Project.name == project_name)
+                        ),
+                    )
                 )
             )
+            if not spans_exist:
+                raise HTTPException(
+                    detail="None of the supplied span_ids exist in this project",
+                    status_code=HTTP_404_NOT_FOUND,
+                )
+
+            # spans exist but none have annotations
+            return SpanAnnotationsResponseBody(data=[], next_cursor=None)
+
+        data = [
+            SpanAnnotation(
+                id=str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(anno.id))),
+                span_id=span_id,
+                name=anno.name,
+                label=anno.label,
+                score=anno.score,
+                explanation=anno.explanation,
+                metadata=anno.metadata_,
+                annotator_kind=anno.annotator_kind,
+                created_at=anno.created_at,
+                updated_at=anno.updated_at,
+                identifier=anno.identifier,
+                source=anno.source,
+                user_id=str(GlobalID(USER_NODE_NAME, str(anno.user_id))) if anno.user_id else None,
+            )
+            for span_id, anno in rows
+        ]
 
     return SpanAnnotationsResponseBody(data=data, next_cursor=next_cursor)
