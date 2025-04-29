@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
 from starlette.status import (
     HTTP_201_CREATED,
@@ -25,6 +25,7 @@ from phoenix.db.enums import UserRole as UserRoleEnum
 from phoenix.db.models import User as OrmUser
 from phoenix.db.models import UserRole
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
+from phoenix.server.authorization import require_admin
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
@@ -80,6 +81,7 @@ class CreateUserResponseBody(ResponseBody[User]):
             HTTP_422_UNPROCESSABLE_ENTITY,
         ],
     ),
+    dependencies=[Depends(require_admin)],
 )
 async def list_users(
     request: Request,
@@ -146,6 +148,7 @@ async def list_users(
             HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
+    dependencies=[Depends(require_admin)],
 )
 async def create_user(
     request: Request,
@@ -205,6 +208,7 @@ async def create_user(
             },
         ]
     ),
+    dependencies=[Depends(require_admin)],
 )
 async def delete_user(
     request: Request,
