@@ -26,7 +26,7 @@ def test_require_admin_allows_admin() -> None:
 def test_require_admin_allows_system_user() -> None:
     req = mock.Mock(spec=Request)
     # Cast to UserId to satisfy type checker
-    user_id = UserId.__new__(UserId, 1)
+    user_id = UserId(1)
     req.user = PhoenixSystemUser(user_id)  # type: ignore[arg-type]
     # Should not raise
     require_admin(req)
