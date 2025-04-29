@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from enum import Enum
 from typing import Any, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Path, Query
@@ -26,6 +27,17 @@ MAX_SPAN_IDS = 1_000
 router = APIRouter(tags=["annotations"])
 
 
+class AnnotatorKind(str, Enum):
+    LLM = "LLM"
+    CODE = "CODE"
+    HUMAN = "HUMAN"
+
+
+class Source(str, Enum):
+    API = "API"
+    APP = "APP"
+
+
 class SpanAnnotation(V1RoutesBaseModel):
     id: str
     span_id: str
@@ -34,11 +46,11 @@ class SpanAnnotation(V1RoutesBaseModel):
     score: Optional[float]
     explanation: Optional[str]
     metadata: dict[str, Any]
-    annotator_kind: str
+    annotator_kind: AnnotatorKind
     created_at: datetime
     updated_at: datetime
     identifier: Optional[str]
-    source: str
+    source: Source
     user_id: Optional[str]
 
 
@@ -152,11 +164,11 @@ async def list_span_annotations(
                 score=anno.score,
                 explanation=anno.explanation,
                 metadata=anno.metadata_,
-                annotator_kind=anno.annotator_kind,
+                annotator_kind=AnnotatorKind(anno.annotator_kind),
                 created_at=anno.created_at,
                 updated_at=anno.updated_at,
                 identifier=anno.identifier,
-                source=anno.source,
+                source=Source(anno.source),
                 user_id=str(GlobalID(USER_NODE_NAME, str(anno.user_id))) if anno.user_id else None,
             )
             for span_id, anno in rows
