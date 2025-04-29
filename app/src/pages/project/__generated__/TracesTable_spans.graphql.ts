@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eea05b2e0cf26a4dc59e1e5a1f2134a3>>
+ * @generated SignedSource<<742a1ec9d75a57391504a6e3792fce6c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -81,6 +81,14 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
+        readonly spanAnnotationSummaries: ReadonlyArray<{
+          readonly labelFractions: ReadonlyArray<{
+            readonly fraction: number;
+            readonly label: string;
+          }>;
+          readonly meanScore: number | null;
+          readonly name: string;
+        }>;
         readonly spanAnnotations: ReadonlyArray<{
           readonly annotatorKind: AnnotatorKind;
           readonly createdAt: string;
@@ -204,6 +212,13 @@ v11 = {
 v12 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
   "concreteType": "SpanAnnotation",
   "kind": "LinkedField",
   "name": "spanAnnotations",
@@ -211,13 +226,7 @@ v12 = {
   "selections": [
     (v2/*: any*/),
     (v1/*: any*/),
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "label",
-      "storageKey": null
-    },
+    (v12/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -242,12 +251,12 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = {
+v14 = {
   "args": null,
   "kind": "FragmentSpread",
   "name": "AnnotationSummaryGroup"
 },
-v14 = {
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -462,9 +471,47 @@ return {
                   ],
                   "storageKey": null
                 },
-                (v12/*: any*/),
                 (v13/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "AnnotationSummary",
+                  "kind": "LinkedField",
+                  "name": "spanAnnotationSummaries",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "LabelFraction",
+                      "kind": "LinkedField",
+                      "name": "labelFractions",
+                      "plural": true,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "fraction",
+                          "storageKey": null
+                        },
+                        (v12/*: any*/)
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "meanScore",
+                      "storageKey": null
+                    },
+                    (v1/*: any*/)
+                  ],
+                  "storageKey": null
+                },
                 (v14/*: any*/),
+                (v15/*: any*/),
                 {
                   "alias": null,
                   "args": [
@@ -545,9 +592,9 @@ return {
                               ],
                               "storageKey": null
                             },
-                            (v12/*: any*/),
                             (v13/*: any*/),
                             (v14/*: any*/),
+                            (v15/*: any*/),
                             {
                               "args": null,
                               "kind": "FragmentSpread",
@@ -628,6 +675,6 @@ return {
 };
 })();
 
-(node as any).hash = "79a9c9c88c1df396edd0a1fa15c22473";
+(node as any).hash = "506e7c2397918ad76b8f1a50a0a2c49b";
 
 export default node;

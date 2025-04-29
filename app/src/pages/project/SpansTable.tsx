@@ -32,6 +32,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -41,8 +42,10 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -58,12 +61,7 @@ import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
-import {
-  ANNOTATIONS_COLUMN_PREFIX,
-  ANNOTATIONS_KEY_SEPARATOR,
-  DEFAULT_SORT,
-  getGqlSort,
-} from "./tableUtils";
+import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
 
 type SpansTableProps = {
   project: SpansTable_spans$key;
@@ -108,12 +106,16 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             }
           >
             {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${cell.column.id}-size`;
               return (
                 <td
                   key={cell.id}
                   style={{
-                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    // the cell still grows to fit, we just need some height declared
+                    // so that height: 100% works in children elements
+                    height: 1,
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
                     textWrap: "nowrap",
                     overflow: "hidden",
@@ -261,29 +263,34 @@ export function SpansTable(props: SpansTableProps) {
         header: name,
         columns: [
           {
-            header: `label`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+            header: `labels`,
+            accessorKey: makeAnnotationColumnId(name, "label"),
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
                 return null;
               }
-              return annotation.label;
+              return (
+                <SummaryValueLabels
+                  name={name}
+                  labelFractions={annotation.labelFractions}
+                />
+              );
             },
           } as ColumnDef<TableRow>,
           {
-            header: `score`,
-            accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+            header: `mean score`,
+            accessorKey: makeAnnotationColumnId(name, "score"),
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
                 return null;
               }
-              return annotation.score;
+              return <MeanScore value={annotation.meanScore} fallback={null} />;
             },
           } as ColumnDef<TableRow>,
         ],
@@ -639,6 +646,7 @@ export function SpansTable(props: SpansTableProps) {
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
+                    colSpan={header.colSpan}
                     style={{
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
@@ -658,10 +666,12 @@ export function SpansTable(props: SpansTableProps) {
                             },
                           }}
                         >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
                           {header.column.getIsSorted() ? (
                             <Icon
                               className="sort-icon"
