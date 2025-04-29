@@ -25,7 +25,7 @@ Usage:
 from fastapi import HTTPException, Request
 from fastapi import status as fastapi_status
 
-from phoenix.server.bearer_auth import PhoenixSystemUser
+from phoenix.server.bearer_auth import PhoenixUser
 
 
 def require_admin(request: Request) -> None:
