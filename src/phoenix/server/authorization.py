@@ -46,7 +46,7 @@ def require_admin(request: Request) -> None:
     """
     user = getattr(request, "user", None)
     # System users have all privileges
-    if not (getattr(user, "is_admin", False) or isinstance(user, PhoenixSystemUser)):
+    if not (isinstance(user, PhoenixUser) and user.is_admin):
         raise HTTPException(
             status_code=fastapi_status.HTTP_403_FORBIDDEN,
             detail="Only admin or system users can perform this action.",
