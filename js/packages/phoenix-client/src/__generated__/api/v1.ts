@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List annotation configurations */
+        /**
+         * List annotation configurations
+         * @description Retrieve a paginated list of all annotation configurations in the system.
+         */
         get: operations["list_annotation_configs_v1_annotation_configs_get"];
         put?: never;
         /** Create an annotation configuration */
@@ -52,6 +55,23 @@ export interface paths {
         post?: never;
         /** Delete an annotation configuration */
         delete: operations["delete_annotation_config_v1_annotation_configs__config_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/span_annotations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get span annotations for a list of span_ids. */
+        get: operations["listSpanAnnotationsBySpanIds"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -485,13 +505,18 @@ export interface components {
         /** AnnotateSpansRequestBody */
         AnnotateSpansRequestBody: {
             /** Data */
-            data: components["schemas"]["SpanAnnotation"][];
+            data: components["schemas"]["phoenix__server__api__routers__v1__spans__SpanAnnotation"][];
         };
         /** AnnotateSpansResponseBody */
         AnnotateSpansResponseBody: {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
         };
+        /**
+         * AnnotatorKind
+         * @enum {string}
+         */
+        AnnotatorKind: "LLM" | "CODE" | "HUMAN";
         /** CategoricalAnnotationConfigPayload */
         CategoricalAnnotationConfigPayload: {
             /** Name */
@@ -785,6 +810,13 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /** GetAnnotationConfigsResponseBody */
+        GetAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
@@ -1224,39 +1256,11 @@ export interface components {
             /** Description */
             description?: string | null;
         };
-        /** SpanAnnotation */
-        SpanAnnotation: {
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
-            /**
-             * Metadata
-             * @description Metadata for the annotation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-             */
-            identifier?: string | null;
-        };
+        /**
+         * Source
+         * @enum {string}
+         */
+        Source: "API" | "APP";
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
             /**
@@ -1274,6 +1278,13 @@ export interface components {
              * @description Explanation of the annotation result
              */
             explanation?: string | null;
+        };
+        /** SpanAnnotationsResponseBody */
+        SpanAnnotationsResponseBody: {
+            /** Data */
+            data: components["schemas"]["phoenix__server__api__routers__v1__annotations__SpanAnnotation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /** TextContentPart */
         TextContentPart: {
@@ -1350,6 +1361,74 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /** SpanAnnotation */
+        phoenix__server__api__routers__v1__annotations__SpanAnnotation: {
+            /** Id */
+            id: string;
+            /** Span Id */
+            span_id: string;
+            /** Name */
+            name: string;
+            /** Label */
+            label: string | null;
+            /** Score */
+            score: number | null;
+            /** Explanation */
+            explanation: string | null;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            annotator_kind: components["schemas"]["AnnotatorKind"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Identifier */
+            identifier: string | null;
+            source: components["schemas"]["Source"];
+            /** User Id */
+            user_id: string | null;
+        };
+        /** SpanAnnotation */
+        phoenix__server__api__routers__v1__spans__SpanAnnotation: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             */
+            identifier?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1362,6 +1441,8 @@ export interface operations {
     list_annotation_configs_v1_annotation_configs_get: {
         parameters: {
             query?: {
+                /** @description Cursor for pagination (base64-encoded annotation config ID) */
+                cursor?: string | null;
                 /** @description Maximum number of configs to return */
                 limit?: number;
             };
@@ -1371,13 +1452,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description A list of annotation configurations with pagination information */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": (components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"])[];
+                    "application/json": components["schemas"]["GetAnnotationConfigsResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -1565,6 +1646,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listSpanAnnotationsBySpanIds: {
+        parameters: {
+            query: {
+                /** @description One or more span id to fetch annotations for */
+                span_ids: string[];
+                /** @description A cursor for pagination */
+                cursor?: string | null;
+                /** @description The maximum number of annotations to return in a single request */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanAnnotationsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project or spans not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
