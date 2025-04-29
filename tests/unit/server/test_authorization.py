@@ -3,7 +3,8 @@ from unittest import mock
 import pytest
 from fastapi import HTTPException, Request, status
 
-from phoenix.server.authorization import PhoenixSystemUser, require_admin
+from phoenix.server.authorization import require_admin
+from phoenix.server.bearer_auth import PhoenixSystemUser
 from phoenix.server.types import UserId
 
 
