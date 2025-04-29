@@ -376,24 +376,24 @@
         }
       }
     },
-    "/v1/projects/{project_name}/span_annotations": {
+    "/v1/projects/{project_identifier}/span_annotations": {
       "get": {
         "tags": [
           "annotations"
         ],
-        "summary": "Get span annotations for a list of span_ids",
+        "summary": "Get span annotations for a list of span_ids.",
         "operationId": "listSpanAnnotationsBySpanIds",
         "parameters": [
           {
-            "name": "project_name",
+            "name": "project_identifier",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "description": "Name of the project",
-              "title": "Project Name"
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
             },
-            "description": "Name of the project"
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
           },
           {
             "name": "span_ids",
@@ -2746,6 +2746,15 @@
         ],
         "title": "AnnotateSpansResponseBody"
       },
+      "AnnotatorKind": {
+        "type": "string",
+        "enum": [
+          "LLM",
+          "CODE",
+          "HUMAN"
+        ],
+        "title": "AnnotatorKind"
+      },
       "CategoricalAnnotationConfigPayload": {
         "properties": {
           "name": {
@@ -4818,6 +4827,14 @@
         ],
         "title": "PromptVersionTagData"
       },
+      "Source": {
+        "type": "string",
+        "enum": [
+          "API",
+          "APP"
+        ],
+        "title": "Source"
+      },
       "SpanAnnotationResult": {
         "properties": {
           "label": {
@@ -5157,8 +5174,7 @@
             "title": "Metadata"
           },
           "annotator_kind": {
-            "type": "string",
-            "title": "Annotator Kind"
+            "$ref": "#/components/schemas/AnnotatorKind"
           },
           "created_at": {
             "type": "string",
@@ -5182,8 +5198,7 @@
             "title": "Identifier"
           },
           "source": {
-            "type": "string",
-            "title": "Source"
+            "$ref": "#/components/schemas/Source"
           },
           "user_id": {
             "anyOf": [
