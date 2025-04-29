@@ -16,14 +16,14 @@ class DummyNonAdminUser:
     is_admin = False
 
 
-def test_require_admin_allows_admin():
+def test_require_admin_allows_admin() -> None:
     req = mock.Mock(spec=Request)
     req.user = DummyAdminUser()
     # Should not raise
     require_admin(req)
 
 
-def test_require_admin_allows_system_user():
+def test_require_admin_allows_system_user() -> None:
     req = mock.Mock(spec=Request)
     # Cast to UserId to satisfy type checker
     user_id = UserId.__new__(UserId, 1)
@@ -32,7 +32,7 @@ def test_require_admin_allows_system_user():
     require_admin(req)
 
 
-def test_require_admin_denies_non_admin():
+def test_require_admin_denies_non_admin() -> None:
     req = mock.Mock(spec=Request)
     req.user = DummyNonAdminUser()
     with pytest.raises(HTTPException) as exc_info:
@@ -41,7 +41,7 @@ def test_require_admin_denies_non_admin():
     assert "Only admin or system users" in str(exc_info.value.detail)
 
 
-def test_require_admin_denies_no_user():
+def test_require_admin_denies_no_user() -> None:
     req = mock.Mock(spec=Request)
     req.user = None
     with pytest.raises(HTTPException) as exc_info:

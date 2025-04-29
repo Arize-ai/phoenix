@@ -2,7 +2,9 @@
 Authorization dependencies for FastAPI routes.
 
 Usage:
-    Use the provided dependencies (e.g., require_admin) with FastAPI's Depends to restrict access to certain routes.
+    Use the provided dependencies (e.g., require_admin) with FastAPI's Depends to restrict access to
+    certain routes.
+
     These dependencies will raise HTTP 403 if the user is not authorized.
 
     Example:
@@ -17,7 +19,7 @@ Usage:
             ...
 
     The require_admin dependency allows only admin or system users to access the route.
-    It expects authentication to be enabled and the request.user to be set by the authentication backend.
+    It expects authentication to be enabled and the request.user to be set by the authentication.
 """
 
 from fastapi import HTTPException, Request
@@ -40,7 +42,7 @@ def require_admin(request: Request) -> None:
     Behavior:
         - Allows access if the authenticated user is an admin or a system user.
         - Raises HTTP 403 Forbidden if the user is not authorized.
-        - Expects authentication to be enabled and request.user to be set by the authentication backend.
+        - Expects authentication to be enabled and request.user to be set by the authentication.
     """
     user = getattr(request, "user", None)
     # System users have all privileges
