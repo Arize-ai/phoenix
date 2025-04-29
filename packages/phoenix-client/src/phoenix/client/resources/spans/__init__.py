@@ -81,6 +81,7 @@ class Spans:
 
         try:
             import pandas as pd
+
             _ = pd  # Prevent unused symbol error
 
             response = self._client.post(
@@ -175,6 +176,7 @@ class AsyncSpans:
 
         try:
             import pandas as pd
+
             _ = pd  # Prevent unused symbol error
 
             response = await self._client.post(
