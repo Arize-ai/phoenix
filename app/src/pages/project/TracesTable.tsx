@@ -29,6 +29,7 @@ import { Content, ContextualHelp } from "@arizeai/components";
 
 import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -40,8 +41,10 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -57,12 +60,7 @@ import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
-import {
-  ANNOTATIONS_COLUMN_PREFIX,
-  ANNOTATIONS_KEY_SEPARATOR,
-  DEFAULT_SORT,
-  getGqlSort,
-} from "./tableUtils";
+import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -112,6 +110,7 @@ const TableBody = <
             css={trCSS}
           >
             {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${cell.column.id}-size`;
               return (
                 <td
                   key={cell.id}
@@ -119,8 +118,8 @@ const TableBody = <
                     // the cell still grows to fit, we just need some height declared
                     // so that height: 100% works in children elements
                     height: 1,
-                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
                     textWrap: "nowrap",
                     overflow: "hidden",
@@ -246,6 +245,14 @@ export function TracesTable(props: TracesTableProps) {
                   annotatorKind
                   createdAt
                 }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
                 ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
                   evaluationName
@@ -358,30 +365,38 @@ export function TracesTable(props: TracesTableProps) {
           header: name,
           columns: [
             {
-              header: `label`,
-              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              header: `labels`,
+              accessorKey: makeAnnotationColumnId(name, "label"),
               cell: ({ row }) => {
-                const data = row.original;
-                const annotation = data.spanAnnotations.find(
-                  (annotation) => annotation.name === name
-                );
+                const annotation = (
+                  row.original
+                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+                ).find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
-                return annotation.label;
+                return (
+                  <SummaryValueLabels
+                    name={name}
+                    labelFractions={annotation.labelFractions}
+                  />
+                );
               },
             } as ColumnDef<TableRow>,
             {
-              header: `score`,
-              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              header: `mean score`,
+              accessorKey: makeAnnotationColumnId(name, "score"),
               cell: ({ row }) => {
-                const annotation = row.original.spanAnnotations.find(
-                  (annotation) => annotation.name === name
-                );
+                const annotation = (
+                  row.original
+                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+                ).find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
-                return annotation.score;
+                return (
+                  <MeanScore value={annotation.meanScore} fallback={null} />
+                );
               },
             } as ColumnDef<TableRow>,
           ],
@@ -791,6 +806,7 @@ export function TracesTable(props: TracesTableProps) {
                     style={{
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
+                    colSpan={header.colSpan}
                     key={header.id}
                   >
                     {header.isPlaceholder ? null : (
@@ -808,10 +824,12 @@ export function TracesTable(props: TracesTableProps) {
                             },
                           }}
                         >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
                           {header.column.getIsSorted() ? (
                             <Icon
                               className="sort-icon"
