@@ -29,6 +29,7 @@ import { Content, ContextualHelp } from "@arizeai/components";
 
 import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -43,6 +44,7 @@ import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -243,6 +245,14 @@ export function TracesTable(props: TracesTableProps) {
                   annotatorKind
                   createdAt
                 }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
                 ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
                   evaluationName
@@ -355,30 +365,40 @@ export function TracesTable(props: TracesTableProps) {
           header: name,
           columns: [
             {
-              header: `label`,
+              header: `labels`,
               accessorKey: makeAnnotationColumnId(name, "label"),
               cell: ({ row }) => {
-                const data = row.original;
-                const annotation = data.spanAnnotations.find(
-                  (annotation) => annotation.name === name
-                );
+                const annotation = (
+                  row.original
+                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+                ).find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
-                return <Truncate maxWidth="100%">{annotation.label}</Truncate>;
+                return (
+                  <SummaryValue
+                    name={name}
+                    disableAnimation
+                    labelFractions={annotation.labelFractions}
+                    meanScoreFallback={null}
+                  />
+                );
               },
             } as ColumnDef<TableRow>,
             {
-              header: `score`,
+              header: `mean score`,
               accessorKey: makeAnnotationColumnId(name, "score"),
               cell: ({ row }) => {
-                const annotation = row.original.spanAnnotations.find(
-                  (annotation) => annotation.name === name
-                );
+                const annotation = (
+                  row.original
+                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+                ).find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
-                return annotation.score;
+                return (
+                  <MeanScore value={annotation.meanScore} fallback={null} />
+                );
               },
             } as ColumnDef<TableRow>,
           ],

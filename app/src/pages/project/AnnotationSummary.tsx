@@ -189,6 +189,7 @@ export function SummaryValue({
   labelFractions,
   size = "M",
   disableAnimation = false,
+  meanScoreFallback,
 }: SummaryValuePreviewProps) {
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions =
@@ -206,6 +207,7 @@ export function SummaryValue({
           labelFractions={labelFractions}
           size={size}
           disableAnimation={disableAnimation}
+          meanScoreFallback={meanScoreFallback}
         />
       </TriggerWrap>
       <HelpTooltip>
@@ -224,6 +226,7 @@ type SummaryValuePreviewProps = {
   meanScore?: number | null;
   labelFractions?: readonly { label: string; fraction: number }[];
   disableAnimation?: boolean;
+  meanScoreFallback?: React.ReactNode;
 } & SizingProps;
 
 export function SummaryValuePreview({
@@ -232,6 +235,7 @@ export function SummaryValuePreview({
   labelFractions,
   size = "M",
   disableAnimation,
+  meanScoreFallback,
 }: SummaryValuePreviewProps) {
   const colors = useAnnotationSummaryChartColors(name);
   const hasMeanScore = typeof meanScore === "number";
@@ -271,7 +275,11 @@ export function SummaryValuePreview({
           </Pie>
         </PieChart>
       ) : null}
-      <MeanScore value={meanScore} size={size === "S" ? size : "L"} />
+      <MeanScore
+        fallback={meanScoreFallback}
+        value={meanScore}
+        size={size === "S" ? size : "L"}
+      />
     </Flex>
   );
 }

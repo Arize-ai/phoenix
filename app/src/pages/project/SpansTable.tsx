@@ -32,6 +32,7 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { LoadMoreRow } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -44,6 +45,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -261,29 +263,36 @@ export function SpansTable(props: SpansTableProps) {
         header: name,
         columns: [
           {
-            header: `label`,
+            header: `labels`,
             accessorKey: makeAnnotationColumnId(name, "label"),
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
                 return null;
               }
-              return <Truncate maxWidth="100%">{annotation.label}</Truncate>;
+              return (
+                <SummaryValue
+                  name={name}
+                  disableAnimation
+                  labelFractions={annotation.labelFractions}
+                  meanScoreFallback={null}
+                />
+              );
             },
           } as ColumnDef<TableRow>,
           {
-            header: `score`,
+            header: `mean score`,
             accessorKey: makeAnnotationColumnId(name, "score"),
             cell: ({ row }) => {
-              const annotation = row.original.spanAnnotations.find(
+              const annotation = row.original.spanAnnotationSummaries.find(
                 (annotation) => annotation.name === name
               );
               if (!annotation) {
                 return null;
               }
-              return annotation.score;
+              return <MeanScore value={annotation.meanScore} fallback={null} />;
             },
           } as ColumnDef<TableRow>,
         ],
