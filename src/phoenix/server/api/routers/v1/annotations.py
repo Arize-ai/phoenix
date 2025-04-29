@@ -1,4 +1,3 @@
-# phoenix/server/api/v1/routers/annotations.py
 from __future__ import annotations
 
 import logging
@@ -6,7 +5,7 @@ from datetime import datetime
 from typing import Any, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Path, Query
-from sqlalchemy import and_, exists, select
+from sqlalchemy import exists, select
 from starlette.requests import Request
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 SPAN_ANNOTATION_NODE_NAME = SpanAnnotationNodeType.__name__
 USER_NODE_NAME = UserNodeType.__name__
-MAX_SPAN_IDS = 1000
+MAX_SPAN_IDS = 1_000
 
 router = APIRouter(tags=["annotations"])
 
@@ -43,7 +42,7 @@ class SpanAnnotation(V1RoutesBaseModel):
     user_id: Optional[str]
 
 
-class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):  # type: ignore[misc]
+class SpanAnnotationsResponseBody(PaginatedResponseBody[SpanAnnotation]):
     pass
 
 
@@ -63,7 +62,7 @@ async def list_annotations(
     request: Request,
     project_name: str = Path(description="Name of the project"),
     span_ids: list[str] = Query(
-        ..., description="Repeat to supply multiple span_ids", min_length=1
+        ..., min_length=1, description="Repeat to supply multiple span_ids"
     ),
     cursor: Optional[str] = Query(
         default=None, description="Opaque cursor (GlobalID of a SpanAnnotation)"
@@ -72,30 +71,25 @@ async def list_annotations(
         default=10,
         gt=0,
         le=10000,
-        description="Page size; server always pulls one extra row to compute next_cursor",
+        description="Page size; the server fetches one extra row to compute `next_cursor`",
     ),
 ) -> SpanAnnotationsResponseBody:
-    async with request.app.state.db() as session:
-        span_ids = list(set(span_ids))  # remove duplicates
-        if len(span_ids) > MAX_SPAN_IDS:
-            raise HTTPException(
-                detail=f"Too many span_ids supplied: {len(span_ids)}. Max is {MAX_SPAN_IDS}.",
-                status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            )
+    span_ids = list({*span_ids})
+    if len(span_ids) > MAX_SPAN_IDS:
+        raise HTTPException(
+            f"Too many span_ids supplied: {len(span_ids)} (max {MAX_SPAN_IDS})",
+            HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
+    async with request.app.state.db() as session:
         stmt = (
-            select(
-                models.Span.span_id,
-                models.SpanAnnotation,
-            )
+            select(models.Span.span_id, models.SpanAnnotation)
             .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
             .join(models.Project, models.Trace.project_rowid == models.Project.id)
             .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
             .where(
-                and_(
-                    models.Project.name == project_name,  # project filter in-line
-                    models.Span.span_id.in_(span_ids),
-                )
+                models.Project.name == project_name,
+                models.Span.span_id.in_(span_ids),
             )
             .order_by(models.SpanAnnotation.id.desc())
             .limit(limit + 1)
@@ -106,11 +100,9 @@ async def list_annotations(
                 cursor_id = int(GlobalID.from_id(cursor).node_id)
             except ValueError:
                 raise HTTPException("Invalid cursor value", HTTP_422_UNPROCESSABLE_ENTITY)
-            stmt = stmt.filter(models.SpanAnnotation.id <= cursor_id)
+            stmt = stmt.where(models.SpanAnnotation.id <= cursor_id)
 
-        rows: list[Tuple[str, models.SpanAnnotation]] = [
-            r async for r in await session.stream(stmt)
-        ]
+        rows: list[Tuple[str, models.SpanAnnotation]] = [r async for r in session.stream(stmt)]
 
         next_cursor: Optional[str] = None
         if len(rows) == limit + 1:
@@ -119,7 +111,7 @@ async def list_annotations(
 
         if not rows:
             project_exists = await session.scalar(
-                exists().where(models.Project.name == project_name).select()
+                select(exists().where(models.Project.name == project_name))
             )
             if not project_exists:
                 raise HTTPException(
@@ -127,10 +119,8 @@ async def list_annotations(
                 )
 
             spans_exist = await session.scalar(
-                exists()
-                .select()
-                .where(
-                    and_(
+                select(
+                    exists().where(
                         models.Span.span_id.in_(span_ids),
                         models.Span.trace_rowid.in_(
                             select(models.Trace.id)
@@ -146,7 +136,6 @@ async def list_annotations(
                     status_code=HTTP_404_NOT_FOUND,
                 )
 
-            # spans exist but none have annotations
             return SpanAnnotationsResponseBody(data=[], next_cursor=None)
 
         data = [
