@@ -44,7 +44,7 @@ import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -376,11 +376,9 @@ export function TracesTable(props: TracesTableProps) {
                   return null;
                 }
                 return (
-                  <SummaryValue
+                  <SummaryValueLabels
                     name={name}
-                    disableAnimation
                     labelFractions={annotation.labelFractions}
-                    meanScoreFallback={null}
                   />
                 );
               },

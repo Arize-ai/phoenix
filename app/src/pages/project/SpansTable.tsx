@@ -45,7 +45,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { SummaryValue } from "@phoenix/pages/project/AnnotationSummary";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 
 import {
@@ -273,11 +273,9 @@ export function SpansTable(props: SpansTableProps) {
                 return null;
               }
               return (
-                <SummaryValue
+                <SummaryValueLabels
                   name={name}
-                  disableAnimation
                   labelFractions={annotation.labelFractions}
-                  meanScoreFallback={null}
                 />
               );
             },

@@ -5,7 +5,7 @@ import { Cell, Pie, PieChart } from "recharts";
 
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Flex, Text, View } from "@phoenix/components";
+import { Flex, Text, Token, View } from "@phoenix/components";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
@@ -323,5 +323,56 @@ export function SummaryValueBreakdown({
         ) : null}
       </Flex>
     </View>
+  );
+}
+
+/**
+ * A component that displays the highest proportion label, and a count of the total number of labels
+ * annotated for the given annotation name. On hover, it displays a tooltip with the breakdown of the
+ * labels.
+ */
+export function SummaryValueLabels({
+  name,
+  labelFractions,
+}: {
+  name: string;
+  labelFractions: readonly { label: string; fraction: number }[];
+}) {
+  const largestFraction = labelFractions.reduce((max, current) => {
+    return Math.max(max, current.fraction);
+  }, 0);
+  const largestFractionLabel = labelFractions.find(
+    (fraction) => fraction.fraction === largestFraction
+  )?.label;
+  const totalCount = labelFractions.length - 1;
+  const hasMoreThanOneLabel = totalCount > 0;
+  if (!largestFractionLabel) {
+    return null;
+  }
+  return (
+    <TooltipTrigger delay={0} placement="bottom">
+      <TriggerWrap>
+        <Flex
+          direction="row"
+          alignItems="center"
+          gap="size-50"
+          // Shrinks the container of tokens to allow for the + count to be visible
+          // while still truncating the biggest label
+          // otherwise, just shrink the container slightly for padding
+          maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
+        >
+          <Token style={{ maxWidth: "100%" }}>
+            <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
+          </Token>
+          {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
+        </Flex>
+      </TriggerWrap>
+      <HelpTooltip>
+        <SummaryValueBreakdown
+          annotationName={name}
+          labelFractions={labelFractions}
+        />
+      </HelpTooltip>
+    </TooltipTrigger>
   );
 }
