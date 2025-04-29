@@ -7,7 +7,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
-import { AnnotationSummaryGroup } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
@@ -148,7 +148,7 @@ function RootSpanDetails({
           <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
             <Text>Feedback</Text>
             <Flex gap={"size-50"} direction={"column"}>
-              <AnnotationSummaryGroup
+              <AnnotationSummaryGroupTokens
                 span={rootSpan}
                 renderEmptyState={() => "--"}
               />

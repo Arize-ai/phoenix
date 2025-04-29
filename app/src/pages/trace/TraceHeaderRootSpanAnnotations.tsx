@@ -1,7 +1,7 @@
 import React from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
-import { AnnotationSummaryGroup } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { AnnotationSummaryGroupStacks } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceHeaderRootSpanAnnotationsFragment$key } from "@phoenix/pages/trace/__generated__/TraceHeaderRootSpanAnnotationsFragment.graphql";
 
 import { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeaderRootSpanAnnotationsQuery.graphql";
@@ -31,10 +31,6 @@ export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
     query.span
   );
   return (
-    <AnnotationSummaryGroup
-      span={span}
-      variant="stacked"
-      renderEmptyState={() => null}
-    />
+    <AnnotationSummaryGroupStacks span={span} renderEmptyState={() => null} />
   );
 }

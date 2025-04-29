@@ -28,7 +28,7 @@ import { css } from "@emotion/react";
 import { Content, ContextualHelp } from "@arizeai/components";
 
 import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
-import { AnnotationSummaryGroup } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -419,7 +419,10 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
-              <AnnotationSummaryGroup span={row.original} showFilterActions />
+              <AnnotationSummaryGroupTokens
+                span={row.original}
+                showFilterActions
+              />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">

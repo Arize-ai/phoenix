@@ -13,24 +13,7 @@ import {
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
 
-const annotationLabelCSS = css`
-  min-height: 20px;
-  align-items: center;
-  justify-content: center;
-  display: flex;
-`;
-
-export const AnnotationSummaryGroup = ({
-  span,
-  showFilterActions = false,
-  renderEmptyState,
-  variant = "pills",
-}: {
-  span: AnnotationSummaryGroup$key;
-  showFilterActions?: boolean;
-  renderEmptyState?: () => React.ReactNode;
-  variant?: "stacked" | "pills";
-}) => {
+const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
   const data = useFragment<AnnotationSummaryGroup$key>(
     graphql`
       fragment AnnotationSummaryGroup on Span {
@@ -92,43 +75,41 @@ export const AnnotationSummaryGroup = ({
       ),
     [spanAnnotations]
   );
-  if (spanAnnotationSummaries.length === 0 && renderEmptyState) {
+  return {
+    sortedSummariesByName,
+    annotationsByName,
+  };
+};
+
+type AnnotationSummaryGroupProps = {
+  span: AnnotationSummaryGroup$key;
+  showFilterActions?: boolean;
+  renderEmptyState?: () => React.ReactNode;
+};
+
+const annotationLabelCSS = css`
+  min-height: 20px;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+`;
+
+export const AnnotationSummaryGroupTokens = ({
+  span,
+  showFilterActions = false,
+  renderEmptyState,
+}: AnnotationSummaryGroupProps) => {
+  const { sortedSummariesByName, annotationsByName } =
+    useAnnotationSummaryGroup(span);
+
+  if (sortedSummariesByName.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
-  // TODO: how do we want to render annotations that don't have a score?
-  // We can display a count per name, display nothing, display all labels of the annotation on hover, etc
-  if (variant === "stacked") {
-    return (
-      <Flex direction="row" gap="size-200">
-        {sortedSummariesByName.map((summary) => {
-          const latestAnnotation = annotationsByName[summary.name][0];
-          if (!latestAnnotation) {
-            return null;
-          }
-          return (
-            <AnnotationTooltip
-              key={latestAnnotation.id}
-              leadingExtra={<Text weight="heavy">Latest annotation</Text>}
-              annotation={latestAnnotation}
-            >
-              <Summary name={latestAnnotation.name}>
-                <SummaryValue
-                  name={latestAnnotation.name}
-                  meanScore={summary.meanScore}
-                  labelFractions={summary.labelFractions}
-                />
-              </Summary>
-            </AnnotationTooltip>
-          );
-        })}
-      </Flex>
-    );
-  }
+
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
       {sortedSummariesByName.map((summary) => {
         const latestAnnotation = annotationsByName[summary.name][0];
-        const labelFractions = summary?.labelFractions;
         const meanScore = summary?.meanScore;
         if (!latestAnnotation) {
           return null;
@@ -151,7 +132,6 @@ export const AnnotationSummaryGroup = ({
               {meanScore ? (
                 <SummaryValuePreview
                   name={latestAnnotation.name}
-                  labelFractions={labelFractions}
                   meanScore={meanScore}
                   size="S"
                   disableAnimation
@@ -159,6 +139,45 @@ export const AnnotationSummaryGroup = ({
               ) : null}
             </AnnotationLabel>
           </AnnotationSummaryPopover>
+        );
+      })}
+    </Flex>
+  );
+};
+
+export const AnnotationSummaryGroupStacks = ({
+  span,
+  renderEmptyState,
+}: AnnotationSummaryGroupProps) => {
+  const { sortedSummariesByName, annotationsByName } =
+    useAnnotationSummaryGroup(span);
+
+  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+    return renderEmptyState();
+  }
+  // TODO: how do we want to render annotations that don't have a score?
+  // We can display a count per name, display nothing, display all labels of the annotation on hover, etc
+  return (
+    <Flex direction="row" gap="size-400">
+      {sortedSummariesByName.map((summary) => {
+        const latestAnnotation = annotationsByName[summary.name][0];
+        if (!latestAnnotation) {
+          return null;
+        }
+        return (
+          <AnnotationTooltip
+            key={latestAnnotation.id}
+            leadingExtra={<Text weight="heavy">Latest annotation</Text>}
+            annotation={latestAnnotation}
+          >
+            <Summary name={latestAnnotation.name}>
+              <SummaryValue
+                name={latestAnnotation.name}
+                meanScore={summary.meanScore}
+                labelFractions={summary.labelFractions}
+              />
+            </Summary>
+          </AnnotationTooltip>
         );
       })}
     </Flex>
