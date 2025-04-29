@@ -76,9 +76,16 @@ export function AnnotationLabel({
   showClickableIcon = true,
 }: PropsWithChildren<{
   annotation: Annotation;
-  /** Override clickable detection. By default, clickable will only be true if onClick is provided. */
+  /**
+   * Override "clickable" detection. By default, clickable will only be true if onClick is provided.
+   * However, you may manually want to set this to true in cases where the annotation is wrapped in a
+   * clickable element (e.g. a dialog trigger, a link, etc).
+   */
   clickable?: boolean;
-  /** Whether to show the click affordance icon when clickable is true. */
+  /**
+   * When an annotation is clickable, this prop controls whether to show the click affordance icon.
+   * @default true
+   */
   showClickableIcon?: boolean;
   onClick?: () => void;
   /**
