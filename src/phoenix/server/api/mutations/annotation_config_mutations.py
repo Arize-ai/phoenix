@@ -325,9 +325,7 @@ class AnnotationConfigMutationMixin:
     ) -> AddAnnotationConfigToProjectPayload:
         if not input:
             raise BadRequest("No project annotation config associations provided")
-        project_annotation_config_ids: dict[
-            tuple[int, int], None
-        ] = {}  # use a dict to deduplicate while preserving order
+        project_annotation_config_ids: set[tuple[int, int]] = set()
         for item in input:
             project_id = from_global_id_with_expected_type(
                 global_id=item.project_id, expected_type_name="Project"
@@ -337,7 +335,7 @@ class AnnotationConfigMutationMixin:
                     f"Invalidation ID for annotation config: {str(item.annotation_config_id)}"
                 )
             annotation_config_id = int(item.annotation_config_id.node_id)
-            project_annotation_config_ids[(project_id, annotation_config_id)] = None
+            project_annotation_config_ids.add((project_id, annotation_config_id))
         project_ids = [project_id for project_id, _ in project_annotation_config_ids]
         annotation_config_ids = [
             annotation_config_id for _, annotation_config_id in project_annotation_config_ids
@@ -360,7 +358,7 @@ class AnnotationConfigMutationMixin:
             if set(annotation_config_ids) - set(resolved_annotation_config_ids):
                 raise NotFound("One or more annotation configs were not found")
 
-            for project_id, annotation_config_id in zip(project_ids, annotation_config_ids):
+            for project_id, annotation_config_id in project_annotation_config_ids:
                 project_annotation_config = models.ProjectAnnotationConfig(
                     project_id=project_id,
                     annotation_config_id=annotation_config_id,
@@ -371,7 +369,9 @@ class AnnotationConfigMutationMixin:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 await session.rollback()
-                raise Conflict("The annotation config has already been added to the project")
+                raise Conflict(
+                    "One or more annotation configs have already been added to the project"
+                )
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
                 project=Project(project_rowid=project_id),

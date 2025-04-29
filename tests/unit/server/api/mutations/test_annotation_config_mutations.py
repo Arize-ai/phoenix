@@ -907,7 +907,9 @@ class TestAnnotationConfigMutations:
         assert duplicate_add_response.errors
         assert len(duplicate_add_response.errors) == 1
         error = duplicate_add_response.errors[0]
-        assert "The annotation config has already been added to the project" in error.message
+        assert (
+            "One or more annotation configs have already been added to the project" in error.message
+        )
 
     async def test_adding_annotation_config_to_nonexistent_project_fails_with_expected_error(
         self,
