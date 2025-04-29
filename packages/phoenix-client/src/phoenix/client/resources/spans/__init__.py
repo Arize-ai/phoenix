@@ -25,12 +25,12 @@ class Spans:
 
     Example:
         Basic usage:
-        Basic usage:
             >>> from phoenix.client import Client
             >>> from phoenix.client.types.spans import SpanQuery
             >>> client = Client()
             >>> query = SpanQuery().select("name", "span_id").where("name == 'my-span'")
             >>> df = client.spans.get_spans_dataframe(query=query)
+            >>> all_spans_in_project = client.spans.get_spans_dataframe()
 
     """
 
@@ -69,8 +69,8 @@ class Spans:
         """
         project_name = project_name
         query = query if query else SpanQuery()
-        normalized_start_time = normalize_datetime(start_time)
-        normalized_end_time = normalize_datetime(end_time)
+        normalized_start_time = _normalize_datetime(start_time)
+        normalized_end_time = _normalize_datetime(end_time)
 
         request_body = SpanQueryRequestBody(
             queries=[query],
@@ -160,8 +160,8 @@ class AsyncSpans:
         """
         project_name = project_name
         query = query if query else SpanQuery()
-        normalized_start_time = normalize_datetime(start_time)
-        normalized_end_time = normalize_datetime(end_time)
+        normalized_start_time = _normalize_datetime(start_time)
+        normalized_end_time = _normalize_datetime(end_time)
 
         request_body = SpanQueryRequestBody(
             queries=[query],
@@ -207,7 +207,7 @@ def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
     return value.isoformat() if value else None
 
 
-def decode_df_from_json_string(obj: str) -> "pd.DataFrame":
+def _decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     import pandas as pd
     from pandas.io.json._table_schema import parse_table_schema  # type: ignore
 
@@ -216,7 +216,7 @@ def decode_df_from_json_string(obj: str) -> "pd.DataFrame":
     return df.set_axis([x.split("_", 1)[1] for x in df.columns], axis=1)  # type: ignore[override,unused-ignore]
 
 
-def normalize_datetime(
+def _normalize_datetime(
     dt: Optional[datetime],
     tz: Optional[tzinfo] = None,
 ) -> Optional[datetime]:
@@ -250,7 +250,7 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
             part, text = text.split(boundary, 1)
             if "Content-Type: application/json" in part:
                 json_string = part.split("\r\n\r\n", 1)[1].strip()
-                df = decode_df_from_json_string(json_string)
+                df = _decode_df_from_json_string(json_string)
                 dfs.append(df)
     else:
         response.raise_for_status()
