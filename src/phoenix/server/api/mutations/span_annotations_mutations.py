@@ -118,15 +118,39 @@ class SpanAnnotationMutationMixin:
 
                 processed_annotations_map[idx] = processed_annotation
 
-            inserted_annotation_ids = tuple(anno.id for anno in processed_annotations_map.values())
-            if inserted_annotation_ids:
-                info.context.event_queue.put(SpanAnnotationInsertEvent(inserted_annotation_ids))
+            # Collect the objects that were inserted or updated
+            processed_annotation_objects = list(processed_annotations_map.values())
+            processed_annotation_ids = [anno.id for anno in processed_annotation_objects]
 
-            returned_annotations = [
-                to_gql_span_annotation(processed_annotations_map[i])
-                for i in sorted(processed_annotations_map.keys())
+            # Commit the transaction to finalize the state in the DB
+            await session.flush()
+
+            # Re-fetch the annotations in a batch to get the final state including DB defaults
+            final_annotations_result = await session.scalars(
+                select(models.SpanAnnotation).where(
+                    models.SpanAnnotation.id.in_(processed_annotation_ids)
+                )
+            )
+            final_annotations_by_id = {anno.id: anno for anno in final_annotations_result.all()}
+
+            # Order the final annotations according to the input order
+            ordered_final_annotations = [
+                final_annotations_by_id[id] for id in processed_annotation_ids
             ]
+
+            # Put event on queue *after* successful commit
+            if ordered_final_annotations:
+                info.context.event_queue.put(
+                    SpanAnnotationInsertEvent(tuple(processed_annotation_ids))
+                )
+
+            # Convert the fully loaded annotations to GQL types
+            returned_annotations = [
+                to_gql_span_annotation(anno) for anno in ordered_final_annotations
+            ]
+
             await session.commit()
+
         return SpanAnnotationMutationPayload(
             span_annotations=returned_annotations,
             query=Query(),
