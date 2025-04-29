@@ -268,23 +268,3 @@ class SpanQuery:
         ):
             result["index"] = Projection(key="context.span_id").to_dict()
         return result
-
-
-@dataclass
-class SpanQueryRequestBody:
-    queries: list[SpanQuery] = dataclass_field(default_factory=list)
-    start_time: Optional[str] = dataclass_field(default=None)
-    end_time: Optional[str] = dataclass_field(default=None)
-    limit: int = dataclass_field(default=1000)
-    root_spans_only: Optional[bool] = dataclass_field(default=None)
-    project_name: Optional[str] = dataclass_field(default=None)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "queries": [q.to_dict() for q in self.queries],
-            "start_time": self.start_time,
-            "end_time": self.end_time,
-            "limit": self.limit,
-            "root_spans_only": self.root_spans_only,
-            "project_name": self.project_name,
-        }

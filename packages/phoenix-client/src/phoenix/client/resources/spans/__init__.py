@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
 from phoenix.client.types.spans import (
     SpanQuery,
-    SpanQueryRequestBody,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,20 +71,20 @@ class Spans:
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
 
-        request_body = SpanQueryRequestBody(
-            queries=[query],
-            start_time=_to_iso_format(normalized_start_time),
-            end_time=_to_iso_format(normalized_end_time),
-            limit=limit,
-            root_spans_only=root_spans_only,
-        )
+        request_body = {
+            "queries": [query.to_dict()],
+            "start_time": _to_iso_format(normalized_start_time),
+            "end_time": _to_iso_format(normalized_end_time),
+            "limit": limit,
+            "root_spans_only": root_spans_only,
+        }
 
         try:
             response = self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
                 params={"project_name": project_name} if project_name else None,
-                json=request_body.to_dict(),
+                json=request_body,
                 timeout=timeout,
             )
             return _process_span_dataframe(response)
@@ -163,20 +162,20 @@ class AsyncSpans:
         normalized_start_time = _normalize_datetime(start_time)
         normalized_end_time = _normalize_datetime(end_time)
 
-        request_body = SpanQueryRequestBody(
-            queries=[query],
-            start_time=_to_iso_format(normalized_start_time),
-            end_time=_to_iso_format(normalized_end_time),
-            limit=limit,
-            root_spans_only=root_spans_only,
-        )
+        request_body = {
+            "queries": [query.to_dict()],
+            "start_time": _to_iso_format(normalized_start_time),
+            "end_time": _to_iso_format(normalized_end_time),
+            "limit": limit,
+            "root_spans_only": root_spans_only,
+        }
 
         try:
             response = await self._client.post(
                 url="v1/spans",
                 headers={"accept": "application/json"},
                 params={"project_name": project_name} if project_name else None,
-                json=request_body.to_dict(),
+                json=request_body,
                 timeout=timeout,
             )
             await response.aread()
