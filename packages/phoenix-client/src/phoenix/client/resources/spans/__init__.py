@@ -80,7 +80,8 @@ class Spans:
         }
 
         try:
-            import pandas as pd  # type: ignore[unused-ignore]
+            import pandas as pd
+            _ = pd  # Prevent unused symbol error
 
             response = self._client.post(
                 url="v1/spans",
@@ -173,7 +174,8 @@ class AsyncSpans:
         }
 
         try:
-            import pandas as pd  # type: ignore[unused-ignore]
+            import pandas as pd
+            _ = pd  # Prevent unused symbol error
 
             response = await self._client.post(
                 url="v1/spans",
