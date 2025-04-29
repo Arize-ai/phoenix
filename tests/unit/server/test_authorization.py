@@ -13,7 +13,7 @@ def test_require_admin_allows_admin() -> None:
     req = mock.Mock(spec=Request)
     user_id = UserId(1)
     claims = UserClaimSet(
-        subject=user_id,  # type: ignore
+        subject=user_id,
         token_id=AccessTokenId(1),
         attributes=UserTokenAttributes(user_role=UserRole.ADMIN),
     )
@@ -25,7 +25,7 @@ def test_require_admin_allows_admin() -> None:
 def test_require_admin_allows_system_user() -> None:
     req = mock.Mock(spec=Request)
     user_id = UserId(1)
-    req.user = PhoenixSystemUser(user_id)  # type: ignore[arg-type]
+    req.user = PhoenixSystemUser(user_id)
     # Should not raise
     require_admin(req)
 
@@ -38,7 +38,7 @@ def test_require_admin_denies_non_admin() -> None:
         token_id=AccessTokenId(1),
         attributes=UserTokenAttributes(user_role=UserRole.MEMBER),
     )
-    req.user = PhoenixUser(user_id, claims)  # type: ignore
+    req.user = PhoenixUser(user_id, claims)
     with pytest.raises(HTTPException) as exc_info:
         require_admin(req)
     assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
