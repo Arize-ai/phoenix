@@ -110,7 +110,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
                 },
               }}
               render={({ field }) => (
-                <NumberField step={100} size="S" {...field}>
+                <NumberField step={1} size="S" {...field}>
                   <Label>Number of Days</Label>
                   <Input />
                   <Text slot="description">
