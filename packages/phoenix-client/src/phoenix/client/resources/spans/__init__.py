@@ -80,7 +80,7 @@ class Spans:
         }
 
         try:
-            import pandas as pd
+            import pandas as pd  # type: ignore[unused-ignore]
 
             response = self._client.post(
                 url="v1/spans",
@@ -173,7 +173,7 @@ class AsyncSpans:
         }
 
         try:
-            import pandas as pd
+            import pandas as pd  # type: ignore[unused-ignore]
 
             response = await self._client.post(
                 url="v1/spans",
