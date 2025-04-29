@@ -52,6 +52,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
             node(id: $spanId) {
               ... on Span {
                 ...SpanAnnotationsEditor_spanAnnotations
+                ...SpanFeedback_annotations
               }
             }
           }
