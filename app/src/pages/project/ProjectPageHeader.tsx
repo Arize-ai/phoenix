@@ -67,7 +67,9 @@ export function ProjectPageHeader(props: {
   const tokenCountTotal = data?.tokenCountTotal;
   const tokenCountPrompt = data?.tokenCountPrompt;
   const tokenCountCompletion = data?.tokenCountCompletion;
-  const spanAnnotationNames = data?.spanAnnotationNames;
+  const spanAnnotationNames = data?.spanAnnotationNames?.filter(
+    (name) => name !== "note"
+  );
   const documentEvaluationNames = data?.documentEvaluationNames;
 
   return (

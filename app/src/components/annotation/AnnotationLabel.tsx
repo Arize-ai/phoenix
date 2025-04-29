@@ -1,4 +1,4 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
@@ -71,8 +71,22 @@ export function AnnotationLabel({
   onClick,
   annotationDisplayPreference = "score",
   className,
-}: {
+  children,
+  clickable: _clickable,
+  showClickableIcon = true,
+}: PropsWithChildren<{
   annotation: Annotation;
+  /**
+   * Override "clickable" detection. By default, clickable will only be true if onClick is provided.
+   * However, you may manually want to set this to true in cases where the annotation is wrapped in a
+   * clickable element (e.g. a dialog trigger, a link, etc).
+   */
+  clickable?: boolean;
+  /**
+   * When an annotation is clickable, this prop controls whether to show the click affordance icon.
+   * @default true
+   */
+  showClickableIcon?: boolean;
   onClick?: () => void;
   /**
    * The preferred value to display in the annotation label.
@@ -84,8 +98,8 @@ export function AnnotationLabel({
    */
   annotationDisplayPreference?: AnnotationDisplayPreference;
   className?: string;
-}) {
-  const clickable = typeof onClick == "function";
+}>) {
+  const clickable = _clickable ?? typeof onClick == "function";
   const labelValue = getAnnotationDisplayValue(
     annotation,
     annotationDisplayPreference
@@ -103,9 +117,11 @@ export function AnnotationLabel({
           : `Annotation: ${annotation.name}`
       }
       onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onClick && onClick();
+        if (onClick) {
+          e.stopPropagation();
+          e.preventDefault();
+          onClick();
+        }
       }}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
@@ -127,7 +143,10 @@ export function AnnotationLabel({
             <Text size="XS">{labelValue}</Text>
           </div>
         )}
-        {clickable ? <Icon svg={<Icons.ArrowIosForwardOutline />} /> : null}
+        {children}
+        {clickable && showClickableIcon ? (
+          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        ) : null}
       </Flex>
     </div>
   );
