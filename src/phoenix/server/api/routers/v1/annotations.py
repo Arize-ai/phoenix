@@ -64,9 +64,7 @@ async def list_span_annotations(
     span_ids: list[str] = Query(
         ..., min_length=1, description="One or more span id to fetch annotations for"
     ),
-    cursor: Optional[str] = Query(
-        default=None, description="A cursor for pagination"
-    ),
+    cursor: Optional[str] = Query(default=None, description="A cursor for pagination"),
     limit: int = Query(
         default=10,
         gt=0,
