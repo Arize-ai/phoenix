@@ -30,8 +30,6 @@ export const ContinuousAnnotationInput = forwardRef<
     },
     ref
   ) => {
-    // step should be 1 if the min and max end in .0, .1 otherwise
-    const step = (annotationConfig?.lowerBound ?? 0) % 1 === 0 ? 1 : 0.1;
     return (
       <Flex gap="size-50" alignItems="center" position="relative">
         <AnnotationInputExplanation
@@ -45,7 +43,6 @@ export const ContinuousAnnotationInput = forwardRef<
           ref={ref}
           minValue={annotationConfig?.lowerBound ?? 0}
           maxValue={annotationConfig?.upperBound ?? 1}
-          step={step}
           css={{
             width: "100%",
           }}

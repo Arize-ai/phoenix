@@ -74,6 +74,18 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
+                    spanAnnotationSummaries {
+                      labels
+                      count
+                      labelCount
+                      labelFractions {
+                        fraction
+                        label
+                      }
+                      name
+                      scoreCount
+                      meanScore
+                    }
                   }
                 }
               }
