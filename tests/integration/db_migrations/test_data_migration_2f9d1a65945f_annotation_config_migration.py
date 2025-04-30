@@ -51,6 +51,47 @@ def test_data_migration_for_trace_annotations(
             },
         ).scalar()
 
+        # Insert a span
+        span_rowid = conn.execute(
+            text(
+                """
+                INSERT INTO spans (
+                    trace_rowid, span_id, parent_id, name, span_kind, start_time, end_time,
+                    attributes, events, status_code, status_message,
+                    cumulative_error_count, cumulative_llm_token_count_prompt,
+                    cumulative_llm_token_count_completion, llm_token_count_prompt,
+                    llm_token_count_completion
+                )
+                VALUES (
+                    :trace_rowid, :span_id, :parent_id, :name, :span_kind, :start_time, :end_time,
+                    :attributes, :events, :status_code, :status_message,
+                    :cumulative_error_count, :cumulative_llm_token_count_prompt,
+                    :cumulative_llm_token_count_completion, :llm_token_count_prompt,
+                    :llm_token_count_completion
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "trace_rowid": trace_rowid,
+                "span_id": "span1",
+                "parent_id": None,
+                "name": "span-name",
+                "span_kind": "INTERNAL",
+                "start_time": now,
+                "end_time": now,
+                "attributes": "{}",
+                "events": "[]",
+                "status_code": "OK",
+                "status_message": "",
+                "cumulative_error_count": 0,
+                "cumulative_llm_token_count_prompt": 0,
+                "cumulative_llm_token_count_completion": 0,
+                "llm_token_count_prompt": None,
+                "llm_token_count_completion": None,
+            },
+        ).scalar()
+
         # Insert a trace annotation with LLM annotator kind
         trace_annotation_from_llm_id = conn.execute(
             text(
@@ -99,6 +140,60 @@ def test_data_migration_for_trace_annotations(
                 "label": "trace-annotation-label",
                 "score": 1.23,
                 "explanation": "trace-annotation-explanation",
+                "metadata": '{"foo": "bar"}',
+                "annotator_kind": "HUMAN",
+            },
+        ).scalar()
+        conn.commit()
+
+        # Insert a span annotation with LLM annotator kind
+        span_annotation_from_llm_id = conn.execute(
+            text(
+                """
+                INSERT INTO span_annotations (
+                    span_rowid, name, label, score, explanation,
+                    metadata, annotator_kind
+                )
+                VALUES (
+                    :span_id, :name, :label, :score, :explanation,
+                    :metadata, :annotator_kind
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "span_id": span_rowid,
+                "name": "span-annotation-from-llm",
+                "label": "span-annotation-label",
+                "score": 1.23,
+                "explanation": "span-annotation-explanation",
+                "metadata": '{"foo": "bar"}',
+                "annotator_kind": "LLM",
+            },
+        ).scalar()
+        conn.commit()
+
+        # Insert a span annotation with HUMAN annotator kind
+        span_annotation_from_human_id = conn.execute(
+            text(
+                """
+                INSERT INTO span_annotations (
+                    span_rowid, name, label, score, explanation,
+                    metadata, annotator_kind
+                )
+                VALUES (
+                    :span_id, :name, :label, :score, :explanation,
+                    :metadata, :annotator_kind
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "span_id": span_rowid,
+                "name": "span-annotation-from-human",
+                "label": "span-annotation-label",
+                "score": 1.23,
+                "explanation": "span-annotation-explanation",
                 "metadata": '{"foo": "bar"}',
                 "annotator_kind": "HUMAN",
             },
@@ -219,6 +314,40 @@ def test_data_migration_for_trace_annotations(
         assert annotator_kind == "HUMAN"
         assert identifier == ""
         assert source == "APP"
+        assert user_id is None
+
+        # get the span annotation from human
+        span_annotation_from_human = conn.execute(
+            text(
+                """
+                SELECT identifier, source, user_id
+                FROM span_annotations
+                WHERE id = :id
+                """
+            ),
+            {"id": span_annotation_from_human_id},
+        ).first()
+        assert span_annotation_from_human is not None
+        (identifier, source, user_id) = span_annotation_from_human
+        assert identifier == ""
+        assert source == "APP"
+        assert user_id is None
+
+        # get the span annotation from llm
+        span_annotation_from_llm = conn.execute(
+            text(
+                """
+                SELECT identifier, source, user_id
+                FROM span_annotations
+                WHERE id = :id
+                """
+            ),
+            {"id": span_annotation_from_llm_id},
+        ).first()
+        assert span_annotation_from_llm is not None
+        (identifier, source, user_id) = span_annotation_from_llm
+        assert identifier == ""
+        assert source == "API"
         assert user_id is None
 
         # after migration, 'CODE' is allowed and new columns are required
