@@ -806,6 +806,11 @@ export interface components {
         /** CreateUserRequestBody */
         CreateUserRequestBody: {
             user: components["schemas"]["UserCreate"];
+            /**
+             * Send Welcome Email
+             * @default true
+             */
+            send_welcome_email: boolean;
         };
         /** CreateUserResponseBody */
         CreateUserResponseBody: {
@@ -2017,11 +2022,6 @@ export interface components {
             password: string;
             /** Role */
             role: string;
-            /**
-             * Send Welcome Email
-             * @default true
-             */
-            send_welcome_email: boolean;
         };
         /** ValidationError */
         ValidationError: {
