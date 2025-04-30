@@ -182,10 +182,10 @@ export function SpanDetails({
   const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
-  const isCondensedView =
-    spanDetailsContainerDimensions?.width &&
-    spanDetailsContainerDimensions.width <
-      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
+  const isCondensedView = spanDetailsContainerDimensions?.width
+    ? spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
+    : true;
   const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`

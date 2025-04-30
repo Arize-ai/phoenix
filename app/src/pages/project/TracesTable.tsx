@@ -46,6 +46,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
 import {
   SpanStatusCode,
@@ -700,6 +701,24 @@ export function TracesTable(props: TracesTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
+
+  const pagination = useTracePagination();
+  const setTraceSequence = pagination?.setTraceSequence;
+  useEffect(() => {
+    if (!setTraceSequence) {
+      return;
+    }
+    setTraceSequence(
+      data.rootSpans.edges.map(({ rootSpan }) => ({
+        traceId: rootSpan.trace.traceId,
+        spanId: rootSpan.id,
+      }))
+    );
+    return () => {
+      setTraceSequence([]);
+    };
+  }, [data.rootSpans.edges, setTraceSequence]);
+
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);

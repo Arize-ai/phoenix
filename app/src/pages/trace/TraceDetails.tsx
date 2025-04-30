@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
+import React, { PropsWithChildren, Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router";
@@ -110,20 +110,6 @@ export function TraceDetails(props: TraceDetailsProps) {
   const selectedSpanNodeId = urlSpanNodeId ?? spansList[0].id;
   const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
 
-  // Clear the selected span param when the component unmounts
-  useEffect(() => {
-    return () => {
-      setSearchParams(
-        (searchParams) => {
-          searchParams.delete(SELECTED_SPAN_NODE_ID_URL_PARAM);
-          return searchParams;
-        },
-        { replace: true }
-      );
-    };
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
     <main
       css={css`
