@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from sqlalchemy import delete, tuple_
+from sqlalchemy import delete, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
@@ -151,39 +151,48 @@ class RemoveAnnotationConfigFromProjectPayload:
     project: Project
 
 
-def to_pydantic_categorical_annotation_config(
+def _to_pydantic_categorical_annotation_config(
     input: CategoricalAnnotationConfigInput,
 ) -> CategoricalAnnotationConfigModel:
-    return CategoricalAnnotationConfigModel(
-        type=AnnotationType.CATEGORICAL.value,
-        description=input.description,
-        optimization_direction=input.optimization_direction,
-        values=[
-            CategoricalAnnotationValue(label=value.label, score=value.score)
-            for value in input.values
-        ],
-    )
+    try:
+        return CategoricalAnnotationConfigModel(
+            type=AnnotationType.CATEGORICAL.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            values=[
+                CategoricalAnnotationValue(label=value.label, score=value.score)
+                for value in input.values
+            ],
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
 
 
-def to_pydantic_continuous_annotation_config(
+def _to_pydantic_continuous_annotation_config(
     input: ContinuousAnnotationConfigInput,
 ) -> ContinuousAnnotationConfigModel:
-    return ContinuousAnnotationConfigModel(
-        type=AnnotationType.CONTINUOUS.value,
-        description=input.description,
-        optimization_direction=input.optimization_direction,
-        lower_bound=input.lower_bound,
-        upper_bound=input.upper_bound,
-    )
+    try:
+        return ContinuousAnnotationConfigModel(
+            type=AnnotationType.CONTINUOUS.value,
+            description=input.description,
+            optimization_direction=input.optimization_direction,
+            lower_bound=input.lower_bound,
+            upper_bound=input.upper_bound,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
 
 
-def to_pydantic_freeform_annotation_config(
+def _to_pydantic_freeform_annotation_config(
     input: FreeformAnnotationConfigInput,
 ) -> FreeformAnnotationConfigModel:
-    return FreeformAnnotationConfigModel(
-        type=AnnotationType.FREEFORM.value,
-        description=input.description,
-    )
+    try:
+        return FreeformAnnotationConfigModel(
+            type=AnnotationType.FREEFORM.value,
+            description=input.description,
+        )
+    except ValueError as error:
+        raise BadRequest(str(error))
 
 
 @strawberry.type
@@ -199,13 +208,13 @@ class AnnotationConfigMutationMixin:
         name: str
         if categorical_input := input_annotation_config.categorical:
             name = categorical_input.name
-            config = to_pydantic_categorical_annotation_config(categorical_input)
+            config = _to_pydantic_categorical_annotation_config(categorical_input)
         elif continuous_input := input_annotation_config.continuous:
             name = input_annotation_config.continuous.name
-            config = to_pydantic_continuous_annotation_config(continuous_input)
+            config = _to_pydantic_continuous_annotation_config(continuous_input)
         elif freeform_input := input_annotation_config.freeform:
             name = freeform_input.name
-            config = to_pydantic_freeform_annotation_config(freeform_input)
+            config = _to_pydantic_freeform_annotation_config(freeform_input)
         else:
             raise BadRequest("No annotation config provided")
 
@@ -246,13 +255,13 @@ class AnnotationConfigMutationMixin:
         name: str
         if categorical_input := input_annotation_config.categorical:
             name = categorical_input.name
-            config = to_pydantic_categorical_annotation_config(categorical_input)
+            config = _to_pydantic_categorical_annotation_config(categorical_input)
         elif continuous_input := input_annotation_config.continuous:
             name = input_annotation_config.continuous.name
-            config = to_pydantic_continuous_annotation_config(continuous_input)
+            config = _to_pydantic_continuous_annotation_config(continuous_input)
         elif freeform_input := input_annotation_config.freeform:
             name = freeform_input.name
-            config = to_pydantic_freeform_annotation_config(freeform_input)
+            config = _to_pydantic_freeform_annotation_config(freeform_input)
         else:
             raise BadRequest("No annotation config provided")
 
@@ -314,24 +323,55 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: list[AddAnnotationConfigToProjectInput],
     ) -> AddAnnotationConfigToProjectPayload:
-        async with info.context.db() as session:
-            for item in input:
-                project_id = from_global_id_with_expected_type(
-                    global_id=item.project_id, expected_type_name="Project"
+        if not input:
+            raise BadRequest("No project annotation config associations provided")
+        project_annotation_config_ids: set[tuple[int, int]] = set()
+        for item in input:
+            project_id = from_global_id_with_expected_type(
+                global_id=item.project_id, expected_type_name="Project"
+            )
+            if (item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
+                raise BadRequest(
+                    f"Invalidation ID for annotation config: {str(item.annotation_config_id)}"
                 )
-                if (type_name := item.annotation_config_id.type_name) not in ANNOTATION_TYPE_NAMES:
-                    raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
-                annotation_config_id = int(item.annotation_config_id.node_id)
+            annotation_config_id = int(item.annotation_config_id.node_id)
+            project_annotation_config_ids.add((project_id, annotation_config_id))
+        project_ids = [project_id for project_id, _ in project_annotation_config_ids]
+        annotation_config_ids = [
+            annotation_config_id for _, annotation_config_id in project_annotation_config_ids
+        ]
+
+        async with info.context.db() as session:
+            result = await session.scalars(
+                select(models.Project.id).where(models.Project.id.in_(project_ids))
+            )
+            resolved_project_ids = result.all()
+            if set(project_ids) - set(resolved_project_ids):
+                raise NotFound("One or more projects were not found")
+
+            result = await session.scalars(
+                select(models.AnnotationConfig.id).where(
+                    models.AnnotationConfig.id.in_(annotation_config_ids)
+                )
+            )
+            resolved_annotation_config_ids = result.all()
+            if set(annotation_config_ids) - set(resolved_annotation_config_ids):
+                raise NotFound("One or more annotation configs were not found")
+
+            for project_id, annotation_config_id in project_annotation_config_ids:
                 project_annotation_config = models.ProjectAnnotationConfig(
                     project_id=project_id,
                     annotation_config_id=annotation_config_id,
                 )
                 session.add(project_annotation_config)
+
             try:
                 await session.commit()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 await session.rollback()
-                raise Conflict("The annotation config has already been added to the project")
+                raise Conflict(
+                    "One or more annotation configs have already been added to the project"
+                )
             return AddAnnotationConfigToProjectPayload(
                 query=Query(),
                 project=Project(project_rowid=project_id),

@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Annotated, Literal, Optional, Union
 
-from pydantic import AfterValidator, Field, RootModel
-from typing_extensions import TypeAlias
+from pydantic import AfterValidator, Field, RootModel, model_validator
+from typing_extensions import Self, TypeAlias
 
 from .db_models import DBBaseModel
 
@@ -23,18 +23,28 @@ class _BaseAnnotationConfig(DBBaseModel):
     description: Optional[str] = None
 
 
+def _categorical_value_label_is_non_empty_string(label: str) -> str:
+    if not label:
+        raise ValueError("Label must be non-empty")
+    return label
+
+
 class CategoricalAnnotationValue(DBBaseModel):
-    label: str
+    label: Annotated[str, AfterValidator(_categorical_value_label_is_non_empty_string)]
     score: Optional[float] = None
 
 
-def is_non_empty(values: list[CategoricalAnnotationValue]) -> list[CategoricalAnnotationValue]:
+def _categorical_values_are_non_empty_list(
+    values: list[CategoricalAnnotationValue],
+) -> list[CategoricalAnnotationValue]:
     if not values:
         raise ValueError("Values must be non-empty")
     return values
 
 
-def has_unique_labels(values: list[CategoricalAnnotationValue]) -> list[CategoricalAnnotationValue]:
+def _categorical_values_have_unique_labels(
+    values: list[CategoricalAnnotationValue],
+) -> list[CategoricalAnnotationValue]:
     labels = set()
     for value in values:
         label = value.label
@@ -51,8 +61,8 @@ class CategoricalAnnotationConfig(_BaseAnnotationConfig):
     optimization_direction: OptimizationDirection
     values: Annotated[
         list[CategoricalAnnotationValue],
-        AfterValidator(is_non_empty),
-        AfterValidator(has_unique_labels),
+        AfterValidator(_categorical_values_are_non_empty_list),
+        AfterValidator(_categorical_values_have_unique_labels),
     ]
 
 
@@ -61,6 +71,16 @@ class ContinuousAnnotationConfig(_BaseAnnotationConfig):
     optimization_direction: OptimizationDirection
     lower_bound: Optional[float] = None
     upper_bound: Optional[float] = None
+
+    @model_validator(mode="after")
+    def check_bounds(self) -> Self:
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and self.lower_bound >= self.upper_bound
+        ):
+            raise ValueError("Lower bound must be strictly less than upper bound")
+        return self
 
 
 class FreeformAnnotationConfig(_BaseAnnotationConfig):
