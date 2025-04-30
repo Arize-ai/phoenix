@@ -69,22 +69,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
   const playgroundStreamingEnabled = usePreferencesContext(
     (state) => state.playgroundStreamingEnabled
   );
-  const [, setSearchParams] = useSearchParams();
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
-
-  useEffect(() => {
-    setSearchParams(
-      (searchParams) => {
-        // remove lingering selectedSpanNodeId param so as to not poison the trace details slideover
-        // with stale data from previous pages
-        searchParams.delete("selectedSpanNodeId");
-        return searchParams;
-      },
-      { replace: true }
-    );
-  }, [setSearchParams]);
 
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;

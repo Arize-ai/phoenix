@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -133,6 +133,7 @@ const annotationTooltipExtraCSS = css`
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const { datasetId, experimentIds, displayFullText } = props;
   const [filterCondition, setFilterCondition] = useState("");
+  const [, setSearchParams] = useSearchParams();
 
   const data = useLazyLoadQuery<ExperimentCompareTableQuery>(
     graphql`
@@ -525,6 +526,10 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             type="slideOver"
             onDismiss={() => {
               setDialog(null);
+              setSearchParams((searchParams) => {
+                searchParams.delete("selectedSpanNodeId");
+                return searchParams;
+              });
             }}
           >
             {dialog}

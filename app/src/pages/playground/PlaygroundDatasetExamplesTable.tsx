@@ -957,6 +957,10 @@ export function PlaygroundDatasetExamplesTable({
         type="slideOver"
         onDismiss={() => {
           setDialog(null);
+          setSearchParams((searchParams) => {
+            searchParams.delete("selectedSpanNodeId");
+            return searchParams;
+          });
         }}
       >
         {dialog}

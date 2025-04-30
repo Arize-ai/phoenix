@@ -1,5 +1,6 @@
 import React, { ReactNode, startTransition, Suspense, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
+import { useSearchParams } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { DialogContainer } from "@arizeai/components";
@@ -14,6 +15,7 @@ import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
 export function RunMetadataFooter({ spanId }: { spanId: string }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
       query RunMetadataFooterQuery($spanId: GlobalID!) {
@@ -103,7 +105,13 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
       <DialogContainer
         type="slideOver"
         isDismissable
-        onDismiss={() => setDialog(null)}
+        onDismiss={() => {
+          setDialog(null);
+          setSearchParams((searchParams) => {
+            searchParams.delete("selectedSpanNodeId");
+            return searchParams;
+          });
+        }}
       >
         {dialog}
       </DialogContainer>
