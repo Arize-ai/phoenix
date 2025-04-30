@@ -8,7 +8,7 @@ from sqlalchemy import Engine, text
 from . import _up, _version_num
 
 
-def test_data_migration_for_trace_annotations(
+def test_annotation_config_migration(
     _engine: Engine,
     _alembic_config: Config,
     _db_backend: Literal["sqlite", "postgresql"],
@@ -200,6 +200,62 @@ def test_data_migration_for_trace_annotations(
         ).scalar()
         conn.commit()
 
+        # Insert a document annotation with LLM annotator kind
+        document_annotation_from_llm_id = conn.execute(
+            text(
+                """
+                INSERT INTO document_annotations (
+                    span_rowid, document_position, name, label, score, explanation,
+                    metadata, annotator_kind
+                )
+                VALUES (
+                    :span_id, :document_position, :name, :label, :score, :explanation,
+                    :metadata, :annotator_kind
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "span_id": span_rowid,
+                "document_position": 0,
+                "name": "document-annotation-from-llm",
+                "label": "document-annotation-label",
+                "score": 1.23,
+                "explanation": "document-annotation-explanation",
+                "metadata": '{"foo": "bar"}',
+                "annotator_kind": "LLM",
+            },
+        ).scalar()
+        conn.commit()
+
+        # Insert a document annotation with HUMAN annotator kind
+        document_annotation_from_human_id = conn.execute(
+            text(
+                """
+                INSERT INTO document_annotations (
+                    span_rowid, document_position, name, label, score, explanation,
+                    metadata, annotator_kind
+                )
+                VALUES (
+                    :span_id, :document_position, :name, :label, :score, :explanation,
+                    :metadata, :annotator_kind
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "span_id": span_rowid,
+                "document_position": 1,
+                "name": "document-annotation-from-human",
+                "label": "document-annotation-label",
+                "score": 1.23,
+                "explanation": "document-annotation-explanation",
+                "metadata": '{"foo": "bar"}',
+                "annotator_kind": "HUMAN",
+            },
+        ).scalar()
+        conn.commit()
+
         # Verify that 'CODE' annotator_kind is not allowed before migration
         with pytest.raises(Exception, match="valid_annotator_kind"):
             conn.execute(
@@ -346,6 +402,40 @@ def test_data_migration_for_trace_annotations(
         ).first()
         assert span_annotation_from_llm is not None
         (identifier, source, user_id) = span_annotation_from_llm
+        assert identifier == ""
+        assert source == "API"
+        assert user_id is None
+
+        # get the document annotation from human
+        document_annotation_from_human = conn.execute(
+            text(
+                """
+                SELECT identifier, source, user_id
+                FROM document_annotations
+                WHERE id = :id
+                """
+            ),
+            {"id": document_annotation_from_human_id},
+        ).first()
+        assert document_annotation_from_human is not None
+        (identifier, source, user_id) = document_annotation_from_human
+        assert identifier == ""
+        assert source == "APP"
+        assert user_id is None
+
+        # get the document annotation from llm
+        document_annotation_from_llm = conn.execute(
+            text(
+                """
+                SELECT identifier, source, user_id
+                FROM document_annotations
+                WHERE id = :id
+                """
+            ),
+            {"id": document_annotation_from_llm_id},
+        ).first()
+        assert document_annotation_from_llm is not None
+        (identifier, source, user_id) = document_annotation_from_llm
         assert identifier == ""
         assert source == "API"
         assert user_id is None
