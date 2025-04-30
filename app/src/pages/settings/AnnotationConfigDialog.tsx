@@ -406,9 +406,12 @@ export const AnnotationConfigDialog = ({
                             </NumberField>
                           )}
                         />
-                        <Button type="button" onPress={() => remove(index)}>
-                          <Icon svg={<Icons.TrashOutline />} />
-                        </Button>
+                        <Button
+                          type="button"
+                          leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                          aria-label="Remove category"
+                          onPress={() => remove(index)}
+                        />
                       </Flex>
                     ))}
                     <Flex justifyContent="end" width="100%">
@@ -417,8 +420,8 @@ export const AnnotationConfigDialog = ({
                         onPress={() => {
                           append({ label: "", score: null });
                         }}
+                        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
                       >
-                        <Icon svg={<Icons.PlusOutline />} />
                         Add category
                       </Button>
                     </Flex>
