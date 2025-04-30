@@ -1,6 +1,6 @@
 # Agent Evaluation
 
-Evaluating any AI application is a challenge. Evaluating an agent is even more difficult. Agents present a unique set of evaluation pitfalls to navigate. For one, agents can take inefficient paths and still get to the right solution. How do you know if they took an optimal path? For another, dad responses upstream can lead to strange responses downstream. How do you pinpoint where a problem originated?&#x20;
+Evaluating any AI application is a challenge. Evaluating an agent is even more difficult. Agents present a unique set of evaluation pitfalls to navigate. For one, agents can take inefficient paths and still get to the right solution. How do you know if they took an optimal path? For another, bad responses upstream can lead to strange responses downstream. How do you pinpoint where a problem originated?&#x20;
 
 This page will walk you through a framework for navigating these pitfalls.
 
