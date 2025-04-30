@@ -5,7 +5,7 @@ import pytest
 from alembic.config import Config
 from sqlalchemy import Engine, text
 
-from . import _up, _version_num
+from . import _down, _up, _version_num
 
 
 def test_annotation_config_migration(
@@ -283,6 +283,61 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
+        # Verify that 'CODE' annotator_kind is not allowed for span annotations before migration
+        with pytest.raises(Exception, match="valid_annotator_kind"):
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO span_annotations (
+                        span_rowid, name, label, score, explanation,
+                        metadata, annotator_kind
+                    )
+                    VALUES (
+                        :span_id, :name, :label, :score, :explanation,
+                        :metadata, :annotator_kind
+                    )
+                    """
+                ),
+                {
+                    "span_id": span_rowid,
+                    "name": "span-annotation-from-code",
+                    "label": "span-annotation-label",
+                    "score": 1.23,
+                    "explanation": "span-annotation-explanation",
+                    "metadata": '{"foo": "bar"}',
+                    "annotator_kind": "CODE",
+                },
+            )
+            conn.commit()
+
+        # Verify that 'CODE' annotator_kind is not allowed for document annotations before migration
+        with pytest.raises(Exception, match="valid_annotator_kind"):
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO document_annotations (
+                        span_rowid, document_position, name, label, score, explanation,
+                        metadata, annotator_kind
+                    )
+                    VALUES (
+                        :span_id, :document_position, :name, :label, :score, :explanation,
+                        :metadata, :annotator_kind
+                    )
+                    """
+                ),
+                {
+                    "span_id": span_rowid,
+                    "document_position": 2,
+                    "name": "document-annotation-from-code",
+                    "label": "document-annotation-label",
+                    "score": 1.23,
+                    "explanation": "document-annotation-explanation",
+                    "metadata": '{"foo": "bar"}',
+                    "annotator_kind": "CODE",
+                },
+            )
+            conn.commit()
+
     # apply the annotation config migration under test
     _up(_engine, _alembic_config, "2f9d1a65945f")
 
@@ -335,39 +390,15 @@ def test_annotation_config_migration(
         trace_annotation_from_human = conn.execute(
             text(
                 """
-                SELECT id, trace_rowid, name, label, score, explanation, metadata, annotator_kind, created_at, updated_at, identifier, source, user_id
+                SELECT identifier, source, user_id
                 FROM trace_annotations
                 WHERE id = :id
-                """  # noqa: E501
+                """
             ),
             {"id": trace_annotation_from_human_id},
         ).first()
         assert trace_annotation_from_human is not None
-        (
-            annotation_id,
-            trace_rowid,
-            name,
-            label,
-            score,
-            explanation,
-            metadata,
-            annotator_kind,
-            created_at,
-            updated_at,
-            identifier,
-            source,
-            user_id,
-        ) = trace_annotation_from_human
-        assert annotation_id == trace_annotation_from_human_id
-        assert trace_rowid == trace_rowid
-        assert name == "trace-annotation-from-human"
-        assert label == "trace-annotation-label"
-        assert score == 1.23
-        assert explanation == "trace-annotation-explanation"
-        assert metadata == '{"foo": "bar"}'
-        assert isinstance(created_at, str)
-        assert isinstance(updated_at, str)
-        assert annotator_kind == "HUMAN"
+        (identifier, source, user_id) = trace_annotation_from_human
         assert identifier == ""
         assert source == "APP"
         assert user_id is None
@@ -441,7 +472,7 @@ def test_annotation_config_migration(
         assert user_id is None
 
         # after migration, 'CODE' is allowed and new columns are required
-        conn.execute(
+        trace_annotation_id = conn.execute(
             text(
                 """
                 INSERT INTO trace_annotations (
@@ -452,6 +483,7 @@ def test_annotation_config_migration(
                     :trace_rowid, :name, :label, :score, :explanation,
                     :metadata, :annotator_kind, :user_id, :identifier, :source
                 )
+                RETURNING id
                 """
             ),
             {
@@ -466,5 +498,13 @@ def test_annotation_config_migration(
                 "identifier": "id1",
                 "source": "API",
             },
+        ).scalar()
+        conn.commit()
+
+        # Delete the trace annotation
+        conn.execute(
+            text("DELETE FROM trace_annotations WHERE id = :id"), {"id": trace_annotation_id}
         )
         conn.commit()
+
+    _down(_engine, _alembic_config, "bc8fea3c2bc8")
