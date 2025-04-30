@@ -34,7 +34,6 @@ const notesListCSS = css`
 export function SpanNotesEditor(props: SpanNotesEditorProps) {
   const [fetchKey, setFetchKey] = useState(0);
   const notesEndRef = useRef<HTMLDivElement>(null);
-  // TODO: add filter by note annotations
   const data = useLazyLoadQuery<SpanNotesEditorQuery>(
     graphql`
       query SpanNotesEditorQuery($spanNodeId: GlobalID!) {
@@ -72,10 +71,8 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
 
   const [addNote, isAddingNote] = useMutation<SpanNotesEditorAddNoteMutation>(
     graphql`
-      mutation SpanNotesEditorAddNoteMutation(
-        $input: CreateSpanAnnotationInput!
-      ) {
-        createSpanAnnotations(input: [$input]) {
+      mutation SpanNotesEditorAddNoteMutation($input: CreateSpanNoteInput!) {
+        createSpanNote(annotationInput: $input) {
           __typename
         }
       }
@@ -87,10 +84,7 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
       addNote({
         variables: {
           input: {
-            name: "note",
-            explanation: note,
-            annotatorKind: "HUMAN",
-            source: "APP",
+            note,
             spanId: props.spanNodeId,
           },
         },
@@ -102,7 +96,8 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
   const annotations = data.span?.spanAnnotations || [];
 
   const notes = annotations.filter(
-    // TODO: remove this hard coding
+    // we do this on the client side because one of our query fragments requires all annotations
+    // if we filtered here, we would not refresh the spanfeedback query when a note is added
     (annotation) => annotation.name === "note"
   );
 

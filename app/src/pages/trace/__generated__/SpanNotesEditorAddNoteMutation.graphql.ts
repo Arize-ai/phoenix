@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ba920cee1aadb8393b2d2407a786bd2>>
+ * @generated SignedSource<<0ca568b7668d28faa5d4b14509858522>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,24 +9,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type AnnotationSource = "API" | "APP";
-export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
-export type CreateSpanAnnotationInput = {
-  annotatorKind: AnnotatorKind;
-  explanation?: string | null;
-  identifier?: string | null;
-  label?: string | null;
-  metadata?: any;
-  name: string;
-  score?: number | null;
-  source: AnnotationSource;
+export type CreateSpanNoteInput = {
+  note: string;
   spanId: string;
 };
 export type SpanNotesEditorAddNoteMutation$variables = {
-  input: CreateSpanAnnotationInput;
+  input: CreateSpanNoteInput;
 };
 export type SpanNotesEditorAddNoteMutation$data = {
-  readonly createSpanAnnotations: {
+  readonly createSpanNote: {
     readonly __typename: "SpanAnnotationMutationPayload";
   };
 };
@@ -48,20 +39,14 @@ v1 = [
     "alias": null,
     "args": [
       {
-        "items": [
-          {
-            "kind": "Variable",
-            "name": "input.0",
-            "variableName": "input"
-          }
-        ],
-        "kind": "ListValue",
-        "name": "input"
+        "kind": "Variable",
+        "name": "annotationInput",
+        "variableName": "input"
       }
     ],
     "concreteType": "SpanAnnotationMutationPayload",
     "kind": "LinkedField",
-    "name": "createSpanAnnotations",
+    "name": "createSpanNote",
     "plural": false,
     "selections": [
       {
@@ -93,16 +78,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "4b60158f2ea6a5f2986bb391c364037a",
+    "cacheID": "855aa00f68b36e86f375e7765413ac81",
     "id": null,
     "metadata": {},
     "name": "SpanNotesEditorAddNoteMutation",
     "operationKind": "mutation",
-    "text": "mutation SpanNotesEditorAddNoteMutation(\n  $input: CreateSpanAnnotationInput!\n) {\n  createSpanAnnotations(input: [$input]) {\n    __typename\n  }\n}\n"
+    "text": "mutation SpanNotesEditorAddNoteMutation(\n  $input: CreateSpanNoteInput!\n) {\n  createSpanNote(annotationInput: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9dbd60f36b7c25e2b9044ac037c347c8";
+(node as any).hash = "fc7452182db44527c3f68ba81dd53e58";
 
 export default node;
