@@ -18,6 +18,7 @@ from phoenix.config import (
     TLSConfigVerifyClient,
     get_env_grpc_port,
     get_env_tls_config,
+    get_env_tls_enabled_for_grpc,
 )
 from phoenix.server.bearer_auth import ApiKeyInterceptor
 from phoenix.trace.otel import decode_otlp_span
@@ -90,7 +91,8 @@ class GrpcServer:
             options=(("grpc.so_reuseport", 0),),
             interceptors=interceptors,
         )
-        if tls_config := get_env_tls_config():
+        if get_env_tls_enabled_for_grpc():
+            assert (tls_config := get_env_tls_config())
             private_key_certificate_chain_pairs = [(tls_config.key_data, tls_config.cert_data)]
             server_credentials = (
                 grpc.ssl_server_credentials(
