@@ -627,6 +627,12 @@ class TestClientForSpanAnnotations:
         assert (
             annotations[zero_score_annotation_name]["score"] == 0
         ), "Annotation score should be exactly 0"
+        assert (
+            annotations[zero_score_annotation_name]["label"] is None
+        ), "Annotation label should be None"
+        assert (
+            annotations[zero_score_annotation_name]["explanation"] is None
+        ), "Annotation explanation should be None"
 
     @pytest.mark.parametrize("is_async", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -705,3 +711,9 @@ class TestClientForSpanAnnotations:
         assert (
             annotations[zero_score_annotation_name]["score"] == 0
         ), "DataFrame annotation score should be exactly 0"
+        assert (
+            annotations[zero_score_annotation_name]["label"] is None
+        ), "DataFrame annotation label should be None"
+        assert (
+            annotations[zero_score_annotation_name]["explanation"] is None
+        ), "DataFrame annotation explanation should be None"
