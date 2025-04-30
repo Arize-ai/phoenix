@@ -1,5 +1,20 @@
 # Changelog
 
+## [8.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.29.0...arize-phoenix-v8.30.0) (2025-04-30)
+
+
+### Features
+
+* Add "copy name" button to project menu ([#7358](https://github.com/Arize-ai/phoenix/issues/7358)) ([78d05a3](https://github.com/Arize-ai/phoenix/commit/78d05a3be0d45deab7f21938e5508a47607b0918))
+* Add `SpanQuery` DSL to phoenix client and include `get_spans_dataframe` to client ([#7071](https://github.com/Arize-ai/phoenix/issues/7071)) ([ee56e9a](https://github.com/Arize-ai/phoenix/commit/ee56e9a9bf9e13c8793bd4a3b915ef083f679f2a))
+* **api:** add RBAC primitives for fastAPI / REST ([#7349](https://github.com/Arize-ai/phoenix/issues/7349)) ([9d2cc9c](https://github.com/Arize-ai/phoenix/commit/9d2cc9cc087659a9e6f6126e780ae2996c54b87d))
+* separate TLS enabled flags for HTTP and gRPC ([#7370](https://github.com/Arize-ai/phoenix/issues/7370)) ([602277d](https://github.com/Arize-ai/phoenix/commit/602277d1be4b043680c7445000ddb5f322fc32bf))
+
+
+### Bug Fixes
+
+* **playground:** log playground subscription errors ([#7353](https://github.com/Arize-ai/phoenix/issues/7353)) ([5b6edb8](https://github.com/Arize-ai/phoenix/commit/5b6edb8f6b26c55252a28f13784e68c435622ed5))
+
 ## [8.29.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.28.1...arize-phoenix-v8.29.0) (2025-04-28)
 
 
