@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from sqlalchemy import exists, select
@@ -15,7 +14,7 @@ from phoenix.db import models
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
 
-from .models import V1RoutesBaseModel
+from .spans import SpanAnnotationData, SpanAnnotationResult
 from .utils import PaginatedResponseBody, _get_project_by_identifier, add_errors_to_responses
 
 logger = logging.getLogger(__name__)
@@ -27,30 +26,11 @@ MAX_SPAN_IDS = 1_000
 router = APIRouter(tags=["annotations"])
 
 
-class AnnotatorKind(str, Enum):
-    LLM = "LLM"
-    CODE = "CODE"
-    HUMAN = "HUMAN"
-
-
-class Source(str, Enum):
-    API = "API"
-    APP = "APP"
-
-
-class SpanAnnotation(V1RoutesBaseModel):
+class SpanAnnotation(SpanAnnotationData):
     id: str
-    span_id: str
-    name: str
-    label: Optional[str]
-    score: Optional[float]
-    explanation: Optional[str]
-    metadata: dict[str, Any]
-    annotator_kind: AnnotatorKind
     created_at: datetime
     updated_at: datetime
-    identifier: Optional[str]
-    source: Source
+    source: Literal["API", "APP"]
     user_id: Optional[str]
 
 
@@ -160,15 +140,17 @@ async def list_span_annotations(
                 id=str(GlobalID(SPAN_ANNOTATION_NODE_NAME, str(anno.id))),
                 span_id=span_id,
                 name=anno.name,
-                label=anno.label,
-                score=anno.score,
-                explanation=anno.explanation,
+                result=SpanAnnotationResult(
+                    label=anno.label,
+                    score=anno.score,
+                    explanation=anno.explanation,
+                ),
                 metadata=anno.metadata_,
-                annotator_kind=AnnotatorKind(anno.annotator_kind),
+                annotator_kind=anno.annotator_kind,
                 created_at=anno.created_at,
                 updated_at=anno.updated_at,
                 identifier=anno.identifier,
-                source=Source(anno.source),
+                source=anno.source,
                 user_id=str(GlobalID(USER_NODE_NAME, str(anno.user_id))) if anno.user_id else None,
             )
             for span_id, anno in rows
