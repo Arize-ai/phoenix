@@ -11,6 +11,8 @@ from phoenix.config import (
     get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
     get_env_root_url,
+    get_env_tls_enabled_for_grpc,
+    get_env_tls_enabled_for_http,
 )
 
 
@@ -438,3 +440,197 @@ class TestGetEnvPhoenixAdminSecret:
                 monkeypatch.setenv(key, value)
         with pytest.raises(ValueError):
             get_env_phoenix_admin_secret()
+
+
+class TestGetEnvTlsEnabled:
+    @pytest.mark.parametrize(
+        "env_vars, expected_http, expected_grpc",
+        [
+            # No variables set - defaults to False for both
+            pytest.param(
+                {},
+                False,
+                False,
+                id="no_vars_set",
+            ),
+            # Only PHOENIX_TLS_ENABLED set
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED": "true"},
+                True,
+                True,
+                id="only_global_tls_enabled",
+            ),
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED": "false"},
+                False,
+                False,
+                id="only_global_tls_disabled",
+            ),
+            # Only HTTP-specific variable set
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED_FOR_HTTP": "true"},
+                True,
+                False,
+                id="only_http_tls_enabled",
+            ),
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED_FOR_HTTP": "false"},
+                False,
+                False,
+                id="only_http_tls_disabled",
+            ),
+            # Only gRPC-specific variable set
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED_FOR_GRPC": "true"},
+                False,
+                True,
+                id="only_grpc_tls_enabled",
+            ),
+            pytest.param(
+                {"PHOENIX_TLS_ENABLED_FOR_GRPC": "false"},
+                False,
+                False,
+                id="only_grpc_tls_disabled",
+            ),
+            # Both specific variables set
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                True,
+                True,
+                id="both_specific_tls_enabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                True,
+                False,
+                id="http_enabled_grpc_disabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                False,
+                True,
+                id="http_disabled_grpc_enabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                False,
+                False,
+                id="both_specific_tls_disabled",
+            ),
+            # All variables set with global enabled
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                True,
+                True,
+                id="all_enabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                True,
+                False,
+                id="global_enabled_http_enabled_grpc_disabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                False,
+                True,
+                id="global_enabled_http_disabled_grpc_enabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                False,
+                False,
+                id="global_enabled_both_specific_disabled",
+            ),
+            # All variables set with global disabled
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                True,
+                True,
+                id="global_disabled_both_specific_enabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                True,
+                False,
+                id="global_disabled_http_enabled_grpc_disabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                False,
+                True,
+                id="global_disabled_http_disabled_grpc_enabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                False,
+                False,
+                id="all_disabled",
+            ),
+        ],
+    )
+    def test_tls_enabled(
+        self,
+        monkeypatch: MonkeyPatch,
+        env_vars: dict[str, str],
+        expected_http: bool,
+        expected_grpc: bool,
+    ) -> None:
+        # Clear all TLS-related environment variables first
+        monkeypatch.delenv("PHOENIX_TLS_ENABLED", raising=False)
+        monkeypatch.delenv("PHOENIX_TLS_ENABLED_FOR_HTTP", raising=False)
+        monkeypatch.delenv("PHOENIX_TLS_ENABLED_FOR_GRPC", raising=False)
+
+        # Set the test environment variables
+        for key, value in env_vars.items():
+            monkeypatch.setenv(key, value)
+
+        # Test HTTP TLS enablement
+        assert get_env_tls_enabled_for_http() == expected_http
+
+        # Test gRPC TLS enablement
+        assert get_env_tls_enabled_for_grpc() == expected_grpc
