@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Iterable, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
 
 import sqlalchemy.sql as sql
 from openinference.semconv.trace import RerankerAttributes, SpanAttributes
@@ -814,7 +814,7 @@ class SpanAnnotation(Base):
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -826,7 +826,7 @@ class SpanAnnotation(Base):
         nullable=True,
         index=True,
     )
-    source: Mapped[str] = mapped_column(
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
@@ -863,7 +863,7 @@ class TraceAnnotation(Base):
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -875,7 +875,7 @@ class TraceAnnotation(Base):
         nullable=True,
         index=True,
     )
-    source: Mapped[str] = mapped_column(
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
@@ -913,7 +913,7 @@ class DocumentAnnotation(Base):
     score: Mapped[Optional[float]] = mapped_column(Float, index=True)
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[str] = mapped_column(
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -925,7 +925,7 @@ class DocumentAnnotation(Base):
         nullable=True,
         index=True,
     )
-    source: Mapped[str] = mapped_column(
+    source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

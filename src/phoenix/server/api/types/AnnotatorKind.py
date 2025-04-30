@@ -14,3 +14,4 @@ class ExperimentRunAnnotatorKind(Enum):
 class AnnotatorKind(Enum):
     LLM = "LLM"
     HUMAN = "HUMAN"
+    CODE = "CODE"
