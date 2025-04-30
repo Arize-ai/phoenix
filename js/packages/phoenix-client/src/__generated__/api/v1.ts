@@ -2017,6 +2017,11 @@ export interface components {
             password: string;
             /** Role */
             role: string;
+            /**
+             * Send Welcome Email
+             * @default true
+             */
+            send_welcome_email: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -4087,6 +4092,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description Username or email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -4103,7 +4117,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The GlobalID of the user (base64-encoded, e.g. 'VXNlcjox'). */
+                /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
                 user_id: string;
             };
             cookie?: never;

@@ -52,7 +52,7 @@ class UserCreate(V1RoutesBaseModel):
     username: str
     password: str
     role: str
-    send_welcome_email: bool = False
+    send_welcome_email: bool = True
 
 
 class User(V1RoutesBaseModel):

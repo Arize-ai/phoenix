@@ -3125,6 +3125,16 @@
             },
             "description": "Role not found."
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Username or email already exists."
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -3153,10 +3163,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The GlobalID of the user (base64-encoded, e.g. 'VXNlcjox').",
+              "description": "The GlobalID of the user (e.g. 'VXNlcjox').",
               "title": "User Id"
             },
-            "description": "The GlobalID of the user (base64-encoded, e.g. 'VXNlcjox')."
+            "description": "The GlobalID of the user (e.g. 'VXNlcjox')."
           }
         ],
         "responses": {
@@ -6897,6 +6907,11 @@
           "role": {
             "type": "string",
             "title": "Role"
+          },
+          "send_welcome_email": {
+            "type": "boolean",
+            "title": "Send Welcome Email",
+            "default": true
           }
         },
         "type": "object",
