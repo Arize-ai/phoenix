@@ -10,7 +10,7 @@ from typing import Any, Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import JSON
+from sqlalchemy import JSON, text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.compiler import compiles
 
@@ -59,7 +59,7 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=False,
+                nullable=True,  # must initially be nullable before backfill
                 index=False,  # the index must be added in a separate step
             ),
         )
@@ -67,11 +67,7 @@ def upgrade() -> None:
             sa.Column(
                 "source",
                 sa.String,
-                sa.CheckConstraint(
-                    "source IN ('API', 'APP')",
-                    name="valid_source",
-                ),
-                nullable=False,
+                nullable=True,
             ),
         )
         batch_op.drop_constraint(
@@ -87,6 +83,19 @@ def upgrade() -> None:
             "uq_span_annotations_name_span_rowid_identifier",
             ["name", "span_rowid", "identifier"],
         )
+    with op.batch_alter_table("span_annotations") as batch_op:
+        batch_op.execute(text("UPDATE span_annotations SET identifier = ''"))
+        batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
+        batch_op.execute(text("UPDATE span_annotations SET source = 'APP'"))
+        batch_op.alter_column(
+            "source",
+            nullable=False,
+            existing_nullable=True,
+        )
+        batch_op.create_check_constraint(
+            constraint_name="valid_source",
+            condition="source IN ('API', 'APP')",
+        )
 
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.add_column(
@@ -101,7 +110,7 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=False,
+                nullable=True,  # must initially be nullable before backfill
                 index=False,  # the index must be added in a separate step
             ),
         )
@@ -109,11 +118,7 @@ def upgrade() -> None:
             sa.Column(
                 "source",
                 sa.String,
-                sa.CheckConstraint(
-                    "source IN ('API', 'APP')",
-                    name="valid_source",
-                ),
-                nullable=False,
+                nullable=True,  # must initially be nullable before backfill
             ),
         )
         batch_op.drop_constraint(
@@ -129,6 +134,19 @@ def upgrade() -> None:
             "uq_trace_annotations_name_trace_rowid_identifier",
             ["name", "trace_rowid", "identifier"],
         )
+    with op.batch_alter_table("trace_annotations") as batch_op:
+        batch_op.execute(text("UPDATE trace_annotations SET identifier = ''"))
+        batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
+        batch_op.execute(text("UPDATE trace_annotations SET source = 'APP'"))
+        batch_op.alter_column(
+            "source",
+            nullable=False,
+            existing_nullable=True,
+        )
+        batch_op.create_check_constraint(
+            constraint_name="valid_source",
+            condition="source IN ('API', 'APP')",
+        )
 
     with op.batch_alter_table("document_annotations") as batch_op:
         batch_op.add_column(
@@ -143,7 +161,7 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=False,
+                nullable=True,  # must initially be nullable before backfill
                 index=False,  # the index must be added in a separate step
             ),
         )
@@ -151,11 +169,7 @@ def upgrade() -> None:
             sa.Column(
                 "source",
                 sa.String,
-                sa.CheckConstraint(
-                    "source IN ('API', 'APP')",
-                    name="valid_source",
-                ),
-                nullable=False,
+                nullable=True,
             ),
         )
         batch_op.drop_constraint(
@@ -171,8 +185,21 @@ def upgrade() -> None:
             type_="unique",
         )
         batch_op.create_unique_constraint(
-            "uq_document_annotations_name_span_rowid_document_pos_identifier",  # manually specify a name since the auto-generated name is longer than the 63 character limit of Postgres  # noqa: E501
+            "uq_document_annotations_name_span_rowid_document_pos_identifier",  # this name does not conform to the auto-generated pattern, which results in a name longer than the Postgres limit of 63 characters  # noqa: E501
             ["name", "span_rowid", "document_position", "identifier"],
+        )
+    with op.batch_alter_table("document_annotations") as batch_op:
+        batch_op.execute(text("UPDATE document_annotations SET identifier = ''"))
+        batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
+        batch_op.execute(text("UPDATE document_annotations SET source = 'APP'"))
+        batch_op.alter_column(
+            "source",
+            nullable=False,
+            existing_nullable=True,
+        )
+        batch_op.create_check_constraint(
+            constraint_name="valid_source",
+            condition="source IN ('API', 'APP')",
         )
 
     op.create_table(
