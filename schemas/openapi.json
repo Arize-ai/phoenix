@@ -2614,6 +2614,11 @@
         "properties": {
           "user": {
             "$ref": "#/components/schemas/UserCreate"
+          },
+          "send_welcome_email": {
+            "type": "boolean",
+            "title": "Send Welcome Email",
+            "default": true
           }
         },
         "type": "object",
@@ -4580,11 +4585,6 @@
           "role": {
             "type": "string",
             "title": "Role"
-          },
-          "send_welcome_email": {
-            "type": "boolean",
-            "title": "Send Welcome Email",
-            "default": true
           }
         },
         "type": "object",

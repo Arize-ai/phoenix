@@ -52,7 +52,6 @@ class UserCreate(V1RoutesBaseModel):
     username: str
     password: str
     role: str
-    send_welcome_email: bool = True
 
 
 class User(V1RoutesBaseModel):
@@ -76,6 +75,7 @@ class GetUserResponseBody(ResponseBody[User]):
 
 class CreateUserRequestBody(V1RoutesBaseModel):
     user: UserCreate
+    send_welcome_email: bool = True
 
 
 class CreateUserResponseBody(ResponseBody[User]):
@@ -230,7 +230,7 @@ async def create_user(
             await db.commit()
 
             # Send welcome email if requested
-            if user.send_welcome_email and request.app.state.email_sender is not None:
+            if request_body.send_welcome_email and request.app.state.email_sender is not None:
                 try:
                     await request.app.state.email_sender.send_welcome_email(
                         user.email, user.username
