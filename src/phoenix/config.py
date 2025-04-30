@@ -244,6 +244,14 @@ ENV_PHOENIX_TLS_ENABLED = "PHOENIX_TLS_ENABLED"
 """
 Whether to enable TLS for Phoenix HTTP and gRPC servers.
 """
+ENV_PHOENIX_TLS_ENABLED_FOR_HTTP = "PHOENIX_TLS_ENABLED_FOR_HTTP"
+"""
+Whether to enable TLS for Phoenix HTTP server. Overrides PHOENIX_TLS_ENABLED.
+"""
+ENV_PHOENIX_TLS_ENABLED_FOR_GRPC = "PHOENIX_TLS_ENABLED_FOR_GRPC"
+"""
+Whether to enable TLS for Phoenix gRPC server. Overrides PHOENIX_TLS_ENABLED.
+"""
 ENV_PHOENIX_TLS_CERT_FILE = "PHOENIX_TLS_CERT_FILE"
 """
 Path to the TLS certificate file for HTTPS connections.
@@ -392,15 +400,32 @@ class TLSConfigVerifyClient(TLSConfig):
         return self._ca_data
 
 
-def get_env_tls_enabled() -> bool:
+def get_env_tls_enabled_for_http() -> bool:
     """
-    Gets the value of the PHOENIX_TLS_ENABLED environment variable.
+    Gets whether TLS is enabled for the HTTP server.
+
+    This function checks both PHOENIX_TLS_ENABLED_FOR_HTTP and PHOENIX_TLS_ENABLED environment variables.
+    If PHOENIX_TLS_ENABLED_FOR_HTTP is set, it takes precedence over PHOENIX_TLS_ENABLED.
 
     Returns:
-        bool: True if TLS is enabled, False otherwise. Defaults to False if the environment
-        variable is not set.
+        bool: True if TLS is enabled for HTTP server, False otherwise. Defaults to False if neither
+        environment variable is set.
     """  # noqa: E501
-    return _bool_val(ENV_PHOENIX_TLS_ENABLED, False)
+    return _bool_val(ENV_PHOENIX_TLS_ENABLED_FOR_HTTP, _bool_val(ENV_PHOENIX_TLS_ENABLED, False))
+
+
+def get_env_tls_enabled_for_grpc() -> bool:
+    """
+    Gets whether TLS is enabled for the gRPC server.
+
+    This function checks both PHOENIX_TLS_ENABLED_FOR_GRPC and PHOENIX_TLS_ENABLED environment variables.
+    If PHOENIX_TLS_ENABLED_FOR_GRPC is set, it takes precedence over PHOENIX_TLS_ENABLED.
+
+    Returns:
+        bool: True if TLS is enabled for gRPC server, False otherwise. Defaults to False if neither
+        environment variable is set.
+    """  # noqa: E501
+    return _bool_val(ENV_PHOENIX_TLS_ENABLED_FOR_GRPC, _bool_val(ENV_PHOENIX_TLS_ENABLED, False))
 
 
 def get_env_tls_verify_client() -> bool:
@@ -434,7 +459,7 @@ def get_env_tls_config() -> Optional[TLSConfig]:
         ValueError: If required files are missing or don't exist when TLS is enabled
     """  # noqa: E501
     # Check if TLS is enabled
-    if not get_env_tls_enabled():
+    if not (get_env_tls_enabled_for_http() or get_env_tls_enabled_for_grpc()):
         return None
 
     # Get certificate file path if specified
@@ -1193,7 +1218,7 @@ def get_env_root_url() -> URL:
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    scheme = "https" if get_env_tls_enabled() else "http"
+    scheme = "https" if get_env_tls_enabled_for_http() else "http"
     return URL(urljoin(f"{scheme}://{host}:{get_env_port()}", get_env_host_root_path()))
 
 
@@ -1202,7 +1227,7 @@ def get_base_url() -> str:
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    scheme = "https" if get_env_tls_enabled() else "http"
+    scheme = "https" if get_env_tls_enabled_for_http() else "http"
     base_url = get_env_collector_endpoint() or f"{scheme}://{host}:{get_env_port()}"
     return base_url if base_url.endswith("/") else base_url + "/"
 
