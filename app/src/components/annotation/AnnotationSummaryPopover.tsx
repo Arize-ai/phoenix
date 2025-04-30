@@ -158,7 +158,7 @@ export function AnnotationSummaryPopover({
                             </td>
                             <td>
                               <Text size="M" weight="heavy">
-                                {annotation.score
+                                {annotation.score != null
                                   ? formatFloat(annotation.score)
                                   : null}
                               </Text>
