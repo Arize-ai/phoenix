@@ -62,7 +62,7 @@ export function SpanAnnotationInput(props: SpanAnnotationInputProps) {
                   if (selectedKey === _value?.label) {
                     selectedKey = null;
                   }
-                  if (typeof selectedKey === "string" && selectedKey) {
+                  if (typeof selectedKey === "string" && selectedKey != null) {
                     const newAnnotation: Annotation = {
                       ...annotation,
                       id: annotation?.id,
