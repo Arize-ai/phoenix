@@ -734,7 +734,7 @@ def _chunk_dataframe(
             score = None
             if "score" in row and row["score"] is not None:
                 try:
-                    score = float(row["score"])  # pyright: ignore[reportArgumentType]
+                    score = float(row["score"])  # pyright: ignore[reportUnknownArgumentType,reportArgumentType]
                 except (ValueError, TypeError):
                     raise TypeError(f"Score value '{row['score']}' cannot be converted to float")
             explanation = (

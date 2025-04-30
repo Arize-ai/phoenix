@@ -104,6 +104,7 @@ enum AnnotationType {
 enum AnnotatorKind {
   LLM
   HUMAN
+  CODE
 }
 
 interface ApiKey {

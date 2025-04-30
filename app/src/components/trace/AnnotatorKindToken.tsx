@@ -2,7 +2,7 @@ import React from "react";
 
 import { Token } from "@phoenix/components";
 
-type AnnotatorKind = "HUMAN" | "LLM";
+type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
 
 export function AnnotatorKindToken(props: { kind: AnnotatorKind }) {
   const { kind } = props;
