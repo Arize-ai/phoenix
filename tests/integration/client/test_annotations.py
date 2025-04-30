@@ -574,7 +574,8 @@ class TestClientForSpanAnnotations:
         2. The score of 0 is not treated as falsey or None
         3. Both synchronous and asynchronous clients handle zero scores correctly
         4. Both admin and member users can create annotations with zero scores
-        5. Optional fields (label, explanation, metadata) can be omitted
+        5. Optional fields (label, explanation) are properly stored as None when omitted
+        6. The annotation can be retrieved and verified by its name
         """  # noqa: E501
         # ============================================================================
         # Setup
@@ -651,7 +652,8 @@ class TestClientForSpanAnnotations:
         2. The score of 0 is not treated as falsey or None
         3. Both synchronous and asynchronous clients handle zero scores correctly
         4. Both admin and member users can create DataFrame annotations with zero scores
-        5. Optional fields (label, explanation, metadata) can be omitted in DataFrame annotations
+        5. Optional fields (label, explanation) are properly stored as None when omitted
+        6. The annotation can be retrieved and verified by its name
         """  # noqa: E501
         # ============================================================================
         # Setup
