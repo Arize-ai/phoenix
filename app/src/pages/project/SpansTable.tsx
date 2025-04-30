@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -94,17 +94,29 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   tableWidth: number;
 }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { traceId } = useParams();
+  const selectedSpanNodeId = searchParams.get("selectedSpanNodeId");
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected =
+          selectedSpanNodeId === row.original.id ||
+          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
         return (
           <tr
             key={row.id}
+            data-selected={isSelected}
             onClick={() =>
               navigate(
                 `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
               )
             }
+            css={css`
+              &[data-selected="true"] {
+                background-color: var(--ac-global-color-primary-100);
+              }
+            `}
           >
             {row.getVisibleCells().map((cell) => {
               const colSizeVar = `--col-${cell.column.id}-size`;
