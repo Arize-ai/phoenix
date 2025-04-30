@@ -51,8 +51,8 @@ def test_data_migration_for_trace_annotations(
             },
         ).scalar()
 
-        # Insert a trace annotation
-        trace_annotation_id = conn.execute(
+        # Insert a trace annotation with LLM annotator kind
+        trace_annotation_from_llm_id = conn.execute(
             text(
                 """
                 INSERT INTO trace_annotations (
@@ -68,7 +68,7 @@ def test_data_migration_for_trace_annotations(
             ),
             {
                 "trace_id": trace_rowid,
-                "name": "trace-annotation-name",
+                "name": "trace-annotation-from-llm",
                 "label": "trace-annotation-label",
                 "score": 1.23,
                 "explanation": "trace-annotation-explanation",
@@ -78,8 +78,35 @@ def test_data_migration_for_trace_annotations(
         ).scalar()
         conn.commit()
 
+        # Insert a trace annotation with LLM annotator kind
+        trace_annotation_from_human_id = conn.execute(
+            text(
+                """
+                INSERT INTO trace_annotations (
+                    trace_rowid, name, label, score, explanation,
+                    metadata, annotator_kind
+                )
+                VALUES (
+                    :trace_id, :name, :label, :score, :explanation,
+                    :metadata, :annotator_kind
+                )
+                RETURNING id
+                """
+            ),
+            {
+                "trace_id": trace_rowid,
+                "name": "trace-annotation-from-human",
+                "label": "trace-annotation-label",
+                "score": 1.23,
+                "explanation": "trace-annotation-explanation",
+                "metadata": '{"foo": "bar"}',
+                "annotator_kind": "HUMAN",
+            },
+        ).scalar()
+        conn.commit()
+
         # Verify that 'CODE' annotator_kind is not allowed before migration
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="valid_annotator_kind"):
             conn.execute(
                 text(
                     """
@@ -95,7 +122,7 @@ def test_data_migration_for_trace_annotations(
                 ),
                 {
                     "trace_id": trace_rowid,
-                    "name": "trace-annotation-name",
+                    "name": "trace-annotation-from-llm",
                     "label": "trace-annotation-label",
                     "score": 1.23,
                     "explanation": "trace-annotation-explanation",
@@ -119,7 +146,7 @@ def test_data_migration_for_trace_annotations(
                 WHERE id = :id
                 """  # noqa: E501
             ),
-            {"id": trace_annotation_id},
+            {"id": trace_annotation_from_llm_id},
         ).first()
         assert trace_annotation is not None
         (
@@ -137,9 +164,9 @@ def test_data_migration_for_trace_annotations(
             source,
             user_id,
         ) = trace_annotation
-        assert annotation_id == trace_annotation_id
+        assert annotation_id == trace_annotation_from_llm_id
         assert trace_rowid == trace_rowid
-        assert name == "trace-annotation-name"
+        assert name == "trace-annotation-from-llm"
         assert label == "trace-annotation-label"
         assert score == 1.23
         assert explanation == "trace-annotation-explanation"
@@ -147,6 +174,49 @@ def test_data_migration_for_trace_annotations(
         assert isinstance(created_at, str)
         assert isinstance(updated_at, str)
         assert annotator_kind == "LLM"
+        assert identifier == ""
+        assert source == "API"
+        assert user_id is None
+
+    # verify new columns exist
+    with _engine.connect() as conn:
+        # get the trace annotation
+        trace_annotation_from_human = conn.execute(
+            text(
+                """
+                SELECT id, trace_rowid, name, label, score, explanation, metadata, annotator_kind, created_at, updated_at, identifier, source, user_id
+                FROM trace_annotations
+                WHERE id = :id
+                """  # noqa: E501
+            ),
+            {"id": trace_annotation_from_human_id},
+        ).first()
+        assert trace_annotation_from_human is not None
+        (
+            annotation_id,
+            trace_rowid,
+            name,
+            label,
+            score,
+            explanation,
+            metadata,
+            annotator_kind,
+            created_at,
+            updated_at,
+            identifier,
+            source,
+            user_id,
+        ) = trace_annotation_from_human
+        assert annotation_id == trace_annotation_from_human_id
+        assert trace_rowid == trace_rowid
+        assert name == "trace-annotation-from-human"
+        assert label == "trace-annotation-label"
+        assert score == 1.23
+        assert explanation == "trace-annotation-explanation"
+        assert metadata == '{"foo": "bar"}'
+        assert isinstance(created_at, str)
+        assert isinstance(updated_at, str)
+        assert annotator_kind == "HUMAN"
         assert identifier == ""
         assert source == "APP"
         assert user_id is None

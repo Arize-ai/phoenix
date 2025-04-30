@@ -137,7 +137,17 @@ def upgrade() -> None:
     with op.batch_alter_table("trace_annotations") as batch_op:
         batch_op.execute(text("UPDATE trace_annotations SET identifier = ''"))
         batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
-        batch_op.execute(text("UPDATE trace_annotations SET source = 'APP'"))
+        batch_op.execute(
+            text(
+                """
+                UPDATE trace_annotations
+                SET source = CASE
+                    WHEN annotator_kind = 'HUMAN' THEN 'APP'
+                    ELSE 'API'
+                END
+                """
+            )
+        )
         batch_op.alter_column(
             "source",
             nullable=False,
