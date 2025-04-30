@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Literal, Optional, cast, get_args
 
 import httpx
 from typing_extensions import TypeAlias
@@ -14,10 +14,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
-# Valid annotator kinds as a list with Literal type
-_VALID_ANNOTATOR_KINDS: frozenset[Literal["LLM", "CODE", "HUMAN"]] = frozenset(
-    ["LLM", "CODE", "HUMAN"]
-)
+_VALID_ANNOTATOR_KINDS: frozenset[_AnnotatorKind] = frozenset(get_args(_AnnotatorKind))
 _DATAFRAME_CHUNK_SIZE = 100
 
 
