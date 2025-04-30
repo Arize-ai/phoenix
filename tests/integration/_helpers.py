@@ -288,6 +288,9 @@ class _ApiKey(str):
         return self._kind
 
 
+class _AdminSecret(str): ...
+
+
 class _Token(_String, ABC): ...
 
 
@@ -336,6 +339,7 @@ class _LoggedInUser(_User, _CanLogOut[_User]):
 
 _RoleOrUser = Union[UserRoleInput, _User]
 _SecurityArtifact: TypeAlias = Union[
+    _AdminSecret,
     _AccessToken,
     _RefreshToken,
     _LoggedInTokens,
@@ -624,6 +628,8 @@ def _httpx_client(
         logged_in_user = auth.log_in()
         return _httpx_client(logged_in_user.tokens, headers, cookies, transport)
     elif isinstance(auth, _ApiKey):
+        headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
+    elif isinstance(auth, _AdminSecret):
         headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
     elif auth is None:
         pass
