@@ -19,7 +19,7 @@ A span contains name, time-related data, structured log messages, and other meta
        "trace_state": "[]"
    },
    "kind": "SpanKind.INTERNAL",
-   "parent_id": "0x7eb5df0046c77cd2",
+   "parent_span_id": "0x7eb5df0046c77cd2",
    "start_time": "2024-05-08T21:46:11.480777Z",
    "end_time": "2024-05-08T21:46:35.368042Z",
    "status": {
