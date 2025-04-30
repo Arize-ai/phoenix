@@ -1,4 +1,5 @@
 import React, { startTransition, useEffect, useRef, useState } from "react";
+import { FocusScope } from "react-aria";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
 
@@ -8,6 +9,7 @@ import {
   MessageBubble,
   MessageBubbleSkeleton,
 } from "@phoenix/components/chat";
+import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 
 import { SpanNotesEditorAddNoteMutation } from "./__generated__/SpanNotesEditorAddNoteMutation.graphql";
 import { SpanNotesEditorQuery } from "./__generated__/SpanNotesEditorQuery.graphql";
@@ -15,6 +17,8 @@ import { SpanNotesEditorQuery } from "./__generated__/SpanNotesEditorQuery.graph
 type SpanNotesEditorProps = {
   spanNodeId: string;
 };
+
+export const NOTE_HOTKEY = "n";
 
 const notesListCSS = css`
   width: 100%;
@@ -128,11 +132,14 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
         ))}
         <div ref={notesEndRef} aria-hidden="true" />
       </ul>
-      <MessageBar
-        onSendMessage={onAddNote}
-        placeholder="Add a note"
-        isSending={isAddingNote}
-      />
+      <FocusScope restoreFocus>
+        <FocusHotkey hotkey={NOTE_HOTKEY} />
+        <MessageBar
+          onSendMessage={onAddNote}
+          placeholder="Add a note"
+          isSending={isAddingNote}
+        />
+      </FocusScope>
     </Flex>
   );
 }

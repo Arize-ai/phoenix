@@ -3,15 +3,22 @@ import { graphql, useFragment } from "react-relay";
 import { PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { View } from "@phoenix/components";
+import { Flex, Keyboard, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
-import { SpanAnnotationsEditor } from "@phoenix/components/trace/SpanAnnotationsEditor";
+import {
+  EDIT_ANNOTATION_HOTKEY,
+  SpanAnnotationsEditor,
+} from "@phoenix/components/trace/SpanAnnotationsEditor";
 import { SpanAsideAnnotationList_span$key } from "@phoenix/pages/trace/__generated__/SpanAsideAnnotationList_span.graphql";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
 
 import { SpanAside_span$key } from "./__generated__/SpanAside_span.graphql";
-import { SpanNotesEditor, SpanNotesEditorSkeleton } from "./SpanNotesEditor";
+import {
+  NOTE_HOTKEY,
+  SpanNotesEditor,
+  SpanNotesEditorSkeleton,
+} from "./SpanNotesEditor";
 
 const annotationListCSS = css`
   display: flex;
@@ -88,7 +95,12 @@ export function SpanAside(props: SpanAsideProps) {
       </Suspense>
       <TitledPanel
         resizable
-        title="Edit annotations"
+        title={
+          <Flex direction={"row"} gap="size-100" alignItems={"center"}>
+            <span>Edit annotations</span>
+            <Keyboard variant="primary">{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+          </Flex>
+        }
         panelProps={{ order: 2, minSize: 10 }}
       >
         <View height="100%" maxHeight="100%">
@@ -100,7 +112,12 @@ export function SpanAside(props: SpanAsideProps) {
       </TitledPanel>
       <TitledPanel
         resizable
-        title="Notes"
+        title={
+          <Flex direction={"row"} gap="size-100" alignItems={"center"}>
+            <span>Notes</span>
+            <Keyboard variant="primary">{NOTE_HOTKEY}</Keyboard>
+          </Flex>
+        }
         panelProps={{ order: 3, minSize: 10 }}
       >
         <View height="100%" maxHeight="100%">
