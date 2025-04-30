@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a8ba6fc18514f6fa6bb3379f0345343f>>
+ * @generated SignedSource<<8d1c2a9aeea6f10b547d0466309cc98a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,7 +48,13 @@ var v0 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    }
+  ],
   "kind": "Fragment",
   "metadata": null,
   "name": "SpanFeedback_annotations",
@@ -56,7 +62,13 @@ return {
     (v0/*: any*/),
     {
       "alias": null,
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        }
+      ],
       "concreteType": "SpanAnnotation",
       "kind": "LinkedField",
       "name": "spanAnnotations",
@@ -168,6 +180,6 @@ return {
 };
 })();
 
-(node as any).hash = "9a73b57370acadba7a0398c1439e9893";
+(node as any).hash = "807f336fc05555713eb54dc608af483b";
 
 export default node;
