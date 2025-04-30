@@ -107,7 +107,9 @@ async def list_span_annotations(
                 )
             stmt = stmt.where(models.SpanAnnotation.id <= cursor_id)
 
-        rows: list[Tuple[str, models.SpanAnnotation]] = [r async for r in session.stream(stmt)]
+        rows: list[Tuple[str, models.SpanAnnotation]] = [
+            r async for r in (await session.stream(stmt))
+        ]
 
         next_cursor: Optional[str] = None
         if len(rows) == limit + 1:

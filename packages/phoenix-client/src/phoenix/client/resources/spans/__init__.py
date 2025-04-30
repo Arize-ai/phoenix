@@ -158,9 +158,9 @@ class Spans:
             raise ValueError("Provide exactly one of 'spans' or 'span_ids'.")
 
         if spans is not None:
-            if "span_id" not in spans.columns:
-                raise ValueError("The provided DataFrame must contain a 'span_id' column.")
-            span_ids_list = spans["span_id"].dropna().unique().tolist()
+            if "context.span_id" not in spans.columns:
+                raise ValueError("The provided DataFrame must contain a 'context.span_id' column.")
+            span_ids_list = spans["context.span_id"].dropna().unique().tolist()
         else:
             span_ids_list = list({*span_ids})  # remove duplicates while preserving type
 
@@ -335,9 +335,9 @@ class AsyncSpans:
             raise ValueError("Provide exactly one of 'spans' or 'span_ids'.")
 
         if spans is not None:
-            if "span_id" not in spans.columns:
-                raise ValueError("The provided DataFrame must contain a 'span_id' column.")
-            span_ids_list = spans["span_id"].dropna().unique().tolist()
+            if "context.span_id" not in spans.columns:
+                raise ValueError("The provided DataFrame must contain a 'context.span_id' column.")
+            span_ids_list = spans["context.span_id"].dropna().unique().tolist()
         else:
             span_ids_list = list({*span_ids})
 
