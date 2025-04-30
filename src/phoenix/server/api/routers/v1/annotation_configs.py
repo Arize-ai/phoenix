@@ -256,9 +256,9 @@ async def get_annotation_config_by_name_or_id(
 )
 async def create_annotation_config(
     request: Request,
-    Data: CreateAnnotationConfigData,
+    data: CreateAnnotationConfigData,
 ) -> AnnotationConfig:
-    input_config = Data.root
+    input_config = data.root
     _reserve_note_annotation_name(input_config)
 
     try:
@@ -288,10 +288,10 @@ async def create_annotation_config(
 )
 async def update_annotation_config(
     request: Request,
-    Data: CreateAnnotationConfigData,
+    data: CreateAnnotationConfigData,
     config_id: str = Path(..., description="ID of the annotation configuration"),
 ) -> AnnotationConfig:
-    input_config = Data.root
+    input_config = data.root
     _reserve_note_annotation_name(input_config)
 
     config_gid = GlobalID.from_id(config_id)
@@ -376,8 +376,8 @@ def _get_annotation_config_db_id(config_gid: str) -> int:
     return node_id
 
 
-def _reserve_note_annotation_name(Data: AnnotationConfigData) -> str:
-    name = Data.name
+def _reserve_note_annotation_name(data: AnnotationConfigData) -> str:
+    name = data.name
     if name == "note":
         raise HTTPException(
             status_code=HTTP_409_CONFLICT, detail="The name 'note' is reserved for span notes"
