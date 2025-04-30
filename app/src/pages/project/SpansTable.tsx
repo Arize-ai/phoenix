@@ -111,9 +111,6 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                 <td
                   key={cell.id}
                   style={{
-                    // the cell still grows to fit, we just need some height declared
-                    // so that height: 100% works in children elements
-                    height: 1,
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
