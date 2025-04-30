@@ -1,8 +1,13 @@
 from datetime import datetime
 from typing import Optional
+import secrets
+import asyncio
+from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.status import (
     HTTP_201_CREATED,
     HTTP_204_NO_CONTENT,
@@ -18,8 +23,10 @@ from phoenix.auth import (
     DEFAULT_ADMIN_USERNAME,
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
+    DEFAULT_SECRET_LENGTH,
     validate_email_format,
     validate_password_format,
+    PASSWORD_REQUIREMENTS,
 )
 from phoenix.db.enums import UserRole as UserRoleEnum
 from phoenix.db.models import User as OrmUser
@@ -32,6 +39,8 @@ from phoenix.server.api.routers.v1.utils import (
     add_errors_to_responses,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.context import Context, DataLoaders
+from phoenix.auth import compute_password_hash
 
 router = APIRouter(tags=["users"])
 
@@ -145,6 +154,7 @@ async def list_users(
     responses=add_errors_to_responses(
         [
             {"status_code": HTTP_400_BAD_REQUEST, "description": "Role not found."},
+            {"status_code": HTTP_409_CONFLICT, "description": "Username or email already exists."},
             HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
@@ -158,37 +168,77 @@ async def create_user(
     # Validate email and password formats
     validate_email_format(user.email)
     validate_password_format(user.password)
+    PASSWORD_REQUIREMENTS.validate(user.password)
+
+    # Generate salt and hash password using the same method as in context.py
+    salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+    compute = partial(compute_password_hash, password=user.password, salt=salt)
+    password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
+
     async with request.app.state.db() as db:
-        # Resolve role string to user_role_id
-        role_row = await db.execute(select(UserRole.id).where(UserRole.name == user.role))
-        user_role_id = role_row.scalar_one_or_none()
-        if user_role_id is None:
+        # First check if username or email already exists
+        existing_user = await db.execute(
+            select(OrmUser.username, OrmUser.email).where(
+                (OrmUser.username == user.username) | (OrmUser.email == user.email)
+            )
+        )
+        if existing := existing_user.first():
+            if existing.username == user.username:
+                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Username already exists")
+            if existing.email == user.email:
+                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Email already exists")
+
+        # Get both role ID and name in a single query
+        role_row = await db.execute(
+            select(UserRole.id, UserRole.name).where(UserRole.name == user.role)
+        )
+        role_result = role_row.first()
+        if role_result is None:
             raise HTTPException(status_code=400, detail=f"Role '{user.role}' not found")
+
+        user_role_id, role = role_result
+
         new_user = OrmUser(
             email=user.email,
             username=user.username,
-            password_hash=user.password,  # Replace with hash in real code
+            password_hash=password_hash,
+            password_salt=salt,
             user_role_id=user_role_id,
+            reset_password=True,
         )
-        db.add(new_user)
-        await db.commit()
-        await db.refresh(new_user)
-        # Fetch the role string for the new user
-        role_row = await db.execute(
-            select(UserRole.name).where(UserRole.id == new_user.user_role_id)
-        )
-        role = role_row.scalar_one_or_none() or ""
-        user_obj = User(
-            id=str(GlobalID("User", str(new_user.id))),
-            email=new_user.email,
-            username=new_user.username,
-            profile_picture_url=new_user.profile_picture_url,
-            created_at=new_user.created_at,
-            role=role,
-            password_needs_reset=new_user.reset_password,
-            auth_method=new_user.auth_method or "",
-        )
-        return CreateUserResponseBody(data=user_obj)
+
+        try:
+            db.add(new_user)
+            await db.flush()  # Flush to get the ID and other generated fields
+
+            # Create the response object with all the data we need
+            user_obj = User(
+                id=str(GlobalID("User", str(new_user.id))),
+                email=new_user.email,
+                username=new_user.username,
+                profile_picture_url=new_user.profile_picture_url,
+                created_at=new_user.created_at,
+                role=role,
+                password_needs_reset=new_user.reset_password,
+                auth_method=new_user.auth_method or "",
+            )
+
+            # Now commit the transaction
+            await db.commit()
+
+            return CreateUserResponseBody(data=user_obj)
+
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            # Handle any other potential integrity errors we didn't catch earlier
+            if "users.username" in str(e):
+                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Username already exists")
+            elif "users.email" in str(e):
+                raise HTTPException(status_code=HTTP_409_CONFLICT, detail="Email already exists")
+            else:
+                raise HTTPException(
+                    status_code=HTTP_409_CONFLICT,
+                    detail="Failed to create user due to a conflict with existing data",
+                )
 
 
 @router.delete(
