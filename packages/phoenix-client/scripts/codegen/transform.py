@@ -136,6 +136,19 @@ def transform_dataclass(code: str) -> ast.AST:
             )
             parsed_ast.body.insert(index, import_notrequired)
             break
+
+    # Remove top-level Union type definitions
+    parsed_ast.body = [
+        node
+        for node in parsed_ast.body
+        if not (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Subscript)
+            and isinstance(node.value.value, ast.Name)
+            and node.value.value.id == "Union"
+        )
+    ]
+
     transformer = ConvertDataClassToTypedDict()
     transformed_ast = transformer.visit(parsed_ast)
     return transformed_ast
@@ -149,6 +162,7 @@ def transform_dataclass(code: str) -> ast.AST:
 PARENTS: Mapping[str, Sequence[str]] = {
     "Prompt": ["PromptData"],
     "PromptVersion": ["PromptVersionData"],
+    "SpanAnnotation": ["SpanAnnotationData"],
 }
 
 
@@ -344,7 +358,7 @@ if __name__ == "__main__":
     directory: Path = Path(sys.argv[1])
     rewrite_file(
         directory,
-        ".dataclass.txt",
+        ".dataclass.py",
         "__init__.py",
         transform_dataclass,
     )
