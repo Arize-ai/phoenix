@@ -168,10 +168,10 @@ class SpanAnnotationResult(V1RoutesBaseModel):
     )
 
 
-class SpanAnnotation(V1RoutesBaseModel):
+class SpanAnnotationData(V1RoutesBaseModel):
     span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
     name: str = Field(description="The name of the annotation")
-    annotator_kind: Literal["LLM", "HUMAN"] = Field(
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
         description="The kind of annotator used for the annotation"
     )
     result: Optional[SpanAnnotationResult] = Field(
@@ -199,14 +199,14 @@ class SpanAnnotation(V1RoutesBaseModel):
                 explanation=self.result.explanation if self.result else None,
                 metadata_=self.metadata or {},
                 identifier=self.identifier,
-                source="APP",
+                source="API",
                 user_id=None,
             ),
         )
 
 
-class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotation]]):
-    data: list[SpanAnnotation]
+class AnnotateSpansRequestBody(RequestBody[list[SpanAnnotationData]]):
+    data: list[SpanAnnotationData]
 
 
 class InsertedSpanAnnotation(V1RoutesBaseModel):

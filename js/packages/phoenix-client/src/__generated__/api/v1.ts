@@ -505,35 +505,15 @@ export interface components {
         /** AnnotateSpansRequestBody */
         AnnotateSpansRequestBody: {
             /** Data */
-            data: components["schemas"]["phoenix__server__api__routers__v1__spans__SpanAnnotation"][];
+            data: components["schemas"]["SpanAnnotationData"][];
         };
         /** AnnotateSpansResponseBody */
         AnnotateSpansResponseBody: {
             /** Data */
             data: components["schemas"]["InsertedSpanAnnotation"][];
         };
-        /**
-         * AnnotatorKind
-         * @enum {string}
-         */
-        AnnotatorKind: "LLM" | "CODE" | "HUMAN";
-        /** CategoricalAnnotationConfigPayload */
-        CategoricalAnnotationConfigPayload: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "CATEGORICAL";
-            /** Description */
-            description?: string | null;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Values */
-            values: components["schemas"]["CategoricalAnnotationValue"][];
-        };
-        /** CategoricalAnnotationConfigWithID */
-        CategoricalAnnotationConfigWithID: {
+        /** CategoricalAnnotationConfig */
+        CategoricalAnnotationConfig: {
             /** Name */
             name: string;
             /**
@@ -548,6 +528,21 @@ export interface components {
             values: components["schemas"]["CategoricalAnnotationValue"][];
             /** Id */
             id: string;
+        };
+        /** CategoricalAnnotationConfigData */
+        CategoricalAnnotationConfigData: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CATEGORICAL";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Values */
+            values: components["schemas"]["CategoricalAnnotationValue"][];
         };
         /** CategoricalAnnotationValue */
         CategoricalAnnotationValue: {
@@ -556,25 +551,8 @@ export interface components {
             /** Score */
             score?: number | null;
         };
-        /** ContinuousAnnotationConfigPayload */
-        ContinuousAnnotationConfigPayload: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "CONTINUOUS";
-            /** Description */
-            description?: string | null;
-            optimization_direction: components["schemas"]["OptimizationDirection"];
-            /** Lower Bound */
-            lower_bound?: number | null;
-            /** Upper Bound */
-            upper_bound?: number | null;
-        };
-        /** ContinuousAnnotationConfigWithID */
-        ContinuousAnnotationConfigWithID: {
+        /** ContinuousAnnotationConfig */
+        ContinuousAnnotationConfig: {
             /** Name */
             name: string;
             /**
@@ -592,8 +570,25 @@ export interface components {
             /** Id */
             id: string;
         };
-        /** CreateAnnotationConfigPayload */
-        CreateAnnotationConfigPayload: components["schemas"]["CategoricalAnnotationConfigPayload"] | components["schemas"]["ContinuousAnnotationConfigPayload"] | components["schemas"]["FreeformAnnotationConfigPayload"];
+        /** ContinuousAnnotationConfigData */
+        ContinuousAnnotationConfigData: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "CONTINUOUS";
+            /** Description */
+            description?: string | null;
+            optimization_direction: components["schemas"]["OptimizationDirection"];
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
+        };
+        /** CreateAnnotationConfigData */
+        CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
         /**
          * CreateExperimentRequestBody
          * @description Details of the experiment to be created
@@ -785,20 +780,8 @@ export interface components {
              */
             updated_at: string;
         };
-        /** FreeformAnnotationConfigPayload */
-        FreeformAnnotationConfigPayload: {
-            /** Name */
-            name: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "FREEFORM";
-            /** Description */
-            description?: string | null;
-        };
-        /** FreeformAnnotationConfigWithID */
-        FreeformAnnotationConfigWithID: {
+        /** FreeformAnnotationConfig */
+        FreeformAnnotationConfig: {
             /** Name */
             name: string;
             /**
@@ -811,10 +794,22 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** FreeformAnnotationConfigData */
+        FreeformAnnotationConfigData: {
+            /** Name */
+            name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "FREEFORM";
+            /** Description */
+            description?: string | null;
+        };
         /** GetAnnotationConfigsResponseBody */
         GetAnnotationConfigsResponseBody: {
             /** Data */
-            data: (components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"])[];
+            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1256,11 +1251,91 @@ export interface components {
             /** Description */
             description?: string | null;
         };
-        /**
-         * Source
-         * @enum {string}
-         */
-        Source: "API" | "APP";
+        /** SpanAnnotation */
+        SpanAnnotation: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             */
+            identifier?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "API" | "APP";
+            /** User Id */
+            user_id: string | null;
+        };
+        /** SpanAnnotationData */
+        SpanAnnotationData: {
+            /**
+             * Span Id
+             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
+             */
+            span_id: string;
+            /**
+             * Name
+             * @description The name of the annotation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the annotation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /** @description The result of the annotation */
+            result?: components["schemas"]["SpanAnnotationResult"] | null;
+            /**
+             * Metadata
+             * @description Metadata for the annotation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Identifier
+             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             */
+            identifier?: string | null;
+        };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
             /**
@@ -1282,7 +1357,7 @@ export interface components {
         /** SpanAnnotationsResponseBody */
         SpanAnnotationsResponseBody: {
             /** Data */
-            data: components["schemas"]["phoenix__server__api__routers__v1__annotations__SpanAnnotation"][];
+            data: components["schemas"]["SpanAnnotation"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1361,74 +1436,6 @@ export interface components {
             /** Error Type */
             type: string;
         };
-        /** SpanAnnotation */
-        phoenix__server__api__routers__v1__annotations__SpanAnnotation: {
-            /** Id */
-            id: string;
-            /** Span Id */
-            span_id: string;
-            /** Name */
-            name: string;
-            /** Label */
-            label: string | null;
-            /** Score */
-            score: number | null;
-            /** Explanation */
-            explanation: string | null;
-            /** Metadata */
-            metadata: {
-                [key: string]: unknown;
-            };
-            annotator_kind: components["schemas"]["AnnotatorKind"];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /** Identifier */
-            identifier: string | null;
-            source: components["schemas"]["Source"];
-            /** User Id */
-            user_id: string | null;
-        };
-        /** SpanAnnotation */
-        phoenix__server__api__routers__v1__spans__SpanAnnotation: {
-            /**
-             * Span Id
-             * @description OpenTelemetry Span ID (hex format w/o 0x prefix)
-             */
-            span_id: string;
-            /**
-             * Name
-             * @description The name of the annotation
-             */
-            name: string;
-            /**
-             * Annotator Kind
-             * @description The kind of annotator used for the annotation
-             * @enum {string}
-             */
-            annotator_kind: "LLM" | "HUMAN";
-            /** @description The result of the annotation */
-            result?: components["schemas"]["SpanAnnotationResult"] | null;
-            /**
-             * Metadata
-             * @description Metadata for the annotation
-             */
-            metadata?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Identifier
-             * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
-             */
-            identifier?: string | null;
-        };
     };
     responses: never;
     parameters: never;
@@ -1490,7 +1497,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateAnnotationConfigPayload"];
+                "application/json": components["schemas"]["CreateAnnotationConfigData"];
             };
         };
         responses: {
@@ -1500,7 +1507,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
+                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
                 };
             };
             /** @description Forbidden */
@@ -1541,7 +1548,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
+                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
                 };
             };
             /** @description Forbidden */
@@ -1576,7 +1583,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateAnnotationConfigPayload"];
+                "application/json": components["schemas"]["CreateAnnotationConfigData"];
             };
         };
         responses: {
@@ -1586,7 +1593,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
+                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
                 };
             };
             /** @description Forbidden */
@@ -1627,7 +1634,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfigWithID"] | components["schemas"]["ContinuousAnnotationConfigWithID"] | components["schemas"]["FreeformAnnotationConfigWithID"];
+                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
                 };
             };
             /** @description Forbidden */

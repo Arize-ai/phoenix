@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e598f36eb03ecd2b5efc3c0fffea8e5d>>
+ * @generated SignedSource<<13c46a752dab8c36126b8fcbf12c58fe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type AnnotatorKind = "HUMAN" | "LLM";
+export type AnnotatorKind = "CODE" | "HUMAN" | "LLM";
 import { FragmentRefs } from "relay-runtime";
 export type SpanAsideAnnotationList_span$data = {
   readonly filteredSpanAnnotations: ReadonlyArray<{

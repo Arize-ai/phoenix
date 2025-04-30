@@ -490,16 +490,3 @@ class AsyncProjects:
         url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = await self._client.delete(url)
         response.raise_for_status()
-
-
-def _encode_project_name(name: str) -> str:
-    """
-    Encode a project name using URL-safe hex encoding.
-
-    Args:
-        name: The project name to encode
-
-    Returns:
-        The hex-encoded project name
-    """
-    return name.encode().hex()

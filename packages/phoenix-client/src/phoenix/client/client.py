@@ -4,6 +4,7 @@ from typing import Mapping, Optional
 
 import httpx
 
+from phoenix.client.resources.annotations import Annotations, AsyncAnnotations
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
 from phoenix.client.resources.spans import AsyncSpans, Spans
@@ -53,6 +54,7 @@ class Client:
         self._prompts = Prompts(value)
         self._projects = Projects(value)
         self._spans = Spans(value)
+        self._annotations = Annotations(value)
 
     @property
     def prompts(self) -> Prompts:
@@ -84,6 +86,17 @@ class Client:
             Spans: An instance of the Spans class.
         """
         return self._spans
+
+    @property
+    def annotations(self) -> Annotations:
+        """
+        Returns an instance of the Annotations class for interacting with annotation-related
+        API endpoints.
+
+        Returns:
+            Annotations: An instance of the Annotations class.
+        """  # noqa: E501
+        return self._annotations
 
 
 class AsyncClient:
@@ -128,6 +141,7 @@ class AsyncClient:
         self._prompts = AsyncPrompts(value)
         self._projects = AsyncProjects(value)
         self._spans = AsyncSpans(value)
+        self._annotations = AsyncAnnotations(value)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -161,6 +175,17 @@ class AsyncClient:
             AsyncSpans: An instance of the Spans class.
         """
         return self._spans
+
+    @property
+    def annotations(self) -> AsyncAnnotations:
+        """
+        Returns an instance of the Asynchronous Annotations class for interacting with annotation-related
+        API endpoints.
+
+        Returns:
+            AsyncAnnotations: An instance of the Annotations class.
+        """  # noqa: E501
+        return self._annotations
 
 
 def _update_headers(
