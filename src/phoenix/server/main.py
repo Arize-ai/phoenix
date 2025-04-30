@@ -42,6 +42,8 @@ from phoenix.config import (
     get_env_smtp_username,
     get_env_smtp_validate_certs,
     get_env_tls_config,
+    get_env_tls_enabled_for_grpc,
+    get_env_tls_enabled_for_http,
     get_pids_path,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -101,8 +103,13 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
-{%- if tls_enabled %}
-|  TLS: Enabled
+{%- if auth_enabled_for_http or auth_enabled_for_grpc %}
+{%- if tls_enabled_for_http %}
+|  TLS: Enabled for HTTP
+{%- endif %}
+{%- if tls_enabled_for_grpc %}
+|  TLS: Enabled for gRPC
+{%- endif %}
 {%- if tls_verify_client %}
 |  TLS Client Verification: Enabled
 {%- endif %}
@@ -367,22 +374,25 @@ def main() -> None:
     allowed_origins = get_env_allowed_origins()
 
     # Get TLS configuration
+    tls_enabled_for_http = get_env_tls_enabled_for_http()
+    tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
     tls_config = get_env_tls_config()
-    tls_enabled = tls_config is not None
-    tls_verify_client = tls_enabled and isinstance(tls_config, TLSConfigVerifyClient)
+    tls_verify_client = tls_config is not None and isinstance(tls_config, TLSConfigVerifyClient)
 
     # Print information about the server
-    scheme = "https" if tls_enabled else "http"
-    root_path = urljoin(f"{scheme}://{host}:{port}", host_root_path)
+    http_scheme = "https" if tls_enabled_for_http else "http"
+    grpc_scheme = "https" if tls_enabled_for_grpc else "http"
+    root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
         ui_path=root_path,
-        grpc_path=f"{scheme}://{host}:{get_env_grpc_port()}",
+        grpc_path=f"{grpc_scheme}://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
-        tls_enabled=tls_enabled,
+        tls_enabled_for_http=tls_enabled_for_http,
+        tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
     )
@@ -444,7 +454,8 @@ def main() -> None:
         root_path=host_root_path,
     )
 
-    if tls_config:
+    if tls_enabled_for_http:
+        assert tls_config
         # Configure SSL context with certificate and key
         server_config.ssl_keyfile = str(tls_config.key_file)
         server_config.ssl_keyfile_password = tls_config.key_file_password
