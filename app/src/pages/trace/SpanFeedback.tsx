@@ -219,10 +219,9 @@ function SpanAnnotationsTable({
 export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
   const data = useFragment(
     graphql`
-      fragment SpanFeedback_annotations on Span
-      @argumentDefinitions(filter: { type: "SpanAnnotationFilter" }) {
+      fragment SpanFeedback_annotations on Span {
         id
-        spanAnnotations(filter: $filter) {
+        spanAnnotations {
           id
           name
           label
