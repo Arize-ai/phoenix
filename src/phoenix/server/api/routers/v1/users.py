@@ -1,9 +1,9 @@
-from datetime import datetime
-from typing import Optional
-import secrets
 import asyncio
 import logging
+import secrets
+from datetime import datetime
 from functools import partial
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
@@ -22,27 +22,25 @@ from strawberry.relay import GlobalID
 from phoenix.auth import (
     DEFAULT_ADMIN_EMAIL,
     DEFAULT_ADMIN_USERNAME,
+    DEFAULT_SECRET_LENGTH,
     DEFAULT_SYSTEM_EMAIL,
     DEFAULT_SYSTEM_USERNAME,
-    DEFAULT_SECRET_LENGTH,
+    PASSWORD_REQUIREMENTS,
+    compute_password_hash,
     validate_email_format,
     validate_password_format,
-    PASSWORD_REQUIREMENTS,
 )
 from phoenix.db.enums import UserRole as UserRoleEnum
 from phoenix.db.models import User as OrmUser
 from phoenix.db.models import UserRole
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
-from phoenix.server.authorization import require_admin
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.context import Context, DataLoaders
-from phoenix.auth import compute_password_hash
-from phoenix.server.email.types import EmailSender
+from phoenix.server.authorization import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -277,9 +275,7 @@ async def create_user(
 )
 async def delete_user(
     request: Request,
-    user_id: str = Path(
-        ..., description="The GlobalID of the user (base64-encoded, e.g. 'VXNlcjox')."
-    ),
+    user_id: str = Path(..., description="The GlobalID of the user (e.g. 'VXNlcjox')."),
 ) -> None:
     try:
         user_pk = from_global_id_with_expected_type(GlobalID.from_id(user_id), "User")
