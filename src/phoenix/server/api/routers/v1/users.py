@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 import secrets
 import asyncio
+import logging
 from functools import partial
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
@@ -41,6 +42,9 @@ from phoenix.server.api.routers.v1.utils import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.auth import compute_password_hash
+from phoenix.server.email.types import EmailSender
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["users"])
 
@@ -50,6 +54,7 @@ class UserCreate(V1RoutesBaseModel):
     username: str
     password: str
     role: str
+    send_welcome_email: bool = False
 
 
 class User(V1RoutesBaseModel):
@@ -225,6 +230,16 @@ async def create_user(
 
             # Now commit the transaction
             await db.commit()
+
+            # Send welcome email if requested
+            if user.send_welcome_email and request.app.state.email_sender is not None:
+                try:
+                    await request.app.state.email_sender.send_welcome_email(
+                        user.email, user.username
+                    )
+                except Exception as error:
+                    # Log the error but do not raise it
+                    logger.error(f"Failed to send welcome email: {error}")
 
             return CreateUserResponseBody(data=user_obj)
 
