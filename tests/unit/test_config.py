@@ -446,119 +446,74 @@ class TestGetEnvTlsEnabled:
     @pytest.mark.parametrize(
         "env_vars, expected_http, expected_grpc",
         [
-            # No variables set - defaults to False for both
+            # Base case: No variables set - defaults to False for both
             pytest.param(
                 {},
                 False,
                 False,
                 id="no_vars_set",
             ),
-            # Only PHOENIX_TLS_ENABLED set
+            # Global variable only tests - tests fallback behavior
             pytest.param(
                 {"PHOENIX_TLS_ENABLED": "true"},
                 True,
                 True,
-                id="only_global_tls_enabled",
+                id="global_only_enabled",
             ),
             pytest.param(
                 {"PHOENIX_TLS_ENABLED": "false"},
                 False,
                 False,
-                id="only_global_tls_disabled",
+                id="global_only_disabled",
             ),
-            # Only HTTP-specific variable set
-            pytest.param(
-                {"PHOENIX_TLS_ENABLED_FOR_HTTP": "true"},
-                True,
-                False,
-                id="only_http_tls_enabled",
-            ),
-            pytest.param(
-                {"PHOENIX_TLS_ENABLED_FOR_HTTP": "false"},
-                False,
-                False,
-                id="only_http_tls_disabled",
-            ),
-            # Only gRPC-specific variable set
-            pytest.param(
-                {"PHOENIX_TLS_ENABLED_FOR_GRPC": "true"},
-                False,
-                True,
-                id="only_grpc_tls_enabled",
-            ),
-            pytest.param(
-                {"PHOENIX_TLS_ENABLED_FOR_GRPC": "false"},
-                False,
-                False,
-                id="only_grpc_tls_disabled",
-            ),
-            # Both specific variables set
+            # HTTP-specific variable tests - should override global
             pytest.param(
                 {
+                    "PHOENIX_TLS_ENABLED": "false",
                     "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
-                },
-                True,
-                True,
-                id="both_specific_tls_enabled",
-            ),
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
                 },
                 True,
                 False,
-                id="http_enabled_grpc_disabled",
-            ),
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
-                },
-                False,
-                True,
-                id="http_disabled_grpc_enabled",
-            ),
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
-                },
-                False,
-                False,
-                id="both_specific_tls_disabled",
-            ),
-            # All variables set with global enabled
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
-                },
-                True,
-                True,
-                id="all_enabled",
-            ),
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
-                },
-                True,
-                False,
-                id="global_enabled_http_enabled_grpc_disabled",
+                id="http_overrides_global_disabled",
             ),
             pytest.param(
                 {
                     "PHOENIX_TLS_ENABLED": "true",
                     "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                },
+                False,
+                True,
+                id="http_overrides_global_enabled",
+            ),
+            # gRPC-specific variable tests - should override global
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
                     "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
                 },
                 False,
                 True,
-                id="global_enabled_http_disabled_grpc_enabled",
+                id="grpc_overrides_global_disabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
+                },
+                True,
+                False,
+                id="grpc_overrides_global_enabled",
+            ),
+            # Both specific variables set - should override global
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                },
+                True,
+                True,
+                id="both_specific_override_global_disabled",
             ),
             pytest.param(
                 {
@@ -568,48 +523,44 @@ class TestGetEnvTlsEnabled:
                 },
                 False,
                 False,
-                id="global_enabled_both_specific_disabled",
+                id="both_specific_override_global_enabled",
             ),
-            # All variables set with global disabled
+            # Mixed cases - one specific, one falls back to global
             pytest.param(
                 {
-                    "PHOENIX_TLS_ENABLED": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
+                    "PHOENIX_TLS_ENABLED": "true",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
                 },
+                False,
                 True,
-                True,
-                id="global_disabled_both_specific_enabled",
+                id="http_specific_grpc_falls_back",
             ),
             pytest.param(
                 {
-                    "PHOENIX_TLS_ENABLED": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                    "PHOENIX_TLS_ENABLED": "true",
                     "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
                 },
                 True,
                 False,
-                id="global_disabled_http_enabled_grpc_disabled",
+                id="grpc_specific_http_falls_back",
             ),
             pytest.param(
                 {
                     "PHOENIX_TLS_ENABLED": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
+                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "true",
+                },
+                True,
+                False,
+                id="http_specific_grpc_falls_back_disabled",
+            ),
+            pytest.param(
+                {
+                    "PHOENIX_TLS_ENABLED": "false",
                     "PHOENIX_TLS_ENABLED_FOR_GRPC": "true",
                 },
                 False,
                 True,
-                id="global_disabled_http_disabled_grpc_enabled",
-            ),
-            pytest.param(
-                {
-                    "PHOENIX_TLS_ENABLED": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_HTTP": "false",
-                    "PHOENIX_TLS_ENABLED_FOR_GRPC": "false",
-                },
-                False,
-                False,
-                id="all_disabled",
+                id="grpc_specific_http_falls_back_disabled",
             ),
         ],
     )
