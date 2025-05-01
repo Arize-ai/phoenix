@@ -161,15 +161,8 @@ class Spans:
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
-            if "context.span_id" in spans_dataframe.columns:
-                span_ids_list = spans_dataframe["context.span_id"].dropna().unique().tolist()
-            elif "span_id" in spans_dataframe.columns:
-                span_ids_list = spans_dataframe["span_id"].dropna().unique().tolist()
-            else:
-                raise ValueError(
-                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' "
-                    "column."
-                )
+            span_ids_raw = spans_dataframe["context.span_id"].dropna().tolist()
+            span_ids_list = list({*cast(list[str], span_ids_raw)})
         else:
             assert span_ids is not None
             span_ids_list = list({*span_ids})
@@ -177,7 +170,7 @@ class Spans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[dict[str, object]] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -200,7 +193,7 @@ class Spans:
                 response.raise_for_status()
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                batch = cast(list[dict[str, object]], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
@@ -236,7 +229,7 @@ class Spans:
         if not span_ids_list:
             return []
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[dict[str, object]] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -258,13 +251,13 @@ class Spans:
                 response.raise_for_status()
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                batch = cast(list[dict[str, object]], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
                     break
 
-        return annotations
+        return cast(list[v1.SpanAnnotation], annotations)
 
 
 class AsyncSpans:
@@ -407,15 +400,8 @@ class AsyncSpans:
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
-            if "context.span_id" in spans_dataframe.columns:
-                span_ids_list = spans_dataframe["context.span_id"].dropna().unique().tolist()
-            elif "span_id" in spans_dataframe.columns:
-                span_ids_list = spans_dataframe["span_id"].dropna().unique().tolist()
-            else:
-                raise ValueError(
-                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' "
-                    "column."
-                )
+            span_ids_raw = spans_dataframe["context.span_id"].dropna().tolist()
+            span_ids_list = list({*cast(list[str], span_ids_raw)})
         else:
             assert span_ids is not None
             span_ids_list = list({*span_ids})
@@ -423,7 +409,7 @@ class AsyncSpans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[dict[str, object]] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -445,7 +431,7 @@ class AsyncSpans:
                 response.raise_for_status()
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                batch = cast(list[dict[str, object]], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
@@ -481,7 +467,7 @@ class AsyncSpans:
         if not span_ids_list:
             return []
 
-        annotations: list[v1.SpanAnnotation] = []
+        annotations: list[dict[str, object]] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -503,13 +489,13 @@ class AsyncSpans:
                 response.raise_for_status()
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
-                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                batch = cast(list[dict[str, object]], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
                     break
 
-        return annotations
+        return cast(list[v1.SpanAnnotation], annotations)
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
