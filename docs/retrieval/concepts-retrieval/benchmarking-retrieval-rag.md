@@ -38,8 +38,6 @@ The typical flow of retrieval is a user query is embedded and used to search a v
 
 The eval template is used to evaluate the relevance of each chunk of data. The Eval asks the main question of "Does the chunk of data contain relevant information to answer the question"?
 
-<figure><img src="broken-reference" alt=""><figcaption><p>Retrieval Eval</p></figcaption></figure>
-
 The Retrieval Eval is used to analyze the performance of each chunk within the ordered list retrieved.
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-10-09 at 12.02.24 PM.png" alt=""><figcaption><p>Retrieval Performance</p></figcaption></figure>
