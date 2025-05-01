@@ -25,9 +25,9 @@ Example Usage:
     local_users = session.query(LocalUser).all()
 """
 
-import hashlib
 from typing import Any, Literal, Optional
 
+import bcrypt
 from sqlalchemy import CheckConstraint, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
@@ -113,7 +113,7 @@ class LocalUser(User):
     User who authenticates with local credentials.
 
     This subclass represents users who authenticate with an email and password.
-    It requires a password during creation and stores a hashed version.
+    It requires a password during creation and stores a hashed version using bcrypt.
 
     The key to polymorphic inheritance is the __mapper_args__ configuration:
     - polymorphic_identity: Set to "local" to identify this subclass
@@ -135,33 +135,16 @@ class LocalUser(User):
 
         Args:
             email: The user's email address
-            password: The user's password (will be hashed before storage)
+            password: The user's password (will be hashed with bcrypt before storage)
         """
-        # Simple password hashing for demonstration
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        # Hash password with bcrypt (includes salt and proper work factor)
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
         super().__init__(
             email=email,
             auth_method="local",  # This value determines which class to instantiate
             password_hash=password_hash,
         )
-
-    def verify_password(self, password: str) -> bool:
-        """
-        Verify if the provided password matches the stored hash.
-
-        Args:
-            password: The password to verify
-
-        Returns:
-            True if the password matches, False otherwise
-        """
-        if not self.password_hash:
-            return False
-
-        # Hash the provided password and compare
-        provided_hash = hashlib.sha256(password.encode()).hexdigest()
-        return provided_hash == self.password_hash
 
 
 class ExternalUser(User):
@@ -270,11 +253,6 @@ def main():
         local_users = session.query(LocalUser).all()
         for user in local_users:
             print(f"Type: {type(user).__name__}, Email: {user.email}")
-
-            # Demonstrate password verification
-            print("\nPassword verification:")
-            print(f"Correct password: {user.verify_password('secure_password123')}")
-            print(f"Incorrect password: {user.verify_password('wrong_password')}")
 
         # Query only external users
         print("\nExternal users:")

@@ -1,112 +1,59 @@
-# SQLAlchemy Polymorphic Inheritance Vignette
+# SQLAlchemy Polymorphic User Example
 
-This vignette demonstrates the concept of polymorphic inheritance in SQLAlchemy, specifically focusing on single table inheritance (STI) pattern. The example implements a user authentication system with two types of users: local users who authenticate with passwords and external users who authenticate through third-party services.
+This vignette demonstrates SQLAlchemy's single table inheritance (STI) pattern through a practical example of user authentication. It shows how to model different types of users (local and external) in a single database table while maintaining type safety and clean code organization.
 
-## What is Polymorphic Inheritance?
+## Key Concepts Demonstrated
 
-Polymorphic inheritance in SQLAlchemy allows you to create a hierarchy of classes that map to a single database table. A discriminator column (in our case, `auth_method`) determines which class should be instantiated for a given row.
+1. **Single Table Inheritance (STI)**
+   - All user types share the same database table
+   - A discriminator column (`auth_method`) determines which class to instantiate
+   - Efficient storage while maintaining object-oriented design
 
-## Key Concepts
+2. **Polymorphic Identity**
+   - Each subclass has a unique identifier in the `auth_method` column
+   - SQLAlchemy automatically instantiates the correct class based on this value
+   - Enables type-safe querying of specific user types
 
-1. **Base Class (`User`)**:
-   - Abstract class that defines common attributes and behavior
-   - Cannot be instantiated directly
-   - Uses `__mapper_args__` to configure polymorphic behavior
-   - Sets `polymorphic_identity=None` to indicate it's abstract
+3. **Abstract Base Class**
+   - The `User` class cannot be instantiated directly
+   - Defines common structure and behavior for all user types
+   - Enforces consistent interface across subclasses
 
-2. **Discriminator Column (`auth_method`)**:
-   - Determines which subclass to instantiate
-   - Has a check constraint to ensure valid values
-   - Values correspond to subclass identities
+## Code Structure
 
-3. **Subclasses**:
-   - `LocalUser`: For users with local password authentication
-   - `ExternalUser`: For users authenticated through external services
-   - Each sets its own `polymorphic_identity` in `__mapper_args__`
+- `User`: Abstract base class defining common user attributes
+- `LocalUser`: Subclass for users with local password authentication
+- `ExternalUser`: Subclass for users authenticated through external services
 
-## Implementation Details
-
-The implementation demonstrates:
-
-1. **Single Table Design**:
-   - All users are stored in the same `users` table
-   - Common fields (id, email) are defined in the base class
-   - Subclass-specific fields (password_hash) are nullable
-
-2. **Polymorphic Querying**:
-   ```python
-   # Query all users (returns both types)
-   users = session.query(User).all()
-   
-   # Query specific user type
-   local_users = session.query(LocalUser).all()
-   ```
-
-3. **Type Safety**:
-   - Abstract base class prevents direct instantiation
-   - Type hints ensure correct usage
-   - Discriminator column has check constraint
-
-## Example Usage
+## Usage Example
 
 ```python
 # Create a local user
-local_user = LocalUser(
-    email="local@example.com",
-    password="secure_password123"
-)
+local_user = LocalUser(email="user@example.com", password="secret")
 
 # Create an external user
-external_user = ExternalUser(
-    email="external@example.com"
-)
+external_user = ExternalUser(email="oauth@example.com")
 
-# Add to session
-session.add(local_user)
-session.add(external_user)
-session.commit()
+# Query all users (returns both types)
+users = session.query(User).all()
 
-# Query all users
-users = session.query(User).all()  # Returns both LocalUser and ExternalUser instances
-
-# Query specific user types
-local_users = session.query(LocalUser).all()  # Returns only LocalUser instances
+# Query specific type
+local_users = session.query(LocalUser).all()
 ```
 
-## Benefits
+## Educational Focus
 
-1. **Code Organization**:
-   - Clear separation of concerns between user types
-   - Common functionality in base class
-   - Type-specific behavior in subclasses
-
-2. **Database Efficiency**:
-   - Single table design reduces joins
-   - No need for separate tables for each user type
-   - Nullable columns for type-specific fields
-
-3. **Flexibility**:
-   - Easy to add new user types without schema changes
-   - Consistent interface through base class
-   - Type-safe querying
-
-## Limitations
-
-1. **Schema Constraints**:
-   - All subclasses must share the same table structure
-   - Additional columns for specific subclasses must be nullable
-   - Complex queries may require careful consideration of the discriminator column
-
-2. **Performance Considerations**:
-   - Large number of nullable columns may impact performance
-   - Queries may need to filter on discriminator column
-   - Indexing strategy should consider discriminator values
+This example is designed to teach:
+- How to implement STI in SQLAlchemy
+- The benefits of polymorphic inheritance in database design
+- How to maintain clean code organization with multiple user types
+- Basic security practices for password storage
 
 ## Running the Example
 
 1. Install dependencies:
    ```bash
-   pip install sqlalchemy
+   pip install sqlalchemy bcrypt
    ```
 
 2. Run the example:
@@ -114,9 +61,11 @@ local_users = session.query(LocalUser).all()  # Returns only LocalUser instances
    python users.py
    ```
 
-The script will:
-- Create an in-memory SQLite database
-- Create and persist different types of users
-- Demonstrate querying capabilities
-- Show error handling for abstract class instantiation
-- Demonstrate password verification
+## Note on Security
+
+This example includes basic password hashing for educational purposes. In a production environment, you would want to implement additional security measures such as:
+- Rate limiting
+- Password complexity requirements
+- Account lockout policies
+- Session management
+- Additional authentication factors
