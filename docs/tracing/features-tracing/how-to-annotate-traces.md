@@ -19,6 +19,10 @@ When you have large amounts of data it can be immensely efficient and valuable t
 * [evals.md](../../evaluation/evals.md "mention") to generate evaluation results
 * [llm-evaluations.md](../how-to-tracing/feedback-and-annotations/llm-evaluations.md "mention") to add evaluation results to spans
 
+Navigate to the Feedback tab in this demo trace to see how LLM-based evaluations appear in Phoenix:
+
+{% embed url="https://phoenix-demo.arize.com/projects/UHJvamVjdDoy/spans/3eb00713de9347f9e6b056b1b13cb318?selectedSpanNodeId=U3BhbjozNjQzOA==" %}
+
 ### Human Annotations
 
 Sometimes you need to rely on human annotators to attach feedback to specific traces of your application. Human annotations through the UI can be thought of as manual quality assurance. While it can be a bit more labor intensive, it can help in sharing insights within a team, curating datasets of good/bad examples, and even in training an LLM judge.
