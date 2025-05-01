@@ -154,7 +154,9 @@ class Spans:
             )
 
         # Validate input parameters
-        if (spans_dataframe is None and span_ids is None) or (spans_dataframe is not None and span_ids is not None):
+        if (spans_dataframe is None and span_ids is None) or (
+            spans_dataframe is not None and span_ids is not None
+        ):
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
@@ -164,7 +166,8 @@ class Spans:
                 span_ids_list = spans_dataframe["span_id"].dropna().unique().tolist()
             else:
                 raise ValueError(
-                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' column."
+                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' "
+                    "column."
                 )
         else:
             span_ids_list = list({*span_ids})  # remove duplicates while preserving type
@@ -336,7 +339,9 @@ class AsyncSpans:
                 "Install it with 'pip install pandas'"
             )
 
-        if (spans_dataframe is None and span_ids is None) or (spans_dataframe is not None and span_ids is not None):
+        if (spans_dataframe is None and span_ids is None) or (
+            spans_dataframe is not None and span_ids is not None
+        ):
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
@@ -346,7 +351,8 @@ class AsyncSpans:
                 span_ids_list = spans_dataframe["span_id"].dropna().unique().tolist()
             else:
                 raise ValueError(
-                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' column."
+                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' "
+                    "column."
                 )
         else:
             span_ids_list = list({*span_ids})
