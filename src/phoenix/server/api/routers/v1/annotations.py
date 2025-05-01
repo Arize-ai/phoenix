@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from sqlalchemy import exists, select
@@ -107,7 +107,9 @@ async def list_span_annotations(
                 )
             stmt = stmt.where(models.SpanAnnotation.id <= cursor_id)
 
-        rows: list[Tuple[str, models.SpanAnnotation]] = [r async for r in session.stream(stmt)]
+        rows: list[tuple[str, models.SpanAnnotation]] = [
+            r async for r in (await session.stream(stmt))
+        ]
 
         next_cursor: Optional[str] = None
         if len(rows) == limit + 1:
