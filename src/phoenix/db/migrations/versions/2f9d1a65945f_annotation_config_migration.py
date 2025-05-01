@@ -261,30 +261,9 @@ def upgrade() -> None:
             "annotation_config_id",
         ),
     )
-    op.create_index(
-        "ix_span_annotations_identifier",
-        "span_annotations",
-        ["identifier"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_trace_annotations_identifier",
-        "trace_annotations",
-        ["identifier"],
-        unique=False,
-    )
-    op.create_index(
-        "ix_document_annotations_identifier",
-        "document_annotations",
-        ["identifier"],
-        unique=False,
-    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_document_annotations_identifier", table_name="document_annotations")
-    op.drop_index("ix_trace_annotations_identifier", table_name="trace_annotations")
-    op.drop_index("ix_span_annotations_identifier", table_name="span_annotations")
     op.drop_table("project_annotation_configs")
     op.drop_table("annotation_configs")
 

@@ -824,7 +824,6 @@ class SpanAnnotation(Base):
     identifier: Mapped[str] = mapped_column(
         String,
         nullable=False,
-        index=True,
     )
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
@@ -861,7 +860,6 @@ class TraceAnnotation(Base):
     identifier: Mapped[str] = mapped_column(
         String,
         nullable=False,
-        index=True,
     )
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
@@ -899,7 +897,6 @@ class DocumentAnnotation(Base):
     identifier: Mapped[str] = mapped_column(
         String,
         nullable=False,
-        index=True,
     )
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
