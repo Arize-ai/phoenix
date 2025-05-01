@@ -556,3 +556,166 @@ class TestClientForSpanAnnotations:
             assert (
                 anno["annotatorKind"] == global_annotator_kind
             ), f"DataFrame annotation {i+1} annotator_kind should match global value"  # noqa: E501
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_zero_score_annotation(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that a score of 0 is properly recorded and not treated as falsey.
+
+        This test verifies that:
+        1. An annotation with a score of 0 is properly created and stored
+        2. The score of 0 is not treated as falsey or None
+        3. Both synchronous and asynchronous clients handle zero scores correctly
+        4. Both admin and member users can create annotations with zero scores
+        5. Optional fields (label, explanation) are properly stored as None when omitted
+        6. The annotation can be retrieved and verified by its name
+        """  # noqa: E501
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL span ID and graphql Global ID from the fixture
+        (span_id1, span_gid1), _ = _span_ids
+
+        # Set up test environment with logged-in user
+        u = _get_user(role_or_user).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case: Zero Score
+        # ============================================================================
+        # Test that a score of 0 is properly recorded and not treated as falsey
+        zero_score_annotation_name = token_hex(16)
+
+        # Create annotation with score of 0
+        await _await_or_return(
+            Client().annotations.add_span_annotation(
+                annotation_name=zero_score_annotation_name,
+                span_id=span_id1,
+                annotator_kind="LLM",
+                score=0,  # Explicitly test score of 0
+                sync=True,
+            ),
+        )
+
+        # Verify the annotation was created correctly by querying the GraphQL API
+        res, _ = _gql(
+            u,
+            query=self.query,
+            operation_name="GetSpanAnnotations",
+            variables={"id": span_gid1},
+        )
+
+        # Create a dictionary of annotations for easy lookup
+        annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
+
+        # Verify the annotation exists and has score of 0
+        assert (
+            zero_score_annotation_name in annotations
+        ), "Annotation with score of 0 should be present in span annotations"
+        assert (
+            annotations[zero_score_annotation_name]["score"] == 0
+        ), "Annotation score should be exactly 0"
+        assert (
+            annotations[zero_score_annotation_name]["label"] is None
+        ), "Annotation label should be None"
+        assert (
+            annotations[zero_score_annotation_name]["explanation"] is None
+        ), "Annotation explanation should be None"
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    async def test_zero_score_annotation_dataframe(
+        self,
+        is_async: bool,
+        role_or_user: _RoleOrUser,
+        _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
+        _get_user: _GetUser,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that a score of 0 is properly recorded and not treated as falsey in DataFrame annotations.
+
+        This test verifies that:
+        1. A DataFrame annotation with a score of 0 is properly created and stored
+        2. The score of 0 is not treated as falsey or None
+        3. Both synchronous and asynchronous clients handle zero scores correctly
+        4. Both admin and member users can create DataFrame annotations with zero scores
+        5. Optional fields (label, explanation) are properly stored as None when omitted
+        6. The annotation can be retrieved and verified by its name
+        """  # noqa: E501
+        # ============================================================================
+        # Setup
+        # ============================================================================
+        # Extract OTEL span ID and graphql Global ID from the fixture
+        (span_id1, span_gid1), _ = _span_ids
+
+        # Set up test environment with logged-in user
+        u = _get_user(role_or_user).log_in()
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+
+        # Import appropriate client based on test parameter
+        from phoenix.client import AsyncClient
+        from phoenix.client import Client as SyncClient
+
+        Client = AsyncClient if is_async else SyncClient
+
+        # ============================================================================
+        # Test Case: Zero Score in DataFrame
+        # ============================================================================
+        # Test that a score of 0 is properly recorded and not treated as falsey
+        zero_score_annotation_name = token_hex(16)
+
+        # Create DataFrame with score of 0
+        df = pd.DataFrame(
+            {
+                "name": [zero_score_annotation_name],
+                "span_id": [span_id1],
+                "annotator_kind": ["LLM"],
+                "score": [0],  # Explicitly test score of 0
+            }
+        )
+
+        # Log annotations from DataFrame
+        await _await_or_return(
+            Client().annotations.log_span_annotations_dataframe(
+                dataframe=df,
+                sync=True,
+            ),
+        )
+
+        # Verify the annotation was created correctly by querying the GraphQL API
+        res, _ = _gql(
+            u,
+            query=self.query,
+            operation_name="GetSpanAnnotations",
+            variables={"id": span_gid1},
+        )
+
+        # Create a dictionary of annotations for easy lookup
+        annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
+
+        # Verify the annotation exists and has score of 0
+        assert (
+            zero_score_annotation_name in annotations
+        ), "DataFrame annotation with score of 0 should be present in span annotations"
+        assert (
+            annotations[zero_score_annotation_name]["score"] == 0
+        ), "DataFrame annotation score should be exactly 0"
+        assert (
+            annotations[zero_score_annotation_name]["label"] is None
+        ), "DataFrame annotation label should be None"
+        assert (
+            annotations[zero_score_annotation_name]["explanation"] is None
+        ), "DataFrame annotation explanation should be None"
