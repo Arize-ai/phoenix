@@ -28,6 +28,7 @@ import {
 } from "@phoenix/components";
 import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
 import { Empty } from "@phoenix/components/Empty";
+import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
 import { SpanAnnotationsEditorDeleteAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorDeleteAnnotationMutation.graphql";
 import { SpanAnnotationsEditorSpanAnnotationsListQuery } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorSpanAnnotationsListQuery.graphql";
@@ -43,6 +44,8 @@ import { Mutable } from "@phoenix/typeUtils";
 import { SpanAnnotationsEditor_spanAnnotations$key } from "./__generated__/SpanAnnotationsEditor_spanAnnotations.graphql";
 import { SpanAnnotationsEditorEditAnnotationMutation } from "./__generated__/SpanAnnotationsEditorEditAnnotationMutation.graphql";
 import { AnnotationFormData, SpanAnnotationInput } from "./SpanAnnotationInput";
+
+export const EDIT_ANNOTATION_HOTKEY = "e";
 
 export type SpanAnnotationsEditorProps = {
   spanNodeId: string;
@@ -470,7 +473,8 @@ function SpanAnnotationsList(props: {
         />
       )}
       {!!annotationConfigsLength && (
-        <FocusScope autoFocus>
+        <FocusScope>
+          <FocusHotkey hotkey={EDIT_ANNOTATION_HOTKEY} />
           {annotationConfigs?.map((annotationConfig, idx) => {
             const annotation = annotations.find(
               (annotation) => annotation.name === annotationConfig.config.name

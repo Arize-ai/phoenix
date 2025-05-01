@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   type ImperativePanelHandle,
@@ -60,6 +61,7 @@ import {
   Heading,
   Icon,
   Icons,
+  KeyboardToken,
   LazyTabPanel,
   LinkButton,
   Tab,
@@ -163,6 +165,7 @@ const defaultCardProps: Partial<CardProps> = {
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
 const ASIDE_PANEL_DEFAULT_SIZE = 33;
+const EDIT_ANNOTATION_HOTKEY = "e";
 
 export function SpanDetails({
   spanNodeId,
@@ -182,10 +185,10 @@ export function SpanDetails({
   const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
-  const isCondensedView =
-    spanDetailsContainerDimensions?.width &&
-    spanDetailsContainerDimensions.width <
-      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
+  const isCondensedView = spanDetailsContainerDimensions?.width
+    ? spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
+    : true;
   const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
@@ -262,6 +265,16 @@ export function SpanDetails({
     );
   }
 
+  useHotkeys(
+    EDIT_ANNOTATION_HOTKEY,
+    () => {
+      if (!isAnnotatingSpans) {
+        setIsAnnotatingSpans(true);
+      }
+    },
+    { preventDefault: true }
+  );
+
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
   }, [span]);
@@ -323,6 +336,12 @@ export function SpanDetails({
                     }
                   }}
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  trailingVisual={
+                    !isCondensedView &&
+                    !isAnnotatingSpans && (
+                      <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
+                    )
+                  }
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
