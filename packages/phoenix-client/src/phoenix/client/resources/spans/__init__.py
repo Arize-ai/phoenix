@@ -177,7 +177,7 @@ class Spans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        annotations: list[dict] = []
+        annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -199,7 +199,9 @@ class Spans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                annotations.extend(payload.get("data", []))
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
                     break  # finished paginating this batch
@@ -234,7 +236,7 @@ class Spans:
         if not span_ids_list:
             return []
 
-        annotations: list[dict] = []
+        annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -255,12 +257,14 @@ class Spans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                annotations.extend(payload.get("data", []))
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
                     break
 
-        return cast(list[v1.SpanAnnotation], annotations)
+        return annotations
 
 
 class AsyncSpans:
@@ -419,7 +423,7 @@ class AsyncSpans:
         if not span_ids_list:
             return pd.DataFrame()
 
-        annotations: list[dict] = []
+        annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -440,7 +444,9 @@ class AsyncSpans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                annotations.extend(payload.get("data", []))
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
                     break
@@ -475,7 +481,7 @@ class AsyncSpans:
         if not span_ids_list:
             return []
 
-        annotations: list[dict] = []
+        annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
@@ -496,12 +502,14 @@ class AsyncSpans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                annotations.extend(payload.get("data", []))
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
                 cursor = payload.get("next_cursor")
                 if not cursor:
                     break
 
-        return cast(list[v1.SpanAnnotation], annotations)
+        return annotations
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
