@@ -7,6 +7,8 @@ import React, {
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+
 /**
  * A sequence of traceId/spanId pairs that represent the trace sequence.
  * The sequence is used to navigate between traces, or spans within a trace.
@@ -82,7 +84,7 @@ export const makeTraceUrls = (
     let path = `/${projects}/${projectId}/${resource}/${traceId}`;
     // we add a selected span node id if provided to makeUrl
     if (currentSpanId) {
-      path += `?selectedSpanNodeId=${currentSpanId}`;
+      path += `?${SELECTED_SPAN_NODE_ID_PARAM}=${currentSpanId}`;
     }
     return path;
   };

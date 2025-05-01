@@ -50,6 +50,7 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useNotifyError } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import {
@@ -958,7 +959,7 @@ export function PlaygroundDatasetExamplesTable({
         onDismiss={() => {
           setDialog(null);
           setSearchParams((searchParams) => {
-            searchParams.delete("selectedSpanNodeId");
+            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
             return searchParams;
           });
         }}

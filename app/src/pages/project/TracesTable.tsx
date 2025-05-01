@@ -42,6 +42,7 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -594,7 +595,7 @@ export function TracesTable(props: TracesTableProps) {
             : row.original.id;
           return (
             <Link
-              to={`${traceId}${spanId ? `?selectedSpanNodeId=${spanId}` : ""}`}
+              to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
             >
               {getValue() as string}
             </Link>

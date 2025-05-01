@@ -56,6 +56,7 @@ import {
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -527,7 +528,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
             onDismiss={() => {
               setDialog(null);
               setSearchParams((searchParams) => {
-                searchParams.delete("selectedSpanNodeId");
+                searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
                 return searchParams;
               });
             }}

@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { Dialog, DialogContainer } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
 
@@ -17,7 +18,7 @@ export function TracePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
-  const selectedSpanNodeId = searchParams.get("selectedSpanNodeId");
+  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
 
   // if we are focused on a particular span, use that as the subjectId
   // otherwise, use the traceId

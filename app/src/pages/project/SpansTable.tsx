@@ -43,6 +43,7 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -96,7 +97,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { traceId } = useParams();
-  const selectedSpanNodeId = searchParams.get("selectedSpanNodeId");
+  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -109,7 +110,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             data-selected={isSelected}
             onClick={() =>
               navigate(
-                `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
+                `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
               )
             }
             css={css`
@@ -439,7 +440,7 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`${traceId}?selectedSpanNodeId=${span.id}`}>
+          <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
             {getValue() as string}
           </Link>
         );
