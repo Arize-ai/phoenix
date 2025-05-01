@@ -347,7 +347,7 @@ def test_annotation_config_migration(
 
             # verify source is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
-                create_span_annotation_post_migration(
+                _create_span_annotation_post_migration(
                     conn=conn,
                     span_rowid=span_rowid,
                     name=f"span-annotation-name-{iteration_index}",
@@ -405,7 +405,7 @@ def test_annotation_config_migration(
 
             # verify identifier is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
-                create_span_annotation_post_migration(
+                _create_span_annotation_post_migration(
                     conn=conn,
                     span_rowid=span_rowid,
                     name=f"span-annotation-name-{iteration_index}",
@@ -459,7 +459,7 @@ def test_annotation_config_migration(
             conn.commit()
 
             # verify CODE annotator kind for span annotations
-            span_annotation_from_code_id = create_span_annotation_post_migration(
+            span_annotation_from_code_id = _create_span_annotation_post_migration(
                 conn=conn,
                 span_rowid=span_rowid,
                 name=f"span-annotation-name-2-{iteration_index}",
@@ -669,7 +669,7 @@ def _create_trace_annotation_post_migration(
     return id
 
 
-def create_span_annotation_post_migration(
+def _create_span_annotation_post_migration(
     conn: Connection,
     span_rowid: int,
     name: str,
