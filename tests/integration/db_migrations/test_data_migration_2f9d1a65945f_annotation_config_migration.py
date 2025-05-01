@@ -327,55 +327,6 @@ def test_annotation_config_migration(
             assert source == "APP"
             assert user_id is None
 
-            # verify that after migration, 'CODE' is allowed
-            trace_annotation_from_code_id = _create_trace_annotation_post_migration(
-                conn=conn,
-                trace_rowid=trace_rowid,
-                name=f"trace-annotation-name-2-{random.randint(1, 1000)}",
-                label="trace-annotation-label-2",
-                score=2.34,
-                explanation="trace-annotation-explanation",
-                metadata='{"foo": "baz"}',
-                annotator_kind="CODE",
-                user_id=None,
-                identifier="id1",
-                source="API",
-            )
-            conn.commit()
-
-            # verify CODE annotator kind for span annotations
-            span_annotation_from_code_id = create_span_annotation_post_migration(
-                conn=conn,
-                span_rowid=span_rowid,
-                name=f"span-annotation-name-2-{random.randint(1, 1000)}",
-                label="span-annotation-label-2",
-                score=2.34,
-                explanation="span-annotation-explanation",
-                metadata='{"foo": "baz"}',
-                annotator_kind="CODE",
-                user_id=None,
-                identifier="id2",
-                source="API",
-            )
-            conn.commit()
-
-            # verify CODE annotator kind for document annotations
-            document_annotation_from_code_id = _create_document_annotation_post_migration(
-                conn=conn,
-                span_rowid=span_rowid,
-                document_position=3,
-                name=f"document-annotation-name-2-{random.randint(1, 1000)}",
-                label="document-annotation-label-2",
-                score=2.34,
-                explanation="document-annotation-explanation",
-                metadata='{"foo": "baz"}',
-                annotator_kind="CODE",
-                user_id=None,
-                identifier="id3",
-                source="API",
-            )
-            conn.commit()
-
             # verify source is non-nullable for trace annotations
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_post_migration(
@@ -492,7 +443,56 @@ def test_annotation_config_migration(
             assert "NOT NULL" in error_message
             assert "document_annotations.identifier" in error_message
 
-            # delete the newly inserted annotations
+            # verify that after migration, 'CODE' is allowed
+            trace_annotation_from_code_id = _create_trace_annotation_post_migration(
+                conn=conn,
+                trace_rowid=trace_rowid,
+                name=f"trace-annotation-name-2-{random.randint(1, 1000)}",
+                label="trace-annotation-label-2",
+                score=2.34,
+                explanation="trace-annotation-explanation",
+                metadata='{"foo": "baz"}',
+                annotator_kind="CODE",
+                user_id=None,
+                identifier="id1",
+                source="API",
+            )
+            conn.commit()
+
+            # verify CODE annotator kind for span annotations
+            span_annotation_from_code_id = create_span_annotation_post_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                name=f"span-annotation-name-2-{random.randint(1, 1000)}",
+                label="span-annotation-label-2",
+                score=2.34,
+                explanation="span-annotation-explanation",
+                metadata='{"foo": "baz"}',
+                annotator_kind="CODE",
+                user_id=None,
+                identifier="id2",
+                source="API",
+            )
+            conn.commit()
+
+            # verify CODE annotator kind for document annotations
+            document_annotation_from_code_id = _create_document_annotation_post_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                document_position=3,
+                name=f"document-annotation-name-2-{random.randint(1, 1000)}",
+                label="document-annotation-label-2",
+                score=2.34,
+                explanation="document-annotation-explanation",
+                metadata='{"foo": "baz"}',
+                annotator_kind="CODE",
+                user_id=None,
+                identifier="id3",
+                source="API",
+            )
+            conn.commit()
+
+            # delete the annotations with CODE annotator kind because they will break the down migration  # noqa: E501
             conn.execute(
                 text("DELETE FROM trace_annotations WHERE id = :id"),
                 {"id": trace_annotation_from_code_id},
