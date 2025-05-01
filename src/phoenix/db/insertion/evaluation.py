@@ -87,7 +87,7 @@ async def _insert_trace_evaluation(
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
         identifier="",
-        source="APP",
+        source="API",
     )
     await session.execute(
         insert_on_conflict(
@@ -131,7 +131,7 @@ async def _insert_span_evaluation(
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
         identifier="",
-        source="APP",
+        source="API",
     )
     await session.execute(
         insert_on_conflict(
@@ -184,7 +184,7 @@ async def _insert_document_evaluation(
         metadata_={},  # `metadata_` must match ORM
         annotator_kind="LLM",
         identifier="",
-        source="APP",
+        source="API",
     )
     await session.execute(
         insert_on_conflict(
