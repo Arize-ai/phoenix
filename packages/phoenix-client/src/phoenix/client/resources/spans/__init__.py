@@ -8,6 +8,7 @@ import httpx
 if TYPE_CHECKING:
     import pandas as pd
 
+from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import (
     SpanQuery,
 )
@@ -204,6 +205,62 @@ class Spans:
 
         return pd.DataFrame(annotations)
 
+    def get_span_annotations(
+        self,
+        *,
+        span_ids: Iterable[str],
+        project: str,
+        limit: int = 1000,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.SpanAnnotation]:
+        """
+        Fetches span annotations and returns them as a list of SpanAnnotation objects.
+
+        Args:
+            span_ids: An iterable of span IDs.
+            project: The project identifier (name or ID) used in the API path.
+            limit: Maximum number of annotations returned per request page.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of SpanAnnotation objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+
+        if not span_ids_list:
+            return []
+
+        annotations: list[dict] = []
+        path = f"v1/projects/{project}/span_annotations"
+
+        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+            batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
+            cursor: Optional[str] = None
+            while True:
+                params: dict[str, object] = {
+                    "span_ids": batch_ids,
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                response = self._client.get(
+                    url=path,
+                    params=params,
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                annotations.extend(payload.get("data", []))
+                cursor = payload.get("next_cursor")
+                if not cursor:
+                    break
+
+        return cast(list[v1.SpanAnnotation], annotations)
+
 
 class AsyncSpans:
     """
@@ -387,6 +444,62 @@ class AsyncSpans:
                     break
 
         return pd.DataFrame(annotations)
+
+    async def get_span_annotations(
+        self,
+        *,
+        span_ids: Iterable[str],
+        project: str,
+        limit: int = 1000,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.SpanAnnotation]:
+        """
+        Fetches span annotations and returns them as a list of SpanAnnotation objects.
+
+        Args:
+            span_ids: An iterable of span IDs.
+            project: The project identifier (name or ID) used in the API path.
+            limit: Maximum number of annotations returned per request page.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of SpanAnnotation objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+
+        if not span_ids_list:
+            return []
+
+        annotations: list[dict] = []
+        path = f"v1/projects/{project}/span_annotations"
+
+        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+            batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
+            cursor: Optional[str] = None
+            while True:
+                params: dict[str, object] = {
+                    "span_ids": batch_ids,
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                response = await self._client.get(
+                    url=path,
+                    params=params,
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                annotations.extend(payload.get("data", []))
+                cursor = payload.get("next_cursor")
+                if not cursor:
+                    break
+
+        return cast(list[v1.SpanAnnotation], annotations)
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
