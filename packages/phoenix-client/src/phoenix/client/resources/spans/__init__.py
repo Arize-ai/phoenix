@@ -194,7 +194,7 @@ class Spans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
@@ -252,7 +252,7 @@ class Spans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
@@ -434,7 +434,7 @@ class AsyncSpans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
@@ -492,7 +492,7 @@ class AsyncSpans:
                 )
                 response.raise_for_status()
                 payload = response.json()
-                payload = cast(v1.SpanAnnotationsResponseBody, payload)  # type: ignore[arg-type]
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
                 annotations.extend(batch)
                 cursor = payload.get("next_cursor")
