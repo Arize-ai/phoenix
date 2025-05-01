@@ -190,7 +190,89 @@ def test_annotation_config_migration(
                 assert document_annotations_table_def.count("CONSTRAINT") == 4
 
             elif _db_backend == "postgresql":
-                pass
+                # Get table information for all three tables
+                trace_annotations_info = _get_postgres_table_info(conn, "trace_annotations")
+                span_annotations_info = _get_postgres_table_info(conn, "span_annotations")
+                document_annotations_info = _get_postgres_table_info(conn, "document_annotations")
+
+                # Check trace_annotations
+                columns = trace_annotations_info["columns"]
+                assert "identifier" not in columns
+                assert "source" not in columns
+                assert "user_id" not in columns
+                assert "annotator_kind" in columns
+                assert columns["annotator_kind"]["data_type"] == "character varying"
+                assert columns["annotator_kind"]["is_nullable"] == "NO"
+                constraints = trace_annotations_info["constraints"]
+                assert constraints["ck_trace_annotations_`valid_annotator_kind`"] == {
+                    "constraint_type": "CHECK",
+                    "column_names": None,
+                }
+                assert constraints["fk_trace_annotations_trace_rowid_traces"] == {
+                    "constraint_type": "FOREIGN KEY",
+                    "column_names": ["trace_rowid"],
+                }
+                assert constraints["pk_trace_annotations"] == {
+                    "constraint_type": "PRIMARY KEY",
+                    "column_names": ["id"],
+                }
+                assert constraints["uq_trace_annotations_name_trace_rowid"] == {
+                    "constraint_type": "UNIQUE",
+                    "column_names": ["name", "trace_rowid"],
+                }
+
+                # Check span_annotations
+                columns = span_annotations_info["columns"]
+                assert "identifier" not in columns
+                assert "source" not in columns
+                assert "user_id" not in columns
+                assert "annotator_kind" in columns
+                assert columns["annotator_kind"]["data_type"] == "character varying"
+                assert columns["annotator_kind"]["is_nullable"] == "NO"
+                constraints = span_annotations_info["constraints"]
+                assert constraints["ck_span_annotations_`valid_annotator_kind`"] == {
+                    "constraint_type": "CHECK",
+                    "column_names": None,
+                }
+                assert constraints["fk_span_annotations_span_rowid_spans"] == {
+                    "constraint_type": "FOREIGN KEY",
+                    "column_names": ["span_rowid"],
+                }
+                assert constraints["pk_span_annotations"] == {
+                    "constraint_type": "PRIMARY KEY",
+                    "column_names": ["id"],
+                }
+                assert constraints["uq_span_annotations_name_span_rowid"] == {
+                    "constraint_type": "UNIQUE",
+                    "column_names": ["name", "span_rowid"],
+                }
+
+                # Check document_annotations
+                columns = document_annotations_info["columns"]
+                assert "identifier" not in columns
+                assert "source" not in columns
+                assert "user_id" not in columns
+                assert "annotator_kind" in columns
+                assert columns["annotator_kind"]["data_type"] == "character varying"
+                assert columns["annotator_kind"]["is_nullable"] == "NO"
+                constraints = document_annotations_info["constraints"]
+                assert constraints["ck_document_annotations_`valid_annotator_kind`"] == {
+                    "constraint_type": "CHECK",
+                    "column_names": None,
+                }
+                assert constraints["fk_document_annotations_span_rowid_spans"] == {
+                    "constraint_type": "FOREIGN KEY",
+                    "column_names": ["span_rowid"],
+                }
+                assert constraints["pk_document_annotations"] == {
+                    "constraint_type": "PRIMARY KEY",
+                    "column_names": ["id"],
+                }
+                assert constraints["uq_document_annotations_name_span_rowid_document_position"] == {
+                    "constraint_type": "UNIQUE",
+                    "column_names": ["span_rowid", "document_position", "name"],
+                }
+
             else:
                 assert_never(_db_backend)
 
@@ -439,7 +521,10 @@ def test_annotation_config_migration(
                 assert document_annotations_table_def.count("CONSTRAINT") == 6
 
             elif _db_backend == "postgresql":
-                pass
+                # Get table information for all three tables
+                trace_annotations_info = _get_postgres_table_info(conn, "trace_annotations")
+                span_annotations_info = _get_postgres_table_info(conn, "span_annotations")
+                document_annotations_info = _get_postgres_table_info(conn, "document_annotations")
             else:
                 assert_never(_db_backend)
 
@@ -976,3 +1061,51 @@ def _create_document_annotation_post_migration(
     ).scalar()
     assert isinstance(id, int)
     return id
+
+
+def _get_postgres_table_info(conn: Connection, table_name: str) -> dict:
+    return conn.execute(
+        text(
+            """
+            SELECT json_build_object(
+              'table_name', t.table_name,
+              'columns', (
+                SELECT json_object_agg(
+                  c.column_name,
+                  json_build_object(
+                    'data_type', c.data_type,
+                    'is_nullable', c.is_nullable,
+                    'ordinal_position', c.ordinal_position
+                  )
+                )
+                FROM information_schema.columns c
+                WHERE c.table_name = :table_name
+                  AND c.table_schema = current_schema()
+              ),
+              'constraints', (
+                SELECT json_object_agg(
+                  tc.constraint_name,
+                  json_build_object(
+                    'constraint_type', tc.constraint_type,
+                    'column_names', (
+                      SELECT json_agg(kcu.column_name)
+                      FROM information_schema.key_column_usage kcu
+                      WHERE tc.constraint_name = kcu.constraint_name
+                        AND tc.table_schema = kcu.table_schema
+                        AND tc.table_name = kcu.table_name
+                    )
+                  )
+                )
+                FROM information_schema.table_constraints tc
+                WHERE tc.table_name = :table_name
+                  AND tc.table_schema = current_schema()
+              )
+            ) AS table_structure
+            FROM information_schema.tables t
+            WHERE t.table_name = :table_name
+              AND t.table_schema = current_schema()
+            LIMIT 1;
+            """
+        ),
+        {"table_name": table_name},
+    ).scalar()
