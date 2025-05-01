@@ -23,7 +23,10 @@ def instrument(project_name="code-based-agent", framework=Framework.CODE_BASED):
             "PHOENIX_COLLECTOR_ENDPOINT environment variable is not set. "
             "Please set it before running the agent."
         )
-    tracer_provider = register(project_name=project_name)
+    print(os.environ.get("PHOENIX_COLLECTOR_ENDPOINT"))
+    print(os.environ.get("PHOENIX_API_KEY"))
+    tracer_provider = register(project_name=project_name, endpoint=os.environ.get("PHOENIX_COLLECTOR_ENDPOINT"))
+    
 
     if framework == Framework.LLAMA_INDEX:
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
