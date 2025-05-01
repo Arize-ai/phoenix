@@ -26,8 +26,6 @@ This section will go through a script that iterates through all possible paramet
 
 This overview will run through the scripts in phoenix for performance analysis of RAG setup:
 
-{% @github-files/github-code-block %}
-
 The scripts above power the included notebook.
 
 ### Retrieval Performance Analysis
