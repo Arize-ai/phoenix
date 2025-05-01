@@ -4,6 +4,7 @@ import os
 import sys
 from argparse import SUPPRESS, ArgumentParser
 from pathlib import Path
+from ssl import CERT_REQUIRED
 from threading import Thread
 from time import sleep, time
 from typing import Optional
@@ -15,6 +16,7 @@ from uvicorn import Config, Server
 import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
+    TLSConfigVerifyClient,
     get_env_access_token_expiry,
     get_env_allowed_origins,
     get_env_auth_settings,
@@ -39,6 +41,9 @@ from phoenix.config import (
     get_env_smtp_port,
     get_env_smtp_username,
     get_env_smtp_validate_certs,
+    get_env_tls_config,
+    get_env_tls_enabled_for_grpc,
+    get_env_tls_enabled_for_http,
     get_pids_path,
 )
 from phoenix.core.model_schema_adapter import create_model_from_inferences
@@ -98,15 +103,27 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
-|  Websockets: {{ websockets_enabled }}
-{%- if allowed_origins %}\n|  Allowed Origins: {{ allowed_origins }}{% endif %}
+{%- if auth_enabled_for_http or auth_enabled_for_grpc %}
+{%- if tls_enabled_for_http %}
+|  TLS: Enabled for HTTP
+{%- endif %}
+{%- if tls_enabled_for_grpc %}
+|  TLS: Enabled for gRPC
+{%- endif %}
+{%- if tls_verify_client %}
+|  TLS Client Verification: Enabled
+{%- endif %}
+{%- endif %}
+{%- if allowed_origins %}
+|  Allowed Origins: {{ allowed_origins }}
+{%- endif %}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
 |  Storage: {{ storage }}
-{% if schema -%}
+{%- if schema %}
 |    - Schema: {{ schema }}
-{% endif -%}
+{%- endif %}
 """)
 
 
@@ -356,16 +373,27 @@ def main() -> None:
 
     allowed_origins = get_env_allowed_origins()
 
+    # Get TLS configuration
+    tls_enabled_for_http = get_env_tls_enabled_for_http()
+    tls_enabled_for_grpc = get_env_tls_enabled_for_grpc()
+    tls_config = get_env_tls_config()
+    tls_verify_client = tls_config is not None and isinstance(tls_config, TLSConfigVerifyClient)
+
     # Print information about the server
-    root_path = urljoin(f"http://{host}:{port}", host_root_path)
+    http_scheme = "https" if tls_enabled_for_http else "http"
+    grpc_scheme = "https" if tls_enabled_for_grpc else "http"
+    root_path = urljoin(f"{http_scheme}://{host}:{port}", host_root_path)
     msg = _WELCOME_MESSAGE.render(
         version=phoenix_version,
         ui_path=root_path,
-        grpc_path=f"http://{host}:{get_env_grpc_port()}",
+        grpc_path=f"{grpc_scheme}://{host}:{get_env_grpc_port()}",
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
+        tls_enabled_for_http=tls_enabled_for_http,
+        tls_enabled_for_grpc=tls_enabled_for_grpc,
+        tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
     )
     if sys.platform.startswith("win"):
@@ -417,11 +445,34 @@ def main() -> None:
         oauth2_client_configs=get_env_oauth2_settings(),
         allowed_origins=allowed_origins,
     )
-    server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
+
+    # Configure server with TLS if enabled
+    server_config = Config(
+        app=app,
+        host=host,  # type: ignore[arg-type]
+        port=port,
+        root_path=host_root_path,
+    )
+
+    if tls_enabled_for_http:
+        assert tls_config
+        # Configure SSL context with certificate and key
+        server_config.ssl_keyfile = str(tls_config.key_file)
+        server_config.ssl_keyfile_password = tls_config.key_file_password
+        server_config.ssl_certfile = str(tls_config.cert_file)
+
+        # If CA file is provided and client verification is enabled
+        if isinstance(tls_config, TLSConfigVerifyClient):
+            server_config.ssl_ca_certs = str(tls_config.ca_file)
+            server_config.ssl_cert_reqs = CERT_REQUIRED
+
+    server = Server(config=server_config)
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
 
-    # Start the server
-    server.run()
+    try:
+        server.run()
+    except KeyboardInterrupt:
+        pass  # don't bother the user with a stack trace on Ctrl-C
 
 
 def initialize_settings() -> None:

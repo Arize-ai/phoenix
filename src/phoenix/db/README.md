@@ -52,3 +52,302 @@ alembic revision -m "your_revision_name"
 ```
 
 Then fill the migration file with the necessary changes.
+
+## Entity Relationship Diagram
+
+Below is a Mermaid diagram showing the current relationships between the main entities in the database:
+
+```mermaid
+erDiagram
+    Project ||--o{ Trace : has
+    Project {
+        int id PK
+        string name
+        string description
+        string gradient_start_color
+        string gradient_end_color
+        datetime created_at
+        datetime updated_at
+    }
+
+    ProjectSession ||--o{ Trace : has
+    ProjectSession {
+        int id PK
+        string session_id
+        int project_id FK
+        datetime start_time
+        datetime end_time
+    }
+
+    Trace ||--o{ Span : contains
+    Trace ||--o{ ExperimentRun : has
+    Trace ||--o{ TraceAnnotation : has
+    Trace ||--o{ ExperimentRunAnnotation : has
+    Trace {
+        int id PK
+        int project_rowid FK
+        string trace_id
+        int project_session_rowid FK
+        datetime start_time
+        datetime end_time
+    }
+
+    Span ||--o{ DocumentAnnotation : has
+    Span ||--o{ DatasetExample : has
+    Span ||--o{ SpanAnnotation : has
+    Span {
+        int id PK
+        int trace_rowid FK
+        string span_id
+        string parent_id
+        string name
+        string span_kind
+        datetime start_time
+        datetime end_time
+        json attributes
+        json events
+        string status_code
+        string status_message
+        int cumulative_error_count
+        int cumulative_llm_token_count_prompt
+        int cumulative_llm_token_count_completion
+        int llm_token_count_prompt
+        int llm_token_count_completion
+    }
+
+    DocumentAnnotation {
+        int id PK
+        int span_rowid FK
+        int document_position
+        string name
+        string label
+        float score
+        string explanation
+        json metadata
+        string annotator_kind
+        datetime created_at
+        datetime updated_at
+    }
+
+    SpanAnnotation {
+        int id PK
+        int span_rowid FK
+        string name
+        string label
+        float score
+        string explanation
+        json metadata
+        string annotator_kind
+        datetime created_at
+        datetime updated_at
+    }
+
+    TraceAnnotation {
+        int id PK
+        int trace_rowid FK
+        string name
+        string label
+        float score
+        string explanation
+        json metadata
+        string annotator_kind
+        datetime created_at
+        datetime updated_at
+    }
+
+    Dataset ||--o{ DatasetVersion : has
+    Dataset ||--o{ DatasetExample : contains
+    Dataset {
+        int id PK
+        string name
+        string description
+        json metadata
+        datetime created_at
+        datetime updated_at
+    }
+
+    DatasetVersion ||--o{ DatasetExampleRevision : has
+    DatasetVersion {
+        int id PK
+        int dataset_id FK
+        string description
+        json metadata
+        datetime created_at
+    }
+
+    DatasetExample ||--o{ DatasetExampleRevision : has
+    DatasetExample {
+        int id PK
+        int dataset_id FK
+        int span_rowid FK
+        datetime created_at
+    }
+
+    DatasetExampleRevision {
+        int id PK
+        int dataset_example_id FK
+        int dataset_version_id FK
+        json input
+        json output
+        json metadata
+        string revision_kind
+        datetime created_at
+    }
+
+    Experiment ||--o{ ExperimentRun : has
+    Experiment {
+        int id PK
+        int dataset_id FK
+        int dataset_version_id FK
+        string name
+        string description
+        int repetitions
+        json metadata
+        string project_name
+        datetime created_at
+        datetime updated_at
+    }
+
+    ExperimentRun ||--o{ ExperimentRunAnnotation : has
+    ExperimentRun {
+        int id PK
+        int experiment_id FK
+        int dataset_example_id FK
+        int repetition_number
+        string trace_id
+        json output
+        datetime start_time
+        datetime end_time
+        int prompt_token_count
+        int completion_token_count
+        string error
+    }
+
+    ExperimentRunAnnotation {
+        int id PK
+        int experiment_run_id FK
+        string name
+        string annotator_kind
+        string label
+        float score
+        string explanation
+        string trace_id
+        string error
+        json metadata
+        datetime start_time
+        datetime end_time
+    }
+
+    User ||--o{ ApiKey : has
+    User ||--o{ AccessToken : has
+    User ||--o{ RefreshToken : has
+    User ||--o{ PasswordResetToken : has
+    User ||--o{ PromptVersion : has
+    User ||--o{ PromptVersionTag : has
+    User {
+        int id PK
+        int user_role_id FK
+        string username
+        string email
+        string profile_picture_url
+        bytes password_hash
+        bytes password_salt
+        boolean reset_password
+        string oauth2_client_id
+        string oauth2_user_id
+        datetime created_at
+        datetime updated_at
+    }
+
+    UserRole ||--o{ User : has
+    UserRole {
+        int id PK
+        string name
+    }
+
+    ApiKey {
+        int id PK
+        int user_id FK
+        string name
+        string description
+        datetime created_at
+        datetime expires_at
+    }
+
+    AccessToken {
+        int id PK
+        int user_id FK
+        datetime created_at
+        datetime expires_at
+        int refresh_token_id FK
+    }
+
+    RefreshToken {
+        int id PK
+        int user_id FK
+        datetime created_at
+        datetime expires_at
+    }
+
+    PasswordResetToken {
+        int id PK
+        int user_id FK
+        datetime created_at
+        datetime expires_at
+    }
+
+    Prompt ||--o{ PromptVersion : has
+    Prompt ||--o{ PromptPromptLabel : has
+    Prompt ||--o{ PromptVersionTag : has
+    Prompt ||--o{ Prompt : has
+    Prompt {
+        int id PK
+        int source_prompt_id FK
+        string name
+        string description
+        json metadata
+        datetime created_at
+        datetime updated_at
+    }
+
+    PromptVersion ||--o{ PromptVersionTag : has
+    PromptVersion {
+        int id PK
+        int prompt_id FK
+        string description
+        int user_id FK
+        string template_type
+        string template_format
+        json template
+        json invocation_parameters
+        json tools
+        json response_format
+        string model_provider
+        string model_name
+        json metadata
+        datetime created_at
+    }
+
+    PromptLabel ||--o{ PromptPromptLabel : has
+    PromptLabel {
+        int id PK
+        string name
+        string description
+        string color
+    }
+
+    PromptPromptLabel {
+        int id PK
+        int prompt_label_id FK
+        int prompt_id FK
+    }
+
+    PromptVersionTag {
+        int id PK
+        string name
+        string description
+        int prompt_id FK
+        int prompt_version_id FK
+        int user_id FK
+    }
+```

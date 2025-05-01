@@ -126,10 +126,10 @@ class TestSendingAnnotationsBeforeSpans:
         self,
         traces: dict[str, TraceDataset],
         project_names: list[str],
-        px_client: Client,
+        legacy_px_client: Client,
     ) -> Callable[[], Awaitable[None]]:
         log_traces = (
-            px_client.log_traces(traces[project_name], project_name)
+            legacy_px_client.log_traces(traces[project_name], project_name)
             for project_name in project_names
         )
 
@@ -149,7 +149,7 @@ class TestSendingAnnotationsBeforeSpans:
         span_ids: dict[str, list[str]],
         trace_ids: dict[str, list[str]],
         traces: dict[str, TraceDataset],
-        px_client: Client,
+        legacy_px_client: Client,
         httpx_client: AsyncClient,
         fake: Faker,
         size: int,
@@ -202,7 +202,7 @@ class TestSendingAnnotationsBeforeSpans:
         async def _(score_offset: float = 0) -> None:
             for i in range(size - 1, -1, -1):
                 s = i * fake.pyfloat() + score_offset
-                px_client.log_evaluations(*evaluations(s))
+                legacy_px_client.log_evaluations(*evaluations(s))
                 await gather(
                     httpx_client.post(
                         "v1/span_annotations?sync=false",
@@ -240,12 +240,12 @@ class TestSendingAnnotationsBeforeSpans:
         span_ids: dict[str, list[str]],
         trace_ids: dict[str, list[str]],
         traces: dict[str, TraceDataset],
-        px_client: Client,
+        legacy_px_client: Client,
         size: int,
     ) -> Callable[[bool, float], Awaitable[None]]:
         async def _(exist: bool, score_offset: float = 0) -> None:
             get_evaluations = (
-                cast(list[_Evals], px_client.get_evaluations(project_name))
+                cast(list[_Evals], legacy_px_client.get_evaluations(project_name))
                 for project_name in project_names
             )
             evals = dict(zip(project_names, await gather(*get_evaluations)))
@@ -294,7 +294,7 @@ class TestSendingAnnotationsBeforeSpans:
         span_ids: dict[str, list[str]],
         trace_ids: dict[str, list[str]],
         traces: dict[str, TraceDataset],
-        px_client: Client,
+        legacy_px_client: Client,
         gql_client: AsyncGraphQLClient,
         mean_score: float,
     ) -> Callable[[bool, float], Awaitable[None]]:
@@ -354,10 +354,10 @@ class TestSendingAnnotationsBeforeSpans:
     @pytest.fixture
     async def span(
         self,
-        px_client: Client,
+        legacy_px_client: Client,
         span_data_with_documents: Any,
     ) -> pd.DataFrame:
-        return cast(pd.DataFrame, px_client.get_spans_dataframe()).iloc[:1]
+        return cast(pd.DataFrame, legacy_px_client.get_spans_dataframe()).iloc[:1]
 
     @pytest.fixture
     def span_ids(

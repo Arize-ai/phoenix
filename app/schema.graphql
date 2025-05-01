@@ -1016,9 +1016,6 @@ type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
 type Functionality {
   """Model inferences are available for analysis"""
   modelInferences: Boolean!
-
-  """Generative tracing records are available for analysis"""
-  tracing: Boolean!
 }
 
 type GenerativeModel {
@@ -1385,9 +1382,9 @@ type Project implements Node {
   endTime: DateTime
   recordCount(timeRange: TimeRange, filterCondition: String): Int!
   traceCount(timeRange: TimeRange): Int!
-  tokenCountTotal(timeRange: TimeRange, filterCondition: String): Int!
-  tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Int!
-  tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Int!
+  tokenCountTotal(timeRange: TimeRange, filterCondition: String): Float!
+  tokenCountPrompt(timeRange: TimeRange, filterCondition: String): Float!
+  tokenCountCompletion(timeRange: TimeRange, filterCondition: String): Float!
   latencyMsQuantile(probability: Float!, timeRange: TimeRange): Float
   spanLatencyMsQuantile(probability: Float!, timeRange: TimeRange, filterCondition: String): Float
   trace(traceId: ID!): Trace

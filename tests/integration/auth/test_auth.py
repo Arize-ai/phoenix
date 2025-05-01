@@ -12,7 +12,9 @@ from typing import (
     Optional,
     TypeVar,
 )
+from urllib.error import URLError
 from urllib.parse import urljoin
+from urllib.request import urlopen
 
 import bs4
 import jwt
@@ -25,7 +27,7 @@ from opentelemetry.sdk.environment_variables import (
 )
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExportResult
-from phoenix.config import get_env_phoenix_admin_secret, get_env_root_url
+from phoenix.config import get_base_url, get_env_phoenix_admin_secret, get_env_root_url
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from strawberry.relay import GlobalID
@@ -237,6 +239,13 @@ class TestOIDC:
         # Verify no access is granted
         assert not response.cookies.get("phoenix-access-token")
         assert not response.cookies.get("phoenix-refresh-token")
+
+
+class TestTLS:
+    def test_non_tls_client_cannot_connect(self) -> None:
+        with pytest.raises(URLError) as e:
+            urlopen(get_base_url())
+        assert "SSL" in str(e.value), f"Expected SSL error, got: {e.value}"
 
 
 class TestOriginAndReferer:

@@ -5,6 +5,7 @@
 * [User Guide](user-guide.md)
 * [Deployment](deployment.md)
 * [Environments](environments.md)
+* [Phoenix Demo](https://phoenix-demo.arize.com/projects)
 
 ## 🔭 Tracing
 
@@ -187,3 +188,9 @@
 * [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
+
+## ⚙️ Settings
+
+* [Access Control (RBAC)](settings/access-control-rbac.md)
+* [API Keys](settings/api-keys.md)
+* [Data Retention](settings/data-retention.md)
