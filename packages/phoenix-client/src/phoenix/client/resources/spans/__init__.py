@@ -1,13 +1,14 @@
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
 
 import httpx
 
 if TYPE_CHECKING:
     import pandas as pd
 
+from phoenix.client.__generated__ import v1
 from phoenix.client.types.spans import (
     SpanQuery,
 )
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
 _LOCAL_TIMEZONE = datetime.now(timezone.utc).astimezone().tzinfo
+_MAX_SPAN_IDS_PER_REQUEST = 100
 
 
 class Spans:
@@ -113,6 +115,152 @@ class Spans:
                 "Install it with 'pip install pandas'"
             )
 
+    def get_span_annotations_dataframe(
+        self,
+        *,
+        spans_dataframe: Optional["pd.DataFrame"] = None,
+        span_ids: Optional[Iterable[str]] = None,
+        project: str,
+        limit: int = 1000,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> "pd.DataFrame":
+        """
+        Fetches span annotations and returns them as a pandas DataFrame.
+
+        Exactly one of *spans_dataframe* or *span_ids* should be provided.
+
+        Args:
+            spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
+                `context.span_id` or `span_id` column.
+            span_ids: An iterable of span IDs.
+            project: The project identifier (name or ID) used in the API path.
+            limit: Maximum number of annotations returned per request page.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A DataFrame where each row corresponds to a single span annotation.
+
+        Raises:
+            ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
+                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ImportError: If pandas is not installed.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        try:
+            import pandas as pd
+        except ImportError:  # pragma: no cover
+            raise ImportError(
+                "pandas is required to use get_span_annotations_dataframe. "
+                "Install it with 'pip install pandas'"
+            )
+
+        # Validate input parameters
+        if (spans_dataframe is None and span_ids is None) or (
+            spans_dataframe is not None and span_ids is not None
+        ):
+            raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
+
+        if spans_dataframe is not None:
+            span_ids_raw: list[str] = cast(
+                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+            )
+            span_ids_list = list({*span_ids_raw})
+        else:
+            assert span_ids is not None
+            span_ids_list = list({*span_ids})
+
+        if not span_ids_list:
+            return pd.DataFrame()
+
+        annotations: list[v1.SpanAnnotation] = []
+        path = f"v1/projects/{project}/span_annotations"
+
+        for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+            batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
+            cursor: Optional[str] = None
+            while True:
+                params: dict[str, Union[int, str, Sequence[str]]] = {
+                    "span_ids": batch_ids,
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+
+                response = self._client.get(
+                    url=path,
+                    params=params,
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
+                cursor = payload.get("next_cursor")
+                if not cursor:
+                    break  # finished paginating this batch
+
+        return pd.DataFrame(annotations)
+
+    def get_span_annotations(
+        self,
+        *,
+        span_ids: Iterable[str],
+        project: str,
+        limit: int = 1000,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.SpanAnnotation]:
+        """
+        Fetches span annotations and returns them as a list of SpanAnnotation objects.
+
+        Args:
+            span_ids: An iterable of span IDs.
+            project: The project identifier (name or ID) used in the API path.
+            limit: Maximum number of annotations returned per request page.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of SpanAnnotation objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        span_ids_list = list({*span_ids})
+
+        if not span_ids_list:
+            return []
+
+        annotations: list[v1.SpanAnnotation] = []
+        path = f"v1/projects/{project}/span_annotations"
+
+        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+            batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
+            cursor: Optional[str] = None
+            while True:
+                params: dict[str, Union[int, str, Sequence[str]]] = {
+                    "span_ids": batch_ids,
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                response = self._client.get(
+                    url=path,
+                    params=params,
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
+                cursor = payload.get("next_cursor")
+                if not cursor:
+                    break
+
+        return annotations
+
 
 class AsyncSpans:
     """
@@ -208,6 +356,150 @@ class AsyncSpans:
                 "pandas is required to use get_spans_dataframe. "
                 "Install it with 'pip install pandas'"
             )
+
+    async def get_span_annotations_dataframe(
+        self,
+        *,
+        spans_dataframe: Optional["pd.DataFrame"] = None,
+        span_ids: Optional[Iterable[str]] = None,
+        project: str,
+        limit: int = 1000,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> "pd.DataFrame":
+        """
+        Fetches span annotations and returns them as a pandas DataFrame.
+
+        Exactly one of *spans_dataframe* or *span_ids* should be provided.
+
+        Args:
+            spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
+                `context.span_id` or `span_id` column.
+            span_ids: An iterable of span IDs.
+            project: The project identifier (name or ID) used in the API path.
+            limit: Maximum number of annotations returned per request page.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A DataFrame where each row corresponds to a single span annotation.
+
+        Raises:
+            ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
+                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
+            ImportError: If pandas is not installed.
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        try:
+            import pandas as pd
+        except ImportError:  # pragma: no cover
+            raise ImportError(
+                "pandas is required to use get_span_annotations_dataframe. "
+                "Install it with 'pip install pandas'"
+            )
+
+        if (spans_dataframe is None and span_ids is None) or (
+            spans_dataframe is not None and span_ids is not None
+        ):
+            raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
+
+        if spans_dataframe is not None:
+            span_ids_raw: list[str] = cast(
+                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+            )
+            span_ids_list = list({*span_ids_raw})
+        else:
+            assert span_ids is not None
+            span_ids_list = list({*span_ids})
+
+        if not span_ids_list:
+            return pd.DataFrame()
+
+        annotations: list[v1.SpanAnnotation] = []
+        path = f"v1/projects/{project}/span_annotations"
+
+        for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+            batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
+            cursor: Optional[str] = None
+            while True:
+                params: dict[str, Union[int, str, Sequence[str]]] = {
+                    "span_ids": batch_ids,
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                response = await self._client.get(
+                    url=path,
+                    params=params,
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
+                cursor = payload.get("next_cursor")
+                if not cursor:
+                    break
+
+        return pd.DataFrame(annotations)
+
+    async def get_span_annotations(
+        self,
+        *,
+        span_ids: Iterable[str],
+        project: str,
+        limit: int = 1000,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> list[v1.SpanAnnotation]:
+        """
+        Fetches span annotations and returns them as a list of SpanAnnotation objects.
+
+        Args:
+            span_ids: An iterable of span IDs.
+            project: The project identifier (name or ID) used in the API path.
+            limit: Maximum number of annotations returned per request page.
+            timeout: Optional request timeout in seconds.
+
+        Returns:
+            A list of SpanAnnotation objects.
+
+        Raises:
+            httpx.HTTPStatusError: If the API returns an error response.
+        """
+        span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+
+        if not span_ids_list:
+            return []
+
+        annotations: list[v1.SpanAnnotation] = []
+        path = f"v1/projects/{project}/span_annotations"
+
+        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+            batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
+            cursor: Optional[str] = None
+            while True:
+                params: dict[str, Union[int, str, Sequence[str]]] = {
+                    "span_ids": batch_ids,
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                response = await self._client.get(
+                    url=path,
+                    params=params,
+                    headers={"accept": "application/json"},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                payload = response.json()
+                payload = cast(v1.SpanAnnotationsResponseBody, payload)
+                batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
+                annotations.extend(batch)
+                cursor = payload.get("next_cursor")
+                if not cursor:
+                    break
+
+        return annotations
 
 
 def _to_iso_format(value: Optional[datetime]) -> Optional[str]:
