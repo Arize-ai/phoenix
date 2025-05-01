@@ -684,6 +684,64 @@ def test_annotation_config_migration(
             assert "NOT NULL" in error_message
             assert "document_annotations.source" in error_message
 
+            # verify identifier is non-nullable for trace annotations
+            with pytest.raises(Exception) as exc_info:
+                create_trace_annotation_post_migration(
+                    conn=conn,
+                    trace_rowid=trace_rowid,
+                    name=f"trace-annotation-name-{random.randint(1, 1000)}",
+                    label="trace-annotation-label",
+                    score=1.23,
+                    explanation="trace-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
+                    identifier=None,  # type: ignore
+                    user_id=None,
+                    source="API",
+                )
+            error_message = str(exc_info)
+            assert "NOT NULL" in error_message
+            assert "trace_annotations.identifier" in error_message
+
+            # verify identifier is non-nullable for span annotations
+            with pytest.raises(Exception) as exc_info:
+                create_span_annotation_post_migration(
+                    conn=conn,
+                    span_rowid=span_rowid,
+                    name=f"span-annotation-name-{random.randint(1, 1000)}",
+                    label="span-annotation-label",
+                    score=1.23,
+                    explanation="span-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
+                    identifier=None,  # type: ignore
+                    user_id=None,
+                    source="API",
+                )
+            error_message = str(exc_info)
+            assert "NOT NULL" in error_message
+            assert "span_annotations.identifier" in error_message
+
+            # verify identifier is non-nullable for document annotations
+            with pytest.raises(Exception) as exc_info:
+                create_document_annotation_post_migration(
+                    conn=conn,
+                    span_rowid=span_rowid,
+                    document_position=4,
+                    name=f"document-annotation-name-{random.randint(1, 1000)}",
+                    label="document-annotation-label",
+                    score=1.23,
+                    explanation="document-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
+                    identifier=None,  # type: ignore
+                    user_id=None,
+                    source="API",
+                )
+            error_message = str(exc_info)
+            assert "NOT NULL" in error_message
+            assert "document_annotations.identifier" in error_message
+
             # delete the newly inserted annotations
             conn.execute(
                 text("DELETE FROM trace_annotations WHERE id = :id"),
