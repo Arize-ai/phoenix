@@ -1088,7 +1088,7 @@ def _get_postgres_table_info(conn: Connection, table_name: str) -> dict:
                   json_build_object(
                     'constraint_type', tc.constraint_type,
                     'column_names', (
-                      SELECT json_agg(kcu.column_name)
+                      SELECT json_agg(kcu.column_name ORDER BY kcu.position_in_unique_constraint NULLS FIRST, kcu.ordinal_position)
                       FROM information_schema.key_column_usage kcu
                       WHERE tc.constraint_name = kcu.constraint_name
                         AND tc.table_schema = kcu.table_schema
@@ -1105,7 +1105,7 @@ def _get_postgres_table_info(conn: Connection, table_name: str) -> dict:
             WHERE t.table_name = :table_name
               AND t.table_schema = current_schema()
             LIMIT 1;
-            """
+            """  # noqa: E501
         ),
         {"table_name": table_name},
     ).scalar()
