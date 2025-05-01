@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.30.0...arize-phoenix-v8.31.0) (2025-05-01)
+
+
+### Features
+
+* **components:** video for tutorials ([#7376](https://github.com/Arize-ai/phoenix/issues/7376)) ([c858268](https://github.com/Arize-ai/phoenix/commit/c85826869b5177e06be051cf9a6e8d042e5f95d4))
+
+
+### Bug Fixes
+
+* **subscriptions:** make gql subscriptions basename aware ([#7382](https://github.com/Arize-ai/phoenix/issues/7382)) ([19674f4](https://github.com/Arize-ai/phoenix/commit/19674f4cee732ce48ff7f423c5ad0f2f1f26f7ab))
+
 ## [8.30.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.29.0...arize-phoenix-v8.30.0) (2025-04-30)
 
 
