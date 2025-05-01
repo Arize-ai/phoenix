@@ -6,6 +6,7 @@ import { Cell, Pie, PieChart } from "recharts";
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
 import { Flex, Text, Token, View } from "@phoenix/components";
+import { AnnotationConfig } from "@phoenix/components/annotation";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import {
   ChartTooltipDivider,
@@ -17,6 +18,7 @@ import { ComponentSize, SizingProps } from "@phoenix/components/types";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationSummaryQuery } from "./__generated__/AnnotationSummaryQuery.graphql";
@@ -77,6 +79,25 @@ function AnnotationSummaryValue(props: {
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
       ) {
+        annotationConfigs {
+          edges {
+            node {
+              ... on AnnotationConfigBase {
+                annotationType
+              }
+              ... on CategoricalAnnotationConfig {
+                annotationType
+                id
+                optimizationDirection
+                name
+                values {
+                  label
+                  score
+                }
+              }
+            }
+          }
+        }
         spanAnnotationSummary(
           annotationName: $annotationName
           timeRange: $timeRange
@@ -104,6 +125,11 @@ function AnnotationSummaryValue(props: {
       name={annotationName}
       meanScore={data?.spanAnnotationSummary?.meanScore}
       labelFractions={data?.spanAnnotationSummary?.labelFractions}
+      annotationConfig={
+        data?.annotationConfigs?.edges.find(
+          (edge) => edge.node.name === annotationName
+        )?.node as AnnotationConfig | undefined
+      }
     />
   );
 }
@@ -170,6 +196,50 @@ const SizesMap: Record<
   },
 };
 
+/**
+ * Generate a stable-ish color for a given label and annotation config.
+ * If there is no annotation config, or the annotation config is not categorical,
+ * we will use the fallback index to generate a color.
+ *
+ * Otherwise, we will sort the categorical values by label, and then use the index of the label
+ * to generate a color.
+ *
+ * This ensures that the color is stable for a given label, and will only change if the label changes.
+ *
+ * @param colors
+ * @param index
+ * @param label
+ * @param annotationConfig
+ */
+function getStableColor(
+  colors: string[],
+  fallbackIndex: number,
+  label: string,
+  annotationConfig?: AnnotationConfig
+) {
+  if (
+    !annotationConfig ||
+    annotationConfig.annotationType !== "CATEGORICAL" ||
+    !annotationConfig.values
+  ) {
+    return colors[fallbackIndex % colors.length];
+  }
+
+  const sortedLabels = [...annotationConfig.values]
+    .sort((a, b) => {
+      // sort by score + annotationConfig.optimizationDirection
+      const aScore = a.score ?? 0;
+      const bScore = b.score ?? 0;
+      return (
+        (annotationConfig.optimizationDirection === "MAXIMIZE" ? -1 : 1) *
+        (aScore - bScore)
+      );
+    })
+    .map((v) => v.label);
+  const index = sortedLabels.indexOf(label);
+  return colors[index % colors.length];
+}
+
 function useAnnotationSummaryChartColors(name: string) {
   const chartColors = useChartColors();
   const primaryColor = useWordColor(name);
@@ -190,6 +260,7 @@ export function SummaryValue({
   size = "M",
   disableAnimation = false,
   meanScoreFallback,
+  annotationConfig,
 }: SummaryValuePreviewProps) {
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions =
@@ -208,6 +279,7 @@ export function SummaryValue({
           size={size}
           disableAnimation={disableAnimation}
           meanScoreFallback={meanScoreFallback}
+          annotationConfig={annotationConfig}
         />
       </TriggerWrap>
       <HelpTooltip>
@@ -215,6 +287,7 @@ export function SummaryValue({
           annotationName={name}
           labelFractions={labelFractions}
           meanScore={meanScore}
+          annotationConfig={annotationConfig}
         />
       </HelpTooltip>
     </TooltipTrigger>
@@ -232,6 +305,10 @@ type SummaryValuePreviewProps = {
    * @default "--"
    */
   meanScoreFallback?: React.ReactNode;
+  /**
+   * The annotation config for the annotation, if available.
+   */
+  annotationConfig?: AnnotationConfig;
 } & SizingProps;
 
 export function SummaryValuePreview({
@@ -241,11 +318,11 @@ export function SummaryValuePreview({
   size = "M",
   disableAnimation,
   meanScoreFallback,
+  annotationConfig,
 }: SummaryValuePreviewProps) {
   const colors = useAnnotationSummaryChartColors(name);
   const hasMeanScore = typeof meanScore === "number";
-  const hasLabelFractions =
-    Array.isArray(labelFractions) && labelFractions.length > 0;
+  const hasLabelFractions = labelFractions && labelFractions.length > 0;
   if (!hasMeanScore && !hasLabelFractions) {
     return <Text size="L">--</Text>;
   }
@@ -261,7 +338,7 @@ export function SummaryValuePreview({
       {hasLabelFractions ? (
         <PieChart {...chartDimensions}>
           <Pie
-            data={labelFractions}
+            data={labelFractions as Mutable<typeof labelFractions>}
             dataKey="fraction"
             nameKey="label"
             cx="50%"
@@ -274,7 +351,12 @@ export function SummaryValuePreview({
             {labelFractions.map((entry, index) => (
               <Cell
                 key={`cell-${index}`}
-                fill={colors[index % colors.length]}
+                fill={getStableColor(
+                  colors,
+                  index,
+                  entry.label,
+                  annotationConfig
+                )}
               />
             ))}
           </Pie>
@@ -293,15 +375,16 @@ export function SummaryValueBreakdown({
   annotationName,
   labelFractions,
   meanScore,
+  annotationConfig,
 }: {
   annotationName: string;
   labelFractions?: readonly { label: string; fraction: number }[];
   meanScore?: number | null;
+  annotationConfig?: AnnotationConfig;
 }) {
   const colors = useAnnotationSummaryChartColors(annotationName);
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
-  const hasLabelFractions =
-    Array.isArray(labelFractions) && labelFractions.length > 0;
+  const hasLabelFractions = labelFractions && labelFractions.length > 0;
   return (
     <View width="size-2400">
       <Flex direction="column" gap="size-50">
@@ -310,7 +393,12 @@ export function SummaryValueBreakdown({
             {labelFractions.map((entry, index) => (
               <li key={entry.label}>
                 <ChartTooltipItem
-                  color={colors[index % colors.length]}
+                  color={getStableColor(
+                    colors,
+                    index,
+                    entry.label,
+                    annotationConfig
+                  )}
                   name={entry.label}
                   shape="square"
                   value={formatPercent(entry.fraction * 100)}
@@ -339,9 +427,11 @@ export function SummaryValueBreakdown({
 export function SummaryValueLabels({
   name,
   labelFractions,
+  annotationConfig,
 }: {
   name: string;
   labelFractions: readonly { label: string; fraction: number }[];
+  annotationConfig?: AnnotationConfig;
 }) {
   const largestFraction = labelFractions.reduce((max, current) => {
     return Math.max(max, current.fraction);
@@ -376,6 +466,7 @@ export function SummaryValueLabels({
         <SummaryValueBreakdown
           annotationName={name}
           labelFractions={labelFractions}
+          annotationConfig={annotationConfig}
         />
       </HelpTooltip>
     </TooltipTrigger>

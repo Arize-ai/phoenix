@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f5b76e6fdd32034bff8f64dfddc5d8f9>>
+ * @generated SignedSource<<02c0f2b0ae14e1937b6a0ba9eb8e3edf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,24 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type AnnotationType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
+export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryValueFragment$data = {
+  readonly annotationConfigs: {
+    readonly edges: ReadonlyArray<{
+      readonly node: {
+        readonly annotationType?: AnnotationType;
+        readonly id?: string;
+        readonly name?: string;
+        readonly optimizationDirection?: OptimizationDirection;
+        readonly values?: ReadonlyArray<{
+          readonly label: string;
+          readonly score: number | null;
+        }>;
+      };
+    }>;
+  };
   readonly id: string;
   readonly spanAnnotationSummary: {
     readonly labelFractions: ReadonlyArray<{
@@ -28,7 +44,29 @@ export type AnnotationSummaryValueFragment$key = {
 
 import AnnotationSummaryValueQuery_graphql from './AnnotationSummaryValueQuery.graphql';
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationType",
+  "storageKey": null
+},
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "label",
+  "storageKey": null
+};
+return {
   "argumentDefinitions": [
     {
       "defaultValue": null,
@@ -59,6 +97,89 @@ const node: ReaderFragment = {
   "selections": [
     {
       "alias": null,
+      "args": null,
+      "concreteType": "AnnotationConfigConnection",
+      "kind": "LinkedField",
+      "name": "annotationConfigs",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "AnnotationConfigEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": null,
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    (v0/*: any*/)
+                  ],
+                  "type": "AnnotationConfigBase",
+                  "abstractKey": "__isAnnotationConfigBase"
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    (v0/*: any*/),
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "optimizationDirection",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "name",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "CategoricalAnnotationValue",
+                      "kind": "LinkedField",
+                      "name": "values",
+                      "plural": true,
+                      "selections": [
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "score",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "CategoricalAnnotationConfig",
+                  "abstractKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
       "args": [
         {
           "kind": "Variable",
@@ -84,13 +205,7 @@ const node: ReaderFragment = {
           "name": "labelFractions",
           "plural": true,
           "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "label",
-              "storageKey": null
-            },
+            (v2/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -111,18 +226,13 @@ const node: ReaderFragment = {
       ],
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
-    }
+    (v1/*: any*/)
   ],
   "type": "Project",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "0a8e190e4d87acc87c161366f330e3af";
+(node as any).hash = "aa0d97828717d80c490344c2211fdd0e";
 
 export default node;

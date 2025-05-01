@@ -12,11 +12,33 @@ import {
   SummaryValue,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
+import { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
 const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
   const data = useFragment<AnnotationSummaryGroup$key>(
     graphql`
       fragment AnnotationSummaryGroup on Span {
+        project {
+          id
+          annotationConfigs {
+            edges {
+              node {
+                ... on AnnotationConfigBase {
+                  annotationType
+                }
+                ... on CategoricalAnnotationConfig {
+                  id
+                  name
+                  optimizationDirection
+                  values {
+                    label
+                    score
+                  }
+                }
+              }
+            }
+          }
+        }
         spanAnnotations {
           id
           name
@@ -75,9 +97,22 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
       ),
     [spanAnnotations]
   );
+  const categoricalAnnotationConfigsByName = useMemo(() => {
+    return data.project.annotationConfigs.edges.reduce(
+      (acc, edge) => {
+        const name = edge.node.name;
+        if (name && edge.node.annotationType === "CATEGORICAL") {
+          acc[name] = edge.node as AnnotationConfigCategorical;
+        }
+        return acc;
+      },
+      {} as Record<string, AnnotationConfigCategorical>
+    );
+  }, [data.project.annotationConfigs]);
   return {
     sortedSummariesByName,
     annotationsByName,
+    categoricalAnnotationConfigsByName,
   };
 };
 
@@ -99,8 +134,11 @@ export const AnnotationSummaryGroupTokens = ({
   showFilterActions = false,
   renderEmptyState,
 }: AnnotationSummaryGroupProps) => {
-  const { sortedSummariesByName, annotationsByName } =
-    useAnnotationSummaryGroup(span);
+  const {
+    sortedSummariesByName,
+    annotationsByName,
+    categoricalAnnotationConfigsByName,
+  } = useAnnotationSummaryGroup(span);
 
   if (sortedSummariesByName.length === 0 && renderEmptyState) {
     return renderEmptyState();
@@ -135,6 +173,9 @@ export const AnnotationSummaryGroupTokens = ({
                   meanScore={meanScore}
                   size="S"
                   disableAnimation
+                  annotationConfig={
+                    categoricalAnnotationConfigsByName[latestAnnotation.name]
+                  }
                 />
               ) : null}
             </AnnotationLabel>
@@ -149,8 +190,11 @@ export const AnnotationSummaryGroupStacks = ({
   span,
   renderEmptyState,
 }: AnnotationSummaryGroupProps) => {
-  const { sortedSummariesByName, annotationsByName } =
-    useAnnotationSummaryGroup(span);
+  const {
+    sortedSummariesByName,
+    annotationsByName,
+    categoricalAnnotationConfigsByName,
+  } = useAnnotationSummaryGroup(span);
 
   if (sortedSummariesByName.length === 0 && renderEmptyState) {
     return renderEmptyState();
@@ -175,6 +219,9 @@ export const AnnotationSummaryGroupStacks = ({
                 name={latestAnnotation.name}
                 meanScore={summary.meanScore}
                 labelFractions={summary.labelFractions}
+                annotationConfig={
+                  categoricalAnnotationConfigsByName[latestAnnotation.name]
+                }
               />
             </Summary>
           </AnnotationTooltip>
