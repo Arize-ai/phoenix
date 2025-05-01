@@ -100,14 +100,13 @@ def test_annotation_config_migration(
         with _engine.connect() as conn:
             # verify columns
             if _db_backend == "sqlite":
-                trace_annotations_table_def = conn.execute(
-                    text(
-                        """
-                        SELECT sql FROM sqlite_master
-                        WHERE type='table' AND name='trace_annotations';
-                        """
-                    )
-                ).scalar()
+                trace_annotations_table_def = _get_sqlite_table_info(conn, "trace_annotations")
+                span_annotations_table_def = _get_sqlite_table_info(conn, "span_annotations")
+                document_annotations_table_def = _get_sqlite_table_info(
+                    conn, "document_annotations"
+                )
+
+                # Check trace_annotations
                 assert "identifier" not in trace_annotations_table_def
                 assert "source" not in trace_annotations_table_def
                 assert "user_id" not in trace_annotations_table_def
@@ -130,14 +129,7 @@ def test_annotation_config_migration(
                 )
                 assert trace_annotations_table_def.count("CONSTRAINT") == 4
 
-                span_annotations_table_def = conn.execute(
-                    text(
-                        """
-                        SELECT sql FROM sqlite_master
-                        WHERE type='table' AND name='span_annotations';
-                        """
-                    )
-                ).scalar()
+                # Check span_annotations
                 assert "identifier" not in span_annotations_table_def
                 assert "source" not in span_annotations_table_def
                 assert "user_id" not in span_annotations_table_def
@@ -159,14 +151,7 @@ def test_annotation_config_migration(
                 )
                 assert span_annotations_table_def.count("CONSTRAINT") == 4
 
-                document_annotations_table_def = conn.execute(
-                    text(
-                        """
-                        SELECT sql FROM sqlite_master
-                        WHERE type='table' AND name='document_annotations';
-                        """
-                    )
-                ).scalar()
+                # Check document_annotations
                 assert "identifier" not in document_annotations_table_def
                 assert "source" not in document_annotations_table_def
                 assert "user_id" not in document_annotations_table_def
@@ -406,14 +391,13 @@ def test_annotation_config_migration(
         with _engine.connect() as conn:
             # verify expected columns and constraints exist
             if _db_backend == "sqlite":
-                trace_annotations_table_def = conn.execute(
-                    text(
-                        """
-                        SELECT sql FROM sqlite_master
-                        WHERE type='table' AND name='trace_annotations';
-                        """
-                    )
-                ).scalar()
+                trace_annotations_table_def = _get_sqlite_table_info(conn, "trace_annotations")
+                span_annotations_table_def = _get_sqlite_table_info(conn, "span_annotations")
+                document_annotations_table_def = _get_sqlite_table_info(
+                    conn, "document_annotations"
+                )
+
+                # Check trace_annotations
                 assert "annotator_kind VARCHAR NOT NULL" in trace_annotations_table_def
                 assert "identifier VARCHAR NOT NULL" in trace_annotations_table_def
                 assert "source VARCHAR NOT NULL" in trace_annotations_table_def
@@ -444,15 +428,7 @@ def test_annotation_config_migration(
                 )
                 assert trace_annotations_table_def.count("CONSTRAINT") == 6
 
-                span_annotations_table_def = conn.execute(
-                    text(
-                        """
-                        SELECT sql FROM sqlite_master
-                        WHERE type='table' AND name='span_annotations';
-                        """
-                    )
-                ).scalar()
-
+                # Check span_annotations
                 assert "annotator_kind VARCHAR NOT NULL" in span_annotations_table_def
                 assert "identifier VARCHAR NOT NULL" in span_annotations_table_def
                 assert "source VARCHAR NOT NULL" in span_annotations_table_def
@@ -482,14 +458,7 @@ def test_annotation_config_migration(
                 )
                 assert span_annotations_table_def.count("CONSTRAINT") == 6
 
-                document_annotations_table_def = conn.execute(
-                    text(
-                        """
-                        SELECT sql FROM sqlite_master
-                        WHERE type='table' AND name='document_annotations';
-                        """
-                    )
-                ).scalar()
+                # Check document_annotations
                 assert "annotator_kind VARCHAR NOT NULL" in document_annotations_table_def
                 assert "identifier VARCHAR NOT NULL" in document_annotations_table_def
                 assert "source VARCHAR NOT NULL" in document_annotations_table_def
@@ -1061,6 +1030,18 @@ def _create_document_annotation_post_migration(
     ).scalar()
     assert isinstance(id, int)
     return id
+
+
+def _get_sqlite_table_info(conn: Connection, table_name: str) -> str:
+    return conn.execute(
+        text(
+            """
+            SELECT sql FROM sqlite_master
+            WHERE type='table' AND name=:table_name;
+            """
+        ),
+        {"table_name": table_name},
+    ).scalar()
 
 
 def _get_postgres_table_info(conn: Connection, table_name: str) -> dict:
