@@ -1,4 +1,3 @@
-import random
 from datetime import datetime, timezone
 from typing import Any
 
@@ -94,14 +93,14 @@ def test_annotation_config_migration(
         ).scalar()
         assert isinstance(span_rowid, int)
 
-    for _ in range(2):
+    for iteration_index in range(2):
         # test behavior before up migration
         with _engine.connect() as conn:
             # insert a trace annotation with LLM annotator kind
             trace_annotation_from_llm_id = _create_trace_annotation_pre_migration(
                 conn=conn,
                 trace_rowid=trace_rowid,
-                name=f"trace-annotation-from-llm-{random.randint(1, 1000)}",
+                name=f"trace-annotation-from-llm-{iteration_index}",
                 label="trace-annotation-label",
                 score=1.23,
                 explanation="trace-annotation-explanation",
@@ -114,7 +113,7 @@ def test_annotation_config_migration(
             trace_annotation_from_human_id = _create_trace_annotation_pre_migration(
                 conn=conn,
                 trace_rowid=trace_rowid,
-                name=f"trace-annotation-from-human-{random.randint(1, 1000)}",
+                name=f"trace-annotation-from-human-{iteration_index}",
                 label="trace-annotation-label",
                 score=1.23,
                 explanation="trace-annotation-explanation",
@@ -127,7 +126,7 @@ def test_annotation_config_migration(
             span_annotation_from_llm_id = _create_span_annotation_pre_migration(
                 conn=conn,
                 span_rowid=span_rowid,
-                name=f"span-annotation-from-llm-{random.randint(1, 1000)}",
+                name=f"span-annotation-from-llm-{iteration_index}",
                 label="span-annotation-label",
                 score=1.23,
                 explanation="span-annotation-explanation",
@@ -140,7 +139,7 @@ def test_annotation_config_migration(
             span_annotation_from_human_id = _create_span_annotation_pre_migration(
                 conn=conn,
                 span_rowid=span_rowid,
-                name=f"span-annotation-from-human-{random.randint(1, 1000)}",
+                name=f"span-annotation-from-human-{iteration_index}",
                 label="span-annotation-label",
                 score=1.23,
                 explanation="span-annotation-explanation",
@@ -154,7 +153,7 @@ def test_annotation_config_migration(
                 conn=conn,
                 span_rowid=span_rowid,
                 document_position=0,
-                name=f"document-annotation-from-llm-{random.randint(1, 1000)}",
+                name=f"document-annotation-from-llm-{iteration_index}",
                 label="document-annotation-label",
                 score=1.23,
                 explanation="document-annotation-explanation",
@@ -168,7 +167,7 @@ def test_annotation_config_migration(
                 conn=conn,
                 span_rowid=span_rowid,
                 document_position=1,
-                name=f"document-annotation-from-human-{random.randint(1, 1000)}",
+                name=f"document-annotation-from-human-{iteration_index}",
                 label="document-annotation-label",
                 score=1.23,
                 explanation="document-annotation-explanation",
@@ -182,7 +181,7 @@ def test_annotation_config_migration(
                 _create_trace_annotation_pre_migration(
                     conn=conn,
                     trace_rowid=trace_rowid,
-                    name=f"trace-annotation-from-llm-{random.randint(1, 1000)}",
+                    name=f"trace-annotation-from-llm-{iteration_index}",
                     label="trace-annotation-label",
                     score=1.23,
                     explanation="trace-annotation-explanation",
@@ -196,7 +195,7 @@ def test_annotation_config_migration(
                 _create_span_annotation_pre_migration(
                     conn=conn,
                     span_rowid=span_rowid,
-                    name=f"span-annotation-from-code-{random.randint(1, 1000)}",
+                    name=f"span-annotation-from-code-{iteration_index}",
                     label="span-annotation-label",
                     score=1.23,
                     explanation="span-annotation-explanation",
@@ -211,7 +210,7 @@ def test_annotation_config_migration(
                     conn=conn,
                     span_rowid=span_rowid,
                     document_position=2,
-                    name=f"document-annotation-from-code-{random.randint(1, 1000)}",
+                    name=f"document-annotation-from-code-{iteration_index}",
                     label="document-annotation-label",
                     score=1.23,
                     explanation="document-annotation-explanation",
@@ -332,7 +331,7 @@ def test_annotation_config_migration(
                 _create_trace_annotation_post_migration(
                     conn=conn,
                     trace_rowid=trace_rowid,
-                    name=f"trace-annotation-name-{random.randint(1, 1000)}",
+                    name=f"trace-annotation-name-{iteration_index}",
                     label="trace-annotation-label",
                     score=1.23,
                     explanation="trace-annotation-explanation",
@@ -351,7 +350,7 @@ def test_annotation_config_migration(
                 create_span_annotation_post_migration(
                     conn=conn,
                     span_rowid=span_rowid,
-                    name=f"span-annotation-name-{random.randint(1, 1000)}",
+                    name=f"span-annotation-name-{iteration_index}",
                     label="span-annotation-label",
                     score=1.23,
                     explanation="span-annotation-explanation",
@@ -371,7 +370,7 @@ def test_annotation_config_migration(
                     conn=conn,
                     span_rowid=span_rowid,
                     document_position=4,
-                    name=f"document-annotation-name-{random.randint(1, 1000)}",
+                    name=f"document-annotation-name-{iteration_index}",
                     label="document-annotation-label",
                     score=1.23,
                     explanation="document-annotation-explanation",
@@ -390,7 +389,7 @@ def test_annotation_config_migration(
                 _create_trace_annotation_post_migration(
                     conn=conn,
                     trace_rowid=trace_rowid,
-                    name=f"trace-annotation-name-{random.randint(1, 1000)}",
+                    name=f"trace-annotation-name-{iteration_index}",
                     label="trace-annotation-label",
                     score=1.23,
                     explanation="trace-annotation-explanation",
@@ -409,7 +408,7 @@ def test_annotation_config_migration(
                 create_span_annotation_post_migration(
                     conn=conn,
                     span_rowid=span_rowid,
-                    name=f"span-annotation-name-{random.randint(1, 1000)}",
+                    name=f"span-annotation-name-{iteration_index}",
                     label="span-annotation-label",
                     score=1.23,
                     explanation="span-annotation-explanation",
@@ -429,7 +428,7 @@ def test_annotation_config_migration(
                     conn=conn,
                     span_rowid=span_rowid,
                     document_position=4,
-                    name=f"document-annotation-name-{random.randint(1, 1000)}",
+                    name=f"document-annotation-name-{iteration_index}",
                     label="document-annotation-label",
                     score=1.23,
                     explanation="document-annotation-explanation",
@@ -447,7 +446,7 @@ def test_annotation_config_migration(
             trace_annotation_from_code_id = _create_trace_annotation_post_migration(
                 conn=conn,
                 trace_rowid=trace_rowid,
-                name=f"trace-annotation-name-2-{random.randint(1, 1000)}",
+                name=f"trace-annotation-name-2-{iteration_index}",
                 label="trace-annotation-label-2",
                 score=2.34,
                 explanation="trace-annotation-explanation",
@@ -463,7 +462,7 @@ def test_annotation_config_migration(
             span_annotation_from_code_id = create_span_annotation_post_migration(
                 conn=conn,
                 span_rowid=span_rowid,
-                name=f"span-annotation-name-2-{random.randint(1, 1000)}",
+                name=f"span-annotation-name-2-{iteration_index}",
                 label="span-annotation-label-2",
                 score=2.34,
                 explanation="span-annotation-explanation",
@@ -480,7 +479,7 @@ def test_annotation_config_migration(
                 conn=conn,
                 span_rowid=span_rowid,
                 document_position=3,
-                name=f"document-annotation-name-2-{random.randint(1, 1000)}",
+                name=f"document-annotation-name-2-{iteration_index}",
                 label="document-annotation-label-2",
                 score=2.34,
                 explanation="document-annotation-explanation",
