@@ -4,9 +4,8 @@
 
 Phoenix supports three main options to collect traces:
 
-1. Use [Phoenix's decorators](../how-to-tracing/setup-tracing/instrument-python.md) to mark functions and code blocks.
-2. Use [automatic instrumentation](../integrations-tracing/) to capture all calls made to supported frameworks.
-3. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
+1. Use [automatic instrumentation](../integrations-tracing/) to capture all calls made to supported frameworks.
+2. Use [base OpenTelemetry ](../how-to-tracing/setup-tracing/custom-spans.md)instrumentation. Supported in [Python](../how-to-tracing/setup-tracing/custom-spans.md) and [TS / JS](../how-to-tracing/setup-tracing/javascript.md), among many other languages.
 
 This example uses options 2 and 3.
 
@@ -31,7 +30,7 @@ PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 
 ### Using Self-hosted Phoenix:
 
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [Broken link](broken-reference "mention")
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://docs.arize.com/phoenix/self-hosting).
 2. In your code, configure environment variables for your endpoint and API key:
 
 ```shell

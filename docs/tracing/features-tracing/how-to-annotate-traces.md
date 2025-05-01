@@ -14,10 +14,14 @@ For more information on how to wire up your application to collect feedback from
 
 ### Evaluations from LLMs
 
-When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's [evals library](../../evaluation/llm-evals.md) as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
+When you have large amounts of data it can be immensely efficient and valuable to leverage LLM judges via `evals` to produce labels and scores to annotate your traces with. Phoenix's [evals library](../../evaluation/llm-evals/) as well as other third-party eval libraries can be leveraged to annotate your spans with evaluations. For details see:
 
 * [evals.md](../../evaluation/evals.md "mention") to generate evaluation results
 * [llm-evaluations.md](../how-to-tracing/feedback-and-annotations/llm-evaluations.md "mention") to add evaluation results to spans
+
+Navigate to the Feedback tab in this demo trace to see how LLM-based evaluations appear in Phoenix:
+
+{% embed url="https://phoenix-demo.arize.com/projects/UHJvamVjdDoy/spans/3eb00713de9347f9e6b056b1b13cb318?selectedSpanNodeId=U3BhbjozNjQzOA==" %}
 
 ### Human Annotations
 

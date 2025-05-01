@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40dffbf76e98c3bd41a3d6848c109dfc>>
+ * @generated SignedSource<<2ac4cdb4b8001c4f40165b494129ff58>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type CreateUserInput = {
   email: string;
   password: string;
   role: UserRoleInput;
+  sendWelcomeEmail?: boolean | null;
   username: string;
 };
 export type NewUserDialogMutation$variables = {

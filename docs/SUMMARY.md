@@ -6,6 +6,7 @@
 * [Interactive Demo](https://phoenix-demo.arize.com/projects)
 * [Examples](notebooks.md)
 * [Environments](environments.md)
+* [Phoenix Demo](https://phoenix-demo.arize.com/projects)
 
 ## 🔭 Tracing
 
@@ -25,14 +26,15 @@
   * [LangChain](tracing/integrations-tracing/langchain.md)
   * [LangGraph](tracing/integrations-tracing/langgraph.md)
   * [LiteLLM](tracing/integrations-tracing/litellm.md)
-  * [Haystack](tracing/integrations-tracing/haystack.md)
   * [Anthropic](tracing/integrations-tracing/anthropic.md)
+  * [Amazon Bedrock](tracing/integrations-tracing/bedrock.md)
+  * [Amazon Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
   * [VertexAI](tracing/integrations-tracing/vertexai.md)
-  * [Bedrock](tracing/integrations-tracing/bedrock.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
   * [Groq](tracing/integrations-tracing/groq.md)
   * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
   * [CrewAI](tracing/integrations-tracing/crewai.md)
+  * [Haystack](tracing/integrations-tracing/haystack.md)
   * [DSPy](tracing/integrations-tracing/dspy.md)
   * [Instructor](tracing/integrations-tracing/instructor.md)
   * [OpenAI Node SDK](tracing/integrations-tracing/openai-node-sdk.md)
@@ -118,7 +120,8 @@
 
 ## 🧠 Evaluation
 
-* [Overview: Evals](evaluation/llm-evals.md)
+* [Overview: Evals](evaluation/llm-evals/README.md)
+  * [Agent Evaluation](evaluation/llm-evals/agent-evaluation.md)
 * [Quickstart: Evals](evaluation/evals.md)
 * [How to: Evals](evaluation/how-to-evals/README.md)
   * [Pre-Built Evals](evaluation/how-to-evals/running-pre-tested-evals/README.md)
@@ -133,6 +136,9 @@
     * [User Frustration](evaluation/how-to-evals/running-pre-tested-evals/user-frustration.md)
     * [SQL Generation Eval](evaluation/how-to-evals/running-pre-tested-evals/sql-generation-eval.md)
     * [Agent Function Calling Eval](evaluation/how-to-evals/running-pre-tested-evals/tool-calling-eval.md)
+    * [Agent Path Convergence](evaluation/how-to-evals/running-pre-tested-evals/agent-path-convergence.md)
+    * [Agent Planning](evaluation/how-to-evals/running-pre-tested-evals/agent-planning.md)
+    * [Agent Reflection](evaluation/how-to-evals/running-pre-tested-evals/agent-reflection.md)
     * [Audio Emotion Detection](evaluation/how-to-evals/running-pre-tested-evals/audio-emotion-detection.md)
   * [Eval Models](evaluation/how-to-evals/evaluation-models.md)
   * [Build an Eval](evaluation/how-to-evals/bring-your-own-evaluator.md)
@@ -178,21 +184,14 @@
 * [Use-Cases: Inferences](inferences/use-cases-inferences/README.md)
   * [Embeddings Analysis](inferences/use-cases-inferences/embeddings-analysis.md)
 
-## ⌨️ API
-
-* [Session](api/session.md)
-* [Client](api/client.md)
-
 ## 🔌 INTEGRATIONS
 
 * [Phoenix MCP Server](integrations/phoenix-mcp-server.md)
 * [Cleanlab](integrations/cleanlab.md)
 * [Ragas](integrations/ragas.md)
 
-***
+## ⚙️ Settings
 
-* [GitHub](https://github.com/Arize-ai/phoenix)
-* [Releases](https://github.com/Arize-ai/phoenix/releases)
-* [Python API](https://arize-phoenix.readthedocs.io/)
-* [OpenInference](https://github.com/Arize-ai/openinference)
-* [TypeScript API](https://arize-ai.github.io/phoenix/)
+* [Access Control (RBAC)](settings/access-control-rbac.md)
+* [API Keys](settings/api-keys.md)
+* [Data Retention](settings/data-retention.md)

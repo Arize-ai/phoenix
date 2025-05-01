@@ -30,7 +30,7 @@ import phoenix as px
 
 Phoenix visualizes data taken from pandas dataframe, where each row of the dataframe compasses all the information about each inference (including feature values, prediction, metadata, etc.)
 
-For this Quickstart, we will show an example of visualizing the inferences from a computer vision model. See example notebooks for all model types [here](broken-reference).
+For this Quickstart, we will show an example of visualizing the inferences from a computer vision model. See example notebooks for all model types [here](https://docs.arize.com/phoenix/cookbook/end-to-end-examples/data-analysis-embeddings-and-structured-data).
 
 Let’s begin by working with the training set for this model.
 
@@ -77,7 +77,7 @@ train_schema = px.Schema(
 
 _**Important**_**:** The fields used in a Schema will _vary_ depending on the model type that you are working with.
 
-For examples on how Schema are defined for other model types (NLP, tabular, LLM-based applications), see example notebooks under [Embedding Analysis](https://app.gitbook.com/s/jl0P6vk8OJiHMr4yNY0U/data-analysis-embeddings-and-structured-data) and [Structured Data Analysis](https://app.gitbook.com/s/jl0P6vk8OJiHMr4yNY0U/data-analysis-embeddings-and-structured-data).
+For examples on how Schema are defined for other model types (NLP, tabular, LLM-based applications), see example notebooks under [Embedding Analysis](https://app.gitbook.com/s/jl0P6vk8OJiHMr4yNY0U/retrieval-and-inferences/guide) and [Structured Data Analysis](https://app.gitbook.com/s/jl0P6vk8OJiHMr4yNY0U/retrieval-and-inferences/guide).
 
 ### Step 4: Wrap into Inferences object
 

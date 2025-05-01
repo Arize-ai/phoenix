@@ -6,6 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
+    "@apollo/client": "^3.13.7",
     "@arizeai/components": "2.0.0-0",
     "@arizeai/openinference-semantic-conventions": "^0.13.0",
     "@arizeai/point-cloud": "^3.0.6",
@@ -35,7 +36,6 @@
     "d3-scale-chromatic": "^3.1.0",
     "d3-time-format": "^4.1.0",
     "date-fns": "^3.6.0",
-    "graphql-ws": "^6.0.4",
     "lodash": "^4.17.21",
     "normalize.css": "^8.0.1",
     "polished": "^4.3.1",
@@ -106,7 +106,7 @@
     "rollup-plugin-visualizer": "^5.12.0",
     "storybook": "^8.4.6",
     "typescript": "~5.4.5",
-    "vite": "^6.2.3",
+    "vite": "^6.2.6",
     "vite-plugin-relay": "^2.1.0",
     "vitest": "^3.0.9",
     "vitest-canvas-mock": "^0.3.3"

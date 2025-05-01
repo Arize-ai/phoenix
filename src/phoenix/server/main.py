@@ -16,13 +16,13 @@ import phoenix.trace.v1 as pb
 from phoenix.config import (
     EXPORT_DIR,
     get_env_access_token_expiry,
+    get_env_allowed_origins,
     get_env_auth_settings,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_db_logging_level,
     get_env_disable_migrations,
     get_env_enable_prometheus,
-    get_env_enable_websockets,
     get_env_grpc_port,
     get_env_host,
     get_env_host_root_path,
@@ -60,6 +60,7 @@ from phoenix.server.app import (
     instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import SimpleEmailSender
+from phoenix.server.email.types import EmailSender
 from phoenix.server.types import DbSessionFactory
 from phoenix.settings import Settings
 from phoenix.trace.fixtures import (
@@ -98,6 +99,7 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
 |  Websockets: {{ websockets_enabled }}
+{%- if allowed_origins %}\n|  Allowed Origins: {{ allowed_origins }}{% endif %}
 |  Log traces:
 |    - gRPC: {{ grpc_path }}
 |    - HTTP: {{ http_path }}
@@ -352,12 +354,7 @@ def main() -> None:
         None if corpus_inferences is None else create_model_from_inferences(corpus_inferences)
     )
 
-    # Get enable_websockets from environment variable or command line argument
-    enable_websockets = get_env_enable_websockets()
-    if args.enable_websockets is not None:
-        enable_websockets = args.enable_websockets.lower() == "true"
-    if enable_websockets is None:
-        enable_websockets = True
+    allowed_origins = get_env_allowed_origins()
 
     # Print information about the server
     root_path = urljoin(f"http://{host}:{port}", host_root_path)
@@ -369,7 +366,7 @@ def main() -> None:
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
-        websockets_enabled=enable_websockets,
+        allowed_origins=allowed_origins,
     )
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
@@ -380,7 +377,7 @@ def main() -> None:
         scaffold_datasets=scaffold_datasets,
         phoenix_url=root_path,
     )
-    email_sender = None
+    email_sender: Optional[EmailSender] = None
     if mail_sever := get_env_smtp_hostname():
         assert (mail_username := get_env_smtp_username()), "SMTP username is required"
         assert (mail_password := get_env_smtp_password()), "SMTP password is required"
@@ -399,7 +396,6 @@ def main() -> None:
         db=factory,
         export_path=export_path,
         model=model,
-        enable_websockets=enable_websockets,
         authentication_enabled=authentication_enabled,
         umap_params=umap_params,
         corpus=corpus_model,
@@ -419,6 +415,7 @@ def main() -> None:
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
         oauth2_client_configs=get_env_oauth2_settings(),
+        allowed_origins=allowed_origins,
     )
     server = Server(config=Config(app, host=host, port=port, root_path=host_root_path))  # type: ignore
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()

@@ -928,6 +928,7 @@ class PromptVersionTag(Node):
     id: str = Field(...)
     name: str
     promptVersionId: str
+    user: Optional[User] = None
 
 
 class PromptVersionTagMutationPayload(BaseModel):
@@ -1498,6 +1499,7 @@ class CreateUserInput(BaseModel):
     email: str
     password: str
     role: Literal["ADMIN", "MEMBER"]
+    sendWelcomeEmail: Optional[bool] = False
     username: str
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.1...arize-phoenix-otel-v0.9.2) (2025-04-14)
+
+
+### Bug Fixes
+
+* **otel:** ensure arize-phoenix-otel has no type issues on import when installed as a standalone package ([#7141](https://github.com/Arize-ai/phoenix/issues/7141)) ([b7da769](https://github.com/Arize-ai/phoenix/commit/b7da7691d2ff61946ab1dce278530fbc5b966e92))
+
+## [0.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.9.0...arize-phoenix-otel-v0.9.1) (2025-04-05)
+
+
+### Documentation
+
+* add nice headers ([#7044](https://github.com/Arize-ai/phoenix/issues/7044)) ([9151104](https://github.com/Arize-ai/phoenix/commit/9151104bd4aa69380849a441e3556a3adfa604ca))
+
 ## [0.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.8.0...arize-phoenix-otel-v0.9.0) (2025-03-22)
 
 

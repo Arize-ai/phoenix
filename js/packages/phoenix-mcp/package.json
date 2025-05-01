@@ -1,0 +1,38 @@
+{
+  "name": "@arizeai/phoenix-mcp",
+  "version": "2.1.2",
+  "description": "A MCP server for Arize Phoenix",
+  "bin": {
+    "@arizeai/phoenix-mcp": "./build/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js",
+    "dev": "source .env && tsx src/index.ts -- --apiKey $PHOENIX_API_KEY --baseUrl $PHOENIX_BASE_URL",
+    "typecheck": "tsc --noEmit",
+    "inspect": "pnpm run build && npx -y @modelcontextprotocol/inspector -- node build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "keywords": [
+    "mcp",
+    "arize-phoenix"
+  ],
+  "author": "oss@arize.com",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@arizeai/phoenix-client": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "glob": "^11.0.1",
+    "minimist": "^1.2.8",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/minimist": "^1.2.5",
+    "@types/node": "^22.14.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

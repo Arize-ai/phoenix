@@ -26,7 +26,7 @@ dependencies = [
   "numpy!=2.0.0",  # https://github.com/lmcinnes/umap/issues/1138
   "pandas>=1.0",
   "jinja2",
-  "starlette",
+  "starlette>=0.46.0",
   "uvicorn",
   "psutil",
   "strawberry-graphql>=0.262.0",  # resolve security vulnerability https://github.com/Arize-ai/phoenix/security/dependabot/45
@@ -57,7 +57,6 @@ dependencies = [
   "fastapi",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "authlib",
-  "websockets",
   "arize-phoenix-client",
   "email-validator",
 ]
@@ -129,6 +128,7 @@ container = [
   "prometheus-client",
   "openai>=1.0.0",
   "azure-identity",
+  "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   "opentelemetry-sdk",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-exporter-otlp",

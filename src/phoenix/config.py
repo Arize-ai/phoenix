@@ -7,10 +7,12 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Optional, cast, overload
-from urllib.parse import quote_plus, urlparse
+from typing import Any, Optional, Union, cast, overload
+from urllib.parse import quote_plus, urljoin, urlparse
 
+import wrapt
 from email_validator import EmailNotValidError, validate_email
+from starlette.datastructures import URL
 
 from phoenix.utilities.logging import log_a_list
 
@@ -117,10 +119,6 @@ ENV_LOG_MIGRATIONS = "PHOENIX_LOG_MIGRATIONS"
 """
 Whether or not to log migrations. Defaults to true.
 """
-ENV_PHOENIX_ENABLE_WEBSOCKETS = "PHOENIX_ENABLE_WEBSOCKETS"
-"""
-Whether or not to enable websockets. Defaults to None.
-"""
 
 ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
 """
@@ -142,9 +140,20 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
+"""
+The secret key used for signing JWTs. It must be at least 32 characters long and include at least
+one digit and one lowercase letter.
+"""
+ENV_PHOENIX_ADMIN_SECRET = "PHOENIX_ADMIN_SECRET"
+"""
+A secret key that can be used as a bearer token instead of an API key. It authenticates as the
+first system user. This key must be at least 32 characters long, include at least one digit and
+one lowercase letter, and must be different from PHOENIX_SECRET. Additionally, it must not be set
+if PHOENIX_SECRET is not configured.
+"""
 ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD = "PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD"
 """
-The initial password for the default admin account, which defaults to ‘admin’ if not
+The initial password for the default admin account, which defaults to 'admin' if not
 explicitly set. Note that changing this value will have no effect if the default admin
 record already exists in the database. In such cases, the default admin password must
 be updated manually in the application.
@@ -181,6 +190,19 @@ If the username or email address already exists in the database, the user record
 modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
 startup will not undo any records created in previous startups.
 """
+ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
+"""
+This is the full URL used to access Phoenix from a web browser. This setting is important when
+you have a reverse proxy in front of Phoenix. If the reverse proxy exposes Phoenix through a
+sub-path, add that sub-path to the end of this URL setting.
+
+WARNING: When a sub-path is needed, you must also specify the sub-path via the environment
+variable PHOENIX_HOST_ROOT_PATH. Setting just this URL setting is not enough.
+
+Examples:
+    - With a sub-path: "https://example.com/phoenix"
+    - Without a sub-path: "https://phoenix.example.com"
+"""
 
 
 # SMTP settings
@@ -208,7 +230,11 @@ ENV_PHOENIX_SMTP_VALIDATE_CERTS = "PHOENIX_SMTP_VALIDATE_CERTS"
 """
 Whether to validate SMTP server certificates. Defaults to true.
 """
-
+ENV_PHOENIX_ALLOWED_ORIGINS = "PHOENIX_ALLOWED_ORIGINS"
+"""
+List of allowed origins for CORS. Defaults to None.
+When set to None, CORS is disabled.
+"""
 # API extension settings
 ENV_PHOENIX_FASTAPI_MIDDLEWARE_PATHS = "PHOENIX_FASTAPI_MIDDLEWARE_PATHS"
 ENV_PHOENIX_GQL_EXTENSION_PATHS = "PHOENIX_GQL_EXTENSION_PATHS"
@@ -362,6 +388,29 @@ def get_env_phoenix_secret() -> Optional[str]:
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
     return phoenix_secret
+
+
+def get_env_phoenix_admin_secret() -> Optional[str]:
+    """
+    Gets the value of the PHOENIX_ADMIN_SECRET environment variable
+    and performs validation.
+    """
+    phoenix_admin_secret = getenv(ENV_PHOENIX_ADMIN_SECRET)
+    if phoenix_admin_secret is None:
+        return None
+    if (phoenix_secret := get_env_phoenix_secret()) is None:
+        raise ValueError(
+            f"`{ENV_PHOENIX_ADMIN_SECRET}` must be not be set without "
+            f"setting `{ENV_PHOENIX_SECRET}`."
+        )
+    from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
+
+    REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_admin_secret, "Phoenix secret")
+    if phoenix_admin_secret == phoenix_secret:
+        raise ValueError(
+            f"`{ENV_PHOENIX_ADMIN_SECRET}` must be different from `{ENV_PHOENIX_SECRET}`"
+        )
+    return phoenix_admin_secret
 
 
 def get_env_default_admin_initial_password() -> str:
@@ -521,10 +570,6 @@ def get_env_smtp_validate_certs() -> bool:
     return _bool_val(ENV_PHOENIX_SMTP_VALIDATE_CERTS, True)
 
 
-def get_env_enable_websockets() -> Optional[bool]:
-    return _bool_val(ENV_PHOENIX_ENABLE_WEBSOCKETS)
-
-
 @dataclass(frozen=True)
 class OAuth2ClientConfig:
     idp_name: str
@@ -615,17 +660,138 @@ GENERATED_INFERENCES_NAME_PREFIX = "phoenix_inferences_"
 WORKING_DIR = get_working_dir()
 """The work directory for saving, loading, and exporting data."""
 
-ROOT_DIR = WORKING_DIR
-EXPORT_DIR = ROOT_DIR / "exports"
-INFERENCES_DIR = ROOT_DIR / "inferences"
-TRACE_DATASETS_DIR = ROOT_DIR / "trace_datasets"
+
+class DirectoryError(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None:
+            message = (
+                "Local storage is not configured. Please set the "
+                "PHOENIX_WORKING_DIR environment variable to fix this."
+            )
+        super().__init__(message)
 
 
-def ensure_working_dir() -> None:
+def get_env_postgres_connection_str() -> Optional[str]:
+    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
+    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
+    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
+    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
+    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
+
+    if pg_host and ":" in pg_host:
+        pg_host, parsed_port = pg_host.split(":")
+        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
+
+    if pg_host and pg_user and pg_password:
+        encoded_password = quote_plus(pg_password)
+        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
+        if pg_port:
+            connection_str = f"{connection_str}:{pg_port}"
+        if pg_db:
+            connection_str = f"{connection_str}/{pg_db}"
+
+        return connection_str
+    return None
+
+
+def _no_local_storage() -> bool:
+    """
+    Check if we're using a postgres database by checking if postgres connection string is set
+    and a working directory was not explicitly set.
+    """
+    return get_env_postgres_connection_str() is not None and getenv(ENV_PHOENIX_WORKING_DIR) is None
+
+
+class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
+    """
+    This wraps pathlib.Path and will raise a DirectoryError if no local storage is configured.
+
+    Users can forego configuring a working directory if they are using a postgres database. If this
+    condition is met, the working directory path wrapped by this object will raise an error when
+    accessed in any way.
+    """
+
+    def __init__(self, wrapped: Union[str, Path]) -> None:
+        super().__init__(Path(wrapped))
+        self.__wrapped__: Path
+
+    def _check_forbidden(self) -> None:
+        if _no_local_storage():
+            raise DirectoryError()
+        return
+
+    def __getattr__(self, name: str) -> Any:
+        attr = getattr(self.__wrapped__, name)
+
+        if callable(attr):
+
+            def wrapped_attr(*args: Any, **kwargs: Any) -> Any:
+                result = attr(*args, **kwargs)
+                if isinstance(result, Path):
+                    self._check_forbidden()
+                    return RestrictedPath(result)
+                elif hasattr(result, "__iter__") and not isinstance(result, (str, bytes)):
+                    return (RestrictedPath(p) if isinstance(p, Path) else p for p in result)
+                return result
+
+            return wrapped_attr
+        else:
+            if isinstance(attr, Path):
+                self._check_forbidden()
+                return RestrictedPath(attr)
+            return attr
+
+    def __str__(self) -> str:
+        self._check_forbidden()
+        return str(self.__wrapped__)
+
+    def __repr__(self) -> str:
+        return f"<RestrictedPath({repr(self.__wrapped__)})>"
+
+    def __fspath__(self) -> str:
+        self._check_forbidden()
+        return str(self.__wrapped__)
+
+    def __truediv__(self, other: Union[str, Path]) -> Path:
+        self._check_forbidden()
+        return self.__wrapped__ / other
+
+    def __itruediv__(self, other: Union[str, Path]) -> Path:
+        self.__wrapped__ /= other
+        self._check_forbidden()
+        return self.__wrapped__
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, RestrictedPath):
+            return bool(self.__wrapped__ == other.__wrapped__)
+        return bool(self.__wrapped__ == other)
+
+    def __hash__(self) -> int:
+        return hash(self.__wrapped__)
+
+    def __len__(self) -> int:
+        return len(self.__wrapped__.parts)
+
+    def __contains__(self, item: str) -> bool:
+        return item in self.__wrapped__.parts
+
+
+ROOT_DIR = RestrictedPath(WORKING_DIR)
+EXPORT_DIR = RestrictedPath(WORKING_DIR / "exports")
+INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
+TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
+
+
+def ensure_working_dir_if_needed() -> None:
     """
     Ensure the working directory exists. This is needed because the working directory
     must exist before certain operations can be performed.
+
+    This is bypassed if a postgres database is configured and a working directory is not set.
     """
+    if _no_local_storage():
+        pass
+
     logger.info(f"📋 Ensuring phoenix working directory: {WORKING_DIR}")
     try:
         for path in (
@@ -644,8 +810,8 @@ def ensure_working_dir() -> None:
         raise
 
 
-# Invoke ensure_working_dir() to ensure the working directory exists
-ensure_working_dir()
+# Invoke ensure_working_dir_if_needed() to ensure the working directory exists
+ensure_working_dir_if_needed()
 
 
 def get_exported_files(directory: Path) -> list[Path]:
@@ -662,6 +828,8 @@ def get_exported_files(directory: Path) -> list[Path]:
     list: list[Path]
         List of paths of the exported files.
     """
+    if _no_local_storage():
+        return []  # Do not attempt to access local storage
     return list(directory.glob("*.parquet"))
 
 
@@ -700,7 +868,7 @@ def get_env_host() -> str:
 
 
 def get_env_host_root_path() -> str:
-    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
+    if not (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)):
         return HOST_ROOT_PATH
     if not host_root_path.startswith("/"):
         raise ValueError(
@@ -732,29 +900,6 @@ def get_env_database_connection_str() -> str:
 
     working_dir = get_working_dir()
     return f"sqlite:///{working_dir}/phoenix.db"
-
-
-def get_env_postgres_connection_str() -> Optional[str]:
-    pg_user = os.getenv(ENV_PHOENIX_POSTGRES_USER)
-    pg_password = os.getenv(ENV_PHOENIX_POSTGRES_PASSWORD)
-    pg_host = os.getenv(ENV_PHOENIX_POSTGRES_HOST)
-    pg_port = os.getenv(ENV_PHOENIX_POSTGRES_PORT)
-    pg_db = os.getenv(ENV_PHOENIX_POSTGRES_DB)
-
-    if pg_host and ":" in pg_host:
-        pg_host, parsed_port = pg_host.split(":")
-        pg_port = pg_port or parsed_port  # use the explicitly set port if provided
-
-    if pg_host and pg_user and pg_password:
-        encoded_password = quote_plus(pg_password)
-        connection_str = f"postgresql://{pg_user}:{encoded_password}@{pg_host}"
-        if pg_port:
-            connection_str = f"{connection_str}:{pg_port}"
-        if pg_db:
-            connection_str = f"{connection_str}/{pg_db}"
-
-        return connection_str
-    return None
 
 
 def get_env_database_schema() -> Optional[str]:
@@ -789,7 +934,33 @@ def get_env_client_headers() -> dict[str, str]:
     return headers
 
 
+def get_env_root_url() -> URL:
+    """
+    Get the URL used to access Phoenix from a web browser
+
+    Returns:
+        URL: The root URL of the Phoenix server
+
+    Note:
+        This is intended to replace the legacy `get_base_url()` helper function. In
+        particular, `get_env_collector_endpoint()` is really for the client and should be
+        deprecated on the server side.
+    """
+    if root_url := getenv(ENV_PHOENIX_ROOT_URL):
+        result = urlparse(root_url)
+        if not result.scheme or not result.netloc:
+            raise ValueError(
+                f"The environment variable `{ENV_PHOENIX_ROOT_URL}` must be a valid URL."
+            )
+        return URL(root_url)
+    host = get_env_host()
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    return URL(urljoin(f"http://{host}:{get_env_port()}", get_env_host_root_path()))
+
+
 def get_base_url() -> str:
+    """Deprecated: Use get_env_root_url() instead, but note the difference in behavior."""
     host = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
@@ -948,4 +1119,43 @@ def get_env_disable_migrations() -> bool:
 DEFAULT_PROJECT_NAME = "default"
 _KUBERNETES_PHOENIX_PORT_PATTERN = re.compile(r"^tcp://\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}:\d+$")
 
+
+def get_env_allowed_origins() -> Optional[list[str]]:
+    """
+    Gets the value of the PHOENIX_ALLOWED_ORIGINS environment variable.
+    """
+    allowed_origins = getenv(ENV_PHOENIX_ALLOWED_ORIGINS)
+    if allowed_origins is None:
+        return None
+
+    return allowed_origins.split(",")
+
+
+def verify_server_environment_variables() -> None:
+    """Verify that the environment variables are set correctly. Raises an error otherwise."""
+    get_env_root_url()
+    get_env_phoenix_secret()
+    get_env_phoenix_admin_secret()
+
+    # Notify users about deprecated environment variables if they are being used.
+    if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:
+        logger.warning(
+            "The environment variable PHOENIX_ENABLE_WEBSOCKETS is deprecated "
+            "because WebSocket is no longer necessary."
+        )
+
+
 SKLEARN_VERSION = cast(tuple[int, int], tuple(map(int, version("scikit-learn").split(".", 2)[:2])))
+PLAYGROUND_PROJECT_NAME = "playground"
+
+SYSTEM_USER_ID: Optional[int] = None
+"""
+The ID of the system user in the database.
+
+This value is set during application startup by the facilitator and is used to
+identify the system user for authentication purposes.
+
+When the PHOENIX_ADMIN_SECRET is used as a bearer token in API requests, the
+request is authenticated as the system user with the user_id set to this
+SYSTEM_USER_ID value (only if this variable is not None).
+"""
