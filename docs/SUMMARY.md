@@ -3,8 +3,6 @@
 * [Arize Phoenix](README.md)
 * [Quickstarts](quickstart.md)
 * [User Guide](user-guide.md)
-* [Interactive Demo](https://phoenix-demo.arize.com/projects)
-* [Examples](notebooks.md)
 * [Environments](environments.md)
 * [Phoenix Demo](https://phoenix-demo.arize.com/projects)
 
