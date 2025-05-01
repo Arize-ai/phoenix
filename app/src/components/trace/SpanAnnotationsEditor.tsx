@@ -24,6 +24,7 @@ import {
   Icons,
   Loading,
   Popover,
+  useTimeRange,
   View,
 } from "@phoenix/components";
 import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
@@ -272,6 +273,7 @@ function SpanAnnotationsList(props: {
   );
   const annotationConfigs = data.project?.annotationConfigs?.configs;
   const annotationConfigsLength = annotationConfigs?.length ?? 0;
+  const { timeRange } = useTimeRange();
 
   const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
@@ -279,9 +281,16 @@ function SpanAnnotationsList(props: {
         $spanId: GlobalID!
         $annotationIds: [GlobalID!]!
         $filterUserIds: [GlobalID!]
+        $timeRange: TimeRange!
+        $projectId: GlobalID!
       ) {
         deleteSpanAnnotations(input: { annotationIds: $annotationIds }) {
           query {
+            project: node(id: $projectId) {
+              ... on Project {
+                ...ProjectPageHeader_stats
+              }
+            }
             node(id: $spanId) {
               ... on Span {
                 ...AnnotationSummaryGroup
@@ -306,6 +315,11 @@ function SpanAnnotationsList(props: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
               filterUserIds: viewer?.id ? [viewer.id] : null,
+              timeRange: {
+                start: timeRange?.start?.toISOString(),
+                end: timeRange?.end?.toISOString(),
+              },
+              projectId,
             },
             onCompleted: () => {
               resolve({
@@ -325,7 +339,7 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId, viewer?.id]
+    [commitDeleteAnnotation, spanNodeId, viewer?.id, timeRange, projectId]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -338,6 +352,8 @@ function SpanAnnotationsList(props: {
         $score: Float
         $explanation: String
         $filterUserIds: [GlobalID!]
+        $timeRange: TimeRange!
+        $projectId: GlobalID!
       ) {
         patchSpanAnnotations(
           input: [
@@ -352,6 +368,12 @@ function SpanAnnotationsList(props: {
           ]
         ) {
           query {
+            project: node(id: $projectId) {
+              ... on Project {
+                ...AnnotationSummaryValueFragment
+                  @arguments(annotationName: $name, timeRange: $timeRange)
+              }
+            }
             node(id: $spanId) {
               ... on Span {
                 ...AnnotationSummaryGroup
@@ -383,6 +405,11 @@ function SpanAnnotationsList(props: {
                 score: data.score,
                 explanation: data.explanation || null,
                 filterUserIds: viewer?.id ? [viewer.id] : null,
+                timeRange: {
+                  start: timeRange?.start?.toISOString(),
+                  end: timeRange?.end?.toISOString(),
+                },
+                projectId,
               },
               onCompleted: () => {
                 resolve({
@@ -400,18 +427,27 @@ function SpanAnnotationsList(props: {
         }
       });
     },
-    [commitEdit, spanNodeId, viewer?.id]
+    [commitEdit, spanNodeId, viewer?.id, timeRange, projectId]
   );
 
   const [commitCreateAnnotation] =
     useMutation<SpanAnnotationsEditorCreateAnnotationMutation>(graphql`
       mutation SpanAnnotationsEditorCreateAnnotationMutation(
+        $name: String!
         $input: CreateSpanAnnotationInput!
         $spanId: GlobalID!
         $filterUserIds: [GlobalID!]
+        $timeRange: TimeRange!
+        $projectId: GlobalID!
       ) {
         createSpanAnnotations(input: [$input]) {
           query {
+            project: node(id: $projectId) {
+              ... on Project {
+                ...AnnotationSummaryValueFragment
+                  @arguments(annotationName: $name, timeRange: $timeRange)
+              }
+            }
             node(id: $spanId) {
               ... on Span {
                 ...AnnotationSummaryGroup
@@ -439,8 +475,14 @@ function SpanAnnotationsList(props: {
               explanation: data.explanation || null,
               source: "APP",
             },
+            name: data.name,
             spanId: spanNodeId,
             filterUserIds: viewer?.id ? [viewer.id] : null,
+            timeRange: {
+              start: timeRange?.start?.toISOString(),
+              end: timeRange?.end?.toISOString(),
+            },
+            projectId,
           },
           onCompleted: () => {
             resolve({
@@ -455,7 +497,7 @@ function SpanAnnotationsList(props: {
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId, viewer?.id]
+    [commitCreateAnnotation, spanNodeId, viewer?.id, timeRange, projectId]
   );
 
   return (
