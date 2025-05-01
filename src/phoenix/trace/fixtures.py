@@ -144,6 +144,7 @@ demo_toolcalling_fixture = TracesFixture(
     project_name="demo_agent",
     description="Tool calling traces",
     file_name="agents-toolcalling-tracesv2.parquet",
+
     dataset_fixtures=(
         DatasetFixture(
             file_name="questions.csv.gz",
@@ -161,7 +162,6 @@ demo_toolcalling_fixture = TracesFixture(
         ),
     ),
 )
-
 demo_code_based_agent_fixture = TracesFixture(
     name="demo_code_based_agent",
     project_name="demo_agents",
@@ -396,6 +396,7 @@ def send_dataset_fixtures(
     endpoint: str,
     fixtures: Iterable[DatasetFixture],
 ) -> None:
+    print([fixture.name for fixture in fixtures])
     expiration = time() + 5
     while time() < expiration:
         try:

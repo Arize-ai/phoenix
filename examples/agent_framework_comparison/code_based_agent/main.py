@@ -9,17 +9,20 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 from router import router
 from utils.instrument import Framework, instrument
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def gradio_interface(message, history):
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span("code_based_agent") as span:
         span.set_attribute(SpanAttributes.INPUT_VALUE, message)
         span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, "AGENT")
-
+        
         message = [{"role": "user", "content": message}]
         context = {}
         TraceContextTextMapPropagator().inject(context)
+        
         agent_response = router(message, context)
         span.set_attribute(SpanAttributes.OUTPUT_VALUE, agent_response)
         span.set_status(trace.Status(trace.StatusCode.OK))
@@ -32,5 +35,7 @@ def launch_app():
 
 
 if __name__ == "__main__":
+    print(os.environ.get("PHOENIX_COLLECTOR_ENDPOINT"))
+    print(os.environ.get("PHOENIX_API_KEY"))
     instrument(project_name="agent-demo", framework=Framework.CODE_BASED)
     launch_app()
