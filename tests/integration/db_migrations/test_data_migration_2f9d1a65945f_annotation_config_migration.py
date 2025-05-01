@@ -100,6 +100,36 @@ def test_annotation_config_migration(
         with _engine.connect() as conn:
             # verify columns
             if _db_backend == "sqlite":
+                trace_annotations_table_def = conn.execute(
+                    text(
+                        """
+                        SELECT sql FROM sqlite_master
+                        WHERE type='table' AND name='trace_annotations';
+                        """
+                    )
+                ).scalar()
+                assert "identifier" not in trace_annotations_table_def
+                assert "source" not in trace_annotations_table_def
+                assert "user_id" not in trace_annotations_table_def
+                assert "annotator_kind VARCHAR NOT NULL" in trace_annotations_table_def
+                assert (
+                    """CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY(trace_rowid) REFERENCES traces (id) ON DELETE CASCADE"  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT pk_trace_annotations PRIMARY KEY (id)"
+                    in trace_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT uq_trace_annotations_name_trace_rowid UNIQUE (name, trace_rowid)"
+                    in trace_annotations_table_def
+                )
+                assert trace_annotations_table_def.count("CONSTRAINT") == 4
+
                 span_annotations_table_def = conn.execute(
                     text(
                         """
@@ -264,6 +294,44 @@ def test_annotation_config_migration(
         with _engine.connect() as conn:
             # verify expected columns and constraints exist
             if _db_backend == "sqlite":
+                trace_annotations_table_def = conn.execute(
+                    text(
+                        """
+                        SELECT sql FROM sqlite_master
+                        WHERE type='table' AND name='trace_annotations';
+                        """
+                    )
+                ).scalar()
+                assert "annotator_kind VARCHAR NOT NULL" in trace_annotations_table_def
+                assert "identifier VARCHAR NOT NULL" in trace_annotations_table_def
+                assert "source VARCHAR NOT NULL" in trace_annotations_table_def
+                assert "user_id INTEGER" in trace_annotations_table_def
+                assert (
+                    "CONSTRAINT pk_trace_annotations PRIMARY KEY (id)"
+                    in trace_annotations_table_def
+                )
+                assert (
+                    """CONSTRAINT "ck_trace_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_trace_annotations_trace_rowid_traces FOREIGN KEY(trace_rowid) REFERENCES traces (id) ON DELETE CASCADE"  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT uq_trace_annotations_name_trace_rowid_identifier UNIQUE (name, trace_rowid, identifier)"  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_trace_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert (
+                    """CONSTRAINT "ck_trace_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""  # noqa: E501
+                    in trace_annotations_table_def
+                )
+                assert trace_annotations_table_def.count("CONSTRAINT") == 6
+
                 span_annotations_table_def = conn.execute(
                     text(
                         """
