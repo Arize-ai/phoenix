@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from alembic.config import Config
 from sqlalchemy import Connection, Engine, text
+from typing_extensions import assert_never
 
 from . import _down, _up, _version_num
 
@@ -11,6 +12,7 @@ from . import _down, _up, _version_num
 def test_annotation_config_migration(
     _engine: Engine,
     _alembic_config: Config,
+    _db_backend: Literal["sqlite", "postgresql"],
 ) -> None:
     # no migrations applied yet
     with pytest.raises(BaseException, match="alembic_version"):
@@ -96,6 +98,42 @@ def test_annotation_config_migration(
     for iteration_index in range(2):
         # test behavior before up migration
         with _engine.connect() as conn:
+            # verify columns
+            if _db_backend == "sqlite":
+                span_annotations_table_def = conn.execute(
+                    text(
+                        """
+                        SELECT sql FROM sqlite_master
+                        WHERE type='table' AND name='span_annotations';
+                        """
+                    )
+                ).scalar()
+                assert "identifier" not in span_annotations_table_def
+                assert "source" not in span_annotations_table_def
+                assert "user_id" not in span_annotations_table_def
+                assert "annotator_kind VARCHAR NOT NULL" in span_annotations_table_def
+                assert (
+                    """CONSTRAINT "ck_span_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT pk_span_annotations PRIMARY KEY (id)" in span_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT uq_span_annotations_name_span_rowid UNIQUE (name, span_rowid)"
+                    in span_annotations_table_def
+                )
+                assert span_annotations_table_def.count("CONSTRAINT") == 4
+
+            elif _db_backend == "postgresql":
+                pass
+            else:
+                assert_never(_db_backend)
+
             # insert a trace annotation with LLM annotator kind
             trace_annotation_from_llm_id = _create_trace_annotation_pre_migration(
                 conn=conn,
@@ -224,6 +262,51 @@ def test_annotation_config_migration(
 
         # verify new columns exist and have been backfilled
         with _engine.connect() as conn:
+            # verify expected columns and constraints exist
+            if _db_backend == "sqlite":
+                span_annotations_table_def = conn.execute(
+                    text(
+                        """
+                        SELECT sql FROM sqlite_master
+                        WHERE type='table' AND name='span_annotations';
+                        """
+                    )
+                ).scalar()
+
+                assert "annotator_kind VARCHAR NOT NULL" in span_annotations_table_def
+                assert "identifier VARCHAR NOT NULL" in span_annotations_table_def
+                assert "source VARCHAR NOT NULL" in span_annotations_table_def
+                assert "user_id INTEGER" in span_annotations_table_def
+                assert (
+                    "CONSTRAINT pk_span_annotations PRIMARY KEY (id)" in span_annotations_table_def
+                )
+                assert (
+                    """CONSTRAINT "ck_span_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_span_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT uq_span_annotations_name_span_rowid_identifier UNIQUE (name, span_rowid, identifier)"  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_span_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert (
+                    """CONSTRAINT "ck_span_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""  # noqa: E501
+                    in span_annotations_table_def
+                )
+                assert span_annotations_table_def.count("CONSTRAINT") == 6
+
+            elif _db_backend == "postgresql":
+                pass
+            else:
+                assert_never(_db_backend)
+
             # get the trace annotation from llm
             trace_annotation_from_llm = conn.execute(
                 text(
