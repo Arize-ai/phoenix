@@ -159,6 +159,36 @@ def test_annotation_config_migration(
                 )
                 assert span_annotations_table_def.count("CONSTRAINT") == 4
 
+                document_annotations_table_def = conn.execute(
+                    text(
+                        """
+                        SELECT sql FROM sqlite_master
+                        WHERE type='table' AND name='document_annotations';
+                        """
+                    )
+                ).scalar()
+                assert "identifier" not in document_annotations_table_def
+                assert "source" not in document_annotations_table_def
+                assert "user_id" not in document_annotations_table_def
+                assert "annotator_kind VARCHAR NOT NULL" in document_annotations_table_def
+                assert (
+                    """CONSTRAINT "ck_document_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'HUMAN'))"""  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT pk_document_annotations PRIMARY KEY (id)"
+                    in document_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT uq_document_annotations_name_span_rowid_document_position UNIQUE (name, span_rowid, document_position)"  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert document_annotations_table_def.count("CONSTRAINT") == 4
+
             elif _db_backend == "postgresql":
                 pass
             else:
@@ -369,6 +399,44 @@ def test_annotation_config_migration(
                     in span_annotations_table_def
                 )
                 assert span_annotations_table_def.count("CONSTRAINT") == 6
+
+                document_annotations_table_def = conn.execute(
+                    text(
+                        """
+                        SELECT sql FROM sqlite_master
+                        WHERE type='table' AND name='document_annotations';
+                        """
+                    )
+                ).scalar()
+                assert "annotator_kind VARCHAR NOT NULL" in document_annotations_table_def
+                assert "identifier VARCHAR NOT NULL" in document_annotations_table_def
+                assert "source VARCHAR NOT NULL" in document_annotations_table_def
+                assert "user_id INTEGER" in document_annotations_table_def
+                assert (
+                    "CONSTRAINT pk_document_annotations PRIMARY KEY (id)"
+                    in document_annotations_table_def
+                )
+                assert (
+                    """CONSTRAINT "ck_document_annotations_`valid_annotator_kind`" CHECK (annotator_kind IN ('LLM', 'CODE', 'HUMAN'))"""  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_document_annotations_span_rowid_spans FOREIGN KEY(span_rowid) REFERENCES spans (id) ON DELETE CASCADE"  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT uq_document_annotations_name_span_rowid_document_pos_identifier UNIQUE (name, span_rowid, document_position, identifier)"  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert (
+                    "CONSTRAINT fk_document_annotations_user_id_users FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE SET NULL"  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert (
+                    """CONSTRAINT "ck_document_annotations_`valid_source`" CHECK (source IN ('API', 'APP'))"""  # noqa: E501
+                    in document_annotations_table_def
+                )
+                assert document_annotations_table_def.count("CONSTRAINT") == 6
 
             elif _db_backend == "postgresql":
                 pass
