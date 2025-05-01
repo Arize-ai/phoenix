@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -43,10 +43,12 @@ import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
 import {
   SpansTable_spans$key,
@@ -93,15 +95,22 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   tableWidth: number;
 }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { traceId } = useParams();
+  const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected =
+          selectedSpanNodeId === row.original.id ||
+          (!selectedSpanNodeId && row.original.trace.traceId === traceId);
         return (
           <tr
             key={row.id}
+            data-selected={isSelected}
             onClick={() =>
               navigate(
-                `${row.original.trace.traceId}?selectedSpanNodeId=${row.original.id}`
+                `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
               )
             }
           >
@@ -237,6 +246,23 @@ export function SpansTable(props: SpansTableProps) {
       `,
       props.project
     );
+
+  const pagination = useTracePagination();
+  const setTraceSequence = pagination?.setTraceSequence;
+  useEffect(() => {
+    if (!setTraceSequence) {
+      return;
+    }
+    setTraceSequence(
+      data.spans.edges.map(({ span }) => ({
+        traceId: span.trace.traceId,
+        spanId: span.id,
+      }))
+    );
+    return () => {
+      setTraceSequence([]);
+    };
+  }, [data.spans.edges, setTraceSequence]);
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -406,7 +432,7 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`${traceId}?selectedSpanNodeId=${span.id}`}>
+          <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
             {getValue() as string}
           </Link>
         );
