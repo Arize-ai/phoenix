@@ -10,7 +10,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -42,10 +42,12 @@ import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
 import {
   SpanStatusCode,
@@ -99,15 +101,18 @@ const TableBody = <
   table: Table<T>;
 }) => {
   const navigate = useNavigate();
+  const { traceId } = useParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected = row.original.trace.traceId === traceId;
         return (
           <tr
             key={row.id}
             onClick={() => navigate(`${row.original.trace.traceId}`)}
             data-is-additional-row={row.original.__additionalRow}
-            css={trCSS}
+            data-selected={isSelected}
+            css={css(trCSS)}
           >
             {row.getVisibleCells().map((cell) => {
               const colSizeVar = `--col-${cell.column.id}-size`;
@@ -580,7 +585,7 @@ export function TracesTable(props: TracesTableProps) {
             : row.original.id;
           return (
             <Link
-              to={`${traceId}${spanId ? `?selectedSpanNodeId=${spanId}` : ""}`}
+              to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
             >
               {getValue() as string}
             </Link>
@@ -697,6 +702,24 @@ export function TracesTable(props: TracesTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
+
+  const pagination = useTracePagination();
+  const setTraceSequence = pagination?.setTraceSequence;
+  useEffect(() => {
+    if (!setTraceSequence) {
+      return;
+    }
+    setTraceSequence(
+      data.rootSpans.edges.map(({ rootSpan }) => ({
+        traceId: rootSpan.trace.traceId,
+        spanId: rootSpan.id,
+      }))
+    );
+    return () => {
+      setTraceSequence([]);
+    };
+  }, [data.rootSpans.edges, setTraceSequence]);
+
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);

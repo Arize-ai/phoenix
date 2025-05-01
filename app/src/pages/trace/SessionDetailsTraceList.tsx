@@ -11,6 +11,7 @@ import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/Ann
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -111,7 +112,7 @@ function RootSpanDetails({
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace #{index + 1}</Text>
             <Link
-              to={`/projects/${rootSpan.project.id}/traces/${traceId}?selectedSpanNodeId=${rootSpan.id}`}
+              to={`/projects/${rootSpan.project.id}/traces/${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${rootSpan.id}`}
             >
               <Flex alignItems={"center"}>
                 View Trace
