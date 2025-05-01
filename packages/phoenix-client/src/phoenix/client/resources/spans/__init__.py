@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Collection, Optional, cast
+from typing import TYPE_CHECKING, Iterable, Optional, cast
 
 import httpx
 
@@ -118,7 +118,7 @@ class Spans:
         self,
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
-        span_ids: Optional[Collection[str]] = None,
+        span_ids: Optional[Iterable[str]] = None,
         project: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -126,12 +126,12 @@ class Spans:
         """
         Fetches span annotations and returns them as a pandas DataFrame.
 
-        Exactly one of *spans* or *span_ids* should be provided.
+        Exactly one of *spans_dataframe* or *span_ids* should be provided.
 
         Args:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
-                `context.span_id` column.
-            span_ids: A collection of span IDs.
+                `context.span_id` or `span_id` column.
+            span_ids: An iterable of span IDs.
             project: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
@@ -141,13 +141,13 @@ class Spans:
 
         Raises:
             ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
-                the `context.span_id` column is missing from *spans_dataframe*.
+                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
         try:
             import pandas as pd
-        except ImportError:  # pragma: no cover – handled in unit tests
+        except ImportError:  # pragma: no cover
             raise ImportError(
                 "pandas is required to use get_span_annotations_dataframe. "
                 "Install it with 'pip install pandas'"
@@ -158,9 +158,14 @@ class Spans:
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
-            if "context.span_id" not in spans_dataframe.columns:
-                raise ValueError("The provided DataFrame must contain a 'context.span_id' column.")
-            span_ids_list = spans_dataframe["context.span_id"].dropna().unique().tolist()
+            if "context.span_id" in spans_dataframe.columns:
+                span_ids_list = spans_dataframe["context.span_id"].dropna().unique().tolist()
+            elif "span_id" in spans_dataframe.columns:
+                span_ids_list = spans_dataframe["span_id"].dropna().unique().tolist()
+            else:
+                raise ValueError(
+                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' column."
+                )
         else:
             span_ids_list = list({*span_ids})  # remove duplicates while preserving type
 
@@ -170,7 +175,7 @@ class Spans:
         annotations: list[dict] = []
         path = f"v1/projects/{project}/span_annotations"
 
-        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+        for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
@@ -296,7 +301,7 @@ class AsyncSpans:
         self,
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
-        span_ids: Optional[Collection[str]] = None,
+        span_ids: Optional[Iterable[str]] = None,
         project: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -308,8 +313,8 @@ class AsyncSpans:
 
         Args:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
-                `context.span_id` column.
-            span_ids: A collection of span IDs.
+                `context.span_id` or `span_id` column.
+            span_ids: An iterable of span IDs.
             project: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
@@ -319,7 +324,7 @@ class AsyncSpans:
 
         Raises:
             ValueError: If neither or both of *spans_dataframe* and *span_ids* are provided, or if
-                the `context.span_id` column is missing from *spans_dataframe*.
+                the `context.span_id` or `span_id` column is missing from *spans_dataframe*.
             ImportError: If pandas is not installed.
             httpx.HTTPStatusError: If the API returns an error response.
         """
@@ -335,9 +340,14 @@ class AsyncSpans:
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
-            if "context.span_id" not in spans_dataframe.columns:
-                raise ValueError("The provided DataFrame must contain a 'context.span_id' column.")
-            span_ids_list = spans_dataframe["context.span_id"].dropna().unique().tolist()
+            if "context.span_id" in spans_dataframe.columns:
+                span_ids_list = spans_dataframe["context.span_id"].dropna().unique().tolist()
+            elif "span_id" in spans_dataframe.columns:
+                span_ids_list = spans_dataframe["span_id"].dropna().unique().tolist()
+            else:
+                raise ValueError(
+                    "The provided DataFrame must contain either a 'context.span_id' or 'span_id' column."
+                )
         else:
             span_ids_list = list({*span_ids})
 
@@ -347,7 +357,7 @@ class AsyncSpans:
         annotations: list[dict] = []
         path = f"v1/projects/{project}/span_annotations"
 
-        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+        for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
