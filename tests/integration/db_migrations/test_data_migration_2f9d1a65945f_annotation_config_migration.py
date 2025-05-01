@@ -1,11 +1,262 @@
 import random
 from datetime import datetime, timezone
+from typing import Any
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine, text
+from sqlalchemy import Connection, Engine, text
 
 from . import _down, _up, _version_num
+
+
+def create_trace_annotation_pre_migration(
+    conn: Connection,
+    trace_rowid: int,
+    name: str,
+    label: str,
+    score: float,
+    explanation: str,
+    metadata: str,
+    annotator_kind: str,
+) -> int:
+    id = conn.execute(
+        text(
+            """
+            INSERT INTO trace_annotations (
+                trace_rowid, name, label, score, explanation,
+                metadata, annotator_kind
+            )
+            VALUES (
+                :trace_id, :name, :label, :score, :explanation,
+                :metadata, :annotator_kind
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "trace_id": trace_rowid,
+            "name": name,
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+            "metadata": metadata,
+            "annotator_kind": annotator_kind,
+        },
+    ).scalar()
+    assert isinstance(id, int)
+    return id
+
+
+def create_span_annotation_pre_migration(
+    conn: Connection,
+    span_rowid: int,
+    name: str,
+    label: str,
+    score: float,
+    explanation: str,
+    metadata: str,
+    annotator_kind: str,
+) -> int:
+    id = conn.execute(
+        text(
+            """
+            INSERT INTO span_annotations (
+                span_rowid, name, label, score, explanation,
+                metadata, annotator_kind
+            )
+            VALUES (
+                :span_rowid, :name, :label, :score, :explanation,
+                :metadata, :annotator_kind
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "span_rowid": span_rowid,
+            "name": name,
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+            "metadata": metadata,
+            "annotator_kind": annotator_kind,
+        },
+    ).scalar()
+    assert isinstance(id, int)
+    return id
+
+
+def create_document_annotation_pre_migration(
+    conn: Connection,
+    span_rowid: int,
+    document_position: int,
+    name: str,
+    label: str,
+    score: float,
+    explanation: str,
+    metadata: str,
+    annotator_kind: str,
+) -> int:
+    id = conn.execute(
+        text(
+            """
+            INSERT INTO document_annotations (
+                span_rowid, document_position, name, label, score, explanation,
+                metadata, annotator_kind
+            )
+            VALUES (
+                :span_rowid, :document_position, :name, :label, :score, :explanation,
+                :metadata, :annotator_kind
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "span_rowid": span_rowid,
+            "document_position": document_position,
+            "name": name,
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+            "metadata": metadata,
+            "annotator_kind": annotator_kind,
+        },
+    ).scalar()
+    assert isinstance(id, int)
+    return id
+
+
+def create_trace_annotation_post_migration(
+    conn: Connection,
+    trace_rowid: int,
+    name: str,
+    label: str,
+    score: float,
+    explanation: str,
+    metadata: str,
+    annotator_kind: str,
+    user_id: Any,
+    identifier: str,
+    source: str,
+) -> int:
+    id = conn.execute(
+        text(
+            """
+            INSERT INTO trace_annotations (
+                trace_rowid, name, label, score, explanation,
+                metadata, annotator_kind, user_id, identifier, source
+            )
+            VALUES (
+                :trace_rowid, :name, :label, :score, :explanation,
+                :metadata, :annotator_kind, :user_id, :identifier, :source
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "trace_rowid": trace_rowid,
+            "name": name,
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+            "metadata": metadata,
+            "annotator_kind": annotator_kind,
+            "user_id": user_id,
+            "identifier": identifier,
+            "source": source,
+        },
+    ).scalar()
+    assert isinstance(id, int)
+    return id
+
+
+def create_span_annotation_post_migration(
+    conn: Connection,
+    span_rowid: int,
+    name: str,
+    label: str,
+    score: float,
+    explanation: str,
+    metadata: str,
+    annotator_kind: str,
+    user_id: Any,
+    identifier: str,
+    source: str,
+) -> int:
+    id = conn.execute(
+        text(
+            """
+            INSERT INTO span_annotations (
+                span_rowid, name, label, score, explanation,
+                metadata, annotator_kind, user_id, identifier, source
+            )
+            VALUES (
+                :span_rowid, :name, :label, :score, :explanation,
+                :metadata, :annotator_kind, :user_id, :identifier, :source
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "span_rowid": span_rowid,
+            "name": name,
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+            "metadata": metadata,
+            "annotator_kind": annotator_kind,
+            "user_id": user_id,
+            "identifier": identifier,
+            "source": source,
+        },
+    ).scalar()
+    assert isinstance(id, int)
+    return id
+
+
+def create_document_annotation_post_migration(
+    conn: Connection,
+    span_rowid: int,
+    document_position: int,
+    name: str,
+    label: str,
+    score: float,
+    explanation: str,
+    metadata: str,
+    annotator_kind: str,
+    user_id: Any,
+    identifier: str,
+    source: str,
+) -> int:
+    id = conn.execute(
+        text(
+            """
+            INSERT INTO document_annotations (
+                span_rowid, document_position, name, label, score, explanation,
+                metadata, annotator_kind, user_id, identifier, source
+            )
+            VALUES (
+                :span_rowid, :document_position, :name, :label, :score, :explanation,
+                :metadata, :annotator_kind, :user_id, :identifier, :source
+            )
+            RETURNING id
+            """
+        ),
+        {
+            "span_rowid": span_rowid,
+            "document_position": document_position,
+            "name": name,
+            "label": label,
+            "score": score,
+            "explanation": explanation,
+            "metadata": metadata,
+            "annotator_kind": annotator_kind,
+            "user_id": user_id,
+            "identifier": identifier,
+            "source": source,
+        },
+    ).scalar()
+    assert isinstance(id, int)
+    return id
 
 
 def test_annotation_config_migration(
@@ -49,6 +300,7 @@ def test_annotation_config_migration(
                 "now": now,
             },
         ).scalar()
+        assert isinstance(trace_rowid, int)
 
         # insert a span
         span_rowid = conn.execute(
@@ -90,253 +342,131 @@ def test_annotation_config_migration(
                 "llm_token_count_completion": None,
             },
         ).scalar()
+        assert isinstance(span_rowid, int)
 
     for _ in range(2):
         # test behavior before up migration
         with _engine.connect() as conn:
             # insert a trace annotation with LLM annotator kind
-            trace_annotation_from_llm_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO trace_annotations (
-                        trace_rowid, name, label, score, explanation,
-                        metadata, annotator_kind
-                    )
-                    VALUES (
-                        :trace_id, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "trace_id": trace_rowid,
-                    "name": f"trace-annotation-from-llm-{random.randint(1, 1000)}",
-                    "label": "trace-annotation-label",
-                    "score": 1.23,
-                    "explanation": "trace-annotation-explanation",
-                    "metadata": '{"foo": "bar"}',
-                    "annotator_kind": "LLM",
-                },
-            ).scalar()
+            trace_annotation_from_llm_id = create_trace_annotation_pre_migration(
+                conn=conn,
+                trace_rowid=trace_rowid,
+                name=f"trace-annotation-from-llm-{random.randint(1, 1000)}",
+                label="trace-annotation-label",
+                score=1.23,
+                explanation="trace-annotation-explanation",
+                metadata='{"foo": "bar"}',
+                annotator_kind="LLM",
+            )
             conn.commit()
 
             # insert a trace annotation with HUMAN annotator kind
-            trace_annotation_from_human_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO trace_annotations (
-                        trace_rowid, name, label, score, explanation,
-                        metadata, annotator_kind
-                    )
-                    VALUES (
-                        :trace_id, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "trace_id": trace_rowid,
-                    "name": f"trace-annotation-from-human-{random.randint(1, 1000)}",
-                    "label": "trace-annotation-label",
-                    "score": 1.23,
-                    "explanation": "trace-annotation-explanation",
-                    "metadata": '{"foo": "bar"}',
-                    "annotator_kind": "HUMAN",
-                },
-            ).scalar()
+            trace_annotation_from_human_id = create_trace_annotation_pre_migration(
+                conn=conn,
+                trace_rowid=trace_rowid,
+                name=f"trace-annotation-from-human-{random.randint(1, 1000)}",
+                label="trace-annotation-label",
+                score=1.23,
+                explanation="trace-annotation-explanation",
+                metadata='{"foo": "bar"}',
+                annotator_kind="HUMAN",
+            )
             conn.commit()
 
             # insert a span annotation with LLM annotator kind
-            span_annotation_from_llm_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO span_annotations (
-                        span_rowid, name, label, score, explanation,
-                        metadata, annotator_kind
-                    )
-                    VALUES (
-                        :span_id, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "span_id": span_rowid,
-                    "name": f"span-annotation-from-llm-{random.randint(1, 1000)}",
-                    "label": "span-annotation-label",
-                    "score": 1.23,
-                    "explanation": "span-annotation-explanation",
-                    "metadata": '{"foo": "bar"}',
-                    "annotator_kind": "LLM",
-                },
-            ).scalar()
+            span_annotation_from_llm_id = create_span_annotation_pre_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                name=f"span-annotation-from-llm-{random.randint(1, 1000)}",
+                label="span-annotation-label",
+                score=1.23,
+                explanation="span-annotation-explanation",
+                metadata='{"foo": "bar"}',
+                annotator_kind="LLM",
+            )
             conn.commit()
 
             # insert a span annotation with HUMAN annotator kind
-            span_annotation_from_human_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO span_annotations (
-                        span_rowid, name, label, score, explanation,
-                        metadata, annotator_kind
-                    )
-                    VALUES (
-                        :span_id, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "span_id": span_rowid,
-                    "name": f"span-annotation-from-human-{random.randint(1, 1000)}",
-                    "label": "span-annotation-label",
-                    "score": 1.23,
-                    "explanation": "span-annotation-explanation",
-                    "metadata": '{"foo": "bar"}',
-                    "annotator_kind": "HUMAN",
-                },
-            ).scalar()
+            span_annotation_from_human_id = create_span_annotation_pre_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                name=f"span-annotation-from-human-{random.randint(1, 1000)}",
+                label="span-annotation-label",
+                score=1.23,
+                explanation="span-annotation-explanation",
+                metadata='{"foo": "bar"}',
+                annotator_kind="HUMAN",
+            )
             conn.commit()
 
             # insert a document annotation with LLM annotator kind
-            document_annotation_from_llm_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO document_annotations (
-                        span_rowid, document_position, name, label, score, explanation,
-                        metadata, annotator_kind
-                    )
-                    VALUES (
-                        :span_id, :document_position, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "span_id": span_rowid,
-                    "document_position": 0,
-                    "name": f"document-annotation-from-llm-{random.randint(1, 1000)}",
-                    "label": "document-annotation-label",
-                    "score": 1.23,
-                    "explanation": "document-annotation-explanation",
-                    "metadata": '{"foo": "bar"}',
-                    "annotator_kind": "LLM",
-                },
-            ).scalar()
+            document_annotation_from_llm_id = create_document_annotation_pre_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                document_position=0,
+                name=f"document-annotation-from-llm-{random.randint(1, 1000)}",
+                label="document-annotation-label",
+                score=1.23,
+                explanation="document-annotation-explanation",
+                metadata='{"foo": "bar"}',
+                annotator_kind="LLM",
+            )
             conn.commit()
 
             # insert a document annotation with HUMAN annotator kind
-            document_annotation_from_human_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO document_annotations (
-                        span_rowid, document_position, name, label, score, explanation,
-                        metadata, annotator_kind
-                    )
-                    VALUES (
-                        :span_id, :document_position, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "span_id": span_rowid,
-                    "document_position": 1,
-                    "name": f"document-annotation-from-human-{random.randint(1, 1000)}",
-                    "label": "document-annotation-label",
-                    "score": 1.23,
-                    "explanation": "document-annotation-explanation",
-                    "metadata": '{"foo": "bar"}',
-                    "annotator_kind": "HUMAN",
-                },
-            ).scalar()
+            document_annotation_from_human_id = create_document_annotation_pre_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                document_position=1,
+                name=f"document-annotation-from-human-{random.randint(1, 1000)}",
+                label="document-annotation-label",
+                score=1.23,
+                explanation="document-annotation-explanation",
+                metadata='{"foo": "bar"}',
+                annotator_kind="HUMAN",
+            )
             conn.commit()
 
             # verify that 'CODE' annotator_kind is not allowed for trace annotations before migration  # noqa: E501
             with pytest.raises(Exception, match="valid_annotator_kind"):
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO trace_annotations (
-                            trace_rowid, name, label, score, explanation,
-                            metadata, annotator_kind
-                        )
-                        VALUES (
-                            :trace_id, :name, :label, :score, :explanation,
-                            :metadata, :annotator_kind
-                        )
-                        """
-                    ),
-                    {
-                        "trace_id": trace_rowid,
-                        "name": f"trace-annotation-from-llm-{random.randint(1, 1000)}",
-                        "label": "trace-annotation-label",
-                        "score": 1.23,
-                        "explanation": "trace-annotation-explanation",
-                        "metadata": '{"foo": "bar"}',
-                        "annotator_kind": "CODE",
-                    },
+                create_trace_annotation_pre_migration(
+                    conn=conn,
+                    trace_rowid=trace_rowid,
+                    name=f"trace-annotation-from-llm-{random.randint(1, 1000)}",
+                    label="trace-annotation-label",
+                    score=1.23,
+                    explanation="trace-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
                 )
                 conn.commit()
 
             # verify that 'CODE' annotator_kind is not allowed for span annotations before migration
             with pytest.raises(Exception, match="valid_annotator_kind"):
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO span_annotations (
-                            span_rowid, name, label, score, explanation,
-                            metadata, annotator_kind
-                        )
-                        VALUES (
-                            :span_id, :name, :label, :score, :explanation,
-                            :metadata, :annotator_kind
-                        )
-                        """
-                    ),
-                    {
-                        "span_id": span_rowid,
-                        "name": f"span-annotation-from-code-{random.randint(1, 1000)}",
-                        "label": "span-annotation-label",
-                        "score": 1.23,
-                        "explanation": "span-annotation-explanation",
-                        "metadata": '{"foo": "bar"}',
-                        "annotator_kind": "CODE",
-                    },
+                create_span_annotation_pre_migration(
+                    conn=conn,
+                    span_rowid=span_rowid,
+                    name=f"span-annotation-from-code-{random.randint(1, 1000)}",
+                    label="span-annotation-label",
+                    score=1.23,
+                    explanation="span-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
                 )
                 conn.commit()
 
             # Verify that 'CODE' annotator_kind is not allowed for document annotations before migration  # noqa: E501
             with pytest.raises(Exception, match="valid_annotator_kind"):
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO document_annotations (
-                            span_rowid, document_position, name, label, score, explanation,
-                            metadata, annotator_kind
-                        )
-                        VALUES (
-                            :span_id, :document_position, :name, :label, :score, :explanation,
-                            :metadata, :annotator_kind
-                        )
-                        """
-                    ),
-                    {
-                        "span_id": span_rowid,
-                        "document_position": 2,
-                        "name": f"document-annotation-from-code-{random.randint(1, 1000)}",
-                        "label": "document-annotation-label",
-                        "score": 1.23,
-                        "explanation": "document-annotation-explanation",
-                        "metadata": '{"foo": "bar"}',
-                        "annotator_kind": "CODE",
-                    },
+                create_document_annotation_pre_migration(
+                    conn=conn,
+                    span_rowid=span_rowid,
+                    document_position=2,
+                    name=f"document-annotation-from-code-{random.randint(1, 1000)}",
+                    label="document-annotation-label",
+                    score=1.23,
+                    explanation="document-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
                 )
                 conn.commit()
 
@@ -448,123 +578,68 @@ def test_annotation_config_migration(
             assert user_id is None
 
             # verify that after migration, 'CODE' is allowed
-            trace_annotation_from_code_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO trace_annotations (
-                        trace_rowid, name, label, score, explanation,
-                        metadata, annotator_kind, user_id, identifier, source
-                    )
-                    VALUES (
-                        :trace_rowid, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind, :user_id, :identifier, :source
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "trace_rowid": trace_rowid,
-                    "name": f"trace-annotation-name-2-{random.randint(1, 1000)}",
-                    "label": "trace-annotation-label-2",
-                    "score": 2.34,
-                    "explanation": "trace-annotation-explanation",
-                    "metadata": '{"foo": "baz"}',
-                    "annotator_kind": "CODE",
-                    "user_id": None,
-                    "identifier": "id1",
-                    "source": "API",
-                },
-            ).scalar()
+            trace_annotation_from_code_id = create_trace_annotation_post_migration(
+                conn=conn,
+                trace_rowid=trace_rowid,
+                name=f"trace-annotation-name-2-{random.randint(1, 1000)}",
+                label="trace-annotation-label-2",
+                score=2.34,
+                explanation="trace-annotation-explanation",
+                metadata='{"foo": "baz"}',
+                annotator_kind="CODE",
+                user_id=None,
+                identifier="id1",
+                source="API",
+            )
             conn.commit()
 
             # verify CODE annotator kind for span annotations
-            span_annotation_from_code_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO span_annotations (
-                        span_rowid, name, label, score, explanation,
-                        metadata, annotator_kind, user_id, identifier, source
-                    )
-                    VALUES (
-                        :span_rowid, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind, :user_id, :identifier, :source
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "span_rowid": span_rowid,
-                    "name": f"span-annotation-name-2-{random.randint(1, 1000)}",
-                    "label": "span-annotation-label-2",
-                    "score": 2.34,
-                    "explanation": "span-annotation-explanation",
-                    "metadata": '{"foo": "baz"}',
-                    "annotator_kind": "CODE",
-                    "user_id": None,
-                    "identifier": "id2",
-                    "source": "API",
-                },
-            ).scalar()
+            span_annotation_from_code_id = create_span_annotation_post_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                name=f"span-annotation-name-2-{random.randint(1, 1000)}",
+                label="span-annotation-label-2",
+                score=2.34,
+                explanation="span-annotation-explanation",
+                metadata='{"foo": "baz"}',
+                annotator_kind="CODE",
+                user_id=None,
+                identifier="id2",
+                source="API",
+            )
             conn.commit()
 
             # verify CODE annotator kind for document annotations
-            document_annotation_from_code_id = conn.execute(
-                text(
-                    """
-                    INSERT INTO document_annotations (
-                        span_rowid, document_position, name, label, score, explanation,
-                        metadata, annotator_kind, user_id, identifier, source
-                    )
-                    VALUES (
-                        :span_rowid, :document_position, :name, :label, :score, :explanation,
-                        :metadata, :annotator_kind, :user_id, :identifier, :source
-                    )
-                    RETURNING id
-                    """
-                ),
-                {
-                    "span_rowid": span_rowid,
-                    "document_position": 3,
-                    "name": f"document-annotation-name-2-{random.randint(1, 1000)}",
-                    "label": "document-annotation-label-2",
-                    "score": 2.34,
-                    "explanation": "document-annotation-explanation",
-                    "metadata": '{"foo": "baz"}',
-                    "annotator_kind": "CODE",
-                    "user_id": None,
-                    "identifier": "id3",
-                    "source": "API",
-                },
-            ).scalar()
+            document_annotation_from_code_id = create_document_annotation_post_migration(
+                conn=conn,
+                span_rowid=span_rowid,
+                document_position=3,
+                name=f"document-annotation-name-2-{random.randint(1, 1000)}",
+                label="document-annotation-label-2",
+                score=2.34,
+                explanation="document-annotation-explanation",
+                metadata='{"foo": "baz"}',
+                annotator_kind="CODE",
+                user_id=None,
+                identifier="id3",
+                source="API",
+            )
             conn.commit()
 
             # verify source is non-nullable for trace annotations
             with pytest.raises(Exception) as exc_info:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO trace_annotations (
-                            trace_rowid, name, label, score, explanation,
-                            metadata, annotator_kind, source, identifier, user_id
-                        )
-                        VALUES (
-                            :trace_rowid, :name, :label, :score, :explanation,
-                            :metadata, :annotator_kind, :source, :identifier, :user_id
-                        )
-                        """
-                    ),
-                    {
-                        "trace_rowid": trace_rowid,
-                        "name": f"trace-annotation-name-{random.randint(1, 1000)}",
-                        "label": "trace-annotation-label",
-                        "score": 1.23,
-                        "explanation": "trace-annotation-explanation",
-                        "metadata": '{"foo": "bar"}',
-                        "annotator_kind": "CODE",
-                        "identifier": "",
-                        "user_id": None,
-                        "source": None,
-                    },
+                create_trace_annotation_post_migration(
+                    conn=conn,
+                    trace_rowid=trace_rowid,
+                    name=f"trace-annotation-name-{random.randint(1, 1000)}",
+                    label="trace-annotation-label",
+                    score=1.23,
+                    explanation="trace-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
+                    identifier="",
+                    user_id=None,
+                    source=None,  # type: ignore
                 )
             error_message = str(exc_info)
             assert "NOT NULL" in error_message
@@ -572,31 +647,18 @@ def test_annotation_config_migration(
 
             # verify source is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO span_annotations (
-                            span_rowid, name, label, score, explanation,
-                            metadata, annotator_kind, source, identifier, user_id
-                        )
-                        VALUES (
-                            :span_rowid, :name, :label, :score, :explanation,
-                            :metadata, :annotator_kind, :source, :identifier, :user_id
-                        )
-                        """
-                    ),
-                    {
-                        "span_rowid": span_rowid,
-                        "name": f"span-annotation-name-{random.randint(1, 1000)}",
-                        "label": "span-annotation-label",
-                        "score": 1.23,
-                        "explanation": "span-annotation-explanation",
-                        "metadata": '{"foo": "bar"}',
-                        "annotator_kind": "CODE",
-                        "identifier": "",
-                        "user_id": None,
-                        "source": None,
-                    },
+                create_span_annotation_post_migration(
+                    conn=conn,
+                    span_rowid=span_rowid,
+                    name=f"span-annotation-name-{random.randint(1, 1000)}",
+                    label="span-annotation-label",
+                    score=1.23,
+                    explanation="span-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
+                    identifier="",
+                    user_id=None,
+                    source=None,  # type: ignore
                 )
             error_message = str(exc_info)
             assert "NOT NULL" in error_message
@@ -604,32 +666,19 @@ def test_annotation_config_migration(
 
             # verify source is non-nullable for document annotations
             with pytest.raises(Exception) as exc_info:
-                conn.execute(
-                    text(
-                        """
-                        INSERT INTO document_annotations (
-                            span_rowid, document_position, name, label, score, explanation,
-                            metadata, annotator_kind, source, identifier, user_id
-                        )
-                        VALUES (
-                            :span_rowid, :document_position, :name, :label, :score, :explanation,
-                            :metadata, :annotator_kind, :source, :identifier, :user_id
-                        )
-                        """
-                    ),
-                    {
-                        "span_rowid": span_rowid,
-                        "document_position": 4,
-                        "name": f"document-annotation-name-{random.randint(1, 1000)}",
-                        "label": "document-annotation-label",
-                        "score": 1.23,
-                        "explanation": "document-annotation-explanation",
-                        "metadata": '{"foo": "bar"}',
-                        "annotator_kind": "CODE",
-                        "identifier": "",
-                        "user_id": None,
-                        "source": None,
-                    },
+                create_document_annotation_post_migration(
+                    conn=conn,
+                    span_rowid=span_rowid,
+                    document_position=4,
+                    name=f"document-annotation-name-{random.randint(1, 1000)}",
+                    label="document-annotation-label",
+                    score=1.23,
+                    explanation="document-annotation-explanation",
+                    metadata='{"foo": "bar"}',
+                    annotator_kind="CODE",
+                    identifier="",
+                    user_id=None,
+                    source=None,  # type: ignore
                 )
             error_message = str(exc_info)
             assert "NOT NULL" in error_message
@@ -649,6 +698,5 @@ def test_annotation_config_migration(
                 {"id": document_annotation_from_code_id},
             )
             conn.commit()
-            print("here")
 
         _down(_engine, _alembic_config, "bc8fea3c2bc8")
