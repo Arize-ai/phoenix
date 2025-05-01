@@ -25,6 +25,36 @@ This vignette demonstrates SQLAlchemy's single table inheritance (STI) pattern t
    - Type-safe authentication method handling
    - Database constraints for data integrity
 
+## Initialization Behavior
+
+SQLAlchemy's ORM has a unique approach to object initialization that's important to understand:
+
+1. **Object Creation vs Database Loading**
+   - During object creation (e.g., `LocalUser(email="user@example.com", password="secret")`):
+     - The `__init__` method is called
+     - Password hashing and salt generation occur
+     - Attributes are set through the constructor
+   - During database loading (e.g., `session.query(User).all()`):
+     - SQLAlchemy bypasses `__init__`
+     - Attributes are set directly from database rows
+     - This is more like deserialization than construction
+
+2. **Polymorphic Loading**
+   - The `auth_method` discriminator determines which class to instantiate
+   - SQLAlchemy automatically selects the correct subclass
+   - All attributes are set directly from the database row
+
+3. **State Management**
+   - Non-mapped state (like computed properties) can be maintained using:
+     - Python descriptors (`@property`)
+     - Event hooks (`InstanceEvents.load()`)
+   - In this example, `auth_method` is computed based on password fields
+
+This behavior ensures that:
+- Password hashing only occurs during object creation
+- Database loading is efficient and direct
+- Polymorphic inheritance works seamlessly
+
 ## Code Structure
 
 - `User`: Abstract base class defining common user attributes
