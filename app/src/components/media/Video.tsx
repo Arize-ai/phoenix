@@ -38,6 +38,10 @@ interface VideoProps {
    * CSS class name to apply to video element
    */
   className?: string;
+  /**
+   * Whether to preload the video
+   */
+  preload?: "none" | "metadata" | "auto";
 }
 
 const videoCSS = css`
@@ -54,6 +58,7 @@ export const Video: React.FC<VideoProps> = ({
   loop = false,
   muted = false,
   poster,
+  preload = "none",
   className,
 }) => {
   return (
@@ -68,6 +73,7 @@ export const Video: React.FC<VideoProps> = ({
       muted={muted}
       poster={poster}
       className={className}
+      preload={preload}
     >
       Your browser does not support the video tag.
     </video>
