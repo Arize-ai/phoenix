@@ -113,11 +113,6 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                 `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
               )
             }
-            css={css`
-              &[data-selected="true"] {
-                background-color: var(--ac-global-color-primary-100);
-              }
-            `}
           >
             {row.getVisibleCells().map((cell) => {
               const colSizeVar = `--col-${cell.column.id}-size`;

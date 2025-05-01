@@ -112,14 +112,7 @@ const TableBody = <
             onClick={() => navigate(`${row.original.trace.traceId}`)}
             data-is-additional-row={row.original.__additionalRow}
             data-selected={isSelected}
-            css={css(
-              trCSS,
-              `
-              &[data-selected="true"] {
-                background-color: var(--ac-global-color-primary-100);
-              }
-            `
-            )}
+            css={css(trCSS)}
           >
             {row.getVisibleCells().map((cell) => {
               const colSizeVar = `--col-${cell.column.id}-size`;
