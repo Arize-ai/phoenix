@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 
 import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
 
-import { Button, Flex, Icon, Icons, Keyboard } from "@phoenix/components";
+import { Button, Flex, Icon, Icons, KeyboardToken } from "@phoenix/components";
 import {
   getNeighbors,
   useTracePagination,
@@ -68,7 +68,7 @@ export const TraceDetailsPaginator = ({
         <Tooltip>
           <Flex direction="row" gap="size-100" alignItems="center">
             <span>Next trace</span>
-            <Keyboard variant="primary">{NEXT_TRACE_HOTKEY}</Keyboard>
+            <KeyboardToken>{NEXT_TRACE_HOTKEY}</KeyboardToken>
           </Flex>
         </Tooltip>
       </TooltipTrigger>
@@ -85,7 +85,7 @@ export const TraceDetailsPaginator = ({
         <Tooltip>
           <Flex direction="row" gap="size-100" alignItems="center">
             <span>Previous trace</span>
-            <Keyboard variant="primary">{PREVIOUS_TRACE_HOTKEY}</Keyboard>
+            <KeyboardToken>{PREVIOUS_TRACE_HOTKEY}</KeyboardToken>
           </Flex>
         </Tooltip>
       </TooltipTrigger>

@@ -3,7 +3,7 @@ import { graphql, useFragment } from "react-relay";
 import { PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
-import { Flex, Keyboard, View } from "@phoenix/components";
+import { Flex, KeyboardToken, View } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import {
@@ -98,7 +98,7 @@ export function SpanAside(props: SpanAsideProps) {
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
             <span>Edit annotations</span>
-            <Keyboard variant="primary">{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+            <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
           </Flex>
         }
         panelProps={{ order: 2, minSize: 10 }}
@@ -115,7 +115,7 @@ export function SpanAside(props: SpanAsideProps) {
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
             <span>Notes</span>
-            <Keyboard variant="primary">{NOTE_HOTKEY}</Keyboard>
+            <KeyboardToken>{NOTE_HOTKEY}</KeyboardToken>
           </Flex>
         }
         panelProps={{ order: 3, minSize: 10 }}
