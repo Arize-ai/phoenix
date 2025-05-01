@@ -102,6 +102,7 @@ function AnnotationSummaryValue(props: {
           annotationName: $annotationName
           timeRange: $timeRange
         ) {
+          name
           labelFractions {
             label
             fraction

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<02c0f2b0ae14e1937b6a0ba9eb8e3edf>>
+ * @generated SignedSource<<1f85ce67fb66c9e1966df963bd6a0427>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,6 +34,7 @@ export type AnnotationSummaryValueFragment$data = {
       readonly label: string;
     }>;
     readonly meanScore: number | null;
+    readonly name: string;
   } | null;
   readonly " $fragmentType": "AnnotationSummaryValueFragment";
 };
@@ -60,6 +61,13 @@ v1 = {
   "storageKey": null
 },
 v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -139,13 +147,7 @@ return {
                       "name": "optimizationDirection",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "name",
-                      "storageKey": null
-                    },
+                    (v2/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -154,7 +156,7 @@ return {
                       "name": "values",
                       "plural": true,
                       "selections": [
-                        (v2/*: any*/),
+                        (v3/*: any*/),
                         {
                           "alias": null,
                           "args": null,
@@ -197,6 +199,7 @@ return {
       "name": "spanAnnotationSummary",
       "plural": false,
       "selections": [
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -205,7 +208,7 @@ return {
           "name": "labelFractions",
           "plural": true,
           "selections": [
-            (v2/*: any*/),
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -233,6 +236,6 @@ return {
 };
 })();
 
-(node as any).hash = "aa0d97828717d80c490344c2211fdd0e";
+(node as any).hash = "5d114f6c3ea85467bd6c915907c07d87";
 
 export default node;

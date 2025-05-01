@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83b5e50df48b5040b7b8d568e8f5413b>>
+ * @generated SignedSource<<57eb739471039bb86a540f8d4a005454>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -86,6 +86,13 @@ v7 = {
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -195,13 +202,7 @@ return {
                                 "name": "optimizationDirection",
                                 "storageKey": null
                               },
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "name",
-                                "storageKey": null
-                              },
+                              (v8/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -210,7 +211,7 @@ return {
                                 "name": "values",
                                 "plural": true,
                                 "selections": [
-                                  (v8/*: any*/),
+                                  (v9/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -250,6 +251,7 @@ return {
                 "name": "spanAnnotationSummary",
                 "plural": false,
                 "selections": [
+                  (v8/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -258,7 +260,7 @@ return {
                     "name": "labelFractions",
                     "plural": true,
                     "selections": [
-                      (v8/*: any*/),
+                      (v9/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -289,12 +291,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "40d62f01417bc7de94b1783dfa25148b",
+    "cacheID": "1309abd7d655ab71ac00caaf47a59d44",
     "id": null,
     "metadata": {},
     "name": "AnnotationSummaryQuery",
     "operationKind": "query",
-    "text": "query AnnotationSummaryQuery(\n  $id: GlobalID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query AnnotationSummaryQuery(\n  $id: GlobalID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_4BTVrq\n    __isNode: __typename\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_4BTVrq on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange) {\n    name\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
