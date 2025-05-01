@@ -1,10 +1,17 @@
 import React from "react";
+import { type Selection, Tooltip, TooltipTrigger } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { css } from "@emotion/react";
 
-import { Tooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";
-
-import { Button, Flex, Icon, Icons, KeyboardToken } from "@phoenix/components";
+import {
+  Flex,
+  Icon,
+  Icons,
+  KeyboardToken,
+  ToggleButton,
+  ToggleButtonGroup,
+  View,
+} from "@phoenix/components";
 import {
   getNeighbors,
   useTracePagination,
@@ -44,6 +51,16 @@ export const TraceDetailsPaginator = ({
   const hasPrevious = !!previousTraceId;
   const hasNext = !!nextTraceId;
 
+  const handleSelectionChange = (selection: Selection) => {
+    if (selection === "all") return;
+    const selectedKey = Array.from(selection)[0];
+    if (selectedKey === "next") {
+      next(currentId);
+    } else if (selectedKey === "previous") {
+      previous(currentId);
+    }
+  };
+
   return (
     <Flex
       gap="size-50"
@@ -55,40 +72,58 @@ export const TraceDetailsPaginator = ({
         }
       `}
     >
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Button
-            size="S"
-            onPress={() => next(currentId)}
+      <ToggleButtonGroup
+        aria-label="Trace Paginator"
+        size="S"
+        selectionMode="single"
+        selectedKeys={[]}
+        onSelectionChange={handleSelectionChange}
+      >
+        <TooltipTrigger delay={100}>
+          <ToggleButton
+            id="next"
+            leadingVisual={<Icon svg={<Icons.ArrowIosDownwardOutline />} />}
+            aria-label="Next trace"
             isDisabled={!hasNext}
-          >
-            <Icon svg={<Icons.ArrowIosDownwardOutline />} />
-          </Button>
-        </TriggerWrap>
-        <Tooltip>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <span>Next trace</span>
-            <KeyboardToken>{NEXT_TRACE_HOTKEY}</KeyboardToken>
-          </Flex>
-        </Tooltip>
-      </TooltipTrigger>
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Button
-            size="S"
-            onPress={() => previous(currentId)}
+          />
+          <Tooltip>
+            <View
+              backgroundColor="dark"
+              borderWidth="thin"
+              borderColor="dark"
+              borderRadius="medium"
+              padding="size-100"
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <span>Next trace</span>
+                <KeyboardToken>{NEXT_TRACE_HOTKEY}</KeyboardToken>
+              </Flex>
+            </View>
+          </Tooltip>
+        </TooltipTrigger>
+        <TooltipTrigger delay={100}>
+          <ToggleButton
+            id="previous"
+            leadingVisual={<Icon svg={<Icons.ArrowIosUpwardOutline />} />}
+            aria-label="Previous trace"
             isDisabled={!hasPrevious}
-          >
-            <Icon svg={<Icons.ArrowIosUpwardOutline />} />
-          </Button>
-        </TriggerWrap>
-        <Tooltip>
-          <Flex direction="row" gap="size-100" alignItems="center">
-            <span>Previous trace</span>
-            <KeyboardToken>{PREVIOUS_TRACE_HOTKEY}</KeyboardToken>
-          </Flex>
-        </Tooltip>
-      </TooltipTrigger>
+          />
+          <Tooltip>
+            <View
+              backgroundColor="dark"
+              borderWidth="thin"
+              borderColor="dark"
+              borderRadius="medium"
+              padding="size-100"
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <span>Previous trace</span>
+                <KeyboardToken>{PREVIOUS_TRACE_HOTKEY}</KeyboardToken>
+              </Flex>
+            </View>
+          </Tooltip>
+        </TooltipTrigger>
+      </ToggleButtonGroup>
     </Flex>
   );
 };
