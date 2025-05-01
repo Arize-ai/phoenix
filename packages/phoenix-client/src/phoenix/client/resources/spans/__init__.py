@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
-from typing import TYPE_CHECKING, Iterable, Optional, cast
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
 
 import httpx
 
@@ -161,8 +161,10 @@ class Spans:
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
-            span_ids_raw = spans_dataframe["context.span_id"].dropna().tolist()
-            span_ids_list = list({*cast(list[str], span_ids_raw)})
+            span_ids_raw: list[str] = cast(
+                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+            )
+            span_ids_list = list({*span_ids_raw})
         else:
             assert span_ids is not None
             span_ids_list = list({*span_ids})
@@ -177,7 +179,7 @@ class Spans:
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
-                params: dict[str, object] = {
+                params: dict[str, Union[int, str, Sequence[str]]] = {
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
@@ -236,7 +238,7 @@ class Spans:
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
-                params: dict[str, object] = {
+                params: dict[str, Union[int, str, Sequence[str]]] = {
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
@@ -400,8 +402,10 @@ class AsyncSpans:
             raise ValueError("Provide exactly one of 'spans_dataframe' or 'span_ids'.")
 
         if spans_dataframe is not None:
-            span_ids_raw = spans_dataframe["context.span_id"].dropna().tolist()
-            span_ids_list = list({*cast(list[str], span_ids_raw)})
+            span_ids_raw: list[str] = cast(
+                list[str], spans_dataframe["context.span_id"].dropna().tolist()
+            )
+            span_ids_list = list({*span_ids_raw})
         else:
             assert span_ids is not None
             span_ids_list = list({*span_ids})
@@ -416,7 +420,7 @@ class AsyncSpans:
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
-                params: dict[str, object] = {
+                params: dict[str, Union[int, str, Sequence[str]]] = {
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
@@ -474,7 +478,7 @@ class AsyncSpans:
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
-                params: dict[str, object] = {
+                params: dict[str, Union[int, str, Sequence[str]]] = {
                     "span_ids": batch_ids,
                     "limit": limit,
                 }
