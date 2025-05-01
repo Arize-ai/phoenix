@@ -171,7 +171,8 @@ class Spans:
                     "column."
                 )
         else:
-            span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+            assert span_ids is not None
+            span_ids_list = list({*span_ids})
 
         if not span_ids_list:
             return pd.DataFrame()
@@ -228,7 +229,7 @@ class Spans:
         Raises:
             httpx.HTTPStatusError: If the API returns an error response.
         """
-        span_ids_list = list({*span_ids})  # remove duplicates while preserving type
+        span_ids_list = list({*span_ids})
 
         if not span_ids_list:
             return []
@@ -412,6 +413,7 @@ class AsyncSpans:
                     "column."
                 )
         else:
+            assert span_ids is not None
             span_ids_list = list({*span_ids})
 
         if not span_ids_list:
