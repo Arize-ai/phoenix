@@ -72,8 +72,6 @@
   * [How Tracing Works](tracing/concepts-tracing/how-does-tracing-work.md)
   * [FAQs: Tracing](tracing/concepts-tracing/faqs-tracing.md)
   * [What are Traces](tracing/concepts-tracing/what-are-traces.md)
-* [Use Cases: Tracing](tracing/use-cases-tracing/README.md)
-  * [Structured Data Extraction](tracing/use-cases-tracing/structured-extraction.md)
 
 ## 📃 Prompt Engineering
 
@@ -94,11 +92,6 @@
   * [Tag a prompt](prompt-engineering/how-to-prompts/tag-a-prompt.md)
   * [Using a prompt](prompt-engineering/how-to-prompts/using-a-prompt.md)
 * [Concepts: Prompts](prompt-engineering/concepts-prompts.md)
-* [Use Cases: Prompts](prompt-engineering/use-cases-prompts.md)
-  * [Prompt Optimization](prompt-engineering/use-cases-prompts/prompt-optimization.md)
-  * [ReAct Prompting](prompt-engineering/use-cases-prompts/react-prompting.md)
-  * [Chain-of-Thought Prompting](prompt-engineering/use-cases-prompts/chain-of-thought-prompting.md)
-  * [Few Shot Prompting](prompt-engineering/use-cases-prompts/few-shot-prompting.md)
 
 ## 🗄️ Datasets & Experiments
 
@@ -111,11 +104,6 @@
 * [How-to: Experiments](datasets-and-experiments/how-to-experiments/README.md)
   * [Run Experiments](datasets-and-experiments/how-to-experiments/run-experiments.md)
   * [Using Evaluators](datasets-and-experiments/how-to-experiments/using-evaluators.md)
-* [Use Cases: Experiments](datasets-and-experiments/use-cases-datasets/README.md)
-  * [Prompt Optimization](datasets-and-experiments/use-cases-datasets/prompt-optimization.md)
-  * [Text2SQL](datasets-and-experiments/use-cases-datasets/text2sql.md)
-  * [Summarization](datasets-and-experiments/use-cases-datasets/summarization.md)
-  * [Email Extraction](datasets-and-experiments/use-cases-datasets/email-extraction.md)
 
 ## 🧠 Evaluation
 
@@ -150,12 +138,6 @@
   * [Evals With Explanations](evaluation/concepts-evals/evals-with-explanations.md)
   * [Evaluators](evaluation/concepts-evals/evaluation.md)
   * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
-
-***
-
-* [Use Cases: Evals](use-cases-evals/README.md)
-  * [Evaluate RAG](use-cases-evals/rag-evaluation.md)
-  * [Evaluating a Data Agent](use-cases-evals/evaluating-a-data-agent.md)
 
 ## 🔎 Retrieval
 

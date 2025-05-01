@@ -6,8 +6,8 @@ We've collected a few best practices on how to troubleshoot and evaluate search 
 [benchmarking-retrieval-rag.md](benchmarking-retrieval-rag.md)
 {% endcontent-ref %}
 
-{% content-ref url="../../use-cases-evals/rag-evaluation.md" %}
-[rag-evaluation.md](../../use-cases-evals/rag-evaluation.md)
+{% content-ref url="troubleshooting-llm-retrieval-with-vector-stores.md" %}
+[troubleshooting-llm-retrieval-with-vector-stores.md](troubleshooting-llm-retrieval-with-vector-stores.md)
 {% endcontent-ref %}
 
 {% content-ref url="retrieval-evals-on-document-chunks.md" %}

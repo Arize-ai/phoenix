@@ -110,4 +110,4 @@ You should now see traces in Phoenix!
 
 * Explore tracing [integrations](../integrations-tracing/)
 * [Customize tracing](../how-to-tracing/)
-* View use cases to see [end-to-end examples](../use-cases-tracing/)
+* View use cases to see[ end-to-end examples](https://docs.arize.com/phoenix/cookbook/guide)
