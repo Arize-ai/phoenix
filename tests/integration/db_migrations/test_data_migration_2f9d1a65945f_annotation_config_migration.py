@@ -538,6 +538,103 @@ def test_annotation_config_migration(
             ).scalar()
             conn.commit()
 
+            # verify source is non-nullable for trace annotations
+            with pytest.raises(Exception) as exc_info:
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO trace_annotations (
+                            trace_rowid, name, label, score, explanation,
+                            metadata, annotator_kind, source, identifier, user_id
+                        )
+                        VALUES (
+                            :trace_rowid, :name, :label, :score, :explanation,
+                            :metadata, :annotator_kind, :source, :identifier, :user_id
+                        )
+                        """
+                    ),
+                    {
+                        "trace_rowid": trace_rowid,
+                        "name": f"trace-annotation-name-{random.randint(1, 1000)}",
+                        "label": "trace-annotation-label",
+                        "score": 1.23,
+                        "explanation": "trace-annotation-explanation",
+                        "metadata": '{"foo": "bar"}',
+                        "annotator_kind": "CODE",
+                        "identifier": "",
+                        "user_id": None,
+                        "source": None,
+                    },
+                )
+            error_message = str(exc_info)
+            assert "NOT NULL" in error_message
+            assert "trace_annotations.source" in error_message
+
+            # verify source is non-nullable for span annotations
+            with pytest.raises(Exception) as exc_info:
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO span_annotations (
+                            span_rowid, name, label, score, explanation,
+                            metadata, annotator_kind, source, identifier, user_id
+                        )
+                        VALUES (
+                            :span_rowid, :name, :label, :score, :explanation,
+                            :metadata, :annotator_kind, :source, :identifier, :user_id
+                        )
+                        """
+                    ),
+                    {
+                        "span_rowid": span_rowid,
+                        "name": f"span-annotation-name-{random.randint(1, 1000)}",
+                        "label": "span-annotation-label",
+                        "score": 1.23,
+                        "explanation": "span-annotation-explanation",
+                        "metadata": '{"foo": "bar"}',
+                        "annotator_kind": "CODE",
+                        "identifier": "",
+                        "user_id": None,
+                        "source": None,
+                    },
+                )
+            error_message = str(exc_info)
+            assert "NOT NULL" in error_message
+            assert "span_annotations.source" in error_message
+
+            # verify source is non-nullable for document annotations
+            with pytest.raises(Exception) as exc_info:
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO document_annotations (
+                            span_rowid, document_position, name, label, score, explanation,
+                            metadata, annotator_kind, source, identifier, user_id
+                        )
+                        VALUES (
+                            :span_rowid, :document_position, :name, :label, :score, :explanation,
+                            :metadata, :annotator_kind, :source, :identifier, :user_id
+                        )
+                        """
+                    ),
+                    {
+                        "span_rowid": span_rowid,
+                        "document_position": 4,
+                        "name": f"document-annotation-name-{random.randint(1, 1000)}",
+                        "label": "document-annotation-label",
+                        "score": 1.23,
+                        "explanation": "document-annotation-explanation",
+                        "metadata": '{"foo": "bar"}',
+                        "annotator_kind": "CODE",
+                        "identifier": "",
+                        "user_id": None,
+                        "source": None,
+                    },
+                )
+            error_message = str(exc_info)
+            assert "NOT NULL" in error_message
+            assert "document_annotations.source" in error_message
+
             # delete the newly inserted annotations
             conn.execute(
                 text("DELETE FROM trace_annotations WHERE id = :id"),
