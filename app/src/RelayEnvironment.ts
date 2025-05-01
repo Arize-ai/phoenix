@@ -101,7 +101,7 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const subscribe = createFetchMultipartSubscription("/graphql", {
+const subscribe = createFetchMultipartSubscription(graphQLPath, {
   fetch: graphQLFetch,
 });
 
