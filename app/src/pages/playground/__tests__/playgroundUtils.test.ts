@@ -643,6 +643,52 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
     });
   });
+
+  it("should parse multi-part message contents", () => {
+    const span = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          input_messages: [
+            {
+              message: {
+                content: "You are a chatbot",
+                role: "system",
+              },
+            },
+            {
+              message: {
+                role: "user",
+                contents: [
+                  {
+                    message_content: {
+                      type: "image",
+                      image_url: "https://example.com/image.png",
+                    },
+                  },
+                  { message_content: { type: "text", text: "hello?" } },
+                  {
+                    message_content: {
+                      type: "text",
+                      text: "I won't be parsed!",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    };
+    expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
+      playgroundInstance: {
+        ...expectedPlaygroundInstanceWithIO,
+      },
+      parsingErrors: [],
+    });
+  });
 });
 
 describe("getChatRole", () => {
