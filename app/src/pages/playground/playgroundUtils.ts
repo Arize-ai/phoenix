@@ -6,6 +6,7 @@ import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
 import { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
+  ChatRoleMap,
   DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
@@ -51,7 +52,6 @@ import {
   InvocationParameterInput,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import {
-  ChatRoleMap,
   INPUT_MESSAGES_PARSING_ERROR,
   MODEL_CONFIG_PARSING_ERROR,
   MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,

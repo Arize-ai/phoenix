@@ -45,3 +45,18 @@ export const AZURE_OPENAI_API_VERSIONS = [
   "2023-05-15",
   "2023-03-15-preview",
 ];
+
+/**
+ * Map of {@link ChatMessageRole} to potential role values.
+ * Used to map roles to a canonical role.
+ */
+export const ChatRoleMap: Record<ChatMessageRole, string[]> = {
+  user: ["user", "human"],
+  // Assistant used by OpenAI
+  // Model used by Gemini
+  ai: ["assistant", "bot", "ai", "model"],
+  // Developer is a newer tier of role from OpenAI
+  // While not 1 to 1 with system, it's a close match and so we treat it as such
+  system: ["system", "developer"],
+  tool: ["tool"],
+};
