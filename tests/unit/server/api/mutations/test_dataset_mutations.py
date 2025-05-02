@@ -639,7 +639,7 @@ async def span_annotation(db: DbSessionFactory) -> None:
             label="ambiguous",
             score=0.5,
             explanation="meaningful words",
-            identifier=None,
+            identifier="",
             source="APP",
             user_id=None,
         )

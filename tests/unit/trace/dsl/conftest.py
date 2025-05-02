@@ -227,7 +227,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="0",
                 score=0,
                 metadata_={},
-                identifier=None,
+                identifier="",
                 source="APP",
                 user_id=None,
             )
@@ -271,7 +271,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="0",
                 score=1,
                 metadata_={},
-                identifier=None,
+                identifier="",
                 source="APP",
                 user_id=None,
             )
@@ -283,7 +283,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="1",
                 label="1",
                 metadata_={},
-                identifier=None,
+                identifier="",
                 source="APP",
                 user_id=None,
             )
@@ -323,7 +323,7 @@ async def abc_project(db: DbSessionFactory) -> None:
                 name="1",
                 label="0",
                 metadata_={},
-                identifier=None,
+                identifier="",
                 source="APP",
                 user_id=None,
             )
