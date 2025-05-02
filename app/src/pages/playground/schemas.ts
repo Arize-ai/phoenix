@@ -54,6 +54,9 @@ const messageSchema = z.object({
     [MessageAttributePostfixes.content]: z
       .union([z.string(), z.array(z.record(z.string(), z.unknown()))])
       .default(""),
+    [MessageAttributePostfixes.contents]: z
+      .array(z.object({ message_content: z.record(z.string()) }))
+      .optional(),
     [MessageAttributePostfixes.tool_calls]: z.array(toolCallSchema).optional(),
     [MessageAttributePostfixes.tool_call_id]: z.string().optional(),
   }),
