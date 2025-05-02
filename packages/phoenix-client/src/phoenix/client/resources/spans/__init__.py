@@ -120,7 +120,7 @@ class Spans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
-        project: str,
+        project: str = "default",
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -175,7 +175,7 @@ class Spans:
         annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project}/span_annotations"
 
-        for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
@@ -201,7 +201,9 @@ class Spans:
                 if not cursor:
                     break  # finished paginating this batch
 
-        return pd.DataFrame(annotations)
+        df = pd.DataFrame(annotations)
+        df.set_index("span_id", inplace=True)
+        return df
 
     def get_span_annotations(
         self,
@@ -416,7 +418,7 @@ class AsyncSpans:
         annotations: list[v1.SpanAnnotation] = []
         path = f"v1/projects/{project}/span_annotations"
 
-        for i in range(len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
+        for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
             cursor: Optional[str] = None
             while True:
@@ -441,7 +443,9 @@ class AsyncSpans:
                 if not cursor:
                     break
 
-        return pd.DataFrame(annotations)
+        df = pd.DataFrame(annotations)
+        df.set_index("span_id", inplace=True)
+        return df
 
     async def get_span_annotations(
         self,
