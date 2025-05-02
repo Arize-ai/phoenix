@@ -373,7 +373,7 @@ export function TracesTable(props: TracesTableProps) {
                 const annotation = (
                   row.original
                     .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                ).find((annotation) => annotation.name === name);
+                )?.find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
@@ -392,7 +392,7 @@ export function TracesTable(props: TracesTableProps) {
                 const annotation = (
                   row.original
                     .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
-                ).find((annotation) => annotation.name === name);
+                )?.find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
