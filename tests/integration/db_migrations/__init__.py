@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
-from typing import Literal, Optional, assert_never
+from typing import Literal, Optional
 
 import pytest
 from alembic import command
 from alembic.config import Config
 from phoenix.config import ENV_PHOENIX_SQL_DATABASE_SCHEMA, get_env_database_schema
 from sqlalchemy import Connection, Engine, Row, text
+from typing_extensions import assert_never
 
 
 def _up(engine: Engine, alembic_config: Config, revision: str) -> None:
