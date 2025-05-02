@@ -34,7 +34,6 @@ from phoenix.auth import (
 )
 from phoenix.config import get_env_disable_rate_limit
 from phoenix.db import models
-from phoenix.db.constants import TBD_OAUTH2_CLIENT_ID_PREFIX, TBD_OAUTH2_USER_ID_PREFIX
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
 from phoenix.server.oauth2 import OAuth2Client
@@ -332,22 +331,14 @@ async def _get_existing_oauth2_user(
     user = await session.scalar(stmt)
     if (
         user is None
-        or user.password_hash is not None
-        or user.oauth2_client_id is None
-        or user.oauth2_user_id is None
-        or (
-            user.oauth2_user_id != user_info.idp_user_id
-            and not user.oauth2_user_id.startswith(TBD_OAUTH2_USER_ID_PREFIX)
-        )
-        or (
-            user.oauth2_client_id != oauth2_client_id
-            and not user.oauth2_client_id.startswith(TBD_OAUTH2_CLIENT_ID_PREFIX)
-        )
+        or not isinstance(user, models.OAuth2User)
+        or (user.oauth2_client_id and user.oauth2_client_id != oauth2_client_id)
+        or (user.oauth2_user_id and user.oauth2_user_id != user_info.idp_user_id)
     ):
         raise SignInNotAllowed(f"Sign in is not allowed for {email}.")
-    if user.oauth2_client_id.startswith(TBD_OAUTH2_CLIENT_ID_PREFIX):
+    if user.oauth2_client_id is None:
         user.oauth2_client_id = oauth2_client_id
-    if user.oauth2_user_id.startswith(TBD_OAUTH2_USER_ID_PREFIX):
+    if user.oauth2_user_id is None:
         user.oauth2_user_id = user_info.idp_user_id
     if user in session.dirty:
         await session.flush()
@@ -440,6 +431,7 @@ async def _create_user(
             email=email,
             profile_picture_url=user_info.profile_picture_url,
             reset_password=False,
+            auth_method="OAUTH2",
         )
     )
     assert isinstance(user_id, int)

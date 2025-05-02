@@ -333,9 +333,10 @@ type CreateUserApiKeyMutationPayload {
 input CreateUserInput {
   email: String!
   username: String!
-  password: String!
+  password: String = null
   role: UserRoleInput!
   sendWelcomeEmail: Boolean = false
+  authMethod: AuthMethod = LOCAL
 }
 
 enum DataQualityMetric {

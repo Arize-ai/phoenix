@@ -24,11 +24,11 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.db import enums, models
-from phoenix.db.constants import TBD_OAUTH2_CLIENT_ID_PREFIX, TBD_OAUTH2_USER_ID_PREFIX
 from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Conflict, NotFound, Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.types.AuthMethod import AuthMethod
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
@@ -41,9 +41,17 @@ logger = logging.getLogger(__name__)
 class CreateUserInput:
     email: str
     username: str
-    password: str
+    password: Optional[str] = None
     role: UserRoleInput
     send_welcome_email: Optional[bool] = False
+    auth_method: Optional[AuthMethod] = AuthMethod.LOCAL
+
+    def __post_init__(self) -> None:
+        if self.auth_method is AuthMethod.OAUTH2:
+            if self.password:
+                raise ValueError("Password is not allowed for OAuth2 authentication")
+        elif not self.password:
+            raise ValueError("Password is required for local authentication")
 
 
 @strawberry.input
@@ -93,25 +101,24 @@ class UserMutationMixin:
         info: Info[Context, None],
         input: CreateUserInput,
     ) -> UserMutationPayload:
-        validate_email_format(email := input.email)
-        if input.password:
-            validate_password_format(password := input.password)
-            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-            password_hash = await info.context.hash_password(password, salt)
-            user = models.User(
-                reset_password=True,
+        user: models.User
+        if input.auth_method is AuthMethod.OAUTH2:
+            user = models.OAuth2User(
                 username=input.username,
-                email=email,
-                password_hash=password_hash,
-                password_salt=salt,
+                email=input.email,
             )
         else:
-            user = models.User(
-                reset_password=False,
+            assert input.password
+            validate_email_format(input.email)
+            validate_password_format(input.password)
+            salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
+            password_hash = await info.context.hash_password(input.password, salt)
+            user = models.LocalUser(
+                reset_password=True,
                 username=input.username,
-                email=email,
-                oauth2_client_id=f"{TBD_OAUTH2_CLIENT_ID_PREFIX}{secrets.token_hex(4)}",
-                oauth2_user_id=f"{TBD_OAUTH2_USER_ID_PREFIX}{secrets.token_hex(4)}",
+                email=input.email,
+                password_hash=password_hash,
+                password_salt=salt,
             )
         async with AsyncExitStack() as stack:
             session = await stack.enter_async_context(info.context.db())
@@ -160,7 +167,7 @@ class UserMutationMixin:
                     raise NotFound(f"Role {input.new_role.value} not found")
                 user.user_role_id = user_role_id
             if password := input.new_password:
-                if user.auth_method != enums.AuthMethod.LOCAL.value:
+                if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 validate_password_format(password)
                 user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
@@ -193,7 +200,7 @@ class UserMutationMixin:
                 raise NotFound("User not found")
             stack.enter_context(session.no_autoflush)
             if password := input.new_password:
-                if user.auth_method != enums.AuthMethod.LOCAL.value:
+                if user.auth_method != "LOCAL":
                     raise Conflict("Cannot modify password for non-local user")
                 if not (
                     current_password := input.current_password

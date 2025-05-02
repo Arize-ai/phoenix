@@ -27,6 +27,7 @@ from phoenix.server.types import DbSessionFactory
                 reset_password=False,
                 oauth2_client_id=None,
                 oauth2_user_id=None,
+                auth_method="LOCAL",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -48,6 +49,7 @@ from phoenix.server.types import DbSessionFactory
                 reset_password=False,
                 oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
                 oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -69,6 +71,7 @@ from phoenix.server.types import DbSessionFactory
                 reset_password=False,
                 oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
                 oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -90,6 +93,7 @@ from phoenix.server.types import DbSessionFactory
                 reset_password=False,
                 oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
                 oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -109,8 +113,9 @@ from phoenix.server.types import DbSessionFactory
                 password_hash=None,
                 password_salt=None,
                 reset_password=False,
-                oauth2_client_id="TBD_OAUTH2_CLIENT_ID_123456",
+                oauth2_client_id=None,
                 oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -131,7 +136,8 @@ from phoenix.server.types import DbSessionFactory
                 password_salt=None,
                 reset_password=False,
                 oauth2_client_id="123456789012-abcdef.apps.googleusercontent.com",
-                oauth2_user_id="TBD_OAUTH2_USER_ID_123456",
+                oauth2_user_id=None,
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -151,8 +157,9 @@ from phoenix.server.types import DbSessionFactory
                 password_hash=None,
                 password_salt=None,
                 reset_password=False,
-                oauth2_client_id="TBD_OAUTH2_CLIENT_ID_123456",
+                oauth2_client_id=None,
                 oauth2_user_id="118234567890123456789",
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -173,7 +180,8 @@ from phoenix.server.types import DbSessionFactory
                 password_salt=None,
                 reset_password=False,
                 oauth2_client_id="987654321098-xyzdef.apps.googleusercontent.com",
-                oauth2_user_id="TBD_OAUTH2_USER_ID_123456",
+                oauth2_user_id=None,
+                auth_method="OAUTH2",
             ),
             "123456789012-abcdef.apps.googleusercontent.com",
             UserInfo(
@@ -222,6 +230,7 @@ async def test_get_existing_oauth2_user(
                     reset_password=user.reset_password,
                     oauth2_client_id=user.oauth2_client_id,
                     oauth2_user_id=user.oauth2_user_id,
+                    auth_method=user.auth_method,
                 )
             )
     async with db() as session:

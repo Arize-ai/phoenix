@@ -147,7 +147,7 @@ class TestOIDC:
             assert not response.cookies.get("phoenix-refresh-token")
 
             # Create the user without password
-            admin.create_user(profile=_Profile(email, "", token_hex(8)))
+            admin.create_user(profile=_Profile(email, "", token_hex(8)), local=False)
 
             # If user go through OIDC flow again, access should be granted
             response = _httpx_client(cookies=cookies).get(callback_url)
