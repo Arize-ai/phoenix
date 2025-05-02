@@ -60,7 +60,7 @@ async def data_for_testing_dataloaders(
                                 score=random(),
                                 metadata_={},
                                 annotator_kind="LLM",
-                                identifier=None,
+                                identifier="",
                                 source="APP",
                                 user_id=None,
                             )
@@ -109,7 +109,7 @@ async def data_for_testing_dataloaders(
                                     score=random(),
                                     metadata_={},
                                     annotator_kind="LLM",
-                                    identifier=None,
+                                    identifier="",
                                     source="APP",
                                     user_id=None,
                                 )
@@ -352,7 +352,7 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="",
                 source="APP",
                 user_id=None,
             )
@@ -366,7 +366,7 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
                 score=0.8,
                 metadata_={},
                 annotator_kind="LLM",
-                identifier=None,
+                identifier="",
                 source="APP",
                 user_id=None,
             )
