@@ -55,7 +55,7 @@ class TraceAnnotationMutationMixin:
 
         async with info.context.db() as session:
             for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
-                resolved_identifier = annotation_input.identifier
+                resolved_identifier = annotation_input.identifier or ""
                 if annotation_input.source == AnnotationSource.APP:
                     # Ensure that the annotation has a per-user identifier if submitted via the UI
                     if user_id is not None:
@@ -190,7 +190,7 @@ class TraceAnnotationMutationMixin:
                     assert isinstance(patch.metadata, dict)
                     trace_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
-                    trace_annotation.identifier = patch.identifier
+                    trace_annotation.identifier = patch.identifier or ""
                 session.add(trace_annotation)
             await session.commit()
 

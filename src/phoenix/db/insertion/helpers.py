@@ -36,6 +36,7 @@ def insert_on_conflict(
     unique_by: Sequence[str],
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
     set_: Optional[Mapping[str, Any]] = None,
+    constraint_name: Optional[str] = None,
 ) -> Insert:
     """
     Dialect specific insertion statement using ON CONFLICT DO syntax.
@@ -50,7 +51,7 @@ def insert_on_conflict(
             unique_records.append(v)
             seen.add(k)
         records = tuple(reversed(unique_records))
-    constraint = "_".join(("uq", table.__tablename__, *unique_by))
+    constraint = constraint_name or "_".join(("uq", table.__tablename__, *unique_by))
     if dialect is SupportedSQLDialect.POSTGRESQL:
         stmt_postgresql = insert_postgresql(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:

@@ -62,7 +62,7 @@ class SpanAnnotationMutationMixin:
 
         async with info.context.db() as session:
             for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
-                resolved_identifier = annotation_input.identifier
+                resolved_identifier = annotation_input.identifier or ""
                 if annotation_input.source == AnnotationSource.APP:
                     # Ensure that the annotation has a per-user identifier if submitted via the UI
                     if user_id is not None:
@@ -258,7 +258,7 @@ class SpanAnnotationMutationMixin:
                     assert isinstance(patch.metadata, dict)
                     span_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
-                    span_annotation.identifier = patch.identifier
+                    span_annotation.identifier = patch.identifier or ""
                 session.add(span_annotation)
 
             patched_annotations = [
