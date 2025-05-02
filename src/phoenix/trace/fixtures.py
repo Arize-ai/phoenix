@@ -144,12 +144,6 @@ demo_toolcalling_fixture = TracesFixture(
     project_name="demo_agent",
     description="Tool calling traces",
     file_name="agents-toolcalling-tracesv2.parquet",
-    # evaluation_fixtures=(
-    #     EvaluationFixture(
-    #         evaluation_name="Router Tool Calling",
-    #         file_name="agents-toolcalling-evalsv2.parquet",
-    #     )
-    # )
     dataset_fixtures=(
         DatasetFixture(
             file_name="questions.csv.gz",
