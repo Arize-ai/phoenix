@@ -164,8 +164,8 @@ demo_toolcalling_fixture = TracesFixture(
             output_keys=("responses",),
             name="Invalid Queries",
             description="Invalid queries for the demo agent",
-        )
-    )
+        ),
+    ),
 )
 
 demo_code_based_agent_fixture = TracesFixture(

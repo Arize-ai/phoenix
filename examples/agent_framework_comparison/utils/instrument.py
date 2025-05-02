@@ -24,7 +24,7 @@ def instrument(project_name="code-based-agent", framework=Framework.CODE_BASED):
             "Please set it before running the agent."
         )
     tracer_provider = register(project_name=project_name)
-    
+
     if framework == Framework.LLAMA_INDEX:
         LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
     elif framework == Framework.LANGGRAPH:
