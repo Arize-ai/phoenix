@@ -206,8 +206,15 @@ function processAttributeMessagesToChatMessage({
         message.tool_call_id != null
           ? getChatRole("tool")
           : getChatRole(message.role),
-      content:
-        typeof message.content === "string" ? message.content : undefined,
+      // TODO: truly support multi-part message contents
+      // for now, just take the first text based message if it exists
+      content: Array.isArray(message.contents)
+        ? (message.contents.find(
+            (content) => content.message_content.type === "text"
+          )?.message_content?.text ?? undefined)
+        : typeof message.content === "string"
+          ? message.content
+          : undefined,
       toolCalls: processAttributeToolCalls({
         provider,
         toolCalls: message.tool_calls,
