@@ -144,17 +144,22 @@ demo_toolcalling_fixture = TracesFixture(
     project_name="demo_agent",
     description="Tool calling traces",
     file_name="agents-toolcalling-tracesv2.parquet",
-
+    evaluation_fixtures=(
+        EvaluationFixture(
+            evaluation_name="Tool Calling Eval",
+            file_name="demo_toolcalling_evals_root_idx.parquet",
+        ),
+    ),
     dataset_fixtures=(
         DatasetFixture(
-            file_name="questions.csv.gz",
+            file_name="questions.csv",
             input_keys=("query",),
             output_keys=("responses",),
             name="Valid Queries",
             description="Valid queries for the demo agent",
         ),
         DatasetFixture(
-            file_name="invalid_questions.csv.gz",
+            file_name="invalid_questions.csv",
             input_keys=("query",),
             output_keys=("responses",),
             name="Invalid Queries",
@@ -162,6 +167,7 @@ demo_toolcalling_fixture = TracesFixture(
         ),
     ),
 )
+
 demo_code_based_agent_fixture = TracesFixture(
     name="demo_code_based_agent",
     project_name="demo_agents",
@@ -462,6 +468,7 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             label=StringValue(value=cast(str, label)) if label else None,
             explanation=StringValue(value=cast(str, explanation)) if explanation else None,
         )
+        
         if isinstance(eval_fixture, DocumentEvaluationFixture):
             span_id, document_position = cast(tuple[str, int], index)
             # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
