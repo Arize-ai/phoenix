@@ -217,6 +217,8 @@ class Spans:
                     break  # finished paginating this batch
 
         df = pd.DataFrame(annotations)
+        df = _flatten_nested_column(df, "result")
+        df.rename(columns={"name": "annotation_name"}, inplace=True)
         df.set_index("span_id", inplace=True)
         return df
 
@@ -474,6 +476,8 @@ class AsyncSpans:
                     break
 
         df = pd.DataFrame(annotations)
+        df = _flatten_nested_column(df, "result")
+        df.rename(columns={"name": "annotation_name"}, inplace=True)
         df.set_index("span_id", inplace=True)
         return df
 
@@ -593,6 +597,19 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return dfs[0]  # we only expect one dataframe
     else:
         return pd.DataFrame()
+
+
+def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
+    import pandas as pd
+
+    if column_name in df.columns:
+        # Flatten the nested dictionary column and prefix each resulting column with
+        # the original column name (e.g., "result.label").
+        nested_df = pd.json_normalize(df[column_name]).rename(
+            columns=lambda col: f"{column_name}.{col}"
+        )
+        df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
+    return df
 
 
 class TimeoutError(Exception): ...
