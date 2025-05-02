@@ -10,11 +10,13 @@ sys.path.insert(1, os.path.join(sys.path[0], ".."))
 from router import router
 from utils.instrument import Framework, instrument
 
+
 def gradio_interface(message, history):
     tracer = trace.get_tracer(__name__)
     with tracer.start_as_current_span("code_based_agent") as span:
         span.set_attribute(SpanAttributes.INPUT_VALUE, message)
         span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND, "AGENT")
+        
         message = [{"role": "user", "content": message}]
         context = {}
         TraceContextTextMapPropagator().inject(context)
