@@ -141,7 +141,7 @@ demo_llama_index_rag_fixture = TracesFixture(
 
 demo_toolcalling_fixture = TracesFixture(
     name="demo_toolcalling",
-    project_name="demo_agents_1",
+    project_name="demo_agent",
     description="Tool calling traces",
     file_name="agents-toolcalling-tracesv2.parquet",
     # evaluation_fixtures=(
