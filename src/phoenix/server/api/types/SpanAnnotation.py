@@ -61,7 +61,7 @@ def to_gql_span_annotation(
         explanation=annotation.explanation,
         metadata=annotation.metadata_,
         source=AnnotationSource(annotation.source),
-        identifier=annotation.identifier,
+        identifier=annotation.identifier or None,
         created_at=annotation.created_at,
         updated_at=annotation.updated_at,
     )
