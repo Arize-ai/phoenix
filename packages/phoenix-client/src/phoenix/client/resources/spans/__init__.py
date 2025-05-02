@@ -223,7 +223,7 @@ class Spans:
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
         df.rename(columns={"name": "annotation_name"}, inplace=True)
-        df.set_index("span_id", inplace=True)
+        df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
 
     def get_span_annotations(
@@ -485,7 +485,7 @@ class AsyncSpans:
         df = pd.DataFrame(annotations)
         df = _flatten_nested_column(df, "result")
         df.rename(columns={"name": "annotation_name"}, inplace=True)
-        df.set_index("span_id", inplace=True)
+        df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
 
     async def get_span_annotations(
@@ -622,7 +622,7 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
     if column_name in df.columns:
         # Flatten the nested dictionary column and prefix each resulting column with
         # the original column name (e.g., "result.label").
-        nested_df = pd.json_normalize(df[column_name]).rename(
+        nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[unused-ignore]
             columns=lambda col: f"{column_name}.{col}"
         )
         df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
