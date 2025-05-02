@@ -139,7 +139,7 @@
   * [Evaluators](evaluation/concepts-evals/evaluation.md)
   * [Custom Task Evaluation](evaluation/concepts-evals/building-your-own-evals.md)
 
-## 🔎 Retrieval
+## 🔍 Retrieval
 
 * [Overview: Retrieval](retrieval/overview-retrieval.md)
 * [Quickstart: Retrieval](retrieval/quickstart-retrieval.md)
