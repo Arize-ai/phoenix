@@ -622,7 +622,7 @@ def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFram
     if column_name in df.columns:
         # Flatten the nested dictionary column and prefix each resulting column with
         # the original column name (e.g., "result.label").
-        nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[unused-ignore]
+        nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[arg-type]
             columns=lambda col: f"{column_name}.{col}"
         )
         df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
