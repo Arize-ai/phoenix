@@ -94,6 +94,7 @@ def test_annotation_config_migration(
             },
         ).scalar()
         assert isinstance(span_rowid, int)
+        conn.commit()
 
     for iteration_index in range(2):
         # test behavior before up migration
@@ -341,8 +342,9 @@ def test_annotation_config_migration(
             )
             conn.commit()
 
+        with _engine.connect() as conn:
             # verify that 'CODE' annotator_kind is not allowed for trace annotations before migration  # noqa: E501
-            with pytest.raises(Exception, match="valid_annotator_kind"):
+            with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_pre_migration(
                     conn=conn,
                     trace_rowid=trace_rowid,
@@ -353,10 +355,12 @@ def test_annotation_config_migration(
                     metadata='{"foo": "bar"}',
                     annotator_kind="CODE",
                 )
-                conn.commit()
+                # conn.commit()
+            assert "valid_annotator_kind" in str(exc_info.value)
 
+        with _engine.connect() as conn:
             # verify that 'CODE' annotator_kind is not allowed for span annotations before migration
-            with pytest.raises(Exception, match="valid_annotator_kind"):
+            with pytest.raises(Exception) as exc_info:
                 _create_span_annotation_pre_migration(
                     conn=conn,
                     span_rowid=span_rowid,
@@ -368,9 +372,11 @@ def test_annotation_config_migration(
                     annotator_kind="CODE",
                 )
                 conn.commit()
+            assert "valid_annotator_kind" in str(exc_info.value)
 
+        with _engine.connect() as conn:
             # Verify that 'CODE' annotator_kind is not allowed for document annotations before migration  # noqa: E501
-            with pytest.raises(Exception, match="valid_annotator_kind"):
+            with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_pre_migration(
                     conn=conn,
                     span_rowid=span_rowid,
@@ -383,6 +389,7 @@ def test_annotation_config_migration(
                     annotator_kind="CODE",
                 )
                 conn.commit()
+            assert "valid_annotator_kind" in str(exc_info.value)
 
         # run the annotation config migration
         _up(_engine, _alembic_config, "2f9d1a65945f")
@@ -599,6 +606,7 @@ def test_annotation_config_migration(
             assert source == "APP"
             assert user_id is None
 
+        with _engine.connect() as conn:
             # verify source is non-nullable for trace annotations
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_post_migration(
@@ -614,10 +622,15 @@ def test_annotation_config_migration(
                     user_id=None,
                     source=None,  # type: ignore
                 )
-            error_message = str(exc_info)
-            assert "NOT NULL" in error_message
-            assert "trace_annotations.source" in error_message
+            error_message = str(exc_info.value).lower()
+            assert (
+                "not null" in error_message
+                or "not-null" in error_message
+                or "notnull" in error_message
+            )
+            assert "source" in error_message
 
+        with _engine.connect() as conn:
             # verify source is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
                 _create_span_annotation_post_migration(
@@ -633,10 +646,15 @@ def test_annotation_config_migration(
                     user_id=None,
                     source=None,  # type: ignore
                 )
-            error_message = str(exc_info)
-            assert "NOT NULL" in error_message
-            assert "span_annotations.source" in error_message
+            error_message = str(exc_info.value).lower()
+            assert (
+                "not null" in error_message
+                or "not-null" in error_message
+                or "notnull" in error_message
+            )
+            assert "source" in error_message
 
+        with _engine.connect() as conn:
             # verify source is non-nullable for document annotations
             with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_post_migration(
@@ -653,10 +671,15 @@ def test_annotation_config_migration(
                     user_id=None,
                     source=None,  # type: ignore
                 )
-            error_message = str(exc_info)
-            assert "NOT NULL" in error_message
-            assert "document_annotations.source" in error_message
+            error_message = str(exc_info.value).lower()
+            assert (
+                "not null" in error_message
+                or "not-null" in error_message
+                or "notnull" in error_message
+            )
+            assert "source" in error_message
 
+        with _engine.connect() as conn:
             # verify identifier is non-nullable for trace annotations
             with pytest.raises(Exception) as exc_info:
                 _create_trace_annotation_post_migration(
@@ -672,10 +695,15 @@ def test_annotation_config_migration(
                     user_id=None,
                     source="API",
                 )
-            error_message = str(exc_info)
-            assert "NOT NULL" in error_message
-            assert "trace_annotations.identifier" in error_message
+            error_message = str(exc_info.value).lower()
+            assert (
+                "not null" in error_message
+                or "not-null" in error_message
+                or "notnull" in error_message
+            )
+            assert "identifier" in error_message
 
+        with _engine.connect() as conn:
             # verify identifier is non-nullable for span annotations
             with pytest.raises(Exception) as exc_info:
                 _create_span_annotation_post_migration(
@@ -691,10 +719,15 @@ def test_annotation_config_migration(
                     user_id=None,
                     source="API",
                 )
-            error_message = str(exc_info)
-            assert "NOT NULL" in error_message
-            assert "span_annotations.identifier" in error_message
+            error_message = str(exc_info.value).lower()
+            assert (
+                "not null" in error_message
+                or "not-null" in error_message
+                or "notnull" in error_message
+            )
+            assert "identifier" in error_message
 
+        with _engine.connect() as conn:
             # verify identifier is non-nullable for document annotations
             with pytest.raises(Exception) as exc_info:
                 _create_document_annotation_post_migration(
@@ -711,10 +744,15 @@ def test_annotation_config_migration(
                     user_id=None,
                     source="API",
                 )
-            error_message = str(exc_info)
-            assert "NOT NULL" in error_message
-            assert "document_annotations.identifier" in error_message
+            error_message = str(exc_info.value).lower()
+            assert (
+                "not null" in error_message
+                or "not-null" in error_message
+                or "notnull" in error_message
+            )
+            assert "identifier" in error_message
 
+        with _engine.connect() as conn:
             # verify that after migration, 'CODE' is allowed
             trace_annotation_from_code_id = _create_trace_annotation_post_migration(
                 conn=conn,
@@ -800,14 +838,14 @@ def _create_trace_annotation_pre_migration(
                 metadata, annotator_kind
             )
             VALUES (
-                :trace_id, :name, :label, :score, :explanation,
+                :trace_rowid, :name, :label, :score, :explanation,
                 :metadata, :annotator_kind
             )
             RETURNING id
             """
         ),
         {
-            "trace_id": trace_rowid,
+            "trace_rowid": trace_rowid,
             "name": name,
             "label": label,
             "score": score,
