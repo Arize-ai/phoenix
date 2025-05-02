@@ -1,3 +1,4 @@
+import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
@@ -92,14 +93,17 @@ class Spans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                project_response = self._client.get(
-                    url=f"v1/projects/{project_identifier}",
-                    headers={"accept": "application/json"},
-                    timeout=timeout,
-                )
-                project_response.raise_for_status()
-                project = project_response.json()
-                project_name = project["data"]["name"]
+                if _is_base64_project_identifier(project_identifier):
+                    project_response = self._client.get(
+                        url=f"v1/projects/{project_identifier}",
+                        headers={"accept": "application/json"},
+                        timeout=timeout,
+                    )
+                    project_response.raise_for_status()
+                    project = project_response.json()
+                    project_name = project["data"]["name"]
+                else:
+                    project_name = project_identifier
 
             response = self._client.post(
                 url="v1/spans",
@@ -352,14 +356,17 @@ class AsyncSpans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                project_response = await self._client.get(
-                    url=f"v1/projects/{project_identifier}",
-                    headers={"accept": "application/json"},
-                    timeout=timeout,
-                )
-                project_response.raise_for_status()
-                project = project_response.json()
-                project_name = project["name"]
+                if _is_base64_project_identifier(project_identifier):
+                    project_response = await self._client.get(
+                        url=f"v1/projects/{project_identifier}",
+                        headers={"accept": "application/json"},
+                        timeout=timeout,
+                    )
+                    project_response.raise_for_status()
+                    project = project_response.json()
+                    project_name = project["name"]
+                else:
+                    project_name = project_identifier
 
             response = await self._client.post(
                 url="v1/spans",
@@ -597,6 +604,16 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return dfs[0]  # we only expect one dataframe
     else:
         return pd.DataFrame()
+
+
+def _is_base64_project_identifier(s: str) -> bool:
+    try:
+        decoded = base64.b64decode(s, validate=True)
+        if not decoded.startswith(b"Project:"):
+            return False
+        return True
+    except Exception:
+        return False
 
 
 def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
