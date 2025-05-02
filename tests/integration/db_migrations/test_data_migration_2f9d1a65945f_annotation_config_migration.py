@@ -255,7 +255,7 @@ def test_annotation_config_migration(
                 }
                 assert constraints["uq_document_annotations_name_span_rowid_document_position"] == {
                     "constraint_type": "UNIQUE",
-                    "column_names": ["span_rowid", "document_position", "name"],
+                    "column_names": ["name", "span_rowid", "document_position"],
                 }
 
             else:
