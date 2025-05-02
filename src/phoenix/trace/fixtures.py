@@ -396,7 +396,6 @@ def send_dataset_fixtures(
     endpoint: str,
     fixtures: Iterable[DatasetFixture],
 ) -> None:
-    print([fixture.name for fixture in fixtures])
     expiration = time() + 5
     while time() < expiration:
         try:
