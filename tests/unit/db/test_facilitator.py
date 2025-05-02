@@ -34,16 +34,20 @@ class TestEnsureStartupAdmins:
         monkeypatch: MonkeyPatch,
         email_sending_fails: bool,
     ) -> None:
+        # Set up environment with admin users including one with OAUTH2
         monkeypatch.setenv(
             ENV_PHOENIX_ADMINS,
             (
                 "Washington, George, Jr.=george@example.com;"
                 "Franklin, Benjamin=benjamin@example.com;"
-                "Jefferson, Thomas=thomas@example.com"
+                "Jefferson, Thomas=thomas@example.com;"
+                "Adams, John=john@example.com(OAUTH2)"
             ),
         )
+
         # Initialize the enum values in the database
         await _ensure_enums(db)
+
         # Create existing users (not admins) for the test
         async with db() as session:
             # Fetch role IDs
@@ -53,6 +57,7 @@ class TestEnsureStartupAdmins:
             member_role_id = await session.scalar(
                 select(models.UserRole.id).filter_by(name=UserRole.MEMBER.value)
             )
+
             # Create users with MEMBER role (not ADMIN)
             existing_users = {
                 "george@example.com": models.User(
@@ -80,24 +85,71 @@ class TestEnsureStartupAdmins:
         await _ensure_admins(db, email_sender=email_sender)
 
         # Verify email sending behavior
-        assert email_sender.attempts == [("benjamin@example.com", "Franklin, Benjamin")]
+        assert set(email_sender.attempts) == {
+            ("benjamin@example.com", "Franklin, Benjamin"),
+            ("john@example.com", "Adams, John"),
+        }
 
         # Verify database state
         async with db() as session:
-            users = {user.email: user for user in await session.scalars(select(models.User))}
-        assert len(users) == 3
-        # Verify existing users were not modified
-        for email, existing_user in existing_users.items():
-            user = users.pop(email)
-            assert user.email == existing_user.email
-            assert user.username == existing_user.username
-            assert user.user_role_id == existing_user.user_role_id
-            assert user.reset_password == existing_user.reset_password
-            assert user.password_hash == existing_user.password_hash
-            assert user.password_salt == existing_user.password_salt
-        # Verify new admin user was properly created
-        user = users.pop("benjamin@example.com")
-        assert not users, "There should be no other users in the database"
-        assert user.username == "Franklin, Benjamin"
-        assert user.user_role_id == admin_role_id
-        # assert user.reset_password
+            # Get all users and their roles
+            users = {
+                user.email: user
+                for user in await session.scalars(select(models.User).join(models.UserRole))
+            }
+
+            # Verify total number of users
+            assert len(users) == 4, "Expected exactly 4 users in the database"
+
+            # Verify existing users were not modified
+            for email, existing_user in existing_users.items():
+                user = users.pop(email)
+                assert user.email == existing_user.email
+                assert user.username == existing_user.username
+                assert user.user_role_id == existing_user.user_role_id
+                assert user.reset_password == existing_user.reset_password
+                assert user.password_hash == existing_user.password_hash
+                assert user.password_salt == existing_user.password_salt
+                assert user.auth_method == existing_user.auth_method
+
+            # Verify new admin users were properly created
+            benjamin = users.pop("benjamin@example.com")
+            john = users.pop("john@example.com")
+            assert not users, "There should be no other users in the database"
+
+            # Verify Benjamin (LOCAL auth)
+            assert benjamin.username == "Franklin, Benjamin"
+            assert benjamin.user_role_id == admin_role_id
+            assert (
+                benjamin.reset_password is True
+            ), "New admin user should have reset_password set to True"
+
+            # Verify John (OAUTH2 auth)
+            assert john.username == "Adams, John"
+            assert john.user_role_id == admin_role_id
+            assert (
+                john.reset_password is False
+            ), "OAUTH2 user should not have reset_password set to True"
+
+            # Verify user role assignments
+            admin_users = await session.scalars(
+                select(models.User)
+                .join(models.UserRole)
+                .filter(models.UserRole.name == UserRole.ADMIN.value)
+            )
+            admin_emails = {user.email for user in admin_users}
+            assert admin_emails == {
+                "benjamin@example.com",
+                "john@example.com",
+            }, "Benjamin and John should be admins"
+
+            member_users = await session.scalars(
+                select(models.User)
+                .join(models.UserRole)
+                .filter(models.UserRole.name == UserRole.MEMBER.value)
+            )
+            member_emails = {user.email for user in member_users}
+            assert member_emails == {
+                "george@example.com",
+                "thomas@example.com",
+            }, "George and Thomas should be members"
