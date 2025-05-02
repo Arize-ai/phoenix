@@ -1071,7 +1071,7 @@ def _create_document_annotation_post_migration(
 
 
 def _get_sqlite_table_info(conn: Connection, table_name: str) -> str:
-    return conn.execute(
+    table_info = conn.execute(
         text(
             """
             SELECT sql FROM sqlite_master
@@ -1080,10 +1080,12 @@ def _get_sqlite_table_info(conn: Connection, table_name: str) -> str:
         ),
         {"table_name": table_name},
     ).scalar()
+    assert isinstance(table_info, str)
+    return table_info
 
 
-def _get_postgres_table_info(conn: Connection, table_name: str) -> dict:
-    return conn.execute(
+def _get_postgres_table_info(conn: Connection, table_name: str) -> dict[str, Any]:
+    table_info = conn.execute(
         text(
             """
             SELECT json_build_object(
@@ -1128,3 +1130,5 @@ def _get_postgres_table_info(conn: Connection, table_name: str) -> dict:
         ),
         {"table_name": table_name},
     ).scalar()
+    assert isinstance(table_info, dict)
+    return table_info
