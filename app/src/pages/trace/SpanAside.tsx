@@ -40,7 +40,7 @@ export function SpanAside(props: SpanAsideProps) {
   const data = useFragment<SpanAside_span$key>(
     graphql`
       fragment SpanAside_span on Span
-      @argumentDefinitions(filterUserIds: { type: "[GlobalID!]" }) {
+      @argumentDefinitions(filterUserIds: { type: "[GlobalID]" }) {
         id
         project {
           id
@@ -136,7 +136,7 @@ function SpanAsideAnnotationList(props: {
   const data = useFragment<SpanAsideAnnotationList_span$key>(
     graphql`
       fragment SpanAsideAnnotationList_span on Span
-      @argumentDefinitions(filterUserIds: { type: "[GlobalID!]" }) {
+      @argumentDefinitions(filterUserIds: { type: "[GlobalID]" }) {
         project {
           id
           annotationConfigs {

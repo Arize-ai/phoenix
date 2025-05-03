@@ -183,7 +183,7 @@ function SpanAnnotationsList(props: {
       query SpanAnnotationsEditorSpanAnnotationsListQuery(
         $projectId: GlobalID!
         $spanId: GlobalID!
-        $filterUserIds: [GlobalID!]
+        $filterUserIds: [GlobalID]
       ) {
         project: node(id: $projectId) {
           id
@@ -232,13 +232,13 @@ function SpanAnnotationsList(props: {
     {
       projectId,
       spanId,
-      filterUserIds: viewer?.id ? [viewer.id] : null,
+      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
   const span = useFragment<SpanAnnotationsEditor_spanAnnotations$key>(
     graphql`
       fragment SpanAnnotationsEditor_spanAnnotations on Span
-      @argumentDefinitions(filterUserIds: { type: "[GlobalID!]" }) {
+      @argumentDefinitions(filterUserIds: { type: "[GlobalID]" }) {
         id
         filteredSpanAnnotations: spanAnnotations(
           filter: {
