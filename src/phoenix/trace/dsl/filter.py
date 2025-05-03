@@ -12,7 +12,7 @@ import sqlalchemy
 from sqlalchemy import case, literal
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
-from sqlalchemy.sql.expression import Select
+from sqlalchemy.sql.expression import ColumnElement, Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 import phoenix.trace.v1 as pb
@@ -65,7 +65,7 @@ class AliasedAnnotationRelation:
         object.__setattr__(self, "table", table)
 
     @property
-    def attributes(self) -> typing.Iterator[tuple[str, Mapped[typing.Any]]]:
+    def attributes(self) -> typing.Iterator[tuple[str, ColumnElement[typing.Any]]]:
         """
         Alias names and attributes (i.e., columns) of the `span_annotation`
         relation.
@@ -794,7 +794,7 @@ def _apply_eval_aliasing(
     eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
     for (
         annotation_expression,
-        annotation_type,
+        _annotation_type,
         annotation_name,
         annotation_attribute,
     ) in _parse_annotation_expressions_and_names(source):
@@ -805,7 +805,7 @@ def _apply_eval_aliasing(
         source = source.replace(annotation_expression, alias_name)
 
     for match in EVAL_NAME_PATTERN.finditer(source):
-        annotation_expression, annotation_type, quoted_eval_name = match.groups()
+        annotation_expression, _, quoted_eval_name = match.groups()
         annotation_name = quoted_eval_name[1:-1]
         if (eval_alias := eval_aliases.get(annotation_name)) is None:
             eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
@@ -831,11 +831,11 @@ def _parse_annotation_expressions_and_names(
     for match in EVAL_EXPRESSION_PATTERN.finditer(source):
         (
             annotation_expression,
-            annotation_type,
+            _annotation_type,
             quoted_eval_name,
             evaluation_attribute_name,
         ) = match.groups()
-        annotation_type = typing.cast(AnnotationType, annotation_type)
+        annotation_type = typing.cast(AnnotationType, _annotation_type)
         yield (
             annotation_expression,
             annotation_type,
