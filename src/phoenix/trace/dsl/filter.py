@@ -9,11 +9,11 @@ from types import MappingProxyType
 from uuid import uuid4
 
 import sqlalchemy
+from sqlalchemy import case, literal
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
-from sqlalchemy import case, literal
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
@@ -32,9 +32,7 @@ EVAL_EXPRESSION_PATTERN = re.compile(
     r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
 )
 
-EVAL_NAME_PATTERN = re.compile(
-    r"""((annotations|evals)\[(".*?"|'.*?')\])"""
-)
+EVAL_NAME_PATTERN = re.compile(r"""((annotations|evals)\[(".*?"|'.*?')\])""")
 
 
 @dataclass(frozen=True)
@@ -74,8 +72,9 @@ class AliasedAnnotationRelation:
         """
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
-        yield self._exists_attribute_alias, case(
-            (self.table.id.is_not(None), literal(True)), else_=literal(False)
+        yield (
+            self._exists_attribute_alias,
+            case((self.table.id.is_not(None), literal(True)), else_=literal(False)),
         )
 
     def attribute_alias(self, attribute: AnnotationAttribute) -> str:
