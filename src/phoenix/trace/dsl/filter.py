@@ -32,7 +32,9 @@ EVAL_EXPRESSION_PATTERN = re.compile(
     r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
 )
 
-EVAL_NAME_PATTERN = re.compile(r"""((annotations|evals)\[(".*?"|'.*?')\])""")
+EVAL_NAME_PATTERN = re.compile(
+    r"""(?<!\w)((annotations|evals)\[(".*?"|'.*?')\])(?!\w)"""
+)
 
 
 @dataclass(frozen=True)
