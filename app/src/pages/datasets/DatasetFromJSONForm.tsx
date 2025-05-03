@@ -71,9 +71,11 @@ export function DatasetFromJSONForm(props: CreateDatasetFromJSONFormProps) {
       })
         .then((response) => {
           if (!response.ok) {
-            throw onDatasetCreateError(
-              new Error(response.statusText || "Failed to create dataset")
-            );
+            return response.text().then((errorText) => {
+              throw onDatasetCreateError(
+                new Error(errorText || "Failed to create dataset")
+              );
+            });
           }
           return response.json();
         })
