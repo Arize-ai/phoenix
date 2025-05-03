@@ -33,7 +33,7 @@ EVAL_EXPRESSION_PATTERN = re.compile(
 )
 
 EVAL_NAME_PATTERN = re.compile(
-    r"""\b((annotations|evals)\[(\".*?\"|'.*?')\])\b"""
+    r"""\b((annotations|evals)\[(".*?"|'.*?')\])\b"""
 )
 
 
@@ -75,7 +75,7 @@ class AliasedAnnotationRelation:
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
         yield self._exists_attribute_alias, case(
-            (self.table.id.is_not(None), literal(True))
+            (self.table.id.is_not(None), literal(True)), else_=literal(False)
         )
 
     def attribute_alias(self, attribute: AnnotationAttribute) -> str:
