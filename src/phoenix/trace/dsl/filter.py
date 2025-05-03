@@ -33,7 +33,7 @@ EVAL_EXPRESSION_PATTERN = re.compile(
 )
 
 EVAL_NAME_PATTERN = re.compile(
-    r"""\b((annotations|evals)\[(".*?"|'.*?')\])\b"""
+    r"""((annotations|evals)\[(".*?"|'.*?')\])"""
 )
 
 
