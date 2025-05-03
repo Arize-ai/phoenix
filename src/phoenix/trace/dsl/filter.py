@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
 from sqlalchemy.sql.expression import Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
+from sqlalchemy import case, literal
 
 import phoenix.trace.v1 as pb
 from phoenix.db import models
@@ -31,6 +32,10 @@ EVAL_EXPRESSION_PATTERN = re.compile(
     r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
 )
 
+EVAL_NAME_PATTERN = re.compile(
+    r"""\b((annotations|evals)\[(\".*?\"|'.*?')\])\b"""
+)
+
 
 @dataclass(frozen=True)
 class AliasedAnnotationRelation:
@@ -46,16 +51,19 @@ class AliasedAnnotationRelation:
     table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
+    _exists_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         table_alias = f"span_annotation_{self.index}"
         alias_id = uuid4().hex
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
+        exists_attribute_alias = f"{table_alias}_exists_{alias_id}"
 
         table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
+        object.__setattr__(self, "_exists_attribute_alias", exists_attribute_alias)
         object.__setattr__(self, "table", table)
 
     @property
@@ -66,6 +74,9 @@ class AliasedAnnotationRelation:
         """
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
+        yield self._exists_attribute_alias, case(
+            (self.table.id.is_not(None), literal(True))
+        )
 
     def attribute_alias(self, attribute: AnnotationAttribute) -> str:
         """
@@ -555,6 +566,7 @@ def _validate_expression(
                 isinstance(node, (ast.BoolOp, ast.Compare))
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
+                or _is_annotation(node)
             ):
                 continue
         elif (
@@ -791,6 +803,15 @@ def _apply_eval_aliasing(
             eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
             eval_aliases[annotation_name] = eval_alias
         alias_name = eval_alias.attribute_alias(annotation_attribute)
+        source = source.replace(annotation_expression, alias_name)
+
+    for match in EVAL_NAME_PATTERN.finditer(source):
+        annotation_expression, annotation_type, quoted_eval_name = match.groups()
+        annotation_name = quoted_eval_name[1:-1]
+        if (eval_alias := eval_aliases.get(annotation_name)) is None:
+            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
+            eval_aliases[annotation_name] = eval_alias
+        alias_name = eval_alias._exists_attribute_alias
         source = source.replace(annotation_expression, alias_name)
     return source, tuple(eval_aliases.values())
 
