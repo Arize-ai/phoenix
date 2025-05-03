@@ -121,11 +121,9 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
         variables: Mapping[str, str] = MappingProxyType({}),
     ) -> str:
         for variable_name in variable_names:
-            template = re.sub(
-                pattern=rf"(?<!\\){{{{\s*{variable_name}\s*}}}}",
-                repl=variables[variable_name],
-                string=template,
-            )
+            pattern = rf"(?<!\\){{{{\s*{re.escape(variable_name)}\s*}}}}"
+            replacement = variables[variable_name]
+            template = re.sub(pattern, lambda _: replacement, template)
         return template
 
 
