@@ -82,12 +82,8 @@ class TraceAnnotationMutationMixin:
                 q = select(models.TraceAnnotation).where(
                     models.TraceAnnotation.trace_rowid == trace_rowid,
                     models.TraceAnnotation.name == annotation_input.name,
+                    models.TraceAnnotation.identifier == resolved_identifier,
                 )
-                if resolved_identifier is None:
-                    q = q.where(models.TraceAnnotation.identifier.is_(None))
-                else:
-                    q = q.where(models.TraceAnnotation.identifier == resolved_identifier)
-
                 existing_annotation = await session.scalar(q)
 
                 if existing_annotation:
