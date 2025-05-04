@@ -571,6 +571,7 @@ async def spans(db: DbSessionFactory) -> list[models.Span]:
             )
             .returning(models.Span)
         )
+        assert span is not None
         spans.append(span)
         span = await session.scalar(
             insert(models.Span)
@@ -602,6 +603,7 @@ async def spans(db: DbSessionFactory) -> list[models.Span]:
             )
             .returning(models.Span)
         )
+        assert span is not None
         spans.append(span)
         span = await session.scalar(
             insert(models.Span)
@@ -638,6 +640,7 @@ async def spans(db: DbSessionFactory) -> list[models.Span]:
             )
             .returning(models.Span)
         )
+        assert span is not None
         spans.append(span)
     return spans
 
