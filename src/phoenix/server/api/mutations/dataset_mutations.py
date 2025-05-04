@@ -143,7 +143,7 @@ class DatasetMutationMixin:
                 (
                     await session.scalars(
                         select(models.Span)
-                        .join(
+                        .outerjoin(
                             models.SpanAnnotation,
                             models.Span.id == models.SpanAnnotation.span_rowid,
                         )
@@ -164,10 +164,8 @@ class DatasetMutationMixin:
                 .unique()
                 .all()
             )
-            if missing_span_rowids := span_rowids - {span.id for span in spans}:
-                raise ValueError(
-                    f"Could not find spans with rowids: {', '.join(map(str, missing_span_rowids))}"
-                )  # todo: implement error handling types https://github.com/Arize-ai/phoenix/issues/3221
+            if span_rowids - {span.id for span in spans}:
+                raise NotFound("Some spans could not be found")
 
             DatasetExample = models.DatasetExample
             dataset_example_rowids = (
@@ -619,7 +617,9 @@ def _to_span_annotation_dict(span_annotation: models.SpanAnnotation) -> dict[str
         "explanation": span_annotation.explanation,
         "metadata": span_annotation.metadata_,
         "annotator_kind": span_annotation.annotator_kind,
-        "user_id": str(GlobalID(models.User.__name__, str(span_annotation.user_id))),
+        "user_id": str(GlobalID(models.User.__name__, str(user_id)))
+        if (user_id := span_annotation.user_id) is not None
+        else None,
         "username": user.username if (user := span_annotation.user) is not None else None,
         "email": user.email if user is not None else None,
     }
