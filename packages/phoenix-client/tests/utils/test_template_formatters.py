@@ -6,8 +6,9 @@ from phoenix.client.utils.template_formatters import (
     FStringBaseTemplateFormatter,
     MustacheBaseTemplateFormatter,
     NoOpFormatterBase,
-    TemplateFormatter
+    TemplateFormatter,
 )
+
 
 @pytest.mark.parametrize(
     "formatter_cls, template, variables, expected_output",
@@ -110,7 +111,7 @@ from phoenix.client.utils.template_formatters import (
             "Hello, world!",
             id="noop-formatter-no-change",
         ),
-    ]
+    ],
 )
 def test_formatters_produce_expected_output(
     formatter_cls: type[TemplateFormatter],
@@ -121,4 +122,3 @@ def test_formatters_produce_expected_output(
     formatter = formatter_cls()
     output = formatter.format(template, variables=variables)
     assert output == expected_output
-
