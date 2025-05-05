@@ -14,7 +14,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 class SpanAnnotationFilterCondition:
     names: Optional[list[str]] = UNSET
     sources: Optional[list[AnnotationSource]] = UNSET
-    user_ids: Optional[list[GlobalID]] = UNSET
+    user_ids: Optional[list[Optional[GlobalID]]] = UNSET
 
     def __post_init__(self) -> None:
         if isinstance(self.names, list) and not self.names:
@@ -47,7 +47,8 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
             return False
         if include.user_ids:
             user_rowids = [
-                from_global_id_with_expected_type(user_id, "User") for user_id in include.user_ids
+                from_global_id_with_expected_type(user_id, "User") if user_id is not None else None
+                for user_id in include.user_ids
             ]
             if span_annotation.user_id not in user_rowids:
                 return False
@@ -58,7 +59,8 @@ def satisfies_filter(span_annotation: models.SpanAnnotation, filter: SpanAnnotat
             return False
         if exclude.user_ids:
             user_rowids = [
-                from_global_id_with_expected_type(user_id, "User") for user_id in exclude.user_ids
+                from_global_id_with_expected_type(user_id, "User") if user_id is not None else None
+                for user_id in exclude.user_ids
             ]
             if span_annotation.user_id in user_rowids:
                 return False
