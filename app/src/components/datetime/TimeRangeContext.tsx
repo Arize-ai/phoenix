@@ -28,7 +28,7 @@ export function useTimeRange() {
       "useTimeRange must be used within a TimeRangeContextProvider"
     );
   }
-  return context as TimeRangeContextType;
+  return context;
 }
 
 export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
