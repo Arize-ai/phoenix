@@ -1677,7 +1677,7 @@ class TestProject:
         )
         response = await gql_client.execute(query, variables={"projectId": project_gid})
         assert not response.errors
-        edges = response.data["node"]["spans"]["edges"]
+        edges = response.data["node"]["spans"]["edges"]  # type: ignore
         # Expect span1 (non-null label) before span2 (null label)
         expected_order = [
             str(GlobalID(Span.__name__, str(span1.id))),

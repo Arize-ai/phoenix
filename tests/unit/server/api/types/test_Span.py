@@ -918,5 +918,5 @@ async def test_span_annotations_sort_handles_nulls(
     query_desc = query.replace("dir:asc", "dir:desc")
     response_desc = await gql_client.execute(query_desc, variables={"spanId": span_id})
     assert not response_desc.errors
-    annotations_desc = response_desc.data["span"]["spanAnnotations"]
+    annotations_desc = response_desc.data["span"]["spanAnnotations"]  # type: ignore
     assert len(annotations_desc) == 9
