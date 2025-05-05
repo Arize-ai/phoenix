@@ -305,9 +305,8 @@ export function AnnotationConfigList(props: {
                       onPress={() => {
                         navigate("/settings/annotations");
                       }}
-                    >
-                      <Icon svg={<Icons.PlusCircleOutline />} />
-                    </Button>
+                      leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+                    />
                   </TriggerWrap>
                   <Tooltip>Create new annotation config</Tooltip>
                 </TooltipTrigger>
