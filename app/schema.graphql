@@ -2154,7 +2154,7 @@ input SpanAnnotationFilter {
 input SpanAnnotationFilterCondition {
   names: [String!]
   sources: [AnnotationSource!]
-  userIds: [GlobalID!]
+  userIds: [GlobalID]
 }
 
 type SpanAnnotationMutationPayload {
