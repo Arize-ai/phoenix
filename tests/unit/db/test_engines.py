@@ -174,7 +174,7 @@ class TestSQLAlchemyConfig:
         [
             pytest.param(
                 {},
-                {"sslmode": "verify-ca"},
+                {},
                 id="default_ssl_mode",
             ),
             pytest.param(
@@ -189,7 +189,6 @@ class TestSQLAlchemyConfig:
                     "sslkey": "client.key",
                 },
                 {
-                    "sslmode": "verify-full",
                     "sslrootcert": "ca.crt",
                     "sslcert": "client.crt",
                     "sslkey": "client.key",
@@ -271,19 +270,22 @@ class TestSQLAlchemyConfig:
 
         # Verify connect args based on driver
         if driver == "psycopg":
-            expected = {
-                "sslmode": "verify-full"
-                if "full" in dsn_key
-                else "verify-ca"
-                if "ca_only" in dsn_key
-                else "require"
-                if "require" in dsn_key
-                else "prefer"
-                if "prefer" in dsn_key
-                else "allow"
-                if "allow" in dsn_key
-                else "disable"
-            }
+            expected = {}
+            # Only set sslmode if explicitly provided
+            if (
+                "full" in dsn_key
+                or "ca_only" in dsn_key
+                or "require" in dsn_key
+                or "prefer" in dsn_key
+                or "disable" in dsn_key
+                or "allow" in dsn_key
+            ):
+                expected["sslmode"] = (
+                    f"verify-{dsn_key.split('_')[1]}"
+                    if dsn_key.split("_")[1] in ["full", "ca"]
+                    else dsn_key.split("_")[1]
+                )
+            # Add certificates if provided
             if "full" in dsn_key or "ca_only" in dsn_key:
                 expected["sslrootcert"] = str(_tls_certs_server.cert.resolve())
             if "full" in dsn_key:
@@ -295,13 +297,25 @@ class TestSQLAlchemyConfig:
             ssl_context = connect_args["ssl"]
 
             # Verify SSL context configuration based on mode
-            if "full" in dsn_key or "ca_only" in dsn_key:
-                # For verify-full and verify-ca modes
+            if "full" in dsn_key:
+                # For verify-full mode
                 assert ssl_context.verify_mode == ssl.CERT_REQUIRED
-                assert ssl_context.check_hostname == ("full" in dsn_key)
+                assert ssl_context.check_hostname is True
                 # Verify that CA certs are loaded
                 assert ssl_context.get_ca_certs()
-            else:  # require, prefer, allow, disable
+            elif "ca_only" in dsn_key:
+                # For verify-ca mode
+                assert ssl_context.verify_mode == ssl.CERT_REQUIRED
+                assert ssl_context.check_hostname is False
+                # Verify that CA certs are loaded
+                assert ssl_context.get_ca_certs()
+            elif "require" in dsn_key:
+                # For require mode
+                assert ssl_context.verify_mode == ssl.CERT_NONE
+                assert ssl_context.check_hostname is False
+                # System CA certs are still loaded by default
+                assert ssl_context.get_ca_certs()
+            else:  # prefer, allow, disable
                 # For non-verify modes
                 assert ssl_context.verify_mode == ssl.CERT_NONE
                 assert ssl_context.check_hostname is False
@@ -344,15 +358,16 @@ class TestSQLAlchemyConfig:
 
         # Verify connect args based on driver
         if driver == "psycopg":
-            assert "sslmode" in connect_args
+            expected = {}
+            # Only set sslmode if explicitly provided
+            if "full" in dsn_key or "require" in dsn_key:
+                expected["sslmode"] = "verify-full" if "full" in dsn_key else "require"
+            # Add certificates if provided
             if "full" in dsn_key:
-                assert "sslrootcert" in connect_args
-                assert "sslcert" in connect_args
-                assert "sslkey" in connect_args
-            else:  # require mode
-                assert "sslrootcert" not in connect_args
-                assert "sslcert" not in connect_args
-                assert "sslkey" not in connect_args
+                expected["sslrootcert"] = str(_tls_certs_server.cert.resolve())
+                expected["sslcert"] = str(_tls_certs_client.cert.resolve())
+                expected["sslkey"] = str(_tls_certs_client.key[0].resolve())
+            assert connect_args == expected
         else:  # asyncpg
             assert isinstance(connect_args["ssl"], ssl.SSLContext)
             ssl_context = connect_args["ssl"]
@@ -385,7 +400,7 @@ class TestSQLAlchemyConfig:
         }
 
         # Test with both drivers
-        drivers: Literal["psycopg", "asyncpg"] = ["psycopg", "asyncpg"]
+        drivers: list[Literal["psycopg", "asyncpg"]] = ["psycopg", "asyncpg"]
         for driver in drivers:
             # Create DSN with non-SSL parameters
             query = "&".join(f"{k}={v}" for k, v in non_ssl_params.items())
@@ -401,10 +416,4 @@ class TestSQLAlchemyConfig:
                 assert key not in base_url.query
 
             # Verify connect args
-            if driver == "psycopg":
-                assert connect_args == {"sslmode": "verify-ca"}  # Default mode
-            else:  # asyncpg
-                assert isinstance(connect_args["ssl"], ssl.SSLContext)
-                ssl_context = connect_args["ssl"]
-                assert ssl_context.verify_mode == ssl.CERT_REQUIRED
-                assert ssl_context.check_hostname is False
+            assert connect_args == {}  # No SSL parameters should be set

@@ -436,9 +436,6 @@ def _get_ssl_context(raw_ssl_params: _RawSSLParams) -> ssl.SSLContext:
         - require/prefer modes provide encryption without verification
         - disable/allow modes should only be used in trusted networks
     """  # noqa: E501
-    # Get SSL mode from parameters
-    sslmode = raw_ssl_params.get("sslmode", "verify-ca")
-
     # Create SSL context
     ssl_context = ssl.create_default_context()
 
@@ -453,19 +450,20 @@ def _get_ssl_context(raw_ssl_params: _RawSSLParams) -> ssl.SSLContext:
     if certfile is not None and keyfile is not None:
         ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
 
-    # Set verification mode based on sslmode
-    if sslmode == "verify-full":
-        # Full verification: certificate and hostname
-        ssl_context.check_hostname = True
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
-    elif sslmode == "verify-ca":
-        # Certificate verification only
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_REQUIRED
-    else:  # require, prefer, allow, disable
-        # No verification, just encryption
-        ssl_context.check_hostname = False
-        ssl_context.verify_mode = ssl.CERT_NONE
+    # Set verification mode based on sslmode if provided
+    if sslmode := raw_ssl_params.get("sslmode"):
+        if sslmode == "verify-full":
+            # Full verification: certificate and hostname
+            ssl_context.check_hostname = True
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+        elif sslmode == "verify-ca":
+            # Certificate verification only
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+        else:  # require, prefer, allow, disable
+            # No verification, just encryption
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
 
     return ssl_context
 
@@ -483,7 +481,7 @@ def _get_sqlalchemy_config(
     1. Creates a new URL with the appropriate SQLAlchemy driver prefix
     2. Returns SSL configuration based on the driver:
        - For psycopg: Individual SSL parameters (sslmode, sslrootcert, etc.)
-       - For asyncpg: SSL context object
+       - For asyncpg: SSL context object (only if SSL parameters are provided)
     3. Handles driver-specific parameters:
        - For psycopg: Removes asyncpg-specific parameters
        - For asyncpg: Preserves all parameters
@@ -510,7 +508,7 @@ def _get_sqlalchemy_config(
         - Mixed format parameters are supported (e.g., psycopg format with asyncpg driver)
 
         Security Considerations:
-        - Default SSL mode is verify-ca for maximum security
+        - SSL is only enabled when parameters are explicitly provided
         - Certificate paths should be absolute or relative to working directory
         - System CA certificates are loaded by default for non-verify modes
     """  # noqa: E501
@@ -525,7 +523,10 @@ def _get_sqlalchemy_config(
         # Remove asyncpg-specific parameters for psycopg
         base_url = base_url.set(query=_remove_asyncpg_params(query))
     else:  # asyncpg
-        connect_args = {"ssl": _get_ssl_context(raw_ssl_params)}
+        # Only include SSL context if SSL parameters are provided
+        connect_args = {}
+        if any(raw_ssl_params.values()):
+            connect_args["ssl"] = _get_ssl_context(raw_ssl_params)
 
     return base_url, connect_args
 
@@ -562,7 +563,7 @@ def _get_psycopg_connect_args(raw_ssl_params: _RawSSLParams) -> _PsycopgConnectA
 
     Returns:
         Dictionary of connect_args for psycopg, including:
-        - sslmode: SSL mode from raw_ssl_params or determined based on available certificates
+        - sslmode: SSL mode from raw_ssl_params (if provided)
         - sslrootcert: Path to root CA certificate (if provided)
         - sslcert: Path to client certificate (if provided)
         - sslkey: Path to client private key (if provided)
@@ -570,11 +571,15 @@ def _get_psycopg_connect_args(raw_ssl_params: _RawSSLParams) -> _PsycopgConnectA
     Examples:
         >>> raw_ssl_params = {}
         >>> _get_psycopg_connect_args(raw_ssl_params)
-        {"sslmode": "verify-ca"}
+        {}
 
         >>> raw_ssl_params = {"sslrootcert": "ca.crt", "sslcert": "client.crt", "sslkey": "client.key"}
         >>> _get_psycopg_connect_args(raw_ssl_params)
-        {"sslmode": "verify-full", "sslrootcert": "ca.crt", "sslcert": "client.crt", "sslkey": "client.key"}
+        {"sslrootcert": "ca.crt", "sslcert": "client.crt", "sslkey": "client.key"}
+
+        >>> raw_ssl_params = {"sslrootcert": "ca.crt"}
+        >>> _get_psycopg_connect_args(raw_ssl_params)
+        {"sslrootcert": "ca.crt"}
 
         >>> raw_ssl_params = {"sslmode": "require", "sslrootcert": "ca.crt"}
         >>> _get_psycopg_connect_args(raw_ssl_params)
@@ -582,16 +587,13 @@ def _get_psycopg_connect_args(raw_ssl_params: _RawSSLParams) -> _PsycopgConnectA
     """  # noqa: E501
     result: _PsycopgConnectArgs = {}
 
-    # Set sslmode based on provided value or determine from certificates
+    # Only include SSL parameters if any are provided
+    if not any(raw_ssl_params.values()):
+        return result
+
+    # Set sslmode if provided
     if sslmode := raw_ssl_params.get("sslmode"):
         result["sslmode"] = sslmode
-    else:
-        result["sslmode"] = (
-            "verify-full"
-            if (raw_ssl_params.get("sslcert") or raw_ssl_params.get("ssl_cert_file")) is not None
-            or (raw_ssl_params.get("sslkey") or raw_ssl_params.get("ssl_key_file")) is not None
-            else "verify-ca"
-        )
 
     # Add root CA certificate if provided
     if ca_certs := (raw_ssl_params.get("sslrootcert") or raw_ssl_params.get("ssl_ca_certs_file")):
