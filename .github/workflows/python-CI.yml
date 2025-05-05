@@ -49,19 +49,18 @@ jobs:
               - "src/phoenix/proto/**"
               - "src/phoenix/trace/v1/**"
             phoenix:
-              - "src/**"
-              - "tests/**"
-              - "tutorials/**"
+              - "src/**/*.py"
+              - "tests/**/*.py"
               - "pyproject.toml"
               - "tox.ini"
             phoenix_client:
-              - "packages/phoenix-client/**"
+              - "packages/phoenix-client/**/*.py"
               - "tox.ini"
             phoenix_evals:
-              - "packages/phoenix-evals/**"
+              - "packages/phoenix-evals/**/*.py"
               - "tox.ini"
             phoenix_otel:
-              - "packages/phoenix-otel/**"
+              - "packages/phoenix-otel/**/*.py"
               - "tox.ini"
 
   phoenix-client:
