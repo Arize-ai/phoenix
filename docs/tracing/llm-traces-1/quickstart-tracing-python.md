@@ -31,7 +31,7 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 
 ### Using Self-hosted Phoenix:
 
-1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, s[ee self-hosting](../../).
+1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
 2. In your code, set your endpoint:
 
 ```python
