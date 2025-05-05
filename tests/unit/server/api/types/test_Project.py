@@ -14,6 +14,7 @@ from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.pagination import Cursor, CursorSortColumn, CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project
+from phoenix.server.api.types.Span import Span
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -714,7 +715,7 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                                 "prompt_template": {
                                     "template": "system: You are an expert Q&A system that is trusted around the world.\nAlways answer the query using the provided context information, and not prior knowledge.\nSome rules to follow:\n1. Never directly reference the given context in your answer.\n2. Avoid statements like 'Based on the context, ...' or 'The context information ...' or anything along those lines.\nuser: Context information is below.\n---------------------\n{context_str}\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: {query_str}\nAnswer: \nassistant: ",
                                     "variables": {
-                                        "context_str": "Ranking models are used by search engines to display query results ranked in the order of the highest relevance. These predictions seek to maximize user actions that are then used to evaluate model performance.&#x20;\n\nThe complexity within a ranking model makes failures challenging to pinpoint as a model\u2019s dimensions expand per recommendation. Notable challenges within ranking models include upstream data quality issues, poor-performing segments, the cold start problem, and more. &#x20;\n\n**Use the 'arize-demo-hotel-ranking' model, available in all free accounts, to follow along.**&#x20;",
+                                        "context_str": "Ranking models are used by search engines to display query results ranked in the order of the highest relevance. These predictions seek to maximize user actions that are then used to evaluate model performance.&#x20;\n\nThe complexity within a ranking model makes failures challenging to pinpoint as a model\u2019s dimensions expand per recommendation. Notable challenges within ranking models include upstream data quality issues, poor-performing segments, the cold start problem, and more. &#x20;\n\n**Use the 'arize-demo-hotel-ranking' model, available in all free accounts, to follow along.**&#x20;\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: {query_str}\nAnswer: \nassistant: ",
                                         "query_str": "How do I use the SDK to upload a ranking model?",
                                     },
                                 },
@@ -1569,3 +1570,117 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+    async def test_spans_sort_eval_label_with_nulls(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Project.spans should place NULL annotation labels last and not crash when paginating."""
+        # 1.  Seed minimal dataset
+        async with db() as session:
+            project = models.Project(name="null-label-project")
+            session.add(project)
+            await session.flush()
+
+            trace = models.Trace(
+                trace_id=token_hex(16),
+                project_rowid=project.id,
+                start_time=datetime.utcnow(),
+                end_time=datetime.utcnow(),
+            )
+            session.add(trace)
+            await session.flush()
+
+            # Two root spans
+            span1 = models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None,
+                name="root-span-1",
+                span_kind="CHAIN",
+                start_time=datetime.utcnow(),
+                end_time=datetime.utcnow(),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            span2 = models.Span(
+                trace_rowid=trace.id,
+                span_id=token_hex(8),
+                parent_id=None,
+                name="root-span-2",
+                span_kind="CHAIN",
+                start_time=datetime.utcnow(),
+                end_time=datetime.utcnow(),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add_all([span1, span2])
+            await session.flush()
+
+            # Annotation name common to both spans
+            ann_name = "NullLabelEval"
+            # span1 gets a non-null label
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span1.id,
+                    name=ann_name,
+                    label="alpha",
+                    score=1.0,
+                    explanation="",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                    identifier="test",
+                )
+            )
+            # span2 gets NULL label
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span2.id,
+                    name=ann_name,
+                    label=None,
+                    score=0.5,
+                    explanation="",
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="APP",
+                    identifier="test",
+                )
+            )
+
+        # 2.  Execute GraphQL query sorting by label asc
+        project_gid = str(GlobalID(Project.__name__, str(project.id)))
+        query = (
+            """
+            query($projectId: GlobalID!) {
+              node(id: $projectId) {
+                ... on Project {
+                  spans(first: 10, sort: {evalResultKey: {name: \"%s\", attr: label}, dir: asc}) {
+                    edges { node { id } }
+                  }
+                }
+              }
+            }
+            """
+            % ann_name
+        )
+        response = await gql_client.execute(query, variables={"projectId": project_gid})
+        assert not response.errors
+        edges = response.data["node"]["spans"]["edges"]
+        # Expect span1 (non-null label) before span2 (null label)
+        expected_order = [
+            str(GlobalID(Span.__name__, str(span1.id))),
+            str(GlobalID(Span.__name__, str(span2.id))),
+        ]
+        assert [e["node"]["id"] for e in edges] == expected_order

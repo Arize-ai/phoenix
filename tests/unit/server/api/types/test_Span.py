@@ -890,3 +890,33 @@ async def spans_with_annotations(
 
         # Add all annotations to the session
         session.add_all(hallucination_annotations + relevance_annotations)
+
+
+async def test_span_annotations_sort_handles_nulls(
+    gql_client: AsyncGraphQLClient, spans_with_annotations: None
+) -> None:
+    """Ensure spanAnnotations sorting places null values last regardless of direction."""
+    span_id = str(GlobalID(Span.__name__, str(1)))
+    query = """
+      query ($spanId: GlobalID!) {
+        span: node(id: $spanId) {
+          ... on Span {
+            spanAnnotations(sort:{col:name,dir:asc}) {
+              name
+            }
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query, variables={"spanId": span_id})
+    assert not response.errors
+    data = response.data
+    assert data is not None
+    annotations = data["span"]["spanAnnotations"]
+    assert len(annotations) == 9
+
+    query_desc = query.replace("dir:asc", "dir:desc")
+    response_desc = await gql_client.execute(query_desc, variables={"spanId": span_id})
+    assert not response_desc.errors
+    annotations_desc = response_desc.data["span"]["spanAnnotations"]
+    assert len(annotations_desc) == 9
