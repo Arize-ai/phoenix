@@ -684,6 +684,7 @@ class Span(Base):
         )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
+    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
     document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
 
@@ -829,6 +830,9 @@ class SpanAnnotation(Base):
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    span: Mapped["Span"] = relationship(back_populates="span_annotations")
+    user: Mapped[Optional["User"]] = relationship("User")
 
     __table_args__ = (
         UniqueConstraint(
