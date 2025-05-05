@@ -511,9 +511,19 @@ class Span(Node):
         if sort:
             sort_key = sort.col.value
             sort_descending = sort.dir is SortDir.desc
-        annotations.sort(
-            key=lambda annotation: getattr(annotation, sort_key), reverse=sort_descending
-        )
+
+        def _none_last_key(annotation: models.SpanAnnotation) -> Any:
+            value = getattr(annotation, sort_key)
+            # Return a tuple so that None values are always considered greater (i.e., sorted last)
+            return (value is None, value)
+
+        annotations.sort(key=_none_last_key)
+        if sort_descending:
+            # Reverse only the non-None portion to keep None values at the end
+            non_none_annotations = [a for a in annotations if getattr(a, sort_key) is not None]
+            none_annotations = [a for a in annotations if getattr(a, sort_key) is None]
+            non_none_annotations.reverse()
+            annotations = non_none_annotations + none_annotations
         return [to_gql_span_annotation(annotation) for annotation in annotations]
 
     @strawberry.field(description=("Notes associated with the span."))  # type: ignore
