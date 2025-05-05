@@ -123,7 +123,11 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
         for variable_name in variable_names:
             pattern = rf"(?<!\\){{{{\s*{re.escape(variable_name)}\s*}}}}"
             replacement = variables[variable_name]
-            template = re.sub(pattern, lambda _: replacement, template)
+            template = re.sub(
+                pattern=pattern,
+                repl=lambda _: replacement,
+                string=template,
+            )
         return template
 
 
