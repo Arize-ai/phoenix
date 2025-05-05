@@ -24,7 +24,7 @@ import {
   Icons,
   Loading,
   Popover,
-  useTimeRange,
+  useNullableTimeRangeContext,
   View,
 } from "@phoenix/components";
 import { Annotation, AnnotationConfig } from "@phoenix/components/annotation";
@@ -273,7 +273,10 @@ function SpanAnnotationsList(props: {
   );
   const annotationConfigs = data.project?.annotationConfigs?.configs;
   const annotationConfigsLength = annotationConfigs?.length ?? 0;
-  const { timeRange } = useTimeRange();
+  // time range is nullable in this context
+  // we only use it to refresh fragments after mutations so it is ok to not have a time range context
+  const timeRangeContext = useNullableTimeRangeContext();
+  const timeRange = timeRangeContext?.timeRange;
 
   const [commitDeleteAnnotation] =
     useMutation<SpanAnnotationsEditorDeleteAnnotationMutation>(graphql`
