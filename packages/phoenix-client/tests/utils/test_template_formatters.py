@@ -1,9 +1,12 @@
+from typing import Any
+
 import pytest
 
 from phoenix.client.utils.template_formatters import (
     FStringBaseTemplateFormatter,
     MustacheBaseTemplateFormatter,
     NoOpFormatterBase,
+    TemplateFormatter
 )
 
 @pytest.mark.parametrize(
@@ -12,8 +15,8 @@ from phoenix.client.utils.template_formatters import (
         pytest.param(
             MustacheBaseTemplateFormatter,
             "{{ user_id }}",
-            {"user_id": "2025\l6300"},
-            "2025\l6300",
+            {"user_id": r"2025\l6300"},
+            r"2025\l6300",
             id="mustache-escaped-sequence",
         ),
         pytest.param(
@@ -109,7 +112,12 @@ from phoenix.client.utils.template_formatters import (
         ),
     ]
 )
-def test_formatters_produce_expected_output(formatter_cls, template, variables, expected_output):
+def test_formatters_produce_expected_output(
+    formatter_cls: type[TemplateFormatter],
+    template: str,
+    variables: dict[str, Any],
+    expected_output: str,
+) -> None:
     formatter = formatter_cls()
     output = formatter.format(template, variables=variables)
     assert output == expected_output
