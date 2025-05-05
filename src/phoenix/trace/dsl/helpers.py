@@ -21,19 +21,18 @@ LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 INPUT = {"input": INPUT_VALUE}
 OUTPUT = {"output": OUTPUT_VALUE}
 IO = {**INPUT, **OUTPUT}
+LLM_IO = {
+    "question": LLM_INPUT_MESSAGES,
+    "response": LLM_OUTPUT_MESSAGES,
+    "tool_call": LLM_FUNCTION_CALL,
+}
+
 
 IS_ROOT = "parent_id is None"
 IS_LLM = "span_kind == 'LLM'"
 IS_RETRIEVER = "span_kind == 'RETRIEVER'"
 
 DEFAULT_TIMEOUT_IN_SECONDS = 5
-
-
-def make_attr(keys, values):
-    attr_dict = {}
-    for k, v in zip(keys, values):
-        attr_dict[k] = v
-    return attr_dict
 
 
 class CanQuerySpans(Protocol):
@@ -134,9 +133,7 @@ def get_qa_with_reference(
         lambda x: separator.join(x.dropna())
     )
     df_ref = pd.DataFrame({"reference": ref})
-    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index(
-        "context.span_id"
-    )
+    df_qa_ref = pd.concat([df_qa, df_ref], axis=1, join="inner").set_index("context.span_id")
     return df_qa_ref
 
 
@@ -157,14 +154,11 @@ def get_called_tools(
             DeprecationWarning,
         )
         end_time = end_time or stop_time
-    select_attr = make_attr(
-        ["question", "response", "tool_call"],
-        [LLM_INPUT_MESSAGES, LLM_OUTPUT_MESSAGES, LLM_FUNCTION_CALL],
-    )
+
     return cast(
         pd.DataFrame,
         obj.query_spans(
-            SpanQuery().where(IS_LLM).select("trace_id", **select_attr),
+            SpanQuery().where(IS_LLM).select("trace_id", **LLM_IO),
             start_time=start_time,
             end_time=end_time,
             project_name=project_name,
