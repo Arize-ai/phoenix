@@ -26,8 +26,8 @@
 -- Main insert with optimized sampling and data generation
 INSERT INTO public.span_annotations (
     span_rowid,
---     identifier,
---     source,
+    identifier,
+    source,
     name,
     label,
     score,
@@ -59,8 +59,8 @@ span_repeats AS (
 )
 SELECT
     s.id,
---     CASE WHEN s.annotation_num = 1 THEN '' ELSE gen_random_uuid()::text END,
---     CASE WHEN random() < 0.5 THEN 'APP' ELSE 'API' END,
+    CASE WHEN s.annotation_num = 1 THEN '' ELSE gen_random_uuid()::text END,
+    CASE WHEN random() < 0.5 THEN 'APP' ELSE 'API' END,
     a.names_array[1 + floor(random() * array_length(a.names_array, 1))::int],
     CASE
         WHEN s.label_missing THEN NULL
@@ -102,4 +102,4 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
     END
 FROM span_repeats s
 CROSS JOIN annotation_names a
-ON CONFLICT (name, span_rowid) DO NOTHING;
+ON CONFLICT (name, span_rowid, identifier) DO NOTHING;
