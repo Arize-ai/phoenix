@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: phoenix
+          image: {{ .Values.image.repository | default "arizephoenix/phoenix" }}:{{ .Values.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: {{ .Values.server.port | default 6006 }}
+            - containerPort: 9090
+            - containerPort: {{ .Values.server.grpcPort | default 4317 }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-configmap
+          env:
+            # Auth secrets
+            - name: PHOENIX_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.secret.secretKeyRef.name | quote }}
+                  key: {{ .Values.auth.secret.secretKeyRef.key | quote }}
+            - name: PHOENIX_ADMIN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.adminSecret.secretKeyRef.name | quote }}
+                  key: {{ .Values.auth.adminSecret.secretKeyRef.key | quote }}
+            # Database password
+            - name: PHOENIX_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.postgres.passwordSecretName | default "phoenix-db-password" | quote }}
+                  key: {{ .Values.database.postgres.passwordSecretKey | default "password" | quote }}
+            # SMTP password
+            - name: PHOENIX_SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.smtp.passwordSecretName | default "phoenix-smtp-password" | quote }}
+                  key: {{ .Values.smtp.passwordSecretKey | default "password" | quote }}
