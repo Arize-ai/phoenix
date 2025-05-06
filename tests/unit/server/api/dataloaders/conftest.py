@@ -429,7 +429,7 @@ async def data_with_null_labels(db: DbSessionFactory) -> None:
                     insert(models.SpanAnnotation).values(
                         name="unlabeled",
                         span_rowid=span_id_val,
-                        label=None,  # Explicit NULL label
+                        label=None,  # NULL label
                         score=score,
                         metadata_={},
                         annotator_kind="LLM",
