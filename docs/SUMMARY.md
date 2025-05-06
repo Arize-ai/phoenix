@@ -95,8 +95,8 @@
 
 ## 🗄️ Datasets & Experiments
 
-* [Overview: Datasets](datasets-and-experiments/overview-datasets.md)
-* [Quickstart: Datasets](datasets-and-experiments/quickstart-datasets.md)
+* [Overview: Datasets & Experiments](datasets-and-experiments/overview-datasets.md)
+* [Quickstart: Datasets & Experiments](datasets-and-experiments/quickstart-datasets.md)
 * [How-to: Datasets](datasets-and-experiments/how-to-datasets/README.md)
   * [Creating Datasets](datasets-and-experiments/how-to-datasets/creating-datasets.md)
   * [Exporting Datasets](datasets-and-experiments/how-to-datasets/exporting-datasets.md)

@@ -10,11 +10,9 @@ Phoenix supports three main options to collect traces:
 
 This example uses options 1 and 2.
 
-<details>
+## Launch the Phoenix app
 
-<summary>Launch the Phoenix app</summary>
-
-### Using Phoenix Cloud:
+### Using Phoenix Cloud
 
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 2. Grab your API key from the Keys option on the left bar.
@@ -29,7 +27,7 @@ os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
 
-### Using Self-hosted Phoenix:
+### Using Self-hosted Phoenix
 
 1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, [see self-hosting](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/0gWR4qoGzdz04iSgPlsU/).
 2. In your code, set your endpoint:
@@ -39,8 +37,6 @@ import os
 
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
 ```
-
-</details>
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 
