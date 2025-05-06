@@ -50,7 +50,7 @@ export const ContinuousAnnotationInput = forwardRef<
           <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
           <Input />
           <Text slot="description">
-            {annotationConfig.lowerBound} - {annotationConfig.upperBound}
+            from {annotationConfig.lowerBound} to {annotationConfig.upperBound}
           </Text>
         </NumberField>
       </Flex>
