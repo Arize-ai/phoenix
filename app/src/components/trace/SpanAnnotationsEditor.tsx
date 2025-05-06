@@ -22,6 +22,7 @@ import {
   Flex,
   Icon,
   Icons,
+  Link,
   Loading,
   Popover,
   useNullableTimeRangeContext,
@@ -512,10 +513,18 @@ function SpanAnnotationsList(props: {
       padding="size-200"
     >
       {!annotationConfigsLength && !extraAnnotationCards && (
-        <Empty
-          graphicKey="documents"
-          message="No annotation configurations for this project"
-        />
+        <Flex
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          height="100%"
+        >
+          <Empty
+            graphicKey="documents"
+            message="No annotation configurations for this project"
+          />
+          <Link to="/settings/annotations">Configure Annotation Configs</Link>
+        </Flex>
       )}
       {!!annotationConfigsLength && (
         <FocusScope>
