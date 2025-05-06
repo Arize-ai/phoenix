@@ -66,7 +66,10 @@ export const AnnotationConfigDialog = ({
   const { control, handleSubmit, watch } = useForm<AnnotationConfig>({
     defaultValues: initialAnnotationConfig || {
       annotationType: "CATEGORICAL",
-      values: [{ label: "", score: null }],
+      values: [
+        { label: "", score: null },
+        { label: "", score: null },
+      ],
       optimizationDirection: "MAXIMIZE",
     },
   });
