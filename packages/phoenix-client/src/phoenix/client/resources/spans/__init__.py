@@ -202,7 +202,7 @@ class Spans:
                     break  # finished paginating this batch
 
         df = pd.DataFrame(annotations)
-        df.set_index("span_id", inplace=True)
+        df.set_index("span_id", inplace=True)  # type: ignore
         return df
 
     def get_span_annotations(
@@ -444,7 +444,7 @@ class AsyncSpans:
                     break
 
         df = pd.DataFrame(annotations)
-        df.set_index("span_id", inplace=True)
+        df.set_index("span_id", inplace=True)  # type: ignore
         return df
 
     async def get_span_annotations(
