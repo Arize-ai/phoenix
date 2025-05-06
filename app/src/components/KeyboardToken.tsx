@@ -8,7 +8,13 @@ const keyboardTokenCSS = css`
   color: var(--ac-global-color-primary-700);
   padding: var(--ac-global-dimension-static-size-50)
     var(--ac-global-dimension-static-size-100);
+  font-size: var(--ac-global-dimension-static-font-size-50);
   border-radius: var(--ac-global-dimension-static-size-100);
+  border: 1px solid var(--ac-global-color-primary-700);
+  box-shadow: 0 2px 0 0 var(--ac-global-color-primary-200);
+  // Offset the shadow to make it look like it's on the key
+  margin-top: -1px;
+  text-transform: uppercase;
 `;
 
 /**
