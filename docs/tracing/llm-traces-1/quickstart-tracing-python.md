@@ -10,7 +10,7 @@ Phoenix supports three main options to collect traces:
 
 This example uses options 1 and 2.
 
-## Launch the Phoenix app
+## Launch Phoenix
 
 ### Using Phoenix Cloud
 

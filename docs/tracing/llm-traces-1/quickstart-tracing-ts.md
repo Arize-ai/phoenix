@@ -9,9 +9,7 @@ Phoenix supports three main options to collect traces:
 
 This example uses options 2 and 3.
 
-<details>
-
-<summary>Launch the Phoenix app</summary>
+## Launch Phoenix
 
 ### Using Phoenix Cloud:
 
@@ -19,14 +17,13 @@ This example uses options 2 and 3.
 2. Grab your API key from the Keys option on the left bar.
 3. In your code, configure environment variables for your endpoint and API key:
 
-```sh
-# .env, or shell environment
-
+<pre class="language-sh"><code class="lang-sh"><strong># .env, or shell environment
+</strong>
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY="ADD YOUR API KEY"
 # And Collector Endpoint for Phoenix Cloud
 PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
-```
+</code></pre>
 
 ### Using Self-hosted Phoenix:
 
@@ -41,8 +38,6 @@ PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 # (optional) If authentication enabled, add Phoenix API Key for tracing
 PHOENIX_API_KEY="ADD YOUR API KEY"
 ```
-
-</details>
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
 

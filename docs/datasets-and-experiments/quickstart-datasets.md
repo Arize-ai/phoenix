@@ -8,7 +8,7 @@ Phoenix helps you run experiments over your AI and LLM applications to evaluate 
 Background + demo on datasets
 {% endembed %}
 
-## Launch the Phoenix app
+## Launch Phoenix
 
 ### Using Phoenix Cloud
 
