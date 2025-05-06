@@ -119,7 +119,7 @@ pip install openinference-instrumentation-google-genai google-genai
 
 ## Setup
 
-Set the `GEMINI_API_KEY` environment variable.&#x20;
+Set the `GEMINI_API_KEY` environment variable. To use the Gen AI SDK with Vertex AI instead of the Developer API, refer to Google's [guide](https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview) on setting the required environment variables.
 
 ```python
 export GEMINI_API_KEY=[your_key_here]
