@@ -198,7 +198,7 @@ async def test_null_label_handling(
 
     # Should not be None and should have no label fractions.
     assert result is not None
-    assert result.label_fractions() == []  # type: ignore[call-arg, attr-defined]
+    assert result.label_fractions() == []  # type: ignore
 
     # Each span has 2 scores. Compute expected overall average.
     # Span averages: (0.5+0.9)/2 = 0.7, (0.6+0.8)/2 = 0.7, (0.4+1.0)/2 = 0.7.
