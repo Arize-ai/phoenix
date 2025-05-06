@@ -164,3 +164,43 @@ async def test_missing_label_aggregation(
     # Span 3: .8
     # Overall average = ((0.8 + 0.8 + 0.6) / 3 + 0.8 + 0.8) / 3 ≈ 0.777
     assert result.mean_score() == pytest.approx(0.777, rel=1e-2)  # type: ignore[call-arg]
+
+
+async def test_null_label_handling(
+    db: DbSessionFactory,
+    data_with_null_labels: None,
+) -> None:
+    """Ensure that the loader does not raise when all labels are NULL.
+
+    The expected behavior is:
+    * label_fractions() returns an empty list.
+    * mean_score() computes the per-entity average score correctly.
+    """
+    start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    end_time = datetime.fromisoformat("2021-01-01T01:00:00.000+00:00")
+
+    async with db() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == "null_labels")
+        )
+        assert isinstance(project_id, int)
+
+    loader = AnnotationSummaryDataLoader(db)
+    result = await loader.load(
+        (
+            "span",
+            project_id,
+            TimeRange(start=start_time, end=end_time),
+            None,
+            "unlabeled",
+        )
+    )
+
+    # Should not be None and should have no label fractions.
+    assert result is not None
+    assert result.label_fractions() == []  # type: ignore
+
+    # Each span has 2 scores. Compute expected overall average.
+    # Span averages: (0.5+0.9)/2 = 0.7, (0.6+0.8)/2 = 0.7, (0.4+1.0)/2 = 0.7.
+    expected_avg = 0.7
+    assert result.mean_score() == pytest.approx(expected_avg, rel=1e-4)  # type: ignore[call-arg]
