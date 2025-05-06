@@ -79,6 +79,9 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     () =>
       spanAnnotations.reduce(
         (acc, annotation) => {
+          if (annotation.label == null && annotation.score == null) {
+            return acc;
+          }
           if (!acc[annotation.name]) {
             acc[annotation.name] = [annotation];
           } else {
@@ -147,7 +150,7 @@ export const AnnotationSummaryGroupTokens = ({
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
       {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name][0];
+        const latestAnnotation = annotationsByName[summary.name]?.[0];
         const meanScore = summary?.meanScore;
         if (!latestAnnotation) {
           return null;
@@ -199,12 +202,10 @@ export const AnnotationSummaryGroupStacks = ({
   if (sortedSummariesByName.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
-  // TODO: how do we want to render annotations that don't have a score?
-  // We can display a count per name, display nothing, display all labels of the annotation on hover, etc
   return (
     <Flex direction="row" gap="size-400">
       {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name][0];
+        const latestAnnotation = annotationsByName[summary.name]?.[0];
         if (!latestAnnotation) {
           return null;
         }
