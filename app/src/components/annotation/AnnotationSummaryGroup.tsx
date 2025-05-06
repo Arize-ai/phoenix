@@ -167,7 +167,7 @@ export const AnnotationSummaryGroupTokens = ({
               clickable
               showClickableIcon={false}
             >
-              {meanScore ? (
+              {meanScore != null ? (
                 <SummaryValuePreview
                   name={latestAnnotation.name}
                   meanScore={meanScore}
