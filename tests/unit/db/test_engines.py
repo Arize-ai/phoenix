@@ -1,8 +1,4 @@
-from phoenix.db.engines import (
-    get_async_db_url,
-)
-
-# Base URL for all PostgreSQL connections
+from phoenix.db.engines import get_async_db_url
 
 
 def test_get_async_sqlite_db_url() -> None:

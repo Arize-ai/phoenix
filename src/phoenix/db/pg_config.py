@@ -99,20 +99,28 @@ def _get_ssl_args(
 
     if sslmode := get_str("sslmode"):
         result["sslmode"] = sslmode
+
     if ca_cert := get_str("sslrootcert"):
         result["sslrootcert"] = ca_cert
+
     if cert := get_str("sslcert"):
         result["sslcert"] = cert
+
     if key := get_str("sslkey"):
         result["sslkey"] = key
+
     if password := get_str("sslpassword"):
         result["sslpassword"] = password
+
     if crl := get_str("sslcrl"):
         result["sslcrl"] = crl
+
     if crl_dir := get_str("sslcrldir"):
         result["sslcrldir"] = crl_dir
+
     if sslsni := get_str("sslsni"):
         result["sslsni"] = sslsni
+
     return result
 
 
