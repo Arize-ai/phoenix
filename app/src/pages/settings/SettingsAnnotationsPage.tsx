@@ -38,6 +38,9 @@ const SettingsAnnotations = ({
       $input: DeleteAnnotationConfigsInput!
     ) {
       deleteAnnotationConfigs(input: $input) {
+        query {
+          ...AnnotationConfigTableFragment
+        }
         annotationConfigs {
           __typename
         }
@@ -50,6 +53,9 @@ const SettingsAnnotations = ({
       $input: CreateAnnotationConfigInput!
     ) {
       createAnnotationConfig(input: $input) {
+        query {
+          ...AnnotationConfigTableFragment
+        }
         annotationConfig {
           ... on ContinuousAnnotationConfig {
             id
@@ -93,6 +99,9 @@ const SettingsAnnotations = ({
       $input: UpdateAnnotationConfigInput!
     ) {
       updateAnnotationConfig(input: $input) {
+        query {
+          ...AnnotationConfigTableFragment
+        }
         annotationConfig {
           ... on ContinuousAnnotationConfig {
             id

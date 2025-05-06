@@ -30,7 +30,7 @@ export function useViewer() {
  */
 export function useViewerCanManageRetentionPolicy() {
   const { viewer } = useViewer();
-  if (viewer && viewer.role.name !== "ADMIN") {
+  if (viewer && viewer?.role?.name !== "ADMIN") {
     return false;
   }
   return true;

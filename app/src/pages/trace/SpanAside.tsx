@@ -191,7 +191,7 @@ function SpanAsideAnnotationList(props: {
   const hasAnnotations = annotations.length > 0;
   return (
     <TitledPanel
-      title="Annotations"
+      title="My annotations"
       disabled={!hasAnnotations}
       panelProps={{
         order: 1,
