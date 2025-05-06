@@ -48,7 +48,13 @@ export const ContinuousAnnotationInput = forwardRef<
           }}
         >
           <AnnotationInputLabel>{annotationConfig.name}</AnnotationInputLabel>
-          <Input />
+          <Input
+            placeholder={
+              annotationConfig?.optimizationDirection === "MAXIMIZE"
+                ? `e.g. ${annotationConfig.upperBound}`
+                : `e.g. ${annotationConfig.lowerBound}`
+            }
+          />
           <Text slot="description">
             from {annotationConfig.lowerBound} to {annotationConfig.upperBound}
           </Text>
