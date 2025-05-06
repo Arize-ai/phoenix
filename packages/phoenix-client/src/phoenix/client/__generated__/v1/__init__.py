@@ -308,12 +308,24 @@ class ContinuousAnnotationConfigData(TypedDict):
     upper_bound: NotRequired[float]
 
 
+class CreateAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
 class CreateProjectResponseBody(TypedDict):
     data: Project
+
+
+class DeleteAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
 class GetAnnotationConfigsResponseBody(TypedDict):
@@ -421,6 +433,10 @@ class ToolCallContentPart(TypedDict):
     type: Literal["tool_call"]
     tool_call_id: str
     tool_call: ToolCallFunction
+
+
+class UpdateAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
 class AnnotateSpansRequestBody(TypedDict):
