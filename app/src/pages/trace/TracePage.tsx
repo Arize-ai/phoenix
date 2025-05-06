@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
+import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
@@ -34,7 +35,16 @@ export function TracePage() {
     >
       <Dialog
         size="fullscreen"
-        title="Trace Details"
+        title={
+          <Flex gap="size-100" alignItems="center">
+            <span>Trace Details</span>
+            <ShareLinkButton
+              preserveSearchParams
+              tooltipText="Copy trace link to clipboard"
+              successText="Trace link copied to clipboard"
+            />
+          </Flex>
+        }
         extra={<TraceDetailsPaginator currentId={paginationSubjectId} />}
       >
         <Suspense fallback={<Loading />}>
