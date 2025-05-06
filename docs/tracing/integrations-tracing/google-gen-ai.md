@@ -1,10 +1,8 @@
 ---
-description: Instrument LLM calls made using VertexAI's SDK via the VertexAIInstrumentor
+description: Instrument LLM calls made using the Google Gen AI Python SDK
 ---
 
-# VertexAI
-
-The VertexAI SDK can be instrumented using the [`openinference-instrumentation-vertexai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-vertexai) package.
+# Google Gen AI
 
 ## Launch Phoenix
 
@@ -58,7 +56,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-See [Terminal](../../environments.md#terminal) for more details
+See [Terminal](../../environments.md#terminal) for more details.
 {% endtab %}
 
 {% tab title="Docker" %}
@@ -107,7 +105,7 @@ import phoenix as px
 px.launch_app()
 ```
 
-{% hint style="info" %}
+{% hint style="warning" %}
 By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](https://docs.arize.com/phoenix/self-hosting) or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
@@ -115,15 +113,19 @@ By default, notebook instances do not have persistent storage, so your traces wi
 
 ## Install
 
-```shell
-pip install openinference-instrumentation-vertexai vertexai
+```bash
+pip install openinference-instrumentation-google-genai google-genai
 ```
 
 ## Setup
 
-See Google's [guide](https://cloud.google.com/vertex-ai/generative-ai/docs/start/quickstarts/quickstart-multimodal#expandable-1) on setting up your environment for the Google Cloud AI Platform. You can also store your Project ID in the `CLOUD_ML_PROJECT_ID` environment variable.
+Set the `GEMINI_API_KEY` environment variable.&#x20;
 
-Use the register function to connect your application to Phoenix:
+```python
+export GEMINI_API_KEY=[your_key_here]
+```
+
+Use the register function to connect your application to Phoenix.
 
 ```python
 from phoenix.otel import register
@@ -135,24 +137,23 @@ tracer_provider = register(
 )
 ```
 
-## Run VertexAI
-
-```python
-import vertexai
-from vertexai.generative_models import GenerativeModel
-
-vertexai.init(location="us-central1")
-model = GenerativeModel("gemini-1.5-flash")
-
-print(model.generate_content("Why is sky blue?").text)
-```
-
 ## Observe
 
-Now that you have tracing setup, all invocations of Vertex models will be streamed to Phoenix for observability and evaluation.
+Now that you have tracing setup, all Gen AI SDK requests will be streamed to Phoenix for observability and evaluation.
 
-## Resources
+```python
+import os
+from google import genai
 
-* [Example notebook](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-vertexai/examples/basic_generation.py)
-* [OpenInference package](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-vertexai)
-* [Working examples](https://github.com/Arize-ai/openinference/blob/main/python/instrumentation/openinference-instrumentation-vertexai/examples)
+def send_message_multi_turn() -> tuple[str, str]:
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    chat = client.chats.create(model="gemini-2.0-flash-001")
+    response1 = chat.send_message("What is the capital of France?")
+    response2 = chat.send_message("Why is the sky blue?")
+
+    return response1.text or "", response2.text or ""
+```
+
+{% hint style="info" %}
+This instrumentation will support tool calling soon. Refer to [this page](https://pypi.org/project/openinference-instrumentation-google-genai/#description) for the status.&#x20;
+{% endhint %}

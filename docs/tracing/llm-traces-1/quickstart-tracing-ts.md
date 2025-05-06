@@ -11,7 +11,7 @@ This example uses options 2 and 3.
 
 ## Launch Phoenix
 
-### Using Phoenix Cloud:
+### Using Phoenix Cloud
 
 1. Sign up for an Arize Phoenix account at [https://app.phoenix.arize.com/login](https://app.phoenix.arize.com/login)
 2. Grab your API key from the Keys option on the left bar.
@@ -25,7 +25,7 @@ PHOENIX_API_KEY="ADD YOUR API KEY"
 PHOENIX_COLLECTOR_ENDPOINT="https://app.phoenix.arize.com"
 </code></pre>
 
-### Using Self-hosted Phoenix:
+### Using Self-hosted Phoenix
 
 1. Run Phoenix using Docker, local terminal, Kubernetes etc. For more information, see [self-hosting](https://docs.arize.com/phoenix/self-hosting).
 2. In your code, configure environment variables for your endpoint and API key:

@@ -42,6 +42,7 @@
   * [LangFlow](tracing/integrations-tracing/langflow.md)
   * [BeeAI](tracing/integrations-tracing/beeai.md)
   * [Flowise](tracing/integrations-tracing/flowise.md)
+  * [Google Gen AI](tracing/integrations-tracing/google-gen-ai.md)
   * [Prompt flow](tracing/integrations-tracing/prompt-flow.md)
   * [AutoGen](tracing/integrations-tracing/autogen-support.md)
   * [Guardrails AI](tracing/integrations-tracing/guardrails-ai.md)
