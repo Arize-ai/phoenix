@@ -39,6 +39,7 @@ import {
   AnnotationFormMutationResult,
   AnnotationFormProvider,
 } from "@phoenix/components/trace/AnnotationFormProvider";
+import { useNotifyError } from "@phoenix/contexts";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { deduplicateAnnotationsByName } from "@phoenix/pages/trace/utils";
 import { Mutable } from "@phoenix/typeUtils";
@@ -178,6 +179,7 @@ function SpanAnnotationsList(props: {
 }) {
   const { spanId, projectId, extraAnnotationCards } = props;
   const { viewer } = useViewer();
+  const notifyError = useNotifyError();
 
   const data = useLazyLoadQuery<SpanAnnotationsEditorSpanAnnotationsListQuery>(
     graphql`
@@ -335,6 +337,10 @@ function SpanAnnotationsList(props: {
                 success: false,
                 error: error.message,
               });
+              notifyError({
+                title: "Error deleting annotation",
+                message: error.message,
+              });
             },
           });
         } else {
@@ -343,7 +349,14 @@ function SpanAnnotationsList(props: {
           });
         }
       }),
-    [commitDeleteAnnotation, spanNodeId, viewer?.id, timeRange, projectId]
+    [
+      commitDeleteAnnotation,
+      spanNodeId,
+      viewer?.id,
+      timeRange,
+      projectId,
+      notifyError,
+    ]
   );
 
   const [commitEdit] = useMutation<SpanAnnotationsEditorEditAnnotationMutation>(
@@ -425,13 +438,17 @@ function SpanAnnotationsList(props: {
                   success: false,
                   error: error.message,
                 });
+                notifyError({
+                  title: "Error editing annotation",
+                  message: error.message,
+                });
               },
             });
           });
         }
       });
     },
-    [commitEdit, spanNodeId, viewer?.id, timeRange, projectId]
+    [commitEdit, spanNodeId, viewer?.id, timeRange, projectId, notifyError]
   );
 
   const [commitCreateAnnotation] =
@@ -498,10 +515,21 @@ function SpanAnnotationsList(props: {
               success: false,
               error: error.message,
             });
+            notifyError({
+              title: "Error creating annotation",
+              message: error.message,
+            });
           },
         });
       }),
-    [commitCreateAnnotation, spanNodeId, viewer?.id, timeRange, projectId]
+    [
+      commitCreateAnnotation,
+      spanNodeId,
+      viewer?.id,
+      timeRange,
+      projectId,
+      notifyError,
+    ]
   );
 
   return (
