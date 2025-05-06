@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.31.0...arize-phoenix-v8.32.0) (2025-05-06)
+
+
+### Features
+
+* Adding demo_agent project with traces ([#7391](https://github.com/Arize-ai/phoenix/issues/7391)) ([6f4731a](https://github.com/Arize-ai/phoenix/commit/6f4731ab20394f88aaf596f043898cc543141bbb))
+* **onboarding:** datasets empty ([#7380](https://github.com/Arize-ai/phoenix/issues/7380)) ([9d34909](https://github.com/Arize-ai/phoenix/commit/9d3490961dad279afee13af29e99235c01ffb8ce))
+* Simple support for message_contents span content in playground ([#7402](https://github.com/Arize-ai/phoenix/issues/7402)) ([0cf871e](https://github.com/Arize-ai/phoenix/commit/0cf871ea44a90d6eb9ac6e82728867364a13bf0a))
+
+
+### Bug Fixes
+
+* handle ssl query params in postgresql connection strings ([#7428](https://github.com/Arize-ai/phoenix/issues/7428)) ([0437677](https://github.com/Arize-ai/phoenix/commit/04376772703f0891d7ce2e1d449eacaa126d295b))
+* metadata filters for nested fields ([#7408](https://github.com/Arize-ai/phoenix/issues/7408)) ([b582f95](https://github.com/Arize-ai/phoenix/commit/b582f95b7d44612edc511839134287602d2cf3cb))
+* normalize gemini roles ([#7404](https://github.com/Arize-ai/phoenix/issues/7404)) ([b566d40](https://github.com/Arize-ai/phoenix/commit/b566d401ea0dc6de15621f1acf82a1d3f8b7c62f))
+
 ## [8.31.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.30.0...arize-phoenix-v8.31.0) (2025-05-01)
 
 
