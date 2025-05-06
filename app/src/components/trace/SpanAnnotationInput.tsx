@@ -127,25 +127,15 @@ export function SpanAnnotationInput(props: SpanAnnotationInputProps) {
             render={({ field: { value: _value, ...field } }) => (
               <FreeformAnnotationInput
                 annotationConfig={annotationConfig}
-                containerRef={containerRef ?? undefined}
                 annotation={annotation}
                 {...field}
-                onSubmitExplanation={(explanation) => {
-                  if (annotation?.id) {
-                    field.onChange({
-                      ...annotation,
-                      name: annotationConfig.name,
-                      explanation,
-                    });
-                  }
-                }}
-                value={_value?.label ?? ""}
+                value={_value?.explanation ?? ""}
                 onChange={(value) => {
                   field.onChange({
                     ...annotation,
                     id: annotation?.id,
                     name: annotationConfig.name,
-                    label: value,
+                    explanation: value,
                   });
                 }}
               />
