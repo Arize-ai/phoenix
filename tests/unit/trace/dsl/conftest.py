@@ -12,9 +12,7 @@ from phoenix.server.types import DbSessionFactory
 async def default_project(db: DbSessionFactory) -> None:
     async with db() as session:
         project_row_id = await session.scalar(
-            insert(models.Project)
-            .values(name=DEFAULT_PROJECT_NAME)
-            .returning(models.Project.id)
+            insert(models.Project).values(name=DEFAULT_PROJECT_NAME).returning(models.Project.id)
         )
         trace_rowid = await session.scalar(
             insert(models.Trace)
@@ -237,12 +235,8 @@ async def default_project(db: DbSessionFactory) -> None:
                 end_time=datetime.fromisoformat("2021-01-01T00:00:35.000+00:00"),
                 attributes={
                     "llm": {
-                        "input_messages": {
-                            "message": {"role": "user", "content": "abc"}
-                        },
-                        "output_messages": {
-                            "message": {"role": "assistant", "content": "xyz"}
-                        },
+                        "input_messages": {"message": {"role": "user", "content": "abc"}},
+                        "output_messages": {"message": {"role": "assistant", "content": "xyz"}},
                     }
                 },
                 events=[],

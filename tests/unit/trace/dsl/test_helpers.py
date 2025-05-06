@@ -6,9 +6,9 @@ from pandas.testing import assert_frame_equal
 
 from phoenix import Client
 from phoenix.trace.dsl.helpers import (
+    get_called_tools,
     get_qa_with_reference,
     get_retrieved_documents,
-    get_called_tools,
 )
 
 
@@ -48,9 +48,7 @@ async def test_get_qa_with_reference(
         }
     ).set_index("context.span_id")
     assert (actual := get_qa_with_reference(legacy_px_client)) is not None
-    actual["reference"] = actual["reference"].map(
-        lambda s: "\n\n".join(sorted(s.split("\n\n")))
-    )
+    actual["reference"] = actual["reference"].map(lambda s: "\n\n".join(sorted(s.split("\n\n"))))
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
