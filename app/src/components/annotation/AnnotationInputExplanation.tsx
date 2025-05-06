@@ -39,9 +39,10 @@ export const AnnotationInputExplanation = ({
         className="annotation-input-explanation"
         css={css`
           position: absolute;
-          top: 0;
+          top: 6px;
           right: 4px;
           width: ${EXPLANATION_LABEL_WIDTH};
+          font-size: var(--ac-global-dimension-static-font-size-75);
           background: none;
           border: none;
           padding: 0 !important;
