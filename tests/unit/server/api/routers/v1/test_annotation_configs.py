@@ -92,7 +92,7 @@ async def test_crud_operations(
         json=create_config,
     )
     assert create_response.status_code == HTTP_200_OK
-    created_config = create_response.json()
+    created_config = create_response.json()["data"]
     config_id = created_config["id"]
 
     expected_config = create_config
@@ -109,12 +109,12 @@ async def test_crud_operations(
     # Get config by ID
     get_response = await httpx_client.get(f"/v1/annotation_configs/{config_id}")
     assert get_response.status_code == HTTP_200_OK
-    assert get_response.json() == created_config
+    assert get_response.json()["data"] == created_config
 
     # Get config by name
     get_by_name_response = await httpx_client.get("/v1/annotation_configs/config-name")
     assert get_by_name_response.status_code == HTTP_200_OK
-    assert get_by_name_response.json() == created_config
+    assert get_by_name_response.json()["data"] == created_config
 
     # Update the annotation config
     update_response = await httpx_client.put(
@@ -122,7 +122,7 @@ async def test_crud_operations(
         json=update_config,
     )
     assert update_response.status_code == HTTP_200_OK
-    updated_config = update_response.json()
+    updated_config = update_response.json()["data"]
     expected_updated_config = update_config
     expected_updated_config["id"] = config_id
     assert updated_config == expected_updated_config
@@ -130,7 +130,7 @@ async def test_crud_operations(
     # Delete the annotation config
     delete_response = await httpx_client.delete(f"/v1/annotation_configs/{config_id}")
     assert delete_response.status_code == HTTP_200_OK
-    assert delete_response.json() == expected_updated_config
+    assert delete_response.json()["data"] == expected_updated_config
 
     # Verify the config is deleted by listing
     list_response = await httpx_client.get("/v1/annotation_configs")
@@ -233,7 +233,7 @@ async def test_cannot_update_annotation_config_name_to_reserved_name_for_notes(
     # First create a config
     response = await httpx_client.post("/v1/annotation_configs", json=annotation_config)
     assert response.status_code == HTTP_200_OK
-    config_id = response.json()["id"]
+    config_id = response.json()["data"]["id"]
 
     # Try to update the name to "note"
     update_config = deepcopy(annotation_config)
@@ -348,7 +348,7 @@ async def test_updated_annotation_config_name_cannot_collide_with_existing_confi
     httpx_client: AsyncClient,
     config: dict[str, Any],
 ) -> None:
-    # Create first config
+    # First create first config
     first_config = {
         "name": "collide-config-name",
         "type": AnnotationType.FREEFORM.value,
@@ -360,7 +360,7 @@ async def test_updated_annotation_config_name_cannot_collide_with_existing_confi
     # Create second config
     response = await httpx_client.post("/v1/annotation_configs", json=config)
     assert response.status_code == HTTP_200_OK
-    config_id = response.json()["id"]
+    config_id = response.json()["data"]["id"]
 
     # Try to update second config name to collide with first
     update_config = config.copy()
@@ -384,7 +384,7 @@ async def test_update_continuous_annotation_config_with_invalid_bounds_returns_e
     }
     response = await httpx_client.post("/v1/annotation_configs", json=config)
     assert response.status_code == HTTP_200_OK
-    config_id = response.json()["id"]
+    config_id = response.json()["data"]["id"]
 
     # Try to update with invalid bounds
     update_config = config.copy()
