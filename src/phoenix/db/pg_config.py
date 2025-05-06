@@ -90,45 +90,29 @@ def _get_ssl_args(
     """
     result: _SSLArgs = {}
 
-    def get_value(key: str) -> str | None:
+    def get_str(key: str) -> str | None:
         if value := query_params.get(key):
             if not isinstance(value, str):
                 raise ValueError(f"Invalid value type for {key}: {type(value)}")
             return value
         return None
 
-    # Handle sslmode
-    if sslmode := get_value("sslmode"):
+    if sslmode := get_str("sslmode"):
         result["sslmode"] = sslmode
-
-    # Handle root CA certificate
-    if ca_cert := get_value("sslrootcert"):
+    if ca_cert := get_str("sslrootcert"):
         result["sslrootcert"] = ca_cert
-
-    # Handle client certificate
-    if cert := get_value("sslcert"):
+    if cert := get_str("sslcert"):
         result["sslcert"] = cert
-
-    # Handle client private key
-    if key := get_value("sslkey"):
+    if key := get_str("sslkey"):
         result["sslkey"] = key
-
-    # Handle password for private key
-    if password := get_value("sslpassword"):
+    if password := get_str("sslpassword"):
         result["sslpassword"] = password
-
-    # Handle CRL
-    if crl := get_value("sslcrl"):
+    if crl := get_str("sslcrl"):
         result["sslcrl"] = crl
-
-    # Handle CRL directory
-    if crl_dir := get_value("sslcrldir"):
+    if crl_dir := get_str("sslcrldir"):
         result["sslcrldir"] = crl_dir
-
-    # Handle sslsni
-    if sslsni := get_value("sslsni"):
+    if sslsni := get_str("sslsni"):
         result["sslsni"] = sslsni
-
     return result
 
 
