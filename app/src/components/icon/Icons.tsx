@@ -126,6 +126,33 @@ export const ArrowIosDownwardOutline = () => (
   </svg>
 );
 
+export const ArrowUpwardOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="arrow-upward">
+        <rect
+          width="24"
+          height="24"
+          transform="rotate(180 12 12)"
+          opacity="0"
+        />
+        <path d="M5.23 10.64a1 1 0 0 0 1.41.13L11 7.14V19a1 1 0 0 0 2 0V7.14l4.36 3.63a1 1 0 1 0 1.28-1.54l-6-5-.15-.09-.13-.07a1 1 0 0 0-.72 0l-.13.07-.15.09-6 5a1 1 0 0 0-.13 1.41z" />
+      </g>
+    </g>
+  </svg>
+);
+
+export const ArrowDownwardOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="arrow-downward">
+        <rect width="24" height="24" opacity="0" />
+        <path d="M18.77 13.36a1 1 0 0 0-1.41-.13L13 16.86V5a1 1 0 0 0-2 0v11.86l-4.36-3.63a1 1 0 1 0-1.28 1.54l6 5 .15.09.13.07a1 1 0 0 0 .72 0l.13-.07.15-.09 6-5a1 1 0 0 0 .13-1.41z" />
+      </g>
+    </g>
+  </svg>
+);
+
 export const ArrowDownWithStem = () => (
   <svg
     width="20"

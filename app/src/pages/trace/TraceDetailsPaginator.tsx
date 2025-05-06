@@ -1,15 +1,15 @@
 import React from "react";
-import { type Selection, Tooltip, TooltipTrigger } from "react-aria-components";
+import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Flex,
+  Group,
   Icon,
   Icons,
   KeyboardToken,
-  ToggleButton,
-  ToggleButtonGroup,
   View,
 } from "@phoenix/components";
 import {
@@ -51,16 +51,6 @@ export const TraceDetailsPaginator = ({
   const hasPrevious = !!previousTraceId;
   const hasNext = !!nextTraceId;
 
-  const handleSelectionChange = (selection: Selection) => {
-    if (selection === "all") return;
-    const selectedKey = Array.from(selection)[0];
-    if (selectedKey === "next") {
-      next(currentId);
-    } else if (selectedKey === "previous") {
-      previous(currentId);
-    }
-  };
-
   return (
     <Flex
       gap="size-50"
@@ -72,19 +62,14 @@ export const TraceDetailsPaginator = ({
         }
       `}
     >
-      <ToggleButtonGroup
-        aria-label="Trace Paginator"
-        size="S"
-        selectionMode="single"
-        selectedKeys={[]}
-        onSelectionChange={handleSelectionChange}
-      >
+      <Group aria-label="Trace Paginator" size="S">
         <TooltipTrigger delay={100}>
-          <ToggleButton
+          <Button
             id="next"
-            leadingVisual={<Icon svg={<Icons.ArrowIosDownwardOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
             aria-label="Next trace"
             isDisabled={!hasNext}
+            onPress={() => next(currentId)}
           />
           <Tooltip>
             <View
@@ -102,11 +87,12 @@ export const TraceDetailsPaginator = ({
           </Tooltip>
         </TooltipTrigger>
         <TooltipTrigger delay={100}>
-          <ToggleButton
+          <Button
             id="previous"
-            leadingVisual={<Icon svg={<Icons.ArrowIosUpwardOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
             aria-label="Previous trace"
             isDisabled={!hasPrevious}
+            onPress={() => previous(currentId)}
           />
           <Tooltip>
             <View
@@ -123,7 +109,7 @@ export const TraceDetailsPaginator = ({
             </View>
           </Tooltip>
         </TooltipTrigger>
-      </ToggleButtonGroup>
+      </Group>
     </Flex>
   );
 };
