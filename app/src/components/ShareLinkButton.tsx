@@ -20,8 +20,7 @@ export const ShareLinkButton = ({
     <TooltipTrigger delay={200}>
       <Button
         size="S"
-        variant="quiet"
-        leadingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Share />} />}
         onPress={() => {
           const url = new URL(location.pathname, window.location.origin);
           if (preserveSearchParams) {
