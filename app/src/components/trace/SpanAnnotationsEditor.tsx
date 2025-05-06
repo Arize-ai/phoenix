@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { FocusScope } from "react-aria";
+import { FocusManagerOptions, FocusScope } from "react-aria";
 import {
   graphql,
   useFragment,
@@ -171,6 +171,13 @@ function NewAnnotationCard(props: NewAnnotationCardProps) {
     </Card>
   );
 }
+
+/**
+ * Exclude the explanation button from being focused via the focus manager
+ */
+const excludeExplanationButton: FocusManagerOptions["accept"] = (node) => {
+  return !node.matches("button.annotation-input-explanation");
+};
 
 function SpanAnnotationsList(props: {
   spanId: string;
@@ -556,7 +563,10 @@ function SpanAnnotationsList(props: {
       )}
       {!!annotationConfigsLength && (
         <FocusScope>
-          <FocusHotkey hotkey={EDIT_ANNOTATION_HOTKEY} />
+          <FocusHotkey
+            hotkey={EDIT_ANNOTATION_HOTKEY}
+            accept={excludeExplanationButton}
+          />
           {annotationConfigs?.map((annotationConfig, idx) => {
             const annotation = annotations.find(
               (annotation) => annotation.name === annotationConfig.config.name
