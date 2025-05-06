@@ -102,26 +102,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/CategoricalAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ContinuousAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
-                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
-                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  },
-                  "title": "Response Create Annotation Config V1 Annotation Configs Post"
+                  "$ref": "#/components/schemas/CreateAnnotationConfigResponseBody"
                 }
               }
             }
@@ -175,26 +156,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/CategoricalAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ContinuousAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
-                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
-                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  },
-                  "title": "Response Get Annotation Config By Name Or Id V1 Annotation Configs  Config Identifier  Get"
+                  "$ref": "#/components/schemas/GetAnnotationConfigResponseBody"
                 }
               }
             }
@@ -258,26 +220,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/CategoricalAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ContinuousAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
-                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
-                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  },
-                  "title": "Response Update Annotation Config V1 Annotation Configs  Config Id  Put"
+                  "$ref": "#/components/schemas/UpdateAnnotationConfigResponseBody"
                 }
               }
             }
@@ -329,26 +272,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/CategoricalAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ContinuousAnnotationConfig"
-                    },
-                    {
-                      "$ref": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
-                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
-                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
-                    }
-                  },
-                  "title": "Response Delete Annotation Config V1 Annotation Configs  Config Id  Delete"
+                  "$ref": "#/components/schemas/DeleteAnnotationConfigResponseBody"
                 }
               }
             }
@@ -2998,6 +2922,37 @@
           }
         }
       },
+      "CreateAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateAnnotationConfigResponseBody"
+      },
       "CreateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -3312,6 +3267,37 @@
         ],
         "title": "DatasetWithExampleCount"
       },
+      "DeleteAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "DeleteAnnotationConfigResponseBody"
+      },
       "Experiment": {
         "properties": {
           "id": {
@@ -3442,6 +3428,37 @@
           "type"
         ],
         "title": "FreeformAnnotationConfigData"
+      },
+      "GetAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetAnnotationConfigResponseBody"
       },
       "GetAnnotationConfigsResponseBody": {
         "properties": {
@@ -5188,6 +5205,37 @@
           "tool_result"
         ],
         "title": "ToolResultContentPart"
+      },
+      "UpdateAnnotationConfigResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateAnnotationConfigResponseBody"
       },
       "UpdateProjectRequestBody": {
         "properties": {

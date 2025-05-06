@@ -34,7 +34,7 @@ from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
-from phoenix.server.api.routers.v1.utils import PaginatedResponseBody
+from phoenix.server.api.routers.v1.utils import PaginatedResponseBody, ResponseBody
 from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigType,
 )
@@ -168,6 +168,22 @@ class GetAnnotationConfigsResponseBody(PaginatedResponseBody[AnnotationConfig]):
     pass
 
 
+class GetAnnotationConfigResponseBody(ResponseBody[AnnotationConfig]):
+    pass
+
+
+class CreateAnnotationConfigResponseBody(ResponseBody[AnnotationConfig]):
+    pass
+
+
+class UpdateAnnotationConfigResponseBody(ResponseBody[AnnotationConfig]):
+    pass
+
+
+class DeleteAnnotationConfigResponseBody(ResponseBody[AnnotationConfig]):
+    pass
+
+
 @router.get(
     "/annotation_configs",
     summary="List annotation configurations",
@@ -233,7 +249,7 @@ async def list_annotation_configs(
 async def get_annotation_config_by_name_or_id(
     request: Request,
     config_identifier: str = Path(..., description="ID or name of the annotation configuration"),
-) -> AnnotationConfig:
+) -> GetAnnotationConfigResponseBody:
     async with request.app.state.db() as session:
         query = select(models.AnnotationConfig)
         # Try to interpret the identifier as an integer ID; if not, use it as a name.
@@ -247,7 +263,7 @@ async def get_annotation_config_by_name_or_id(
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
             )
-        return db_to_api_annotation_config(config)
+        return GetAnnotationConfigResponseBody(data=db_to_api_annotation_config(config))
 
 
 @router.post(
@@ -257,7 +273,7 @@ async def get_annotation_config_by_name_or_id(
 async def create_annotation_config(
     request: Request,
     data: CreateAnnotationConfigData,
-) -> AnnotationConfig:
+) -> CreateAnnotationConfigResponseBody:
     input_config = data.root
     _reserve_note_annotation_name(input_config)
 
@@ -279,7 +295,9 @@ async def create_annotation_config(
                 status_code=HTTP_409_CONFLICT,
                 detail="The name of the annotation configuration is already taken",
             )
-        return db_to_api_annotation_config(annotation_config)
+        return CreateAnnotationConfigResponseBody(
+            data=db_to_api_annotation_config(annotation_config)
+        )
 
 
 @router.put(
@@ -290,7 +308,7 @@ async def update_annotation_config(
     request: Request,
     data: CreateAnnotationConfigData,
     config_id: str = Path(..., description="ID of the annotation configuration"),
-) -> AnnotationConfig:
+) -> UpdateAnnotationConfigResponseBody:
     input_config = data.root
     _reserve_note_annotation_name(input_config)
 
@@ -328,7 +346,7 @@ async def update_annotation_config(
                 detail="The name of the annotation configuration is already taken",
             )
 
-        return db_to_api_annotation_config(existing_config)
+        return UpdateAnnotationConfigResponseBody(data=db_to_api_annotation_config(existing_config))
 
 
 @router.delete(
@@ -338,7 +356,7 @@ async def update_annotation_config(
 async def delete_annotation_config(
     request: Request,
     config_id: str = Path(..., description="ID of the annotation configuration"),
-) -> AnnotationConfig:
+) -> DeleteAnnotationConfigResponseBody:
     config_gid = GlobalID.from_id(config_id)
     if config_gid.type_name not in (
         CategoricalAnnotationConfigType.__name__,
@@ -361,7 +379,7 @@ async def delete_annotation_config(
                 status_code=HTTP_404_NOT_FOUND, detail="Annotation configuration not found"
             )
         await session.commit()
-    return db_to_api_annotation_config(annotation_config)
+    return DeleteAnnotationConfigResponseBody(data=db_to_api_annotation_config(annotation_config))
 
 
 def _get_annotation_config_db_id(config_gid: str) -> int:
