@@ -8,7 +8,7 @@ from typing import Annotated, Any, Literal, Optional
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import AfterValidator, Field
-from sqlalchemy import insert, select
+from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
@@ -17,6 +17,8 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
@@ -274,59 +276,18 @@ async def annotate_spans(
                 status_code=HTTP_404_NOT_FOUND,
             )
         inserted_ids = []
+        dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
-            span_rowid = existing_spans[p.span_id]
-            annotation_model = p.obj
-            name = annotation_model.name
-            identifier = annotation_model.identifier or ""
-
-            # Check if an annotation with this span_rowid, name, and identifier already exists
-            q = (
-                select(models.SpanAnnotation)
-                .where(
-                    models.SpanAnnotation.span_rowid == span_rowid,
-                    models.SpanAnnotation.name == name,
-                )
-                .where(models.SpanAnnotation.identifier == identifier)
+            values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
+            span_annotation_id = await session.scalar(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.SpanAnnotation,
+                    unique_by=("name", "span_rowid", "identifier"),
+                ).returning(models.SpanAnnotation.id)
             )
-
-            existing_annotation = await session.scalar(q)
-
-            if existing_annotation:
-                # Update existing annotation
-                existing_annotation.label = annotation_model.label
-                existing_annotation.score = annotation_model.score
-                existing_annotation.explanation = annotation_model.explanation
-                existing_annotation.metadata_ = annotation_model.metadata_
-                existing_annotation.annotator_kind = annotation_model.annotator_kind
-                existing_annotation.source = annotation_model.source
-                existing_annotation.user_id = annotation_model.user_id
-                session.add(existing_annotation)
-                inserted_ids.append(existing_annotation.id)
-            else:
-                annotation_to_insert = p.as_insertable(span_rowid).row
-
-                insert_values = {
-                    "span_rowid": annotation_to_insert.span_rowid,
-                    "name": annotation_to_insert.name,
-                    "label": annotation_to_insert.label,
-                    "score": annotation_to_insert.score,
-                    "explanation": annotation_to_insert.explanation,
-                    "metadata_": annotation_to_insert.metadata_,
-                    "annotator_kind": annotation_to_insert.annotator_kind,
-                    "source": annotation_to_insert.source,
-                    "user_id": annotation_to_insert.user_id,
-                    "identifier": annotation_to_insert.identifier,
-                }
-
-                # Insert new annotation
-                stmt = insert(models.SpanAnnotation).values(**insert_values)
-                stmt = stmt.returning(models.SpanAnnotation.id)
-                result = await session.execute(stmt)
-                inserted_ids.append(result.scalar_one())
-
-        await session.commit()
-
+            inserted_ids.append(span_annotation_id)
     request.state.event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
     return AnnotateSpansResponseBody(
         data=[
