@@ -221,10 +221,14 @@ def _get_stmt(
             base_subquery.c.label_count,
             base_subquery.c.score_count,
             base_subquery.c.score_sum,
-            # Calculate label fraction
-            (base_subquery.c.label_count * 1.0 / entity_totals.c.total_label_count).label(
-                "label_fraction"
-            ),
+            # Calculate label fraction, avoiding division by zero when total_label_count is 0
+            case(
+                (
+                    entity_totals.c.total_label_count > 0,
+                    base_subquery.c.label_count * 1.0 / entity_totals.c.total_label_count,
+                ),
+                else_=None,
+            ).label("label_fraction"),
             # Calculate average score for the entity (if there are any scores)
             case(
                 (
@@ -287,10 +291,15 @@ def _get_stmt(
         select(
             label_entity_metrics.c.name,
             label_entity_metrics.c.label,
-            (
-                label_entity_metrics.c.avg_label_fraction_present
-                * label_entity_metrics.c.entities_with_label
-                / entity_count_subquery.c.entity_count
+            # Adjust label fraction, guarding against division by zero in entity_count
+            case(
+                (
+                    entity_count_subquery.c.entity_count > 0,
+                    label_entity_metrics.c.avg_label_fraction_present
+                    * label_entity_metrics.c.entities_with_label
+                    / entity_count_subquery.c.entity_count,
+                ),
+                else_=None,
             ).label("avg_label_fraction"),
             overall_score_aggregates.c.overall_avg_score.label("avg_score"),  # same for all labels
             label_entity_metrics.c.total_label_count.label("label_count"),
