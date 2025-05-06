@@ -589,6 +589,11 @@ export interface components {
         };
         /** CreateAnnotationConfigData */
         CreateAnnotationConfigData: components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"];
+        /** CreateAnnotationConfigResponseBody */
+        CreateAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
         /**
          * CreateExperimentRequestBody
          * @description Details of the experiment to be created
@@ -733,6 +738,11 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
+        /** DeleteAnnotationConfigResponseBody */
+        DeleteAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
         /** Experiment */
         Experiment: {
             /**
@@ -805,6 +815,11 @@ export interface components {
             type: "FREEFORM";
             /** Description */
             description?: string | null;
+        };
+        /** GetAnnotationConfigResponseBody */
+        GetAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
         /** GetAnnotationConfigsResponseBody */
         GetAnnotationConfigsResponseBody: {
@@ -1409,6 +1424,11 @@ export interface components {
                 [key: string]: unknown;
             } | unknown[] | null;
         };
+        /** UpdateAnnotationConfigResponseBody */
+        UpdateAnnotationConfigResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
         /** UpdateProjectRequestBody */
         UpdateProjectRequestBody: {
             /** Description */
@@ -1507,7 +1527,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+                    "application/json": components["schemas"]["CreateAnnotationConfigResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -1548,7 +1568,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+                    "application/json": components["schemas"]["GetAnnotationConfigResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -1593,7 +1613,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+                    "application/json": components["schemas"]["UpdateAnnotationConfigResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -1634,7 +1654,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+                    "application/json": components["schemas"]["DeleteAnnotationConfigResponseBody"];
                 };
             };
             /** @description Forbidden */
