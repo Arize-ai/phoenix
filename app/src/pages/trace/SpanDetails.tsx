@@ -356,7 +356,7 @@ export function SpanDetails({
             <TabList>
               <Tab id="info">Info</Tab>
               <Tab id="feedback">
-                Feedback <Counter>{span.spanAnnotations.length}</Counter>
+                Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
