@@ -232,6 +232,17 @@ async def test_filter_translated(
             "span_annotation_0_label_00000000000000000000000000000000 is not None",
             id="double-quoted-annotation-name",
         ),
+        # Existence checks (bare annotation reference)
+        pytest.param(
+            """evals['Hallucination']""",
+            "span_annotation_0_exists_00000000000000000000000000000000",
+            id="bare-evals-exists",
+        ),
+        pytest.param(
+            """annotations['Hallucination']""",
+            "span_annotation_0_exists_00000000000000000000000000000000",
+            id="bare-annotations-exists",
+        ),
     ],
 )
 def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
