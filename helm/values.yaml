@@ -90,3 +90,8 @@ logging:
 instrumentation:
   otlpTraceCollectorHttpEndpoint: "" # PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT
   otlpTraceCollectorGrpcEndpoint: "" # PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT
+
+image:
+  repository: arizephoenix/phoenix
+  tag: latest
+  pullPolicy: IfNotPresent
