@@ -1,5 +1,5 @@
 from asyncio import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from random import getrandbits
 from typing import Any, Set, cast
 
@@ -141,51 +141,138 @@ async def project_with_a_single_trace_and_span(
         )
 
 
+@pytest.fixture
+async def span_search_test_data(db: DbSessionFactory) -> None:
+    """Insert three spans with different times and annotations for filter tests."""
+
+    async with db() as session:
+        project = models.Project(name="search-test")
+        session.add(project)
+        await session.flush()
+
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="abcd1234",
+            start_time=datetime.fromisoformat("2021-01-01T00:00:00+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:01:00+00:00"),
+        )
+        session.add(trace)
+        await session.flush()
+
+        # 3 spans 1 minute apart
+        spans: list[models.Span] = []
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        for i in range(3):
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span{i}",
+                parent_id=None,
+                name=f"span-{i}",
+                span_kind="CHAIN",
+                start_time=base_time + timedelta(minutes=i),
+                end_time=base_time + timedelta(minutes=i, seconds=30),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            spans.append(span)
+        await session.flush()
+
+        # Add annotations to first two spans
+        for span in spans[:2]:
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="TestA",
+                    annotator_kind="HUMAN",
+                    label="L",
+                    score=1.0,
+                    explanation="",
+                    metadata_={},
+                    identifier="",  # noqa
+                    source="API",
+                    user_id=None,
+                )
+            )
+
+
+# ---------------------------------------------------------------------------
+# Tests for each filter feature
+# ---------------------------------------------------------------------------
+
+
 @pytest.mark.asyncio
-async def test_span_search_matches_legacy_spans_endpoint(
-    httpx_client: httpx.AsyncClient,
-    span_data_with_documents: Any,
+async def test_span_search_basic(httpx_client: httpx.AsyncClient, span_search_test_data: None):
+    resp = await httpx_client.get("v1/projects/search-test/span_search")
+    assert resp.is_success
+    data = resp.json()
+    assert len(data["data"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_span_search_annotation_filter(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
 ):
-    """Ensure the new span_search endpoint returns the same span IDs as the legacy
-    /spans endpoint (JSON-encoded DataFrame) for the same query.
-    """
+    resp = await httpx_client.get(
+        "v1/projects/search-test/span_search",
+        params={"annotationNames": ["TestA"]},
+    )
+    assert resp.is_success
+    data = resp.json()
+    assert len(data["data"]) == 2
 
-    project_identifier = "default"
-    body = {"queries": [{}]}
 
-    url_new = f"v1/projects/{project_identifier}/span_search"
-    resp_new = await httpx_client.post(url_new, json=body)
-    assert resp_new.is_success, f"{url_new} failed: {resp_new.text}"
+@pytest.mark.asyncio
+async def test_span_search_time_slice(httpx_client: httpx.AsyncClient, span_search_test_data: None):
+    start = "2021-01-01T00:01:00+00:00"
+    end = "2021-01-01T00:03:00+00:00"
+    resp = await httpx_client.get(
+        "v1/projects/search-test/span_search",
+        params={"start_time": start, "end_time": end},
+    )
+    assert resp.is_success
+    data = resp.json()
+    # spans 1 and 2 fall in range
+    assert len(data["data"]) == 2
 
-    payload_new = resp_new.json()
-    assert payload_new.get("data"), "No data in span_search response"
-    spans_new = payload_new["data"][0]
-    span_ids_new: Set[str] = {span["span_id"] for span in spans_new}
-    assert span_ids_new, "span_search returned no spans"
 
-    headers_old = {"accept": "application/json"}
-    url_old = f"v1/spans?project_name={project_identifier}"
-    resp_old = await httpx_client.post(url_old, json=body, headers=headers_old)
-    assert resp_old.is_success, f"{url_old} failed: {resp_old.text}"
+@pytest.mark.asyncio
+async def test_span_search_sort_direction(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+):
+    resp_desc = await httpx_client.get(
+        "v1/projects/search-test/span_search", params={"sort_direction": "desc"}
+    )
+    resp_asc = await httpx_client.get(
+        "v1/projects/search-test/span_search", params={"sort_direction": "asc"}
+    )
+    assert resp_desc.is_success and resp_asc.is_success
+    ids_desc = [s["span_id"] for s in resp_desc.json()["data"]]
+    ids_asc = [s["span_id"] for s in resp_asc.json()["data"]]
+    assert ids_desc == list(reversed(ids_asc))
 
-    ctype = resp_old.headers.get("content-type", "")
-    assert "boundary=" in ctype, "Legacy /spans response missing boundary"
-    boundary = ctype.split("boundary=")[1]
 
-    span_ids_old: Set[str] = set()
-    for part in resp_old.text.split(f"--{boundary}"):
-        part = part.strip().lstrip("\r\n").rstrip("\r\n")
-        if not part or part == "--":
-            continue
-        if "\r\n\r\n" not in part:
-            continue
-        _, json_payload = part.split("\r\n\r\n", 1)
-        json_payload = json_payload.strip()
-        if not json_payload:
-            continue
-        df = decode_df_from_json_string(json_payload)
-        col = "context.span_id" if "context.span_id" in df.columns else "span_id"
-        span_ids_old.update(df[col].astype(str).tolist())
+@pytest.mark.asyncio
+async def test_span_search_pagination(httpx_client: httpx.AsyncClient, span_search_test_data: None):
+    resp1 = await httpx_client.get(
+        "v1/projects/search-test/span_search",
+        params={"limit": 2, "sort_direction": "asc"},
+    )
+    assert resp1.is_success
+    body1 = resp1.json()
+    assert len(body1["data"]) == 2 and body1["next_cursor"]
 
-    assert span_ids_old, "Legacy /spans returned no spans"
-    assert span_ids_new == span_ids_old, "Mismatch between span_search and legacy spans endpoint"
+    cursor = body1["next_cursor"]
+    # Second page
+    resp2 = await httpx_client.get(
+        "v1/projects/search-test/span_search",
+        params={"cursor": cursor, "sort_direction": "asc"},
+    )
+    assert resp2.is_success
+    body2 = resp2.json()
+    assert len(body2["data"]) == 1 and body2["next_cursor"] is None

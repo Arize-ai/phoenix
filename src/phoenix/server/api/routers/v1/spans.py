@@ -28,9 +28,9 @@ from phoenix.utilities.json import encode_df_as_json_string
 
 from .models import V1RoutesBaseModel
 from .utils import (
+    PaginatedResponseBody,
     RequestBody,
     ResponseBody,
-    PaginatedResponseBody,
     _get_project_by_identifier,
     add_errors_to_responses,
 )
@@ -211,13 +211,17 @@ async def span_search(
     cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     sort_direction: Literal["asc", "desc"] = Query(
-        default="desc", description="Sort direction for the sort field",
+        default="desc",
+        description="Sort direction for the sort field",
     ),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
     annotation_names: Optional[list[str]] = Query(
         default=None,
-        description="If provided, only include spans that have at least one annotation with one of these names.",
+        description=(
+            "If provided, only include spans that have at least one annotation with one "
+            "of these names."
+        ),
         alias="annotationNames",
     ),
 ) -> SpanSearchResponseBody:
@@ -272,9 +276,9 @@ async def span_search(
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
-        *rows, extra = rows
-        span_extra, _ = extra
-        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+        *rows, extra = rows  # remove extra for response
+        span_last, _ = rows[-1]
+        next_cursor = str(GlobalID("Span", str(span_last.id)))
 
     # Convert rows to Span Pydantic model
     result_spans: list[Span] = []
