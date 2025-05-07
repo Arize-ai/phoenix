@@ -166,118 +166,123 @@ BEGIN
 
     -- Generate random metadata
     v_metadata := CASE
-        WHEN random() < 0.7 THEN
-            -- Small spans (70%): Just conversation_id
-            jsonb_build_object(
-                'conversation_id', p_conversation_id
-            )
-        ELSE
-            -- Large spans (30%): Rich metadata
-            jsonb_build_object(
-                'conversation_id', p_conversation_id,
-                'environment', CASE floor(random() * 3)::INTEGER
-                    WHEN 0 THEN 'production'
-                    WHEN 1 THEN 'staging'
-                    ELSE 'development'
-                END,
-                'service', CASE floor(random() * 5)::INTEGER
-                    WHEN 0 THEN 'api-gateway'
-                    WHEN 1 THEN 'auth-service'
-                    WHEN 2 THEN 'user-service'
-                    WHEN 3 THEN 'payment-service'
-                    ELSE 'notification-service'
-                END,
-                'location', jsonb_build_object(
-                    'region', CASE floor(random() * 3)::INTEGER
-                        WHEN 0 THEN 'us-east-1'
-                        WHEN 1 THEN 'us-west-2'
-                        ELSE 'eu-west-1'
-                    END,
-                    'zone', CASE floor(random() * 3)::INTEGER
-                        WHEN 0 THEN 'a'
-                        WHEN 1 THEN 'b'
-                        ELSE 'c'
-                    END
-                ),
-                'metrics', jsonb_build_array(
-                    floor(random() * 1000)::INTEGER,
-                    floor(random() * 1000)::INTEGER,
-                    floor(random() * 1000)::INTEGER
-                ),
-                'flags', jsonb_build_array(
-                    CASE WHEN random() < 0.5 THEN 'active' ELSE 'inactive' END,
-                    CASE WHEN random() < 0.5 THEN 'enabled' ELSE 'disabled' END
-                ),
-                'request', jsonb_build_object(
-                    'method', CASE floor(random() * 4)::INTEGER
-                        WHEN 0 THEN 'GET'
-                        WHEN 1 THEN 'POST'
-                        WHEN 2 THEN 'PUT'
-                        ELSE 'DELETE'
-                    END,
-                    'path', '/api/v' || floor(random() * 3 + 1)::TEXT || '/users',
-                    'headers', jsonb_build_object(
-                        'content-type', 'application/json',
-                        'authorization', 'Bearer ' || encode(gen_random_bytes(32), 'hex')
-                    )
-                ),
-                'matrix', jsonb_build_array(
-                    jsonb_build_array(1, 2, 3),
-                    jsonb_build_array(4, 5, 6),
-                    jsonb_build_array(7, 8, 9)
-                ),
-                'paths', jsonb_build_array(
-                    jsonb_build_array('a', 'b', jsonb_build_array('c', 'd')),
-                    jsonb_build_array(1, 2, jsonb_build_array(3, 4)),
-                    jsonb_build_array('x', 'y', jsonb_build_array('z', 'w'))
-                )
-            )
-    END;
+                      WHEN random() < 0.7 THEN
+                          -- Small spans (70%): Just conversation_id
+                          jsonb_build_object(
+                                  'conversation_id', p_conversation_id
+                          )
+                      ELSE
+                          -- Large spans (30%): Rich metadata
+                          jsonb_build_object(
+                                  'conversation_id', p_conversation_id,
+                                  'environment', CASE floor(random() * 3)::INTEGER
+                                                     WHEN 0 THEN 'production'
+                                                     WHEN 1 THEN 'staging'
+                                                     ELSE 'development'
+                                      END,
+                                  'service', CASE floor(random() * 5)::INTEGER
+                                                 WHEN 0 THEN 'api-gateway'
+                                                 WHEN 1 THEN 'auth-service'
+                                                 WHEN 2 THEN 'user-service'
+                                                 WHEN 3 THEN 'payment-service'
+                                                 ELSE 'notification-service'
+                                      END,
+                                  'location', jsonb_build_object(
+                                          'region', CASE floor(random() * 3)::INTEGER
+                                                        WHEN 0 THEN 'us-east-1'
+                                                        WHEN 1 THEN 'us-west-2'
+                                                        ELSE 'eu-west-1'
+                                      END,
+                                          'zone', CASE floor(random() * 3)::INTEGER
+                                                      WHEN 0 THEN 'a'
+                                                      WHEN 1 THEN 'b'
+                                                      ELSE 'c'
+                                              END
+                                              ),
+                                  'metrics', jsonb_build_array(
+                                          floor(random() * 1000)::INTEGER,
+                                          floor(random() * 1000)::INTEGER,
+                                          floor(random() * 1000)::INTEGER
+                                             ),
+                                  'flags', jsonb_build_array(
+                                          CASE
+                                              WHEN random() < 0.5 THEN 'active'
+                                              ELSE 'inactive' END,
+                                          CASE
+                                              WHEN random() < 0.5 THEN 'enabled'
+                                              ELSE 'disabled' END
+                                           ),
+                                  'request', jsonb_build_object(
+                                          'method', CASE floor(random() * 4)::INTEGER
+                                                        WHEN 0 THEN 'GET'
+                                                        WHEN 1 THEN 'POST'
+                                                        WHEN 2 THEN 'PUT'
+                                                        ELSE 'DELETE'
+                                      END,
+                                          'path',
+                                          '/api/v' || floor(random() * 3 + 1)::TEXT || '/users',
+                                          'headers', jsonb_build_object(
+                                                  'content-type', 'application/json',
+                                                  'authorization',
+                                                  'Bearer ' || encode(gen_random_bytes(32), 'hex')
+                                                     )
+                                             ),
+                                  'matrix', jsonb_build_array(
+                                          jsonb_build_array(1, 2, 3),
+                                          jsonb_build_array(4, 5, 6),
+                                          jsonb_build_array(7, 8, 9)
+                                            ),
+                                  'paths', jsonb_build_array(
+                                          jsonb_build_array('a', 'b', jsonb_build_array('c', 'd')),
+                                          jsonb_build_array(1, 2, jsonb_build_array(3, 4)),
+                                          jsonb_build_array('x', 'y', jsonb_build_array('z', 'w'))
+                                           )
+                          )
+        END;
 
     -- Insert span
     BEGIN
-        INSERT INTO public.spans (
-            trace_rowid,
-            span_id,
-            parent_id,
-            name,
-            span_kind,
-            start_time,
-            end_time,
-            attributes,
-            events,
-            status_code,
-            status_message,
-            cumulative_error_count,
-            cumulative_llm_token_count_prompt,
-            cumulative_llm_token_count_completion,
-            llm_token_count_prompt,
-            llm_token_count_completion
-        ) VALUES (
-            p_trace_rowid,
-            v_span_id,
-            p_parent_id,
-            v_span_id,  -- Using span_id as name
-            'INTERNAL', -- Default span_kind
-            p_start_time,
-            p_end_time,
-            jsonb_build_object(
-                'input', jsonb_build_object('value', v_input_hex),
-                'output', jsonb_build_object('value', v_output_hex),
-                'metadata', v_metadata
-            ),
-            '[]'::jsonb,  -- Empty events array
-            'UNSET',      -- Default status_code
-            '',          -- Empty status_message
-            0,           -- cumulative_error_count
-            0,           -- cumulative_llm_token_count_prompt
-            0,           -- cumulative_llm_token_count_completion
-            NULL,        -- llm_token_count_prompt (nullable)
-            NULL         -- llm_token_count_completion (nullable)
-        );
-    EXCEPTION WHEN OTHERS THEN
-        RAISE NOTICE 'Error inserting span: % (SQLSTATE: %)', SQLERRM, SQLSTATE;
-        RETURN NULL;
+        INSERT INTO public.spans (trace_rowid,
+                                  span_id,
+                                  parent_id,
+                                  name,
+                                  span_kind,
+                                  start_time,
+                                  end_time,
+                                  attributes,
+                                  events,
+                                  status_code,
+                                  status_message,
+                                  cumulative_error_count,
+                                  cumulative_llm_token_count_prompt,
+                                  cumulative_llm_token_count_completion,
+                                  llm_token_count_prompt,
+                                  llm_token_count_completion)
+        VALUES (p_trace_rowid,
+                v_span_id,
+                p_parent_id,
+                v_span_id, -- Using span_id as name
+                'INTERNAL', -- Default span_kind
+                p_start_time,
+                p_end_time,
+                jsonb_build_object(
+                        'input', jsonb_build_object('value', v_input_hex),
+                        'output', jsonb_build_object('value', v_output_hex),
+                        'metadata', v_metadata
+                ),
+                '[]'::jsonb, -- Empty events array
+                'UNSET', -- Default status_code
+                '', -- Empty status_message
+                0, -- cumulative_error_count
+                0, -- cumulative_llm_token_count_prompt
+                0, -- cumulative_llm_token_count_completion
+                NULL, -- llm_token_count_prompt (nullable)
+                NULL -- llm_token_count_completion (nullable)
+               );
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE NOTICE 'Error inserting span: % (SQLSTATE: %)', SQLERRM, SQLSTATE;
+            RETURN NULL;
     END;
 
     RETURN v_span_id;
@@ -356,21 +361,21 @@ CREATE OR REPLACE FUNCTION generate_spans(
 ) RETURNS void AS
 $$
 DECLARE
-    project_id      INTEGER;
-    trace_record    RECORD;
-    span_id         TEXT;
-    start_time      TIMESTAMP WITH TIME ZONE;
-    end_time        TIMESTAMP WITH TIME ZONE;
-    span_start_time TIMESTAMP WITH TIME ZONE;
-    span_end_time   TIMESTAMP WITH TIME ZONE;
-    random_minutes  INTEGER;
-    random_seconds  INTEGER;
-    random_duration INTEGER;
-    total_spans     BIGINT  := 0;
-    layer2_spans    INTEGER := 0;
-    layer3_spans    INTEGER := 0;
-    v_layer2_count  INTEGER := 0;
-    v_layer3_count  INTEGER := 0;
+    project_id        INTEGER;
+    trace_record      RECORD;
+    span_id           TEXT;
+    start_time        TIMESTAMP WITH TIME ZONE;
+    end_time          TIMESTAMP WITH TIME ZONE;
+    span_start_time   TIMESTAMP WITH TIME ZONE;
+    span_end_time     TIMESTAMP WITH TIME ZONE;
+    random_minutes    INTEGER;
+    random_seconds    INTEGER;
+    random_duration   INTEGER;
+    total_spans       BIGINT  := 0;
+    layer2_spans      INTEGER := 0;
+    layer3_spans      INTEGER := 0;
+    v_layer2_count    INTEGER := 0;
+    v_layer3_count    INTEGER := 0;
     v_conversation_id UUID;
 BEGIN
     -- Get the default project ID
@@ -496,9 +501,10 @@ BEGIN
                                         layer3_spans := layer3_spans + v_layer3_count;
                                         total_spans := total_spans + v_layer3_count;
                                     END IF;
-                                EXCEPTION WHEN OTHERS THEN
-                                    RAISE NOTICE 'Error inserting Layer 2 span: % (SQLSTATE: %)', SQLERRM, SQLSTATE;
-                                    CONTINUE;
+                                EXCEPTION
+                                    WHEN OTHERS THEN
+                                        RAISE NOTICE 'Error inserting Layer 2 span: % (SQLSTATE: %)', SQLERRM, SQLSTATE;
+                                        CONTINUE;
                                 END;
                             END LOOP;
                     END LOOP;
