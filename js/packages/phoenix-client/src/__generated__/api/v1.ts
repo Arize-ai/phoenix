@@ -318,6 +318,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/span_search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search spans with simple filters (no DSL)
+         * @description Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.
+         */
+        get: operations["spanSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/span_annotations": {
         parameters: {
             query?: never;
@@ -1426,6 +1446,52 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** Span */
+        Span: {
+            /**
+             * Id
+             * @description The Global Relay-style ID of the span.
+             */
+            id: string;
+            /**
+             * Span Id
+             * @description The OpenTelemetry span ID.
+             */
+            span_id: string;
+            /**
+             * Trace Id
+             * @description The OpenTelemetry trace ID of the span.
+             */
+            trace_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Span Kind
+             * @description The kind of span e.g. LLM, RETRIEVER …
+             */
+            span_kind?: string | null;
+            /**
+             * Parent Id
+             * @description The parent span ID if present.
+             */
+            parent_id?: string | null;
+            /** Start Time */
+            start_time?: string | null;
+            /** End Time */
+            end_time?: string | null;
+            /** Status Code */
+            status_code?: string | null;
+            /** Status Message */
+            status_message?: string | null;
+            /** Events */
+            events?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Attributes */
+            attributes?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** SpanAnnotation */
         SpanAnnotation: {
             /**
@@ -1535,6 +1601,13 @@ export interface components {
         SpanAnnotationsResponseBody: {
             /** Data */
             data: components["schemas"]["SpanAnnotation"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** SpanSearchResponseBody */
+        SpanSearchResponseBody: {
+            /** Data */
+            data: components["schemas"]["Span"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -2795,6 +2868,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spanSearch: {
+        parameters: {
+            query?: {
+                /** @description Pagination cursor (GlobalID of Span) */
+                cursor?: string | null;
+                /** @description Maximum number of spans to return */
+                limit?: number;
+                /** @description Sort direction for the sort field */
+                sort_direction?: "asc" | "desc";
+                /** @description Inclusive lower bound time */
+                start_time?: string | null;
+                /** @description Exclusive upper bound time */
+                end_time?: string | null;
+                /** @description If provided, only include spans that have at least one annotation with one of these names. */
+                annotationNames?: string[] | null;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpanSearchResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
