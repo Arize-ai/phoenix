@@ -63,6 +63,6 @@ def to_gql_trace_annotation(
         score=annotation.score,
         explanation=annotation.explanation,
         metadata=annotation.metadata_,
-        identifier=annotation.identifier or None,
+        identifier=annotation.identifier,
         source=AnnotationSource(annotation.source),
     )
