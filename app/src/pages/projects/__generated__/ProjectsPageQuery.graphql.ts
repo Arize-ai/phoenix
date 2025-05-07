@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ccc60116931fd8c80e6e18250b048ec2>>
+ * @generated SignedSource<<65a688cdbdb0d28f1fc8bbbebc24bff7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -162,6 +162,20 @@ return {
                     "kind": "ScalarField",
                     "name": "startTime",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -237,12 +251,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eaf7b02b80d97cce89e2c80099994e7e",
+    "cacheID": "a964d57fdc8fbadd0957e6405a2df560",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n) {\n  ...ProjectsPageProjectsFragment_1bvy9D\n}\n\nfragment ProjectsPageProjectsFragment_1bvy9D on Query {\n  projects(first: $first, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n) {\n  ...ProjectsPageProjectsFragment_1bvy9D\n}\n\nfragment ProjectsPageProjectsFragment_1bvy9D on Query {\n  projects(first: $first, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n        createdAt\n        updatedAt\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

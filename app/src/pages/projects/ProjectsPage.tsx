@@ -169,6 +169,8 @@ export function ProjectsPageContent({
               gradientEndColor
               endTime
               startTime
+              createdAt
+              updatedAt
             }
           }
         }
@@ -744,16 +746,14 @@ function ProjectsTable({
 
         {
           header: "Created",
-          id: "createdAt",
+          accessorKey: "createdAt",
           maxSize: 30,
-          accessorKey: "startTime",
           cell: TimestampCell,
         },
         {
           header: "Last Updated",
-          id: "updatedAt",
+          accessorKey: "updatedAt",
           maxSize: 30,
-          accessorKey: "endTime",
           cell: TimestampCell,
         },
         {

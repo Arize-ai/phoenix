@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a19e99986c2b424159bceae9513df248>>
+ * @generated SignedSource<<b3f8848b8ecc6146a8668c10c952b46f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -167,6 +167,20 @@ return {
                     "kind": "ScalarField",
                     "name": "startTime",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "createdAt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "updatedAt",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -242,16 +256,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7a4089a41352e9d5b2684a7b81f07abc",
+    "cacheID": "f6cad710e61f4b6b4ca07d5df352d512",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n        createdAt\n        updatedAt\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
+(node as any).hash = "fc96b7553c8c86aaa09a2edbcd8f182a";
 
 export default node;

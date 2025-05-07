@@ -1408,6 +1408,8 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 enum ProjectColumn {
