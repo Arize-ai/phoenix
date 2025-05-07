@@ -47,7 +47,6 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
-import { LoadMoreRow } from "@phoenix/components/table/LoadMoreRow";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
