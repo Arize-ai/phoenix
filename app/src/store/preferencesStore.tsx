@@ -11,6 +11,8 @@ export type ModelConfigByProvider = Partial<
   Record<ModelProvider, Omit<ModelConfig, "supportedInvocationParameters">>
 >;
 
+export type ProjectViewMode = "table" | "grid";
+
 export interface PreferencesProps {
   /**
    * The display mode of markdown text
@@ -44,11 +46,14 @@ export interface PreferencesProps {
    * Note: this is always false in environments that do not support streaming
    */
   playgroundStreamingEnabled: boolean;
-
   /**
    * Whether or not the span details are in annotating mode
    */
   isAnnotatingSpans: boolean;
+  /**
+   * The view mode for projects
+   */
+  projectViewMode: ProjectViewMode;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -94,6 +99,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling span annotating
    */
   setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
+  /**
+   * Setter for the project view mode
+   */
+  setProjectViewMode: (projectViewMode: ProjectViewMode) => void;
 }
 
 export const createPreferencesStore = (
@@ -138,6 +147,10 @@ export const createPreferencesStore = (
     isAnnotatingSpans: true,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
       set({ isAnnotatingSpans });
+    },
+    projectViewMode: "grid",
+    setProjectViewMode: (projectViewMode) => {
+      set({ projectViewMode });
     },
     ...initialProps,
   });

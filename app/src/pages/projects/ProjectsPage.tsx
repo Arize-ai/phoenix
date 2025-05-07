@@ -36,6 +36,7 @@ import {
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { usePreferencesContext } from "@phoenix/contexts";
 import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
@@ -79,6 +80,10 @@ export function ProjectsPageContent({
   timeRange: OpenTimeRange;
   query: ProjectsPageProjectsFragment$key;
 }) {
+  const { projectViewMode } = usePreferencesContext((state) => ({
+    projectViewMode: state.projectViewMode,
+    setProjectViewMode: state.setProjectViewMode,
+  }));
   const [filter, setFilter] = useState<ProjectFilter | null>(null);
   const [sort] = useState<ProjectSort | null>(null);
   const [notify, holder] = useNotification();
@@ -206,6 +211,10 @@ export function ProjectsPageContent({
     debouncedRefetch();
   }, [debouncedRefetch, queryArgs]);
 
+  const loadNextWithArgs = useCallback(() => {
+    loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs });
+  }, [loadNext, queryArgs]);
+
   return (
     <div
       css={css`
@@ -262,51 +271,86 @@ export function ProjectsPageContent({
         </Flex>
       </View>
       <View padding="size-200" width="100%">
-        <ul
-          css={css`
-            display: flex;
-            flex-direction: row;
-            gap: var(--ac-global-dimension-size-200);
-            flex-wrap: wrap;
-          `}
-        >
-          {projects?.map((project) => (
-            <li key={project.id}>
-              <Link
-                to={`/projects/${project.id}`}
-                css={css`
-                  text-decoration: none;
-                `}
-              >
-                <ProjectItem
-                  project={project}
-                  timeRange={timeRangeVariable}
-                  onProjectDelete={() => onDelete(project.name)}
-                  onProjectClear={() => onClear(project.name)}
-                  onProjectRemoveData={() => onRemove(project.name)}
-                />
-              </Link>
-            </li>
-          ))}
-        </ul>
-        {hasNext && (
-          <Flex
-            width="100%"
-            justifyContent="center"
-            alignItems="center"
-            marginTop="size-200"
-          >
-            <LoadMoreButton
-              onLoadMore={() =>
-                loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs })
-              }
-              isLoadingNext={isLoadingNext}
-            />
-          </Flex>
-        )}
+        {projectViewMode === "grid" ? (
+          <ProjectGrid
+            projects={projects}
+            onDelete={onDelete}
+            onClear={onClear}
+            onRemove={onRemove}
+            timeRangeVariable={timeRangeVariable}
+            hasNext={hasNext}
+            loadNext={loadNextWithArgs}
+            isLoadingNext={isLoadingNext}
+          />
+        ) : null}
       </View>
       {holder}
     </div>
+  );
+}
+
+function ProjectGrid({
+  projects,
+  onDelete,
+  onClear,
+  onRemove,
+  timeRangeVariable,
+  hasNext,
+  loadNext,
+  isLoadingNext,
+}: {
+  projects: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"][];
+  onDelete: (projectName: string) => void;
+  onClear: (projectName: string) => void;
+  onRemove: (projectName: string) => void;
+  timeRangeVariable: {
+    start: string | undefined;
+    end: string | undefined;
+  };
+  hasNext: boolean;
+  loadNext: () => void;
+  isLoadingNext: boolean;
+}) {
+  return (
+    <>
+      <ul
+        css={css`
+          display: flex;
+          flex-direction: row;
+          gap: var(--ac-global-dimension-size-200);
+          flex-wrap: wrap;
+        `}
+      >
+        {projects?.map((project) => (
+          <li key={project.id}>
+            <Link
+              to={`/projects/${project.id}`}
+              css={css`
+                text-decoration: none;
+              `}
+            >
+              <ProjectItem
+                project={project}
+                timeRange={timeRangeVariable}
+                onProjectDelete={() => onDelete(project.name)}
+                onProjectClear={() => onClear(project.name)}
+                onProjectRemoveData={() => onRemove(project.name)}
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {hasNext && (
+        <Flex
+          width="100%"
+          justifyContent="center"
+          alignItems="center"
+          marginTop="size-200"
+        >
+          <LoadMoreButton onLoadMore={loadNext} isLoadingNext={isLoadingNext} />
+        </Flex>
+      )}
+    </>
   );
 }
 
