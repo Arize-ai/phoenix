@@ -1,7 +1,7 @@
 from asyncio import sleep
 from datetime import datetime
 from random import getrandbits
-from typing import Any, cast
+from typing import Any, Set, cast
 
 import httpx
 import pandas as pd
@@ -15,6 +15,7 @@ from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
+from phoenix.utilities.json import decode_df_from_json_string
 
 
 async def test_span_round_tripping_with_docs(
@@ -138,3 +139,53 @@ async def project_with_a_single_trace_and_span(
             )
             .returning(models.Span.id)
         )
+
+
+@pytest.mark.asyncio
+async def test_span_search_matches_legacy_spans_endpoint(
+    httpx_client: httpx.AsyncClient,
+    span_data_with_documents: Any,
+):
+    """Ensure the new span_search endpoint returns the same span IDs as the legacy
+    /spans endpoint (JSON-encoded DataFrame) for the same query.
+    """
+
+    project_identifier = "default"
+    body = {"queries": [{}]}
+
+    url_new = f"v1/projects/{project_identifier}/span_search"
+    resp_new = await httpx_client.post(url_new, json=body)
+    assert resp_new.is_success, f"{url_new} failed: {resp_new.text}"
+
+    payload_new = resp_new.json()
+    assert payload_new.get("data"), "No data in span_search response"
+    spans_new = payload_new["data"][0]
+    span_ids_new: Set[str] = {span["span_id"] for span in spans_new}
+    assert span_ids_new, "span_search returned no spans"
+
+    headers_old = {"accept": "application/json"}
+    url_old = f"v1/spans?project_name={project_identifier}"
+    resp_old = await httpx_client.post(url_old, json=body, headers=headers_old)
+    assert resp_old.is_success, f"{url_old} failed: {resp_old.text}"
+
+    ctype = resp_old.headers.get("content-type", "")
+    assert "boundary=" in ctype, "Legacy /spans response missing boundary"
+    boundary = ctype.split("boundary=")[1]
+
+    span_ids_old: Set[str] = set()
+    for part in resp_old.text.split(f"--{boundary}"):
+        part = part.strip().lstrip("\r\n").rstrip("\r\n")
+        if not part or part == "--":
+            continue
+        if "\r\n\r\n" not in part:
+            continue
+        _, json_payload = part.split("\r\n\r\n", 1)
+        json_payload = json_payload.strip()
+        if not json_payload:
+            continue
+        df = decode_df_from_json_string(json_payload)
+        col = "context.span_id" if "context.span_id" in df.columns else "span_id"
+        span_ids_old.update(df[col].astype(str).tolist())
+
+    assert span_ids_old, "Legacy /spans returned no spans"
+    assert span_ids_new == span_ids_old, "Mismatch between span_search and legacy spans endpoint"
