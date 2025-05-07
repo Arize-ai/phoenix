@@ -11,7 +11,7 @@ from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
+from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 from typing_extensions import assert_never
@@ -529,7 +529,6 @@ class SpanQuery(_HasTmpSuffix):
                 end_time=end_time,
                 limit=limit,
                 root_spans_only=root_spans_only,
-                orphan_span_as_root_span=orphan_span_as_root_span,
             )
         assert session.bind is not None
         dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -552,16 +551,13 @@ class SpanQuery(_HasTmpSuffix):
             # A root span is either a span with no parent_id or an orphan span
             # (a span whose parent_id references a span that doesn't exist in the database)
             if orphan_span_as_root_span:
-                # Include both types of root spans
+                # Include both types of root spans:
                 parent_spans = select(models.Span.span_id).alias("parent_spans")
-                candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
-                stmt = select(candidate_spans).where(
-                    or_(
-                        candidate_spans.c.parent_id.is_(None),
-                        ~select(1)
-                        .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
-                        .exists(),
-                    )
+                stmt = stmt.where(
+                    ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
+                    # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
+                    # because it significantly degraded PostgreSQL performance (>10x worse)
+                    # during testing.
                 )
             else:
                 # Only include explicit root spans (spans with parent_id = NULL)
@@ -747,16 +743,13 @@ def _get_spans_dataframe(
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
         if orphan_span_as_root_span:
-            # Include both types of root spans
+            # Include both types of root spans:
             parent_spans = select(models.Span.span_id).alias("parent_spans")
-            candidate_spans = stmt.add_columns(models.Span.parent_id).cte("candidate_spans")
-            stmt = select(candidate_spans).where(
-                or_(
-                    candidate_spans.c.parent_id.is_(None),
-                    ~select(1)
-                    .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
-                    .exists(),
-                )
+            stmt = stmt.where(
+                ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
+                # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
+                # because it significantly degraded PostgreSQL performance (>10x worse)
+                # during testing.
             )
         else:
             # Only include explicit root spans (spans with parent_id = NULL)

@@ -47,7 +47,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     end_time: Optional[datetime] = None
     limit: int = DEFAULT_SPAN_LIMIT
     root_spans_only: Optional[bool] = None
-    orphan_span_as_root_span: Optional[bool] = None
+    orphan_span_as_root_span: bool = True
     project_name: Optional[str] = Field(
         default=None,
         description=(
