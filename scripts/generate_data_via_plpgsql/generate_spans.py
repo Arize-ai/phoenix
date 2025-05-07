@@ -31,7 +31,7 @@ def parse_arguments():
     parser.add_argument(
         "--num-batches",
         type=int,
-        default=100,
+        default=10,
         help="Number of batches to run (default: 10)",
     )
     parser.add_argument(
