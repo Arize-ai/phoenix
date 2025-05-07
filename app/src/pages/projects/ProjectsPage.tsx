@@ -355,7 +355,7 @@ function ProjectGrid({
         css={css`
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(312px, 1fr));
-          gap: var(--ac-global-dimension-size-300);
+          gap: var(--ac-global-dimension-size-200);
         `}
       >
         {projects?.map((project) => (
