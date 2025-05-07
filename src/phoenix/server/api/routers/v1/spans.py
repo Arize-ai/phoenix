@@ -76,14 +76,12 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
 
 class Span(V1RoutesBaseModel):
     id: str = Field(
-        description="The Global Relay-style ID of the span (based on the DB primary key)."
+        description="The Global Relay-style ID of the span."
     )
-    span_id: str = Field(description="The OpenTelemetry span ID (hex format w/o 0x prefix).")
+    span_id: str = Field(description="The OpenTelemetry span ID.")
     trace_id: Optional[str] = Field(
         default=None, description="The OpenTelemetry trace ID of the span."
     )
-
-    # Common span columns
     name: Optional[str] = None
     span_kind: Optional[str] = Field(
         default=None, description="The kind of span e.g. LLM, RETRIEVER …"
@@ -95,11 +93,6 @@ class Span(V1RoutesBaseModel):
     status_message: Optional[str] = None
     events: Optional[list[dict[str, Any]]] = None
     attributes: Optional[dict[str, Any]] = None
-
-    model_config = {
-        **V1RoutesBaseModel.model_config,  # inherit json encoders etc.
-        "extra": "allow",  # allow dynamic columns resulting from SpanQuery DSL
-    }
 
 
 class SpanSearchResponseBody(PaginatedResponseBody[Span]):
