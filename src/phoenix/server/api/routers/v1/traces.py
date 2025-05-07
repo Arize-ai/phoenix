@@ -113,8 +113,8 @@ class TraceAnnotation(V1RoutesBaseModel):
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
-    identifier: Optional[str] = Field(
-        default=None,
+    identifier: str = Field(
+        default="",
         description=(
             "The identifier of the annotation. "
             "If provided, the annotation will be updated if it already exists."

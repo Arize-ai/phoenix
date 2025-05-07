@@ -3,11 +3,11 @@ from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from secrets import token_urlsafe
-from typing import Annotated, Any, Literal, Optional
+from typing import Any, Literal, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Query
-from pydantic import AfterValidator, Field
+from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -172,12 +172,6 @@ class SpanAnnotationResult(V1RoutesBaseModel):
     )
 
 
-def _is_not_empty_string(identifier: Optional[str]) -> Optional[str]:
-    if identifier == "":
-        raise ValueError("Identifier must be a non-empty string or null")
-    return identifier
-
-
 class SpanAnnotationData(V1RoutesBaseModel):
     span_id: str = Field(description="OpenTelemetry Span ID (hex format w/o 0x prefix)")
     name: str = Field(description="The name of the annotation")
@@ -190,11 +184,8 @@ class SpanAnnotationData(V1RoutesBaseModel):
     metadata: Optional[dict[str, Any]] = Field(
         default=None, description="Metadata for the annotation"
     )
-    identifier: Annotated[
-        Optional[str],
-        AfterValidator(_is_not_empty_string),
-    ] = Field(
-        default=None,
+    identifier: str = Field(
+        default="",
         description=(
             "The identifier of the annotation. "
             "If provided, the annotation will be updated if it already exists."
@@ -211,7 +202,7 @@ class SpanAnnotationData(V1RoutesBaseModel):
                 label=self.result.label if self.result else None,
                 explanation=self.result.explanation if self.result else None,
                 metadata_=self.metadata or {},
-                identifier=self.identifier or "",
+                identifier=self.identifier,
                 source="API",
                 user_id=None,
             ),

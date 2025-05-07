@@ -1296,8 +1296,9 @@ export interface components {
             /**
              * Identifier
              * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
              */
-            identifier?: string | null;
+            identifier: string;
             /** Id */
             id: string;
             /**
@@ -1348,8 +1349,9 @@ export interface components {
             /**
              * Identifier
              * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
+             * @default
              */
-            identifier?: string | null;
+            identifier: string;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {

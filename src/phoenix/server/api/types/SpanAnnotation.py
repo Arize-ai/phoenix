@@ -23,7 +23,7 @@ class SpanAnnotation(Node, Annotation):
     metadata: JSON
     span_rowid: Private[Optional[int]]
     source: AnnotationSource
-    identifier: Optional[str]
+    identifier: str
 
     @strawberry.field
     async def span_id(self) -> GlobalID:
@@ -61,7 +61,7 @@ def to_gql_span_annotation(
         explanation=annotation.explanation,
         metadata=annotation.metadata_,
         source=AnnotationSource(annotation.source),
-        identifier=annotation.identifier or None,
+        identifier=annotation.identifier,
         created_at=annotation.created_at,
         updated_at=annotation.updated_at,
     )
