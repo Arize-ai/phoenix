@@ -42,6 +42,8 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.input_types.Coordinates import InputCoordinate2D, InputCoordinate3D
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
+from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
+from phoenix.server.api.input_types.ProjectSort import ProjectSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -225,6 +227,8 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        sort: Optional[ProjectSort] = UNSET,
+        filter: Optional[ProjectFilter] = UNSET,
     ) -> Connection[Project]:
         args = ConnectionArgs(
             first=first,
@@ -232,7 +236,12 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Project).order_by(models.Project.id)
+        stmt = select(models.Project)
+        if sort:
+            sort_col = getattr(models.Project, sort.col.value)
+            stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
+        if filter:
+            stmt = stmt.where(getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%"))
         stmt = exclude_experiment_projects(stmt)
         async with info.context.db() as session:
             projects = await session.stream_scalars(stmt)
