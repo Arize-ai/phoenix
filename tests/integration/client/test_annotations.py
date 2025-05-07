@@ -72,10 +72,12 @@ class TestClientForSpanAnnotations:
     """
 
     @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("sync", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_add_span_annotation(
         self,
         is_async: bool,
+        sync: bool,
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
@@ -134,7 +136,7 @@ class TestClientForSpanAnnotations:
                     score=score,
                     explanation=explanation,
                     metadata=metadata,
-                    sync=True,
+                    sync=sync,
                 ),
             )
 
