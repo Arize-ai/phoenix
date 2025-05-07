@@ -1602,6 +1602,8 @@ type Project implements Node {
   validateSpanFilterCondition(condition: String!): ValidationResult!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
+  createdAt: DateTime!
+  updatedAt: DateTime!
 }
 
 enum ProjectColumn {
