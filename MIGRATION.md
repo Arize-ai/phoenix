@@ -1,5 +1,14 @@
 # Migrations
 
+## v8.x to v9.0.0
+
+This release migrates all annotations on spans and traces to a structure that supports multiple annotation values per entity (trace, span). This migration also changes the constraints for the tables. Because it operates on existing data, it may take a bit of time for the records to be fully migrated over. Phoenix migrates your data at boot so you may experience some slowness in the server coming up (depending on the amount of data you have). Please deploy v9.0 when your services can account for small amount of downtime.
+
+Phoenix 9.0 also contains project-level retention policies. By default your pre-existing projects will point to a default retention policy of infinite retention so your data will no be affected.
+
+> [!CAUTION]
+> This version bump migrates all your annotations to a new format. Do not restart the server while the migration is running. Ensure that the migration is complete. Restarting the server mid-migration could put the DB in a state that will require manual intervention.
+
 ## v6.x to v7.0.0
 
 ### Python Script to Populate Database Table For Sessions
