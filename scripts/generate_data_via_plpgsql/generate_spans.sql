@@ -28,8 +28,8 @@
  *
  * Span Parent-Child Relationships:
  *   The script creates two types of root spans (Layer 1):
- *   1. Standard root spans (75%): Have NULL parent_id, representing the true root of a trace
- *   2. Orphan spans (25%): Have a randomly generated parent_id that doesn't exist in the trace
+ *   1. Standard root spans (50%): Have NULL parent_id, representing the true root of a trace
+ *   2. Orphan spans (50%): Have a randomly generated parent_id that doesn't exist in the trace
  *      These orphan spans simulate scenarios where parent spans are missing or were dropped,
  *      which is common in distributed tracing systems due to sampling, data loss, or cross-service boundaries.
  *   All child spans (Layer 2 and 3) have valid parent_ids that reference their actual parent span.
@@ -93,7 +93,7 @@
  *   - Each span has realistic timing and parent-child relationships
  *   - Spans include random data of two distinct sizes (1000B or 10B per field, doubled by hex encoding)
  *   - Each trace contains 400 spans (8 Layer 1 + 56 Layer 2 + 336 Layer 3)
- *   - 25% of the root spans are orphan spans with non-existent parent_ids
+ *   - 50% of the root spans are orphan spans with non-existent parent_ids
  *
  * Dependencies:
  *   - PostgreSQL 12+
@@ -143,10 +143,14 @@ DECLARE
     v_hex_size   INTEGER;
     v_metadata   JSONB;
 BEGIN
-    -- Generate span ID
-    v_span_id := encode(gen_random_bytes(16), 'hex');
+    -- Generate span_id
+    v_span_id := encode(gen_random_bytes(8), 'hex');
 
-    -- Determine if this will be a large span
+    -- Randomly set hex_size to two different scenarios to test TOAST behavior:
+    -- 1. Large spans (30%): v_hex_size = 1000, generating ~2000 bytes of hex string
+    --    This exceeds the TOAST threshold (typically 2KB) and will be stored in TOAST tables
+    -- 2. Small spans (70%): v_hex_size = 10, generating ~20 bytes of hex string
+    --    This stays below the TOAST threshold and will be stored inline
     IF random() < 0.3 THEN
         v_hex_size := 1000;
     ELSE
@@ -425,7 +429,7 @@ BEGIN
                         span_id := insert_span(
                                 trace_record.id,
                                 CASE
-                                    WHEN random() < 0.25
+                                    WHEN random() < 0.5
                                         THEN encode(gen_random_bytes(8), 'hex')
                                     ELSE NULL::TEXT
                                     END,
