@@ -17,8 +17,8 @@ class CreateSpanAnnotationInput:
     score: Optional[float] = None
     explanation: Optional[str] = None
     metadata: JSON = strawberry.field(default_factory=dict)
-    identifier: str = strawberry.field(default="")
     source: AnnotationSource
+    identifier: Optional[str] = strawberry.UNSET
 
 
 @strawberry.input

@@ -423,8 +423,8 @@ input CreateSpanAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
-  identifier: String! = ""
   source: AnnotationSource!
+  identifier: String
 }
 
 input CreateSpanNoteInput {
@@ -446,8 +446,8 @@ input CreateTraceAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
-  identifier: String! = ""
   source: AnnotationSource!
+  identifier: String
 }
 
 input CreateUserApiKeyInput {
@@ -1489,7 +1489,7 @@ input PatchAnnotationInput {
   score: Float
   explanation: String
   metadata: JSON
-  identifier: String! = ""
+  identifier: String
 }
 
 input PatchDatasetExamplesInput {

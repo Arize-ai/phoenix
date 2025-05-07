@@ -17,4 +17,4 @@ class PatchAnnotationInput:
     score: Optional[float] = UNSET
     explanation: Optional[str] = UNSET
     metadata: Optional[JSON] = UNSET
-    identifier: str = strawberry.field(default="")
+    identifier: Optional[str] = UNSET
