@@ -188,7 +188,8 @@ function SpanAnnotationsList(props: {
   const { viewer } = useViewer();
   const notifyError = useNotifyError();
   // If not authenticated, pass a null user to the query to get the system annotation
-  const userFilter = viewer ? [viewer.id] : [null];
+  const userFilter = useMemo(() => (viewer ? [viewer.id] : [null]), [viewer]);
+
   const data = useLazyLoadQuery<SpanAnnotationsEditorSpanAnnotationsListQuery>(
     graphql`
       query SpanAnnotationsEditorSpanAnnotationsListQuery(
