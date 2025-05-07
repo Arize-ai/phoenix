@@ -184,7 +184,7 @@ class TraceAnnotationMutationMixin:
                     assert isinstance(patch.metadata, dict)
                     trace_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
-                    trace_annotation.identifier = patch.identifier or ""
+                    trace_annotation.identifier = patch.identifier
                 session.add(trace_annotation)
             await session.commit()
 

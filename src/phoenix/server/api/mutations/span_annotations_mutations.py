@@ -252,7 +252,7 @@ class SpanAnnotationMutationMixin:
                     assert isinstance(patch.metadata, dict)
                     span_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
-                    span_annotation.identifier = patch.identifier or ""
+                    span_annotation.identifier = patch.identifier
                 session.add(span_annotation)
 
             patched_annotations = [

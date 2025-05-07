@@ -25,7 +25,7 @@ class TraceAnnotation(Node):
     explanation: Optional[str]
     metadata: JSON
     trace_rowid: Private[Optional[int]]
-    identifier: Optional[str]
+    identifier: str
     source: AnnotationSource
 
     @strawberry.field

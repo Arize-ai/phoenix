@@ -23,7 +23,7 @@ class SpanAnnotation(Node, Annotation):
     metadata: JSON
     span_rowid: Private[Optional[int]]
     source: AnnotationSource
-    identifier: Optional[str]
+    identifier: str
 
     @strawberry.field
     async def span_id(self) -> GlobalID:

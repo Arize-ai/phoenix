@@ -423,7 +423,7 @@ input CreateSpanAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
-  identifier: String = null
+  identifier: String! = ""
   source: AnnotationSource!
 }
 
@@ -446,7 +446,7 @@ input CreateTraceAnnotationInput {
   score: Float = null
   explanation: String = null
   metadata: JSON! = {}
-  identifier: String = null
+  identifier: String! = ""
   source: AnnotationSource!
 }
 
@@ -1489,7 +1489,7 @@ input PatchAnnotationInput {
   score: Float
   explanation: String
   metadata: JSON
-  identifier: String
+  identifier: String! = ""
 }
 
 input PatchDatasetExamplesInput {
@@ -2136,7 +2136,7 @@ type SpanAnnotation implements Node & Annotation {
   annotatorKind: AnnotatorKind!
   metadata: JSON!
   source: AnnotationSource!
-  identifier: String
+  identifier: String!
   spanId: GlobalID!
   user: User
 }
@@ -2412,7 +2412,7 @@ type TraceAnnotation implements Node {
   score: Float
   explanation: String
   metadata: JSON!
-  identifier: String
+  identifier: String!
   source: AnnotationSource!
   traceId: GlobalID!
   user: User
