@@ -13,6 +13,15 @@ import {
   usePaginationFragment,
   useRelayEnvironment,
 } from "react-relay";
+import { useNavigate } from "react-router";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  OnChangeFn,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 import { formatDistance } from "date-fns";
 import { debounce } from "lodash";
 import { Subscription } from "relay-runtime";
@@ -22,7 +31,10 @@ import { useNotification } from "@arizeai/components";
 
 import {
   Flex,
+  FlexProps,
   Heading,
+  Icon,
+  Icons,
   Input,
   Link,
   Skeleton,
@@ -35,7 +47,12 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
+import { LoadMoreRow } from "@phoenix/components/table/LoadMoreRow";
+import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { Truncate } from "@phoenix/components/utility/Truncate";
 import { usePreferencesContext } from "@phoenix/contexts";
 import {
   ProjectsPageProjectMetricsQuery,
@@ -43,6 +60,7 @@ import {
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
 import { ProjectSortMenu } from "@phoenix/pages/projects/ProjectSortMenu";
 import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeToggle";
+import { ProjectSortOrder } from "@phoenix/store/preferencesStore";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -93,7 +111,10 @@ export function ProjectsPage() {
           @arguments(first: $first, sort: $sort, filter: $filter)
       }
     `,
-    { first: PAGE_SIZE, ...queryParams }
+    {
+      first: PAGE_SIZE,
+      ...queryParams,
+    }
   );
 
   return <ProjectsPageContent timeRange={timeRange} query={data} />;
@@ -148,6 +169,7 @@ export function ProjectsPageContent({
               gradientStartColor
               gradientEndColor
               endTime
+              startTime
             }
           }
         }
@@ -243,10 +265,9 @@ export function ProjectsPageContent({
   return (
     <div
       css={css`
-        flex: 1 1 auto;
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding-bottom: var(--ac-global-dimension-size-750);
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
       `}
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={projectsContainerRef}
@@ -259,6 +280,7 @@ export function ProjectsPageContent({
         width="100%"
         borderBottomColor="grey-200"
         borderBottomWidth="thin"
+        flex="none"
       >
         <Flex
           direction="row"
@@ -301,42 +323,60 @@ export function ProjectsPageContent({
           </Flex>
         </Flex>
       </View>
-      <View padding="size-200" width="100%">
-        {projectViewMode === "grid" ? (
-          <Flex direction="column" gap="size-200">
-            <Flex direction="row" justifyContent="end" alignItems="center">
-              <ProjectSortMenu />
+      {projectViewMode === "grid" ? (
+        <div
+          css={css`
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+          `}
+        >
+          <View padding="size-200" width="100%">
+            <Flex direction="column" gap="size-200">
+              <Flex direction="row" justifyContent="end" alignItems="center">
+                <ProjectSortMenu />
+              </Flex>
+              <Flex direction="column">
+                <ProjectGrid
+                  projects={projects}
+                  onDelete={onDelete}
+                  onClear={onClear}
+                  onRemove={onRemove}
+                  timeRangeVariable={timeRangeVariable}
+                  hasNext={hasNext}
+                  loadNext={loadNextWithArgs}
+                  isLoadingNext={isLoadingNext}
+                />
+              </Flex>
             </Flex>
-            <Flex direction="column">
-              <ProjectGrid
-                projects={projects}
-                onDelete={onDelete}
-                onClear={onClear}
-                onRemove={onRemove}
-                timeRangeVariable={timeRangeVariable}
-                hasNext={hasNext}
-                loadNext={loadNextWithArgs}
-                isLoadingNext={isLoadingNext}
-              />
-            </Flex>
-          </Flex>
-        ) : null}
-      </View>
+          </View>
+        </div>
+      ) : (
+        <div
+          css={css`
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+          `}
+        >
+          <ProjectsTable
+            projects={projects}
+            onDelete={onDelete}
+            onClear={onClear}
+            onRemove={onRemove}
+            timeRangeVariable={timeRangeVariable}
+            hasNext={hasNext}
+            loadNext={loadNextWithArgs}
+            isLoadingNext={isLoadingNext}
+          />
+        </div>
+      )}
       {holder}
     </div>
   );
 }
 
-function ProjectGrid({
-  projects,
-  onDelete,
-  onClear,
-  onRemove,
-  timeRangeVariable,
-  hasNext,
-  loadNext,
-  isLoadingNext,
-}: {
+type ProjectViewComponentProps = {
   projects: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"][];
   onDelete: (projectName: string) => void;
   onClear: (projectName: string) => void;
@@ -348,7 +388,18 @@ function ProjectGrid({
   hasNext: boolean;
   loadNext: () => void;
   isLoadingNext: boolean;
-}) {
+};
+
+function ProjectGrid({
+  projects,
+  onDelete,
+  onClear,
+  onRemove,
+  timeRangeVariable,
+  hasNext,
+  loadNext,
+  isLoadingNext,
+}: ProjectViewComponentProps) {
   return (
     <>
       <ul
@@ -471,7 +522,7 @@ function ProjectItem({
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        gap: var(--ac-global-dimension-size-200);
+        gap: var(--ac-global-dimension-size-400);
         height: 100%;
       `}
     >
@@ -555,12 +606,14 @@ function ProjectMetricsLoadingSkeleton() {
 function ProjectMetrics({
   projectId,
   timeRange,
+  flexProps,
 }: {
   projectId: string;
   timeRange: {
     start: string | undefined;
     end: string | undefined;
   };
+  flexProps?: Partial<FlexProps>;
 }) {
   const environment = useRelayEnvironment();
   // ref to the current running "subscription", a.k.a. the current running query request
@@ -605,19 +658,26 @@ function ProjectMetrics({
     return <ProjectMetricsLoadingSkeleton />;
   }
   // if the project metrics are loaded, we show the project metrics
-  return <ProjectMetricsRow project={projectMetrics} />;
+  return <ProjectMetricsRow project={projectMetrics} flexProps={flexProps} />;
 }
 
 function ProjectMetricsRow({
   project,
+  flexProps,
 }: {
   project: ProjectsPageProjectMetricsQuery$data;
+  flexProps?: Partial<FlexProps>;
 }) {
   const {
     project: { traceCount, tokenCountTotal, latencyMsP50 },
   } = project;
   return (
-    <Flex direction="row" justifyContent="space-between" minHeight="size-600">
+    <Flex
+      direction="row"
+      justifyContent="space-between"
+      minHeight="size-600"
+      {...flexProps}
+    >
       <Flex direction="column" flex="none">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
@@ -641,5 +701,260 @@ function ProjectMetricsRow({
         )}
       </Flex>
     </Flex>
+  );
+}
+
+const SORT_COLUMNS = [
+  "name",
+  "createdAt",
+  "updatedAt",
+] satisfies ProjectSortOrder["column"][];
+
+function ProjectsTable({
+  projects,
+  onDelete,
+  onClear,
+  onRemove,
+  timeRangeVariable,
+  hasNext,
+  loadNext,
+  isLoadingNext,
+}: ProjectViewComponentProps) {
+  const navigate = useNavigate();
+  const columns: ColumnDef<
+    ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]
+  >[] = useMemo(
+    () =>
+      [
+        {
+          header: "Name",
+          accessorKey: "name",
+          maxSize: 135,
+          cell: ({ row }) => {
+            return (
+              <Flex direction="row" gap="size-200" alignItems="center">
+                <ProjectIcon
+                  gradientStartColor={row.original.gradientStartColor}
+                  gradientEndColor={row.original.gradientEndColor}
+                />
+                <Truncate maxWidth="300px">{row.original.name}</Truncate>
+              </Flex>
+            );
+          },
+        },
+
+        {
+          header: "Created",
+          id: "createdAt",
+          maxSize: 30,
+          accessorKey: "startTime",
+          cell: TimestampCell,
+        },
+        {
+          header: "Last Updated",
+          id: "updatedAt",
+          maxSize: 30,
+          accessorKey: "endTime",
+          cell: TimestampCell,
+        },
+        {
+          header: "Metrics",
+          id: "metrics",
+          enableSorting: false,
+          cell: ({ row }) => {
+            return (
+              <div
+                css={css`
+                  max-width: 100%;
+                `}
+              >
+                <ProjectMetrics
+                  flexProps={{
+                    justifyContent: "start",
+                    gap: "size-800",
+                    wrap: "wrap",
+                    rowGap: "size-100",
+                  }}
+                  projectId={row.original.id}
+                  timeRange={timeRangeVariable}
+                />
+              </div>
+            );
+          },
+        },
+        {
+          header: "",
+          id: "actions",
+          enableSorting: false,
+          size: 10,
+          maxSize: 10,
+          minSize: 10,
+          cell: ({ row }) => {
+            return (
+              <ProjectActionMenu
+                variant="default"
+                projectId={row.original.id}
+                projectName={row.original.name}
+                onProjectClear={() => onClear(row.original.name)}
+                onProjectRemoveData={() => onRemove(row.original.name)}
+                onProjectDelete={() => onDelete(row.original.name)}
+              />
+            );
+          },
+        },
+      ] satisfies ColumnDef<
+        ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]
+      >[],
+    [timeRangeVariable, onClear, onDelete, onRemove]
+  );
+  const sortQueryParams = useProjectSortQueryParams();
+  const { setProjectSortOrder } = usePreferencesContext((state) => ({
+    setProjectSortOrder: state.setProjectSortOrder,
+  }));
+  const sortingRowModel = useMemo(() => {
+    return [
+      {
+        id: sortQueryParams.sort.col,
+        desc: sortQueryParams.sort.dir === "desc",
+      },
+    ] satisfies SortingState;
+  }, [sortQueryParams.sort.col, sortQueryParams.sort.dir]);
+  const onSortingChange: OnChangeFn<SortingState> = useCallback(
+    (updater) => {
+      if (typeof updater === "function") {
+        const sorting = updater(sortingRowModel);
+        const [first] = sorting;
+        if (first == null) {
+          return;
+        }
+        const column = first.id as (typeof SORT_COLUMNS)[number];
+        if (!SORT_COLUMNS.includes(column)) {
+          return;
+        }
+        setProjectSortOrder({
+          column,
+          direction: first.desc ? "desc" : "asc",
+        });
+      }
+    },
+    [setProjectSortOrder, sortingRowModel]
+  );
+  const table = useReactTable({
+    data: projects,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    state: {
+      sorting: sortingRowModel,
+    },
+    enableSortingRemoval: false,
+    onSortingChange,
+  });
+  const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+  return (
+    <View flex="none" height="100%" width="100%">
+      <div
+        css={css`
+          flex: 1 1 auto;
+          height: 100%;
+          width: 100%;
+        `}
+      >
+        <table css={tableCSS} data-testid="projects-table">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    colSpan={header.colSpan}
+                    key={header.id}
+                    style={{
+                      width: header.getSize(),
+                    }}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? "cursor-pointer"
+                            : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            left: header.getStart(),
+                            width: header.getSize(),
+                            textWrap: "nowrap",
+                          },
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : (
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  onClick={() => {
+                    navigate(`/projects/${row.original.id}`);
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td
+                      key={cell.id}
+                      style={{
+                        width: cell.column.getSize(),
+                        maxWidth: cell.column.getSize(),
+                      }}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          )}
+        </table>
+        {hasNext ? (
+          <View paddingY="size-200">
+            <Flex
+              direction="row"
+              justifyContent="center"
+              alignItems="center"
+              width="100%"
+            >
+              <LoadMoreButton
+                onLoadMore={loadNext}
+                isLoadingNext={isLoadingNext}
+              />
+            </Flex>
+          </View>
+        ) : null}
+      </div>
+    </View>
   );
 }
