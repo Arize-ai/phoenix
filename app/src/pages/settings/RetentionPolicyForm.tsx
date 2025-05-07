@@ -130,7 +130,7 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
               }}
               render={({ field }) => (
                 <NumberField
-                  step={100}
+                  step={1}
                   size="S"
                   value={field.value ?? undefined}
                   onChange={field.onChange}

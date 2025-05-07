@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a8ba6fc18514f6fa6bb3379f0345343f>>
+ * @generated SignedSource<<6e096659e3a3852e5c4d4ecfbe930901>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,7 @@ export type SpanFeedback_annotations$data = {
     readonly createdAt: string;
     readonly explanation: string | null;
     readonly id: string;
-    readonly identifier: string | null;
+    readonly identifier: string;
     readonly label: string | null;
     readonly metadata: any;
     readonly name: string;
