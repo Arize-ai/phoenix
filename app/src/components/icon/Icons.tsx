@@ -2053,26 +2053,14 @@ export const SettingsOutline = () => (
   </svg>
 );
 
-/**
- * https://lucide.dev/icons/share
- */
-export const Share = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="lucide lucide-share-icon lucide-share"
-    style={{ fill: "none" }}
-  >
-    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-    <polyline points="16 6 12 2 8 6" />
-    <line x1="12" x2="12" y1="2" y2="15" />
+export const ShareOutline = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="share">
+        <rect width="24" height="24" opacity="0" />
+        <path d="M18 15a3 3 0 0 0-2.1.86L8 12.34V12v-.33l7.9-3.53A3 3 0 1 0 15 6v.34L7.1 9.86a3 3 0 1 0 0 4.28l7.9 3.53V18a3 3 0 1 0 3-3zm0-10a1 1 0 1 1-1 1 1 1 0 0 1 1-1zM5 13a1 1 0 1 1 1-1 1 1 0 0 1-1 1zm13 6a1 1 0 1 1 1-1 1 1 0 0 1-1 1z" />
+      </g>
+    </g>
   </svg>
 );
 
