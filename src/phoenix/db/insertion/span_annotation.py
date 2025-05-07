@@ -42,7 +42,7 @@ class SpanAnnotationQueueInserter(
         SpanAnnotationDmlEvent,
     ],
     table=models.SpanAnnotation,
-    unique_by=("name", "span_rowid"),
+    unique_by=("name", "span_rowid", "identifier"),
 ):
     async def _events(
         self,
