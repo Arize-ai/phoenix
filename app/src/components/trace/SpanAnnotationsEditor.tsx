@@ -187,6 +187,8 @@ function SpanAnnotationsList(props: {
   const { spanId, projectId, extraAnnotationCards } = props;
   const { viewer } = useViewer();
   const notifyError = useNotifyError();
+  // If not authenticated, pass a null user to the query to get the system annotation
+  const userFilter = useMemo(() => (viewer ? [viewer.id] : [null]), [viewer]);
 
   const data = useLazyLoadQuery<SpanAnnotationsEditorSpanAnnotationsListQuery>(
     graphql`
@@ -242,7 +244,7 @@ function SpanAnnotationsList(props: {
     {
       projectId,
       spanId,
-      filterUserIds: viewer ? [viewer.id] : [null],
+      filterUserIds: userFilter,
     }
   );
   const span = useFragment<SpanAnnotationsEditor_spanAnnotations$key>(
@@ -293,7 +295,7 @@ function SpanAnnotationsList(props: {
       mutation SpanAnnotationsEditorDeleteAnnotationMutation(
         $spanId: GlobalID!
         $annotationIds: [GlobalID!]!
-        $filterUserIds: [GlobalID!]
+        $filterUserIds: [GlobalID]
         $timeRange: TimeRange!
         $projectId: GlobalID!
       ) {
@@ -327,7 +329,7 @@ function SpanAnnotationsList(props: {
             variables: {
               spanId: spanNodeId,
               annotationIds: [annotation.id],
-              filterUserIds: viewer?.id ? [viewer.id] : null,
+              filterUserIds: userFilter,
               timeRange: {
                 start: timeRange?.start?.toISOString(),
                 end: timeRange?.end?.toISOString(),
@@ -359,7 +361,7 @@ function SpanAnnotationsList(props: {
     [
       commitDeleteAnnotation,
       spanNodeId,
-      viewer?.id,
+      userFilter,
       timeRange,
       projectId,
       notifyError,
@@ -375,7 +377,7 @@ function SpanAnnotationsList(props: {
         $label: String
         $score: Float
         $explanation: String
-        $filterUserIds: [GlobalID!]
+        $filterUserIds: [GlobalID]
         $timeRange: TimeRange!
         $projectId: GlobalID!
       ) {
@@ -428,7 +430,7 @@ function SpanAnnotationsList(props: {
                 label: data.label,
                 score: data.score,
                 explanation: data.explanation || null,
-                filterUserIds: viewer?.id ? [viewer.id] : null,
+                filterUserIds: userFilter,
                 timeRange: {
                   start: timeRange?.start?.toISOString(),
                   end: timeRange?.end?.toISOString(),
@@ -455,7 +457,7 @@ function SpanAnnotationsList(props: {
         }
       });
     },
-    [commitEdit, spanNodeId, viewer?.id, timeRange, projectId, notifyError]
+    [commitEdit, spanNodeId, userFilter, timeRange, projectId, notifyError]
   );
 
   const [commitCreateAnnotation] =
@@ -464,7 +466,7 @@ function SpanAnnotationsList(props: {
         $name: String!
         $input: CreateSpanAnnotationInput!
         $spanId: GlobalID!
-        $filterUserIds: [GlobalID!]
+        $filterUserIds: [GlobalID]
         $timeRange: TimeRange!
         $projectId: GlobalID!
       ) {
@@ -505,7 +507,7 @@ function SpanAnnotationsList(props: {
             },
             name: data.name,
             spanId: spanNodeId,
-            filterUserIds: viewer?.id ? [viewer.id] : null,
+            filterUserIds: userFilter,
             timeRange: {
               start: timeRange?.start?.toISOString(),
               end: timeRange?.end?.toISOString(),
@@ -532,10 +534,10 @@ function SpanAnnotationsList(props: {
     [
       commitCreateAnnotation,
       spanNodeId,
-      viewer?.id,
       timeRange,
       projectId,
       notifyError,
+      userFilter,
     ]
   );
 

@@ -30,6 +30,7 @@ export const AnnotationInputExplanation = ({
   const fieldName = annotation?.name
     ? `${annotation.name}.explanation`
     : "explanation";
+
   return (
     <DialogTrigger>
       <Button
