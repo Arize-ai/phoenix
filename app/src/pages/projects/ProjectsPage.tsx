@@ -41,6 +41,7 @@ import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
+import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeToggle";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -82,7 +83,6 @@ export function ProjectsPageContent({
 }) {
   const { projectViewMode } = usePreferencesContext((state) => ({
     projectViewMode: state.projectViewMode,
-    setProjectViewMode: state.setProjectViewMode,
   }));
   const [filter, setFilter] = useState<ProjectFilter | null>(null);
   const [sort] = useState<ProjectSort | null>(null);
@@ -241,19 +241,25 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <TextField
-            size="S"
-            aria-label="Search projects"
-            onChange={(value) => {
-              if (value.length > 0) {
-                setFilter({ value, col: "name" });
-              } else {
-                setFilter(null);
-              }
-            }}
-          >
-            <Input placeholder="Search projects" />
-          </TextField>
+          <Flex direction="row" alignItems="center" gap="size-100" width="100%">
+            <TextField
+              size="S"
+              css={css`
+                flex-basis: 100%;
+              `}
+              aria-label="Filter projects by name"
+              onChange={(value) => {
+                if (value.length > 0) {
+                  setFilter({ value, col: "name" });
+                } else {
+                  setFilter(null);
+                }
+              }}
+            >
+              <Input placeholder="Filter projects by name" />
+            </TextField>
+            <ProjectViewModeToggle />
+          </Flex>
           <Flex
             direction="row"
             justifyContent="end"
@@ -315,18 +321,31 @@ function ProjectGrid({
     <>
       <ul
         css={css`
-          display: flex;
-          flex-direction: row;
-          gap: var(--ac-global-dimension-size-200);
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(312px, 1fr));
+          gap: var(--ac-global-dimension-size-300);
         `}
       >
         {projects?.map((project) => (
-          <li key={project.id}>
+          <li
+            key={project.id}
+            css={css`
+              display: flex;
+              flex-direction: column;
+              height: 100%;
+              & > div {
+                height: 100%;
+              }
+            `}
+          >
             <Link
+              title={project.name}
               to={`/projects/${project.id}`}
               css={css`
                 text-decoration: none;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
               `}
             >
               <ProjectItem
@@ -421,6 +440,7 @@ function ProjectItem({
         flex-direction: column;
         justify-content: space-between;
         gap: var(--ac-global-dimension-size-200);
+        height: 100%;
       `}
     >
       <Flex direction="row" justifyContent="space-between" alignItems="start">
@@ -434,8 +454,10 @@ function ProjectItem({
               level={2}
               css={css`
                 overflow: hidden;
-                white-space: nowrap;
-                text-overflow: ellipsis;
+                display: -webkit-box;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                overflow: hidden;
               `}
             >
               {project.name}
