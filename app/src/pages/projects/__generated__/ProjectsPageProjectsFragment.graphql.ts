@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<759a4ac691f2100edae77023a43bd862>>
+ * @generated SignedSource<<08a8097338c5ed967d3b28abfd6049d4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,9 +43,19 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -75,7 +85,18 @@ return {
   "selections": [
     {
       "alias": "projects",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        },
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "ProjectConnection",
       "kind": "LinkedField",
       "name": "__ProjectsPage_projects_connection",
@@ -197,6 +218,6 @@ return {
 };
 })();
 
-(node as any).hash = "d16c129ec8d3d2eb1509dc95e45334fd";
+(node as any).hash = "07e6d5dc3d8e9700b9d4fe957483aba1";
 
 export default node;

@@ -24,6 +24,7 @@ import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
 } from "@phoenix/components/datetime";
+import { LoadMoreButton } from "@phoenix/components/LoadMoreButton";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
   ProjectsPageProjectMetricsQuery,
@@ -35,23 +36,27 @@ import {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
-import { ProjectsPageProjectsQuery } from "./__generated__/ProjectsPageProjectsQuery.graphql";
+import {
+  ProjectFilter,
+  ProjectSort,
+  ProjectsPageProjectsQuery,
+} from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 10;
 
 export function ProjectsPage() {
   const { timeRange } = useTimeRange();
 
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
-      query ProjectsPageQuery {
-        ...ProjectsPageProjectsFragment
+      query ProjectsPageQuery($first: Int) {
+        ...ProjectsPageProjectsFragment @arguments(first: $first)
       }
     `,
-    {}
+    { first: PAGE_SIZE }
   );
 
   return <ProjectsPageContent timeRange={timeRange} query={data} />;
@@ -64,6 +69,8 @@ export function ProjectsPageContent({
   timeRange: OpenTimeRange;
   query: ProjectsPageProjectsFragment$key;
 }) {
+  const [filter] = useState<ProjectFilter | null>(null);
+  const [sort] = useState<ProjectSort | null>(null);
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
@@ -89,8 +96,10 @@ export function ProjectsPageContent({
       @argumentDefinitions(
         after: { type: "String", defaultValue: null }
         first: { type: "Int", defaultValue: 50 }
+        sort: { type: "ProjectSort", defaultValue: null }
+        filter: { type: "ProjectFilter", defaultValue: null }
       ) {
-        projects(first: $first, after: $after)
+        projects(first: $first, after: $after, sort: $sort, filter: $filter)
           @connection(key: "ProjectsPage_projects") {
           edges {
             project: node {
@@ -107,6 +116,14 @@ export function ProjectsPageContent({
     query
   );
 
+  const queryArgs = useMemo(
+    () => ({
+      sort,
+      filter,
+    }),
+    [sort, filter]
+  );
+
   const projects = projectsData?.projects.edges.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
@@ -120,17 +137,17 @@ export function ProjectsPageContent({
           !isLoadingNext &&
           hasNext
         ) {
-          loadNext(PAGE_SIZE);
+          loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs });
         }
       }
     },
-    [hasNext, isLoadingNext, loadNext]
+    [hasNext, isLoadingNext, loadNext, queryArgs]
   );
 
   const onDelete = useCallback(
     (projectName: string) => {
       startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
+        refetch(queryArgs, { fetchPolicy: "store-and-network" });
         notify({
           variant: "success",
           title: "Project Deleted",
@@ -138,13 +155,13 @@ export function ProjectsPageContent({
         });
       });
     },
-    [notify, refetch]
+    [notify, refetch, queryArgs]
   );
 
   const onClear = useCallback(
     (projectName: string) => {
       startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
+        refetch(queryArgs, { fetchPolicy: "store-and-network" });
         notify({
           variant: "success",
           title: "Project Cleared",
@@ -152,13 +169,13 @@ export function ProjectsPageContent({
         });
       });
     },
-    [notify, refetch]
+    [notify, refetch, queryArgs]
   );
 
   const onRemove = useCallback(
     (projectName: string) => {
       startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
+        refetch(queryArgs, { fetchPolicy: "store-and-network" });
         notify({
           variant: "success",
           title: "Project Data Removed",
@@ -166,7 +183,7 @@ export function ProjectsPageContent({
         });
       });
     },
-    [notify, refetch]
+    [notify, refetch, queryArgs]
   );
 
   return (
@@ -227,6 +244,21 @@ export function ProjectsPageContent({
             </li>
           ))}
         </ul>
+        {hasNext && (
+          <Flex
+            width="100%"
+            justifyContent="center"
+            alignItems="center"
+            marginTop="size-200"
+          >
+            <LoadMoreButton
+              onLoadMore={() =>
+                loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs })
+              }
+              isLoadingNext={isLoadingNext}
+            />
+          </Flex>
+        )}
       </View>
       {holder}
     </div>
