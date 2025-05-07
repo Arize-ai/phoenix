@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eba77ccefa0c9b326134e6940f8a33fe>>
+ * @generated SignedSource<<a19e99986c2b424159bceae9513df248>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -160,6 +160,13 @@ return {
                     "kind": "ScalarField",
                     "name": "endTime",
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "startTime",
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -235,16 +242,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4fb0037d27e21158f72237bb3ebea003",
+    "cacheID": "7a4089a41352e9d5b2684a7b81f07abc",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "07e6d5dc3d8e9700b9d4fe957483aba1";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;

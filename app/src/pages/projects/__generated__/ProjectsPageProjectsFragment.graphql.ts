@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08a8097338c5ed967d3b28abfd6049d4>>
+ * @generated SignedSource<<c70464ee56bf821921d873b5ad33c38e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ProjectsPageProjectsFragment$data = {
         readonly gradientStartColor: string;
         readonly id: string;
         readonly name: string;
+        readonly startTime: string | null;
       };
     }>;
   };
@@ -152,6 +153,13 @@ return {
                   "kind": "ScalarField",
                   "name": "endTime",
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "startTime",
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -218,6 +226,6 @@ return {
 };
 })();
 
-(node as any).hash = "07e6d5dc3d8e9700b9d4fe957483aba1";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;
