@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4ba62607d2df358276954138f4d73714>>
+ * @generated SignedSource<<5e9ee61b11590b92c155356e74c85caa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,21 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ProjectColumn = "createdAt" | "name" | "updatedAt";
+export type ProjectFilterColumn = "name";
+export type SortDir = "asc" | "desc";
+export type ProjectSort = {
+  col: ProjectColumn;
+  dir: SortDir;
+};
+export type ProjectFilter = {
+  col: ProjectFilterColumn;
+  value: string;
+};
 export type ProjectsPageQuery$variables = {
+  filter?: ProjectFilter | null;
   first?: number | null;
+  sort?: ProjectSort | null;
 };
 export type ProjectsPageQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectsPageProjectsFragment">;
@@ -22,29 +35,51 @@ export type ProjectsPageQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "filter"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "first"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "sort"
+},
+v3 = [
   {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "first"
-  }
-],
-v1 = [
+    "kind": "Variable",
+    "name": "filter",
+    "variableName": "filter"
+  },
   {
     "kind": "Variable",
     "name": "first",
     "variableName": "first"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
   }
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "ProjectsPageQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "kind": "FragmentSpread",
         "name": "ProjectsPageProjectsFragment"
       }
@@ -54,13 +89,17 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "ProjectsPageQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -178,7 +217,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "filters": [
           "sort",
           "filter"
@@ -191,16 +230,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6f4d5de097e25ccfa67db3ec07cbc231",
+    "cacheID": "9dd1861f8a2d9efb56b027986cbf166e",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $first: Int\n) {\n  ...ProjectsPageProjectsFragment_3ASum4\n}\n\nfragment ProjectsPageProjectsFragment_3ASum4 on Query {\n  projects(first: $first) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n) {\n  ...ProjectsPageProjectsFragment_1bvy9D\n}\n\nfragment ProjectsPageProjectsFragment_1bvy9D on Query {\n  projects(first: $first, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f2058b4a7dd9b2a95373df8b1eace154";
+(node as any).hash = "c85f2b2ff3b9697931cca71426ea0b59";
 
 export default node;

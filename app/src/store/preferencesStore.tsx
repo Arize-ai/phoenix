@@ -13,6 +13,11 @@ export type ModelConfigByProvider = Partial<
 
 export type ProjectViewMode = "table" | "grid";
 
+export type ProjectSortOrder = {
+  column: "name" | "createdAt" | "updatedAt";
+  direction: "asc" | "desc";
+};
+
 export interface PreferencesProps {
   /**
    * The display mode of markdown text
@@ -54,6 +59,10 @@ export interface PreferencesProps {
    * The view mode for projects
    */
   projectViewMode: ProjectViewMode;
+  /**
+   * The sort order for projects
+   */
+  projectSortOrder: ProjectSortOrder;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -103,6 +112,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project view mode
    */
   setProjectViewMode: (projectViewMode: ProjectViewMode) => void;
+  /**
+   * Setter for the project sort order
+   */
+  setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
 }
 
 export const createPreferencesStore = (
@@ -151,6 +164,13 @@ export const createPreferencesStore = (
     projectViewMode: "grid",
     setProjectViewMode: (projectViewMode) => {
       set({ projectViewMode });
+    },
+    projectSortOrder: {
+      column: "createdAt",
+      direction: "asc",
+    },
+    setProjectSortOrder: (projectSortOrder) => {
+      set({ projectSortOrder });
     },
     ...initialProps,
   });
