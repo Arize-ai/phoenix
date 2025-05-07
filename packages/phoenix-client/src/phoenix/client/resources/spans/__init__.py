@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, cast
 
 import httpx
 
+from phoenix.client.errors import check_response_for_errors
+
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -192,7 +194,7 @@ class Spans:
                     headers={"accept": "application/json"},
                     timeout=timeout,
                 )
-                response.raise_for_status()
+                check_response_for_errors(response)
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
@@ -252,7 +254,7 @@ class Spans:
                     headers={"accept": "application/json"},
                     timeout=timeout,
                 )
-                response.raise_for_status()
+                check_response_for_errors(response)
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
@@ -434,7 +436,7 @@ class AsyncSpans:
                     headers={"accept": "application/json"},
                     timeout=timeout,
                 )
-                response.raise_for_status()
+                check_response_for_errors(response)
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
@@ -494,7 +496,7 @@ class AsyncSpans:
                     headers={"accept": "application/json"},
                     timeout=timeout,
                 )
-                response.raise_for_status()
+                check_response_for_errors(response)
                 payload = response.json()
                 payload = cast(v1.SpanAnnotationsResponseBody, payload)
                 batch = cast(list[v1.SpanAnnotation], payload.get("data", []))
@@ -556,7 +558,7 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
                 df = _decode_df_from_json_string(json_string)
                 dfs.append(df)
     else:
-        response.raise_for_status()
+        check_response_for_errors(response)
         logger.warning("Received non-multipart response when expecting dataframe.")
 
     if dfs:

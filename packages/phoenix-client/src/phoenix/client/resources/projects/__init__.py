@@ -6,6 +6,7 @@ from typing import Optional, cast
 import httpx
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.errors import check_response_for_errors
 from phoenix.client.utils.encode_path_param import encode_path_param
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class Projects:
             project_identifier = project_id
         url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = self._client.get(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return cast(v1.GetProjectResponseBody, response.json())["data"]
 
     def list(
@@ -107,7 +108,7 @@ class Projects:
             url = "v1/projects"
             params = {"cursor": next_cursor} if next_cursor else {}
             response = self._client.get(url, params=params)
-            response.raise_for_status()
+            check_response_for_errors(response)
             data = cast(v1.GetProjectsResponseBody, response.json())
             all_projects.extend(data["data"])
             if not (next_cursor := data.get("next_cursor")):
@@ -150,7 +151,7 @@ class Projects:
         if description:
             json_["description"] = description
         response = self._client.post(url=url, json=json_)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return cast(v1.CreateProjectResponseBody, response.json())["data"]
 
     def update(
@@ -209,7 +210,7 @@ class Projects:
             raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
         response = self._client.put(url=url, json=json_)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return cast(v1.UpdateProjectResponseBody, response.json())["data"]
 
     def delete(
@@ -250,7 +251,7 @@ class Projects:
             project_identifier = project_id
         url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = self._client.delete(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
 
 
 class AsyncProjects:
@@ -315,7 +316,7 @@ class AsyncProjects:
             project_identifier = project_id
         url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = await self._client.get(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return cast(v1.GetProjectResponseBody, response.json())["data"]
 
     async def list(
@@ -346,7 +347,7 @@ class AsyncProjects:
             url = "v1/projects"
             params = {"cursor": next_cursor} if next_cursor else {}
             response = await self._client.get(url, params=params)
-            response.raise_for_status()
+            check_response_for_errors(response)
             data = cast(v1.GetProjectsResponseBody, response.json())
             all_projects.extend(data["data"])
             if not (next_cursor := data.get("next_cursor")):
@@ -389,7 +390,7 @@ class AsyncProjects:
         if description:
             json_["description"] = description
         response = await self._client.post(url=url, json=json_)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return cast(v1.CreateProjectResponseBody, response.json())["data"]
 
     async def update(
@@ -448,7 +449,7 @@ class AsyncProjects:
             raise ValueError("description must be provided.")
         json_ = v1.UpdateProjectRequestBody(description=description)
         response = await self._client.put(url=url, json=json_)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return cast(v1.UpdateProjectResponseBody, response.json())["data"]
 
     async def delete(
@@ -489,4 +490,4 @@ class AsyncProjects:
             project_identifier = project_id
         url = f"v1/projects/{encode_path_param(project_identifier)}"
         response = await self._client.delete(url)
-        response.raise_for_status()
+        check_response_for_errors(response)

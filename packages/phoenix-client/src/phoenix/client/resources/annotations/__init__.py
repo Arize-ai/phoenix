@@ -7,6 +7,7 @@ import httpx
 from typing_extensions import TypeAlias
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.errors import check_response_for_errors
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -226,7 +227,7 @@ class Annotations:
         params = {"sync": sync} if sync else {}
         json_ = v1.AnnotateSpansRequestBody(data=annotations_list)
         response = self._client.post(url=url, json=json_, params=params)
-        response.raise_for_status()
+        check_response_for_errors(response)
         if not sync:
             return None
         return list(cast(v1.AnnotateSpansResponseBody, response.json())["data"])
@@ -460,7 +461,7 @@ class AsyncAnnotations:
         params = {"sync": sync} if sync else {}
         json_ = v1.AnnotateSpansRequestBody(data=list(span_annotations))
         response = await self._client.post(url=url, json=json_, params=params)
-        response.raise_for_status()
+        check_response_for_errors(response)
         if not sync:
             return None
         return list(cast(v1.AnnotateSpansResponseBody, response.json())["data"])

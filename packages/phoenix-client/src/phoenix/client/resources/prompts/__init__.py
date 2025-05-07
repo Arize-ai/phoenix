@@ -6,6 +6,7 @@ from typing import Optional, cast
 import httpx
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.errors import check_response_for_errors
 from phoenix.client.types.prompts import PromptVersion
 from phoenix.client.utils.encode_path_param import encode_path_param
 
@@ -59,7 +60,7 @@ class Prompts:
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = self._client.get(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     def create(
@@ -90,7 +91,7 @@ class Prompts:
             prompt["description"] = prompt_description
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
 
@@ -144,7 +145,7 @@ class PromptVersionTags:
         if description:
             data["description"] = description
         response = self._client.post(url, json=data)
-        response.raise_for_status()
+        check_response_for_errors(response)
 
     def list(
         self,
@@ -173,7 +174,7 @@ class PromptVersionTags:
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = self._client.get(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return list(cast(v1.GetPromptVersionTagsResponseBody, response.json())["data"])
 
 
@@ -224,7 +225,7 @@ class AsyncPrompts:
         """
         url = _url(prompt_version_id, prompt_identifier, tag)
         response = await self._client.get(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return PromptVersion._loads(cast(v1.GetPromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
     async def create(
@@ -255,7 +256,7 @@ class AsyncPrompts:
             prompt["description"] = prompt_description
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
 
 
@@ -309,7 +310,7 @@ class AsyncPromptVersionTags:
         if description:
             data["description"] = description
         response = await self._client.post(url, json=data)
-        response.raise_for_status()
+        check_response_for_errors(response)
 
     async def list(
         self,
@@ -338,7 +339,7 @@ class AsyncPromptVersionTags:
         """
         url = f"v1/prompt_versions/{encode_path_param(prompt_version_id)}/tags"
         response = await self._client.get(url)
-        response.raise_for_status()
+        check_response_for_errors(response)
         return list(cast(v1.GetPromptVersionTagsResponseBody, response.json())["data"])
 
 
