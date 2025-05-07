@@ -30,6 +30,7 @@ from .models import V1RoutesBaseModel
 from .utils import (
     RequestBody,
     ResponseBody,
+    PaginatedResponseBody,
     _get_project_by_identifier,
     add_errors_to_responses,
 )
@@ -73,16 +74,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     )
 
 
-class SpanRecord(V1RoutesBaseModel):
-    """A REST representation of a span.
-
-    Most fields correspond directly to columns in the `spans` table or the
-    flattened dataframe returned by the `/v1/spans` endpoint.  Additional
-    columns that may be produced by the SpanQuery DSL (e.g. via `select`,
-    `explode`, `concat`, or `rename`) are accepted transparently thanks to
-    the `extra = "allow"` model configuration.
-    """
-
+class Span(V1RoutesBaseModel):
     id: str = Field(
         description="The Global Relay-style ID of the span (based on the DB primary key)."
     )
@@ -110,13 +102,7 @@ class SpanRecord(V1RoutesBaseModel):
     }
 
 
-class SpanSearchResponseBody(ResponseBody[list[list[SpanRecord]]]):
-    """The response body returned by the `/span_search` endpoint.
-
-    The outer list aligns with the order of `queries` in the request body; each
-    inner list contains the spans that satisfy the corresponding query.
-    """
-
+class SpanSearchResponseBody(PaginatedResponseBody[Span]):
     pass
 
 
@@ -206,135 +192,111 @@ async def _json_multipart(
     yield f"--{boundary_token}--\r\n"
 
 
-@router.post(
+@router.get(
     "/projects/{project_identifier}/span_search",
     operation_id="spanSearch",
-    summary="Query spans in a project and return JSON (not DataFrame)",
-    response_description=(
-        "For each SpanQuery in the request body, returns a list of matching spans scoped to the "
-        "specified project."
-    ),
+    summary="Search spans with simple filters (no DSL)",
+    description="Return spans within a project filtered by time range, annotation names, "
+    "and ordered by start_time. Supports cursor-based pagination.",
     responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
 )
-async def span_search_handler(
+async def span_search(
     request: Request,
-    request_body: QuerySpansRequestBody,
     project_identifier: str = Path(
         description=(
             "The project identifier: either project ID or project name. If using a project name, "
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
+    limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
+    sort_direction: Literal["asc", "desc"] = Query(
+        default="desc", description="Sort direction for the sort field",
+    ),
+    start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
+    end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
+    annotation_names: Optional[list[str]] = Query(
+        default=None,
+        description="If provided, only include spans that have at least one annotation with one of these names.",
+        alias="annotationNames",
+    ),
 ) -> SpanSearchResponseBody:
-    """A JSON alternative to the legacy `/v1/spans` route.
-
-    It executes the same SpanQuery DSL but serialises the results into a list
-    of Pydantic objects rather than a multipart-encoded pandas DataFrame.
-    """
+    """Search spans with minimal filters instead of the old SpanQuery DSL."""
 
     async with request.app.state.db() as session:
         project = await _get_project_by_identifier(session, project_identifier)
-    project_name: str = project.name
 
-    queries = request_body.queries
-    end_time = request_body.end_time or request_body.stop_time
+    project_id: int = project.id
+    order_exprs = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
 
-    # Parse the SpanQuery DSL – reuse the equivalent implementation used by the
-    # existing `/spans` route.
-    try:
-        span_queries = [SpanQuery_.from_dict(query.dict()) for query in queries]
-    except Exception as e:
-        raise HTTPException(
-            detail=f"Invalid query: {e}",
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+    stmt = (
+        select(
+            models.Span,
+            models.Trace.trace_id,
         )
+        .join(models.Trace)
+        .join(models.Project)
+        .where(models.Project.id == project_id)
+        .order_by(*order_exprs)
+    )
+
+    if start_time:
+        stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
+    if end_time:
+        stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+
+    if annotation_names:
+        stmt = (
+            stmt.join(models.SpanAnnotation)
+            .where(models.SpanAnnotation.name.in_(annotation_names))
+            .group_by(models.Span.id, models.Trace.trace_id)
+        )
+
+    if cursor:
+        try:
+            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+            if sort_direction == "asc":
+                stmt = stmt.where(models.Span.id > cursor_rowid)
+            else:
+                stmt = stmt.where(models.Span.id < cursor_rowid)
+        except Exception:
+            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+
+    stmt = stmt.limit(limit + 1)
 
     async with request.app.state.db() as session:
-        df_results: list[pd.DataFrame] = []
-        for query in span_queries:
-            df_results.append(
-                await session.run_sync(
-                    query,
-                    project_name=project_name,
-                    start_time=normalize_datetime(request_body.start_time, timezone.utc),
-                    end_time=normalize_datetime(end_time, timezone.utc),
-                    limit=request_body.limit,
-                    root_spans_only=request_body.root_spans_only,
-                )
-            )
+        rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
-        if not df_results:
-            raise HTTPException(status_code=HTTP_404_NOT_FOUND)
+    if not rows:
+        return SpanSearchResponseBody(next_cursor=None, data=[])
 
-        # Build a mapping from span_id -> (rowid, trace_id, attributes, events)
-        all_span_ids: set[str] = {
-            *(
-                span_id
-                for df in df_results
-                for span_id in (
-                    df.get("context.span_id")
-                    if "context.span_id" in df.columns
-                    else df.get("span_id", pd.Series(dtype=str))
-                )
-                if isinstance(span_id, str)
-            )
-        }
+    next_cursor: Optional[str] = None
+    if len(rows) == limit + 1:
+        *rows, extra = rows
+        span_extra, _ = extra
+        next_cursor = str(GlobalID("Span", str(span_extra.id)))
 
-        span_meta_stmt = (
-            select(
-                models.Span.id,
-                models.Span.span_id,
-                models.Trace.trace_id,
-                models.Span.attributes,
-                models.Span.events,
-            )
-            .join(models.Trace)
-            .join(models.Project)
-            .where(
-                models.Project.id == project.id,
-                models.Span.span_id.in_(all_span_ids),
+    # Convert rows to Span Pydantic model
+    result_spans: list[Span] = []
+    for span_orm, trace_id in rows:
+        result_spans.append(
+            Span(
+                id=str(GlobalID("Span", str(span_orm.id))),
+                span_id=span_orm.span_id,
+                trace_id=trace_id,
+                name=span_orm.name,
+                span_kind=span_orm.span_kind,
+                parent_id=span_orm.parent_id,
+                start_time=span_orm.start_time,
+                end_time=span_orm.end_time,
+                status_code=span_orm.status_code,
+                status_message=span_orm.status_message,
+                events=span_orm.events or [],
+                attributes=span_orm.attributes or {},
             )
         )
-        meta_mapping: dict[
-            str, tuple[int, Optional[str], dict[str, Any], list[dict[str, Any]]]
-        ] = {}
-        for row in (await session.execute(span_meta_stmt)).all():
-            rowid, span_id, trace_id, attributes, events = row
-            meta_mapping[span_id] = (
-                rowid,
-                trace_id,
-                attributes or {},
-                events or [],
-            )
 
-    # Helper to transform a dataframe row into a SpanRecord
-    def _row_to_span_record(row: pd.Series) -> SpanRecord:
-        data: dict[str, Any] = row.to_dict()
-
-        # Normalise context.* aliases
-        if "context.span_id" in data:
-            data["span_id"] = data.pop("context.span_id")
-        if "context.trace_id" in data:
-            data["trace_id"] = data.pop("context.trace_id")
-
-        span_id_val: str = data.get("span_id")  # type: ignore[assignment]
-        if span_id_val in meta_mapping:
-            rowid, trace_id_val, attributes_val, events_val = meta_mapping[span_id_val]
-            data.setdefault("id", str(GlobalID("Span", str(rowid))))
-            data.setdefault("trace_id", trace_id_val)
-            data.setdefault("attributes", attributes_val)
-            data.setdefault("events", events_val)
-        else:
-            # Fallback – still provide an ID if we cannot map it (should be rare)
-            data.setdefault("id", span_id_val)
-
-        return SpanRecord(**data)  # extra columns are accepted
-
-    response_data: list[list[SpanRecord]] = [
-        [_row_to_span_record(row) for _, row in df.iterrows()] for df in df_results
-    ]
-
-    return SpanSearchResponseBody(data=response_data)
+    return SpanSearchResponseBody(next_cursor=next_cursor, data=result_spans)
 
 
 @router.get("/spans", include_in_schema=False, deprecated=True)
