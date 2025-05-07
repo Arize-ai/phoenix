@@ -25,7 +25,7 @@ class TraceAnnotation(Node):
     explanation: Optional[str]
     metadata: JSON
     trace_rowid: Private[Optional[int]]
-    identifier: Optional[str]
+    identifier: str
     source: AnnotationSource
 
     @strawberry.field
@@ -63,6 +63,6 @@ def to_gql_trace_annotation(
         score=annotation.score,
         explanation=annotation.explanation,
         metadata=annotation.metadata_,
-        identifier=annotation.identifier or None,
+        identifier=annotation.identifier,
         source=AnnotationSource(annotation.source),
     )

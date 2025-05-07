@@ -95,7 +95,7 @@ class TestSpanAnnotationMutations:
                             "explanation": "Initial explanation",
                             "annotatorKind": AnnotatorKind.HUMAN.name,
                             "metadata": {},
-                            "identifier": None,
+                            "identifier": "",
                             "source": AnnotationSource.API.name,
                         }
                     ]
@@ -119,7 +119,7 @@ class TestSpanAnnotationMutations:
         assert data["label"] == expected["label"]
         assert data["score"] == expected["score"]
         assert data["explanation"] == expected["explanation"]
-        assert data["identifier"] is None
+        assert data["identifier"] == ""
         assert isinstance(data["id"], str)
 
     async def test_upsert_on_conflict_updates_existing(
@@ -182,7 +182,7 @@ class TestSpanAnnotationMutations:
             "explanation": "First",
             "annotatorKind": AnnotatorKind.HUMAN.name,
             "metadata": {},
-            "identifier": None,  # Missing identifiers will upsert for backwards compatibility
+            "identifier": "",
             "source": AnnotationSource.APP.name,
         }
         variables1 = {"input": [base_input]}
