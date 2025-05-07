@@ -1,4 +1,4 @@
-import React from "react";
+import React, { startTransition } from "react";
 import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { css } from "@emotion/react";
@@ -69,9 +69,13 @@ export const TraceDetailsPaginator = ({
             leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
             aria-label="Next trace"
             isDisabled={!hasNext}
-            onPress={() => next(currentId)}
+            onPress={() => {
+              startTransition(() => {
+                next(currentId);
+              });
+            }}
           />
-          <Tooltip>
+          <Tooltip offset={4}>
             <View
               backgroundColor="dark"
               borderWidth="thin"
@@ -92,9 +96,13 @@ export const TraceDetailsPaginator = ({
             leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
             aria-label="Previous trace"
             isDisabled={!hasPrevious}
-            onPress={() => previous(currentId)}
+            onPress={() => {
+              startTransition(() => {
+                previous(currentId);
+              });
+            }}
           />
-          <Tooltip>
+          <Tooltip offset={4}>
             <View
               backgroundColor="dark"
               borderWidth="thin"

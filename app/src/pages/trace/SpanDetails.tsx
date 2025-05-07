@@ -61,7 +61,7 @@ import {
   Heading,
   Icon,
   Icons,
-  KeyboardToken,
+  Keyboard,
   LazyTabPanel,
   LinkButton,
   Tab,
@@ -340,7 +340,7 @@ export function SpanDetails({
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (
-                      <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
+                      <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
                     )
                   }
                 >
