@@ -41,6 +41,7 @@ import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
+import { ProjectSortMenu } from "@phoenix/pages/projects/ProjectSortMenu";
 import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeToggle";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -50,7 +51,6 @@ import {
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import {
   ProjectFilter,
-  ProjectSort,
   ProjectsPageProjectsQuery,
 } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
@@ -59,16 +59,41 @@ import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 
+const useProjectSortQueryParams = () => {
+  const { projectSortOrder } = usePreferencesContext((state) => ({
+    projectViewMode: state.projectViewMode,
+    projectSortOrder: state.projectSortOrder,
+  }));
+  const params = useMemo(() => {
+    return {
+      sort: {
+        col: projectSortOrder.column,
+        dir: projectSortOrder.direction,
+      },
+    };
+  }, [projectSortOrder]);
+  return params;
+};
+
 export function ProjectsPage() {
   const { timeRange } = useTimeRange();
-
+  const _queryParams = useProjectSortQueryParams();
+  // we only want to trigger the initial query when the component mounts
+  // so we want to cache the initial state of the query params
+  // this prevents full page reloads when the sort order changes
+  const [queryParams] = useState(() => _queryParams);
   const data = useLazyLoadQuery<ProjectsPageQuery>(
     graphql`
-      query ProjectsPageQuery($first: Int) {
-        ...ProjectsPageProjectsFragment @arguments(first: $first)
+      query ProjectsPageQuery(
+        $first: Int
+        $sort: ProjectSort
+        $filter: ProjectFilter
+      ) {
+        ...ProjectsPageProjectsFragment
+          @arguments(first: $first, sort: $sort, filter: $filter)
       }
     `,
-    { first: PAGE_SIZE }
+    { first: PAGE_SIZE, ...queryParams }
   );
 
   return <ProjectsPageContent timeRange={timeRange} query={data} />;
@@ -84,8 +109,8 @@ export function ProjectsPageContent({
   const { projectViewMode } = usePreferencesContext((state) => ({
     projectViewMode: state.projectViewMode,
   }));
+  const sortQueryParams = useProjectSortQueryParams();
   const [filter, setFilter] = useState<ProjectFilter | null>(null);
-  const [sort] = useState<ProjectSort | null>(null);
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
@@ -133,10 +158,10 @@ export function ProjectsPageContent({
 
   const queryArgs = useMemo(
     () => ({
-      sort,
+      ...sortQueryParams,
       filter,
     }),
-    [sort, filter]
+    [sortQueryParams, filter]
   );
 
   const projects = projectsData?.projects.edges.map((p) => p.project);
@@ -278,16 +303,23 @@ export function ProjectsPageContent({
       </View>
       <View padding="size-200" width="100%">
         {projectViewMode === "grid" ? (
-          <ProjectGrid
-            projects={projects}
-            onDelete={onDelete}
-            onClear={onClear}
-            onRemove={onRemove}
-            timeRangeVariable={timeRangeVariable}
-            hasNext={hasNext}
-            loadNext={loadNextWithArgs}
-            isLoadingNext={isLoadingNext}
-          />
+          <Flex direction="column" gap="size-200">
+            <Flex direction="row" justifyContent="end" alignItems="center">
+              <ProjectSortMenu />
+            </Flex>
+            <Flex direction="column">
+              <ProjectGrid
+                projects={projects}
+                onDelete={onDelete}
+                onClear={onClear}
+                onRemove={onRemove}
+                timeRangeVariable={timeRangeVariable}
+                hasNext={hasNext}
+                loadNext={loadNextWithArgs}
+                isLoadingNext={isLoadingNext}
+              />
+            </Flex>
+          </Flex>
         ) : null}
       </View>
       {holder}
