@@ -122,6 +122,7 @@ class Client(TraceDataExtractor):
         # Deprecated
         stop_time: Optional[datetime] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+        orphan_span_as_root_span: bool = True,
     ) -> Optional[Union[pd.DataFrame, list[pd.DataFrame]]]:
         """
         Queries spans from the Phoenix server or active session based on specified criteria.
@@ -163,6 +164,7 @@ class Client(TraceDataExtractor):
                     "end_time": _to_iso_format(normalize_datetime(end_time)),
                     "limit": limit,
                     "root_spans_only": root_spans_only,
+                    "orphan_span_as_root_span": orphan_span_as_root_span,
                 },
                 timeout=timeout,
             )
