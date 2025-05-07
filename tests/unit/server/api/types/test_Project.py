@@ -1569,3 +1569,201 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+
+@pytest.mark.parametrize(
+    "sort_col, sort_dir, expected_order",
+    [
+        pytest.param(
+            "name",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-name-asc",
+        ),
+        pytest.param(
+            "name",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-name-desc",
+        ),
+        pytest.param(
+            "createdAt",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-created-at-asc",
+        ),
+        pytest.param(
+            "createdAt",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-created-at-desc",
+        ),
+        pytest.param(
+            "updatedAt",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-updated-at-asc",
+        ),
+        pytest.param(
+            "updatedAt",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-updated-at-desc",
+        ),
+    ],
+)
+async def test_project_sort(
+    sort_col: str,
+    sort_dir: str,
+    expected_order: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test project sorting capabilities."""
+    # Create test projects with controlled timestamps
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    async with db() as session:
+        for i, name in enumerate(["project1", "project2", "project3"]):
+            project = models.Project(
+                name=name,
+                created_at=base_time + timedelta(hours=i),
+                updated_at=base_time + timedelta(hours=i),
+            )
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($sort: ProjectSort) {
+            projects(sort: $sort) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"sort": {"col": sort_col, "dir": sort_dir}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert project_names == expected_order
+
+
+@pytest.mark.parametrize(
+    "filter_value, expected_names",
+    [
+        pytest.param(
+            "project",
+            ["test_project", "project_test"],
+            id="filter-matches-all",
+        ),
+        pytest.param(
+            "test",
+            ["test_project", "project_test"],
+            id="filter-matches-partial",
+        ),
+        pytest.param(
+            "TEST",
+            ["test_project", "project_test"],
+            id="filter-case-insensitive",
+        ),
+        pytest.param(
+            "nomatch",
+            [],
+            id="filter-no-matches",
+        ),
+    ],
+)
+async def test_project_filter(
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test project filtering capabilities."""
+    # Create test projects
+    async with db() as session:
+        for name in ["test_project", "project_test", "other_name"]:
+            project = models.Project(name=name)
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($filter: ProjectFilter) {
+            projects(filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"filter": {"col": "name", "value": filter_value}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert sorted(project_names) == sorted(expected_names)
+
+
+@pytest.mark.parametrize(
+    "sort, filter_value, expected_names",
+    [
+        pytest.param(
+            {"col": "name", "dir": "asc"},
+            "test",
+            ["project_test", "test_project"],
+            id="filter-and-sort-asc",
+        ),
+        pytest.param(
+            {"col": "name", "dir": "desc"},
+            "test",
+            ["test_project", "project_test"],
+            id="filter-and-sort-desc",
+        ),
+    ],
+)
+async def test_project_filter_and_sort(
+    sort: dict[str, str],
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test combining project filtering and sorting."""
+    # Create test projects
+    async with db() as session:
+        for name in ["test_project", "project_test", "other_name"]:
+            project = models.Project(name=name)
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($sort: ProjectSort, $filter: ProjectFilter) {
+            projects(sort: $sort, filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {
+        "sort": sort,
+        "filter": {"col": "name", "value": filter_value},
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert project_names == expected_names
