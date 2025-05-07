@@ -14,12 +14,22 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 import { formatDistance } from "date-fns";
+import { debounce } from "lodash";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
 
-import { Flex, Heading, Link, Skeleton, Text, View } from "@phoenix/components";
+import {
+  Flex,
+  Heading,
+  Input,
+  Link,
+  Skeleton,
+  Text,
+  TextField,
+  View,
+} from "@phoenix/components";
 import {
   ConnectedLastNTimeRangePicker,
   useTimeRange,
@@ -69,7 +79,7 @@ export function ProjectsPageContent({
   timeRange: OpenTimeRange;
   query: ProjectsPageProjectsFragment$key;
 }) {
-  const [filter] = useState<ProjectFilter | null>(null);
+  const [filter, setFilter] = useState<ProjectFilter | null>(null);
   const [sort] = useState<ProjectSort | null>(null);
   const [notify, holder] = useNotification();
   // Convert the time range to a variable that can be used in the query
@@ -186,6 +196,16 @@ export function ProjectsPageContent({
     [notify, refetch, queryArgs]
   );
 
+  const debouncedRefetch = useMemo(() => {
+    return debounce(() => {
+      refetch(queryArgs, { fetchPolicy: "store-and-network" });
+    }, 1000);
+  }, [refetch, queryArgs]);
+
+  useEffect(() => {
+    debouncedRefetch();
+  }, [debouncedRefetch, queryArgs]);
+
   return (
     <div
       css={css`
@@ -208,12 +228,37 @@ export function ProjectsPageContent({
       >
         <Flex
           direction="row"
-          justifyContent="end"
+          justifyContent="space-between"
           alignItems="center"
           gap="size-100"
         >
-          <NewProjectButton />
-          <ConnectedLastNTimeRangePicker />
+          <TextField
+            size="S"
+            aria-label="Search projects"
+            onChange={(value) => {
+              if (value.length > 0) {
+                setFilter({ value, col: "name" });
+              } else {
+                setFilter(null);
+              }
+            }}
+          >
+            <Input placeholder="Search projects" />
+          </TextField>
+          <Flex
+            direction="row"
+            justifyContent="end"
+            alignItems="center"
+            gap="size-100"
+            css={css`
+              button {
+                text-wrap: nowrap;
+              }
+            `}
+          >
+            <NewProjectButton />
+            <ConnectedLastNTimeRangePicker />
+          </Flex>
         </Flex>
       </View>
       <View padding="size-200" width="100%">
