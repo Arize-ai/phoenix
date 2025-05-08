@@ -4,7 +4,7 @@ from asyncio import create_task, gather, sleep
 from datetime import datetime, timedelta, timezone
 
 import sqlalchemy as sa
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.models import Project, ProjectTraceRetentionPolicy
@@ -36,7 +36,7 @@ class TraceDataSweeper(DaemonTask):
 
     async def _get_policies(self) -> list[ProjectTraceRetentionPolicy]:
         stmt = sa.select(ProjectTraceRetentionPolicy).options(
-            joinedload(ProjectTraceRetentionPolicy.projects).load_only(Project.id)
+            selectinload(ProjectTraceRetentionPolicy.projects).load_only(Project.id)
         )
         async with self._db() as session:
             result = await session.scalars(stmt)
