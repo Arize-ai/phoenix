@@ -1,7 +1,7 @@
 from asyncio import sleep
 from datetime import datetime, timedelta
 from random import getrandbits
-from typing import Any, Set, cast
+from typing import Any, cast
 
 import httpx
 import pandas as pd
@@ -15,7 +15,6 @@ from phoenix.client import Client
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
-from phoenix.utilities.json import decode_df_from_json_string
 
 
 async def test_span_round_tripping_with_docs(
@@ -201,12 +200,6 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
             )
 
 
-# ---------------------------------------------------------------------------
-# Tests for each filter feature
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
 async def test_span_search_basic(httpx_client: httpx.AsyncClient, span_search_test_data: None):
     resp = await httpx_client.get("v1/projects/search-test/span_search")
     assert resp.is_success
@@ -214,7 +207,6 @@ async def test_span_search_basic(httpx_client: httpx.AsyncClient, span_search_te
     assert len(data["data"]) == 3
 
 
-@pytest.mark.asyncio
 async def test_span_search_annotation_filter(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ):
@@ -227,7 +219,6 @@ async def test_span_search_annotation_filter(
     assert len(data["data"]) == 2
 
 
-@pytest.mark.asyncio
 async def test_span_search_time_slice(httpx_client: httpx.AsyncClient, span_search_test_data: None):
     start = "2021-01-01T00:01:00+00:00"
     end = "2021-01-01T00:03:00+00:00"
@@ -241,7 +232,6 @@ async def test_span_search_time_slice(httpx_client: httpx.AsyncClient, span_sear
     assert len(data["data"]) == 2
 
 
-@pytest.mark.asyncio
 async def test_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ):
@@ -257,7 +247,6 @@ async def test_span_search_sort_direction(
     assert ids_desc == list(reversed(ids_asc))
 
 
-@pytest.mark.asyncio
 async def test_span_search_pagination(httpx_client: httpx.AsyncClient, span_search_test_data: None):
     resp1 = await httpx_client.get(
         "v1/projects/search-test/span_search",
