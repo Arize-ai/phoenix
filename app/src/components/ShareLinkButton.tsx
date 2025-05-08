@@ -6,10 +6,12 @@ import { Button, Icon, Icons, Text, View } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 
 export const ShareLinkButton = ({
+  buttonText,
   successText,
   tooltipText = "Copy link to clipboard",
   preserveSearchParams = false,
 }: {
+  buttonText?: string;
   successText?: string;
   tooltipText?: string;
   preserveSearchParams?: boolean;
@@ -32,7 +34,9 @@ export const ShareLinkButton = ({
             expireMs: 1000,
           });
         }}
-      />
+      >
+        {buttonText}
+      </Button>
       <Tooltip offset={10}>
         <View
           padding="size-100"
