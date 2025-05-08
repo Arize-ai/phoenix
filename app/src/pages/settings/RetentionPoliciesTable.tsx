@@ -7,7 +7,6 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import cronstrue from "cronstrue";
 import { css } from "@emotion/react";
 
 import { Link } from "@phoenix/components";
@@ -17,6 +16,10 @@ import {
   useViewerCanManageRetentionPolicy,
 } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import {
+  createPolicyDeletionSummaryText,
+  createPolicyScheduleSummaryText,
+} from "@phoenix/utils/retentionPolicyUtils";
 
 import { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
 import { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
@@ -111,7 +114,9 @@ export const RetentionPoliciesTable = ({
         header: "Schedule",
         accessorKey: "cronExpression",
         cell: ({ row }) => {
-          return cronstrue.toString(row.original.cronExpression);
+          return createPolicyScheduleSummaryText({
+            schedule: row.original.cronExpression,
+          });
         },
       },
       {

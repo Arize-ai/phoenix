@@ -1,7 +1,6 @@
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { CronExpressionParser } from "cron-parser";
-import cronstrue from "cronstrue";
 
 import {
   Button,
@@ -15,29 +14,15 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { createPolicyDeletionSummaryText } from "@phoenix/utils/retentionPolicyUtils";
+import {
+  createPolicyDeletionSummaryText,
+  createPolicyScheduleSummaryText,
+} from "@phoenix/utils/retentionPolicyUtils";
 export type RetentionPolicyFormParams = {
   name: string;
   numberOfTraces?: number;
   numberOfDays?: number;
   schedule: string;
-};
-
-const createPolicyScheduleSummaryText = ({
-  schedule,
-}: Pick<RetentionPolicyFormParams, "schedule">) => {
-  try {
-    CronExpressionParser.parse(schedule);
-  } catch (error) {
-    return "Invalid schedule";
-  }
-  let scheduleString = "Unknown";
-  try {
-    scheduleString = cronstrue.toString(schedule);
-  } catch (error) {
-    return "Invalid schedule";
-  }
-  return `Enforcement Schedule: ${scheduleString}`;
 };
 
 type RetentionPolicyFormProps = {
@@ -205,9 +190,9 @@ export function RetentionPolicyForm(props: RetentionPolicyFormProps) {
             <br />
             <br />
             <Text color="text-700">
-              {createPolicyScheduleSummaryText({
+              {`Enforcement Schedule: ${createPolicyScheduleSummaryText({
                 schedule,
-              })}
+              })}`}
             </Text>
           </View>
         </Flex>
