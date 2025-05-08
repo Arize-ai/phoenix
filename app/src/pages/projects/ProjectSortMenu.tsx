@@ -14,6 +14,7 @@ import {
   SelectChevronUpDownIcon,
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { ProjectSort } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectsQuery.graphql";
 
 const SortedListBoxItemContent = ({
   children,
@@ -45,7 +46,11 @@ const SortedListBoxItemContent = ({
   );
 };
 
-export const ProjectSortMenu = () => {
+export const ProjectSortMenu = ({
+  onSort,
+}: {
+  onSort?: (sort: ProjectSort) => void;
+}) => {
   const { projectSortOrder, setProjectSortOrder } = usePreferencesContext(
     (state) => ({
       projectSortOrder: state.projectSortOrder,
@@ -80,6 +85,10 @@ export const ProjectSortMenu = () => {
               } else {
                 direction = "asc";
               }
+              onSort?.({
+                col: column as "name" | "createdAt" | "updatedAt",
+                dir: direction,
+              });
               setProjectSortOrder({
                 column: column as "name" | "createdAt" | "updatedAt",
                 direction,

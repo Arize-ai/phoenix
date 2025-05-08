@@ -1,5 +1,6 @@
 import React, {
   startTransition,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -23,13 +24,13 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { formatDistance } from "date-fns";
-import { debounce } from "lodash";
 import { Subscription } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import { useNotification } from "@arizeai/components";
 
 import {
+  Button,
   Flex,
   FlexProps,
   Heading,
@@ -37,6 +38,7 @@ import {
   Icons,
   Input,
   Link,
+  Loading,
   Skeleton,
   Text,
   TextField,
@@ -68,6 +70,7 @@ import {
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import {
   ProjectFilter,
+  ProjectSort,
   ProjectsPageProjectsQuery,
 } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
@@ -116,7 +119,11 @@ export function ProjectsPage() {
     }
   );
 
-  return <ProjectsPageContent timeRange={timeRange} query={data} />;
+  return (
+    <Suspense fallback={<Loading />}>
+      <ProjectsPageContent timeRange={timeRange} query={data} />
+    </Suspense>
+  );
 }
 
 export function ProjectsPageContent({
@@ -132,6 +139,7 @@ export function ProjectsPageContent({
   const sortQueryParams = useProjectSortQueryParams();
   const [filter, setFilter] = useState<ProjectFilter | null>(null);
   const [notify, holder] = useNotification();
+  const [loading, setLoading] = useState(false);
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
     return {
@@ -145,7 +153,7 @@ export function ProjectsPageContent({
     loadNext,
     hasNext,
     isLoadingNext,
-    refetch,
+    refetch: _refetch,
   } = usePaginationFragment<
     ProjectsPageProjectsQuery,
     ProjectsPageProjectsFragment$key
@@ -187,6 +195,34 @@ export function ProjectsPageContent({
     [sortQueryParams, filter]
   );
 
+  const refetch = useCallback(
+    ({
+      vars,
+      onComplete,
+    }: {
+      vars?: Partial<Parameters<typeof _refetch>[0]>;
+      onComplete?: () => void;
+    }) => {
+      startTransition(() => {
+        setLoading(true);
+        _refetch(
+          {
+            ...queryArgs,
+            ...vars,
+          },
+          {
+            fetchPolicy: "store-and-network",
+            onComplete: () => {
+              setLoading(false);
+              onComplete?.();
+            },
+          }
+        );
+      });
+    },
+    [_refetch, queryArgs]
+  );
+
   const projects = projectsData?.projects.edges.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
@@ -207,57 +243,77 @@ export function ProjectsPageContent({
     [hasNext, isLoadingNext, loadNext, queryArgs]
   );
 
+  const onSort = useCallback(
+    (sort: ProjectSort) => {
+      refetch({
+        vars: {
+          sort,
+        },
+      });
+    },
+    [refetch]
+  );
+
   const onDelete = useCallback(
     (projectName: string) => {
       startTransition(() => {
-        refetch(queryArgs, { fetchPolicy: "store-and-network" });
-        notify({
-          variant: "success",
-          title: "Project Deleted",
-          message: `Project ${projectName} has been deleted.`,
+        refetch({
+          onComplete: () => {
+            notify({
+              variant: "success",
+              title: "Project Deleted",
+              message: `Project ${projectName} has been deleted.`,
+            });
+          },
         });
       });
     },
-    [notify, refetch, queryArgs]
+    [notify, refetch]
   );
 
   const onClear = useCallback(
     (projectName: string) => {
       startTransition(() => {
-        refetch(queryArgs, { fetchPolicy: "store-and-network" });
-        notify({
-          variant: "success",
-          title: "Project Cleared",
-          message: `Project ${projectName} has been cleared of traces.`,
+        refetch({
+          onComplete: () => {
+            notify({
+              variant: "success",
+              title: "Project Cleared",
+              message: `Project ${projectName} has been cleared of traces.`,
+            });
+          },
         });
       });
     },
-    [notify, refetch, queryArgs]
+    [notify, refetch]
   );
 
   const onRemove = useCallback(
     (projectName: string) => {
       startTransition(() => {
-        refetch(queryArgs, { fetchPolicy: "store-and-network" });
-        notify({
-          variant: "success",
-          title: "Project Data Removed",
-          message: `Old data from project ${projectName} have been removed.`,
+        refetch({
+          onComplete: () => {
+            notify({
+              variant: "success",
+              title: "Project Data Removed",
+              message: `Old data from project ${projectName} have been removed.`,
+            });
+          },
         });
       });
     },
-    [notify, refetch, queryArgs]
+    [notify, refetch]
   );
 
-  const debouncedRefetch = useMemo(() => {
-    return debounce(() => {
-      refetch(queryArgs, { fetchPolicy: "store-and-network" });
-    }, 1000);
-  }, [refetch, queryArgs]);
+  // const debouncedRefetch = useMemo(() => {
+  //   return debounce(() => {
+  //     refetch();
+  //   }, 1000);
+  // }, [refetch]);
 
-  useEffect(() => {
-    debouncedRefetch();
-  }, [debouncedRefetch, queryArgs]);
+  // useEffect(() => {
+  //   debouncedRefetch();
+  // }, [debouncedRefetch]);
 
   const loadNextWithArgs = useCallback(() => {
     loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs });
@@ -290,23 +346,51 @@ export function ProjectsPageContent({
           gap="size-100"
         >
           <Flex direction="row" alignItems="center" gap="size-100" width="100%">
-            <TextField
-              size="S"
+            <ProjectViewModeToggle />
+            <form
               css={css`
-                flex-basis: 100%;
+                width: 100%;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: var(--ac-global-dimension-size-50);
               `}
-              aria-label="Filter projects by name"
-              onChange={(value) => {
-                if (value.length > 0) {
-                  setFilter({ value, col: "name" });
-                } else {
-                  setFilter(null);
-                }
+              onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const form = new FormData(e.target as HTMLFormElement);
+                const filter = form.get("filter");
+                const filterArg: ProjectFilter | null = filter
+                  ? { value: filter as string, col: "name" }
+                  : null;
+                setFilter(filterArg);
+                refetch({
+                  vars: {
+                    filter: filterArg,
+                  },
+                });
               }}
             >
-              <Input placeholder="Filter projects by name" />
-            </TextField>
-            <ProjectViewModeToggle />
+              <TextField
+                size="S"
+                css={css`
+                  flex-basis: 100%;
+                `}
+                aria-label="Search projects by name"
+                name="filter"
+                type="search"
+              >
+                <Input placeholder="Search projects by name" />
+              </TextField>
+              <Button
+                type="submit"
+                size="S"
+                isDisabled={loading}
+                trailingVisual={loading ? <Loading size="S" /> : null}
+              >
+                Search
+              </Button>
+            </form>
           </Flex>
           <Flex
             direction="row"
@@ -332,25 +416,17 @@ export function ProjectsPageContent({
             flex: 1 1 auto;
           `}
         >
-          <View padding="size-200" width="100%">
-            <Flex direction="column" gap="size-200">
-              <Flex direction="row" justifyContent="end" alignItems="center">
-                <ProjectSortMenu />
-              </Flex>
-              <Flex direction="column">
-                <ProjectGrid
-                  projects={projects}
-                  onDelete={onDelete}
-                  onClear={onClear}
-                  onRemove={onRemove}
-                  timeRangeVariable={timeRangeVariable}
-                  hasNext={hasNext}
-                  loadNext={loadNextWithArgs}
-                  isLoadingNext={isLoadingNext}
-                />
-              </Flex>
-            </Flex>
-          </View>
+          <ProjectGrid
+            projects={projects}
+            onDelete={onDelete}
+            onClear={onClear}
+            onRemove={onRemove}
+            timeRangeVariable={timeRangeVariable}
+            hasNext={hasNext}
+            loadNext={loadNextWithArgs}
+            isLoadingNext={isLoadingNext}
+            onSort={onSort}
+          />
         </div>
       ) : (
         <div
@@ -369,6 +445,7 @@ export function ProjectsPageContent({
             hasNext={hasNext}
             loadNext={loadNextWithArgs}
             isLoadingNext={isLoadingNext}
+            onSort={onSort}
           />
         </div>
       )}
@@ -389,6 +466,7 @@ type ProjectViewComponentProps = {
   hasNext: boolean;
   loadNext: () => void;
   isLoadingNext: boolean;
+  onSort: (sort: ProjectSort) => void;
 };
 
 function ProjectGrid({
@@ -400,60 +478,74 @@ function ProjectGrid({
   hasNext,
   loadNext,
   isLoadingNext,
+  onSort,
 }: ProjectViewComponentProps) {
   return (
-    <>
-      <ul
-        css={css`
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(312px, 1fr));
-          gap: var(--ac-global-dimension-size-200);
-        `}
-      >
-        {projects?.map((project) => (
-          <li
-            key={project.id}
+    <View padding="size-200" width="100%">
+      <Flex direction="column" gap="size-200">
+        <Flex direction="row" justifyContent="end" alignItems="center">
+          <ProjectSortMenu onSort={onSort} />
+        </Flex>
+        <Flex direction="column">
+          <ul
             css={css`
-              display: flex;
-              flex-direction: column;
-              height: 100%;
-              & > div {
-                height: 100%;
-              }
+              display: grid;
+              grid-template-columns: repeat(
+                auto-fill,
+                minmax(var(--ac-global-dimension-size-3600), 1fr)
+              );
+              gap: var(--ac-global-dimension-size-200);
             `}
           >
-            <Link
-              title={project.name}
-              to={`/projects/${project.id}`}
-              css={css`
-                text-decoration: none;
-                display: flex;
-                flex-direction: column;
-                height: 100%;
-              `}
+            {projects?.map((project) => (
+              <li
+                key={project.id}
+                css={css`
+                  display: flex;
+                  flex-direction: column;
+                  height: 100%;
+                  & > div {
+                    height: 100%;
+                  }
+                `}
+              >
+                <Link
+                  title={project.name}
+                  to={`/projects/${project.id}`}
+                  css={css`
+                    text-decoration: none;
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                  `}
+                >
+                  <ProjectItem
+                    project={project}
+                    timeRange={timeRangeVariable}
+                    onProjectDelete={() => onDelete(project.name)}
+                    onProjectClear={() => onClear(project.name)}
+                    onProjectRemoveData={() => onRemove(project.name)}
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {hasNext && (
+            <Flex
+              width="100%"
+              justifyContent="center"
+              alignItems="center"
+              marginTop="size-200"
             >
-              <ProjectItem
-                project={project}
-                timeRange={timeRangeVariable}
-                onProjectDelete={() => onDelete(project.name)}
-                onProjectClear={() => onClear(project.name)}
-                onProjectRemoveData={() => onRemove(project.name)}
+              <LoadMoreButton
+                onLoadMore={loadNext}
+                isLoadingNext={isLoadingNext}
               />
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {hasNext && (
-        <Flex
-          width="100%"
-          justifyContent="center"
-          alignItems="center"
-          marginTop="size-200"
-        >
-          <LoadMoreButton onLoadMore={loadNext} isLoadingNext={isLoadingNext} />
+            </Flex>
+          )}
         </Flex>
-      )}
-    </>
+      </Flex>
+    </View>
   );
 }
 
@@ -515,7 +607,6 @@ function ProjectItem({
           0 0 1px 0px var(--ac-global-color-grey-400) inset,
           0 0 1px 0px var(--ac-global-color-grey-400);
         border-radius: var(--ac-global-rounding-medium);
-        width: var(--ac-global-dimension-size-3600);
         transition: border-color 0.2s;
         &:hover {
           border-color: var(--ac-global-color-primary);
@@ -720,6 +811,7 @@ function ProjectsTable({
   hasNext,
   loadNext,
   isLoadingNext,
+  onSort,
 }: ProjectViewComponentProps) {
   const navigate = useNavigate();
   const columns: ColumnDef<
@@ -830,13 +922,17 @@ function ProjectsTable({
         if (!SORT_COLUMNS.includes(column)) {
           return;
         }
+        onSort({
+          col: column,
+          dir: first.desc ? "desc" : "asc",
+        });
         setProjectSortOrder({
           column,
           direction: first.desc ? "desc" : "asc",
         });
       }
     },
-    [setProjectSortOrder, sortingRowModel]
+    [setProjectSortOrder, sortingRowModel, onSort]
   );
   const table = useReactTable({
     data: projects,
