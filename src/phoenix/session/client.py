@@ -132,9 +132,12 @@ class Client(TraceDataExtractor):
             start_time (datetime, optional): The start time for the query range. Default None.
             end_time (datetime, optional): The end time for the query range. Default None.
             root_spans_only (bool, optional): If True, only root spans are returned. Default None.
+            orphan_span_as_root_span (bool): If True, orphan spans are treated as root spans. An
+                orphan span has a non-null `parent_id` but a span with that ID is currently not
+                found in the database. Default True.
             project_name (str, optional): The project name to query spans for. This can be set
                 using environment variables. If not provided, falls back to the default project.
-           timeout (int, optional): The number of seconds to wait for the server to respond.
+            timeout (int, optional): The number of seconds to wait for the server to respond.
 
         Returns:
             Union[pd.DataFrame, list[pd.DataFrame]]:

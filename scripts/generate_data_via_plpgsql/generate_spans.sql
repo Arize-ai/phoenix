@@ -37,7 +37,7 @@
  * PostgreSQL Storage and TOAST:
  *   This script generates spans with two distinct sizes to test PostgreSQL's TOAST
  *   (The Oversized-Attribute Storage Technique) mechanism:
- *   
+ *
  *   1. Small spans (70% of cases):
  *      - Contains ~40 bytes of random data (20 bytes per field, 2 fields total)
  *      - Each byte of random data becomes 2 hex characters, doubling the size
@@ -46,7 +46,7 @@
  *        * metadata with only conversation_id
  *      - Total size ~350 bytes, stored inline in the main table (well below TOAST threshold)
  *      - Represents typical spans with minimal payload
- *   
+ *
  *   2. Large spans (30% of cases):
  *      - Contains ~4000 bytes of random data (2000 bytes per field, 2 fields total)
  *      - Each byte of random data becomes 2 hex characters, doubling the size
@@ -63,7 +63,7 @@
  *          - paths (mixed type arrays)
  *      - Total size ~8KB, automatically moved to TOAST table (above TOAST threshold)
  *      - Represents spans with substantial payloads
- *   
+ *
  *   TOAST is PostgreSQL's mechanism for handling large values. When a row exceeds
  *   the TOAST threshold (typically 2KB), PostgreSQL automatically compresses and/or
  *   stores the large values in a separate TOAST table. This has performance implications:
