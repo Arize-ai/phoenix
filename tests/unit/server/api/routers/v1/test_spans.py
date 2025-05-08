@@ -200,7 +200,9 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
             )
 
 
-async def test_span_search_basic(httpx_client: httpx.AsyncClient, span_search_test_data: None):
+async def test_span_search_basic(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
     resp = await httpx_client.get("v1/projects/search-test/spans")
     assert resp.is_success
     data = resp.json()
@@ -209,7 +211,7 @@ async def test_span_search_basic(httpx_client: httpx.AsyncClient, span_search_te
 
 async def test_span_search_annotation_filter(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
-):
+) -> None:
     resp = await httpx_client.get(
         "v1/projects/search-test/spans",
         params={"annotationNames": ["TestA"]},
@@ -219,7 +221,9 @@ async def test_span_search_annotation_filter(
     assert len(data["data"]) == 2
 
 
-async def test_span_search_time_slice(httpx_client: httpx.AsyncClient, span_search_test_data: None):
+async def test_span_search_time_slice(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
     start = "2021-01-01T00:01:00+00:00"
     end = "2021-01-01T00:03:00+00:00"
     resp = await httpx_client.get(
@@ -234,7 +238,7 @@ async def test_span_search_time_slice(httpx_client: httpx.AsyncClient, span_sear
 
 async def test_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
-):
+) -> None:
     resp_desc = await httpx_client.get(
         "v1/projects/search-test/spans", params={"sort_direction": "desc"}
     )
@@ -247,7 +251,9 @@ async def test_span_search_sort_direction(
     assert ids_desc == list(reversed(ids_asc))
 
 
-async def test_span_search_pagination(httpx_client: httpx.AsyncClient, span_search_test_data: None):
+async def test_span_search_pagination(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
     resp1 = await httpx_client.get(
         "v1/projects/search-test/spans",
         params={"limit": 2, "sort_direction": "asc"},
