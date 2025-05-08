@@ -30,7 +30,7 @@
   * [Amazon Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
   * [VertexAI](tracing/integrations-tracing/vertexai.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
-  * [Google Gen AI](tracing/integrations-tracing/google-gen-ai.md)
+  * [Google GenAI](tracing/integrations-tracing/google-genai.md)
   * [Groq](tracing/integrations-tracing/groq.md)
   * [Hugging Face smolagents](tracing/integrations-tracing/hfsmolagents.md)
   * [CrewAI](tracing/integrations-tracing/crewai.md)
