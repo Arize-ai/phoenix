@@ -21,6 +21,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.utils import df_to_bytes
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent
 from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.utilities.json import encode_df_as_json_string
@@ -190,7 +191,7 @@ class SpanAnnotationData(V1RoutesBaseModel):
         ),
     )
 
-    def as_precursor(self) -> Precursors.SpanAnnotation:
+    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.SpanAnnotation:
         return Precursors.SpanAnnotation(
             self.span_id,
             models.SpanAnnotation(
@@ -202,7 +203,7 @@ class SpanAnnotationData(V1RoutesBaseModel):
                 metadata_=self.metadata or {},
                 identifier=self.identifier,
                 source="API",
-                user_id=None,
+                user_id=user_id,
             ),
         )
 
@@ -236,6 +237,11 @@ async def annotate_spans(
 ) -> AnnotateSpansResponseBody:
     if not request_body.data:
         return AnnotateSpansResponseBody(data=[])
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
     span_annotations = request_body.data
     filtered_span_annotations = list(filter(lambda d: d.name != "note", span_annotations))
     if len(filtered_span_annotations) != len(span_annotations):
@@ -246,7 +252,7 @@ async def annotate_spans(
             ),
             UserWarning,
         )
-    precursors = [d.as_precursor() for d in filtered_span_annotations]
+    precursors = [d.as_precursor(user_id=user_id) for d in filtered_span_annotations]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateSpansResponseBody(data=[])
