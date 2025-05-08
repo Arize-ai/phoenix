@@ -186,7 +186,7 @@ async def _json_multipart(
 
 
 @router.get(
-    "/projects/{project_identifier}/span_search",
+    "/projects/{project_identifier}/spans",
     operation_id="spanSearch",
     summary="Search spans with simple filters (no DSL)",
     description="Return spans within a project filtered by time range, annotation names, "
