@@ -246,8 +246,8 @@ async def test_span_search_sort_direction(
         "v1/projects/search-test/spans", params={"sort_direction": "asc"}
     )
     assert resp_desc.is_success and resp_asc.is_success
-    ids_desc = [s["span_id"] for s in resp_desc.json()["data"]]
-    ids_asc = [s["span_id"] for s in resp_asc.json()["data"]]
+    ids_desc = [s["spanId"] for s in resp_desc.json()["data"]]
+    ids_asc = [s["spanId"] for s in resp_asc.json()["data"]]
     assert ids_desc == list(reversed(ids_asc))
 
 

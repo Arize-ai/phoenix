@@ -2,12 +2,13 @@ import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
+from enum import IntEnum
 from secrets import token_urlsafe
 from typing import Any, Literal, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Header, HTTPException, Path, Query
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -95,7 +96,44 @@ class Span(V1RoutesBaseModel):
     attributes: Optional[dict[str, Any]] = None
 
 
-class SpanSearchResponseBody(PaginatedResponseBody[Span]):
+class KeyValue(BaseModel):
+    key: str
+    value: Any
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class StatusCode(IntEnum):
+    UNSET = 0
+    OK = 1
+    ERROR = 2
+
+
+class Status(BaseModel):
+    code: StatusCode  # serialized as its int value
+    message: Optional[str] = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class OtlpSpan(BaseModel):
+    trace_id: str = Field(alias="traceId")
+    span_id: str = Field(alias="spanId")
+    parent_span_id: Optional[str] = Field(default=None, alias="parentSpanId")
+    name: Optional[str] = None
+    kind: int = 0  # SpanKind enum value. We default to UNSPECIFIED(0).
+    start_time_unix_nano: Optional[int] = Field(default=None, alias="startTimeUnixNano")
+    end_time_unix_nano: Optional[int] = Field(default=None, alias="endTimeUnixNano")
+    attributes: list[KeyValue] = Field(default_factory=list)
+    events: list[dict[str, Any]] = Field(default_factory=list)
+    status: Status = Field(...)
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class SpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
+    """Paginated response where each span follows OTLP JSON structure."""
+
     pass
 
 
@@ -275,23 +313,35 @@ async def span_search(
         span_extra, _ = extra
         next_cursor = str(GlobalID("Span", str(span_extra.id)))
 
-    # Convert rows to Span Pydantic model
-    result_spans: list[Span] = []
+    # Convert ORM rows -> OTLP-style spans
+    result_spans: list[OtlpSpan] = []
     for span_orm, trace_id in rows:
+        try:
+            status_code_enum = StatusCode[(span_orm.status_code or "UNSET").upper()]
+        except KeyError:
+            status_code_enum = StatusCode.UNSET
+
+        attributes_kv: list[KeyValue] = [
+            KeyValue(key=k, value=v) for k, v in (span_orm.attributes or {}).items()
+        ]
+
+        start_ns = (
+            int(span_orm.start_time.timestamp() * 1_000_000_000) if span_orm.start_time else None
+        )
+        end_ns = int(span_orm.end_time.timestamp() * 1_000_000_000) if span_orm.end_time else None
+
         result_spans.append(
-            Span(
-                id=str(GlobalID("Span", str(span_orm.id))),
-                span_id=span_orm.span_id,
+            OtlpSpan(
                 trace_id=trace_id,
+                span_id=span_orm.span_id,
+                parent_span_id=span_orm.parent_id,
                 name=span_orm.name,
-                span_kind=span_orm.span_kind,
-                parent_id=span_orm.parent_id,
-                start_time=span_orm.start_time,
-                end_time=span_orm.end_time,
-                status_code=span_orm.status_code,
-                status_message=span_orm.status_message,
+                kind=0,  # UNSPECIFIED; real mapping TBD
+                start_time_unix_nano=start_ns,
+                end_time_unix_nano=end_ns,
+                attributes=attributes_kv,
                 events=span_orm.events or [],
-                attributes=span_orm.attributes or {},
+                status=Status(code=status_code_enum, message=span_orm.status_message or None),
             )
         )
 
