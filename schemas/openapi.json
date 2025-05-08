@@ -4882,16 +4882,10 @@
             "description": "Metadata for the annotation"
           },
           "identifier": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists."
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
           },
           "id": {
             "type": "string",
@@ -4987,16 +4981,10 @@
             "description": "Metadata for the annotation"
           },
           "identifier": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Identifier",
-            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists."
+            "description": "The identifier of the annotation. If provided, the annotation will be updated if it already exists.",
+            "default": ""
           }
         },
         "type": "object",

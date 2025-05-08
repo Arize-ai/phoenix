@@ -57,7 +57,7 @@ class TraceAnnotationMutationMixin:
         async with info.context.db() as session:
             for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
                 resolved_identifier = ""
-                if annotation_input.identifier:
+                if isinstance(annotation_input.identifier, str):
                     resolved_identifier = annotation_input.identifier
                 elif annotation_input.source == AnnotationSource.APP and user_id is not None:
                     # Ensure that the annotation has a per-user identifier if submitted via the UI

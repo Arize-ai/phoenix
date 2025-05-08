@@ -10,6 +10,7 @@ export interface KeyboardProps extends PropsWithChildren {
 const keyboardCSS = css`
   font-family: -apple-system, "system-ui", "Segoe UI", "Noto Sans", Helvetica,
     Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  text-transform: uppercase;
 `;
 
 /**
