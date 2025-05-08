@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
 
-import { Flex, Loading, Text } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
