@@ -468,7 +468,6 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             label=StringValue(value=cast(str, label)) if label else None,
             explanation=StringValue(value=cast(str, explanation)) if explanation else None,
         )
-        
         if isinstance(eval_fixture, DocumentEvaluationFixture):
             span_id, document_position = cast(tuple[str, int], index)
             # Legacy fixture files contain UUID strings for span_ids. The hyphens in these
