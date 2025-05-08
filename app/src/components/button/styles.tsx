@@ -89,14 +89,15 @@ export const buttonCSS = css`
   kbd {
     background-color: var(--ac-global-color-grey-400);
     border-radius: var(--ac-global-rounding-small);
-    padding: var(--ac-global-dimension-static-size-50);
-    min-width: var(--ac-global-dimension-static-size-150);
+    padding: var(--ac-global-dimension-size-50)
+      var(--ac-global-dimension-size-75);
     font-size: var(--ac-global-font-size-xs);
     line-height: var(--ac-global-font-size-xxs);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--ac-global-dimension-static-size-25);
+    text-transform: uppercase;
   }
 
   &[data-variant="primary"] {

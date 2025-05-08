@@ -81,7 +81,6 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import {
   useNotifySuccess,
@@ -346,11 +345,6 @@ export function SpanDetails({
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
-                <ShareLinkButton
-                  preserveSearchParams
-                  tooltipText="Copy trace link to clipboard"
-                  successText="Trace link copied to clipboard"
-                />
                 <SpanActionMenu
                   traceId={span.trace.traceId}
                   spanId={span.spanId}
