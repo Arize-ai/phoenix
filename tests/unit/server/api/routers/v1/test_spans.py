@@ -201,7 +201,7 @@ async def span_search_test_data(db: DbSessionFactory) -> None:
 
 
 async def test_span_search_basic(httpx_client: httpx.AsyncClient, span_search_test_data: None):
-    resp = await httpx_client.get("v1/projects/search-test/span_search")
+    resp = await httpx_client.get("v1/projects/search-test/spans")
     assert resp.is_success
     data = resp.json()
     assert len(data["data"]) == 3
@@ -211,7 +211,7 @@ async def test_span_search_annotation_filter(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ):
     resp = await httpx_client.get(
-        "v1/projects/search-test/span_search",
+        "v1/projects/search-test/spans",
         params={"annotationNames": ["TestA"]},
     )
     assert resp.is_success
@@ -223,7 +223,7 @@ async def test_span_search_time_slice(httpx_client: httpx.AsyncClient, span_sear
     start = "2021-01-01T00:01:00+00:00"
     end = "2021-01-01T00:03:00+00:00"
     resp = await httpx_client.get(
-        "v1/projects/search-test/span_search",
+        "v1/projects/search-test/spans",
         params={"start_time": start, "end_time": end},
     )
     assert resp.is_success
@@ -236,10 +236,10 @@ async def test_span_search_sort_direction(
     httpx_client: httpx.AsyncClient, span_search_test_data: None
 ):
     resp_desc = await httpx_client.get(
-        "v1/projects/search-test/span_search", params={"sort_direction": "desc"}
+        "v1/projects/search-test/spans", params={"sort_direction": "desc"}
     )
     resp_asc = await httpx_client.get(
-        "v1/projects/search-test/span_search", params={"sort_direction": "asc"}
+        "v1/projects/search-test/spans", params={"sort_direction": "asc"}
     )
     assert resp_desc.is_success and resp_asc.is_success
     ids_desc = [s["span_id"] for s in resp_desc.json()["data"]]
@@ -249,7 +249,7 @@ async def test_span_search_sort_direction(
 
 async def test_span_search_pagination(httpx_client: httpx.AsyncClient, span_search_test_data: None):
     resp1 = await httpx_client.get(
-        "v1/projects/search-test/span_search",
+        "v1/projects/search-test/spans",
         params={"limit": 2, "sort_direction": "asc"},
     )
     assert resp1.is_success
@@ -259,7 +259,7 @@ async def test_span_search_pagination(httpx_client: httpx.AsyncClient, span_sear
     cursor = body1["next_cursor"]
     # Second page
     resp2 = await httpx_client.get(
-        "v1/projects/search-test/span_search",
+        "v1/projects/search-test/spans",
         params={"cursor": cursor, "sort_direction": "asc"},
     )
     assert resp2.is_success
