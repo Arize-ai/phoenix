@@ -75,9 +75,7 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
 
 
 class Span(V1RoutesBaseModel):
-    id: str = Field(
-        description="The Global Relay-style ID of the span."
-    )
+    id: str = Field(description="The Global Relay-style ID of the span.")
     span_id: str = Field(description="The OpenTelemetry span ID.")
     trace_id: Optional[str] = Field(
         default=None, description="The OpenTelemetry trace ID of the span."
@@ -86,7 +84,9 @@ class Span(V1RoutesBaseModel):
     span_kind: Optional[str] = Field(
         default=None, description="The kind of span e.g. LLM, RETRIEVER …"
     )
-    parent_id: Optional[str] = Field(default=None, description="The parent span ID if present.")
+    parent_id: Optional[str] = Field(
+        default=None, description="The OpenTelemetry ID of the parent span (if present)."
+    )
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     status_code: Optional[str] = None
@@ -224,17 +224,16 @@ async def span_search(
         project = await _get_project_by_identifier(session, project_identifier)
 
     project_id: int = project.id
-    order_exprs = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
+    order_by = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
 
     stmt = (
         select(
             models.Span,
             models.Trace.trace_id,
         )
-        .join(models.Trace)
-        .join(models.Project)
-        .where(models.Project.id == project_id)
-        .order_by(*order_exprs)
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_id)
+        .join(models.Project, onclause=models.Project.id == project_id)
+        .order_by(*order_by)
     )
 
     if start_time:
@@ -244,7 +243,10 @@ async def span_search(
 
     if annotation_names:
         stmt = (
-            stmt.join(models.SpanAnnotation)
+            stmt.join(
+                models.SpanAnnotation,
+                onclause=models.SpanAnnotation.span_rowid == models.Span.rowid,
+            )
             .where(models.SpanAnnotation.name.in_(annotation_names))
             .group_by(models.Span.id, models.Trace.trace_id)
         )
@@ -253,9 +255,9 @@ async def span_search(
         try:
             cursor_rowid = int(GlobalID.from_id(cursor).node_id)
             if sort_direction == "asc":
-                stmt = stmt.where(models.Span.id > cursor_rowid)
+                stmt = stmt.where(models.Span.id >= cursor_rowid)
             else:
-                stmt = stmt.where(models.Span.id < cursor_rowid)
+                stmt = stmt.where(models.Span.id <= cursor_rowid)
         except Exception:
             raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
 
