@@ -824,6 +824,7 @@ class SpanAnnotation(Base):
     )
     identifier: Mapped[str] = mapped_column(
         String,
+        server_default="",
         nullable=False,
     )
     source: Mapped[Literal["API", "APP"]] = mapped_column(
@@ -863,6 +864,7 @@ class TraceAnnotation(Base):
     )
     identifier: Mapped[str] = mapped_column(
         String,
+        server_default="",
         nullable=False,
     )
     source: Mapped[Literal["API", "APP"]] = mapped_column(
@@ -900,6 +902,7 @@ class DocumentAnnotation(Base):
     )
     identifier: Mapped[str] = mapped_column(
         String,
+        server_default="",
         nullable=False,
     )
     source: Mapped[Literal["API", "APP"]] = mapped_column(

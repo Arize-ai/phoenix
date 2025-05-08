@@ -59,7 +59,8 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=True,  # must initially be nullable before backfill
+                server_default="",
+                nullable=False,
             ),
         )
         batch_op.add_column(
@@ -83,8 +84,6 @@ def upgrade() -> None:
             ["name", "span_rowid", "identifier"],
         )
     with op.batch_alter_table("span_annotations") as batch_op:
-        batch_op.execute(text("UPDATE span_annotations SET identifier = ''"))
-        batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
         batch_op.execute(
             text(
                 """
@@ -119,7 +118,8 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=True,  # must initially be nullable before backfill
+                server_default="",
+                nullable=False,
             ),
         )
         batch_op.add_column(
@@ -143,8 +143,6 @@ def upgrade() -> None:
             ["name", "trace_rowid", "identifier"],
         )
     with op.batch_alter_table("trace_annotations") as batch_op:
-        batch_op.execute(text("UPDATE trace_annotations SET identifier = ''"))
-        batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
         batch_op.execute(
             text(
                 """
@@ -179,7 +177,8 @@ def upgrade() -> None:
             sa.Column(
                 "identifier",
                 sa.String,
-                nullable=True,  # must initially be nullable before backfill
+                server_default="",
+                nullable=False,
             ),
         )
         batch_op.add_column(
@@ -206,8 +205,6 @@ def upgrade() -> None:
             ["name", "span_rowid", "document_position", "identifier"],
         )
     with op.batch_alter_table("document_annotations") as batch_op:
-        batch_op.execute(text("UPDATE document_annotations SET identifier = ''"))
-        batch_op.alter_column("identifier", nullable=False, existing_nullable=True)
         batch_op.execute(
             text(
                 """
