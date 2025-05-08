@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
-import cronstrue from "cronstrue";
 
 import { Card } from "@arizeai/components";
 
@@ -11,7 +10,10 @@ import {
   useNotifySuccess,
   useViewerCanManageRetentionPolicy,
 } from "@phoenix/contexts";
-import { createPolicyDeletionSummaryText } from "@phoenix/utils/retentionPolicyUtils";
+import {
+  createPolicyDeletionSummaryText,
+  createPolicyScheduleSummaryText,
+} from "@phoenix/utils/retentionPolicyUtils";
 
 import { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
 import { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
@@ -86,7 +88,9 @@ export const ProjectRetentionPolicyCard = ({
     );
 
   const scheduleText = useMemo(() => {
-    return cronstrue.toString(data.traceRetentionPolicy?.cronExpression || "");
+    return createPolicyScheduleSummaryText({
+      schedule: data.traceRetentionPolicy?.cronExpression || "",
+    });
   }, [data.traceRetentionPolicy?.cronExpression]);
 
   const handleRetentionPolicyChange = (policyId: string) => {
