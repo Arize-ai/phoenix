@@ -60,7 +60,6 @@ def upgrade() -> None:
                 "identifier",
                 sa.String,
                 nullable=True,  # must initially be nullable before backfill
-                index=False,  # the index must be added in a separate step
             ),
         )
         batch_op.add_column(
@@ -121,7 +120,6 @@ def upgrade() -> None:
                 "identifier",
                 sa.String,
                 nullable=True,  # must initially be nullable before backfill
-                index=False,  # the index must be added in a separate step
             ),
         )
         batch_op.add_column(
@@ -182,7 +180,6 @@ def upgrade() -> None:
                 "identifier",
                 sa.String,
                 nullable=True,  # must initially be nullable before backfill
-                index=False,  # the index must be added in a separate step
             ),
         )
         batch_op.add_column(
