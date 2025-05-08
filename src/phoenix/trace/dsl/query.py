@@ -1,11 +1,13 @@
 import warnings
+from base64 import b64encode
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from functools import cached_property
 from itertools import chain
-from random import randint, random
+from random import randint
+from secrets import token_bytes
 from types import MappingProxyType
 from typing import Any, Optional, cast
 
@@ -126,7 +128,7 @@ class Explosion(_HasTmpSuffix, Projection):
         position_prefix = _PRESCRIBED_POSITION_PREFIXES.get(self.key, "")
         object.__setattr__(self, "_position_prefix", position_prefix)
         object.__setattr__(self, "_primary_index", Projection(self.primary_index_key))
-        object.__setattr__(self, "_array_tmp_col_label", f"__array_tmp_col_{random()}")
+        object.__setattr__(self, "_array_tmp_col_label", _with_random_suffix("__array_tmp_col"))
 
     @cached_property
     def index_keys(self) -> list[str]:
@@ -290,7 +292,7 @@ class Concatenation(_HasTmpSuffix, Projection):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        object.__setattr__(self, "_array_tmp_col_label", f"__array_tmp_col_{random()}")
+        object.__setattr__(self, "_array_tmp_col_label", _with_random_suffix("__array_tmp_col"))
 
     def with_separator(self, separator: str = "\n\n") -> "Concatenation":
         return replace(self, separator=separator)
@@ -440,7 +442,7 @@ class SpanQuery(_HasTmpSuffix):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        object.__setattr__(self, "_pk_tmp_col_label", f"__pk_tmp_col_{random()}")
+        object.__setattr__(self, "_pk_tmp_col_label", _with_random_suffix("__pk_tmp_col"))
 
     def __bool__(self) -> bool:
         return bool(self._select) or bool(self._filter) or bool(self._explode) or bool(self._concat)
@@ -699,9 +701,9 @@ def _get_spans_dataframe(
     end_time: Optional[datetime] = None,
     limit: Optional[int] = DEFAULT_SPAN_LIMIT,
     root_spans_only: Optional[bool] = None,
+    orphan_span_as_root_span: bool = True,
     # Deprecated
     stop_time: Optional[datetime] = None,
-    orphan_span_as_root_span: bool = True,
 ) -> pd.DataFrame:
     # use legacy labels for backward-compatibility
     span_id_label = "context.span_id"
@@ -797,3 +799,7 @@ def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> dict[str, An
         prefix_exclusions=SEMANTIC_CONVENTIONS,
     )
     return ans
+
+
+def _with_random_suffix(name: str) -> str:
+    return f"{name}_{b64encode(token_bytes(3)).decode()}"
