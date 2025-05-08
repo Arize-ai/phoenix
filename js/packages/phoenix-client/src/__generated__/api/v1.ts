@@ -283,7 +283,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects/{project_identifier}/span_search": {
+    "/v1/projects/{project_identifier}/spans": {
         parameters: {
             query?: never;
             header?: never;
@@ -1312,7 +1312,7 @@ export interface components {
             span_kind?: string | null;
             /**
              * Parent Id
-             * @description The parent span ID if present.
+             * @description The OpenTelemetry ID of the parent span (if present).
              */
             parent_id?: string | null;
             /** Start Time */
