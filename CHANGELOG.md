@@ -1,5 +1,17 @@
 # Changelog
 
+## [8.32.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.32.0...arize-phoenix-v8.32.1) (2025-05-08)
+
+
+### Bug Fixes
+
+* add flag for `orphan_span_as_root_span` on client for span query ([#7465](https://github.com/Arize-ai/phoenix/issues/7465)) ([1e8d78a](https://github.com/Arize-ai/phoenix/commit/1e8d78acbda1a7e10703f6e41d95fc0ce77780b8))
+
+
+### Documentation
+
+* add google-genai ([#7432](https://github.com/Arize-ai/phoenix/issues/7432)) ([22f3bf2](https://github.com/Arize-ai/phoenix/commit/22f3bf2f10545c556e92199b8369dc94533ab177))
+
 ## [8.32.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.31.0...arize-phoenix-v8.32.0) (2025-05-06)
 
 
