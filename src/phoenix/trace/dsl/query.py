@@ -1,5 +1,4 @@
 import warnings
-from base64 import b64encode
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -7,13 +6,13 @@ from datetime import datetime
 from functools import cached_property
 from itertools import chain
 from random import randint
-from secrets import token_bytes
+from secrets import token_hex
 from types import MappingProxyType
 from typing import Any, Optional, cast
 
 import pandas as pd
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, select
+from sqlalchemy import JSON, Column, Label, Select, SQLColumnExpression, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.orm import Session
 from typing_extensions import assert_never
@@ -745,13 +744,16 @@ def _get_spans_dataframe(
         # A root span is either a span with no parent_id or an orphan span
         # (a span whose parent_id references a span that doesn't exist in the database)
         if orphan_span_as_root_span:
-            # Include both types of root spans:
+            # Include both types of root spans
             parent_spans = select(models.Span.span_id).alias("parent_spans")
-            stmt = stmt.where(
-                ~select(1).where(models.Span.parent_id == parent_spans.c.span_id).exists(),
-                # Note: We avoid using an OR clause with Span.parent_id.is_(None) here
-                # because it significantly degraded PostgreSQL performance (>10x worse)
-                # during testing.
+            candidate_spans = stmt.cte("candidate_spans")
+            stmt = select(candidate_spans).where(
+                or_(
+                    candidate_spans.c.parent_id.is_(None),
+                    ~select(1)
+                    .where(candidate_spans.c.parent_id == parent_spans.c.span_id)
+                    .exists(),
+                ),
             )
         else:
             # Only include explicit root spans (spans with parent_id = NULL)
@@ -802,4 +804,7 @@ def _flatten_semantic_conventions(attributes: Mapping[str, Any]) -> dict[str, An
 
 
 def _with_random_suffix(name: str) -> str:
-    return f"{name}_{b64encode(token_bytes(3)).decode()}"
+    """Generate a random suffix for a column name to avoid name collisions. The suffix
+    should be short because PostgreSQL has a limit of 63 characters for column names.
+    """
+    return f"{name}_{token_hex(3)}"
