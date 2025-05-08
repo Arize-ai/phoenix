@@ -231,7 +231,7 @@ async def span_search(
             models.Span,
             models.Trace.trace_id,
         )
-        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_id)
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
         .join(models.Project, onclause=models.Project.id == project_id)
         .order_by(*order_by)
     )
@@ -245,7 +245,7 @@ async def span_search(
         stmt = (
             stmt.join(
                 models.SpanAnnotation,
-                onclause=models.SpanAnnotation.span_rowid == models.Span.rowid,
+                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
             )
             .where(models.SpanAnnotation.name.in_(annotation_names))
             .group_by(models.Span.id, models.Trace.trace_id)
