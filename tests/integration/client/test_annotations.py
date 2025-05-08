@@ -7,7 +7,8 @@ from typing import Literal, Optional
 import pandas as pd
 import pytest
 from phoenix.client.__generated__ import v1
-from typing_extensions import TypeAlias
+from strawberry.relay import GlobalID
+from typing_extensions import TypeAlias, assert_never
 
 from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _gql, _RoleOrUser
 
@@ -65,6 +66,9 @@ class TestClientForSpanAnnotations:
                     label
                     score
                     explanation
+                    user {
+                        id
+                    }
                 }
             }
         }
@@ -72,11 +76,19 @@ class TestClientForSpanAnnotations:
     """
 
     @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
+    @pytest.mark.parametrize(
+        "role_or_user, api_key_kind",
+        [
+            (_MEMBER, "User"),
+            (_ADMIN, "User"),
+            (_ADMIN, "System"),
+        ],
+    )
     async def test_add_span_annotation(
         self,
         is_async: bool,
         role_or_user: _RoleOrUser,
+        api_key_kind: Literal["User", "System"],
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
         monkeypatch: pytest.MonkeyPatch,
@@ -100,7 +112,7 @@ class TestClientForSpanAnnotations:
 
         # Set up test environment with logged-in user
         u = _get_user(role_or_user).log_in()
-        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key())
+        monkeypatch.setenv("PHOENIX_API_KEY", u.create_api_key(api_key_kind))
 
         # Import appropriate client based on test parameter
         from phoenix.client import AsyncClient
@@ -146,6 +158,16 @@ class TestClientForSpanAnnotations:
                 variables={"id": span_gid1},
             )
 
+            # Expected user ID for the annotation
+            expected_user_id: str
+            if api_key_kind == "User":
+                expected_user_id = u.gid
+            elif api_key_kind == "System":
+                system_user_gid = str(GlobalID(type_name="User", node_id=str(1)))
+                expected_user_id = system_user_gid
+            else:
+                assert_never(api_key_kind)
+
             # Create a dictionary of annotations for easy lookup
             annotations = {
                 (anno["label"], anno["score"], anno["explanation"]): anno
@@ -162,6 +184,10 @@ class TestClientForSpanAnnotations:
             assert anno["source"] == "API", "Annotation source should be API"  # noqa: E501
             assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"  # noqa: E501
             assert anno["metadata"] == metadata, "Annotation metadata should match input"  # noqa: E501
+            user = anno["user"]
+            assert user is not None, "Annotation should have a user"
+            assert user["id"] == expected_user_id, "Annotation user ID should match expected user"
+
             if j == 0:
                 existing_gid = anno["id"]
             else:
