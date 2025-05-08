@@ -121,7 +121,7 @@ class TestTraceDataSweeper:
             # Execute sweeper
             sweeper_trigger.set()
             # Use longer wait time on Windows for CI
-            wait_time = 2.0 if sys.platform == "win32" else 0.1
+            wait_time = 0.5 if sys.platform == "win32" else 0.1
             await sleep(wait_time)  # Allow time for processing
 
             # Verify final state
