@@ -16,10 +16,7 @@ import {
   useViewerCanManageRetentionPolicy,
 } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import {
-  createPolicyDeletionSummaryText,
-  createPolicyScheduleSummaryText,
-} from "@phoenix/utils/retentionPolicyUtils";
+import { createPolicyScheduleSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
 import { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
 import { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
