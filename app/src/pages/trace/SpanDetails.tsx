@@ -355,7 +355,7 @@ export function SpanDetails({
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
-              <Tab id="feedback">
+              <Tab id="annotations">
                 Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
@@ -375,7 +375,7 @@ export function SpanDetails({
                 </SpanInfoWrap>
               </Flex>
             </LazyTabPanel>
-            <LazyTabPanel id="feedback">
+            <LazyTabPanel id="annotations">
               <SpanFeedback span={span} />
             </LazyTabPanel>
             <LazyTabPanel id="attributes">
