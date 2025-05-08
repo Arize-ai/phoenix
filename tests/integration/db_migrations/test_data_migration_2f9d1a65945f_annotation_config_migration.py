@@ -406,7 +406,7 @@ def test_annotation_config_migration(
 
                 # Check trace_annotations
                 assert "annotator_kind VARCHAR NOT NULL" in trace_annotations_table_def
-                assert "identifier VARCHAR NOT NULL" in trace_annotations_table_def
+                assert "identifier VARCHAR DEFAULT ('') NOT NULL" in trace_annotations_table_def
                 assert "source VARCHAR NOT NULL" in trace_annotations_table_def
                 assert "user_id INTEGER" in trace_annotations_table_def
                 assert (
@@ -437,7 +437,7 @@ def test_annotation_config_migration(
 
                 # Check span_annotations
                 assert "annotator_kind VARCHAR NOT NULL" in span_annotations_table_def
-                assert "identifier VARCHAR NOT NULL" in span_annotations_table_def
+                assert "identifier VARCHAR DEFAULT ('') NOT NULL" in span_annotations_table_def
                 assert "source VARCHAR NOT NULL" in span_annotations_table_def
                 assert "user_id INTEGER" in span_annotations_table_def
                 assert (
@@ -467,7 +467,7 @@ def test_annotation_config_migration(
 
                 # Check document_annotations
                 assert "annotator_kind VARCHAR NOT NULL" in document_annotations_table_def
-                assert "identifier VARCHAR NOT NULL" in document_annotations_table_def
+                assert "identifier VARCHAR DEFAULT ('') NOT NULL" in document_annotations_table_def
                 assert "source VARCHAR NOT NULL" in document_annotations_table_def
                 assert "user_id INTEGER" in document_annotations_table_def
                 assert (
