@@ -271,9 +271,9 @@ async def span_search(
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
-        *rows, extra = rows  # remove extra for response
-        span_last, _ = rows[-1]
-        next_cursor = str(GlobalID("Span", str(span_last.id)))
+        *rows, extra = rows  # extra is first item of next page
+        span_extra, _ = extra
+        next_cursor = str(GlobalID("Span", str(span_extra.id)))
 
     # Convert rows to Span Pydantic model
     result_spans: list[Span] = []
