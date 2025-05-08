@@ -145,7 +145,7 @@ We use the more generic `llm_generate` function that can be used for almost any 
 <strong>test_results = llm_generate(
 </strong>    dataframe=&#x3C;YOUR_DATAFRAME_GOES_HERE>,
     template=SCORE_TEMPLATE,
-    model=OpenAIModel('gpt-4o', api_key=''),
+    model=OpenAIModel(model='gpt-4o', api_key=''),
     verbose=True,
     # Callback function that will be called for each row of the dataframe
     output_parser=numeric_score_eval,
