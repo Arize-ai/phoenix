@@ -166,7 +166,7 @@ function EvaluationColumnSelector({
     });
   }, [data.spanAnnotationNames, annotationColumnVisibility]);
 
-  const onToggleEvaluations = useCallback(() => {
+  const onToggleAnnotations = useCallback(() => {
     const newVisibilityState = data.spanAnnotationNames.reduce((acc, name) => {
       return { ...acc, [name]: !allVisible };
     }, {});
@@ -185,11 +185,11 @@ function EvaluationColumnSelector({
           <label>
             <input
               type="checkbox"
-              name={"toggle-evaluations-all"}
+              name={"toggle-annotations-all"}
               checked={allVisible}
-              onChange={onToggleEvaluations}
+              onChange={onToggleAnnotations}
             />
-            feedback
+            annotations
           </label>
         </div>
       </View>
