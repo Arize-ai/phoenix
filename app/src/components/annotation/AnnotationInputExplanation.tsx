@@ -61,7 +61,7 @@ export const AnnotationInputExplanation = ({
           }
         `}
       >
-        Explain
+        explain
       </Button>
       <Popover placement="bottom end" UNSTABLE_portalContainer={containerRef}>
         <PopoverArrow />

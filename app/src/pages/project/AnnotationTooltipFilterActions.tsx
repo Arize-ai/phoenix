@@ -72,7 +72,7 @@ export function AnnotationTooltipFilterActions(
         height: 100%;
         flex-direction: row;
         gap: var(--ac-global-dimension-size-100);
-        padding: var(--ac-global-dimension-size-100) 0;
+
         flex-wrap: wrap;
       `}
     >

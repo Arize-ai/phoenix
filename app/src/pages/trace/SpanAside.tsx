@@ -97,7 +97,7 @@ export function SpanAside(props: SpanAsideProps) {
         resizable
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
-            <span>Edit annotations</span>
+            <span>Edit Annotations</span>
             <KeyboardToken>{EDIT_ANNOTATION_HOTKEY}</KeyboardToken>
           </Flex>
         }
@@ -191,7 +191,7 @@ function SpanAsideAnnotationList(props: {
   const hasAnnotations = annotations.length > 0;
   return (
     <TitledPanel
-      title="My annotations"
+      title="My Annotations"
       disabled={!hasAnnotations}
       panelProps={{
         order: 1,
