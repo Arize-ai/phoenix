@@ -1,4 +1,7 @@
 name: Publish Any Pull Request
+permissions:
+  contents: write
+  pull-requests: write
 # TODO: Only publish on pull requests by arize team members
 on:
   pull_request:
