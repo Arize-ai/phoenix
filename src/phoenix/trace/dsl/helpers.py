@@ -182,6 +182,6 @@ def get_called_tools(
         print("No spans found.")
         return None
 
-    df_qa["tool_call"] = df_qa["response"].apply(extract_tools)
+    df_qa["tool_call"] = df_qa["output"].apply(extract_tools)
 
     return df_qa
