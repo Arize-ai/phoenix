@@ -626,7 +626,7 @@ export interface components {
              * @description Number of times the experiment should be repeated for each example
              * @default 1
              */
-            repetitions: number;
+            repetitions?: number;
         };
         /** CreateExperimentResponseBody */
         CreateExperimentResponseBody: {
@@ -1298,7 +1298,7 @@ export interface components {
              * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
              * @default
              */
-            identifier: string;
+            identifier?: string;
             /** Id */
             id: string;
             /**
@@ -1351,7 +1351,7 @@ export interface components {
              * @description The identifier of the annotation. If provided, the annotation will be updated if it already exists.
              * @default
              */
-            identifier: string;
+            identifier?: string;
         };
         /** SpanAnnotationResult */
         SpanAnnotationResult: {
