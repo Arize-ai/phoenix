@@ -403,7 +403,7 @@ class AsyncSpans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
-        project: str,
+        project_identifier: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -416,7 +416,7 @@ class AsyncSpans:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
-            project: The project identifier (name or ID) used in the API path.
+            project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -455,7 +455,7 @@ class AsyncSpans:
             return pd.DataFrame()
 
         annotations: list[v1.SpanAnnotation] = []
-        path = f"v1/projects/{project}/span_annotations"
+        path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
@@ -492,7 +492,7 @@ class AsyncSpans:
         self,
         *,
         span_ids: Iterable[str],
-        project: str,
+        project_identifier: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -501,7 +501,7 @@ class AsyncSpans:
 
         Args:
             span_ids: An iterable of span IDs.
-            project: The project identifier (name or ID) used in the API path.
+            project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -517,7 +517,7 @@ class AsyncSpans:
             return []
 
         annotations: list[v1.SpanAnnotation] = []
-        path = f"v1/projects/{project}/span_annotations"
+        path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
