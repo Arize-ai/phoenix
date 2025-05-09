@@ -1,5 +1,6 @@
 name: Publish experimental Docker image
-
+permissions:
+  contents: read
 on:
   push:
     branches:
