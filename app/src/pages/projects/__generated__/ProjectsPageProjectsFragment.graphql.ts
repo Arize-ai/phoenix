@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<759a4ac691f2100edae77023a43bd862>>
+ * @generated SignedSource<<c70464ee56bf821921d873b5ad33c38e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ProjectsPageProjectsFragment$data = {
         readonly gradientStartColor: string;
         readonly id: string;
         readonly name: string;
+        readonly startTime: string | null;
       };
     }>;
   };
@@ -43,9 +44,19 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -75,7 +86,18 @@ return {
   "selections": [
     {
       "alias": "projects",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        },
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "ProjectConnection",
       "kind": "LinkedField",
       "name": "__ProjectsPage_projects_connection",
@@ -130,6 +152,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "endTime",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "startTime",
                   "storageKey": null
                 }
               ],
@@ -197,6 +226,6 @@ return {
 };
 })();
 
-(node as any).hash = "d16c129ec8d3d2eb1509dc95e45334fd";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;

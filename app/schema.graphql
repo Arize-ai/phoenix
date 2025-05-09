@@ -1408,6 +1408,13 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum ProjectColumn {
+  name
+  endTime
 }
 
 """A connection to a list of items."""
@@ -1426,6 +1433,16 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
+}
+
+"""The filter key and value for project connections"""
+input ProjectFilter {
+  col: ProjectFilterColumn!
+  value: String!
+}
+
+enum ProjectFilterColumn {
+  name
 }
 
 type ProjectSession implements Node {
@@ -1472,6 +1489,12 @@ type ProjectSessionEdge {
 """The sort key and direction for ProjectSession connections."""
 input ProjectSessionSort {
   col: ProjectSessionColumn!
+  dir: SortDir!
+}
+
+"""The sort key and direction for project connections"""
+input ProjectSort {
+  col: ProjectColumn!
   dir: SortDir!
 }
 
@@ -1657,7 +1680,7 @@ type Query {
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
   systemApiKeys: [SystemApiKey!]!
-  projects(first: Int = 50, last: Int, after: String, before: String): ProjectConnection!
+  projects(first: Int = 50, last: Int, after: String, before: String, sort: ProjectSort, filter: ProjectFilter): ProjectConnection!
   projectsLastUpdatedAt: DateTime
   datasets(first: Int = 50, last: Int, after: String, before: String, sort: DatasetSort): DatasetConnection!
   datasetsLastUpdatedAt: DateTime

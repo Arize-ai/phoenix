@@ -89,14 +89,12 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
   table,
   hasNext,
   onLoadNext,
-  tableWidth,
   isLoadingNext,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
-  tableWidth: number;
 }) => {
   const navigate = useNavigate();
   return (
@@ -136,7 +134,6 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
         <LoadMoreRow
           onLoadMore={onLoadNext}
           key="load-more"
-          width={tableWidth}
           isLoadingNext={isLoadingNext}
         />
       ) : null}
@@ -566,17 +563,15 @@ export function SpansTable(props: SpansTableProps) {
    * and pass the column sizes down as CSS variables to the <table> element.
    * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars, tableWidth] = React.useMemo(() => {
+  const [columnSizeVars] = React.useMemo(() => {
     const headers = getFlatHeaders();
     const colSizes: { [key: string]: number } = {};
-    let tableWidth = 0;
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i]!;
       colSizes[`--header-${header.id}-size`] = header.getSize();
       colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-      tableWidth += header.getSize();
     }
-    return [colSizes, tableWidth];
+    return [colSizes];
     // Disabled lint as per tanstack docs linked above
     // eslint-disable-next-line react-compiler/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -705,7 +700,6 @@ export function SpansTable(props: SpansTableProps) {
               table={table}
               hasNext={hasNext}
               onLoadNext={() => loadNext(PAGE_SIZE)}
-              tableWidth={tableWidth}
               isLoadingNext={isLoadingNext}
             />
           ) : (
@@ -713,7 +707,6 @@ export function SpansTable(props: SpansTableProps) {
               table={table}
               hasNext={hasNext}
               onLoadNext={() => loadNext(PAGE_SIZE)}
-              tableWidth={tableWidth}
               isLoadingNext={isLoadingNext}
             />
           )}
