@@ -4,7 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - feat/annotations
+      - feat/version-10
 
 jobs:
   push_to_registry:
