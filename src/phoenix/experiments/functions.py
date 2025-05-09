@@ -150,8 +150,7 @@ def run_experiment(
             concurrent task execution, the task callable must be a coroutine function.
             Defaults to 3.
         timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
-            longer tasks to avoidrequeuing the same multiple times.
-            Defaults to None.
+            longer tasks to avoid re-queuing the same task multiple times. Defaults to None.
 
     Returns:
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
@@ -757,7 +756,7 @@ def _print_experiment_error(
     Prints an experiment error.
     """
     display_error = RuntimeError(
-        f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
+        f"{kind} failed for example id {repr(example_id)}, repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
     formatted_exception = "".join(
