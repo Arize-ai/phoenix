@@ -154,18 +154,16 @@ def get_called_tools(
         )
         end_time = end_time or stop_time
 
-    def extract_tools(outputs):
-        if outputs[0].get("message").get("tool_calls"):
-            return (
-                outputs[0]
-                .get("message")
-                .get("tool_calls")[0]
-                .get("tool_call")
-                .get("function")
-                .get("name")
-            )
-        else:
-            return "No tool used"
+    def extract_tools(outputs: list[dict[str, any]]) -> str:
+        try:
+            if not isinstance(outputs, list) or not outputs:
+                return "Invalid message output"
+            if outputs[0].get("message").get("tool_calls"):
+                return outputs[0]["message"]["tool_calls"][0]["tool_call"]["function"]["name"]
+            else:
+                return "No tool used"
+        except (IndexError, KeyError, AttributeError):
+            return "Message output could not be processed"
 
     df_qa = cast(
         pd.DataFrame,
