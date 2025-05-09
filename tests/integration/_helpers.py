@@ -1203,7 +1203,7 @@ class _OIDCServer:
         Set up the FastAPI routes for the OIDC server.
 
         This method configures all the necessary endpoints for OIDC functionality:
-        - /auth: Authorization endpoint that handles the initial OAuth2 request
+        - /auth: Authorization endpoint that simulates the initial OAuth2 authorization request.
         - /token: Token endpoint that exchanges authorization codes for tokens
         - /.well-known/openid-configuration: Discovery document for OIDC clients
         - /userinfo: User information endpoint
@@ -1423,32 +1423,50 @@ class _OIDCServer:
         return self._name
 
 
-RETRIES = 5
 T = TypeVar("T")
 
 
-async def _retry_query(
-    query_fn: Callable[[], T | None] | Callable[[], Awaitable[T | None]],
+async def _get(
+    query_fn: Callable[[], Optional[T]] | Callable[[], Awaitable[Optional[T]]],
     error_msg: str,
-    retries: int = RETRIES,
-    initial_wait_time: float = 0,
+    no_wait: bool = False,
+    retries: int = 60,
+    initial_wait_time: float = 0.1,
+    max_wait_time: float = 1,
 ) -> T:
+    """Retry a query with exponential backoff until it succeeds or retries are exhausted.
+
+    This function implements a retry mechanism with exponential backoff for both synchronous
+    and asynchronous queries. It will repeatedly attempt to execute the query function until
+    either a non-None result is returned or the maximum number of retries is reached.
+
+    Args:
+        query_fn: A callable that returns either Optional[T] or Awaitable[Optional[T]].
+            The function will be called repeatedly until it returns a non-None value.
+        error_msg: The error message to raise if all retries are exhausted without success.
+        no_wait: If True, only attempt the query once without any waiting or retries.
+            Defaults to False.
+        retries: Maximum number of retry attempts before giving up. Defaults to 60.
+        initial_wait_time: Initial wait time in seconds between retries. Defaults to 0.1.
+        max_wait_time: Maximum wait time in seconds between retries. The wait time will
+            increase exponentially but will be capped at this value. Defaults to 1.0.
+
+    Returns:
+        The first non-None result returned by query_fn.
+
+    Raises:
+        AssertionError: If query_fn returns None after all retries are exhausted.
+    """
     from asyncio import sleep
 
-    if initial_wait_time < 0:
-        retries = 0
-    wt = initial_wait_time
+    wt = 0 if no_wait else initial_wait_time
     while True:
         await sleep(wt)
         res = query_fn()
-        ans = cast(T | None, await res) if isinstance(res, Awaitable) else res
-        try:
-            assert ans is not None, error_msg
-            break
-        except AssertionError:
-            if not retries:
-                raise
-            retries -= 1
-            wt = min(wt * 1.5, initial_wait_time * 10)  # Cap max wait time
-            continue
-    return ans
+        ans = cast(Optional[T], await res) if isinstance(res, Awaitable) else res
+        if ans is not None:
+            return ans
+        if no_wait or not retries:
+            raise AssertionError(error_msg)
+        retries -= 1
+        wt = min(wt * 1.5, max_wait_time)

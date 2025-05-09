@@ -22,10 +22,10 @@ from .._helpers import (
     _MEMBER,
     _AdminSecret,
     _await_or_return,
+    _get,
     _GetUser,
     _gql,
     _grpc_span_exporter,
-    _retry_query,
     _RoleOrUser,
     _SecurityArtifact,
     _start_span,
@@ -37,9 +37,9 @@ SpanGlobalId: TypeAlias = str
 
 
 class TestClientForSpanAnnotations:
-    """Tests for the Phoenix span annotation client.
+    """Tests the Phoenix span annotation client functionality.
 
-    Checks if the client can:
+    Verifies that the client can:
     - Create and update single annotations
     - Handle multiple annotations at once
     - Work with different user roles
@@ -90,17 +90,16 @@ class TestClientForSpanAnnotations:
         api_key_kind: Literal["User", "System"],
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Tests creating and updating single annotations.
 
-        Checks if the client can:
-        - Create new annotations with all fields
-        - Update existing annotations
-        - Keep the same ID when updating
-        - Work in both regular and async mode
-        - Check user permissions
+        Verifies that:
+        - New annotations can be created with all fields
+        - Existing annotations can be updated
+        - Annotation IDs remain the same when updating
+        - Works in both regular and async mode
+        - User permissions are properly checked
         """
         # ============================================================================
         # Setup
@@ -165,10 +164,10 @@ class TestClientForSpanAnnotations:
                 }
                 return annotations.get((label, score, explanation))
 
-            anno = await _retry_query(
+            anno = await _get(
                 query_fn=get_annotation,
                 error_msg="Created annotation should be present in span annotations",
-                initial_wait_time=0 if sync else _wait_time,
+                no_wait=sync,
             )
 
             # Expected user ID for the annotation
@@ -207,18 +206,17 @@ class TestClientForSpanAnnotations:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Tests handling multiple annotations at once.
 
-        Checks if the client can:
-        - Create many annotations in one call
-        - Update many annotations at once
-        - Work with annotations across different spans
-        - Keep the same IDs when updating
-        - Work in both regular and async mode
-        - Check user permissions
+        Verifies that:
+        - Multiple annotations can be created in one call
+        - Multiple annotations can be updated at once
+        - Works with annotations across different spans
+        - Annotation IDs remain the same when updating
+        - Works in both regular and async mode
+        - User permissions are properly checked
         """
         # ============================================================================
         # Setup
@@ -308,10 +306,10 @@ class TestClientForSpanAnnotations:
                     }
                     return annotations.get((labels[j], scores[j], explanations[j]))
 
-                anno = await _retry_query(
+                anno = await _get(
                     query_fn=get_batch_annotation,
                     error_msg=f"Batch annotation {j+1} should be present in span annotations",
-                    initial_wait_time=0 if sync else _wait_time,
+                    no_wait=sync,
                 )
 
                 # Verify the batch annotation fields match what was provided
@@ -347,22 +345,21 @@ class TestClientForSpanAnnotations:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Tests using DataFrames for annotations.
 
         Tests three ways to use DataFrames:
-        - With span_id as a column
-        - With span_id as the index
-        - With a shared annotator type
+        1. With span_id as a column
+        2. With span_id as the index
+        3. With a shared annotator type
 
-        Checks if the client can:
-        - Read annotations from DataFrames
-        - Handle different DataFrame layouts
-        - Use shared settings correctly
-        - Work in both regular and async mode
-        - Check user permissions
+        Verifies that:
+        - Annotations can be read from DataFrames
+        - Different DataFrame layouts are handled correctly
+        - Shared settings work properly
+        - Works in both regular and async mode
+        - User permissions are properly checked
         """
         # ============================================================================
         # Setup
@@ -434,10 +431,10 @@ class TestClientForSpanAnnotations:
                 }
                 return annotations.get((df1_labels[i], df1_scores[i], df1_explanations[i]))
 
-            anno = await _retry_query(
+            anno = await _get(
                 query_fn=get_df_annotation,
                 error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
-                initial_wait_time=0 if sync else _wait_time,
+                no_wait=sync,
             )
 
             # Verify annotation exists with correct values
@@ -505,10 +502,10 @@ class TestClientForSpanAnnotations:
                 }
                 return annotations.get((df2_labels[i], df2_scores[i], df2_explanations[i]))
 
-            anno = await _retry_query(
+            anno = await _get(
                 query_fn=get_df2_annotation,
                 error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
-                initial_wait_time=0 if sync else _wait_time,
+                no_wait=sync,
             )
 
             # Verify annotation exists with correct values
@@ -578,10 +575,10 @@ class TestClientForSpanAnnotations:
                 }
                 return annotations.get((df3_labels[i], df3_scores[i], df3_explanations[i]))
 
-            anno = await _retry_query(
+            anno = await _get(
                 query_fn=get_df3_annotation,
                 error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
-                initial_wait_time=0 if sync else _wait_time,
+                no_wait=sync,
             )
 
             # Verify annotation exists with correct values
@@ -606,16 +603,15 @@ class TestClientForSpanAnnotations:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Tests handling annotations with zero scores.
 
-        Checks if the client can:
-        - Save and load zero scores correctly
-        - Handle missing optional fields
-        - Work in both regular and async mode
-        - Check user permissions
+        Verifies that:
+        - Zero scores are saved and loaded correctly
+        - Missing optional fields are handled properly
+        - Works in both regular and async mode
+        - User permissions are properly checked
         """
         # ============================================================================
         # Setup
@@ -664,10 +660,10 @@ class TestClientForSpanAnnotations:
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
             return annotations.get(zero_score_annotation_name)
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_zero_score_annotation,
             error_msg="Annotation with score of 0 should be present in span annotations",
-            initial_wait_time=0 if sync else _wait_time,
+            no_wait=sync,
         )
 
         # Verify the annotation exists and has score of 0
@@ -687,16 +683,15 @@ class TestClientForSpanAnnotations:
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
-        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Tests handling zero scores in DataFrames.
 
-        Checks if the client can:
-        - Read zero scores from DataFrames
-        - Handle missing optional fields
-        - Work in both regular and async mode
-        - Check user permissions
+        Verifies that:
+        - Zero scores can be read from DataFrames
+        - Missing optional fields are handled properly
+        - Works in both regular and async mode
+        - User permissions are properly checked
         """
         # ============================================================================
         # Setup
@@ -753,10 +748,10 @@ class TestClientForSpanAnnotations:
             annotations = {anno["name"]: anno for anno in res["data"]["node"]["spanAnnotations"]}
             return annotations.get(zero_score_annotation_name)
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_zero_score_df_annotation,
             error_msg="DataFrame annotation with score of 0 should be present in span annotations",
-            initial_wait_time=0 if sync else _wait_time,
+            no_wait=sync,
         )
 
         # Verify the annotation exists and has score of 0
@@ -770,15 +765,15 @@ class TestClientForSpanAnnotations:
 class TestSendingAnnotationsBeforeSpan:
     """Tests sending annotations before spans exist.
 
-    This test is consolidated to reduce flakiness and total wait
-    time for the asynchronous operations.
+    *CAVEAT* This is a single consolidated because we want to reduce flakiness and
+    total wait time for server operations that are asynchronous.
 
-    Checks if the client can:
-    - Send annotations before spans are created
-    - Link annotations to spans after creation
-    - Handle multiple annotations per span
-    - Process many evaluations at once
-    - Keep data consistent
+    Verifies that:
+    - Annotations can be sent before spans are created
+    - Annotations are properly linked to spans after creation
+    - Multiple annotations per span are handled correctly
+    - Many evaluations can be processed at once
+    - Data remains consistent
     """
 
     # GraphQL queries for retrieving annotations and evaluations
@@ -896,19 +891,18 @@ class TestSendingAnnotationsBeforeSpan:
         self,
         _span: ReadableSpan,
         _admin_secret: _AdminSecret,
-        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Tests sending annotations and evaluations before spans exist.
 
-        Checks if the client can:
-        - Send annotations before spans are created
-        - Send evaluations before spans are created
-        - Link data to spans after creation
-        - Handle multiple annotations per span
-        - Process many evaluations at once
-        - Keep data consistent
-        - Update existing annotations (UPSERT)
+        Verifies that:
+        - Annotations can be sent before spans exist
+        - Evaluations can be sent before spans exist
+        - Data is properly linked to spans after creation
+        - Multiple annotations per span are handled
+        - Many evaluations can be processed at once
+        - Data remains consistent
+        - Existing annotations can be updated (UPSERT)
         """
         # Get IDs from the span
         assert (span_context := _span.get_span_context())  # type: ignore[no-untyped-call]
@@ -1023,12 +1017,11 @@ class TestSendingAnnotationsBeforeSpan:
         assert _grpc_span_exporter().export([_span]) is SpanExportResult.SUCCESS
 
         # Get the global IDs
-        span_gid, trace_gid = await _retry_query(
+        span_gid, trace_gid = await _get(
             query_fn=lambda: self._get_span_trace_gid(
                 _admin_secret, span_id=span_id, trace_id=trace_id
             ),
             error_msg="Span and trace IDs should be present",
-            initial_wait_time=_wait_time,
         )
 
         # Check the annotations
@@ -1047,15 +1040,17 @@ class TestSendingAnnotationsBeforeSpan:
                 (span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1])
             )
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_span_anno,
             error_msg="Span annotation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == span_annotation_name
         assert anno["source"] == "API"
         assert anno["annotatorKind"] == "LLM"
         assert anno["metadata"] == span_anno_metadatas[-1]
+
+        # Retain the gid for the UPSERT test
+        span_anno_gid = anno["id"]
 
         # Check the span evaluations
         def get_span_eval() -> Optional[dict[str, Any]]:
@@ -1073,14 +1068,16 @@ class TestSendingAnnotationsBeforeSpan:
                 (span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1])
             )
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_span_eval,
             error_msg="Span evaluation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == span_eval_name
         assert anno["source"] == "API"
         assert anno["annotatorKind"] == "LLM"
+
+        # Retain the gid for the UPSERT test
+        span_eval_gid = anno["id"]
 
         # Check the trace evaluations
         def get_trace_eval() -> Optional[dict[str, Any]]:
@@ -1098,14 +1095,16 @@ class TestSendingAnnotationsBeforeSpan:
                 (trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1])
             )
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_trace_eval,
             error_msg="Trace evaluation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == trace_eval_name
         assert anno["source"] == "API"
         assert anno["annotatorKind"] == "LLM"
+
+        # Retain the gid for the UPSERT test
+        trace_eval_gid = anno["id"]
 
         # Check the document evaluations
         def get_doc_eval() -> Optional[dict[str, Any]]:
@@ -1121,10 +1120,9 @@ class TestSendingAnnotationsBeforeSpan:
             }
             return annos.get((doc_eval_labels[-1], doc_eval_scores[-1], doc_eval_explanations[-1]))
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_doc_eval,
             error_msg="Document evaluation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == doc_eval_name
         assert anno["documentPosition"] == document_position
@@ -1210,15 +1208,15 @@ class TestSendingAnnotationsBeforeSpan:
             }
             return annos.get((new_span_anno_label, new_span_anno_score, new_span_anno_explanation))
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_updated_span_anno,
             error_msg="Updated span annotation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == span_annotation_name
         assert anno["source"] == "API"
         assert anno["annotatorKind"] == "LLM"
         assert anno["metadata"] == new_span_anno_metadata
+        assert anno["id"] == span_anno_gid
 
         # Check updated span evaluations
         def get_updated_span_eval() -> Optional[dict[str, Any]]:
@@ -1234,14 +1232,14 @@ class TestSendingAnnotationsBeforeSpan:
             }
             return annos.get((new_span_eval_label, new_span_eval_score, new_span_eval_explanation))
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_updated_span_eval,
             error_msg="Updated span evaluation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == span_eval_name
         assert anno["source"] == "API"
         assert anno["annotatorKind"] == "LLM"
+        assert anno["id"] == span_eval_gid
 
         # Check updated trace evaluations
         def get_updated_trace_eval() -> Optional[dict[str, Any]]:
@@ -1259,14 +1257,14 @@ class TestSendingAnnotationsBeforeSpan:
                 (new_trace_eval_label, new_trace_eval_score, new_trace_eval_explanation)
             )
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_updated_trace_eval,
             error_msg="Updated trace evaluation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == trace_eval_name
         assert anno["source"] == "API"
         assert anno["annotatorKind"] == "LLM"
+        assert anno["id"] == trace_eval_gid
 
         # Check updated document evaluations
         def get_updated_doc_eval() -> Optional[dict[str, Any]]:
@@ -1282,15 +1280,16 @@ class TestSendingAnnotationsBeforeSpan:
             }
             return annos.get((new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation))
 
-        anno = await _retry_query(
+        anno = await _get(
             query_fn=get_updated_doc_eval,
             error_msg="Updated document evaluation should be present",
-            initial_wait_time=_wait_time,
         )
         assert anno["name"] == doc_eval_name
         assert anno["documentPosition"] == document_position
 
 
 class _SpanTraceGlobalID(NamedTuple):
+    """Helper class for storing span and trace global IDs."""
+
     span_gid: str
     trace_gid: str
