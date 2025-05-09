@@ -18,7 +18,7 @@ from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import (
     Any,
     Awaitable,
@@ -28,6 +28,7 @@ from typing import (
     Literal,
     Optional,
     Protocol,
+    Sequence,
     Type,
     TypeVar,
     Union,
@@ -1427,8 +1428,10 @@ T = TypeVar("T")
 
 
 async def _get(
-    query_fn: Callable[[], Optional[T]] | Callable[[], Awaitable[Optional[T]]],
-    error_msg: str,
+    query_fn: Callable[..., Optional[T]] | Callable[..., Awaitable[Optional[T]]],
+    args: Sequence[Any] = (),
+    kwargs: Mapping[str, Any] = MappingProxyType({}),
+    error_msg: str = "",
     no_wait: bool = False,
     retries: int = 60,
     initial_wait_time: float = 0.1,
@@ -1443,6 +1446,8 @@ async def _get(
     Args:
         query_fn: A callable that returns either Optional[T] or Awaitable[Optional[T]].
             The function will be called repeatedly until it returns a non-None value.
+        args: Positional arguments to pass to query_fn. Defaults to empty tuple.
+        kwargs: Keyword arguments to pass to query_fn. Defaults to empty mapping.
         error_msg: The error message to raise if all retries are exhausted without success.
         no_wait: If True, only attempt the query once without any waiting or retries.
             Defaults to False.
@@ -1462,7 +1467,7 @@ async def _get(
     wt = 0 if no_wait else initial_wait_time
     while True:
         await sleep(wt)
-        res = query_fn()
+        res = query_fn(*args, **kwargs)
         ans = cast(Optional[T], await res) if isinstance(res, Awaitable) else res
         if ans is not None:
             return ans

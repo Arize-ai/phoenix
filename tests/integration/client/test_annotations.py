@@ -381,9 +381,9 @@ class TestClientForSpanAnnotations:
         # Test Case 1: Using span_id as column
         # ============================================================================
         # This test case demonstrates standard DataFrame usage with span_id as a column
-        # All fields are provided as columns in the DataFrame, using OpenTelemetry span IDs
+        # All fields are provided as columns in the DataFrame
         df1_annotation_names = [token_hex(16), token_hex(16)]
-        df1_span_ids = [span_id1, span_id2]  # OpenTelemetry span IDs
+        df1_span_ids = [span_id1, span_id2]
         df1_annotator_kinds = ["HUMAN", "LLM"]
         df1_labels = [token_hex(16), token_hex(16)]
         df1_scores = [
@@ -395,7 +395,7 @@ class TestClientForSpanAnnotations:
         df1 = pd.DataFrame(
             {
                 "name": df1_annotation_names,
-                "span_id": df1_span_ids,  # OpenTelemetry span IDs
+                "span_id": df1_span_ids,
                 "annotator_kind": df1_annotator_kinds,
                 "label": df1_labels,
                 "score": df1_scores,
@@ -453,7 +453,7 @@ class TestClientForSpanAnnotations:
         # Test Case 2: Using span_id as index
         # ============================================================================
         # This test case demonstrates using span_id as the DataFrame index
-        # This is an alternative way to specify OpenTelemetry span IDs without a dedicated column
+        # This is an alternative way to specify span IDs without a dedicated column
         df2_annotation_names = [token_hex(16), token_hex(16)]
         df2_annotator_kinds = ["HUMAN", "LLM"]
         df2_labels = [token_hex(16), token_hex(16)]
@@ -472,7 +472,7 @@ class TestClientForSpanAnnotations:
                 "explanation": df2_explanations,
                 "metadata": df2_metadata,
             },
-            index=[span_id1, span_id2],  # OpenTelemetry span IDs as index
+            index=[span_id1, span_id2],
         )
 
         # Log annotations from DataFrame
@@ -525,10 +525,10 @@ class TestClientForSpanAnnotations:
         # ============================================================================
         # This test case demonstrates using a global annotator_kind parameter
         # The DataFrame does not include an annotator_kind column, and the value is
-        # provided as a parameter to the API call. Uses OpenTelemetry span IDs.
+        # provided as a parameter to the API call.
         global_annotator_kind: Literal["HUMAN"] = "HUMAN"
         df3_annotation_names = [token_hex(16), token_hex(16)]
-        df3_span_ids = [span_id1, span_id2]  # OpenTelemetry span IDs
+        df3_span_ids = [span_id1, span_id2]
         df3_labels = [token_hex(16), token_hex(16)]
         df3_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -539,7 +539,7 @@ class TestClientForSpanAnnotations:
         df3 = pd.DataFrame(
             {
                 "name": df3_annotation_names,
-                "span_id": df3_span_ids,  # OpenTelemetry span IDs
+                "span_id": df3_span_ids,
                 "label": df3_labels,
                 "score": df3_scores,
                 "explanation": df3_explanations,
@@ -716,11 +716,11 @@ class TestClientForSpanAnnotations:
         zero_score_annotation_name = token_hex(16)
 
         # Create DataFrame with score of 0
-        # The DataFrame uses OpenTelemetry span ID to identify the span
+        # The DataFrame uses span ID to identify the span
         df = pd.DataFrame(
             {
                 "name": [zero_score_annotation_name],
-                "span_id": [span_id1],  # OpenTelemetry span ID
+                "span_id": [span_id1],
                 "annotator_kind": ["LLM"],
                 "score": [0],  # Explicitly test score of 0
             }
@@ -1025,7 +1025,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
 
         # Check the annotations
-        def get_span_anno() -> Optional[dict[str, Any]]:
+        def get_span_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1036,12 +1036,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get(
-                (span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1])
-            )
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_span_anno,
+            args=((span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1]),),
             error_msg="Span annotation should be present",
         )
         assert anno["name"] == span_annotation_name
@@ -1053,7 +1052,7 @@ class TestSendingAnnotationsBeforeSpan:
         span_anno_gid = anno["id"]
 
         # Check the span evaluations
-        def get_span_eval() -> Optional[dict[str, Any]]:
+        def get_span_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1064,12 +1063,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get(
-                (span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1])
-            )
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_span_eval,
+            args=((span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1]),),
             error_msg="Span evaluation should be present",
         )
         assert anno["name"] == span_eval_name
@@ -1080,7 +1078,7 @@ class TestSendingAnnotationsBeforeSpan:
         span_eval_gid = anno["id"]
 
         # Check the trace evaluations
-        def get_trace_eval() -> Optional[dict[str, Any]]:
+        def get_trace_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1091,12 +1089,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["traceAnnotations"]
             }
-            return annos.get(
-                (trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1])
-            )
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_trace_eval,
+            args=((trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1]),),
             error_msg="Trace evaluation should be present",
         )
         assert anno["name"] == trace_eval_name
@@ -1195,7 +1192,7 @@ class TestSendingAnnotationsBeforeSpan:
         )
 
         # Check updated annotations
-        def get_updated_span_anno() -> Optional[dict[str, Any]]:
+        def get_updated_span_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1206,10 +1203,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get((new_span_anno_label, new_span_anno_score, new_span_anno_explanation))
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_updated_span_anno,
+            args=((new_span_anno_label, new_span_anno_score, new_span_anno_explanation),),
             error_msg="Updated span annotation should be present",
         )
         assert anno["name"] == span_annotation_name
@@ -1219,7 +1217,7 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["id"] == span_anno_gid
 
         # Check updated span evaluations
-        def get_updated_span_eval() -> Optional[dict[str, Any]]:
+        def get_updated_span_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1230,10 +1228,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get((new_span_eval_label, new_span_eval_score, new_span_eval_explanation))
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_updated_span_eval,
+            args=((new_span_eval_label, new_span_eval_score, new_span_eval_explanation),),
             error_msg="Updated span evaluation should be present",
         )
         assert anno["name"] == span_eval_name
@@ -1267,7 +1266,7 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["id"] == trace_eval_gid
 
         # Check updated document evaluations
-        def get_updated_doc_eval() -> Optional[dict[str, Any]]:
+        def get_updated_doc_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1278,10 +1277,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["documentEvaluations"]
             }
-            return annos.get((new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation))
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_updated_doc_eval,
+            args=((new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation),),
             error_msg="Updated document evaluation should be present",
         )
         assert anno["name"] == doc_eval_name
