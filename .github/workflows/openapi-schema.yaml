@@ -1,12 +1,14 @@
 name: OpenAPI Schema Backward Compatibility
+permissions:
+  contents: read
 
 on:
   push:
     paths:
-      - 'schemas/openapi.json'
+      - "schemas/openapi.json"
   pull_request:
     paths:
-      - 'schemas/openapi.json'
+      - "schemas/openapi.json"
 
 jobs:
   openapi-schema-backward-compatibility:

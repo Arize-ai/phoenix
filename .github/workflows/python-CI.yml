@@ -1,4 +1,6 @@
 name: Python CI
+permissions:
+  contents: read
 
 on:
   push:

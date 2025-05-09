@@ -1,4 +1,6 @@
 name: Python Cron
+permissions:
+  contents: read
 
 on:
   schedule:

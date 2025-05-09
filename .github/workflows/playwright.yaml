@@ -1,4 +1,6 @@
 name: Playwright Tests
+permissions:
+  contents: read
 
 on:
   push:

@@ -1,4 +1,6 @@
 name: Collect customer issues
+permissions:
+  contents: read
 
 on:
   schedule:

@@ -1,4 +1,6 @@
 name: Typescript CI
+permissions:
+  contents: read
 
 on:
   push:
