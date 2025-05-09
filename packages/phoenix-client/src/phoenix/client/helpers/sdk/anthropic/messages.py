@@ -727,6 +727,16 @@ class _ContentConversion:
 
                 if isinstance(block, RedactedThinkingBlock):
                     raise NotImplementedError
+
+                if _anthropic_version < (0, 49):
+                    continue
+                from anthropic.types import ServerToolUseBlock, WebSearchToolResultBlock
+
+                if isinstance(block, ServerToolUseBlock):
+                    raise NotImplementedError
+
+                if isinstance(block, WebSearchToolResultBlock):
+                    raise NotImplementedError
                 assert_never(block)
         return content
 
