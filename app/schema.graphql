@@ -1490,6 +1490,7 @@ input PatchAnnotationInput {
   explanation: String
   metadata: JSON
   identifier: String
+  source: AnnotationSource
 }
 
 input PatchDatasetExamplesInput {

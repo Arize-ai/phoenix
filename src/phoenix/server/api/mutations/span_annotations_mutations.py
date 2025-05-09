@@ -251,6 +251,8 @@ class SpanAnnotationMutationMixin:
                     span_annotation.metadata_ = patch.metadata
                 if patch.identifier is not UNSET:
                     span_annotation.identifier = patch.identifier or ""
+                if patch.source is not UNSET:
+                    span_annotation.source = patch.source.value
                 session.add(span_annotation)
 
             patched_annotations = [
