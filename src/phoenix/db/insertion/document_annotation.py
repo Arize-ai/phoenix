@@ -56,6 +56,7 @@ class DocumentAnnotationQueueInserter(
     ],
     table=models.DocumentAnnotation,
     unique_by=("name", "span_rowid", "document_position", "identifier"),
+    constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
 ):
     async def _events(
         self,
@@ -146,7 +147,7 @@ class DocumentAnnotationQueueInserter(
         onclause = and_(
             span.c.id == anno.span_rowid,
             anno.name.in_({k.annotation_name for k in keys}),
-            tuple_(anno.name, anno.identifier, anno.document_position, span.c.span_id).in_(keys),
+            tuple_(anno.name, anno.identifier, span.c.span_id, anno.document_position).in_(keys),
         )
         return select(
             span.c.id.label("span_rowid"),
