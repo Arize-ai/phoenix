@@ -16,7 +16,13 @@ NB: The `--frozen-lockfile` flag forces `pnpm` to install the exact versions spe
 
 To develop the UI, you must run the `app` in conjunction with the backend server. You can start the application in development mode via the following:
 
+**Important:** Before running the development server for the first time, you need to build the app:
+
+```shell
+pnpm run build
 ```
+
+```shell
 pnpm run dev
 ```
 
