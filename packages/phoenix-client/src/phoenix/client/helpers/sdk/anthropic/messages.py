@@ -57,11 +57,25 @@ if TYPE_CHECKING:
     )
     from anthropic.types.message_create_params import MessageCreateParamsBase
 
+    try:
+        # Types introduced in anthropic >=0.49.0
+        from anthropic.types import ServerToolUseBlockParam, WebSearchToolResultBlockParam
+    except ImportError:  # pragma: no cover – older SDK version
+        from typing import TypedDict
+
+        class ServerToolUseBlockParam(TypedDict, total=False):
+            """Stub type used when anthropic<0.49 is installed (no fields)."""
+
+        class WebSearchToolResultBlockParam(TypedDict, total=False):
+            """Stub type used when anthropic<0.49 is installed (no fields)."""
+
     _BlockParam: TypeAlias = Union[
         TextBlockParam,
         ImageBlockParam,
         ToolUseBlockParam,
+        ServerToolUseBlockParam,
         ToolResultBlockParam,
+        WebSearchToolResultBlockParam,
         ThinkingBlockParam,
         RedactedThinkingBlockParam,
         DocumentBlockParam,
@@ -726,6 +740,16 @@ class _ContentConversion:
                 from anthropic.types import RedactedThinkingBlock
 
                 if isinstance(block, RedactedThinkingBlock):
+                    raise NotImplementedError
+
+                if _anthropic_version < (0, 49):
+                    continue
+                from anthropic.types import ServerToolUseBlock, WebSearchToolResultBlock
+
+                if isinstance(block, ServerToolUseBlock):
+                    raise NotImplementedError
+
+                if isinstance(block, WebSearchToolResultBlock):
                     raise NotImplementedError
                 assert_never(block)
         return content
