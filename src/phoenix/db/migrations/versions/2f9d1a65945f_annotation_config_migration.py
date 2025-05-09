@@ -47,6 +47,8 @@ JSON_ = (
 
 def upgrade() -> None:
     with op.batch_alter_table("span_annotations") as batch_op:
+        batch_op.drop_index("ix_span_annotations_score")
+        batch_op.drop_index("ix_span_annotations_label")
         batch_op.add_column(
             sa.Column(
                 "user_id",
@@ -106,6 +108,8 @@ def upgrade() -> None:
         )
 
     with op.batch_alter_table("trace_annotations") as batch_op:
+        batch_op.drop_index("ix_trace_annotations_score")
+        batch_op.drop_index("ix_trace_annotations_label")
         batch_op.add_column(
             sa.Column(
                 "user_id",
@@ -165,6 +169,8 @@ def upgrade() -> None:
         )
 
     with op.batch_alter_table("document_annotations") as batch_op:
+        batch_op.drop_index("ix_document_annotations_score")
+        batch_op.drop_index("ix_document_annotations_label")
         batch_op.add_column(
             sa.Column(
                 "user_id",
@@ -262,6 +268,8 @@ def downgrade() -> None:
     op.drop_table("annotation_configs")
 
     with op.batch_alter_table("document_annotations") as batch_op:
+        batch_op.create_index("ix_document_annotations_score", ["score"])
+        batch_op.create_index("ix_document_annotations_label", ["label"])
         batch_op.drop_constraint(
             "uq_document_annotations_name_span_rowid_document_pos_identifier", type_="unique"
         )
@@ -280,6 +288,8 @@ def downgrade() -> None:
         batch_op.drop_column("user_id")
 
     with op.batch_alter_table("trace_annotations") as batch_op:
+        batch_op.create_index("ix_trace_annotations_score", ["score"])
+        batch_op.create_index("ix_trace_annotations_label", ["label"])
         batch_op.drop_constraint("uq_trace_annotations_name_trace_rowid_identifier", type_="unique")
         batch_op.create_unique_constraint(
             "uq_trace_annotations_name_trace_rowid", ["name", "trace_rowid"]
@@ -295,6 +305,8 @@ def downgrade() -> None:
         batch_op.drop_column("user_id")
 
     with op.batch_alter_table("span_annotations") as batch_op:
+        batch_op.create_index("ix_span_annotations_score", ["score"])
+        batch_op.create_index("ix_span_annotations_label", ["label"])
         batch_op.drop_constraint("uq_span_annotations_name_span_rowid_identifier", type_="unique")
         batch_op.create_unique_constraint(
             "uq_span_annotations_name_span_rowid", ["name", "span_rowid"]
