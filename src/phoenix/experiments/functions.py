@@ -95,6 +95,7 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     concurrency: int = 3,
+    timeout: Optional[int] = None,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
@@ -148,6 +149,8 @@ def run_experiment(
         concurrency (int): Specifies the concurrency for task execution. In order to enable
             concurrent task execution, the task callable must be a coroutine function.
             Defaults to 3.
+        timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
+            longer tasks to avoid re-queuing the same task multiple times. Defaults to None.
 
     Returns:
         RanExperiment: The results of the experiment and evaluation. Additional evaluations can be
@@ -380,6 +383,7 @@ def run_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
         concurrency=concurrency,
+        timeout=timeout,
     )
 
     test_cases = [
@@ -752,7 +756,7 @@ def _print_experiment_error(
     Prints an experiment error.
     """
     display_error = RuntimeError(
-        f"{kind} failed for example id {repr(example_id)}, " f"repetition {repr(repetition_number)}"
+        f"{kind} failed for example id {repr(example_id)}, repetition {repr(repetition_number)}"
     )
     display_error.__cause__ = error
     formatted_exception = "".join(
