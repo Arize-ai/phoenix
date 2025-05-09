@@ -57,11 +57,22 @@ if TYPE_CHECKING:
     )
     from anthropic.types.message_create_params import MessageCreateParamsBase
 
+    try:
+        # types introduced in anthropic 0.49
+        from anthropic.types import ServerToolUseBlockParam, WebSearchToolResultBlockParam
+    except ImportError:  # pragma: no cover
+        from typing import Any as _Any  # type: ignore
+
+        ServerToolUseBlockParam = _Any  # type: ignore
+        WebSearchToolResultBlockParam = _Any  # type: ignore
+
     _BlockParam: TypeAlias = Union[
         TextBlockParam,
         ImageBlockParam,
         ToolUseBlockParam,
+        ServerToolUseBlockParam,
         ToolResultBlockParam,
+        WebSearchToolResultBlockParam,
         ThinkingBlockParam,
         RedactedThinkingBlockParam,
         DocumentBlockParam,
