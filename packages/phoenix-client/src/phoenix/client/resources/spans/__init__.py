@@ -93,7 +93,7 @@ class Spans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                if _is_base64_project_identifier(project_identifier):
+                if _is_base64_project_identifier(project_identifier, node_type="Project"):
                     project_response = self._client.get(
                         url=f"v1/projects/{project_identifier}",
                         headers={"accept": "application/json"},
@@ -356,7 +356,7 @@ class AsyncSpans:
             if project_identifier and project_name:
                 raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
             elif project_identifier and not project_name:
-                if _is_base64_project_identifier(project_identifier):
+                if _is_base64_project_identifier(project_identifier, node_type="Project"):
                     project_response = await self._client.get(
                         url=f"v1/projects/{project_identifier}",
                         headers={"accept": "application/json"},
@@ -606,10 +606,10 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         return pd.DataFrame()
 
 
-def _is_base64_project_identifier(s: str) -> bool:
+def _is_base64_project_identifier(s: str, node_type: str) -> bool:
     try:
         decoded = base64.b64decode(s, validate=True)
-        if not decoded.startswith(b"Project:"):
+        if not decoded.startswith(f"{node_type}:".encode("utf-8")):
             return False
         return True
     except Exception:
