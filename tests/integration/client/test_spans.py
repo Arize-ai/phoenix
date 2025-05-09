@@ -120,6 +120,28 @@ class TestClientForSpanAnnotationsRetrieval:
             assert abs(float(res.get("score", 0.0)) - expected_score) < 1e-6
             assert res.get("explanation") == expected_explanation
 
+        spans_input_df = pd.DataFrame({"context.span_id": [span_id1, span_id2]})
+        df_from_df = await _await_or_return(
+            Client().spans.get_span_annotations_dataframe(
+                spans_dataframe=spans_input_df,
+                project_identifier="default",
+            )
+        )
+
+        assert isinstance(df_from_df, pd.DataFrame)
+        for sid, aname, lbl, scr, expl in (
+            (span_id1, annotation_name_1, label1, score1, explanation1),
+            (span_id2, annotation_name_2, label2, score2, explanation2),
+        ):
+            subset = df_from_df[df_from_df.index.astype(str) == sid]
+            subset = subset[subset["annotation_name"] == aname]
+            assert not subset.empty
+            row = subset.iloc[0]
+            assert "result.label" in row
+            assert row["result.label"] == lbl
+            assert abs(float(row["result.score"]) - scr) < 1e-6
+            assert row["result.explanation"] == expl
+
     def test_invalid_arguments_validation(self) -> None:
         """Supplying both or neither of span_ids / spans_dataframe should error."""
         from phoenix.client import Client
