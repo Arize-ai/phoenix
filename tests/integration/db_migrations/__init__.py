@@ -66,7 +66,7 @@ def _get_table_schema_info(
     conn: Connection,
     table_name: str,
     db_backend: Literal["sqlite", "postgresql"],
-) -> _TableSchemaInfo:
+) -> Optional[_TableSchemaInfo]:
     """Get schema information for a database table.
 
     Retrieves comprehensive schema information for a table, including its columns,
@@ -89,14 +89,32 @@ def _get_table_schema_info(
         db_backend: Type of database backend ('sqlite' or 'postgresql')
 
     Returns:
-        _TableSchemaInfo object containing all schema information for the table
+        _TableSchemaInfo object containing all schema information for the table, or None if the table doesn't exist
 
     Raises:
         sqlalchemy.exc.SQLAlchemyError: If database queries fail
         AssertionError: If table definition parsing fails
-    """
+    """  # noqa: E501
     if db_backend == "postgresql":
         assert (schema := get_env_database_schema())
+        # Check if table exists
+        table_exists = conn.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE c.relname = :table_name
+                    AND n.nspname = :schema
+                )
+                """
+            ),
+            {"table_name": table_name, "schema": schema},
+        ).scalar_one()
+        if not table_exists:
+            return None
+
         # Get column names
         columns_result = conn.execute(
             text(
@@ -150,6 +168,21 @@ def _get_table_schema_info(
         ).fetchall()
         constraint_names = {con[0] for con in constraints_result}
     elif db_backend == "sqlite":
+        # Check if table exists
+        table_exists = conn.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1 FROM sqlite_master
+                    WHERE type = 'table' AND name = :table_name
+                )
+                """
+            ),
+            {"table_name": table_name},
+        ).scalar_one()
+        if not table_exists:
+            return None
+
         # Get column names and primary key info
         columns_result = conn.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
         column_names = {col[1] for col in columns_result}
