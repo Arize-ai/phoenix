@@ -97,13 +97,13 @@ export function SpanAside(props: SpanAsideProps) {
       editAnnotationsPanelRef.current &&
       editAnnotationsPanelRef.current.isCollapsed()
     ) {
-      editAnnotationsPanelRef.current.expand();
+      editAnnotationsPanelRef.current.expand(50);
     }
   });
   useHotkeys(NOTE_HOTKEY, () => {
     // open the span notes editor if it is closed
     if (notesPanelRef.current && notesPanelRef.current.isCollapsed()) {
-      notesPanelRef.current.expand();
+      notesPanelRef.current.expand(50);
     }
   });
 
