@@ -22,9 +22,8 @@ INPUT = {"input": INPUT_VALUE}
 OUTPUT = {"output": OUTPUT_VALUE}
 IO = {**INPUT, **OUTPUT}
 LLM_IO = {
-    "question": LLM_INPUT_MESSAGES,
-    "response": LLM_OUTPUT_MESSAGES,
-    "tool_call": LLM_FUNCTION_CALL,
+    "input": LLM_INPUT_MESSAGES,
+    "output": LLM_OUTPUT_MESSAGES,
 }
 
 
@@ -155,7 +154,20 @@ def get_called_tools(
         )
         end_time = end_time or stop_time
 
-    return cast(
+    def extract_tools(outputs):
+        if outputs[0].get("message").get("tool_calls"):
+            return (
+                outputs[0]
+                .get("message")
+                .get("tool_calls")[0]
+                .get("tool_call")
+                .get("function")
+                .get("name")
+            )
+        else:
+            return "No tool used"
+
+    df_qa = cast(
         pd.DataFrame,
         obj.query_spans(
             SpanQuery().where(IS_LLM).select("trace_id", **LLM_IO),
@@ -165,3 +177,11 @@ def get_called_tools(
             timeout=timeout,
         ),
     )
+
+    if df_qa is None:
+        print("No spans found.")
+        return None
+
+    df_qa["tool_call"] = df_qa["response"].apply(extract_tools)
+
+    return df_qa
