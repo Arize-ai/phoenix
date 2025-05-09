@@ -68,7 +68,6 @@ class TestClientForSpanAnnotations:
     }
     """
 
-    @pytest.mark.flaky(reruns=10)
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -173,7 +172,6 @@ class TestClientForSpanAnnotations:
                     anno["id"] == existing_gid
                 ), "Annotation ID should remain the same after update"  # noqa: E501
 
-    @pytest.mark.flaky(reruns=10)
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -316,7 +314,6 @@ class TestClientForSpanAnnotations:
                         anno["id"] == existing_gids[j]
                     ), f"Batch annotation {j+1} ID should remain the same after update"  # noqa: E501
 
-    @pytest.mark.flaky(reruns=10)
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -579,7 +576,6 @@ class TestClientForSpanAnnotations:
                 anno["annotatorKind"] == global_annotator_kind
             ), f"DataFrame annotation {i+1} annotator_kind should match global value"  # noqa: E501
 
-    @pytest.mark.flaky(reruns=10)
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -664,7 +660,6 @@ class TestClientForSpanAnnotations:
             annotations[zero_score_annotation_name]["explanation"] is None
         ), "Annotation explanation should be None"
 
-    @pytest.mark.flaky(reruns=10)
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
@@ -886,7 +881,6 @@ class TestSendingAnnotationsBeforeSpan:
                 return cast(str, trace["id"])
         return None
 
-    @pytest.mark.flaky(reruns=10)
     async def test_annotations_and_evaluations(
         self,
         _span: ReadableSpan,
@@ -1026,6 +1020,8 @@ class TestSendingAnnotationsBeforeSpan:
         assert (trace_gid := self._get_trace_gid(_admin_secret, trace_id=trace_id))
 
         # Check the annotations
+        span_anno_key = (span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1])
+
         def get_span_anno() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1050,6 +1046,8 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["metadata"] == span_anno_metadatas[-1]
 
         # Check the span evaluations
+        span_eval_key = (span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1])
+
         def get_span_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1061,7 +1059,7 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get(span_ev_key)
+            return annos.get(span_eval_key)
 
         anno = await _retry_query(
             query_fn=get_span_eval,
@@ -1073,6 +1071,8 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["annotatorKind"] == "LLM"
 
         # Check the trace evaluations
+        trace_eval_key = (trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1])
+
         def get_trace_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1096,6 +1096,8 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["annotatorKind"] == "LLM"
 
         # Check the document evaluations
+        doc_eval_key = (doc_eval_labels[-1], doc_eval_scores[-1], doc_eval_explanations[-1])
+
         def get_doc_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1189,6 +1191,7 @@ class TestSendingAnnotationsBeforeSpan:
 
         # Check updated annotations
         new_span_anno_key = (new_span_anno_label, new_span_anno_score, new_span_anno_explanation)
+
         def get_updated_span_anno() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1214,6 +1217,7 @@ class TestSendingAnnotationsBeforeSpan:
 
         # Check updated span evaluations
         new_span_ev_key = (new_span_eval_label, new_span_eval_score, new_span_eval_explanation)
+
         def get_updated_span_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1242,6 +1246,7 @@ class TestSendingAnnotationsBeforeSpan:
             new_trace_eval_score,
             new_trace_eval_explanation,
         )
+
         def get_updated_trace_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1266,6 +1271,7 @@ class TestSendingAnnotationsBeforeSpan:
 
         # Check updated document evaluations
         new_doc_eval_key = (new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation)
+
         def get_updated_doc_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
