@@ -1607,9 +1607,8 @@ type Project implements Node {
 }
 
 enum ProjectColumn {
-  createdAt
-  updatedAt
   name
+  endTime
 }
 
 """A connection to a list of items."""

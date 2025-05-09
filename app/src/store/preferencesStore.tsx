@@ -14,7 +14,7 @@ export type ModelConfigByProvider = Partial<
 export type ProjectViewMode = "table" | "grid";
 
 export type ProjectSortOrder = {
-  column: "name" | "createdAt" | "updatedAt";
+  column: "name" | "endTime";
   direction: "asc" | "desc";
 };
 
@@ -166,8 +166,8 @@ export const createPreferencesStore = (
       set({ projectViewMode });
     },
     projectSortOrder: {
-      column: "createdAt",
-      direction: "asc",
+      column: "endTime",
+      direction: "desc",
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder });

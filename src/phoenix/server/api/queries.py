@@ -45,7 +45,7 @@ from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.InvocationParameters import InvocationParameter
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.input_types.ProjectFilter import ProjectFilter
-from phoenix.server.api.input_types.ProjectSort import ProjectSort
+from phoenix.server.api.input_types.ProjectSort import ProjectColumn, ProjectSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from phoenix.server.api.types.Dataset import Dataset, to_gql_dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
@@ -242,7 +242,20 @@ class Query:
             before=before if isinstance(before, CursorString) else None,
         )
         stmt = select(models.Project)
-        if sort:
+
+        if sort and sort.col is ProjectColumn.endTime:
+            # For end time sorting, we need to use a correlated subquery
+            # The end_time comes from the Trace model, and we need to get the max end_time for
+            # each project
+            end_time_subq = (
+                select(func.max(models.Trace.end_time))
+                .where(models.Trace.project_rowid == models.Project.id)
+                .scalar_subquery()
+            )
+            stmt = stmt.order_by(
+                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+            )
+        elif sort:
             sort_col = getattr(models.Project, sort.col.value)
             stmt = stmt.order_by(sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc())
         if filter:

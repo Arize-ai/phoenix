@@ -177,8 +177,6 @@ export function ProjectsPageContent({
               gradientEndColor
               endTime
               startTime
-              createdAt
-              updatedAt
             }
           }
         }
@@ -304,16 +302,6 @@ export function ProjectsPageContent({
     },
     [notify, refetch]
   );
-
-  // const debouncedRefetch = useMemo(() => {
-  //   return debounce(() => {
-  //     refetch();
-  //   }, 1000);
-  // }, [refetch]);
-
-  // useEffect(() => {
-  //   debouncedRefetch();
-  // }, [debouncedRefetch]);
 
   const loadNextWithArgs = useCallback(() => {
     loadNext(PAGE_SIZE, { UNSTABLE_extraVariables: queryArgs });
@@ -796,11 +784,7 @@ function ProjectMetricsRow({
   );
 }
 
-const SORT_COLUMNS = [
-  "name",
-  "createdAt",
-  "updatedAt",
-] satisfies ProjectSortOrder["column"][];
+const SORT_COLUMNS = ["name", "endTime"] satisfies ProjectSortOrder["column"][];
 
 function ProjectsTable({
   projects,
@@ -835,16 +819,9 @@ function ProjectsTable({
             );
           },
         },
-
         {
-          header: "Created",
-          accessorKey: "createdAt",
-          maxSize: 30,
-          cell: TimestampCell,
-        },
-        {
-          header: "Last Updated",
-          accessorKey: "updatedAt",
+          header: "Last Updated At",
+          accessorKey: "endTime",
           maxSize: 30,
           cell: TimestampCell,
         },

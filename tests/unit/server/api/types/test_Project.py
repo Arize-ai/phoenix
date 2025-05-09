@@ -1587,28 +1587,16 @@ class TestProject:
             id="sort-by-name-desc",
         ),
         pytest.param(
-            "createdAt",
+            "endTime",
             "asc",
             ["project1", "project2", "project3"],
-            id="sort-by-created-at-asc",
+            id="sort-by-end-time-asc",
         ),
         pytest.param(
-            "createdAt",
+            "endTime",
             "desc",
             ["project3", "project2", "project1"],
-            id="sort-by-created-at-desc",
-        ),
-        pytest.param(
-            "updatedAt",
-            "asc",
-            ["project1", "project2", "project3"],
-            id="sort-by-updated-at-asc",
-        ),
-        pytest.param(
-            "updatedAt",
-            "desc",
-            ["project3", "project2", "project1"],
-            id="sort-by-updated-at-desc",
+            id="sort-by-end-time-desc",
         ),
     ],
 )
@@ -1622,7 +1610,9 @@ async def test_project_sort(
     """Test project sorting capabilities."""
     # Create test projects with controlled timestamps
     base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    projects: list[models.Project] = []
     async with db() as session:
+        # Create projects first
         for i, name in enumerate(["project1", "project2", "project3"]):
             project = models.Project(
                 name=name,
@@ -1630,6 +1620,25 @@ async def test_project_sort(
                 updated_at=base_time + timedelta(hours=i),
             )
             session.add(project)
+            await session.flush()
+            projects.append(project)
+
+        # Now create traces for each project with different end times
+        # Each project will have 3 traces with different end times
+        # The max end time for each project will be different and match the expected sort order
+        for i, project in enumerate(projects):
+            for j in range(3):
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    start_time=base_time + timedelta(hours=i),
+                    # The max end time for each project will be base_time + (i+1) days
+                    # This ensures project1 has max end time of day 1
+                    # project2 has max end time of day 2
+                    # project3 has max end time of day 3
+                    end_time=base_time + timedelta(days=i + 1, hours=j),
+                )
+                session.add(trace)
         await session.commit()
 
     query = """
@@ -1649,7 +1658,7 @@ async def test_project_sort(
     assert not response.errors
     assert (data := response.data) is not None
     projects = data["projects"]
-    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]  # type: ignore
     assert project_names == expected_order
 
 
