@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from asyncio import sleep
 from secrets import token_bytes, token_hex
-from typing import Literal, Optional, cast
+from typing import Any, Callable, Literal, Optional, TypeVar, cast
 
 import pandas as pd
 import phoenix as px
@@ -1207,18 +1207,54 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["annotatorKind"] == "LLM"
 
         # Check updated document evaluations
-        doc_res, _ = _gql(
-            _admin_secret,
-            query=self.query,
-            variables={"id": span_gid},
-            operation_name="GetDocumentEvaluations",
-        )
-        doc_annotations = {
-            (result["label"], result["score"], result["explanation"]): result
-            for result in doc_res["data"]["node"]["documentEvaluations"]
-        }
         new_doc_eval_key = (new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation)
-        assert new_doc_eval_key in doc_annotations
-        anno = doc_annotations[new_doc_eval_key]
+
+        def get_new_doc_anno() -> Optional[dict[str, Any]]:
+            res, _ = _gql(
+                _admin_secret,
+                query=self.query,
+                variables={"id": span_gid},
+                operation_name="GetDocumentEvaluations",
+            )
+            annos = {
+                (anno["label"], anno["score"], anno["explanation"]): anno
+                for anno in res["data"]["node"]["documentEvaluations"]
+            }
+            return annos.get(new_doc_eval_key)
+
+        anno = await _retry_query(
+            query_fn=get_new_doc_anno,
+            error_msg="Document evaluation should be present",
+            initial_wait_time=_wait_time,
+        )
         assert anno["name"] == doc_eval_name
         assert anno["documentPosition"] == document_position
+
+
+T = TypeVar("T")
+
+
+async def _retry_query(
+    query_fn: Callable[[], T | None],
+    error_msg: str,
+    initial_wait_time: float = 0,
+) -> T:
+    retries = RETRIES if initial_wait_time else 0
+    wt = initial_wait_time
+    while True:
+        await sleep(wt)
+        ans = query_fn()
+        try:
+            assert ans is not None, error_msg
+            break
+        except AssertionError:
+            if not retries:
+                raise
+            retries -= 1
+            wt = min(wt * 1.5, initial_wait_time * 10)  # Cap max wait time
+            continue
+    return ans
+
+
+# Number of retries for queries
+RETRIES = 5
