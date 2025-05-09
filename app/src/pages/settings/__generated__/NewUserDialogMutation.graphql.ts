@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ac4cdb4b8001c4f40165b494129ff58>>
+ * @generated SignedSource<<ea7cfb8562aa738cafadec9c4311965a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type AuthMethod = "LOCAL" | "OAUTH2";
 export type UserRoleInput = "ADMIN" | "MEMBER";
 export type CreateUserInput = {
+  authMethod?: AuthMethod | null;
   email: string;
-  password: string;
+  password?: string | null;
   role: UserRoleInput;
   sendWelcomeEmail?: boolean | null;
   username: string;

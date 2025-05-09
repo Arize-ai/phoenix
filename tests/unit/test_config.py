@@ -6,7 +6,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
-    ENV_PHOENIX_ADMINS,
+    EnvPhoenixAdmin,
     get_env_admins,
     get_env_phoenix_admin_secret,
     get_env_postgres_connection_str,
@@ -103,70 +103,146 @@ class TestGetEnvStartupAdmins:
             pytest.param(
                 "franklin=benjamin@example.com",
                 {
-                    "benjamin@example.com": "franklin",
+                    "benjamin@example.com": EnvPhoenixAdmin(
+                        username="franklin", auth_method="LOCAL"
+                    ),
                 },
                 id="single_valid_user",
             ),
             pytest.param(
                 "franklin=benjamin@example.com;jefferson=thomas@example.com",
                 {
-                    "benjamin@example.com": "franklin",
-                    "thomas@example.com": "jefferson",
+                    "benjamin@example.com": EnvPhoenixAdmin(
+                        username="franklin", auth_method="LOCAL"
+                    ),
+                    "thomas@example.com": EnvPhoenixAdmin(
+                        username="jefferson", auth_method="LOCAL"
+                    ),
                 },
                 id="multiple_valid_users",
             ),
             pytest.param(
                 "Benjamin Franklin=benjamin@example.com;Thomas Jefferson=thomas@example.com",
                 {
-                    "benjamin@example.com": "Benjamin Franklin",
-                    "thomas@example.com": "Thomas Jefferson",
+                    "benjamin@example.com": EnvPhoenixAdmin(
+                        username="Benjamin Franklin", auth_method="LOCAL"
+                    ),
+                    "thomas@example.com": EnvPhoenixAdmin(
+                        username="Thomas Jefferson", auth_method="LOCAL"
+                    ),
                 },
                 id="names_with_spaces",
             ),
             pytest.param(
                 " washington = george@example.com ; hamilton = alexander@example.com ",
                 {
-                    "george@example.com": "washington",
-                    "alexander@example.com": "hamilton",
+                    "george@example.com": EnvPhoenixAdmin(
+                        username="washington", auth_method="LOCAL"
+                    ),
+                    "alexander@example.com": EnvPhoenixAdmin(
+                        username="hamilton", auth_method="LOCAL"
+                    ),
                 },
                 id="whitespace_handling",
             ),
             pytest.param(
                 "User=With=Equals=user@example.com",
                 {
-                    "user@example.com": "User=With=Equals",
+                    "user@example.com": EnvPhoenixAdmin(
+                        username="User=With=Equals", auth_method="LOCAL"
+                    ),
                 },
                 id="username_with_equals",
             ),
             pytest.param(
                 "Samuel Adams=sam@example.com;J. Marshall=john@example.com",
                 {
-                    "sam@example.com": "Samuel Adams",
-                    "john@example.com": "J. Marshall",
+                    "sam@example.com": EnvPhoenixAdmin(
+                        username="Samuel Adams", auth_method="LOCAL"
+                    ),
+                    "john@example.com": EnvPhoenixAdmin(
+                        username="J. Marshall", auth_method="LOCAL"
+                    ),
                 },
                 id="names_with_punctuation",
             ),
             pytest.param(
                 "Madison, James=james@example.com",
                 {
-                    "james@example.com": "Madison, James",
+                    "james@example.com": EnvPhoenixAdmin(
+                        username="Madison, James", auth_method="LOCAL"
+                    ),
                 },
                 id="username_with_comma",
             ),
             pytest.param(
                 "Hamilton, Alexander=alex@example.com;Burr, Aaron=aaron@example.com",
                 {
-                    "alex@example.com": "Hamilton, Alexander",
-                    "aaron@example.com": "Burr, Aaron",
+                    "alex@example.com": EnvPhoenixAdmin(
+                        username="Hamilton, Alexander", auth_method="LOCAL"
+                    ),
+                    "aaron@example.com": EnvPhoenixAdmin(
+                        username="Burr, Aaron", auth_method="LOCAL"
+                    ),
                 },
                 id="multiple_usernames_with_commas",
             ),
             pytest.param(
                 "Washington, George, Jr.=george@example.com",
                 {
-                    "george@example.com": "Washington, George, Jr.",
+                    "george@example.com": EnvPhoenixAdmin(
+                        username="Washington, George, Jr.", auth_method="LOCAL"
+                    ),
                 },
                 id="username_with_multiple_commas",
+            ),
+            pytest.param(
+                "John Adams=john@example.com(LOCAL)",
+                {
+                    "john@example.com": EnvPhoenixAdmin(username="John Adams", auth_method="LOCAL"),
+                },
+                id="explicit_local_auth",
+            ),
+            pytest.param(
+                "Thomas Jefferson=thomas@example.com(OAUTH2)",
+                {
+                    "thomas@example.com": EnvPhoenixAdmin(
+                        username="Thomas Jefferson", auth_method="OAUTH2"
+                    ),
+                },
+                id="explicit_oauth2_auth",
+            ),
+            pytest.param(
+                "John Adams=john@example.com(local)",
+                {
+                    "john@example.com": EnvPhoenixAdmin(username="John Adams", auth_method="LOCAL"),
+                },
+                id="case_insensitive_local",
+            ),
+            pytest.param(
+                "Thomas Jefferson=thomas@example.com(oauth2)",
+                {
+                    "thomas@example.com": EnvPhoenixAdmin(
+                        username="Thomas Jefferson", auth_method="OAUTH2"
+                    ),
+                },
+                id="case_insensitive_oauth2",
+            ),
+            pytest.param(
+                "John Adams=john@example.com(Local)",
+                {
+                    "john@example.com": EnvPhoenixAdmin(username="John Adams", auth_method="LOCAL"),
+                },
+                id="mixed_case_local",
+            ),
+            pytest.param(
+                "Thomas Jefferson=thomas@example.com(OAuth2)",
+                {
+                    "thomas@example.com": EnvPhoenixAdmin(
+                        username="Thomas Jefferson", auth_method="OAUTH2"
+                    ),
+                },
+                id="mixed_case_oauth2",
             ),
             pytest.param("", {}, id="empty_string"),
             pytest.param(None, {}, id="none_value"),
@@ -176,12 +252,12 @@ class TestGetEnvStartupAdmins:
         self,
         monkeypatch: MonkeyPatch,
         env_value: str,
-        expected_result: dict[str, str],
+        expected_result: dict[str, EnvPhoenixAdmin],
     ) -> None:
         if env_value:
-            monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+            monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         else:
-            monkeypatch.delenv(ENV_PHOENIX_ADMINS, raising=False)
+            monkeypatch.delenv("PHOENIX_ADMINS", raising=False)
         result = get_env_admins()
         assert result == expected_result
 
@@ -237,6 +313,32 @@ class TestGetEnvStartupAdmins:
                 "Invalid format",
                 id="semicolon_in_username",
             ),
+            # Invalid auth methods
+            pytest.param(
+                "John Adams=john@example.com(INVALID)",
+                "Invalid auth method",
+                id="invalid_auth_method",
+            ),
+            pytest.param(
+                "John Adams=john@example.com(LOCAL",
+                "Invalid email in PHOENIX_ADMINS: 'john@example.com(LOCAL'",
+                id="unclosed_parenthesis",
+            ),
+            pytest.param(
+                "John Adams=john@example.com)LOCAL(",
+                "Invalid email in PHOENIX_ADMINS: 'john@example.com)LOCAL('",
+                id="reversed_parenthesis",
+            ),
+            pytest.param(
+                "John Adams=john@example.com(SSO)",
+                "Invalid auth method",
+                id="invalid_auth_method_sso",
+            ),
+            pytest.param(
+                "John Adams=john@example.com(google)",
+                "Invalid auth method",
+                id="invalid_auth_method_google",
+            ),
         ],
     )
     def test_invalid_inputs(
@@ -245,7 +347,7 @@ class TestGetEnvStartupAdmins:
         env_value: str,
         expected_error_msg: str,
     ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+        monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         with pytest.raises(ValueError) as e:
             get_env_admins()
         assert expected_error_msg in str(e.value)

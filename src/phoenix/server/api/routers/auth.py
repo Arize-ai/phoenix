@@ -32,7 +32,7 @@ from phoenix.auth import (
     validate_password_format,
 )
 from phoenix.config import get_base_url, get_env_disable_rate_limit, get_env_host_root_path
-from phoenix.db import enums, models
+from phoenix.db import models
 from phoenix.server.bearer_auth import PhoenixUser, create_access_and_refresh_tokens
 from phoenix.server.email.types import EmailSender
 from phoenix.server.rate_limiters import ServerRateLimiter, fastapi_ip_rate_limiter
@@ -207,7 +207,7 @@ async def initiate_password_reset(request: Request) -> Response:
                 joinedload(models.User.password_reset_token).load_only(models.PasswordResetToken.id)
             )
         )
-    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
+    if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
     token_store: TokenStore = request.app.state.get_token_store()
@@ -244,7 +244,7 @@ async def reset_password(request: Request) -> Response:
     assert (user_id := claims.subject)
     async with request.app.state.db() as session:
         user = await session.scalar(select(models.User).filter_by(id=int(user_id)))
-    if user is None or user.auth_method != enums.AuthMethod.LOCAL.value:
+    if user is None or user.auth_method != "LOCAL":
         # Withold privileged information
         return Response(status_code=HTTP_204_NO_CONTENT)
     validate_password_format(password)

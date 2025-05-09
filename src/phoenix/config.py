@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -7,7 +9,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Any, NamedTuple, Optional, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
@@ -17,6 +19,9 @@ from starlette.datastructures import URL
 from phoenix.utilities.logging import log_a_list
 
 from .utilities.re import parse_env_headers
+
+if TYPE_CHECKING:
+    from phoenix.db.models import AuthMethod
 
 logger = logging.getLogger(__name__)
 
@@ -183,13 +188,15 @@ headers, those values will not be validated.
 ENV_PHOENIX_ADMINS = "PHOENIX_ADMINS"
 """
 A semicolon-separated list of username and email address pairs to create as admin users on startup.
-The format is `username=email`, e.g., `John Doe=john@example.com;Doe, Jane=jane@example.com`.
-The password for each user will be randomly generated and will need to be reset. The application
-will not start if this environment variable is set but cannot be parsed or contains invalid emails.
-If the username or email address already exists in the database, the user record will not be
-modified, e.g., changed from non-admin to admin. Changing this environment variable for the next
-startup will not undo any records created in previous startups.
-"""
+The format is `username=email` or `username=email(AUTH_METHOD)`, where AUTH_METHOD is either 'LOCAL' or 'OAUTH2'.
+For example: `John Doe=john@example.com;Doe, Jane=jane@example.com(OAUTH2)`.
+
+If no auth method is specified, it defaults to 'LOCAL'. The password for each user will be randomly generated
+and will need to be reset via SMTP. The application will not start if this environment variable is set but cannot be
+parsed or contains invalid emails. If the username or email address already exists in the database, the user
+record will not be modified, e.g., changed from non-admin to admin. Changing this environment variable for the
+next startup will not undo any records created in previous startups.
+"""  # noqa: E501
 ENV_PHOENIX_ROOT_URL = "PHOENIX_ROOT_URL"
 """
 This is the full URL used to access Phoenix from a web browser. This setting is important when
@@ -761,18 +768,34 @@ def get_env_csrf_trusted_origins() -> list[str]:
     return sorted(set(origins))
 
 
-def get_env_admins() -> dict[str, str]:
+class EnvPhoenixAdmin(NamedTuple):
+    username: str
+    auth_method: AuthMethod
+
+
+def get_env_admins() -> dict[str, EnvPhoenixAdmin]:
     """
-    Parse the PHOENIX_ADMINS environment variable to extract the comma separated pairs of
-    username and email. The last equal sign (=) in each pair is used to separate the username from
-    the email.
+    Parse the PHOENIX_ADMINS environment variable to extract the semicolon-separated pairs of
+    username and email, with optional auth method specification in parentheses.
+
+    The format is `username=email` or `username=email(AUTH_METHOD)`, where AUTH_METHOD is
+    either 'LOCAL' or 'OAUTH2' (case-insensitive). If no auth method is specified, it
+    defaults to 'LOCAL'.
+
+    Examples:
+        - "John Doe=john@example.com" -> LOCAL auth
+        - "Jane Smith=jane@example.com(LOCAL)" -> LOCAL auth
+        - "Bob Wilson=bob@example.com(OAUTH2)" -> OAUTH2 auth
 
     Returns:
-        dict: A dictionary mapping email addresses to usernames
+        dict: A dictionary mapping email addresses to EnvPhoenixAdmin objects containing username
+            and auth_method
 
     Raises:
-        ValueError: If the environment variable cannot be parsed or contains invalid email addresses
-    """
+        ValueError: If the environment variable cannot be parsed, contains invalid email addresses,
+            or contains invalid auth methods. Valid auth methods are 'LOCAL' and 'OAUTH2'
+            (case-insensitive).
+    """  # noqa E501
     if not (env_value := getenv(ENV_PHOENIX_ADMINS)):
         return {}
     usernames = set()
@@ -788,10 +811,26 @@ def get_env_admins() -> dict[str, str]:
         if last_equals_pos == -1:
             raise ValueError(
                 f"Invalid format in {ENV_PHOENIX_ADMINS}: '{pair}'. "
-                f"Expected format: 'username=email'"
+                f"Expected format: 'username=email', 'username=email(LOCAL)', "
+                f"or 'username=email(OAUTH2)'"
             )
         username = pair[:last_equals_pos].strip()
-        email_addr = pair[last_equals_pos + 1 :].strip()
+        email_part = pair[last_equals_pos + 1 :].strip()
+
+        # Check for auth method specification in parentheses
+        if match := re.match(r"(?P<email>.*)\((?P<auth_method>\w+)\)$", email_part, re.IGNORECASE):
+            email_addr = match.group("email").strip()
+            auth_method_str = match.group("auth_method")
+            if auth_method_str.upper() not in ("LOCAL", "OAUTH2"):
+                raise ValueError(
+                    f"Invalid auth method in {ENV_PHOENIX_ADMINS}: '{auth_method_str}'. "
+                    f"Valid values are 'LOCAL' and 'OAUTH2' (case-insensitive)."
+                )
+            auth_method = cast("AuthMethod", auth_method_str.upper())
+        else:
+            email_addr = email_part
+            auth_method = "LOCAL"  # Default to LOCAL
+
         try:
             email_addr = validate_email(email_addr, check_deliverability=False).normalized
         except EmailNotValidError:
@@ -802,7 +841,10 @@ def get_env_admins() -> dict[str, str]:
             raise ValueError(f"Duplicate email in {ENV_PHOENIX_ADMINS}: '{email_addr}'")
         usernames.add(username)
         emails.add(email_addr)
-        ans[email_addr] = username
+        ans[email_addr] = EnvPhoenixAdmin(
+            username=username,
+            auth_method=auth_method,
+        )
     return ans
 
 
@@ -839,6 +881,7 @@ class OAuth2ClientConfig:
     client_id: str
     client_secret: str
     oidc_config_url: str
+    allow_sign_up: bool
 
     @classmethod
     def from_env(cls, idp_name: str) -> "OAuth2ClientConfig":
@@ -870,6 +913,7 @@ class OAuth2ClientConfig:
                 f"An OpenID Connect configuration URL must be set for the {idp_name} OAuth2 IDP "
                 f"via the {oidc_config_url_env_var} environment variable"
             )
+        allow_sign_up = get_env_oauth2_allow_sign_up(idp_name)
         parsed_oidc_config_url = urlparse(oidc_config_url)
         is_local_oidc_config_url = parsed_oidc_config_url.hostname in ("localhost", "127.0.0.1")
         if parsed_oidc_config_url.scheme != "https" and not is_local_oidc_config_url:
@@ -886,22 +930,77 @@ class OAuth2ClientConfig:
             client_id=client_id,
             client_secret=client_secret,
             oidc_config_url=oidc_config_url,
+            allow_sign_up=allow_sign_up,
         )
 
 
 def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
     """
-    Get OAuth2 settings from environment variables.
-    """
+    Retrieves and validates OAuth2/OpenID Connect (OIDC) identity provider configurations from environment variables.
 
+    This function scans the environment for OAuth2 configuration variables and returns a list of
+    configured identity providers. It supports multiple identity providers simultaneously.
+
+    Environment Variable Pattern:
+        PHOENIX_OAUTH2_{IDP_NAME}_{CONFIG_TYPE}
+
+    Required Environment Variables for each IDP:
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_ID: The OAuth2 client ID issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_CLIENT_SECRET: The OAuth2 client secret issued by the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_OIDC_CONFIG_URL: The OpenID Connect configuration URL (must be HTTPS)
+
+    Optional Environment Variables:
+        - PHOENIX_OAUTH2_{IDP_NAME}_DISPLAY_NAME: A user-friendly name for the identity provider
+        - PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Whether to allow new user registration (defaults to True)
+        When set to False, the system will check if the user exists in the database by their email address.
+        If the user does not exist or has a password set, they will be redirected to the login page with
+        an error message.
+
+    Returns:
+        list[OAuth2ClientConfig]: A list of configured OAuth2 identity providers, sorted alphabetically by IDP name.
+            Each OAuth2ClientConfig contains the validated configuration for one identity provider.
+
+    Raises:
+        ValueError: If required environment variables are missing or invalid.
+            Specifically, if the OIDC configuration URL is not HTTPS (except for localhost).
+
+    Example:
+        To configure Google as an identity provider, set these environment variables:
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_ID=your_client_id
+        PHOENIX_OAUTH2_GOOGLE_CLIENT_SECRET=your_client_secret
+        PHOENIX_OAUTH2_GOOGLE_OIDC_CONFIG_URL=https://accounts.google.com/.well-known/openid-configuration
+        PHOENIX_OAUTH2_GOOGLE_DISPLAY_NAME=Google (optional)
+        PHOENIX_OAUTH2_GOOGLE_ALLOW_SIGN_UP=true (optional, defaults to true)
+    """  # noqa: E501
     idp_names = set()
     pattern = re.compile(
-        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL)$"
+        r"^PHOENIX_OAUTH2_(\w+)_(DISPLAY_NAME|CLIENT_ID|CLIENT_SECRET|OIDC_CONFIG_URL|ALLOW_SIGN_UP)$"
     )
     for env_var in os.environ:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
+
+def get_env_oauth2_allow_sign_up(idp_name: str) -> bool:
+    """Retrieves the allow_sign_up setting for a specific OAuth2 identity provider.
+
+    This function determines whether new user registration is allowed for the specified identity provider.
+    When set to False, the system will check if the user exists in the database by their email address.
+    If the user does not exist or has a password set, they will be redirected to the login page with
+    an error message.
+
+    Parameters:
+        idp_name (str): The name of the identity provider (e.g., 'google', 'aws_cognito', 'microsoft_entra_id')
+
+    Returns:
+        bool: True if new user registration is allowed (default), False otherwise
+
+    Environment Variable:
+        PHOENIX_OAUTH2_{IDP_NAME}_ALLOW_SIGN_UP: Controls whether new user registration is allowed (defaults to True if not set)
+    """  # noqa: E501
+    env_var = f"PHOENIX_OAUTH2_{idp_name}_ALLOW_SIGN_UP".upper()
+    return _bool_val(env_var, True)
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
