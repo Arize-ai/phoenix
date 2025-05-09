@@ -22,7 +22,6 @@ SpanGlobalId: TypeAlias = str
 
 
 class TestClientForSpanAnnotationsRetrieval:
-
     @pytest.mark.parametrize("is_async", [True, False])
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_get_span_annotations_dataframe_and_list(
