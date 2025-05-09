@@ -674,6 +674,8 @@ class TestClientForSpanAnnotations:
         assert anno["score"] == 0, "Annotation score should be exactly 0"
         assert anno["label"] is None, "Annotation label should be None"
         assert anno["explanation"] is None, "Annotation explanation should be None"
+        assert anno["source"] == "API", "Annotation source should be API"
+        assert anno["annotatorKind"] == "LLM", "Annotation annotator_kind should be LLM"
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
@@ -761,6 +763,8 @@ class TestClientForSpanAnnotations:
         assert anno["score"] == 0, "DataFrame annotation score should be exactly 0"
         assert anno["label"] is None, "DataFrame annotation label should be None"
         assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
+        assert anno["source"] == "API", "DataFrame annotation source should be API"
+        assert anno["annotatorKind"] == "LLM", "DataFrame annotation annotator_kind should be LLM"
 
 
 class TestSendingAnnotationsBeforeSpan:
@@ -1018,9 +1022,6 @@ class TestSendingAnnotationsBeforeSpan:
         # Send the span and wait
         assert _grpc_span_exporter().export([_span]) is SpanExportResult.SUCCESS
 
-        # Wait for the data to be processed
-        await sleep(_wait_time)
-
         # Get the global IDs
         span_gid, trace_gid = await _retry_query(
             query_fn=lambda: self._get_span_trace_gid(
@@ -1195,9 +1196,6 @@ class TestSendingAnnotationsBeforeSpan:
             ),
         )
 
-        # Wait for updates to be processed
-        await sleep(_wait_time)
-
         # Check updated annotations
         def get_updated_span_anno() -> Optional[dict[str, Any]]:
             res, _ = _gql(
@@ -1241,6 +1239,9 @@ class TestSendingAnnotationsBeforeSpan:
             error_msg="Updated span evaluation should be present",
             initial_wait_time=_wait_time,
         )
+        assert anno["name"] == span_eval_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
 
         # Check updated trace evaluations
         def get_updated_trace_eval() -> Optional[dict[str, Any]]:
@@ -1263,6 +1264,9 @@ class TestSendingAnnotationsBeforeSpan:
             error_msg="Updated trace evaluation should be present",
             initial_wait_time=_wait_time,
         )
+        assert anno["name"] == trace_eval_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
 
         # Check updated document evaluations
         def get_updated_doc_eval() -> Optional[dict[str, Any]]:
@@ -1288,7 +1292,5 @@ class TestSendingAnnotationsBeforeSpan:
 
 
 class _SpanTraceGlobalID(NamedTuple):
-    """Tuple to hold span and trace global IDs."""
-
     span_gid: str
     trace_gid: str
