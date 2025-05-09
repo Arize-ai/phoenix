@@ -34,7 +34,7 @@ Phoenix natively works with a variety of frameworks and SDKs across [Python](./#
 
 ## Platforms
 
-<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><a href="langflow.md">Langflow</a></td><td><a href="langflow.md">langflow.md</a></td><td><a href="../../.gitbook/assets/gitbook_langflow.png">gitbook_langflow.png</a></td></tr><tr><td>LiteLLM Proxy</td><td></td><td><a href="../../.gitbook/assets/gitbook_litellm.png">gitbook_litellm.png</a></td></tr><tr><td><a href="beeai.md">BeeAI</a></td><td><a href="beeai.md">beeai.md</a></td><td><a href="../../.gitbook/assets/gitbook_beeai.png">gitbook_beeai.png</a></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><a href="langflow.md">Langflow</a></td><td><a href="langflow.md">langflow.md</a></td><td><a href="../../.gitbook/assets/gitbook_langflow.png">gitbook_langflow.png</a></td></tr><tr><td><a href="litellm.md">LiteLLM Proxy</a></td><td></td><td><a href="../../.gitbook/assets/gitbook_litellm.png">gitbook_litellm.png</a></td></tr><tr><td><a href="beeai.md">BeeAI</a></td><td><a href="beeai.md">beeai.md</a></td><td><a href="../../.gitbook/assets/gitbook_beeai.png">gitbook_beeai.png</a></td></tr></tbody></table>
 
 
 
