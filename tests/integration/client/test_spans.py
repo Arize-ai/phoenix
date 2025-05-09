@@ -40,7 +40,7 @@ class TestClientForSpanAnnotationsRetrieval:
         from phoenix.client import AsyncClient
         from phoenix.client import Client as SyncClient
 
-        Client = AsyncClient if is_async else SyncClient  # type: ignore
+        Client = AsyncClient if is_async else SyncClient  # type: ignore[unused-ignore]
 
         annotation_name_1 = f"test_anno_{token_hex(4)}"
         annotation_name_2 = f"test_anno_{token_hex(4)}"
@@ -87,7 +87,7 @@ class TestClientForSpanAnnotationsRetrieval:
         assert {
             span_id1,
             span_id2,
-        }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"  # type: ignore
+        }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"  # type: ignore[unused-ignore]
 
         annotations = await _await_or_return(
             Client().spans.get_span_annotations(
@@ -128,17 +128,17 @@ class TestClientForSpanAnnotationsRetrieval:
         )
 
         assert isinstance(df_from_df, pd.DataFrame)
-        for sid, aname, lbl, scr, expl in (
+        for sid, aname, label, scr, expl in (
             (span_id1, annotation_name_1, label1, score1, explanation1),
             (span_id2, annotation_name_2, label2, score2, explanation2),
         ):
-            subset = df_from_df[df_from_df.index.astype(str) == sid]  # type: ignore
-            subset = subset[subset["annotation_name"] == aname]  # type: ignore
-            assert not subset.empty  # type: ignore
-            row = subset.iloc[0]  # type: ignore
+            subset = df_from_df[df_from_df.index.astype(str) == sid]  # type: ignore[unused-ignore]
+            subset = subset[subset["annotation_name"] == aname]  # type: ignore[unused-ignore]
+            assert not subset.empty  # type: ignore[unused-ignore]
+            row = subset.iloc[0]  # type: ignore[unused-ignore]
             assert "result.label" in row
-            assert row["result.label"] == lbl
-            assert abs(float(row["result.score"]) - scr) < 1e-6  # type: ignore
+            assert row["result.label"] == label
+            assert abs(float(row["result.score"]) - scr) < 1e-6  # type: ignore[unused-ignore]
             assert row["result.explanation"] == expl
 
     def test_invalid_arguments_validation(self) -> None:
