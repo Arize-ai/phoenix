@@ -6,7 +6,7 @@ from secrets import token_urlsafe
 from typing import Any, Literal, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import select
 from starlette.requests import Request
@@ -27,7 +27,13 @@ from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.utilities.json import encode_df_as_json_string
 
 from .models import V1RoutesBaseModel
-from .utils import RequestBody, ResponseBody, add_errors_to_responses
+from .utils import (
+    PaginatedResponseBody,
+    RequestBody,
+    ResponseBody,
+    _get_project_by_identifier,
+    add_errors_to_responses,
+)
 
 DEFAULT_SPAN_LIMIT = 1000
 
@@ -65,6 +71,31 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
         ),
         deprecated=True,
     )
+
+
+class Span(V1RoutesBaseModel):
+    id: str = Field(description="The Global Relay-style ID of the span.")
+    span_id: str = Field(description="The OpenTelemetry span ID.")
+    trace_id: Optional[str] = Field(
+        default=None, description="The OpenTelemetry trace ID of the span."
+    )
+    name: Optional[str] = None
+    span_kind: Optional[str] = Field(
+        default=None, description="The kind of span e.g. LLM, RETRIEVER …"
+    )
+    parent_id: Optional[str] = Field(
+        default=None, description="The OpenTelemetry ID of the parent span (if present)."
+    )
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    status_code: Optional[str] = None
+    status_message: Optional[str] = None
+    events: Optional[list[dict[str, Any]]] = None
+    attributes: Optional[dict[str, Any]] = None
+
+
+class SpanSearchResponseBody(PaginatedResponseBody[Span]):
+    pass
 
 
 # TODO: Add property details to SpanQuery schema
@@ -150,6 +181,119 @@ async def _json_multipart(
         yield await get_running_loop().run_in_executor(None, encode_df_as_json_string, df)
         yield "\r\n"
     yield f"--{boundary_token}--\r\n"
+
+
+@router.get(
+    "/projects/{project_identifier}/spans",
+    operation_id="spanSearch",
+    summary="Search spans with simple filters (no DSL)",
+    description="Return spans within a project filtered by time range, annotation names, "
+    "and ordered by start_time. Supports cursor-based pagination.",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def span_search(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name, "
+            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+        )
+    ),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
+    limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
+    sort_direction: Literal["asc", "desc"] = Query(
+        default="desc",
+        description="Sort direction for the sort field",
+    ),
+    start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
+    end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
+    annotation_names: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "If provided, only include spans that have at least one annotation with one "
+            "of these names."
+        ),
+        alias="annotationNames",
+    ),
+) -> SpanSearchResponseBody:
+    """Search spans with minimal filters instead of the old SpanQuery DSL."""
+
+    async with request.app.state.db() as session:
+        project = await _get_project_by_identifier(session, project_identifier)
+
+    project_id: int = project.id
+    order_by = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
+
+    stmt = (
+        select(
+            models.Span,
+            models.Trace.trace_id,
+        )
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+        .join(models.Project, onclause=models.Project.id == project_id)
+        .order_by(*order_by)
+    )
+
+    if start_time:
+        stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
+    if end_time:
+        stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+
+    if annotation_names:
+        stmt = (
+            stmt.join(
+                models.SpanAnnotation,
+                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
+            )
+            .where(models.SpanAnnotation.name.in_(annotation_names))
+            .group_by(models.Span.id, models.Trace.trace_id)
+        )
+
+    if cursor:
+        try:
+            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+            if sort_direction == "asc":
+                stmt = stmt.where(models.Span.id >= cursor_rowid)
+            else:
+                stmt = stmt.where(models.Span.id <= cursor_rowid)
+        except Exception:
+            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+
+    stmt = stmt.limit(limit + 1)
+
+    async with request.app.state.db() as session:
+        rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
+
+    if not rows:
+        return SpanSearchResponseBody(next_cursor=None, data=[])
+
+    next_cursor: Optional[str] = None
+    if len(rows) == limit + 1:
+        *rows, extra = rows  # extra is first item of next page
+        span_extra, _ = extra
+        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+
+    # Convert rows to Span Pydantic model
+    result_spans: list[Span] = []
+    for span_orm, trace_id in rows:
+        result_spans.append(
+            Span(
+                id=str(GlobalID("Span", str(span_orm.id))),
+                span_id=span_orm.span_id,
+                trace_id=trace_id,
+                name=span_orm.name,
+                span_kind=span_orm.span_kind,
+                parent_id=span_orm.parent_id,
+                start_time=span_orm.start_time,
+                end_time=span_orm.end_time,
+                status_code=span_orm.status_code,
+                status_message=span_orm.status_message,
+                events=span_orm.events or [],
+                attributes=span_orm.attributes or {},
+            )
+        )
+
+    return SpanSearchResponseBody(next_cursor=next_cursor, data=result_spans)
 
 
 @router.get("/spans", include_in_schema=False, deprecated=True)
