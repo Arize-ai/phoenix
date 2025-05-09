@@ -87,7 +87,7 @@ class TestClientForSpanAnnotationsRetrieval:
         assert {
             span_id1,
             span_id2,
-        }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"
+        }.issubset(set(df.index.astype(str))), "Expected span IDs missing from dataframe"  # type: ignore
 
         annotations = await _await_or_return(
             Client().spans.get_span_annotations(
@@ -132,13 +132,13 @@ class TestClientForSpanAnnotationsRetrieval:
             (span_id1, annotation_name_1, label1, score1, explanation1),
             (span_id2, annotation_name_2, label2, score2, explanation2),
         ):
-            subset = df_from_df[df_from_df.index.astype(str) == sid]
-            subset = subset[subset["annotation_name"] == aname]
-            assert not subset.empty
-            row = subset.iloc[0]
+            subset = df_from_df[df_from_df.index.astype(str) == sid]  # type: ignore
+            subset = subset[subset["annotation_name"] == aname]  # type: ignore
+            assert not subset.empty  # type: ignore
+            row = subset.iloc[0]  # type: ignore
             assert "result.label" in row
             assert row["result.label"] == lbl
-            assert abs(float(row["result.score"]) - scr) < 1e-6
+            assert abs(float(row["result.score"]) - scr) < 1e-6  # type: ignore
             assert row["result.explanation"] == expl
 
     def test_invalid_arguments_validation(self) -> None:
