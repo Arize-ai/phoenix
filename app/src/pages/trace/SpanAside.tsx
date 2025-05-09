@@ -1,6 +1,7 @@
-import React, { Suspense, useMemo } from "react";
+import React, { Suspense, useMemo, useRef } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useFragment } from "react-relay";
-import { PanelGroup } from "react-resizable-panels";
+import { ImperativePanelHandle, PanelGroup } from "react-resizable-panels";
 import { css } from "@emotion/react";
 
 import { Flex, KeyboardToken, View } from "@phoenix/components";
@@ -88,12 +89,31 @@ export function SpanAside(props: SpanAsideProps) {
     props.span
   );
 
+  const editAnnotationsPanelRef = useRef<ImperativePanelHandle>(null);
+  const notesPanelRef = useRef<ImperativePanelHandle>(null);
+  useHotkeys(EDIT_ANNOTATION_HOTKEY, () => {
+    // open the span annotations editor if it is closed
+    if (
+      editAnnotationsPanelRef.current &&
+      editAnnotationsPanelRef.current.isCollapsed()
+    ) {
+      editAnnotationsPanelRef.current.expand(50);
+    }
+  });
+  useHotkeys(NOTE_HOTKEY, () => {
+    // open the span notes editor if it is closed
+    if (notesPanelRef.current && notesPanelRef.current.isCollapsed()) {
+      notesPanelRef.current.expand(50);
+    }
+  });
+
   return (
     <PanelGroup direction="vertical" autoSaveId="span-aside-layout">
       <Suspense>
         <SpanAsideAnnotationList span={data} />
       </Suspense>
       <TitledPanel
+        ref={editAnnotationsPanelRef}
         resizable
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
@@ -111,6 +131,7 @@ export function SpanAside(props: SpanAsideProps) {
         </View>
       </TitledPanel>
       <TitledPanel
+        ref={notesPanelRef}
         resizable
         title={
           <Flex direction={"row"} gap="size-100" alignItems={"center"}>
