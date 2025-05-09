@@ -95,7 +95,7 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     concurrency: int = 3,
-    timeout: Optional[float] = None,
+    timeout: Optional[int] = None,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
