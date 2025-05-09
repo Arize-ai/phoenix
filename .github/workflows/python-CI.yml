@@ -266,7 +266,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.12, 3.13]
+        py: [3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -291,7 +291,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -329,7 +329,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -368,7 +368,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         exclude:
           - py: 3.13
@@ -416,7 +416,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         os: [ubuntu-latest]
     steps:
       - name: Checkout repository
@@ -454,7 +454,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        py: [3.9, 3.12, 3.13]
+        py: [3.9, 3.13]
         db: [sqlite, postgresql]
         os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         exclude:
