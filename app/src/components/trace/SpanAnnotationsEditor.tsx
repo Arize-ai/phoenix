@@ -390,6 +390,7 @@ function SpanAnnotationsList(props: {
               score: $score
               explanation: $explanation
               annotatorKind: HUMAN
+              source: APP
             }
           ]
         ) {
