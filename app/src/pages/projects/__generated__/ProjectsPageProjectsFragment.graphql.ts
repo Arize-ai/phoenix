@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e148695f1d0ee041ce99efdc9a088ec>>
+ * @generated SignedSource<<c70464ee56bf821921d873b5ad33c38e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,14 +14,12 @@ export type ProjectsPageProjectsFragment$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
-        readonly createdAt: string;
         readonly endTime: string | null;
         readonly gradientEndColor: string;
         readonly gradientStartColor: string;
         readonly id: string;
         readonly name: string;
         readonly startTime: string | null;
-        readonly updatedAt: string;
       };
     }>;
   };
@@ -162,20 +160,6 @@ return {
                   "kind": "ScalarField",
                   "name": "startTime",
                   "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "createdAt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "updatedAt",
-                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -242,6 +226,6 @@ return {
 };
 })();
 
-(node as any).hash = "fc96b7553c8c86aaa09a2edbcd8f182a";
+(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
 
 export default node;

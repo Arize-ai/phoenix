@@ -86,15 +86,16 @@ export const ProjectSortMenu = ({
                 direction = "asc";
               }
               onSort?.({
-                col: column as "name" | "createdAt" | "updatedAt",
+                col: column as "name" | "endTime",
                 dir: direction,
               });
               setProjectSortOrder({
-                column: column as "name" | "createdAt" | "updatedAt",
+                column: column as "name" | "endTime",
                 direction,
               });
             }}
             css={css`
+              min-height: auto;
               & > .react-aria-ListBoxItem {
                 padding-right: var(--ac-global-dimension-static-size-50);
               }
@@ -108,20 +109,12 @@ export const ProjectSortMenu = ({
                 Name
               </SortedListBoxItemContent>
             </ListBoxItem>
-            <ListBoxItem id="createdAt">
+            <ListBoxItem id="endTime">
               <SortedListBoxItemContent
                 direction={projectSortOrder.direction}
-                isSelected={projectSortOrder.column === "createdAt"}
+                isSelected={projectSortOrder.column === "endTime"}
               >
-                Created At
-              </SortedListBoxItemContent>
-            </ListBoxItem>
-            <ListBoxItem id="updatedAt">
-              <SortedListBoxItemContent
-                direction={projectSortOrder.direction}
-                isSelected={projectSortOrder.column === "updatedAt"}
-              >
-                Updated At
+                Last Updated At
               </SortedListBoxItemContent>
             </ListBoxItem>
           </ListBox>
