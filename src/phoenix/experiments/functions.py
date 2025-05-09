@@ -95,6 +95,7 @@ def run_experiment(
     dry_run: Union[bool, int] = False,
     print_summary: bool = True,
     concurrency: int = 3,
+    timeout: Optional[float] = None,
 ) -> RanExperiment:
     """
     Runs an experiment using a given set of dataset of examples.
@@ -380,6 +381,7 @@ def run_experiment(
         fallback_return_value=None,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("running tasks"),
         concurrency=concurrency,
+        timeout=timeout,
     )
 
     test_cases = [
