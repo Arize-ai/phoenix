@@ -1,7 +1,6 @@
 name: Typescript Packages Publish
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write
 on:
   push:
     branches:
