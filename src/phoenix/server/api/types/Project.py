@@ -297,10 +297,12 @@ class Project(Node):
                 cursor = Cursor(rowid=span_rowid)
                 if sort_config:
                     assert len(span_record) > 1
-                    cursor.sort_column = CursorSortColumn(
-                        type=sort_config.column_data_type,
-                        value=span_record[1],
-                    )
+                    sort_value = span_record[1]
+                    if sort_value is not None:
+                        cursor.sort_column = CursorSortColumn(
+                            type=sort_config.column_data_type,
+                            value=sort_value,
+                        )
                 cursors_and_nodes.append((cursor, Span(span_rowid=span_rowid)))
             has_next_page = True
             try:

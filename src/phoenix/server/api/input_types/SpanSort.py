@@ -155,15 +155,15 @@ class SpanSort:
             eval_attr = eval_result_key.attr
             expr = eval_result_key.attr.orm_expression
             stmt = stmt.add_columns(expr)
-            if self.dir == SortDir.desc:
-                expr = desc(expr)
+            expr_to_sort = desc(expr) if self.dir == SortDir.desc else expr
+            expr_to_sort = nulls_last(expr_to_sort)
             stmt = stmt.join(
                 models.SpanAnnotation,
                 onclause=and_(
                     models.SpanAnnotation.span_rowid == models.Span.id,
                     models.SpanAnnotation.name == eval_name,
                 ),
-            ).order_by(expr)
+            ).order_by(expr_to_sort)
             return SpanSortConfig(
                 stmt=stmt,
                 orm_expression=eval_result_key.attr.orm_expression,
