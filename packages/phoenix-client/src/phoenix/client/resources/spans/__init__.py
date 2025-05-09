@@ -601,7 +601,7 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         logger.warning("Received non-multipart response when expecting dataframe.")
 
     if dfs:
-        return dfs[0]  # we only expect one dataframe
+        return dfs[0]  # only passing in one query
     else:
         return pd.DataFrame()
 
