@@ -146,7 +146,7 @@ class DBSchemaComparisonTest(ABC):
         )
 
 
-class ComparisonTestSpanAnnotations(DBSchemaComparisonTest):
+class TestSpanAnnotations(DBSchemaComparisonTest):
     """Tests schema migration for span_annotations table.
 
     Schema Changes:
@@ -210,7 +210,7 @@ class ComparisonTestSpanAnnotations(DBSchemaComparisonTest):
         super()._test_db_schema(_engine, _alembic_config, _db_backend)
 
 
-class ComparisonTestTraceAnnotations(DBSchemaComparisonTest):
+class TestTraceAnnotations(DBSchemaComparisonTest):
     """Tests schema migration for trace_annotations table.
 
     Schema Changes:
@@ -274,7 +274,7 @@ class ComparisonTestTraceAnnotations(DBSchemaComparisonTest):
         super()._test_db_schema(_engine, _alembic_config, _db_backend)
 
 
-class ComparisonTestDocumentAnnotations(DBSchemaComparisonTest):
+class TestDocumentAnnotations(DBSchemaComparisonTest):
     """Tests schema migration for document_annotations table.
 
     Schema Changes:
