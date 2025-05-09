@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 1.1.0
+
+### Minor Changes
+
+- fff5511: feat: Update openapi schema with new endpoints
+
 ## 1.0.2
 
 ### Patch Changes
