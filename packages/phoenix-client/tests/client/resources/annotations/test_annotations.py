@@ -94,8 +94,70 @@ class TestDataFrameValidation:
         df = pd.DataFrame({"name": ["sentiment"], "annotator_kind": ["HUMAN"]})
         with pytest.raises(
             ValueError,
-            match="DataFrame must have either a 'span_id' column or a string-based index",
+            match="DataFrame must have either a 'span_id' or 'context.span_id' column, or a string-based index",  # noqa: E501
         ):
+            _validate_dataframe(dataframe=df)
+
+    def test_both_span_id_columns(self) -> None:
+        """Test validation when both span_id and context.span_id columns are present."""
+        df = pd.DataFrame(
+            {
+                "name": ["sentiment"],
+                "annotator_kind": ["HUMAN"],
+                "span_id": ["span1"],
+                "context.span_id": ["span1"],
+            }
+        )
+        with pytest.raises(
+            ValueError, match="DataFrame cannot have both 'span_id' and 'context.span_id' columns"
+        ):
+            _validate_dataframe(dataframe=df)
+
+    def test_valid_with_context_span_id(self) -> None:
+        """Test validation with valid DataFrame using context.span_id column."""
+        df = pd.DataFrame(
+            {
+                "name": ["sentiment"],
+                "annotator_kind": ["HUMAN"],
+                "context.span_id": ["span1"],
+            }
+        )
+        _validate_dataframe(dataframe=df)  # Should not raise
+
+    def test_invalid_context_span_id_values(self) -> None:
+        """Test validation with invalid context.span_id values."""
+        df = pd.DataFrame(
+            {
+                "name": ["sentiment", "sentiment"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "context.span_id": ["", "  "],  # Empty strings
+            }
+        )
+        with pytest.raises(ValueError, match="context.span_id values must be non-empty strings"):
+            _validate_dataframe(dataframe=df)
+
+    def test_none_context_span_id_values(self) -> None:
+        """Test validation with None values in context.span_id column."""
+        df = pd.DataFrame(
+            {
+                "name": ["sentiment", "sentiment"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "context.span_id": [None, "valid_id"],  # None value
+            }
+        )
+        with pytest.raises(ValueError, match="context.span_id values cannot be None"):
+            _validate_dataframe(dataframe=df)
+
+    def test_non_string_context_span_id(self) -> None:
+        """Test validation with non-string values in context.span_id column."""
+        df = pd.DataFrame(
+            {
+                "name": ["sentiment", "sentiment"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "context.span_id": [123, "valid_id"],  # Non-string value
+            }
+        )
+        with pytest.raises(ValueError, match="context.span_id values must be strings"):
             _validate_dataframe(dataframe=df)
 
     def test_valid_with_index(self) -> None:
@@ -151,18 +213,6 @@ class TestDataFrameValidation:
         with pytest.raises(
             ValueError, match="Index values must be non-empty strings when used as span_id"
         ):
-            _validate_dataframe(dataframe=df)
-
-    def test_none_span_id_values(self) -> None:
-        """Test validation with None values in span_id column."""
-        df = pd.DataFrame(
-            {
-                "name": ["sentiment", "sentiment"],
-                "annotator_kind": ["HUMAN", "HUMAN"],
-                "span_id": [None, "valid_id"],  # None value
-            }
-        )
-        with pytest.raises(ValueError, match="span_id values cannot be None"):
             _validate_dataframe(dataframe=df)
 
     def test_mixed_valid_invalid_values(self) -> None:
@@ -381,5 +431,36 @@ class TestChunkDataFrame:
         with pytest.raises(
             ValueError,
             match="Error processing row 0: Score value 'not_a_number' cannot be converted to float",
+        ):
+            list(_chunk_dataframe(dataframe=df))
+
+    def test_chunk_with_context_span_id(self) -> None:
+        """Test chunking with context.span_id column."""
+        df = pd.DataFrame(
+            {
+                "name": ["test1", "test2"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "context.span_id": ["id1", "id2"],
+                "label": ["label1", "label2"],
+            }
+        )
+        chunks = list(_chunk_dataframe(dataframe=df))
+        assert len(chunks) == 1
+        assert chunks[0][0]["span_id"] == "id1"
+        assert chunks[0][1]["span_id"] == "id2"
+
+    def test_chunk_with_both_span_id_columns(self) -> None:
+        """Test chunking with both span_id and context.span_id columns."""
+        df = pd.DataFrame(
+            {
+                "name": ["test1", "test2"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "span_id": ["id1", "id2"],
+                "context.span_id": ["id1", "id2"],
+                "label": ["label1", "label2"],
+            }
+        )
+        with pytest.raises(
+            ValueError, match="DataFrame cannot have both 'span_id' and 'context.span_id' columns"
         ):
             list(_chunk_dataframe(dataframe=df))
