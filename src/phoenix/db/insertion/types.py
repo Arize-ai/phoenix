@@ -219,6 +219,7 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation(Precursors.SpanAnnotation):
         span_rowid: int
+        identifier: str = ""
         id_: Optional[int] = None
 
         @property
@@ -232,6 +233,7 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class TraceAnnotation(Precursors.TraceAnnotation):
         trace_rowid: int
+        identifier: str = ""
         id_: Optional[int] = None
 
         @property
@@ -245,6 +247,7 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class DocumentAnnotation(Precursors.DocumentAnnotation):
         span_rowid: int
+        identifier: str = ""
         id_: Optional[int] = None
 
         @property

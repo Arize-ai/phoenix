@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import os
+import sys
 from collections.abc import Generator, Iterator
 from contextlib import ExitStack
 from itertools import count, starmap
@@ -224,3 +227,19 @@ def _test_name(request: SubRequest) -> Iterator[str]:
     token = _TEST_NAME.set(name)
     yield name
     _TEST_NAME.reset(token)
+
+
+@pytest.fixture
+def _wait_time(request: SubRequest) -> float:
+    """Increasing wait time for server operations.
+
+    Usage:
+        @pytest.mark.flaky(reruns=5)
+        def test_something(_wait_time: float):
+            some_server_operation()
+            sleep(_wait_time)  # Wait time increases with retries
+    """  # noqa: E501
+    execution_count = getattr(request.node, "execution_count", 1)
+    # wait longer on Windows for CI
+    base_value = 1.0 if sys.platform == "win32" else 0.1
+    return base_value * execution_count

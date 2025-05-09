@@ -1,15 +1,34 @@
 # pyright: reportPrivateUsage=false
 from __future__ import annotations
 
+from asyncio import sleep
 from secrets import token_bytes, token_hex
-from typing import Literal, Optional
+from typing import Literal, Optional, cast
 
 import pandas as pd
+import phoenix as px
 import pytest
+from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExportResult
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import format_span_id, format_trace_id
 from phoenix.client.__generated__ import v1
+from phoenix.trace import DocumentEvaluations, SpanEvaluations, TraceEvaluations
 from typing_extensions import TypeAlias
 
-from .._helpers import _ADMIN, _MEMBER, _await_or_return, _GetUser, _gql, _RoleOrUser
+from .._helpers import (
+    _ADMIN,
+    _MEMBER,
+    _AdminSecret,
+    _await_or_return,
+    _get_gql_spans,
+    _GetUser,
+    _gql,
+    _grpc_span_exporter,
+    _RoleOrUser,
+    _SecurityArtifact,
+    _start_span,
+)
 
 # Type aliases for better readability
 SpanId: TypeAlias = str
@@ -17,38 +36,16 @@ SpanGlobalId: TypeAlias = str
 
 
 class TestClientForSpanAnnotations:
-    """Integration tests for the Span Annotations client REST endpoints.
+    """Tests for the Phoenix span annotation client.
 
-    This test suite verifies the functionality of the Span Annotations API,
-    focusing on both single and batch annotation operations. The tests cover:
-    - Creating and updating annotations using the UPSERT pattern
-    - Batch creation and updating of annotations across multiple spans
-    - Proper handling of annotation fields (annotation_name, identifier, label, score, explanation)
-    - Synchronous and asynchronous clients work properly
-    - Role-based access control (admin vs member permissions)
-    - DataFrame-based annotation operations with different configurations:
-      * Using span_id as a column
-      * Using span_id as the index
-      * Using global annotator_kind
-
-    The test suite consists of three main test methods:
-    1. test_add_span_annotation: Tests single annotation operations and UPSERT functionality
-    2. test_log_span_annotations: Tests batch annotation operations and UPSERT functionality
-    3. test_log_span_annotations_dataframe: Tests DataFrame-based annotation operations with different configurations
-
-    Example:
-        ```python
-        from phoenix.client import Client
-
-        client = Client()
-        annotation = client.annotations.add_span_annotation(
-            annotation_name="sentiment",
-            span_id="abc123",
-            label="positive",
-            score=0.9,
-        )
-        ```
-    """  # noqa: E501
+    Checks if the client can:
+    - Create and update single annotations
+    - Handle multiple annotations at once
+    - Work with different user roles
+    - Use DataFrames for annotations
+    - Work in both regular and async mode
+    - Handle special cases like zero scores
+    """
 
     # GraphQL query to retrieve span annotations for a given span ID
     query = """
@@ -71,29 +68,29 @@ class TestClientForSpanAnnotations:
     }
     """
 
-    @pytest.mark.parametrize("is_async", [True, False])
-    @pytest.mark.parametrize("sync", [True, False])
+    @pytest.mark.flaky(reruns=10)
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_add_span_annotation(
         self,
-        is_async: bool,
         sync: bool,
+        is_async: bool,
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
+        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test single span annotation operations.
+        """Tests creating and updating single annotations.
 
-        This test verifies that:
-        1. Single span annotations can be created with name, label, score, and explanation
-        2. Annotations are correctly associated with the specified span
-        3. All annotation fields are stored and retrieved correctly
-        4. Both synchronous and asynchronous clients work properly
-        5. Both admin and member users can create annotations
-        6. The API supports UPSERT operations (update or insert) for annotations
-        7. Annotations maintain their ID across updates (UPSERT)
-        """  # noqa: E501
+        Checks if the client can:
+        - Create new annotations with all fields
+        - Update existing annotations
+        - Keep the same ID when updating
+        - Work in both regular and async mode
+        - Check user permissions
+        """
         # ============================================================================
         # Setup
         # ============================================================================
@@ -127,7 +124,7 @@ class TestClientForSpanAnnotations:
             explanation = token_hex(16)
             metadata = {token_hex(16): token_hex(16)}
             # Create the span annotation
-            await _await_or_return(
+            result = await _await_or_return(
                 Client().annotations.add_span_annotation(
                     annotation_name=annotation_name,
                     span_id=span_id1,
@@ -139,6 +136,11 @@ class TestClientForSpanAnnotations:
                     sync=sync,
                 ),
             )
+
+            if sync:
+                assert result
+            else:
+                await sleep(_wait_time)
 
             # Verify the annotation was created correctly by querying the GraphQL API
             res, _ = _gql(
@@ -171,28 +173,30 @@ class TestClientForSpanAnnotations:
                     anno["id"] == existing_gid
                 ), "Annotation ID should remain the same after update"  # noqa: E501
 
-    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.flaky(reruns=10)
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_span_annotations(
         self,
+        sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
+        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test batch span annotation operations.
+        """Tests handling multiple annotations at once.
 
-        This test verifies that:
-        1. Multiple annotations can be created in a single batch operation
-        2. Annotations are correctly associated with their respective spans
-        3. All annotation fields are stored and retrieved correctly
-        4. Both synchronous and asynchronous clients work properly
-        5. Both admin and member users can create annotations
-        6. The API supports UPSERT operations for batch annotations
-        7. Annotations maintain their ID across updates (UPSERT)
-        8. Batch operations correctly handle multiple spans
-        """  # noqa: E501
+        Checks if the client can:
+        - Create many annotations in one call
+        - Update many annotations at once
+        - Work with annotations across different spans
+        - Keep the same IDs when updating
+        - Work in both regular and async mode
+        - Check user permissions
+        """
         # ============================================================================
         # Setup
         # ============================================================================
@@ -254,13 +258,18 @@ class TestClientForSpanAnnotations:
             result = await _await_or_return(
                 Client().annotations.log_span_annotations(
                     span_annotations=span_annotations,
-                    sync=True,
+                    sync=sync,
                 ),
             )
 
-            # Verify the batch operation returned the expected number of results
-            assert result
-            assert len(result) == 2, "Batch operation should return results for both annotations"  # noqa: E501
+            if sync:
+                # Verify the batch operation returned the expected number of results
+                assert result
+                assert (
+                    len(result) == 2
+                ), "Batch operation should return results for both annotations"  # noqa: E501
+            else:
+                await sleep(_wait_time)
 
             # Verify each annotation in the batch
             for j in range(2):
@@ -307,38 +316,34 @@ class TestClientForSpanAnnotations:
                         anno["id"] == existing_gids[j]
                     ), f"Batch annotation {j+1} ID should remain the same after update"  # noqa: E501
 
-    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.flaky(reruns=10)
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_log_span_annotations_dataframe(
         self,
+        sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
+        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test DataFrame-based span annotation operations.
+        """Tests using DataFrames for annotations.
 
-        This test verifies that:
-        1. Annotations can be created from a pandas DataFrame
-        2. Both column-based and index-based span_id work correctly
-        3. Optional fields (label, score, explanation) are handled properly
-        4. Both synchronous and asynchronous clients work properly
-        5. Both admin and member users can create annotations
-        6. The API supports UPSERT operations for DataFrame annotations
+        Tests three ways to use DataFrames:
+        - With span_id as a column
+        - With span_id as the index
+        - With a shared annotator type
 
-        The test uses three different DataFrame formats to verify different use cases:
-        1. Using span_id as a column: Demonstrates standard DataFrame usage with all fields as columns
-        2. Using span_id as the index: Tests alternative DataFrame structure with span_id as index
-        3. Using global annotator_kind: Verifies global parameter override of DataFrame values
-
-        Each test case follows the same pattern:
-        - Create test data with random values
-        - Create DataFrame with specific structure
-        - Log annotations using the DataFrame
-        - Verify annotations were created correctly by querying the API
-        - Check all fields match the input data
-        """  # noqa: E501
+        Checks if the client can:
+        - Read annotations from DataFrames
+        - Handle different DataFrame layouts
+        - Use shared settings correctly
+        - Work in both regular and async mode
+        - Check user permissions
+        """
         # ============================================================================
         # Setup
         # ============================================================================
@@ -359,9 +364,9 @@ class TestClientForSpanAnnotations:
         # Test Case 1: Using span_id as column
         # ============================================================================
         # This test case demonstrates standard DataFrame usage with span_id as a column
-        # All fields are provided as columns in the DataFrame
+        # All fields are provided as columns in the DataFrame, using OpenTelemetry span IDs
         df1_annotation_names = [token_hex(16), token_hex(16)]
-        df1_span_ids = [span_id1, span_id2]
+        df1_span_ids = [span_id1, span_id2]  # OpenTelemetry span IDs
         df1_annotator_kinds = ["HUMAN", "LLM"]
         df1_labels = [token_hex(16), token_hex(16)]
         df1_scores = [
@@ -373,7 +378,7 @@ class TestClientForSpanAnnotations:
         df1 = pd.DataFrame(
             {
                 "name": df1_annotation_names,
-                "span_id": df1_span_ids,
+                "span_id": df1_span_ids,  # OpenTelemetry span IDs
                 "annotator_kind": df1_annotator_kinds,
                 "label": df1_labels,
                 "score": df1_scores,
@@ -383,12 +388,17 @@ class TestClientForSpanAnnotations:
         )
 
         # Log annotations from DataFrame
-        await _await_or_return(
+        result = await _await_or_return(
             Client().annotations.log_span_annotations_dataframe(
                 dataframe=df1,
-                sync=True,
+                sync=sync,
             ),
         )
+
+        if sync:
+            assert result
+        else:
+            await sleep(_wait_time)
 
         # Verify annotations were created correctly
         for i, span_gid in enumerate([span_gid1, span_gid2]):
@@ -427,7 +437,7 @@ class TestClientForSpanAnnotations:
         # Test Case 2: Using span_id as index
         # ============================================================================
         # This test case demonstrates using span_id as the DataFrame index
-        # This is an alternative way to specify span_id without a dedicated column
+        # This is an alternative way to specify OpenTelemetry span IDs without a dedicated column
         df2_annotation_names = [token_hex(16), token_hex(16)]
         df2_annotator_kinds = ["HUMAN", "LLM"]
         df2_labels = [token_hex(16), token_hex(16)]
@@ -446,16 +456,21 @@ class TestClientForSpanAnnotations:
                 "explanation": df2_explanations,
                 "metadata": df2_metadata,
             },
-            index=[span_id1, span_id2],
+            index=[span_id1, span_id2],  # OpenTelemetry span IDs as index
         )
 
         # Log annotations from DataFrame
-        await _await_or_return(
+        result = await _await_or_return(
             Client().annotations.log_span_annotations_dataframe(
                 dataframe=df2,
-                sync=True,
+                sync=sync,
             ),
         )
+
+        if sync:
+            assert result
+        else:
+            await sleep(_wait_time)
 
         # Verify annotations were created correctly
         for i, span_gid in enumerate([span_gid1, span_gid2]):
@@ -495,10 +510,10 @@ class TestClientForSpanAnnotations:
         # ============================================================================
         # This test case demonstrates using a global annotator_kind parameter
         # The DataFrame does not include an annotator_kind column, and the value is
-        # provided as a parameter to the API call
+        # provided as a parameter to the API call. Uses OpenTelemetry span IDs.
         global_annotator_kind: Literal["HUMAN"] = "HUMAN"
         df3_annotation_names = [token_hex(16), token_hex(16)]
-        df3_span_ids = [span_id1, span_id2]
+        df3_span_ids = [span_id1, span_id2]  # OpenTelemetry span IDs
         df3_labels = [token_hex(16), token_hex(16)]
         df3_scores = [
             int.from_bytes(token_bytes(4), byteorder="big"),
@@ -509,7 +524,7 @@ class TestClientForSpanAnnotations:
         df3 = pd.DataFrame(
             {
                 "name": df3_annotation_names,
-                "span_id": df3_span_ids,
+                "span_id": df3_span_ids,  # OpenTelemetry span IDs
                 "label": df3_labels,
                 "score": df3_scores,
                 "explanation": df3_explanations,
@@ -518,13 +533,18 @@ class TestClientForSpanAnnotations:
         )
 
         # Log annotations from DataFrame with global annotator_kind
-        await _await_or_return(
+        result = await _await_or_return(
             Client().annotations.log_span_annotations_dataframe(
                 dataframe=df3,
                 annotator_kind=global_annotator_kind,
-                sync=True,
+                sync=sync,
             ),
         )
+
+        if sync:
+            assert result
+        else:
+            await sleep(_wait_time)
 
         # Verify annotations were created correctly
         for i, span_gid in enumerate([span_gid1, span_gid2]):
@@ -559,26 +579,28 @@ class TestClientForSpanAnnotations:
                 anno["annotatorKind"] == global_annotator_kind
             ), f"DataFrame annotation {i+1} annotator_kind should match global value"  # noqa: E501
 
-    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.flaky(reruns=10)
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation(
         self,
+        sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
+        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that a score of 0 is properly recorded and not treated as falsey.
+        """Tests handling annotations with zero scores.
 
-        This test verifies that:
-        1. An annotation with a score of 0 is properly created and stored
-        2. The score of 0 is not treated as falsey or None
-        3. Both synchronous and asynchronous clients handle zero scores correctly
-        4. Both admin and member users can create annotations with zero scores
-        5. Optional fields (label, explanation) are properly stored as None when omitted
-        6. The annotation can be retrieved and verified by its name
-        """  # noqa: E501
+        Checks if the client can:
+        - Save and load zero scores correctly
+        - Handle missing optional fields
+        - Work in both regular and async mode
+        - Check user permissions
+        """
         # ============================================================================
         # Setup
         # ============================================================================
@@ -602,15 +624,20 @@ class TestClientForSpanAnnotations:
         zero_score_annotation_name = token_hex(16)
 
         # Create annotation with score of 0
-        await _await_or_return(
+        result = await _await_or_return(
             Client().annotations.add_span_annotation(
                 annotation_name=zero_score_annotation_name,
                 span_id=span_id1,
                 annotator_kind="LLM",
                 score=0,  # Explicitly test score of 0
-                sync=True,
+                sync=sync,
             ),
         )
+
+        if sync:
+            assert result
+        else:
+            await sleep(_wait_time)
 
         # Verify the annotation was created correctly by querying the GraphQL API
         res, _ = _gql(
@@ -637,26 +664,28 @@ class TestClientForSpanAnnotations:
             annotations[zero_score_annotation_name]["explanation"] is None
         ), "Annotation explanation should be None"
 
-    @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.flaky(reruns=10)
+    @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
+    @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
     @pytest.mark.parametrize("role_or_user", [_MEMBER, _ADMIN])
     async def test_zero_score_annotation_dataframe(
         self,
+        sync: bool,
         is_async: bool,
         role_or_user: _RoleOrUser,
         _span_ids: tuple[tuple[SpanId, SpanGlobalId], tuple[SpanId, SpanGlobalId]],
         _get_user: _GetUser,
+        _wait_time: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that a score of 0 is properly recorded and not treated as falsey in DataFrame annotations.
+        """Tests handling zero scores in DataFrames.
 
-        This test verifies that:
-        1. A DataFrame annotation with a score of 0 is properly created and stored
-        2. The score of 0 is not treated as falsey or None
-        3. Both synchronous and asynchronous clients handle zero scores correctly
-        4. Both admin and member users can create DataFrame annotations with zero scores
-        5. Optional fields (label, explanation) are properly stored as None when omitted
-        6. The annotation can be retrieved and verified by its name
-        """  # noqa: E501
+        Checks if the client can:
+        - Read zero scores from DataFrames
+        - Handle missing optional fields
+        - Work in both regular and async mode
+        - Check user permissions
+        """
         # ============================================================================
         # Setup
         # ============================================================================
@@ -680,22 +709,28 @@ class TestClientForSpanAnnotations:
         zero_score_annotation_name = token_hex(16)
 
         # Create DataFrame with score of 0
+        # The DataFrame uses OpenTelemetry span ID to identify the span
         df = pd.DataFrame(
             {
                 "name": [zero_score_annotation_name],
-                "span_id": [span_id1],
+                "span_id": [span_id1],  # OpenTelemetry span ID
                 "annotator_kind": ["LLM"],
                 "score": [0],  # Explicitly test score of 0
             }
         )
 
         # Log annotations from DataFrame
-        await _await_or_return(
+        result = await _await_or_return(
             Client().annotations.log_span_annotations_dataframe(
                 dataframe=df,
-                sync=True,
+                sync=sync,
             ),
         )
+
+        if sync:
+            assert result
+        else:
+            await sleep(_wait_time)
 
         # Verify the annotation was created correctly by querying the GraphQL API
         res, _ = _gql(
@@ -721,3 +756,469 @@ class TestClientForSpanAnnotations:
         assert (
             annotations[zero_score_annotation_name]["explanation"] is None
         ), "DataFrame annotation explanation should be None"
+
+
+class TestSendingAnnotationsBeforeSpan:
+    """Tests sending annotations before spans exist.
+
+    This test is consolidated to reduce flakiness and total wait
+    time for the asynchronous operations.
+
+    Checks if the client can:
+    - Send annotations before spans are created
+    - Link annotations to spans after creation
+    - Handle multiple annotations per span
+    - Process many evaluations at once
+    - Keep data consistent
+    """
+
+    # GraphQL queries for retrieving annotations and evaluations
+    query = """
+        # Query to retrieve span annotations for a given span's global ID
+        query GetSpanAnnotations($id: GlobalID!) {
+            node (id: $id) {
+                ... on Span {
+                    spanAnnotations {  # Contains both annotations and evaluations
+                        id
+                        name
+                        source
+                        identifier
+                        annotatorKind
+                        metadata
+                        label
+                        score
+                        explanation
+                    }
+                }
+            }
+        }
+
+        # Query to retrieve trace annotations for a given trace's global ID
+        query GetTraceAnnotations($id: GlobalID!) {
+            node (id: $id) {
+                ... on Trace {
+                    traceAnnotations {  # Contains both annotations and evaluations
+                        id
+                        name
+                        source
+                        identifier
+                        annotatorKind
+                        metadata
+                        label
+                        score
+                        explanation
+                    }
+                }
+            }
+        }
+
+        # Query to retrieve document evaluations for a given span's global ID
+        query GetDocumentEvaluations($id: GlobalID!) {
+            node (id: $id) {
+                ... on Span {
+                    documentEvaluations {  # Only contains evaluations
+                        documentPosition
+                        name
+                        label
+                        score
+                        explanation
+                    }
+                }
+            }
+        }
+
+        # Query to retrieve trace's global ID from its OpenTelemetry trace ID
+        query GetTraceGlobalID($traceId: ID!) {
+            projects {
+                edges {
+                    node {
+                        trace(traceId: $traceId) {
+                            id  # This is the global ID
+                            traceId  # This is the OpenTelemetry trace ID
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    @pytest.fixture
+    def _span(self) -> ReadableSpan:
+        """Creates test span with document retrieval attributes."""
+        memory = InMemorySpanExporter()
+        attributes = {
+            "retrieval.documents.0.document.id": token_hex(16),
+            "retrieval.documents.1.document.id": token_hex(16),
+            "retrieval.documents.2.document.id": token_hex(16),
+        }
+        _start_span(project_name=token_hex(16), attributes=attributes, exporter=memory).end()
+        assert (spans := memory.get_finished_spans())
+        return spans[0]
+
+    def _get_span_gid(
+        self,
+        auth: _SecurityArtifact,
+        *,
+        span_id: str,
+    ) -> Optional[str]:
+        """Gets global ID for span from span_id."""
+        for spans in _get_gql_spans(auth, "id spanId").values():
+            for span in spans:
+                if span["spanId"] == span_id:
+                    return cast(str, span["id"])
+        return None
+
+    def _get_trace_gid(
+        self,
+        auth: _SecurityArtifact,
+        *,
+        trace_id: str,
+    ) -> Optional[str]:
+        """Gets global ID for trace from trace_id."""
+        res, _ = _gql(
+            auth,
+            query=self.query,
+            variables={"traceId": trace_id},
+            operation_name="GetTraceGlobalID",
+        )
+        for project in res["data"]["projects"]["edges"]:
+            if (trace := project["node"]["trace"]) and trace["traceId"] == trace_id:
+                return cast(str, trace["id"])
+        return None
+
+    @pytest.mark.flaky(reruns=10)
+    async def test_annotations_and_evaluations(
+        self,
+        _span: ReadableSpan,
+        _admin_secret: _AdminSecret,
+        _wait_time: float,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Tests sending annotations and evaluations before spans exist.
+
+        Checks if the client can:
+        - Send annotations before spans are created
+        - Send evaluations before spans are created
+        - Link data to spans after creation
+        - Handle multiple annotations per span
+        - Process many evaluations at once
+        - Keep data consistent
+        - Update existing annotations (UPSERT)
+        """
+        # Get IDs from the span
+        assert (span_context := _span.get_span_context())  # type: ignore[no-untyped-call]
+        span_id = format_span_id(span_context.span_id)
+        trace_id = format_trace_id(span_context.trace_id)
+        assert self._get_span_gid(_admin_secret, span_id=span_id) is None
+        assert self._get_trace_gid(_admin_secret, trace_id=trace_id) is None
+
+        # Set up the client
+        monkeypatch.setenv("PHOENIX_API_KEY", _admin_secret)
+        from phoenix.client import Client
+
+        client = Client()
+
+        # Make test data
+        span_annotation_name = token_hex(16)
+        span_eval_name = token_hex(16)
+        trace_eval_name = token_hex(16)
+        doc_eval_name = token_hex(16)
+
+        # Set up initial test data
+        span_anno_scores = [int.from_bytes(token_bytes(4), byteorder="big")]
+        span_anno_labels = [token_hex(16)]
+        span_anno_explanations = [token_hex(16)]
+        span_anno_metadatas = [{token_hex(16): token_hex(16)}]
+
+        span_eval_scores = [int.from_bytes(token_bytes(4), byteorder="big")]
+        span_eval_labels = [token_hex(16)]
+        span_eval_explanations = [token_hex(16)]
+
+        trace_eval_scores = [int.from_bytes(token_bytes(4), byteorder="big")]
+        trace_eval_labels = [token_hex(16)]
+        trace_eval_explanations = [token_hex(16)]
+
+        doc_eval_scores = [int.from_bytes(token_bytes(4), byteorder="big")]
+        doc_eval_labels = [token_hex(16)]
+        doc_eval_explanations = [token_hex(16)]
+
+        # Run multiple test rounds
+        num_iterations = 2
+        assert num_iterations >= 2
+        document_position = 1
+
+        for _ in range(num_iterations):
+            # Make new test data for this round
+            span_anno_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
+            span_anno_labels.append(token_hex(16))
+            span_anno_explanations.append(token_hex(16))
+            span_anno_metadatas.append({token_hex(16): token_hex(16)})
+
+            span_eval_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
+            span_eval_labels.append(token_hex(16))
+            span_eval_explanations.append(token_hex(16))
+
+            trace_eval_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
+            trace_eval_labels.append(token_hex(16))
+            trace_eval_explanations.append(token_hex(16))
+
+            doc_eval_scores.append(int.from_bytes(token_bytes(4), byteorder="big"))
+            doc_eval_labels.append(token_hex(16))
+            doc_eval_explanations.append(token_hex(16))
+
+            # Add annotations and evaluations
+            client.annotations.add_span_annotation(
+                annotation_name=span_annotation_name,
+                span_id=span_id,
+                annotator_kind="LLM",
+                label=span_anno_labels[-1],
+                score=span_anno_scores[-1],
+                explanation=span_anno_explanations[-1],
+                metadata=span_anno_metadatas[-1],
+            )
+
+            px.Client().log_evaluations(
+                SpanEvaluations(
+                    eval_name=span_eval_name,
+                    dataframe=pd.DataFrame(
+                        {
+                            "span_id": [span_id],
+                            "label": [span_eval_labels[-1]],
+                            "score": [span_eval_scores[-1]],
+                            "explanation": [span_eval_explanations[-1]],
+                        }
+                    ),
+                ),
+                TraceEvaluations(
+                    eval_name=trace_eval_name,
+                    dataframe=pd.DataFrame(
+                        {
+                            "trace_id": [trace_id],
+                            "label": [trace_eval_labels[-1]],
+                            "score": [trace_eval_scores[-1]],
+                            "explanation": [trace_eval_explanations[-1]],
+                        }
+                    ),
+                ),
+                DocumentEvaluations(
+                    eval_name=doc_eval_name,
+                    dataframe=pd.DataFrame(
+                        {
+                            "span_id": [span_id],
+                            "document_position": [document_position],
+                            "label": [doc_eval_labels[-1]],
+                            "score": [doc_eval_scores[-1]],
+                            "explanation": [doc_eval_explanations[-1]],
+                        }
+                    ),
+                ),
+            )
+            await sleep(0.01)
+
+        # Send the span and wait
+        assert _grpc_span_exporter().export([_span]) is SpanExportResult.SUCCESS
+
+        # Wait for the data to be processed
+        await sleep(_wait_time)
+
+        # Get the global IDs
+        assert (span_gid := self._get_span_gid(_admin_secret, span_id=span_id))
+        assert (trace_gid := self._get_trace_gid(_admin_secret, trace_id=trace_id))
+
+        # Check the annotations
+        span_res, _ = _gql(
+            _admin_secret,
+            query=self.query,
+            variables={"id": span_gid},
+            operation_name="GetSpanAnnotations",
+        )
+        span_annotations = {
+            (result["label"], result["score"], result["explanation"]): result
+            for result in span_res["data"]["node"]["spanAnnotations"]
+        }
+        span_anno_key = (span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1])
+        assert span_anno_key in span_annotations
+        anno = span_annotations[span_anno_key]
+        assert anno["name"] == span_annotation_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
+        assert anno["metadata"] == span_anno_metadatas[-1]
+
+        # Check the span evaluations
+        span_ev_key = (span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1])
+        assert span_ev_key in span_annotations
+        anno = span_annotations[span_ev_key]
+        assert anno["name"] == span_eval_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
+
+        # Check the trace evaluations
+        trace_res, _ = _gql(
+            _admin_secret,
+            query=self.query,
+            variables={"id": trace_gid},
+            operation_name="GetTraceAnnotations",
+        )
+        trace_annotations = {
+            (result["label"], result["score"], result["explanation"]): result
+            for result in trace_res["data"]["node"]["traceAnnotations"]
+        }
+        trace_eval_key = (trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1])
+        assert trace_eval_key in trace_annotations
+        anno = trace_annotations[trace_eval_key]
+        assert anno["name"] == trace_eval_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
+
+        # Check the document evaluations
+        doc_res, _ = _gql(
+            _admin_secret,
+            query=self.query,
+            variables={"id": span_gid},
+            operation_name="GetDocumentEvaluations",
+        )
+        doc_annotations = {
+            (result["label"], result["score"], result["explanation"]): result
+            for result in doc_res["data"]["node"]["documentEvaluations"]
+        }
+        doc_eval_key = (doc_eval_labels[-1], doc_eval_scores[-1], doc_eval_explanations[-1])
+        assert doc_eval_key in doc_annotations
+        anno = doc_annotations[doc_eval_key]
+        assert anno["name"] == doc_eval_name
+        assert anno["documentPosition"] == document_position
+
+        # Test UPSERT by updating existing annotations
+        # Make new test data for updates
+        new_span_anno_score = int.from_bytes(token_bytes(4), byteorder="big")
+        new_span_anno_label = token_hex(16)
+        new_span_anno_explanation = token_hex(16)
+        new_span_anno_metadata = {token_hex(16): token_hex(16)}
+
+        new_span_eval_score = int.from_bytes(token_bytes(4), byteorder="big")
+        new_span_eval_label = token_hex(16)
+        new_span_eval_explanation = token_hex(16)
+
+        new_trace_eval_score = int.from_bytes(token_bytes(4), byteorder="big")
+        new_trace_eval_label = token_hex(16)
+        new_trace_eval_explanation = token_hex(16)
+
+        new_doc_eval_score = int.from_bytes(token_bytes(4), byteorder="big")
+        new_doc_eval_label = token_hex(16)
+        new_doc_eval_explanation = token_hex(16)
+
+        # Update annotations and evaluations
+        client.annotations.add_span_annotation(
+            annotation_name=span_annotation_name,
+            span_id=span_id,
+            annotator_kind="LLM",
+            label=new_span_anno_label,
+            score=new_span_anno_score,
+            explanation=new_span_anno_explanation,
+            metadata=new_span_anno_metadata,
+        )
+
+        px.Client().log_evaluations(
+            SpanEvaluations(
+                eval_name=span_eval_name,
+                dataframe=pd.DataFrame(
+                    {
+                        "span_id": [span_id],
+                        "label": [new_span_eval_label],
+                        "score": [new_span_eval_score],
+                        "explanation": [new_span_eval_explanation],
+                    }
+                ),
+            ),
+            TraceEvaluations(
+                eval_name=trace_eval_name,
+                dataframe=pd.DataFrame(
+                    {
+                        "trace_id": [trace_id],
+                        "label": [new_trace_eval_label],
+                        "score": [new_trace_eval_score],
+                        "explanation": [new_trace_eval_explanation],
+                    }
+                ),
+            ),
+            DocumentEvaluations(
+                eval_name=doc_eval_name,
+                dataframe=pd.DataFrame(
+                    {
+                        "span_id": [span_id],
+                        "document_position": [document_position],
+                        "label": [new_doc_eval_label],
+                        "score": [new_doc_eval_score],
+                        "explanation": [new_doc_eval_explanation],
+                    }
+                ),
+            ),
+        )
+
+        # Wait for updates to be processed
+        await sleep(_wait_time)
+
+        # Check updated annotations
+        span_res, _ = _gql(
+            _admin_secret,
+            query=self.query,
+            variables={"id": span_gid},
+            operation_name="GetSpanAnnotations",
+        )
+        span_annotations = {
+            (result["label"], result["score"], result["explanation"]): result
+            for result in span_res["data"]["node"]["spanAnnotations"]
+        }
+        new_span_anno_key = (new_span_anno_label, new_span_anno_score, new_span_anno_explanation)
+        assert new_span_anno_key in span_annotations
+        anno = span_annotations[new_span_anno_key]
+        assert anno["name"] == span_annotation_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
+        assert anno["metadata"] == new_span_anno_metadata
+
+        # Check updated span evaluations
+        new_span_ev_key = (new_span_eval_label, new_span_eval_score, new_span_eval_explanation)
+        assert new_span_ev_key in span_annotations
+        anno = span_annotations[new_span_ev_key]
+        assert anno["name"] == span_eval_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
+
+        # Check updated trace evaluations
+        trace_res, _ = _gql(
+            _admin_secret,
+            query=self.query,
+            variables={"id": trace_gid},
+            operation_name="GetTraceAnnotations",
+        )
+        trace_annotations = {
+            (result["label"], result["score"], result["explanation"]): result
+            for result in trace_res["data"]["node"]["traceAnnotations"]
+        }
+        new_trace_eval_key = (
+            new_trace_eval_label,
+            new_trace_eval_score,
+            new_trace_eval_explanation,
+        )
+        assert new_trace_eval_key in trace_annotations
+        anno = trace_annotations[new_trace_eval_key]
+        assert anno["name"] == trace_eval_name
+        assert anno["source"] == "API"
+        assert anno["annotatorKind"] == "LLM"
+
+        # Check updated document evaluations
+        doc_res, _ = _gql(
+            _admin_secret,
+            query=self.query,
+            variables={"id": span_gid},
+            operation_name="GetDocumentEvaluations",
+        )
+        doc_annotations = {
+            (result["label"], result["score"], result["explanation"]): result
+            for result in doc_res["data"]["node"]["documentEvaluations"]
+        }
+        new_doc_eval_key = (new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation)
+        assert new_doc_eval_key in doc_annotations
+        anno = doc_annotations[new_doc_eval_key]
+        assert anno["name"] == doc_eval_name
+        assert anno["documentPosition"] == document_position
