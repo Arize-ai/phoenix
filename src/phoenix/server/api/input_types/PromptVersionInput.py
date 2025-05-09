@@ -1,5 +1,5 @@
 import json
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 
 import strawberry
 from strawberry import UNSET
@@ -33,6 +33,9 @@ class ResponseFormatInput:
 @strawberry.input
 class TextContentValueInput:
     text: str
+    subtype: Optional[str] = UNSET
+    signature: Optional[str] = UNSET
+    redacted: Optional[bool] = UNSET
 
 
 @strawberry.input
@@ -108,10 +111,17 @@ def to_pydantic_prompt_message(prompt_message_input: PromptMessageInput) -> Prom
 def to_pydantic_content_part(content_part_input: ContentPartInput) -> ContentPart:
     if content_part_input.text is not UNSET:
         assert content_part_input.text is not None
-        return TextContentPart(
+        ans = TextContentPart(
             type="text",
             text=content_part_input.text.text,
         )
+        if content_part_input.text.subtype:
+            ans.subtype = cast(Literal["thinking"], content_part_input.text.subtype)
+        if content_part_input.text.signature:
+            ans.signature = content_part_input.text.signature
+        if content_part_input.text.redacted:
+            ans.redacted = content_part_input.text.redacted
+        return ans
     if content_part_input.tool_call is not UNSET:
         assert content_part_input.tool_call is not None
         return ToolCallContentPart(

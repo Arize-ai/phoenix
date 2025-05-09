@@ -684,6 +684,18 @@ class TestClient:
                     system="You are {role}.",
                     messages=[
                         {"role": "user", "content": "Write a haiku about {topic}."},
+                        {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "thinking",
+                                    "thinking": token_hex(8),
+                                    "signature": token_hex(8),
+                                },
+                                {"type": "redacted_thinking", "data": token_hex(8)},
+                                {"type": "text", "text": "I'll write haiku"},
+                            ],
+                        },
                     ],
                 ),
                 id="anthropic-thinking-enabled",

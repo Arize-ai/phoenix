@@ -39,9 +39,11 @@ if TYPE_CHECKING:
         ImageBlockParam,
         MessageParam,
         ModelParam,
+        RedactedThinkingBlock,
         RedactedThinkingBlockParam,
         TextBlock,
         TextBlockParam,
+        ThinkingBlock,
         ThinkingBlockParam,
         ThinkingConfigDisabledParam,
         ThinkingConfigEnabledParam,
@@ -501,21 +503,73 @@ class _TextContentPartConversion:
         variables: Mapping[str, str],
         formatter: TemplateFormatter,
         /,
-    ) -> TextBlockParam:
-        text = formatter.format(obj["text"], variables=variables)
-        return {"type": "text", "text": text}
+    ) -> Union[TextBlockParam, ThinkingBlockParam, RedactedThinkingBlockParam]:
+        if "subtype" not in obj:
+            text = formatter.format(obj["text"], variables=variables)
+            return {"type": "text", "text": text}
+        if obj["subtype"] == "thinking":
+            if "redacted" in obj and obj["redacted"]:
+                return {
+                    "type": "redacted_thinking",
+                    "data": obj["text"],
+                }
+            return {
+                "type": "thinking",
+                "thinking": obj["text"],
+                "signature": obj["signature"] if "signature" in obj else "",
+            }
+        if TYPE_CHECKING:
+            assert_never(obj["subtype"])
 
     @staticmethod
     def from_anthropic_block(
-        obj: TextBlock,
+        obj: Union[TextBlock, ThinkingBlock, RedactedThinkingBlock],
     ) -> v1.TextContentPart:
-        return v1.TextContentPart(type="text", text=obj.text)
+        from anthropic.types import TextBlock
+
+        if isinstance(obj, TextBlock):
+            return {"type": "text", "text": obj.text}
+        if _anthropic_version < (0, 47):
+            raise NotImplementedError
+        from anthropic.types import RedactedThinkingBlock, ThinkingBlock
+
+        if isinstance(obj, ThinkingBlock):
+            return {
+                "type": "text",
+                "text": obj.thinking,
+                "subtype": "thinking",
+                "signature": obj.signature,
+            }
+        if isinstance(obj, RedactedThinkingBlock):
+            return {
+                "type": "text",
+                "text": obj.data,
+                "subtype": "thinking",
+                "redacted": True,
+            }
+        assert_never(obj)
 
     @staticmethod
     def from_anthropic(
-        obj: TextBlockParam,
+        obj: Union[TextBlockParam, ThinkingBlockParam, RedactedThinkingBlockParam],
     ) -> v1.TextContentPart:
-        return v1.TextContentPart(type="text", text=obj["text"])
+        if obj["type"] == "text":
+            return {"type": "text", "text": obj["text"]}
+        if obj["type"] == "thinking":
+            return {
+                "type": "text",
+                "text": obj["thinking"],
+                "subtype": "thinking",
+                "signature": obj["signature"],
+            }
+        if obj["type"] == "redacted_thinking":
+            return {
+                "type": "text",
+                "text": obj["data"],
+                "subtype": "thinking",
+                "redacted": True,
+            }
+        assert_never(obj["type"])
 
 
 class _ToolCallContentPartConversion:
@@ -703,9 +757,9 @@ class _ContentConversion:
                 elif block["type"] == "document":
                     raise NotImplementedError
                 elif block["type"] == "thinking":
-                    raise NotImplementedError
+                    content.append(_TextContentPartConversion.from_anthropic(block))
                 elif block["type"] == "redacted_thinking":
-                    raise NotImplementedError
+                    content.append(_TextContentPartConversion.from_anthropic(block))
                 else:
                     assert_never(block["type"])
             else:
@@ -722,11 +776,13 @@ class _ContentConversion:
                 from anthropic.types import ThinkingBlock
 
                 if isinstance(block, ThinkingBlock):
-                    raise NotImplementedError
+                    content.append(_TextContentPartConversion.from_anthropic_block(block))
+                    continue
                 from anthropic.types import RedactedThinkingBlock
 
                 if isinstance(block, RedactedThinkingBlock):
-                    raise NotImplementedError
+                    content.append(_TextContentPartConversion.from_anthropic_block(block))
+                    continue
                 assert_never(block)
         return content
 
