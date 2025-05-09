@@ -1437,31 +1437,25 @@ async def _get(
     initial_wait_time: float = 0.1,
     max_wait_time: float = 1,
 ) -> T:
-    """Retry a query with exponential backoff until it succeeds or retries are exhausted.
-
-    This function implements a retry mechanism with exponential backoff for both synchronous
-    and asynchronous queries. It will repeatedly attempt to execute the query function until
-    either a non-None result is returned or the maximum number of retries is reached.
+    """If no_wait, run the query once. Otherwise, retry it if it returns None
+    and raise if retries are exhausted.
 
     Args:
-        query_fn: A callable that returns either Optional[T] or Awaitable[Optional[T]].
-            The function will be called repeatedly until it returns a non-None value.
-        args: Positional arguments to pass to query_fn. Defaults to empty tuple.
-        kwargs: Keyword arguments to pass to query_fn. Defaults to empty mapping.
-        error_msg: The error message to raise if all retries are exhausted without success.
-        no_wait: If True, only attempt the query once without any waiting or retries.
-            Defaults to False.
-        retries: Maximum number of retry attempts before giving up. Defaults to 60.
-        initial_wait_time: Initial wait time in seconds between retries. Defaults to 0.1.
-        max_wait_time: Maximum wait time in seconds between retries. The wait time will
-            increase exponentially but will be capped at this value. Defaults to 1.0.
+        query_fn: Function that returns Optional[T] or Awaitable[Optional[T]]
+        args: Positional arguments for query_fn
+        kwargs: Keyword arguments for query_fn
+        error_msg: Error message if all retries fail
+        no_wait: If True, only try once without retries
+        retries: Maximum number of retry attempts
+        initial_wait_time: Initial wait time between retries in seconds
+        max_wait_time: Maximum wait time between retries in seconds
 
     Returns:
-        The first non-None result returned by query_fn.
+        Result from query_fn
 
     Raises:
-        AssertionError: If query_fn returns None after all retries are exhausted.
-    """
+        AssertionError: If query_fn returns None after all retries
+    """  # noqa: E501
     from asyncio import sleep
 
     wt = 0 if no_wait else initial_wait_time
