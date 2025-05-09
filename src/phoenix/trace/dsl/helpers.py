@@ -159,7 +159,10 @@ def get_called_tools(
             if not isinstance(outputs, list) or not outputs:
                 return "Invalid message output"
             if outputs[0].get("message").get("tool_calls"):
-                return outputs[0]["message"]["tool_calls"][0]["tool_call"]["function"]["name"]
+                tools = []
+                for tool_call in outputs[0].get("message").get("tool_calls"):
+                    tools.append(tool_call["tool_call"]["function"]["name"])
+                return tools
             else:
                 return "No tool used"
         except (IndexError, KeyError, AttributeError):

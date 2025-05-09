@@ -62,36 +62,91 @@ async def test_get_called_tools(
 ) -> None:
     expected = pd.DataFrame(
         {
-            "context.span_id": ["89101", "91011", "111213"],
-            "context.trace_id": ["0123", "0123", "0123"],
-            "question": [
-                {"message": {"role": "user", "content": "what is 2 times 3"}},
-                {"message": {"role": "user", "content": "what is 5 plus 7"}},
-                {"message": {"role": "user", "content": "abc"}},
+            "context.span_id": ["89101", "91011", "111213", "131415", "171819"],
+            "context.trace_id": ["0123", "0123", "0123", "0123", "0123"],
+            "input": [
+                [
+                    {
+                        "message": {
+                            "role": "user",
+                            "content": "what is 2 times 3, and what is 2 plus 3",
+                        }
+                    }
+                ],
+                [{"message": {"role": "user", "content": "what is 5 plus 7"}}],
+                [{"message": {"role": "user", "content": "abc"}}],
+                [{"message": {"role": "user", "content": "test empty output"}}],
+                [{"message": {"role": "user", "content": "test invalid tool"}}],
             ],
-            "response": [
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "function_call_name": "multiply",
-                        "function_call_arguments_json": '{\n  "a": 2,\n  "b": 3\n}',
+            "output": [
+                [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "tool_call": {
+                                        "id": "a",
+                                        "function": {
+                                            "name": "multiply",
+                                            "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+                                        },
+                                    }
+                                },
+                                {
+                                    "tool_call": {
+                                        "id": "b",
+                                        "function": {
+                                            "name": "add",
+                                            "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+                                        },
+                                    }
+                                },
+                            ],
+                        }
                     }
-                },
-                {
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "function_call_name": "add",
-                        "function_call_arguments_json": '{\n  "a": 5,\n  "b": 7\n}',
+                ],
+                [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "tool_call": {
+                                        "id": "c",
+                                        "function": {
+                                            "name": "add",
+                                            "arguments": '{\n  "a": 5,\n  "b": 7\n}',
+                                        },
+                                    }
+                                }
+                            ],
+                        }
                     }
-                },
-                {"message": {"role": "assistant", "content": "xyz"}},
+                ],
+                [{"message": {"role": "assistant", "content": "xyz"}}],
+                None,
+                [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "tool_call": {
+                                        "id": "invalid",
+                                    }
+                                }
+                            ],
+                        }
+                    }
+                ],
             ],
             "tool_call": [
-                {"arguments": '{\n  "a": 2,\n  "b": 3\n}', "name": "multiply"},
-                {"arguments": '{\n  "a": 5,\n  "b": 7\n}', "name": "add"},
-                None,
+                ["multiply", "add"],
+                ["add"],
+                "No tool used",
+                "Invalid message output",
+                "Message output could not be processed",
             ],
         }
     ).set_index("context.span_id")

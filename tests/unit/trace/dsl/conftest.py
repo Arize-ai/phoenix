@@ -159,21 +159,41 @@ async def default_project(db: DbSessionFactory) -> None:
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
                     "llm": {
-                        "input_messages": {
-                            "message": {"role": "user", "content": "what is 2 times 3"}
-                        },
-                        "output_messages": {
-                            "message": {
-                                "role": "assistant",
-                                "content": None,
-                                "function_call_name": "multiply",
-                                "function_call_arguments_json": '{\n  "a": 2,\n  "b": 3\n}',
+                        "input_messages": [
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "what is 2 times 3, and what is 2 plus 3",
+                                }
                             }
-                        },
-                        "function_call": {
-                            "arguments": '{\n  "a": 2,\n  "b": 3\n}',
-                            "name": "multiply",
-                        },
+                        ],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "tool_call": {
+                                                "id": "a",
+                                                "function": {
+                                                    "name": "multiply",
+                                                    "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+                                                },
+                                            }
+                                        },
+                                        {
+                                            "tool_call": {
+                                                "id": "b",
+                                                "function": {
+                                                    "name": "add",
+                                                    "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+                                                },
+                                            }
+                                        },
+                                    ],
+                                }
+                            }
+                        ],
                     },
                 },
                 events=[],
@@ -197,21 +217,27 @@ async def default_project(db: DbSessionFactory) -> None:
                 end_time=datetime.fromisoformat("2021-01-01T00:00:20.000+00:00"),
                 attributes={
                     "llm": {
-                        "input_messages": {
-                            "message": {"role": "user", "content": "what is 5 plus 7"}
-                        },
-                        "output_messages": {
-                            "message": {
-                                "role": "assistant",
-                                "content": None,
-                                "function_call_name": "add",
-                                "function_call_arguments_json": '{\n  "a": 5,\n  "b": 7\n}',
+                        "input_messages": [
+                            {"message": {"role": "user", "content": "what is 5 plus 7"}}
+                        ],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "tool_call": {
+                                                "id": "c",
+                                                "function": {
+                                                    "name": "add",
+                                                    "arguments": '{\n  "a": 5,\n  "b": 7\n}',
+                                                },
+                                            }
+                                        }
+                                    ],
+                                }
                             }
-                        },
-                        "function_call": {
-                            "arguments": '{\n  "a": 5,\n  "b": 7\n}',
-                            "name": "add",
-                        },
+                        ],
                     },
                 },
                 events=[],
@@ -235,8 +261,8 @@ async def default_project(db: DbSessionFactory) -> None:
                 end_time=datetime.fromisoformat("2021-01-01T00:00:35.000+00:00"),
                 attributes={
                     "llm": {
-                        "input_messages": {"message": {"role": "user", "content": "abc"}},
-                        "output_messages": {"message": {"role": "assistant", "content": "xyz"}},
+                        "input_messages": [{"message": {"role": "user", "content": "abc"}}],
+                        "output_messages": [{"message": {"role": "assistant", "content": "xyz"}}],
                     }
                 },
                 events=[],
@@ -245,6 +271,83 @@ async def default_project(db: DbSessionFactory) -> None:
                 cumulative_error_count=0,
                 cumulative_llm_token_count_prompt=6,
                 cumulative_llm_token_count_completion=15,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="131415",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:00:40.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:00:50.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "test empty output",
+                                }
+                            }
+                        ],
+                        "output_messages": None,
+                    }
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=5,
+                cumulative_llm_token_count_completion=5,
+            )
+            .returning(models.Span.id)
+        )
+        await session.execute(
+            insert(models.Span)
+            .values(
+                trace_rowid=trace_rowid,
+                span_id="171819",
+                parent_id="2345",
+                name="llm span",
+                span_kind="LLM",
+                start_time=datetime.fromisoformat("2021-01-01T00:01:10.000+00:00"),
+                end_time=datetime.fromisoformat("2021-01-01T00:01:20.000+00:00"),
+                attributes={
+                    "llm": {
+                        "input_messages": [
+                            {
+                                "message": {
+                                    "role": "user",
+                                    "content": "test invalid tool",
+                                }
+                            }
+                        ],
+                        "output_messages": [
+                            {
+                                "message": {
+                                    "role": "assistant",
+                                    "tool_calls": [
+                                        {
+                                            "tool_call": {
+                                                "id": "invalid",
+                                            }
+                                        }
+                                    ],
+                                }
+                            }
+                        ],
+                    }
+                },
+                events=[],
+                status_code="OK",
+                status_message="okay",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=5,
+                cumulative_llm_token_count_completion=5,
             )
             .returning(models.Span.id)
         )
