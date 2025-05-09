@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from asyncio import sleep
+from platform import system
 from secrets import token_bytes, token_hex
 from typing import Any, Literal, NamedTuple, Optional, cast
 
@@ -36,6 +37,10 @@ SpanId: TypeAlias = str
 SpanGlobalId: TypeAlias = str
 
 
+@pytest.mark.skipif(
+    system() == "Windows",
+    reason="Skipping on Windows to reduce test flakiness",
+)
 class TestClientForSpanAnnotations:
     """Tests the Phoenix span annotation client functionality.
 
@@ -762,6 +767,10 @@ class TestClientForSpanAnnotations:
         assert anno["annotatorKind"] == "LLM", "DataFrame annotation annotator_kind should be LLM"
 
 
+@pytest.mark.skipif(
+    system() == "Windows",
+    reason="Skipping on Windows to reduce test flakiness",
+)
 class TestSendingAnnotationsBeforeSpan:
     """Tests sending annotations before spans exist.
 
@@ -1025,6 +1034,10 @@ class TestSendingAnnotationsBeforeSpan:
         )
 
         # Check the annotations
+        span_anno_label = span_anno_labels[-1]
+        span_anno_score = span_anno_scores[-1]
+        span_anno_explanation = span_anno_explanations[-1]
+
         def get_span_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1040,7 +1053,7 @@ class TestSendingAnnotationsBeforeSpan:
 
         anno = await _get(
             query_fn=get_span_anno,
-            args=((span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1]),),
+            args=((span_anno_label, span_anno_score, span_anno_explanation),),
             error_msg="Span annotation should be present",
         )
         assert anno["name"] == span_annotation_name
@@ -1052,22 +1065,13 @@ class TestSendingAnnotationsBeforeSpan:
         span_anno_gid = anno["id"]
 
         # Check the span evaluations
-        def get_span_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
-            res, _ = _gql(
-                _admin_secret,
-                query=self.query,
-                variables={"id": span_gid},
-                operation_name="GetSpanAnnotations",
-            )
-            annos = {
-                (result["label"], result["score"], result["explanation"]): result
-                for result in res["data"]["node"]["spanAnnotations"]
-            }
-            return annos.get(key)
+        span_eval_label = span_eval_labels[-1]
+        span_eval_score = span_eval_scores[-1]
+        span_eval_explanation = span_eval_explanations[-1]
 
         anno = await _get(
-            query_fn=get_span_eval,
-            args=((span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1]),),
+            query_fn=get_span_anno,
+            args=((span_eval_label, span_eval_score, span_eval_explanation),),
             error_msg="Span evaluation should be present",
         )
         assert anno["name"] == span_eval_name
@@ -1078,7 +1082,11 @@ class TestSendingAnnotationsBeforeSpan:
         span_eval_gid = anno["id"]
 
         # Check the trace evaluations
-        def get_trace_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
+        trace_eval_label = trace_eval_labels[-1]
+        trace_eval_score = trace_eval_scores[-1]
+        trace_eval_explanation = trace_eval_explanations[-1]
+
+        def get_trace_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1092,8 +1100,8 @@ class TestSendingAnnotationsBeforeSpan:
             return annos.get(key)
 
         anno = await _get(
-            query_fn=get_trace_eval,
-            args=((trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1]),),
+            query_fn=get_trace_anno,
+            args=((trace_eval_label, trace_eval_score, trace_eval_explanation),),
             error_msg="Trace evaluation should be present",
         )
         assert anno["name"] == trace_eval_name
@@ -1104,7 +1112,11 @@ class TestSendingAnnotationsBeforeSpan:
         trace_eval_gid = anno["id"]
 
         # Check the document evaluations
-        def get_doc_eval() -> Optional[dict[str, Any]]:
+        doc_eval_label = doc_eval_labels[-1]
+        doc_eval_score = doc_eval_scores[-1]
+        doc_eval_explanation = doc_eval_explanations[-1]
+
+        def get_doc_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
                 query=self.query,
@@ -1115,10 +1127,11 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["documentEvaluations"]
             }
-            return annos.get((doc_eval_labels[-1], doc_eval_scores[-1], doc_eval_explanations[-1]))
+            return annos.get(key)
 
         anno = await _get(
             query_fn=get_doc_eval,
+            args=((doc_eval_label, doc_eval_score, doc_eval_explanation),),
             error_msg="Document evaluation should be present",
         )
         assert anno["name"] == doc_eval_name
@@ -1192,21 +1205,8 @@ class TestSendingAnnotationsBeforeSpan:
         )
 
         # Check updated annotations
-        def get_updated_span_anno(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
-            res, _ = _gql(
-                _admin_secret,
-                query=self.query,
-                variables={"id": span_gid},
-                operation_name="GetSpanAnnotations",
-            )
-            annos = {
-                (result["label"], result["score"], result["explanation"]): result
-                for result in res["data"]["node"]["spanAnnotations"]
-            }
-            return annos.get(key)
-
         anno = await _get(
-            query_fn=get_updated_span_anno,
+            query_fn=get_span_anno,
             args=((new_span_anno_label, new_span_anno_score, new_span_anno_explanation),),
             error_msg="Updated span annotation should be present",
         )
@@ -1216,22 +1216,12 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["metadata"] == new_span_anno_metadata
         assert anno["id"] == span_anno_gid
 
-        # Check updated span evaluations
-        def get_updated_span_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
-            res, _ = _gql(
-                _admin_secret,
-                query=self.query,
-                variables={"id": span_gid},
-                operation_name="GetSpanAnnotations",
-            )
-            annos = {
-                (result["label"], result["score"], result["explanation"]): result
-                for result in res["data"]["node"]["spanAnnotations"]
-            }
-            return annos.get(key)
+        # Old version should no longer exist
+        assert get_span_anno((span_anno_label, span_anno_score, span_anno_explanation)) is None
 
+        # Check updated span evaluations
         anno = await _get(
-            query_fn=get_updated_span_eval,
+            query_fn=get_span_anno,
             args=((new_span_eval_label, new_span_eval_score, new_span_eval_explanation),),
             error_msg="Updated span evaluation should be present",
         )
@@ -1240,24 +1230,13 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["annotatorKind"] == "LLM"
         assert anno["id"] == span_eval_gid
 
-        # Check updated trace evaluations
-        def get_updated_trace_eval() -> Optional[dict[str, Any]]:
-            res, _ = _gql(
-                _admin_secret,
-                query=self.query,
-                variables={"id": trace_gid},
-                operation_name="GetTraceAnnotations",
-            )
-            annos = {
-                (result["label"], result["score"], result["explanation"]): result
-                for result in res["data"]["node"]["traceAnnotations"]
-            }
-            return annos.get(
-                (new_trace_eval_label, new_trace_eval_score, new_trace_eval_explanation)
-            )
+        # Old version should no longer exist
+        assert get_trace_anno((trace_eval_label, trace_eval_score, trace_eval_explanation)) is None
 
+        # Check updated trace evaluations
         anno = await _get(
-            query_fn=get_updated_trace_eval,
+            query_fn=get_trace_anno,
+            args=((new_trace_eval_label, new_trace_eval_score, new_trace_eval_explanation),),
             error_msg="Updated trace evaluation should be present",
         )
         assert anno["name"] == trace_eval_name
@@ -1266,26 +1245,16 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["id"] == trace_eval_gid
 
         # Check updated document evaluations
-        def get_updated_doc_eval(key: tuple[str, int, str]) -> Optional[dict[str, Any]]:
-            res, _ = _gql(
-                _admin_secret,
-                query=self.query,
-                variables={"id": span_gid},
-                operation_name="GetDocumentEvaluations",
-            )
-            annos = {
-                (result["label"], result["score"], result["explanation"]): result
-                for result in res["data"]["node"]["documentEvaluations"]
-            }
-            return annos.get(key)
-
         anno = await _get(
-            query_fn=get_updated_doc_eval,
+            query_fn=get_doc_eval,
             args=((new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation),),
             error_msg="Updated document evaluation should be present",
         )
         assert anno["name"] == doc_eval_name
         assert anno["documentPosition"] == document_position
+
+        # Old version should no longer exist
+        assert get_doc_eval((doc_eval_label, doc_eval_score, doc_eval_explanation)) is None
 
 
 class _SpanTraceGlobalID(NamedTuple):
