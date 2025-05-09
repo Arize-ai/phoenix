@@ -22,6 +22,7 @@ from types import TracebackType
 from typing import (
     Any,
     Awaitable,
+    Callable,
     Generator,
     Generic,
     Literal,
@@ -1420,3 +1421,34 @@ class _OIDCServer:
 
     def __str__(self) -> str:
         return self._name
+
+
+RETRIES = 5
+T = TypeVar("T")
+
+
+async def _retry_query(
+    query_fn: Callable[[], T | None] | Callable[[], Awaitable[T | None]],
+    error_msg: str,
+    retries: int = RETRIES,
+    initial_wait_time: float = 0,
+) -> T:
+    from asyncio import sleep
+
+    if initial_wait_time < 0:
+        retries = 0
+    wt = initial_wait_time
+    while True:
+        await sleep(wt)
+        res = query_fn()
+        ans = cast(T | None, await res) if isinstance(res, Awaitable) else res
+        try:
+            assert ans is not None, error_msg
+            break
+        except AssertionError:
+            if not retries:
+                raise
+            retries -= 1
+            wt = min(wt * 1.5, initial_wait_time * 10)  # Cap max wait time
+            continue
+    return ans

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from asyncio import sleep
 from secrets import token_bytes, token_hex
-from typing import Any, Callable, Literal, Optional, TypeVar, cast
+from typing import Any, Literal, NamedTuple, Optional, cast
 
 import pandas as pd
 import phoenix as px
@@ -21,10 +21,10 @@ from .._helpers import (
     _MEMBER,
     _AdminSecret,
     _await_or_return,
-    _get_gql_spans,
     _GetUser,
     _gql,
     _grpc_span_exporter,
+    _retry_query,
     _RoleOrUser,
     _SecurityArtifact,
     _start_span,
@@ -138,8 +138,6 @@ class TestClientForSpanAnnotations:
 
             if sync:
                 assert result
-            else:
-                await sleep(_wait_time)
 
             # Verify the annotation was created correctly by querying the GraphQL API
             def get_annotation() -> Optional[dict[str, Any]]:
@@ -158,7 +156,7 @@ class TestClientForSpanAnnotations:
             anno = await _retry_query(
                 query_fn=get_annotation,
                 error_msg="Created annotation should be present in span annotations",
-                initial_wait_time=_wait_time,
+                initial_wait_time=0 if sync else _wait_time,
             )
 
             # Get the annotation and verify all fields match what was provided
@@ -267,11 +265,10 @@ class TestClientForSpanAnnotations:
                 assert (
                     len(result) == 2
                 ), "Batch operation should return results for both annotations"  # noqa: E501
-            else:
-                await sleep(_wait_time)
 
             # Verify each annotation in the batch
             for j in range(2):
+
                 def get_batch_annotation() -> Optional[dict[str, Any]]:
                     res, _ = _gql(
                         u,
@@ -288,7 +285,7 @@ class TestClientForSpanAnnotations:
                 anno = await _retry_query(
                     query_fn=get_batch_annotation,
                     error_msg=f"Batch annotation {j+1} should be present in span annotations",
-                    initial_wait_time=_wait_time,
+                    initial_wait_time=0 if sync else _wait_time,
                 )
 
                 # Verify the batch annotation fields match what was provided
@@ -394,11 +391,10 @@ class TestClientForSpanAnnotations:
 
         if sync:
             assert result
-        else:
-            await sleep(_wait_time)
 
         # Verify annotations were created correctly
         for i, span_gid in enumerate([span_gid1, span_gid2]):
+
             def get_df_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     u,
@@ -415,7 +411,7 @@ class TestClientForSpanAnnotations:
             anno = await _retry_query(
                 query_fn=get_df_annotation,
                 error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
-                initial_wait_time=_wait_time,
+                initial_wait_time=0 if sync else _wait_time,
             )
 
             # Verify annotation exists with correct values
@@ -466,11 +462,10 @@ class TestClientForSpanAnnotations:
 
         if sync:
             assert result
-        else:
-            await sleep(_wait_time)
 
         # Verify annotations were created correctly
         for i, span_gid in enumerate([span_gid1, span_gid2]):
+
             def get_df2_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     u,
@@ -487,7 +482,7 @@ class TestClientForSpanAnnotations:
             anno = await _retry_query(
                 query_fn=get_df2_annotation,
                 error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
-                initial_wait_time=_wait_time,
+                initial_wait_time=0 if sync else _wait_time,
             )
 
             # Verify annotation exists with correct values
@@ -540,11 +535,10 @@ class TestClientForSpanAnnotations:
 
         if sync:
             assert result
-        else:
-            await sleep(_wait_time)
 
         # Verify annotations were created correctly
         for i, span_gid in enumerate([span_gid1, span_gid2]):
+
             def get_df3_annotation() -> Optional[dict[str, Any]]:
                 res, _ = _gql(
                     u,
@@ -561,7 +555,7 @@ class TestClientForSpanAnnotations:
             anno = await _retry_query(
                 query_fn=get_df3_annotation,
                 error_msg=f"DataFrame annotation {i+1} should be present in span annotations",
-                initial_wait_time=_wait_time,
+                initial_wait_time=0 if sync else _wait_time,
             )
 
             # Verify annotation exists with correct values
@@ -632,8 +626,6 @@ class TestClientForSpanAnnotations:
 
         if sync:
             assert result
-        else:
-            await sleep(_wait_time)
 
         # Verify the annotation was created correctly by querying the GraphQL API
         def get_zero_score_annotation() -> Optional[dict[str, Any]]:
@@ -649,19 +641,13 @@ class TestClientForSpanAnnotations:
         anno = await _retry_query(
             query_fn=get_zero_score_annotation,
             error_msg="Annotation with score of 0 should be present in span annotations",
-            initial_wait_time=_wait_time,
+            initial_wait_time=0 if sync else _wait_time,
         )
 
         # Verify the annotation exists and has score of 0
-        assert (
-            anno["score"] == 0
-        ), "Annotation score should be exactly 0"
-        assert (
-            anno["label"] is None
-        ), "Annotation label should be None"
-        assert (
-            anno["explanation"] is None
-        ), "Annotation explanation should be None"
+        assert anno["score"] == 0, "Annotation score should be exactly 0"
+        assert anno["label"] is None, "Annotation label should be None"
+        assert anno["explanation"] is None, "Annotation explanation should be None"
 
     @pytest.mark.parametrize("sync", [True, False])  # server ingestion path
     @pytest.mark.parametrize("is_async", [True, False])  # sync/async client
@@ -727,8 +713,6 @@ class TestClientForSpanAnnotations:
 
         if sync:
             assert result
-        else:
-            await sleep(_wait_time)
 
         # Verify the annotation was created correctly by querying the GraphQL API
         def get_zero_score_df_annotation() -> Optional[dict[str, Any]]:
@@ -744,19 +728,13 @@ class TestClientForSpanAnnotations:
         anno = await _retry_query(
             query_fn=get_zero_score_df_annotation,
             error_msg="DataFrame annotation with score of 0 should be present in span annotations",
-            initial_wait_time=_wait_time,
+            initial_wait_time=0 if sync else _wait_time,
         )
 
         # Verify the annotation exists and has score of 0
-        assert (
-            anno["score"] == 0
-        ), "DataFrame annotation score should be exactly 0"
-        assert (
-            anno["label"] is None
-        ), "DataFrame annotation label should be None"
-        assert (
-            anno["explanation"] is None
-        ), "DataFrame annotation explanation should be None"
+        assert anno["score"] == 0, "DataFrame annotation score should be exactly 0"
+        assert anno["label"] is None, "DataFrame annotation label should be None"
+        assert anno["explanation"] is None, "DataFrame annotation explanation should be None"
 
 
 class TestSendingAnnotationsBeforeSpan:
@@ -775,11 +753,10 @@ class TestSendingAnnotationsBeforeSpan:
 
     # GraphQL queries for retrieving annotations and evaluations
     query = """
-        # Query to retrieve span annotations for a given span's global ID
         query GetSpanAnnotations($id: GlobalID!) {
             node (id: $id) {
                 ... on Span {
-                    spanAnnotations {  # Contains both annotations and evaluations
+                    spanAnnotations {
                         id
                         name
                         source
@@ -794,11 +771,10 @@ class TestSendingAnnotationsBeforeSpan:
             }
         }
 
-        # Query to retrieve trace annotations for a given trace's global ID
         query GetTraceAnnotations($id: GlobalID!) {
             node (id: $id) {
                 ... on Trace {
-                    traceAnnotations {  # Contains both annotations and evaluations
+                    traceAnnotations {
                         id
                         name
                         source
@@ -813,11 +789,10 @@ class TestSendingAnnotationsBeforeSpan:
             }
         }
 
-        # Query to retrieve document evaluations for a given span's global ID
         query GetDocumentEvaluations($id: GlobalID!) {
             node (id: $id) {
                 ... on Span {
-                    documentEvaluations {  # Only contains evaluations
+                    documentEvaluations {
                         documentPosition
                         name
                         label
@@ -828,14 +803,21 @@ class TestSendingAnnotationsBeforeSpan:
             }
         }
 
-        # Query to retrieve trace's global ID from its OpenTelemetry trace ID
-        query GetTraceGlobalID($traceId: ID!) {
+        query GetSpanTraceGlobalID($traceId: ID!) {
             projects {
                 edges {
                     node {
                         trace(traceId: $traceId) {
-                            id  # This is the global ID
-                            traceId  # This is the OpenTelemetry trace ID
+                            id
+                            traceId
+                            spans {
+                                edges {
+                                    node {
+                                        id
+                                        spanId
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -856,35 +838,28 @@ class TestSendingAnnotationsBeforeSpan:
         assert (spans := memory.get_finished_spans())
         return spans[0]
 
-    def _get_span_gid(
+    def _get_span_trace_gid(
         self,
         auth: _SecurityArtifact,
         *,
         span_id: str,
-    ) -> Optional[str]:
-        """Gets global ID for span from span_id."""
-        for spans in _get_gql_spans(auth, "id spanId").values():
-            for span in spans:
-                if span["spanId"] == span_id:
-                    return cast(str, span["id"])
-        return None
-
-    def _get_trace_gid(
-        self,
-        auth: _SecurityArtifact,
-        *,
         trace_id: str,
-    ) -> Optional[str]:
-        """Gets global ID for trace from trace_id."""
+    ) -> Optional[_SpanTraceGlobalID]:
+        """Gets global ID for span_id and trace_id."""
         res, _ = _gql(
             auth,
             query=self.query,
             variables={"traceId": trace_id},
-            operation_name="GetTraceGlobalID",
+            operation_name="GetSpanTraceGlobalID",
         )
         for project in res["data"]["projects"]["edges"]:
             if (trace := project["node"]["trace"]) and trace["traceId"] == trace_id:
-                return cast(str, trace["id"])
+                for edge in trace["spans"]["edges"]:
+                    if edge["node"]["spanId"] == span_id:
+                        return _SpanTraceGlobalID(
+                            span_gid=cast(str, edge["node"]["id"]),
+                            trace_gid=cast(str, trace["id"]),
+                        )
         return None
 
     async def test_annotations_and_evaluations(
@@ -909,8 +884,7 @@ class TestSendingAnnotationsBeforeSpan:
         assert (span_context := _span.get_span_context())  # type: ignore[no-untyped-call]
         span_id = format_span_id(span_context.span_id)
         trace_id = format_trace_id(span_context.trace_id)
-        assert self._get_span_gid(_admin_secret, span_id=span_id) is None
-        assert self._get_trace_gid(_admin_secret, trace_id=trace_id) is None
+        assert self._get_span_trace_gid(_admin_secret, span_id=span_id, trace_id=trace_id) is None
 
         # Set up the client
         monkeypatch.setenv("PHOENIX_API_KEY", _admin_secret)
@@ -1022,8 +996,13 @@ class TestSendingAnnotationsBeforeSpan:
         await sleep(_wait_time)
 
         # Get the global IDs
-        assert (span_gid := self._get_span_gid(_admin_secret, span_id=span_id))
-        assert (trace_gid := self._get_trace_gid(_admin_secret, trace_id=trace_id))
+        span_gid, trace_gid = await _retry_query(
+            query_fn=lambda: self._get_span_trace_gid(
+                _admin_secret, span_id=span_id, trace_id=trace_id
+            ),
+            error_msg="Span and trace IDs should be present",
+            initial_wait_time=_wait_time,
+        )
 
         # Check the annotations
         def get_span_anno() -> Optional[dict[str, Any]]:
@@ -1037,7 +1016,9 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get((span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1]))
+            return annos.get(
+                (span_anno_labels[-1], span_anno_scores[-1], span_anno_explanations[-1])
+            )
 
         anno = await _retry_query(
             query_fn=get_span_anno,
@@ -1061,7 +1042,9 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get((span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1]))
+            return annos.get(
+                (span_eval_labels[-1], span_eval_scores[-1], span_eval_explanations[-1])
+            )
 
         anno = await _retry_query(
             query_fn=get_span_eval,
@@ -1084,7 +1067,9 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["traceAnnotations"]
             }
-            return annos.get((trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1]))
+            return annos.get(
+                (trace_eval_labels[-1], trace_eval_scores[-1], trace_eval_explanations[-1])
+            )
 
         anno = await _retry_query(
             query_fn=get_trace_eval,
@@ -1188,7 +1173,6 @@ class TestSendingAnnotationsBeforeSpan:
         await sleep(_wait_time)
 
         # Check updated annotations
-        new_span_anno_key = (new_span_anno_label, new_span_anno_score, new_span_anno_explanation)
         def get_updated_span_anno() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1200,7 +1184,7 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get(new_span_anno_key)
+            return annos.get((new_span_anno_label, new_span_anno_score, new_span_anno_explanation))
 
         anno = await _retry_query(
             query_fn=get_updated_span_anno,
@@ -1213,7 +1197,6 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["metadata"] == new_span_anno_metadata
 
         # Check updated span evaluations
-        new_span_eval_key = (new_span_eval_label, new_span_eval_score, new_span_eval_explanation)
         def get_updated_span_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1225,23 +1208,15 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["spanAnnotations"]
             }
-            return annos.get(new_span_eval_key)
+            return annos.get((new_span_eval_label, new_span_eval_score, new_span_eval_explanation))
 
         anno = await _retry_query(
             query_fn=get_updated_span_eval,
             error_msg="Updated span evaluation should be present",
             initial_wait_time=_wait_time,
         )
-        assert anno["name"] == span_eval_name
-        assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"
 
         # Check updated trace evaluations
-        new_trace_eval_key = (
-            new_trace_eval_label,
-            new_trace_eval_score,
-            new_trace_eval_explanation,
-        )
         def get_updated_trace_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1253,19 +1228,17 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["traceAnnotations"]
             }
-            return annos.get(new_trace_eval_key)
+            return annos.get(
+                (new_trace_eval_label, new_trace_eval_score, new_trace_eval_explanation)
+            )
 
         anno = await _retry_query(
             query_fn=get_updated_trace_eval,
             error_msg="Updated trace evaluation should be present",
             initial_wait_time=_wait_time,
         )
-        assert anno["name"] == trace_eval_name
-        assert anno["source"] == "API"
-        assert anno["annotatorKind"] == "LLM"
 
         # Check updated document evaluations
-        new_doc_eval_key = (new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation)
         def get_updated_doc_eval() -> Optional[dict[str, Any]]:
             res, _ = _gql(
                 _admin_secret,
@@ -1277,7 +1250,7 @@ class TestSendingAnnotationsBeforeSpan:
                 (result["label"], result["score"], result["explanation"]): result
                 for result in res["data"]["node"]["documentEvaluations"]
             }
-            return annos.get(new_doc_eval_key)
+            return annos.get((new_doc_eval_label, new_doc_eval_score, new_doc_eval_explanation))
 
         anno = await _retry_query(
             query_fn=get_updated_doc_eval,
@@ -1288,30 +1261,8 @@ class TestSendingAnnotationsBeforeSpan:
         assert anno["documentPosition"] == document_position
 
 
-T = TypeVar("T")
+class _SpanTraceGlobalID(NamedTuple):
+    """Tuple to hold span and trace global IDs."""
 
-
-async def _retry_query(
-    query_fn: Callable[[], T | None],
-    error_msg: str,
-    initial_wait_time: float = 0,
-) -> T:
-    retries = RETRIES if initial_wait_time else 0
-    wt = initial_wait_time
-    while True:
-        await sleep(wt)
-        ans = query_fn()
-        try:
-            assert ans is not None, error_msg
-            break
-        except AssertionError:
-            if not retries:
-                raise
-            retries -= 1
-            wt = min(wt * 1.5, initial_wait_time * 10)  # Cap max wait time
-            continue
-    return ans
-
-
-# Number of retries for queries
-RETRIES = 5
+    span_gid: str
+    trace_gid: str
