@@ -18,15 +18,17 @@ from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import (
     Any,
     Awaitable,
+    Callable,
     Generator,
     Generic,
     Literal,
     Optional,
     Protocol,
+    Sequence,
     Type,
     TypeVar,
     Union,
@@ -1202,7 +1204,7 @@ class _OIDCServer:
         Set up the FastAPI routes for the OIDC server.
 
         This method configures all the necessary endpoints for OIDC functionality:
-        - /auth: Authorization endpoint that handles the initial OAuth2 request
+        - /auth: Authorization endpoint that simulates the initial OAuth2 authorization request.
         - /token: Token endpoint that exchanges authorization codes for tokens
         - /.well-known/openid-configuration: Discovery document for OIDC clients
         - /userinfo: User information endpoint
@@ -1420,3 +1422,50 @@ class _OIDCServer:
 
     def __str__(self) -> str:
         return self._name
+
+
+T = TypeVar("T")
+
+
+async def _get(
+    query_fn: Callable[..., Optional[T]] | Callable[..., Awaitable[Optional[T]]],
+    args: Sequence[Any] = (),
+    kwargs: Mapping[str, Any] = MappingProxyType({}),
+    error_msg: str = "",
+    no_wait: bool = False,
+    retries: int = 60,
+    initial_wait_time: float = 0.1,
+    max_wait_time: float = 1,
+) -> T:
+    """If no_wait, run the query once. Otherwise, retry it if it returns None
+    and raise if retries are exhausted.
+
+    Args:
+        query_fn: Function that returns Optional[T] or Awaitable[Optional[T]]
+        args: Positional arguments for query_fn
+        kwargs: Keyword arguments for query_fn
+        error_msg: Error message if all retries fail
+        no_wait: If True, only try once without retries
+        retries: Maximum number of retry attempts
+        initial_wait_time: Initial wait time between retries in seconds
+        max_wait_time: Maximum wait time between retries in seconds
+
+    Returns:
+        Result from query_fn
+
+    Raises:
+        AssertionError: If query_fn returns None after all retries
+    """  # noqa: E501
+    from asyncio import sleep
+
+    wt = 0 if no_wait else initial_wait_time
+    while True:
+        await sleep(wt)
+        res = query_fn(*args, **kwargs)
+        ans = cast(Optional[T], await res) if isinstance(res, Awaitable) else res
+        if ans is not None:
+            return ans
+        if no_wait or not retries:
+            raise AssertionError(error_msg)
+        retries -= 1
+        wt = min(wt * 1.5, max_wait_time)
