@@ -24,6 +24,12 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { Annotation } from "./types";
 
+const customTableCSS = css`
+  & thead tr th {
+    background-color: transparent;
+  }
+`;
+
 export function AnnotationSummaryPopover({
   annotations,
   children,
@@ -77,13 +83,13 @@ export function AnnotationSummaryPopover({
                     <Flex width="100%" justifyContent="space-between">
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <AnnotationColorSwatch
-                          size="L"
+                          size="M"
                           annotationName={prototypicalAnnotation.name}
                         />
                         <Text
                           weight="heavy"
                           title={prototypicalAnnotation.name}
-                          size="L"
+                          size="M"
                         >
                           <Truncate maxWidth="300px">
                             {prototypicalAnnotation.name}
@@ -106,13 +112,13 @@ export function AnnotationSummaryPopover({
                     </Flex>
                   </View>
                   <View overflow="auto" maxHeight="300px" position="relative">
-                    <table css={tableCSS}>
+                    <table css={css(tableCSS, customTableCSS)}>
                       <thead>
                         <tr>
-                          <th>Author</th>
-                          <th>Label</th>
-                          <th>Score</th>
-                          <th>Filter</th>
+                          <th>author</th>
+                          <th>label</th>
+                          <th>score</th>
+                          <th>filters</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -127,7 +133,7 @@ export function AnnotationSummaryPopover({
                               <td>
                                 <Flex
                                   wrap="nowrap"
-                                  gap="size-200"
+                                  gap="size-100"
                                   alignItems="center"
                                 >
                                   <UserPicture
@@ -137,7 +143,7 @@ export function AnnotationSummaryPopover({
                                     }
                                     size={16}
                                   />
-                                  <Text size="M" weight="heavy">
+                                  <Text>
                                     {annotation?.user?.username ?? "system"}
                                   </Text>
                                 </Flex>
@@ -145,23 +151,19 @@ export function AnnotationSummaryPopover({
                             }
                             <td>
                               {annotation.label ? (
-                                <Text
-                                  size="M"
-                                  weight="heavy"
-                                  title={annotation.label}
-                                >
+                                <Text title={annotation.label}>
                                   <Truncate maxWidth="150px">
                                     {annotation.label}
                                   </Truncate>
                                 </Text>
-                              ) : null}
+                              ) : (
+                                "--"
+                              )}
                             </td>
                             <td>
-                              <Text size="M" weight="heavy">
-                                {annotation.score != null
-                                  ? formatFloat(annotation.score)
-                                  : null}
-                              </Text>
+                              {annotation.score != null
+                                ? formatFloat(annotation.score)
+                                : "--"}
                             </td>
 
                             {showFilterActions ? (

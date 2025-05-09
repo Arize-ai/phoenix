@@ -1,3 +1,4 @@
+import base64
 import logging
 from datetime import datetime, timezone, tzinfo
 from io import StringIO
@@ -46,6 +47,7 @@ class Spans:
         end_time: Optional[datetime] = None,
         limit: int = 1000,
         root_spans_only: Optional[bool] = None,
+        project_identifier: Optional[str] = None,
         project_name: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -58,7 +60,9 @@ class Spans:
             end_time: Optional end time for filtering.
             limit: Maximum number of spans to return.
             root_spans_only: Whether to return only root spans.
-            project_name: Optional project name to filter by.
+            project_name: Optional project name to filter by. Deprecated, use `project_identifier`
+                to also specify by the project id.
+            project_identifier: Optional project identifier (name or id) to filter by.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -85,6 +89,21 @@ class Spans:
             import pandas as pd
 
             _ = pd  # Prevent unused symbol error
+
+            if project_identifier and project_name:
+                raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
+            elif project_identifier and not project_name:
+                if _is_node_id(project_identifier, node_type="Project"):
+                    project_response = self._client.get(
+                        url=f"v1/projects/{project_identifier}",
+                        headers={"accept": "application/json"},
+                        timeout=timeout,
+                    )
+                    project_response.raise_for_status()
+                    project = project_response.json()
+                    project_name = project["data"]["name"]
+                else:
+                    project_name = project_identifier
 
             response = self._client.post(
                 url="v1/spans",
@@ -120,7 +139,7 @@ class Spans:
         *,
         spans_dataframe: Optional["pd.DataFrame"] = None,
         span_ids: Optional[Iterable[str]] = None,
-        project: str = "default",
+        project_identifier: str = "default",
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
@@ -133,7 +152,7 @@ class Spans:
             spans_dataframe: A DataFrame (typically returned by `get_spans_dataframe`) with a
                 `context.span_id` or `span_id` column.
             span_ids: An iterable of span IDs.
-            project: The project identifier (name or ID) used in the API path.
+            project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -173,7 +192,7 @@ class Spans:
             return pd.DataFrame()
 
         annotations: list[v1.SpanAnnotation] = []
-        path = f"v1/projects/{project}/span_annotations"
+        path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
@@ -202,6 +221,8 @@ class Spans:
                     break  # finished paginating this batch
 
         df = pd.DataFrame(annotations)
+        df = _flatten_nested_column(df, "result")
+        df.rename(columns={"name": "annotation_name"}, inplace=True)
         df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
 
@@ -209,7 +230,7 @@ class Spans:
         self,
         *,
         span_ids: Iterable[str],
-        project: str,
+        project_identifier: str,
         limit: int = 1000,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> list[v1.SpanAnnotation]:
@@ -218,7 +239,7 @@ class Spans:
 
         Args:
             span_ids: An iterable of span IDs.
-            project: The project identifier (name or ID) used in the API path.
+            project_identifier: The project identifier (name or ID) used in the API path.
             limit: Maximum number of annotations returned per request page.
             timeout: Optional request timeout in seconds.
 
@@ -234,7 +255,7 @@ class Spans:
             return []
 
         annotations: list[v1.SpanAnnotation] = []
-        path = f"v1/projects/{project}/span_annotations"
+        path = f"v1/projects/{project_identifier}/span_annotations"
 
         for i in range(0, len(span_ids_list), _MAX_SPAN_IDS_PER_REQUEST):
             batch_ids = span_ids_list[i : i + _MAX_SPAN_IDS_PER_REQUEST]
@@ -290,6 +311,7 @@ class AsyncSpans:
         limit: int = 1000,
         root_spans_only: Optional[bool] = None,
         project_name: Optional[str] = None,
+        project_identifier: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> "pd.DataFrame":
         """
@@ -301,7 +323,9 @@ class AsyncSpans:
             end_time: Optional end time for filtering.
             limit: Maximum number of spans to return.
             root_spans_only: Whether to return only root spans.
-            project_name: Optional project name to filter by.
+            project_name: Optional project name to filter by. Deprecated, use `project_identifier`
+                to also specify by the project id.
+            project_identifier: Optional project identifier (name or id) to filter by.
             timeout: Optional request timeout in seconds.
 
         Returns:
@@ -328,6 +352,21 @@ class AsyncSpans:
             import pandas as pd
 
             _ = pd  # Prevent unused symbol error
+
+            if project_identifier and project_name:
+                raise ValueError("Provide only one of 'project_identifier' or 'project_name'.")
+            elif project_identifier and not project_name:
+                if _is_node_id(project_identifier, node_type="Project"):
+                    project_response = await self._client.get(
+                        url=f"v1/projects/{project_identifier}",
+                        headers={"accept": "application/json"},
+                        timeout=timeout,
+                    )
+                    project_response.raise_for_status()
+                    project = project_response.json()
+                    project_name = project["name"]
+                else:
+                    project_name = project_identifier
 
             response = await self._client.post(
                 url="v1/spans",
@@ -444,6 +483,8 @@ class AsyncSpans:
                     break
 
         df = pd.DataFrame(annotations)
+        df = _flatten_nested_column(df, "result")
+        df.rename(columns={"name": "annotation_name"}, inplace=True)
         df.set_index("span_id", inplace=True)  # type: ignore[unused-ignore]
         return df
 
@@ -560,9 +601,32 @@ def _process_span_dataframe(response: httpx.Response) -> "pd.DataFrame":
         logger.warning("Received non-multipart response when expecting dataframe.")
 
     if dfs:
-        return dfs[0]  # we only expect one dataframe
+        return dfs[0]  # only passing in one query
     else:
         return pd.DataFrame()
+
+
+def _is_node_id(s: str, node_type: str) -> bool:
+    try:
+        decoded = base64.b64decode(s, validate=True)
+        if not decoded.startswith(f"{node_type}:".encode("utf-8")):
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def _flatten_nested_column(df: "pd.DataFrame", column_name: str) -> "pd.DataFrame":
+    import pandas as pd
+
+    if column_name in df.columns:
+        # Flatten the nested dictionary column and prefix each resulting column with
+        # the original column name (e.g., "result.label").
+        nested_df = pd.json_normalize(df[column_name]).rename(  # type: ignore[arg-type]
+            columns=lambda col: f"{column_name}.{col}"
+        )
+        df = pd.concat([df.drop(columns=[column_name]), nested_df], axis=1)
+    return df
 
 
 class TimeoutError(Exception): ...

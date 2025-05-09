@@ -81,7 +81,6 @@ import {
   MarkdownDisplayProvider,
 } from "@phoenix/components/markdown";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SpanKindIcon } from "@phoenix/components/trace";
 import {
   useNotifySuccess,
@@ -346,11 +345,6 @@ export function SpanDetails({
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
-                <ShareLinkButton
-                  preserveSearchParams
-                  tooltipText="Copy trace link to clipboard"
-                  successText="Trace link copied to clipboard"
-                />
                 <SpanActionMenu
                   traceId={span.trace.traceId}
                   spanId={span.spanId}
@@ -361,7 +355,7 @@ export function SpanDetails({
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
-              <Tab id="feedback">
+              <Tab id="annotations">
                 Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
@@ -381,7 +375,7 @@ export function SpanDetails({
                 </SpanInfoWrap>
               </Flex>
             </LazyTabPanel>
-            <LazyTabPanel id="feedback">
+            <LazyTabPanel id="annotations">
               <SpanFeedback span={span} />
             </LazyTabPanel>
             <LazyTabPanel id="attributes">

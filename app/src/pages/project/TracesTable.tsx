@@ -412,19 +412,19 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50">
-            <span>feedback</span>
+            <span>Annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
-                Feedback
+                Annotations
               </Heading>
               <Content>
-                Feedback includes evaluations and human annotations logged via
-                the API or set via the UI.
+                Evaluations and human annotations logged via the API or set via
+                the UI.
               </Content>
             </ContextualHelp>
           </Flex>
         ),
-        id: "feedback",
+        id: "annotations",
         accessorKey: "spanAnnotations",
         enableSorting: false,
         cell: ({ row }) => {

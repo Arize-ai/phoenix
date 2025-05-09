@@ -6,7 +6,6 @@ import { css } from "@emotion/react";
 import {
   Button,
   Flex,
-  Group,
   Icon,
   Icons,
   KeyboardToken,
@@ -62,9 +61,10 @@ export const TraceDetailsPaginator = ({
         }
       `}
     >
-      <Group aria-label="Trace Paginator" size="S">
+      <Flex direction="row" gap="size-50" alignItems="center">
         <TooltipTrigger delay={100}>
           <Button
+            size="S"
             id="next"
             leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
             aria-label="Next trace"
@@ -92,6 +92,7 @@ export const TraceDetailsPaginator = ({
         </TooltipTrigger>
         <TooltipTrigger delay={100}>
           <Button
+            size="S"
             id="previous"
             leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
             aria-label="Previous trace"
@@ -117,7 +118,7 @@ export const TraceDetailsPaginator = ({
             </View>
           </Tooltip>
         </TooltipTrigger>
-      </Group>
+      </Flex>
     </Flex>
   );
 };

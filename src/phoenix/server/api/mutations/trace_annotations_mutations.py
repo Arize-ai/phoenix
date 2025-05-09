@@ -4,12 +4,12 @@ import strawberry
 from sqlalchemy import delete, insert, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
-from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
+from phoenix.server.api.helpers.annotations import get_user_identifier
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -60,9 +60,7 @@ class TraceAnnotationMutationMixin:
                 if isinstance(annotation_input.identifier, str):
                     resolved_identifier = annotation_input.identifier
                 elif annotation_input.source == AnnotationSource.APP and user_id is not None:
-                    # Ensure that the annotation has a per-user identifier if submitted via the UI
-                    user_gid = str(GlobalID(type_name="User", node_id=str(user_id)))
-                    resolved_identifier = f"px-app:{user_gid}"
+                    resolved_identifier = get_user_identifier(user_id)
                 values = {
                     "trace_rowid": trace_rowid,
                     "name": annotation_input.name,
