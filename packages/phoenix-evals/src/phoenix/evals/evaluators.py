@@ -437,7 +437,7 @@ def _extract_label_and_explanation(
             )
             printif(
                 verbose and unrailed_label == NOT_PARSABLE,
-                f"- Could not parse {repr(unparsed_output)}",
+                f"- Could not parse {repr(unparsed_output)} while extracting label and explanation",
             )
         else:
             unrailed_label = unparsed_output
