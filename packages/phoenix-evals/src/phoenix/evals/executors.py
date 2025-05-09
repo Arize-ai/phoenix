@@ -392,7 +392,7 @@ def get_executor_on_sync_context(
     max_retries: int = 10,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
-    timeout: Optional[int] = None,  
+    timeout: Optional[int] = None,
 ) -> Executor:
     if threading.current_thread() is not threading.main_thread():
         # run evals synchronously if not in the main thread
