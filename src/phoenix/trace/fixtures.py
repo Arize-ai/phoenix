@@ -139,8 +139,8 @@ demo_llama_index_rag_fixture = TracesFixture(
     ),
 )
 
-demo_toolcalling_fixture = TracesFixture(
-    name="demo_toolcalling",
+demo_tool_calling_fixture = TracesFixture(
+    name="demo_tool_calling",
     project_name="demo_agent",
     description="Tool calling traces",
     file_name="agents-toolcalling-tracesv2.parquet",
@@ -327,7 +327,7 @@ TRACES_FIXTURES: list[TracesFixture] = [
     vision_fixture,
     anthropic_tools_fixture,
     project_sessions_llama_index_rag_arize_docs_fixture,
-    demo_toolcalling_fixture,
+    demo_tool_calling_fixture,
 ]
 
 NAME_TO_TRACES_FIXTURE: dict[str, TracesFixture] = {
