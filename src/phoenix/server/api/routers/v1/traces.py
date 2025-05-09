@@ -25,6 +25,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.helpers import as_kv
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import TraceAnnotationInsertEvent
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
@@ -121,7 +122,7 @@ class TraceAnnotation(V1RoutesBaseModel):
         ),
     )
 
-    def as_precursor(self) -> Precursors.TraceAnnotation:
+    def as_precursor(self, *, user_id: Optional[int] = None) -> Precursors.TraceAnnotation:
         return Precursors.TraceAnnotation(
             self.trace_id,
             models.TraceAnnotation(
@@ -133,7 +134,7 @@ class TraceAnnotation(V1RoutesBaseModel):
                 metadata_=self.metadata or {},
                 identifier=self.identifier,
                 source="APP",
-                user_id=None,
+                user_id=user_id,
             ),
         )
 
@@ -166,7 +167,12 @@ async def annotate_traces(
 ) -> AnnotateTracesResponseBody:
     if not request_body.data:
         return AnnotateTracesResponseBody(data=[])
-    precursors = [d.as_precursor() for d in request_body.data]
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    precursors = [d.as_precursor(user_id=user_id) for d in request_body.data]
     if not sync:
         await request.state.enqueue(*precursors)
         return AnnotateTracesResponseBody(data=[])
