@@ -58,13 +58,16 @@ if TYPE_CHECKING:
     from anthropic.types.message_create_params import MessageCreateParamsBase
 
     try:
-        # types introduced in anthropic 0.49
+        # Types introduced in anthropic >=0.49.0
         from anthropic.types import ServerToolUseBlockParam, WebSearchToolResultBlockParam
-    except ImportError:  # pragma: no cover
-        from typing import Any as _Any  # type: ignore
+    except ImportError:  # pragma: no cover – older SDK version
+        from typing import TypedDict
 
-        ServerToolUseBlockParam = _Any  # type: ignore
-        WebSearchToolResultBlockParam = _Any  # type: ignore
+        class ServerToolUseBlockParam(TypedDict, total=False):
+            """Stub type used when anthropic<0.49 is installed (no fields)."""
+
+        class WebSearchToolResultBlockParam(TypedDict, total=False):
+            """Stub type used when anthropic<0.49 is installed (no fields)."""
 
     _BlockParam: TypeAlias = Union[
         TextBlockParam,
