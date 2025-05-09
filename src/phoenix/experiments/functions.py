@@ -150,7 +150,7 @@ def run_experiment(
             concurrent task execution, the task callable must be a coroutine function.
             Defaults to 3.
         timeout (Optional[int]): The timeout for the task execution in seconds. Use this to run
-            longer tasks to avoidrequeuing the same multiple times. 
+            longer tasks to avoidrequeuing the same multiple times.
             Defaults to None.
 
     Returns:
