@@ -10,7 +10,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import {
   CellContext,
   ColumnDef,
@@ -28,10 +28,8 @@ import { css } from "@emotion/react";
 import { Content, ContextualHelp } from "@arizeai/components";
 
 import { Flex, Heading, Icon, Icons, Link, View } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
+import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TextCell } from "@phoenix/components/table";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -43,9 +41,13 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import { Truncate } from "@phoenix/components/utility/Truncate";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 
 import {
   SpanStatusCode,
@@ -53,7 +55,6 @@ import {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
-import { AnnotationTooltipFilterActions } from "./AnnotationTooltipFilterActions";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -61,12 +62,7 @@ import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
-import {
-  ANNOTATIONS_COLUMN_PREFIX,
-  ANNOTATIONS_KEY_SEPARATOR,
-  DEFAULT_SORT,
-  getGqlSort,
-} from "./tableUtils";
+import { DEFAULT_SORT, getGqlSort, makeAnnotationColumnId } from "./tableUtils";
 
 type TracesTableProps = {
   project: TracesTable_spans$key;
@@ -105,23 +101,27 @@ const TableBody = <
   table: Table<T>;
 }) => {
   const navigate = useNavigate();
+  const { traceId } = useParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
+        const isSelected = row.original.trace.traceId === traceId;
         return (
           <tr
             key={row.id}
             onClick={() => navigate(`${row.original.trace.traceId}`)}
             data-is-additional-row={row.original.__additionalRow}
-            css={trCSS}
+            data-selected={isSelected}
+            css={css(trCSS)}
           >
             {row.getVisibleCells().map((cell) => {
+              const colSizeVar = `--col-${cell.column.id}-size`;
               return (
                 <td
                   key={cell.id}
                   style={{
-                    width: `calc(var(--col-${cell.column.id}-size) * 1px)`,
-                    maxWidth: `calc(var(--col-${cell.column.id}-size) * 1px)`,
+                    width: `calc(var(${colSizeVar}) * 1px)`,
+                    maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
                     textWrap: "nowrap",
                     overflow: "hidden",
@@ -245,7 +245,17 @@ export function TracesTable(props: TracesTableProps) {
                   label
                   score
                   annotatorKind
+                  createdAt
                 }
+                spanAnnotationSummaries {
+                  labelFractions {
+                    fraction
+                    label
+                  }
+                  meanScore
+                  name
+                }
+                ...AnnotationSummaryGroup
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -282,13 +292,16 @@ export function TracesTable(props: TracesTableProps) {
                         label
                         score
                         annotatorKind
+                        createdAt
                       }
+                      ...AnnotationSummaryGroup
                       documentRetrievalMetrics {
                         evaluationName
                         ndcg
                         precision
                         hit
                       }
+                      ...TraceHeaderRootSpanAnnotationsFragment
                     }
                   }
                 }
@@ -354,30 +367,38 @@ export function TracesTable(props: TracesTableProps) {
           header: name,
           columns: [
             {
-              header: `label`,
-              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}label${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              header: `labels`,
+              accessorKey: makeAnnotationColumnId(name, "label"),
               cell: ({ row }) => {
-                const data = row.original;
-                const annotation = data.spanAnnotations.find(
-                  (annotation) => annotation.name === name
-                );
+                const annotation = (
+                  row.original
+                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+                )?.find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
-                return annotation.label;
+                return (
+                  <SummaryValueLabels
+                    name={name}
+                    labelFractions={annotation.labelFractions}
+                  />
+                );
               },
             } as ColumnDef<TableRow>,
             {
-              header: `score`,
-              accessorKey: `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}score${ANNOTATIONS_KEY_SEPARATOR}${name}`,
+              header: `mean score`,
+              accessorKey: makeAnnotationColumnId(name, "score"),
               cell: ({ row }) => {
-                const annotation = row.original.spanAnnotations.find(
-                  (annotation) => annotation.name === name
-                );
+                const annotation = (
+                  row.original
+                    .spanAnnotationSummaries as TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"]["spanAnnotationSummaries"]
+                )?.find((annotation) => annotation.name === name);
                 if (!annotation) {
                   return null;
                 }
-                return annotation.score;
+                return (
+                  <MeanScore value={annotation.meanScore} fallback={null} />
+                );
               },
             } as ColumnDef<TableRow>,
           ],
@@ -391,19 +412,19 @@ export function TracesTable(props: TracesTableProps) {
       {
         header: () => (
           <Flex direction="row" gap="size-50">
-            <span>feedback</span>
+            <span>Annotations</span>
             <ContextualHelp>
               <Heading level={3} weight="heavy">
-                Feedback
+                Annotations
               </Heading>
               <Content>
-                Feedback includes evaluations and human annotations logged via
-                the API or set via the UI.
+                Evaluations and human annotations logged via the API or set via
+                the UI.
               </Content>
             </ContextualHelp>
           </Flex>
         ),
-        id: "feedback",
+        id: "annotations",
         accessorKey: "spanAnnotations",
         enableSorting: false,
         cell: ({ row }) => {
@@ -415,24 +436,10 @@ export function TracesTable(props: TracesTableProps) {
             row.original.documentRetrievalMetrics.length === 0;
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
-              {row.original.spanAnnotations.map((annotation) => {
-                return (
-                  <AnnotationTooltip
-                    key={annotation.name}
-                    annotation={annotation}
-                    layout="horizontal"
-                    width="500px"
-                    extra={
-                      <AnnotationTooltipFilterActions annotation={annotation} />
-                    }
-                  >
-                    <AnnotationLabel
-                      annotation={annotation}
-                      annotationDisplayPreference="label"
-                    />
-                  </AnnotationTooltip>
-                );
-              })}
+              <AnnotationSummaryGroupTokens
+                span={row.original}
+                showFilterActions
+              />
               {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
                 return (
                   <Fragment key="doc-evals">
@@ -578,7 +585,7 @@ export function TracesTable(props: TracesTableProps) {
             : row.original.id;
           return (
             <Link
-              to={`${traceId}${spanId ? `?selectedSpanNodeId=${spanId}` : ""}`}
+              to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
             >
               {getValue() as string}
             </Link>
@@ -695,6 +702,24 @@ export function TracesTable(props: TracesTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
+
+  const pagination = useTracePagination();
+  const setTraceSequence = pagination?.setTraceSequence;
+  useEffect(() => {
+    if (!setTraceSequence) {
+      return;
+    }
+    setTraceSequence(
+      data.rootSpans.edges.map(({ rootSpan }) => ({
+        traceId: rootSpan.trace.traceId,
+        spanId: rootSpan.id,
+      }))
+    );
+    return () => {
+      setTraceSequence([]);
+    };
+  }, [data.rootSpans.edges, setTraceSequence]);
+
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
@@ -801,6 +826,7 @@ export function TracesTable(props: TracesTableProps) {
                     style={{
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
+                    colSpan={header.colSpan}
                     key={header.id}
                   >
                     {header.isPlaceholder ? null : (
@@ -818,10 +844,12 @@ export function TracesTable(props: TracesTableProps) {
                             },
                           }}
                         >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          <Truncate maxWidth="100%">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                          </Truncate>
                           {header.column.getIsSorted() ? (
                             <Icon
                               className="sort-icon"

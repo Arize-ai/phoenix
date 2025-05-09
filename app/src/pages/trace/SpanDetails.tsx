@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   type ImperativePanelHandle,
@@ -60,6 +61,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Keyboard,
   LazyTabPanel,
   LinkButton,
   Tab,
@@ -85,6 +87,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -162,6 +165,7 @@ const defaultCardProps: Partial<CardProps> = {
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
 const ASIDE_PANEL_DEFAULT_SIZE = 33;
+const EDIT_ANNOTATION_HOTKEY = "e";
 
 export function SpanDetails({
   spanNodeId,
@@ -181,13 +185,14 @@ export function SpanDetails({
   const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
-  const isCondensedView =
-    spanDetailsContainerDimensions?.width &&
-    spanDetailsContainerDimensions.width <
-      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
+  const isCondensedView = spanDetailsContainerDimensions?.width
+    ? spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
+    : true;
+  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!) {
+      query SpanDetailsQuery($id: GlobalID!, $filterUserIds: [GlobalID]) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -243,13 +248,14 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span
+            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
           }
         }
       }
     `,
     {
       id: spanNodeId,
+      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
 
@@ -258,6 +264,16 @@ export function SpanDetails({
       "Expected a span, but got a different type" + span.__typename
     );
   }
+
+  useHotkeys(
+    EDIT_ANNOTATION_HOTKEY,
+    () => {
+      if (!isAnnotatingSpans) {
+        setIsAnnotatingSpans(true);
+      }
+    },
+    { preventDefault: true }
+  );
 
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
@@ -320,6 +336,12 @@ export function SpanDetails({
                     }
                   }}
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  trailingVisual={
+                    !isCondensedView &&
+                    !isAnnotatingSpans && (
+                      <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+                    )
+                  }
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
@@ -333,8 +355,8 @@ export function SpanDetails({
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
-              <Tab id="feedback">
-                Feedback <Counter>{span.spanAnnotations.length}</Counter>
+              <Tab id="annotations">
+                Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
@@ -353,7 +375,7 @@ export function SpanDetails({
                 </SpanInfoWrap>
               </Flex>
             </LazyTabPanel>
-            <LazyTabPanel id="feedback">
+            <LazyTabPanel id="annotations">
               <SpanFeedback span={span} />
             </LazyTabPanel>
             <LazyTabPanel id="attributes">
@@ -386,6 +408,8 @@ export function SpanDetails({
           order={2}
           ref={asidePanelRef}
           defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          minSize={10}
+          collapsible
           onCollapse={() => {
             setIsAnnotatingSpans(false);
           }}

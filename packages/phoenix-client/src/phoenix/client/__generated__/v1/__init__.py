@@ -7,6 +7,11 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
+class CategoricalAnnotationValue(TypedDict):
+    label: str
+    score: NotRequired[float]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -63,6 +68,19 @@ class Experiment(TypedDict):
     project_name: Optional[str]
     created_at: str
     updated_at: str
+
+
+class FreeformAnnotationConfig(TypedDict):
+    type: Literal["FREEFORM"]
+    name: str
+    id: str
+    description: NotRequired[str]
+
+
+class FreeformAnnotationConfigData(TypedDict):
+    type: Literal["FREEFORM"]
+    name: str
+    description: NotRequired[str]
 
 
 class GetDatasetResponseBody(TypedDict):
@@ -254,12 +272,67 @@ class AnnotateSpansResponseBody(TypedDict):
     data: Sequence[InsertedSpanAnnotation]
 
 
+class CategoricalAnnotationConfig(TypedDict):
+    type: Literal["CATEGORICAL"]
+    name: str
+    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
+    values: Sequence[CategoricalAnnotationValue]
+    id: str
+    description: NotRequired[str]
+
+
+class CategoricalAnnotationConfigData(TypedDict):
+    type: Literal["CATEGORICAL"]
+    name: str
+    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
+    values: Sequence[CategoricalAnnotationValue]
+    description: NotRequired[str]
+
+
+class ContinuousAnnotationConfig(TypedDict):
+    type: Literal["CONTINUOUS"]
+    name: str
+    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
+    id: str
+    description: NotRequired[str]
+    lower_bound: NotRequired[float]
+    upper_bound: NotRequired[float]
+
+
+class ContinuousAnnotationConfigData(TypedDict):
+    type: Literal["CONTINUOUS"]
+    name: str
+    optimization_direction: Literal["MINIMIZE", "MAXIMIZE", "NONE"]
+    description: NotRequired[str]
+    lower_bound: NotRequired[float]
+    upper_bound: NotRequired[float]
+
+
+class CreateAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
 class CreateProjectResponseBody(TypedDict):
     data: Project
+
+
+class DeleteAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class GetAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
 
 
 class GetProjectResponseBody(TypedDict):
@@ -334,12 +407,26 @@ class PromptTools(TypedDict):
     disable_parallel_tool_calls: NotRequired[bool]
 
 
-class SpanAnnotation(TypedDict):
+class SpanAnnotationData(TypedDict):
     span_id: str
     name: str
-    annotator_kind: Literal["LLM", "HUMAN"]
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
     result: NotRequired[SpanAnnotationResult]
     metadata: NotRequired[Mapping[str, Any]]
+    identifier: NotRequired[str]
+
+
+class SpanAnnotation(SpanAnnotationData):
+    id: str
+    created_at: str
+    updated_at: str
+    source: Literal["API", "APP"]
+    user_id: Optional[str]
+
+
+class SpanAnnotationsResponseBody(TypedDict):
+    data: Sequence[SpanAnnotation]
+    next_cursor: Optional[str]
 
 
 class ToolCallContentPart(TypedDict):
@@ -348,8 +435,12 @@ class ToolCallContentPart(TypedDict):
     tool_call: ToolCallFunction
 
 
+class UpdateAnnotationConfigResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
 class AnnotateSpansRequestBody(TypedDict):
-    data: Sequence[SpanAnnotation]
+    data: Sequence[SpanAnnotationData]
 
 
 class PromptAnthropicInvocationParameters(TypedDict):

@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, Suspense, useEffect, useMemo } from "react";
+import React, { PropsWithChildren, Suspense, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useParams, useSearchParams } from "react-router";
@@ -10,6 +10,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
 import {
   TraceDetailsQuery,
@@ -17,8 +18,6 @@ import {
 } from "./__generated__/TraceDetailsQuery.graphql";
 import { SpanDetails } from "./SpanDetails";
 import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
-
-export const SELECTED_SPAN_NODE_ID_URL_PARAM = "selectedSpanNodeId";
 
 type Span = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -74,6 +73,18 @@ export function TraceDetails(props: TraceDetailsProps) {
                     tokenCountTotal
                     tokenCountPrompt
                     tokenCountCompletion
+                    spanAnnotationSummaries {
+                      labels
+                      count
+                      labelCount
+                      labelFractions {
+                        fraction
+                        label
+                      }
+                      name
+                      scoreCount
+                      meanScore
+                    }
                   }
                 }
               }
@@ -94,24 +105,10 @@ export function TraceDetails(props: TraceDetailsProps) {
     const gqlSpans = data.project.trace?.spans.edges || [];
     return gqlSpans.map((node) => node.span);
   }, [data]);
-  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_URL_PARAM);
+  const urlSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
   const selectedSpanNodeId = urlSpanNodeId ?? spansList[0].id;
   const rootSpan = useMemo(() => findRootSpan(spansList), [spansList]);
 
-  // Clear the selected span param when the component unmounts
-  useEffect(() => {
-    return () => {
-      setSearchParams(
-        (searchParams) => {
-          searchParams.delete(SELECTED_SPAN_NODE_ID_URL_PARAM);
-          return searchParams;
-        },
-        { replace: true }
-      );
-    };
-    // eslint-disable-next-line react-compiler/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   return (
     <main
       css={css`
@@ -142,7 +139,7 @@ export function TraceDetails(props: TraceDetailsProps) {
               onSpanClick={(span) => {
                 setSearchParams(
                   (searchParams) => {
-                    searchParams.set(SELECTED_SPAN_NODE_ID_URL_PARAM, span.id);
+                    searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
                     return searchParams;
                   },
                   { replace: true }

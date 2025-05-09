@@ -42,3 +42,12 @@ class IsAdmin(Authorization):
         if not info.context.auth_enabled:
             return False
         return isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+
+
+class IsAdminIfAuthEnabled(Authorization):
+    message = MSG_ADMIN_ONLY
+
+    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+        if not info.context.auth_enabled:
+            return True
+        return isinstance((user := info.context.user), PhoenixUser) and user.is_admin

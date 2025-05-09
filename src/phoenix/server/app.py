@@ -88,6 +88,7 @@ from phoenix.server.api.dataloaders import (
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
@@ -103,6 +104,7 @@ from phoenix.server.api.dataloaders import (
     TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
@@ -123,6 +125,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -475,6 +478,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
+    trace_data_sweeper: Optional[TraceDataSweeper],
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -507,6 +511,8 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            if trace_data_sweeper:
+                await stack.enter_async_context(trace_data_sweeper)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -633,6 +639,9 @@ def create_graphql_router(
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
+                projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
+                    db
+                ),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
@@ -656,6 +665,12 @@ def create_graphql_router(
                 ),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
+                trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
+                    db
+                ),
+                project_trace_retention_policy_fields=TableFieldsDataLoader(
+                    db, models.ProjectTraceRetentionPolicy
+                ),
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
@@ -817,6 +832,10 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
     )
+    trace_data_sweeper = TraceDataSweeper(
+        db=db,
+        dml_event_handler=dml_event_handler,
+    )
     bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
@@ -874,6 +893,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
+            trace_data_sweeper=trace_data_sweeper,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,

@@ -50,14 +50,17 @@ class Postponed(Received[_AnyT]):
 class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
     table: type[_RowT]
     unique_by: Sequence[str]
+    constraint_name: Optional[str] = None
 
     def __init_subclass__(
         cls,
         table: type[_RowT],
         unique_by: Sequence[str],
+        constraint_name: Optional[str] = None,
     ) -> None:
         cls.table = table
         cls.unique_by = unique_by
+        cls.constraint_name = constraint_name
 
     def __init__(
         self,
@@ -109,6 +112,7 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
             *records,
             table=self.table,
             unique_by=self.unique_by,
+            constraint_name=self.constraint_name,
             dialect=self._db.dialect,
         )
 
@@ -219,6 +223,7 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class SpanAnnotation(Precursors.SpanAnnotation):
         span_rowid: int
+        identifier: str = ""
         id_: Optional[int] = None
 
         @property
@@ -232,6 +237,7 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class TraceAnnotation(Precursors.TraceAnnotation):
         trace_rowid: int
+        identifier: str = ""
         id_: Optional[int] = None
 
         @property
@@ -245,6 +251,7 @@ class Insertables(ABC):
     @dataclass(frozen=True)
     class DocumentAnnotation(Precursors.DocumentAnnotation):
         span_rowid: int
+        identifier: str = ""
         id_: Optional[int] = None
 
         @property

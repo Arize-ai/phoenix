@@ -6,7 +6,7 @@ import {
 } from "./__generated__/TracesTableQuery.graphql";
 
 export const ANNOTATIONS_COLUMN_PREFIX = "annotations";
-export const ANNOTATIONS_KEY_SEPARATOR = ":";
+export const ANNOTATIONS_KEY_SEPARATOR = "-";
 export const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
@@ -32,4 +32,12 @@ export function getGqlSort(
     evalResultKey,
     dir: sort.desc ? "desc" : "asc",
   };
+}
+
+export function makeAnnotationColumnId(name: string, type: string) {
+  return (
+    `${ANNOTATIONS_COLUMN_PREFIX}${ANNOTATIONS_KEY_SEPARATOR}${type}${ANNOTATIONS_KEY_SEPARATOR}${name}`
+      // replace anything that's not alphanumeric with a dash
+      .replace(/[^a-zA-Z0-9]/g, "-")
+  );
 }

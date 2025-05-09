@@ -1080,6 +1080,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[5],
@@ -1091,6 +1094,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[10],
@@ -1102,6 +1108,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[0],
@@ -1113,6 +1122,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[5],
@@ -1124,6 +1136,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[10],
@@ -1135,6 +1150,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
             ],
         )
