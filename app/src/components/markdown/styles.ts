@@ -14,4 +14,7 @@ export const markdownCSS = css`
   p:last-child {
     margin-bottom: 0;
   }
+  code {
+    text-wrap: wrap;
+  }
 `;
