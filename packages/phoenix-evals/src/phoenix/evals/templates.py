@@ -8,7 +8,6 @@ from typing import Any, Callable, List, Mapping, Optional, Sequence, Tuple, Unio
 import pandas as pd
 
 from phoenix.evals.exceptions import PhoenixException
-from phoenix.evals.utils import NOT_PARSABLE
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"
@@ -192,7 +191,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
     parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
     if len(parts) == 2:
         return parts[1]
-    return NOT_PARSABLE
+    return raw_string  # Fallback to the whole string if no label delimiter is found
 
 
 def normalize_classification_template(
