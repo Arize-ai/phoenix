@@ -74,3 +74,6 @@ js/examples/notebooks/**/deno.lock
 
 # scrtach work
 /.scratch/
+
+# uv
+uv.lock
