@@ -76,7 +76,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Add tracing to your MCP Server
+## Add Tracing to your MCP Server
 
 ```python
 import json
