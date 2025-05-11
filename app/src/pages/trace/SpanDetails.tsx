@@ -1163,11 +1163,9 @@ function EmbeddingSpanInfo(props: {
                         borderColor="purple-700"
                         title="Embedded Text"
                       >
-                        <View padding="size-200">
-                          <ConnectedMarkdownBlock>
-                            {embedding[EmbeddingAttributePostfixes.text] || ""}
-                          </ConnectedMarkdownBlock>
-                        </View>
+                        <ConnectedMarkdownBlock>
+                          {embedding[EmbeddingAttributePostfixes.text] || ""}
+                        </ConnectedMarkdownBlock>
                       </Card>
                     </MarkdownDisplayProvider>
                   </li>
@@ -1274,9 +1272,19 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   <Text color="text-700" fontStyle="italic">
                     Parameters
                   </Text>
-                  <JSONBlock>
-                    {JSON.stringify(toolParameters) as string}
-                  </JSONBlock>
+                  <div
+                    css={css`
+                      .cm-editor {
+                        background-color: transparent !important;
+                      }
+                    `}
+                  >
+                    <JSONBlock
+                      basicSetup={{ lineNumbers: false, foldGutter: false }}
+                    >
+                      {JSON.stringify(toolParameters) as string}
+                    </JSONBlock>
+                  </div>
                 </Flex>
               </View>
             ) : null}
@@ -1333,9 +1341,7 @@ function DocumentItem({
     >
       <Flex direction="column">
         {documentContent && (
-          <View padding="size-200">
-            <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-          </View>
+          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
         )}
         {metadata && (
           <>
@@ -1474,9 +1480,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <View padding="size-200">
-              <MessageContentsList messageContents={messagesContents} />
-            </View>
+            <MessageContentsList messageContents={messagesContents} />
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
@@ -1519,7 +1523,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                   ) : null}
                 </DisclosureTrigger>
                 <DisclosurePanel>
-                  <View padding="size-200" width="100%">
+                  <View width="100%">
                     <ConnectedMarkdownBlock>
                       {messageContent}
                     </ConnectedMarkdownBlock>
@@ -1528,7 +1532,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
               </Disclosure>
             ) : // when the message is any other kind, just show the content without a disclosure
             messageContent ? (
-              <View padding="size-200" width="100%">
+              <View width="100%">
                 <ConnectedMarkdownBlock>
                   {messageContent}
                 </ConnectedMarkdownBlock>
@@ -1960,11 +1964,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = (
-        <View margin="size-200">
-          <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>
-        </View>
-      );
+      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
       break;
     default:
       assertUnreachable(mimeType);
