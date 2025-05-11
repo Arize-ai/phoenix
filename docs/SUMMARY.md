@@ -29,6 +29,7 @@
   * [Amazon Bedrock](tracing/integrations-tracing/bedrock.md)
   * [Amazon Bedrock Agents](tracing/integrations-tracing/bedrock-1.md)
   * [VertexAI](tracing/integrations-tracing/vertexai.md)
+  * [Model Context Protocol (MCP)](tracing/integrations-tracing/model-context-protocol-mcp.md)
   * [MistralAI](tracing/integrations-tracing/mistralai.md)
   * [Google GenAI](tracing/integrations-tracing/google-genai.md)
   * [Groq](tracing/integrations-tracing/groq.md)
