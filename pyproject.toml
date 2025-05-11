@@ -29,7 +29,7 @@ dependencies = [
   "starlette>=0.46.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.267.0",  # resolve security vulnerability https://github.com/Arize-ai/phoenix/security/dependabot/45
+  "strawberry-graphql==0.267.0",  # avoid this issue: https://github.com/strawberry-graphql/strawberry/issues/3854
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
