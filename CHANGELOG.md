@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.0.0...arize-phoenix-v9.0.1) (2025-05-11)
+
+
+### Bug Fixes
+
+* pin strawberry ([#7514](https://github.com/Arize-ai/phoenix/issues/7514)) ([f85847c](https://github.com/Arize-ai/phoenix/commit/f85847cf93498dcfc50e528e59d8fab1199c19df))
+
 ## [9.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v8.32.1...arize-phoenix-v9.0.0) (2025-05-09)
 
 
