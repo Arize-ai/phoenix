@@ -21,14 +21,16 @@ interface AddSpanAnnotationParams extends ClientFn {
  * @example
  * ```ts
  * const result = await addSpanAnnotation({
- *   spanId: "123abc",
- *   name: "quality_score",
- *   label: "good",
- *   score: 0.95,
- *   annotatorKind: "LLM",
- *   identifier: "custom_id_123",
- *   metadata: {
- *     model: "gpt-4"
+ *   spanAnnotation: {
+ *     spanId: "123abc",
+ *     name: "quality_score",
+ *     label: "good",
+ *     score: 0.95,
+ *     annotatorKind: "LLM",
+ *     identifier: "custom_id_123",
+ *     metadata: {
+ *       model: "gpt-4"
+ *     }
  *   }
  * });
  * ```
