@@ -14,6 +14,10 @@
       "import": "./dist/esm/prompts/index.js",
       "require": "./dist/src/prompts/index.js"
     },
+    "./spans": {
+      "import": "./dist/esm/spans/index.js",
+      "require": "./dist/src/spans/index.js"
+    },
     "./experiments": {
       "import": "./dist/esm/experiments/index.js",
       "require": "./dist/src/experiments/index.js"
