@@ -174,6 +174,7 @@ class ClassificationTemplate(PromptTemplate):
             return self.template
 
     def extract_label_from_explanation(self, raw_string: str) -> str:
+        print(raw_string)
         if parser := self.explanation_label_parser:
             return parser(raw_string)
         return parse_label_from_chain_of_thought_response(raw_string)
