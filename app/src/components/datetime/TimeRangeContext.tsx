@@ -53,17 +53,13 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const [timeRange, _setTimeRange] = useState<OpenTimeRangeWithKey>(() => {
     // Handle different kinds of stored time range keys with fallback
     if (storedCustomTimeRange) {
-      try {
-        // Parse the stored custom range
-        const { start, end } = storedCustomTimeRange;
-        return {
-          timeRangeKey: "custom",
-          start: start ? new Date(start) : undefined,
-          end: end ? new Date(end) : undefined,
-        };
-      } catch (e) {
-        console.error("Failed to parse custom time range", e);
-      }
+      // Parse the stored custom range
+      const { start, end } = storedCustomTimeRange;
+      return {
+        timeRangeKey: "custom",
+        start: start ? new Date(start) : undefined,
+        end: end ? new Date(end) : undefined,
+      };
     } else if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
       return {
         timeRangeKey: storedLastNTimeRangeKey,
