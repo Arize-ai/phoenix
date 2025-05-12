@@ -27,6 +27,10 @@ export interface PreferencesProps {
    */
   lastNTimeRangeKey: LastNTimeRangeKey;
   /**
+   * The custom time range to load data for
+   */
+  customTimeRange: OpenTimeRange | null;
+  /**
    * Whether or not to automatically refresh projects
    * @default true
    */
@@ -66,6 +70,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the last N time range to load data for
    */
   setLastNTimeRangeKey: (lastNTimeRangeKey: LastNTimeRangeKey) => void;
+  /**
+   * Setter for the custom time range
+   */
+  setCustomTimeRange: (customTimeRange: OpenTimeRange | null) => void;
   /**
    * Setter for enabling/disabling project auto refresh
    * @param projectsAutoRefreshEnabled
@@ -111,6 +119,10 @@ export const createPreferencesStore = (
     lastNTimeRangeKey: "7d",
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
       set({ lastNTimeRangeKey });
+    },
+    customTimeRange: null,
+    setCustomTimeRange: (customTimeRange) => {
+      set({ customTimeRange });
     },
     projectsAutoRefreshEnabled: true,
     setProjectAutoRefreshEnabled: (projectsAutoRefreshEnabled) => {

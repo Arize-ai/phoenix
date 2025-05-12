@@ -38,15 +38,33 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const storedLastNTimeRangeKey = usePreferencesContext(
     (state) => state.lastNTimeRangeKey
   );
-
   const setStoredLastNTimeRangeKey = usePreferencesContext(
     (state) => state.setLastNTimeRangeKey
   );
 
+  const storedCustomTimeRange = usePreferencesContext(
+    (state) => state.customTimeRange
+  );
+  const setStoredCustomTimeRange = usePreferencesContext(
+    (state) => state.setCustomTimeRange
+  );
+
   // Default to the last N time range stored in preferences
   const [timeRange, _setTimeRange] = useState<OpenTimeRangeWithKey>(() => {
-    // Just to be safe, we check if the stored time range key is valid
-    if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
+    // Handle different kinds of stored time range keys with fallback
+    if (storedCustomTimeRange) {
+      try {
+        // Parse the stored custom range
+        const { start, end } = storedCustomTimeRange;
+        return {
+          timeRangeKey: "custom",
+          start: start ? new Date(start) : undefined,
+          end: end ? new Date(end) : undefined,
+        };
+      } catch (e) {
+        console.error("Failed to parse custom time range", e);
+      }
+    } else if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
       return {
         timeRangeKey: storedLastNTimeRangeKey,
         ...getTimeRangeFromLastNTimeRangeKey(storedLastNTimeRangeKey),
@@ -63,12 +81,16 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const setTimeRange = useCallback(
     (timeRange: OpenTimeRangeWithKey) => {
       _setTimeRange(timeRange);
-      // Store the last N time range key in preferences
+      // Store the time range in preferences
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
+        setStoredCustomTimeRange(null);
+      } else {
+        const { start, end } = timeRange;
+        setStoredCustomTimeRange({ start, end });
       }
     },
-    [setStoredLastNTimeRangeKey]
+    [setStoredLastNTimeRangeKey, setStoredCustomTimeRange]
   );
 
   return (
