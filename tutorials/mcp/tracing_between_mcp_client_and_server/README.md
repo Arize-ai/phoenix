@@ -40,10 +40,7 @@ When properly instrumented, trace context is automatically propagated across the
 
 ### Env Setup
 
-1. Navigate to this directory:
-   ```bash
-   cd tutorials/mcp/tracing_between_mcp_client_and_server
-   ```
+1. Open this directory independent of the rest of the Phoenix repo. This is critical to avoid the shadowing the `agents` package name used by OpenAI.
 
 2. Install the required dependencies:
    ```bash
