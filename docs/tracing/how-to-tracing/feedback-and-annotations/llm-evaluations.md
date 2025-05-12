@@ -68,7 +68,7 @@ px.Client().log_evaluations(
 
 Multiple sets of Evaluations can be logged by the same `px.Client().log_evaluations()` function call.
 
-```
+```python
 px.Client().log_evaluations(
     SpanEvaluations(
         dataframe=qa_correctness_eval_df,

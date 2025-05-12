@@ -1,38 +1,63 @@
-# Capture Feedback on Traces
+---
+description: Use the phoenix client to capture end-user feedback
+---
+
+# Annotating via the Client
 
 {% hint style="info" %}
-feedback and annotations are available for arize-phoenix>=4.20.0
+This assumes annotations as of `arize-phoenix>=9.0.0`.
 {% endhint %}
 
 <figure><img src="../../../.gitbook/assets/feedback_flow.png" alt=""><figcaption></figcaption></figure>
 
-When building LLM applications, it is important to collect feedback to understand how your app is performing in production. The ability to observe user feedback along with traces can be very powerful as it allows you to drill down into the most interesting examples. Once you have identified these example, you can share them for further review, automatic evaluation, or fine-tuning.
+When building LLM applications, it is important to collect feedback to understand how your app is performing in production. Phoenix lets you attach feedback to spans and traces in the form of annotations.
 
-Phoenix lets you attach user feedback to spans and traces in the form of annotations. It's helpful to expose a simple mechanism (such as 👍👎) to collect user feedback in your app. You can then use the Phoenix API to attach feedback to a span.
+Annotations come from a few different sources:
+
+* Human Annotators
+* End users of your application
+* LLMs-as-Judges
+* Basic code checks
+
+You can use the Phoenix SDK and API to attach feedback to a span.
 
 Phoenix expects feedback to be in the form of an **annotation.** Annotations consist of these fields:
 
 ```json
 {
-  "span_id": "67f6740bbe1ddc3f", // the id of the span to annotate
-  "name": "correctness", // the name of your annotator
-  "annotator_kind": "HUMAN", // HUMAN or LLM
+  "span_id": "67f6740bbe1ddc3f",  // the id of the span to annotate
+  "name": "correctness",  // the name of your annotation
+  "annotator_kind": "HUMAN",  // HUMAN, LLM, or CODE
   "result": {
-    "label": "correct", // A human-readable category for the feedback
-    "score": 1, // a numeric score, can be 0 or 1, or a range like 0 to 100
+    "label": "correct",  // A human-readable category for the feedback
+    "score": 0.85,  // a numeric score, can be 0 or 1, or a range like 0 to 100
     "explanation": "The response answered the question I asked"
-   }
+  },
+  "metadata": {
+    "model": "gpt-4",
+    "threshold_ms": 500,
+    "confidence": "high"
+  },
+  "identifier": "user-123"  // optional, identifies the annotation and enables upserts
 }
 ```
 
-Note that you can provide a **label**, a **score**, or both. With Phoenix an annotation has a name (like **correctness**), is associated with an **annotator** (either an **LLM** or a **HUMAN**) and can be attached to the **spans** you have logged to Phoenix.
+Note that you can provide a **label**, **score**, or **explanation**. With Phoenix an annotation has a name (like **correctness**), is associated with an **annotator** (**LLM**, **HUMAN**, or **CODE**), and can be attached to the **spans** you have logged to Phoenix.
+
+{% hint style="warning" %}
+Phoenix allows you to log multiple annotations of the same name to the same span. For example, a single span could have 5 different "correctness" annotations. This can be useful when collecting end user feedback.
+
+**Note:** The API will **overwrite** span annotations of the same name, unless they have different "identifier" values.
+
+If you want to track multiple annotations of the same name on the same span, make sure to include different "identifier" values on each.
+{% endhint %}
 
 ## Send Annotations to Phoenix
 
 \
 Once you construct the annotation, you can send this to Phoenix via it's REST API. You can POST an annotation from your application to `/v1/span_annotations` like so:
 
-{% hint style="info" %}
+{% hint style="success" %}
 If you're self-hosting Phoenix, be sure to change the endpoint in the code below to `<your phoenix endpoint>/v1/span_annotations?sync=false`
 {% endhint %}
 
@@ -63,28 +88,15 @@ if span is not None:
 You can use the span\_id to send an annotation associated with that span.
 
 ```python
-import httpx
+from phoenix.client import Client
 
-client = httpx.Client()
-
-annotation_payload = {
-    "data": [
-        {
-            "span_id": span_id,
-            "name": "user feedback",
-            "annotator_kind": "HUMAN",
-            "result": {"label": "thumbs-up", "score": 1},
-            "metadata": {},
-        }
-    ]
-}
-
-headers = {'api_key': '<your phoenix api key>'}
-
-client.post(
-    "https://app.phoenix.arize.com/v1/span_annotations?sync=false",
-    json=annotation_payload,
-    headers=headers
+client = Client()
+annotation = client.annotations.add_span_annotation(
+    annotation_name="user feedback",
+    annotator_kind="HUMAN",
+    span_id=span_id,
+    label="thumbs-up",
+    score=1,
 )
 ```
 {% endtab %}
@@ -104,30 +116,48 @@ async function chat(req, res) {
 You can use the spanId to send an annotation associated with that span.
 
 ```typescript
-async function postFeedback(spanId: string) {
-  // ...
-  await fetch("https://app.phoenix.arize.com/v1/span_annotations?sync=false", {
-    method: "POST",
+import { createClient } from '@arizeai/phoenix-client';
+
+const PHOENIX_API_KEY = 'your_api_key';
+
+const px = createClient({
+  options: {
+    // change to self-hosted base url if applicable
+    baseUrl: 'https://app.phoenix.arize.com',
     headers: {
-      "Content-Type": "application/json",
-      accept: "application/json",
-      "api_key": "<your phoenix api key>,
+      api_key: PHOENIX_API_KEY,
+      Authorization: `Bearer ${PHOENIX_API_KEY}`,
     },
-    body: JSON.stringify({
+  },
+});
+
+export async function postFeedback(
+  spanId: string,
+  label: string,
+  score: number,
+  explanation?: string,
+  metadata?: Record<string, unknown>
+) {
+  const response = await px.POST('/v1/span_annotations', {
+    params: { query: { sync: true } },
+    body: {
       data: [
         {
           span_id: spanId,
-          annotator_kind: "HUMAN",
-          name: "feedback",
+          name: 'correctness',
+          annotator_kind: 'HUMAN',
           result: {
-            label: "thumbs_up",
-            score: 1,
-            explanation: "A good response",
+            label: label,
+            score: score,
+            explanation: explanation || null,
           },
+          metadata: metadata || {},
         },
       ],
-    }),
+    },
   });
+
+  return response.data.data;
 }
 ```
 {% endtab %}
@@ -147,21 +177,17 @@ curl -X 'POST' \
       "annotator_kind": "HUMAN",
       "result": {
         "label": "correct",
-        "score": 1,
-        "explanation": "it is correct"
+        "score": 0.85,
+        "explanation": "The response answered the question I asked"
       },
-      "metadata": {}
+      "metadata": {
+        "model": "gpt-4",
+        "threshold_ms": 500,
+        "confidence": "high"
+      }
     }
   ]
 }'
 ```
 {% endtab %}
 {% endtabs %}
-
-## Annotate Traces in the UI
-
-Phoenix also allows you to manually annotate traces with feedback within the application. This can be useful for adding context to a trace, such as a user's comment or a note about a specific issue. You can annotate a span directly from the span details view.
-
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/annotation_flow.gif" alt=""><figcaption></figcaption></figure>
-
-{% embed url="https://www.youtube.com/watch?t=1s&v=20U6INQJyyU" %}
