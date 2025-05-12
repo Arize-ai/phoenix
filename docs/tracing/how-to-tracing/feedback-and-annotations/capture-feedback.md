@@ -133,6 +133,7 @@ const px = createClient({
 
 export async function postFeedback(
   spanId: string,
+  name: string,
   label: string,
   score: number,
   explanation?: string,
@@ -144,7 +145,7 @@ export async function postFeedback(
       data: [
         {
           span_id: spanId,
-          name: 'correctness',
+          name: name,
           annotator_kind: 'HUMAN',
           result: {
             label: label,
@@ -156,6 +157,10 @@ export async function postFeedback(
       ],
     },
   });
+
+  if (!response || !response.data) {
+    throw new Error('Annotation failed');
+  }
 
   return response.data.data;
 }
