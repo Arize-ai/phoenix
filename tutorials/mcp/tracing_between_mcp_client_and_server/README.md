@@ -40,7 +40,7 @@ When properly instrumented, trace context is automatically propagated across the
 
 ### Env Setup
 
-1. Open this directory independent of the rest of the Phoenix repo. This is critical to avoid the shadowing the `agents` package name used by OpenAI.
+1. Open this directory independent of the rest of the Phoenix repo. This is critical to avoid shadowing the `agents` package name used by OpenAI.
 
 2. Install the required dependencies:
    ```bash
