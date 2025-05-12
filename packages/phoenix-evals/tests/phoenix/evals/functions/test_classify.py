@@ -1490,7 +1490,7 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
     assert_frame_equal(
         pd.DataFrame(
             {
-                "label": ["NOT_PARSABLE", "NOT_PARSABLE", "unrelated"],
+                "label": ["relevant", "NOT_PARSABLE", "unrelated"],
                 "score": [0.0, 0.0, 0.0],
                 "explanation": [
                     "relevant-explanation\nrelevant",
