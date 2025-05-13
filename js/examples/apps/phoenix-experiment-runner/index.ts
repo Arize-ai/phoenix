@@ -127,61 +127,78 @@ const main = async () => {
         log: (message) => log.message(message),
       },
       evaluators: [
-        asEvaluator("Mentions startups", "CODE", async (params) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          const output = params.output;
-          const isString = typeof output === "string";
-          return {
-            score:
-              isString && output?.toLocaleLowerCase()?.includes?.("startups")
-                ? 1
-                : 0,
-            label: "Mentions startups",
-            explanation: "The output contains the word 'startups'",
-            metadata: {},
-          };
+        asEvaluator({
+          name: "Mentions startups",
+          kind: "CODE",
+          evaluate: async (params) => {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const output = params.output;
+            const isString = typeof output === "string";
+            return {
+              score:
+                isString && output?.toLocaleLowerCase()?.includes?.("startups")
+                  ? 1
+                  : 0,
+              label: "Mentions startups",
+              explanation: "The output contains the word 'startups'",
+              metadata: {},
+            };
+          },
         }),
-        asEvaluator("Mentions evaluation", "CODE", async (params) => {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          const output = params.output;
-          const isString = typeof output === "string";
-          return {
-            score:
-              isString && output?.toLocaleLowerCase()?.includes?.("evaluation")
-                ? 1
-                : 0,
-            label: "Mentions evaluation",
-            explanation: "The output contains the word 'evaluation'",
-            metadata: {},
-          };
+        asEvaluator({
+          name: "Mentions evaluation",
+          kind: "CODE",
+          evaluate: async (params) => {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            const output = params.output;
+            const isString = typeof output === "string";
+            return {
+              score:
+                isString &&
+                output?.toLocaleLowerCase()?.includes?.("evaluation")
+                  ? 1
+                  : 0,
+              label: "Mentions evaluation",
+              explanation: "The output contains the word 'evaluation'",
+              metadata: {},
+            };
+          },
         }),
-        asEvaluator("Factuality", "LLM", async (params) => {
-          const result = await Factuality.partial({
-            ...config,
-          })({
-            output: JSON.stringify(params.output, null, 2),
-            input: JSON.stringify(params.input, null, 2),
-            expected: JSON.stringify(params.expected, null, 2),
-          });
-          return {
-            score: result.score,
-            label: result.name,
-            explanation: (result.metadata?.rationale as string) ?? "",
-            metadata: result.metadata ?? {},
-          };
+        asEvaluator({
+          name: "Factuality",
+          kind: "LLM",
+          evaluate: async (params) => {
+            const result = await Factuality.partial({
+              ...config,
+            })({
+              output: JSON.stringify(params.output, null, 2),
+              input: JSON.stringify(params.input, null, 2),
+              expected: JSON.stringify(params.expected, null, 2),
+            });
+            return {
+              score: result.score,
+              label: result.name,
+              explanation: (result.metadata?.rationale as string) ?? "",
+              metadata: result.metadata ?? {},
+            };
+          },
         }),
-        asEvaluator("Humor", "LLM", async (params) => {
-          const result = await Humor.partial({
-            ...config,
-          })({
-            output: JSON.stringify(params.output, null, 2),
-          });
-          return {
-            score: result.score,
-            label: result.name,
-            explanation: (result.metadata?.rationale as string) ?? "",
-            metadata: result.metadata ?? {},
-          };
+        asEvaluator({
+          name: "Humor",
+          kind: "LLM",
+          evaluate: async (params) => {
+            const result = await Humor.partial({
+              ...config,
+            })({
+              output: JSON.stringify(params.output, null, 2),
+            });
+            return {
+              score: result.score,
+              label: result.name,
+              explanation: (result.metadata?.rationale as string) ?? "",
+              metadata: result.metadata ?? {},
+            };
+          },
         }),
       ],
     });

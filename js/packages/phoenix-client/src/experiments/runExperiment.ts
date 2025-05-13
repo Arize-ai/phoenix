@@ -75,6 +75,19 @@ export type RunExperimentParams = ClientFn & {
 /**
  * Run an experiment.
  *
+ * @example
+ * ```ts
+ * import { asEvaluator, runExperiment } from "@phoenix/client/experiments";
+ *
+ * const experiment = await runExperiment({
+ *   dataset: "my-dataset",
+ *   task: async (example) => example.input,
+ *   evaluators: [
+ *     asEvaluator("my-evaluator", "CODE", async (params) => params.output),
+ *   ],
+ * });
+ * ```
+ *
  * @experimental This feature is not complete, and will change in the future.
  */
 export async function runExperiment({
@@ -466,11 +479,15 @@ async function runEvaluator({
  * @param evaluate - The evaluator function.
  * @returns The evaluator object.
  */
-export function asEvaluator(
-  name: string,
-  kind: AnnotatorKind,
-  evaluate: Evaluator["evaluate"]
-): Evaluator {
+export function asEvaluator({
+  name,
+  kind,
+  evaluate,
+}: {
+  name: string;
+  kind: AnnotatorKind;
+  evaluate: Evaluator["evaluate"];
+}): Evaluator {
   return {
     name,
     kind,
