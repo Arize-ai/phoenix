@@ -4279,6 +4279,23 @@
         ],
         "title": "InsertedSpanAnnotation"
       },
+      "KeyValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "KeyValue"
+      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -4423,6 +4440,92 @@
           "NONE"
         ],
         "title": "OptimizationDirection"
+      },
+      "OtlpSpan": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "title": "Traceid"
+          },
+          "spanId": {
+            "type": "string",
+            "title": "Spanid"
+          },
+          "parentSpanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentspanid"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "type": "integer",
+            "title": "Kind",
+            "default": 0
+          },
+          "startTimeUnixNano": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starttimeunixnano"
+          },
+          "endTimeUnixNano": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endtimeunixnano"
+          },
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/KeyValue"
+            },
+            "type": "array",
+            "title": "Attributes"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "spanId",
+          "status"
+        ],
+        "title": "OtlpSpan"
       },
       "Project": {
         "properties": {
@@ -5432,146 +5535,6 @@
         ],
         "title": "PromptVersionTagData"
       },
-      "Span": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id",
-            "description": "The Global Relay-style ID of the span."
-          },
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "The OpenTelemetry span ID."
-          },
-          "trace_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Trace Id",
-            "description": "The OpenTelemetry trace ID of the span."
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "span_kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Span Kind",
-            "description": "The kind of span e.g. LLM, RETRIEVER \u2026"
-          },
-          "parent_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Id",
-            "description": "The OpenTelemetry ID of the parent span (if present)."
-          },
-          "start_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Start Time"
-          },
-          "end_time": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "End Time"
-          },
-          "status_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status Code"
-          },
-          "status_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Status Message"
-          },
-          "events": {
-            "anyOf": [
-              {
-                "items": {
-                  "additionalProperties": true,
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Events"
-          },
-          "attributes": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Attributes"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "span_id"
-        ],
-        "title": "Span"
-      },
       "SpanAnnotation": {
         "properties": {
           "span_id": {
@@ -5806,7 +5769,7 @@
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/Span"
+              "$ref": "#/components/schemas/OtlpSpan"
             },
             "type": "array",
             "title": "Data"
@@ -5828,7 +5791,40 @@
           "data",
           "next_cursor"
         ],
-        "title": "SpanSearchResponseBody"
+        "title": "SpanSearchResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
+      },
+      "Status": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/StatusCode"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "Status"
+      },
+      "StatusCode": {
+        "type": "integer",
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "title": "StatusCode"
       },
       "TextContentPart": {
         "properties": {
