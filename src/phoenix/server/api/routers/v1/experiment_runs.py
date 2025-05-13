@@ -16,7 +16,7 @@ from phoenix.server.dml_event import ExperimentRunInsertEvent
 from .models import V1RoutesBaseModel
 from .utils import ResponseBody, add_errors_to_responses
 
-router = APIRouter(tags=["experiments"], include_in_schema=False)
+router = APIRouter(tags=["experiments"], include_in_schema=True)
 
 
 class ExperimentRun(V1RoutesBaseModel):

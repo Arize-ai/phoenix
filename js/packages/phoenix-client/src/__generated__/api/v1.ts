@@ -283,6 +283,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List runs for an experiment */
+        get: operations["listExperimentRuns"];
+        put?: never;
+        /** Create run for an experiment */
+        post: operations["createExperimentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/experiment_evaluations": {
         parameters: {
             query?: never;
@@ -645,9 +663,53 @@ export interface components {
              */
             repetitions?: number;
         };
-        /** CreateExperimentResponseBody */
-        CreateExperimentResponseBody: {
-            data: components["schemas"]["Experiment"];
+        /** CreateExperimentRunRequestBody */
+        CreateExperimentRunRequestBody: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+        };
+        /** CreateExperimentRunResponseBodyData */
+        CreateExperimentRunResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the newly created experiment run
+             */
+            id: string;
         };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
@@ -825,6 +887,56 @@ export interface components {
              */
             explanation?: string | null;
         };
+        /** ExperimentRunResponse */
+        ExperimentRunResponse: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+            /**
+             * Id
+             * @description The ID of the experiment run
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * @description The ID of the experiment
+             */
+            experiment_id: string;
+        };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
             /** Name */
@@ -948,6 +1060,11 @@ export interface components {
             data: components["schemas"]["Dataset"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ListExperimentRunsResponseBody */
+        ListExperimentRunsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentRunResponse"][];
         };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
@@ -1554,6 +1671,14 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** CreateExperimentResponseBody */
+        phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody: {
+            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
+        };
+        /** CreateExperimentResponseBody */
+        phoenix__server__api__routers__v1__experiments__CreateExperimentResponseBody: {
+            data: components["schemas"]["Experiment"];
         };
     };
     responses: never;
@@ -2341,7 +2466,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreateExperimentResponseBody"];
+                    "application/json": components["schemas"]["phoenix__server__api__routers__v1__experiments__CreateExperimentResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -2494,6 +2619,108 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listExperimentRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Experiment runs retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentRunsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createExperimentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExperimentRunRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Experiment run created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment or dataset example not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
