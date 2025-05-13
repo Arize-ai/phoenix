@@ -1,9 +1,9 @@
 from collections import defaultdict
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 
 class ModelSpec(NamedTuple):
-    provider: str
+    provider: Optional[str]
     model: str
 
 
@@ -13,6 +13,7 @@ class ModelCostLookup:
     def __init__(self):
         self._provider_model_map = defaultdict(dict)
         self._model_map = defaultdict(set)
+        self._cost_overlays = []
 
     def __setitem__(self, key: ModelSpec, value: float):
         provider, model = key.provider, key.model
