@@ -1,11 +1,6 @@
 /* eslint-disable react/prop-types */
-import React, {
-  startTransition,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import * as React from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {

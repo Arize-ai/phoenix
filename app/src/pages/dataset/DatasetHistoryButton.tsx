@@ -1,4 +1,4 @@
-import React, { ReactNode, Suspense, useState } from "react";
+import { ReactNode, Suspense, useState } from "react";
 
 import { DialogContainer, Tooltip, TooltipTrigger } from "@arizeai/components";
 

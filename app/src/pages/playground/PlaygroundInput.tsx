@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Flex, Text, View } from "@phoenix/components";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";

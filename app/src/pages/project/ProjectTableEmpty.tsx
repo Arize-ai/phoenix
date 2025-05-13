@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 import { css } from "@emotion/react";
 
 import { Dialog, DialogContainer } from "@arizeai/components";

@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { Flex, Link, View } from "@phoenix/components";

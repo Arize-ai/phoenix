@@ -1,4 +1,5 @@
-import React, {
+import {
+  memo,
   ReactNode,
   Suspense,
   useCallback,
@@ -635,7 +636,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   );
 }
 
-const ClustersPanelContents = React.memo(function ClustersPanelContents() {
+const ClustersPanelContents = memo(function ClustersPanelContents() {
   const { referenceInferences } = useInferences();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(

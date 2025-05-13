@@ -1,4 +1,3 @@
-import React from "react";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 

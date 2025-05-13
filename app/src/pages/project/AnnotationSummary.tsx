@@ -1,4 +1,5 @@
-import React, { startTransition, Suspense, useEffect } from "react";
+import { startTransition, Suspense, useEffect } from "react";
+import * as React from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";

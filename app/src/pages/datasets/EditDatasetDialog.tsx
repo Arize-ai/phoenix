@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Dialog } from "@arizeai/components";
 
 import { EditDatasetForm } from "@phoenix/components/dataset";

@@ -1,4 +1,5 @@
-import React, { HTMLProps } from "react";
+import { HTMLProps } from "react";
+import * as React from "react";
 import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@phoenix/components";

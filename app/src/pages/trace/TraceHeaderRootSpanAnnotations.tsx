@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import { AnnotationSummaryGroupStacks } from "@phoenix/components/annotation/AnnotationSummaryGroup";

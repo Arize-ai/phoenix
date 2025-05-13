@@ -7,6 +7,7 @@ module.exports = {
   extends: [
     "eslint:recommended",
     "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
     "plugin:@typescript-eslint/recommended",
     "plugin:storybook/recommended",
   ],
@@ -28,8 +29,6 @@ module.exports = {
     "react/no-unknown-property": ["error", { ignore: ["css"] }],
     "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
     "react-hooks/exhaustive-deps": "error", // Checks effect dependencies
-    "react/jsx-uses-react": "off",
-    "react/react-in-jsx-scope": "off",
     "react-compiler/react-compiler": "error",
     "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
     "no-console": "error",

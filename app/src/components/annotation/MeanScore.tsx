@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 
 import { Text, TextProps } from "@phoenix/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";

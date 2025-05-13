@@ -1,4 +1,5 @@
-import React, { startTransition } from "react";
+import { startTransition } from "react";
+import * as React from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import {

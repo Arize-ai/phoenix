@@ -1,4 +1,5 @@
-import React, { createContext, PropsWithChildren, useState } from "react";
+import { createContext, PropsWithChildren, useState } from "react";
+import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { Dialog, DialogContainer, Switch } from "@arizeai/components";

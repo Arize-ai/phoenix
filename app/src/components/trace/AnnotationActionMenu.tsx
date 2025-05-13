@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ActionMenu, ActionMenuProps, Item } from "@arizeai/components";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";

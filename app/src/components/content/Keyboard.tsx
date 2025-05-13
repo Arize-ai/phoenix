@@ -1,4 +1,4 @@
-import React, { forwardRef, PropsWithChildren, Ref } from "react";
+import { forwardRef, PropsWithChildren, Ref } from "react";
 import { css } from "@emotion/react";
 
 import { classNames } from "@arizeai/components";

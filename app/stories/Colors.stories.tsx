@@ -1,4 +1,3 @@
-import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 
 import { Flex, Text, View } from "@phoenix/components";

@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, ReactNode } from "react";
+import { PropsWithChildren, ReactNode } from "react";
 import { css } from "@emotion/react";
 
 const cellWithControlsWrapCSS = css`

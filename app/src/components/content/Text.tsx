@@ -1,4 +1,4 @@
-import React, { CSSProperties, forwardRef, ReactNode, Ref } from "react";
+import { CSSProperties, forwardRef, ReactNode, Ref } from "react";
 import {
   Text as AriaText,
   TextProps as AriaTextProps,

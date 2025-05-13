@@ -1,4 +1,4 @@
-import React, { CSSProperties, ReactNode } from "react";
+import { CSSProperties, ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import { HelpTooltip, TooltipTrigger, TriggerWrap } from "@arizeai/components";

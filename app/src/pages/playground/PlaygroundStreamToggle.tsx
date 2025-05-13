@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Switch } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";

@@ -1,4 +1,4 @@
-import React, { HTMLProps, useRef } from "react";
+import { HTMLProps, useEffect, useRef } from "react";
 import { css } from "@emotion/react";
 
 /**
@@ -11,7 +11,7 @@ export function IndeterminateCheckboxCell({
 }: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
   const ref = useRef<HTMLInputElement>(null!);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof indeterminate === "boolean") {
       ref.current.indeterminate = !passThroughProps.checked && indeterminate;
     }

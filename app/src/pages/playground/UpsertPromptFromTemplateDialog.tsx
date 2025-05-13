@@ -1,4 +1,5 @@
-import React, { Suspense, useCallback } from "react";
+import { Suspense, useCallback } from "react";
+import * as React from "react";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
 

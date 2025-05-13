@@ -1,4 +1,5 @@
-import React, { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
+import * as React from "react";
 
 import {
   Card,

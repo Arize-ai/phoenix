@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";

@@ -1,10 +1,5 @@
-import React, {
-  ReactNode,
-  startTransition,
-  Suspense,
-  useMemo,
-  useState,
-} from "react";
+import { ReactNode, startTransition, Suspense, useMemo, useState } from "react";
+import * as React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useSearchParams } from "react-router";

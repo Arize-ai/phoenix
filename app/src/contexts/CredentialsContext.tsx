@@ -1,4 +1,4 @@
-import React, { createContext, PropsWithChildren, useState } from "react";
+import { createContext, PropsWithChildren, useContext, useState } from "react";
 import { useZustand } from "use-zustand";
 
 import {
@@ -28,7 +28,7 @@ export function useCredentialsContext<T>(
   selector: (state: CredentialsState) => T,
   equalityFn?: (left: T, right: T) => boolean
 ): T {
-  const store = React.useContext(CredentialsContext);
+  const store = useContext(CredentialsContext);
   if (!store)
     throw new Error("Missing CredentialsContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);

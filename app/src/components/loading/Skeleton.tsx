@@ -1,4 +1,4 @@
-import React, { forwardRef, HTMLAttributes } from "react";
+import { forwardRef, HTMLAttributes } from "react";
 import { css, keyframes } from "@emotion/react";
 
 import { classNames } from "@arizeai/components";

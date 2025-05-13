@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import { forwardRef } from "react";
 import { PressEvent } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 

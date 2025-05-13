@@ -1,4 +1,5 @@
-import React, { forwardRef, useContext } from "react";
+import { forwardRef, useContext } from "react";
+import * as React from "react";
 import {
   Label,
   LabelContext,
