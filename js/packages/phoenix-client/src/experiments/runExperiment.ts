@@ -73,7 +73,23 @@ export type RunExperimentParams = ClientFn & {
 };
 
 /**
- * Run an experiment.
+ * Runs an experiment using a given set of dataset of examples.
+ *
+ *   An experiment is a user-defined task that runs on each example in a dataset. The results from
+ *   each experiment can be evaluated using any number of evaluators to measure the behavior of the
+ *   task. The experiment and evaluation results are stored in the Phoenix database for comparison
+ *   and analysis.
+ *
+ *   A `task` is either a sync or async function that returns a JSON serializable
+ *   output. If the `task` is a function of one argument then that argument will be bound to the
+ *   `input` field of the dataset example. Alternatively, the `task` can be a function of any
+ *   combination of specific argument names that will be bound to special values:
+ *
+ *   - `input`: The input field of the dataset example
+ *   - `expected`: The expected or reference output of the dataset example
+ *   - `reference`: An alias for `expected`
+ *   - `metadata`: Metadata associated with the dataset example
+ *   - `example`: The dataset `Example` object with all associated fields
  *
  * @example
  * ```ts
@@ -83,7 +99,7 @@ export type RunExperimentParams = ClientFn & {
  *   dataset: "my-dataset",
  *   task: async (example) => example.input,
  *   evaluators: [
- *     asEvaluator("my-evaluator", "CODE", async (params) => params.output),
+ *     asEvaluator({name: "my-evaluator", kind: "CODE", evaluate: async (params) => params.output}),
  *   ],
  * });
  * ```
