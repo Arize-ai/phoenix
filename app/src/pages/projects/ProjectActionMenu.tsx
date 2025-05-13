@@ -27,12 +27,14 @@ export function ProjectActionMenu({
   onProjectDelete,
   onProjectClear,
   onProjectRemoveData,
+  variant = "quiet",
 }: {
   projectId: string;
   projectName: string;
   onProjectClear: () => void;
   onProjectRemoveData: () => void;
   onProjectDelete: () => void;
+  variant?: "quiet" | "default";
 }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const canDelete = projectName !== "default";
@@ -166,7 +168,7 @@ export function ProjectActionMenu({
       }}
     >
       <ActionMenu
-        buttonVariant="quiet"
+        buttonVariant={variant}
         buttonSize="compact"
         align="end"
         onAction={(action) => {
