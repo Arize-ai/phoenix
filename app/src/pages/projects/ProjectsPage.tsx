@@ -1,4 +1,5 @@
 import React, {
+  memo,
   startTransition,
   Suspense,
   useCallback,
@@ -30,18 +31,15 @@ import { css } from "@emotion/react";
 import { useNotification } from "@arizeai/components";
 
 import {
-  Button,
   Flex,
   FlexProps,
   Heading,
   Icon,
   Icons,
-  Input,
   Link,
   Loading,
   Skeleton,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import {
@@ -59,7 +57,6 @@ import {
   ProjectsPageProjectMetricsQuery,
   ProjectsPageProjectMetricsQuery$data,
 } from "@phoenix/pages/projects/__generated__/ProjectsPageProjectMetricsQuery.graphql";
-import { ProjectSortMenu } from "@phoenix/pages/projects/ProjectSortMenu";
 import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeToggle";
 import { ProjectSortOrder } from "@phoenix/store/preferencesStore";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -69,13 +66,13 @@ import {
   ProjectsPageProjectsFragment$key,
 } from "./__generated__/ProjectsPageProjectsFragment.graphql";
 import {
-  ProjectFilter,
   ProjectSort,
   ProjectsPageProjectsQuery,
 } from "./__generated__/ProjectsPageProjectsQuery.graphql";
 import { ProjectsPageQuery } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
 import { ProjectActionMenu } from "./ProjectActionMenu";
+import { ProjectsSearch } from "./ProjectsSearch";
 
 const PAGE_SIZE = 10;
 
@@ -137,9 +134,8 @@ export function ProjectsPageContent({
     projectViewMode: state.projectViewMode,
   }));
   const sortQueryParams = useProjectSortQueryParams();
-  const [filter, setFilter] = useState<ProjectFilter | null>(null);
+  const [filter, setFilter] = useState<string>("");
   const [notify, holder] = useNotification();
-  const [loading, setLoading] = useState(false);
   // Convert the time range to a variable that can be used in the query
   const timeRangeVariable = useMemo(() => {
     return {
@@ -188,7 +184,7 @@ export function ProjectsPageContent({
   const queryArgs = useMemo(
     () => ({
       ...sortQueryParams,
-      filter,
+      filter: { value: filter, col: "name" as const },
     }),
     [sortQueryParams, filter]
   );
@@ -202,7 +198,6 @@ export function ProjectsPageContent({
       onComplete?: () => void;
     }) => {
       startTransition(() => {
-        setLoading(true);
         _refetch(
           {
             ...queryArgs,
@@ -211,7 +206,6 @@ export function ProjectsPageContent({
           {
             fetchPolicy: "store-and-network",
             onComplete: () => {
-              setLoading(false);
               onComplete?.();
             },
           }
@@ -333,52 +327,16 @@ export function ProjectsPageContent({
           alignItems="center"
           gap="size-100"
         >
-          <Flex direction="row" alignItems="center" gap="size-100" width="100%">
-            <form
-              css={css`
-                width: 100%;
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-                gap: var(--ac-global-dimension-size-50);
-              `}
-              onSubmit={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const form = new FormData(e.target as HTMLFormElement);
-                const filter = form.get("filter");
-                const filterArg: ProjectFilter | null = filter
-                  ? { value: filter as string, col: "name" }
-                  : null;
-                setFilter(filterArg);
-                refetch({
-                  vars: {
-                    filter: filterArg,
-                  },
-                });
-              }}
-            >
-              <TextField
-                size="S"
-                css={css`
-                  flex-basis: 100%;
-                `}
-                aria-label="Search projects by name"
-                name="filter"
-                type="search"
-              >
-                <Input placeholder="Search projects by name" />
-              </TextField>
-              <Button
-                type="submit"
-                size="S"
-                isDisabled={loading}
-                trailingVisual={loading ? <Loading size="S" /> : null}
-              >
-                Search
-              </Button>
-            </form>
-          </Flex>
+          <ProjectsSearch
+            onChange={(newSearch) => {
+              setFilter(newSearch);
+              refetch({
+                vars: {
+                  filter: { value: newSearch, col: "name" },
+                },
+              });
+            }}
+          />
           <Flex
             direction="row"
             justifyContent="end"
@@ -391,8 +349,8 @@ export function ProjectsPageContent({
             `}
           >
             <ProjectViewModeToggle />
-            <NewProjectButton variant="primary" />
             <ConnectedLastNTimeRangePicker />
+            <NewProjectButton variant="primary" />
           </Flex>
         </Flex>
       </View>
@@ -404,7 +362,7 @@ export function ProjectsPageContent({
             flex: 1 1 auto;
           `}
         >
-          <ProjectGrid
+          <ProjectsGrid
             projects={projects}
             onDelete={onDelete}
             onClear={onClear}
@@ -457,7 +415,7 @@ type ProjectViewComponentProps = {
   onSort: (sort: ProjectSort) => void;
 };
 
-function ProjectGrid({
+function ProjectsGrid({
   projects,
   onDelete,
   onClear,
@@ -466,73 +424,62 @@ function ProjectGrid({
   hasNext,
   loadNext,
   isLoadingNext,
-  onSort,
 }: ProjectViewComponentProps) {
   return (
     <View padding="size-200" width="100%">
-      <Flex direction="column" gap="size-200">
-        <Flex direction="row" justifyContent="end" alignItems="center">
-          <ProjectSortMenu onSort={onSort} />
-        </Flex>
-        <Flex direction="column">
-          <ul
+      <ul
+        css={css`
+          display: grid;
+          grid-template-columns: repeat(
+            auto-fill,
+            minmax(var(--ac-global-dimension-size-3600), 1fr)
+          );
+          gap: var(--ac-global-dimension-size-200);
+        `}
+      >
+        {projects?.map((project) => (
+          <li
+            key={project.id}
             css={css`
-              display: grid;
-              grid-template-columns: repeat(
-                auto-fill,
-                minmax(var(--ac-global-dimension-size-3600), 1fr)
-              );
-              gap: var(--ac-global-dimension-size-200);
+              display: flex;
+              flex-direction: column;
+              height: 100%;
+              & > div {
+                height: 100%;
+              }
             `}
           >
-            {projects?.map((project) => (
-              <li
-                key={project.id}
-                css={css`
-                  display: flex;
-                  flex-direction: column;
-                  height: 100%;
-                  & > div {
-                    height: 100%;
-                  }
-                `}
-              >
-                <Link
-                  title={project.name}
-                  to={`/projects/${project.id}`}
-                  css={css`
-                    text-decoration: none;
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                  `}
-                >
-                  <ProjectItem
-                    project={project}
-                    timeRange={timeRangeVariable}
-                    onProjectDelete={() => onDelete(project.name)}
-                    onProjectClear={() => onClear(project.name)}
-                    onProjectRemoveData={() => onRemove(project.name)}
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {hasNext && (
-            <Flex
-              width="100%"
-              justifyContent="center"
-              alignItems="center"
-              marginTop="size-200"
+            <Link
+              title={project.name}
+              to={`/projects/${project.id}`}
+              css={css`
+                text-decoration: none;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+              `}
             >
-              <LoadMoreButton
-                onLoadMore={loadNext}
-                isLoadingNext={isLoadingNext}
+              <ProjectItem
+                project={project}
+                timeRange={timeRangeVariable}
+                onProjectDelete={() => onDelete(project.name)}
+                onProjectClear={() => onClear(project.name)}
+                onProjectRemoveData={() => onRemove(project.name)}
               />
-            </Flex>
-          )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {hasNext && (
+        <Flex
+          width="100%"
+          justifyContent="center"
+          alignItems="center"
+          marginTop="size-200"
+        >
+          <LoadMoreButton onLoadMore={loadNext} isLoadingNext={isLoadingNext} />
         </Flex>
-      </Flex>
+      )}
     </View>
   );
 }
@@ -602,7 +549,7 @@ function ProjectItem({
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        gap: var(--ac-global-dimension-size-400);
+        gap: var(--ac-global-dimension-size-200);
         height: 100%;
       `}
     >
@@ -619,7 +566,7 @@ function ProjectItem({
                 overflow: hidden;
                 display: -webkit-box;
                 -webkit-box-orient: vertical;
-                -webkit-line-clamp: 2;
+                -webkit-line-clamp: 1;
                 overflow: hidden;
               `}
             >
@@ -683,7 +630,7 @@ function ProjectMetricsLoadingSkeleton() {
   );
 }
 
-function ProjectMetrics({
+const ProjectMetrics = memo(function ProjectMetrics({
   projectId,
   timeRange,
   flexProps,
@@ -739,7 +686,7 @@ function ProjectMetrics({
   }
   // if the project metrics are loaded, we show the project metrics
   return <ProjectMetricsRow project={projectMetrics} flexProps={flexProps} />;
-}
+});
 
 function ProjectMetricsRow({
   project,
@@ -804,7 +751,7 @@ function ProjectsTable({
     () =>
       [
         {
-          header: "Name",
+          header: "name",
           accessorKey: "name",
           maxSize: 135,
           cell: ({ row }) => {
@@ -814,19 +761,21 @@ function ProjectsTable({
                   gradientStartColor={row.original.gradientStartColor}
                   gradientEndColor={row.original.gradientEndColor}
                 />
-                <Truncate maxWidth="300px">{row.original.name}</Truncate>
+                <Link to={`/projects/${row.original.id}`}>
+                  <Truncate maxWidth="300px">{row.original.name}</Truncate>
+                </Link>
               </Flex>
             );
           },
         },
         {
-          header: "Last Updated At",
+          header: "last updated at",
           accessorKey: "endTime",
           maxSize: 30,
           cell: TimestampCell,
         },
         {
-          header: "Metrics",
+          header: "metrics",
           id: "metrics",
           enableSorting: false,
           cell: ({ row }) => {
