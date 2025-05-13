@@ -30,6 +30,14 @@ export type RunExperimentParams = ClientFn & {
    */
   experimentName?: string;
   /**
+   * The description of the experiment
+   */
+  experimentDescription?: string;
+  /**
+   * Experiment metadata
+   */
+  experimentMetadata?: Record<string, unknown>;
+  /**
    * The dataset to run the experiment on
    */
   dataset: Dataset | string | Example[];
@@ -72,6 +80,8 @@ export type RunExperimentParams = ClientFn & {
  */
 export async function runExperiment({
   experimentName: _experimentName,
+  experimentDescription,
+  experimentMetadata,
   client: _client,
   dataset: _dataset,
   task,
@@ -82,7 +92,7 @@ export async function runExperiment({
   concurrency = 5,
   dryRun,
 }: RunExperimentParams): Promise<RanExperiment> {
-  const isDryRun = typeof dryRun === "number" ? dryRun : (dryRun ?? false);
+  const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({ dataset: _dataset, client });
   invariant(dataset, `Dataset not found`);
@@ -97,12 +107,38 @@ export async function runExperiment({
   const experimentParams: ExperimentParameters = {
     nExamples,
   };
-  const experiment: Experiment = {
-    id: id(),
-    datasetId: dataset.id,
-    datasetVersionId: dataset.versionId,
-    projectName,
-  };
+  let experiment: Experiment;
+  if (isDryRun) {
+    experiment = {
+      id: id(),
+      datasetId: dataset.id,
+      datasetVersionId: dataset.versionId,
+      projectName,
+    };
+  } else {
+    const experimentResponse = await client
+      .POST("/v1/datasets/{dataset_id}/experiments", {
+        params: {
+          path: {
+            dataset_id: dataset.id,
+          },
+        },
+        body: {
+          name: experimentName,
+          description: experimentDescription,
+          metadata: experimentMetadata,
+          project_name: projectName,
+        },
+      })
+      .then((res) => res.data?.data);
+    invariant(experimentResponse, `Failed to create experiment`);
+    experiment = {
+      id: experimentResponse.id,
+      datasetId: dataset.id,
+      datasetVersionId: dataset.versionId,
+      projectName,
+    };
+  }
 
   if (!record) {
     logger.info(
@@ -121,6 +157,7 @@ export async function runExperiment({
   type ExperimentRunId = string;
   const runs: Record<ExperimentRunId, ExperimentRun> = {};
   await runTask({
+    client,
     experimentId: experiment.id,
     task,
     dataset,
@@ -129,6 +166,8 @@ export async function runExperiment({
       runs[run.id] = run;
     },
     concurrency,
+    isDryRun,
+    nExamples,
   });
   logger.info(`✅ Task runs completed`);
 
@@ -153,16 +192,21 @@ export async function runExperiment({
 }
 
 /**
- * Run a task against all examples in a dataset.
+ * Run a task against n examples in a dataset.
  */
 function runTask({
+  client,
   experimentId,
   task,
   dataset,
   onComplete,
   logger,
   concurrency = 5,
+  isDryRun,
+  nExamples,
 }: {
+  /** The client to use */
+  client: PhoenixClient;
   /** The id of the experiment */
   experimentId: string;
   /** The task to run */
@@ -175,6 +219,10 @@ function runTask({
   logger: Logger;
   /** The number of examples to run in parallel */
   concurrency: number;
+  /** Whether to run the task as a dry run */
+  isDryRun: boolean;
+  /** The number of examples to run */
+  nExamples: number;
 }) {
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
   const run = async (example: Example) => {
@@ -202,10 +250,15 @@ function runTask({
       thisRun.error = error instanceof Error ? error.message : "Unknown error";
     }
     thisRun.endTime = new Date();
+    if (!isDryRun) {
+      // Log the run to the server
+      // TODO: fill this out
+    }
     onComplete(thisRun);
   };
   const q = queue(run, concurrency);
-  dataset.examples.forEach((example) => q.push(example));
+  const examplesToUse = dataset.examples.slice(0, nExamples);
+  examplesToUse.forEach((example) => q.push(example));
   return q.drain();
 }
 
