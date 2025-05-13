@@ -94,6 +94,8 @@ Phoenix is built on top of OpenTelemetry and is vendor, language, and framework 
 | [Instructor](https://docs.arize.com/phoenix/tracing/integrations-tracing/instructor) | `openinference-instrumentation-instructor` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-instructor.svg)](https://pypi.python.org/pypi/openinference-instrumentation-instructor) |
 | [Anthropic](https://docs.arize.com/phoenix/tracing/integrations-tracing/anthropic) | `openinference-instrumentation-anthropic` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-anthropic.svg)](https://pypi.python.org/pypi/openinference-instrumentation-anthropic) |
 | [Smolagents](https://huggingface.co/docs/smolagents/en/tutorials/inspect_runs) | `openinference-instrumentation-smolagents` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-smolagents.svg)](https://pypi.python.org/pypi/openinference-instrumentation-smolagents) |
+| [Agno](https://docs.arize.com/phoenix/tracing/integrations-tracing/agno) | `openinference-instrumentation-agno` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-agno.svg)](https://pypi.python.org/pypi/openinference-instrumentation-agno) |
+| [MCP](https://docs.arize.com/phoenix/tracing/integrations-tracing/mcp) | `openinference-instrumentation-mcp` | [![PyPI Version](https://img.shields.io/pypi/v/openinference-instrumentation-mcp.svg)](https://pypi.python.org/pypi/openinference-instrumentation-mcp) |
 
 ### JavaScript Integrations
 
