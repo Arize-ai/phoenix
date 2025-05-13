@@ -57,6 +57,11 @@ export type RunExperimentParams = ClientFn & {
    * The number of dataset examples to run in parallel
    */
   concurrency?: number;
+  /**
+   * Whether or not to run the experiment as a dry run. If a number is privided, n examples will be run.
+   * @default false
+   */
+  dryRun?: number | boolean;
 };
 
 /**
@@ -75,16 +80,22 @@ export async function runExperiment({
   logger = console,
   record = true,
   concurrency = 5,
+  dryRun,
 }: RunExperimentParams): Promise<RanExperiment> {
+  const isDryRun = typeof dryRun === "number" ? dryRun : (dryRun ?? false);
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({ dataset: _dataset, client });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
+  const nExamples =
+    typeof dryRun === "number"
+      ? Math.max(dryRun, dataset.examples.length)
+      : dataset.examples.length;
+
   const experimentName =
     _experimentName ?? `${dataset.name}-${new Date().toISOString()}`;
   const experimentParams: ExperimentParameters = {
-    // TODO: Make configurable?
-    nExamples: dataset.examples.length,
+    nExamples,
   };
   const experiment: Experiment = {
     id: id(),
