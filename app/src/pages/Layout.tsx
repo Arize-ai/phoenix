@@ -1,4 +1,4 @@
-import React, { Suspense, useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { Outlet, useNavigate } from "react-router";
 import { css } from "@emotion/react";
 

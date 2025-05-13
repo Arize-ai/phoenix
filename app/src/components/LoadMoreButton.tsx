@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 import { Button, ButtonProps } from "@phoenix/components/button";

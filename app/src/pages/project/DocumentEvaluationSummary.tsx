@@ -1,4 +1,4 @@
-import React, { startTransition, Suspense, useEffect } from "react";
+import { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 

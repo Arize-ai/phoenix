@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Icon, Icons } from "@phoenix/components";
 import { assertUnreachable } from "@phoenix/typeUtils";
 

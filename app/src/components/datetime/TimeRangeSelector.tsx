@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { Dialog, DialogTrigger } from "react-aria-components";
 import { css } from "@emotion/react";
 

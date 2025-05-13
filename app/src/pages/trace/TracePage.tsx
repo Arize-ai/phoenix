@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { Dialog, DialogContainer } from "@arizeai/components";

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { schemeSet2 } from "d3-scale-chromatic";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";

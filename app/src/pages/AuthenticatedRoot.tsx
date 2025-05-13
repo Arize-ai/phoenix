@@ -1,4 +1,3 @@
-import React from "react";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 

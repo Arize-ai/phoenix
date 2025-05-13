@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode } from "react";
+import { createContext, ReactNode, useContext } from "react";
 
 import { InferencesRole } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -21,7 +21,7 @@ export const InferencesContext = createContext<InferencesContextType | null>(
 );
 
 export function useInferences() {
-  const context = React.useContext(InferencesContext);
+  const context = useContext(InferencesContext);
   if (context === null) {
     throw new Error("useInferences must be used within a InferencesProvider");
   }

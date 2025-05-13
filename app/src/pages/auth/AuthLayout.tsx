@@ -1,4 +1,4 @@
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { css } from "@emotion/react";
 
 import { View } from "@phoenix/components";

@@ -1,4 +1,4 @@
-import React, { ReactNode, SyntheticEvent } from "react";
+import { ReactNode, SyntheticEvent } from "react";
 import { css } from "@emotion/react";
 
 import { useTheme } from "@phoenix/contexts";

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
