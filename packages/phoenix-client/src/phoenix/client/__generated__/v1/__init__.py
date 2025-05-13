@@ -20,6 +20,20 @@ class CreateExperimentRequestBody(TypedDict):
     repetitions: NotRequired[int]
 
 
+class CreateExperimentRunRequestBody(TypedDict):
+    dataset_example_id: str
+    output: Any
+    repetition_number: int
+    start_time: str
+    end_time: str
+    trace_id: NotRequired[str]
+    error: NotRequired[str]
+
+
+class CreateExperimentRunResponseBodyData(TypedDict):
+    id: str
+
+
 class CreateProjectRequestBody(TypedDict):
     name: str
     description: NotRequired[str]
@@ -70,6 +84,24 @@ class Experiment(TypedDict):
     updated_at: str
 
 
+class ExperimentEvaluationResult(TypedDict):
+    label: NotRequired[str]
+    score: NotRequired[float]
+    explanation: NotRequired[str]
+
+
+class ExperimentRunResponse(TypedDict):
+    dataset_example_id: str
+    output: Any
+    repetition_number: int
+    start_time: str
+    end_time: str
+    id: str
+    experiment_id: str
+    trace_id: NotRequired[str]
+    error: NotRequired[str]
+
+
 class FreeformAnnotationConfig(TypedDict):
     type: Literal["FREEFORM"]
     name: str
@@ -113,6 +145,10 @@ class ListDatasetVersionsResponseBody(TypedDict):
 class ListDatasetsResponseBody(TypedDict):
     data: Sequence[Dataset]
     next_cursor: Optional[str]
+
+
+class ListExperimentRunsResponseBody(TypedDict):
+    data: Sequence[ExperimentRunResponse]
 
 
 class ListExperimentsResponseBody(TypedDict):
@@ -262,10 +298,34 @@ class UploadDatasetResponseBody(TypedDict):
     data: UploadDatasetData
 
 
+class UpsertExperimentEvaluationRequestBody(TypedDict):
+    experiment_run_id: str
+    name: str
+    annotator_kind: Literal["LLM", "CODE", "HUMAN"]
+    start_time: str
+    end_time: str
+    result: ExperimentEvaluationResult
+    error: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+    trace_id: NotRequired[str]
+
+
+class UpsertExperimentEvaluationResponseBodyData(TypedDict):
+    id: str
+
+
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
     type: str
+
+
+class PhoenixServerApiRoutersV1ExperimentRunsCreateExperimentResponseBody(TypedDict):
+    data: CreateExperimentRunResponseBodyData
+
+
+class PhoenixServerApiRoutersV1ExperimentsCreateExperimentResponseBody(TypedDict):
+    data: Experiment
 
 
 class AnnotateSpansResponseBody(TypedDict):
@@ -310,10 +370,6 @@ class ContinuousAnnotationConfigData(TypedDict):
 
 class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
-
-
-class CreateExperimentResponseBody(TypedDict):
-    data: Experiment
 
 
 class CreateProjectResponseBody(TypedDict):
@@ -437,6 +493,10 @@ class ToolCallContentPart(TypedDict):
 
 class UpdateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class UpsertExperimentEvaluationResponseBody(TypedDict):
+    data: UpsertExperimentEvaluationResponseBodyData
 
 
 class AnnotateSpansRequestBody(TypedDict):
