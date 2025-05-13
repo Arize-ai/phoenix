@@ -57,6 +57,7 @@ export type EvaluatorParams = {
 
 export type Evaluator = {
   name: string;
+  kind: AnnotatorKind;
   evaluate: (
     args: EvaluatorParams
   ) => Promise<EvaluationResult> | EvaluationResult;

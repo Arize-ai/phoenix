@@ -16,12 +16,12 @@ import { type Logger } from "../types/logger";
 import { getDatasetBySelector } from "../utils/getDatasetBySelector";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
+import { AnnotatorKind } from "../types/annotations";
 
 /**
  * Parameters for running an experiment.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export type RunExperimentParams = ClientFn & {
   /**
@@ -29,6 +29,14 @@ export type RunExperimentParams = ClientFn & {
    * Defaults to the dataset name + a timestamp
    */
   experimentName?: string;
+  /**
+   * The description of the experiment
+   */
+  experimentDescription?: string;
+  /**
+   * Experiment metadata
+   */
+  experimentMetadata?: Record<string, unknown>;
   /**
    * The dataset to run the experiment on
    */
@@ -57,16 +65,35 @@ export type RunExperimentParams = ClientFn & {
    * The number of dataset examples to run in parallel
    */
   concurrency?: number;
+  /**
+   * Whether or not to run the experiment as a dry run. If a number is privided, n examples will be run.
+   * @default false
+   */
+  dryRun?: number | boolean;
 };
 
 /**
  * Run an experiment.
  *
+ * @example
+ * ```ts
+ * import { asEvaluator, runExperiment } from "@phoenix/client/experiments";
+ *
+ * const experiment = await runExperiment({
+ *   dataset: "my-dataset",
+ *   task: async (example) => example.input,
+ *   evaluators: [
+ *     asEvaluator("my-evaluator", "CODE", async (params) => params.output),
+ *   ],
+ * });
+ * ```
+ *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export async function runExperiment({
   experimentName: _experimentName,
+  experimentDescription,
+  experimentMetadata,
   client: _client,
   dataset: _dataset,
   task,
@@ -75,23 +102,55 @@ export async function runExperiment({
   logger = console,
   record = true,
   concurrency = 5,
+  dryRun = false,
 }: RunExperimentParams): Promise<RanExperiment> {
+  const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({ dataset: _dataset, client });
   invariant(dataset, `Dataset not found`);
   invariant(dataset.examples.length > 0, `Dataset has no examples`);
+  const nExamples =
+    typeof dryRun === "number"
+      ? Math.max(dryRun, dataset.examples.length)
+      : dataset.examples.length;
+
   const experimentName =
     _experimentName ?? `${dataset.name}-${new Date().toISOString()}`;
   const experimentParams: ExperimentParameters = {
-    // TODO: Make configurable?
-    nExamples: dataset.examples.length,
+    nExamples,
   };
-  const experiment: Experiment = {
-    id: id(),
-    datasetId: dataset.id,
-    datasetVersionId: dataset.versionId,
-    projectName,
-  };
+  let experiment: Experiment;
+  if (isDryRun) {
+    experiment = {
+      id: id(),
+      datasetId: dataset.id,
+      datasetVersionId: dataset.versionId,
+      projectName,
+    };
+  } else {
+    const experimentResponse = await client
+      .POST("/v1/datasets/{dataset_id}/experiments", {
+        params: {
+          path: {
+            dataset_id: dataset.id,
+          },
+        },
+        body: {
+          name: experimentName,
+          description: experimentDescription,
+          metadata: experimentMetadata,
+          project_name: projectName,
+        },
+      })
+      .then((res) => res.data?.data);
+    invariant(experimentResponse, `Failed to create experiment`);
+    experiment = {
+      id: experimentResponse.id,
+      datasetId: dataset.id,
+      datasetVersionId: dataset.versionId,
+      projectName,
+    };
+  }
 
   if (!record) {
     logger.info(
@@ -110,6 +169,7 @@ export async function runExperiment({
   type ExperimentRunId = string;
   const runs: Record<ExperimentRunId, ExperimentRun> = {};
   await runTask({
+    client,
     experimentId: experiment.id,
     task,
     dataset,
@@ -118,6 +178,8 @@ export async function runExperiment({
       runs[run.id] = run;
     },
     concurrency,
+    isDryRun,
+    nExamples,
   });
   logger.info(`✅ Task runs completed`);
 
@@ -133,6 +195,7 @@ export async function runExperiment({
     client,
     logger,
     concurrency,
+    dryRun,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -142,16 +205,21 @@ export async function runExperiment({
 }
 
 /**
- * Run a task against all examples in a dataset.
+ * Run a task against n examples in a dataset.
  */
 function runTask({
+  client,
   experimentId,
   task,
   dataset,
   onComplete,
   logger,
   concurrency = 5,
+  isDryRun,
+  nExamples,
 }: {
+  /** The client to use */
+  client: PhoenixClient;
   /** The id of the experiment */
   experimentId: string;
   /** The task to run */
@@ -164,6 +232,10 @@ function runTask({
   logger: Logger;
   /** The number of examples to run in parallel */
   concurrency: number;
+  /** Whether to run the task as a dry run */
+  isDryRun: boolean;
+  /** The number of examples to run */
+  nExamples: number;
 }) {
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
   const run = async (example: Example) => {
@@ -172,7 +244,7 @@ function runTask({
     );
     const thisRun: ExperimentRun = {
       id: id(),
-      traceId: id(),
+      traceId: null, // TODO: fill this in once we trace experiments
       experimentId,
       datasetExampleId: example.id,
       startTime: new Date(),
@@ -191,10 +263,34 @@ function runTask({
       thisRun.error = error instanceof Error ? error.message : "Unknown error";
     }
     thisRun.endTime = new Date();
+    if (!isDryRun) {
+      // Log the run to the server
+      // We log this without awaiting (e.g. best effort)
+      const res = await client.POST("/v1/experiments/{experiment_id}/runs", {
+        params: {
+          path: {
+            experiment_id: experimentId,
+          },
+        },
+        body: {
+          dataset_example_id: example.id,
+          output: thisRun.output,
+          repetition_number: 0,
+          start_time: thisRun.startTime.toISOString(),
+          end_time: thisRun.endTime.toISOString(),
+          trace_id: thisRun.traceId,
+          error: thisRun.error,
+        },
+      });
+      // replace the local run id with the server-assigned id
+      thisRun.id = res.data?.data.id ?? thisRun.id;
+    }
     onComplete(thisRun);
+    return thisRun;
   };
   const q = queue(run, concurrency);
-  dataset.examples.forEach((example) => q.push(example));
+  const examplesToUse = dataset.examples.slice(0, nExamples);
+  examplesToUse.forEach((example) => q.push(example));
   return q.drain();
 }
 
@@ -202,7 +298,6 @@ function runTask({
  * Evaluate an experiment.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export async function evaluateExperiment({
   experiment,
@@ -210,6 +305,7 @@ export async function evaluateExperiment({
   client: _client,
   logger,
   concurrency = 5,
+  dryRun = false,
 }: {
   /**
    * The experiment to evaluate
@@ -224,7 +320,18 @@ export async function evaluateExperiment({
   logger: Logger;
   /** The number of evaluators to run in parallel */
   concurrency: number;
+  /**
+   * Whether to run the evaluation as a dry run
+   * If a number is provided, the evaluation will be run for the first n runs
+   * @default false
+   * */
+  dryRun?: boolean | number;
 }): Promise<RanExperiment> {
+  const isDryRun = typeof dryRun === "number" || dryRun === true;
+  const nRuns =
+    typeof dryRun === "number"
+      ? Math.max(dryRun, Object.keys(experiment.runs).length)
+      : Object.keys(experiment.runs).length;
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({
     dataset: experiment.datasetId,
@@ -236,6 +343,8 @@ export async function evaluateExperiment({
     `Dataset "${experiment.datasetId}" has no examples`
   );
   invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
+
+  const runsToEvaluate = Object.values(experiment.runs).slice(0, nRuns);
 
   if (evaluators?.length === 0) {
     return {
@@ -265,19 +374,38 @@ export async function evaluateExperiment({
   // Run evaluators against all runs
   // Flat list of evaluator + run tuples
   const evaluatorsAndRuns = evaluators.flatMap((evaluator) =>
-    Object.values(experiment.runs).map((run) => ({
+    runsToEvaluate.map((run) => ({
       evaluator,
       run,
     }))
   );
   const evaluatorsQueue = queue(
     async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
-      await runEvaluator({
+      const evalResult = await runEvaluator({
         evaluator: evaluatorAndRun.evaluator,
         run: evaluatorAndRun.run,
         exampleCache: examplesById,
         onComplete: onEvaluationComplete,
       });
+      if (!isDryRun) {
+        logger.info(`📝 Logging evaluation ${evalResult.id}`);
+        // Log the evaluation to the server
+        // We log this without awaiting (e.g. best effort)
+        client.POST("/v1/experiment_evaluations", {
+          body: {
+            experiment_run_id: evaluatorAndRun.run.id,
+            name: evaluatorAndRun.evaluator.name,
+            annotator_kind: evaluatorAndRun.evaluator.kind,
+            start_time: evalResult.startTime.toISOString(),
+            end_time: evalResult.endTime.toISOString(),
+            result: {
+              ...evalResult.result,
+            },
+            error: evalResult.error,
+            trace_id: evalResult.traceId,
+          },
+        });
+      }
     },
     concurrency
   );
@@ -297,7 +425,6 @@ export async function evaluateExperiment({
  * Run an evaluator against a run.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 async function runEvaluator({
   evaluator,
@@ -315,7 +442,7 @@ async function runEvaluator({
   const evaluate = async () => {
     const thisEval: ExperimentEvaluationRun = {
       id: id(),
-      traceId: id(),
+      traceId: null, // TODO: fill this in once we trace experiments
       experimentRunId: run.id,
       startTime: new Date(),
       endTime: new Date(), // will get replaced with actual end time
@@ -337,6 +464,7 @@ async function runEvaluator({
     }
     thisEval.endTime = new Date();
     onComplete(thisEval);
+    return thisEval;
   };
 
   return evaluate();
@@ -346,18 +474,23 @@ async function runEvaluator({
  * Wrap an evaluator function in an object with a name property.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  *
  * @param name - The name of the evaluator.
  * @param evaluate - The evaluator function.
  * @returns The evaluator object.
  */
-export function asEvaluator(
-  name: string,
-  evaluate: Evaluator["evaluate"]
-): Evaluator {
+export function asEvaluator({
+  name,
+  kind,
+  evaluate,
+}: {
+  name: string;
+  kind: AnnotatorKind;
+  evaluate: Evaluator["evaluate"];
+}): Evaluator {
   return {
     name,
+    kind,
     evaluate,
   };
 }
