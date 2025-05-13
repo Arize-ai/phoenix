@@ -1062,6 +1062,13 @@ export interface components {
              */
             id: string;
         };
+        /** KeyValue */
+        KeyValue: {
+            /** Key */
+            key: string;
+            /** Value */
+            value: unknown;
+        };
         /** ListDatasetExamplesData */
         ListDatasetExamplesData: {
             /** Dataset Id */
@@ -1109,6 +1116,33 @@ export interface components {
          * @enum {string}
          */
         OptimizationDirection: "MINIMIZE" | "MAXIMIZE" | "NONE";
+        /** OtlpSpan */
+        OtlpSpan: {
+            /** Traceid */
+            traceId: string;
+            /** Spanid */
+            spanId: string;
+            /** Parentspanid */
+            parentSpanId?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Kind
+             * @default 0
+             */
+            kind?: number;
+            /** Starttimeunixnano */
+            startTimeUnixNano?: number | null;
+            /** Endtimeunixnano */
+            endTimeUnixNano?: number | null;
+            /** Attributes */
+            attributes?: components["schemas"]["KeyValue"][];
+            /** Events */
+            events?: {
+                [key: string]: unknown;
+            }[];
+            status: components["schemas"]["Status"];
+        };
         /** Project */
         Project: {
             /** Name */
@@ -1446,52 +1480,6 @@ export interface components {
             /** Description */
             description?: string | null;
         };
-        /** Span */
-        Span: {
-            /**
-             * Id
-             * @description The Global Relay-style ID of the span.
-             */
-            id: string;
-            /**
-             * Span Id
-             * @description The OpenTelemetry span ID.
-             */
-            span_id: string;
-            /**
-             * Trace Id
-             * @description The OpenTelemetry trace ID of the span.
-             */
-            trace_id?: string | null;
-            /** Name */
-            name?: string | null;
-            /**
-             * Span Kind
-             * @description The kind of span e.g. LLM, RETRIEVER …
-             */
-            span_kind?: string | null;
-            /**
-             * Parent Id
-             * @description The OpenTelemetry ID of the parent span (if present).
-             */
-            parent_id?: string | null;
-            /** Start Time */
-            start_time?: string | null;
-            /** End Time */
-            end_time?: string | null;
-            /** Status Code */
-            status_code?: string | null;
-            /** Status Message */
-            status_message?: string | null;
-            /** Events */
-            events?: {
-                [key: string]: unknown;
-            }[] | null;
-            /** Attributes */
-            attributes?: {
-                [key: string]: unknown;
-            } | null;
-        };
         /** SpanAnnotation */
         SpanAnnotation: {
             /**
@@ -1604,13 +1592,27 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /** SpanSearchResponseBody */
+        /**
+         * SpanSearchResponseBody
+         * @description Paginated response where each span follows OTLP JSON structure.
+         */
         SpanSearchResponseBody: {
             /** Data */
-            data: components["schemas"]["Span"][];
+            data: components["schemas"]["OtlpSpan"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** Status */
+        Status: {
+            code: components["schemas"]["StatusCode"];
+            /** Message */
+            message?: string | null;
+        };
+        /**
+         * StatusCode
+         * @enum {integer}
+         */
+        StatusCode: 0 | 1 | 2;
         /** TextContentPart */
         TextContentPart: {
             /**
