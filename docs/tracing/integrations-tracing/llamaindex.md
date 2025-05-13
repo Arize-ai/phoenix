@@ -1,5 +1,6 @@
 ---
 description: How to use the python LlamaIndexInstrumentor to trace LlamaIndex
+hidden: true
 ---
 
 # LlamaIndex

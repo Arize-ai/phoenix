@@ -1,5 +1,6 @@
 ---
 description: Instrument LLM calls made using the Google Gen AI Python SDK
+hidden: true
 ---
 
 # Google GenAI

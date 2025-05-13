@@ -3,6 +3,7 @@ description: >-
   Phoenix provides tracing for MCP clients and servers through OpenInference.
   This includes the unique capability to trace client to server interactions
   under a single trace in the correct hierarchy.
+hidden: true
 ---
 
 # Model Context Protocol (MCP)

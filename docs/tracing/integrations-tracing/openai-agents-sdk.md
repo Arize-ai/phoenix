@@ -1,5 +1,6 @@
 ---
 description: Use Phoenix and OpenAI Agents SDK for powerful multi-agent tracing
+hidden: true
 ---
 
 # OpenAI Agents SDK

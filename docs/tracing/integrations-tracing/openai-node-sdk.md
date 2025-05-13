@@ -1,3 +1,7 @@
+---
+hidden: true
+---
+
 # OpenAI Node SDK
 
 [![npm version](https://camo.githubusercontent.com/247eac665eb001f3f0acefb5f56b3e607c4143b633b553d452dac4aa3795a90a/68747470733a2f2f62616467652e667572792e696f2f6a732f406172697a6561692532466f70656e696e666572656e63652d696e737472756d656e746174696f6e2d6f70656e61692e737667)](https://badge.fury.io/js/@arizeai%2Fopeninference-instrumentation-openai)

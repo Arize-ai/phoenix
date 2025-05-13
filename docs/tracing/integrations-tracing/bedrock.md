@@ -2,9 +2,10 @@
 description: >-
   Instrument LLM calls to AWS Bedrock via the boto3 client using the
   BedrockInstrumentor
+hidden: true
 ---
 
-# Bedrock
+# Amazon Bedrock
 
 boto3 provides Python bindings to AWS services, including Bedrock, which provides access to a number of foundation models. Calls to these models can be instrumented using OpenInference, enabling OpenTelemetry-compliant observability of applications built using these models. Traces collected using OpenInference can be viewed in Phoenix.
 
