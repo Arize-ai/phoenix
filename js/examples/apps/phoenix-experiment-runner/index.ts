@@ -122,7 +122,6 @@ const main = async () => {
       experimentName,
       client: phoenix,
       task: LLMAssistantTask,
-      repetitions: 2,
       logger: {
         ...log,
         log: (message) => log.message(message),

@@ -1,5 +1,8 @@
-import { Dataset, Example } from "../types/datasets";
+import { queue } from "async";
+import invariant from "tiny-invariant";
 import { createClient, type PhoenixClient } from "../client";
+import { ClientFn } from "../types/core";
+import { Dataset, Example } from "../types/datasets";
 import type {
   Evaluator,
   Experiment,
@@ -9,12 +12,10 @@ import type {
   ExperimentTask,
   RanExperiment,
 } from "../types/experiments";
-import { promisifyResult } from "../utils/promisifyResult";
-import invariant from "tiny-invariant";
-import { pluralize } from "../utils/pluralize";
-import { ClientFn } from "../types/core";
-import { getDatasetBySelector } from "../utils/getDatasetBySelector";
 import { type Logger } from "../types/logger";
+import { getDatasetBySelector } from "../utils/getDatasetBySelector";
+import { pluralize } from "../utils/pluralize";
+import { promisifyResult } from "../utils/promisifyResult";
 
 /**
  * Parameters for running an experiment.
@@ -41,10 +42,6 @@ export type RunExperimentParams = ClientFn & {
    */
   evaluators?: Evaluator[];
   /**
-   * The number of repetitions to run
-   */
-  repetitions?: number;
-  /**
    * The project under which the experiment task traces are recorded
    */
   projectName?: string;
@@ -56,6 +53,10 @@ export type RunExperimentParams = ClientFn & {
    * Whether to record the experiment results
    */
   record?: boolean;
+  /**
+   * The number of dataset examples to run in parallel
+   */
+  concurrency?: number;
 };
 
 /**
@@ -70,10 +71,10 @@ export async function runExperiment({
   dataset: _dataset,
   task,
   evaluators,
-  repetitions = 1,
   projectName = "default",
   logger = console,
   record = true,
+  concurrency = 5,
 }: RunExperimentParams): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({ dataset: _dataset, client });
@@ -82,7 +83,6 @@ export async function runExperiment({
   const experimentName =
     _experimentName ?? `${dataset.name}-${new Date().toISOString()}`;
   const experimentParams: ExperimentParameters = {
-    nRepetitions: repetitions,
     // TODO: Make configurable?
     nExamples: dataset.examples.length,
   };
@@ -90,7 +90,6 @@ export async function runExperiment({
     id: id(),
     datasetId: dataset.id,
     datasetVersionId: dataset.versionId,
-    repetitions,
     projectName,
   };
 
@@ -104,30 +103,22 @@ export async function runExperiment({
     `🧪 Starting experiment "${experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
-    )}`
-  );
-
-  logger.info(
-    `🔁 Running ${repetitions} ${pluralize("repetition", repetitions)} of task "${task.name}"`
+    )} and ${concurrency} concurrent runs`
   );
 
   // Run task against all examples, for each repetition
   type ExperimentRunId = string;
   const runs: Record<ExperimentRunId, ExperimentRun> = {};
-  await Promise.all(
-    Array.from({ length: repetitions }, (_, i) =>
-      runTask({
-        repetition: i + 1,
-        experimentId: experiment.id,
-        task,
-        dataset,
-        logger,
-        onComplete: (run) => {
-          runs[run.id] = run;
-        },
-      })
-    )
-  );
+  await runTask({
+    experimentId: experiment.id,
+    task,
+    dataset,
+    logger,
+    onComplete: (run) => {
+      runs[run.id] = run;
+    },
+    concurrency,
+  });
   logger.info(`✅ Task runs completed`);
 
   const ranExperiment: RanExperiment = {
@@ -141,6 +132,7 @@ export async function runExperiment({
     evaluators: evaluators ?? [],
     client,
     logger,
+    concurrency,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -156,9 +148,9 @@ function runTask({
   experimentId,
   task,
   dataset,
-  repetition,
   onComplete,
   logger,
+  concurrency = 5,
 }: {
   /** The id of the experiment */
   experimentId: string;
@@ -166,24 +158,24 @@ function runTask({
   task: ExperimentTask;
   /** The dataset to run the task on */
   dataset: Dataset;
-  /** The repetition number */
-  repetition: number;
   /** A callback to call when the task is complete */
   onComplete: (run: ExperimentRun) => void;
   /** The logger to use */
   logger: Logger;
+  /** The number of examples to run in parallel */
+  concurrency: number;
 }) {
-  logger.info(
-    `🔧 (${repetition}) Running task "${task.name}" on dataset "${dataset.id}"`
-  );
+  logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
   const run = async (example: Example) => {
+    logger.info(
+      `🔧 Running task "${task.name}" on example "${example.id} of dataset "${dataset.id}"`
+    );
     const thisRun: ExperimentRun = {
       id: id(),
       traceId: id(),
       experimentId,
       datasetExampleId: example.id,
       startTime: new Date(),
-      repetitionNumber: repetition,
       endTime: new Date(), // will get replaced with actual end time
       output: null,
       error: null,
@@ -201,7 +193,9 @@ function runTask({
     thisRun.endTime = new Date();
     onComplete(thisRun);
   };
-  return Promise.all(dataset.examples.map(run));
+  const q = queue(run, concurrency);
+  dataset.examples.forEach((example) => q.push(example));
+  return q.drain();
 }
 
 /**
@@ -215,6 +209,7 @@ export async function evaluateExperiment({
   evaluators,
   client: _client,
   logger,
+  concurrency = 5,
 }: {
   /**
    * The experiment to evaluate
@@ -227,6 +222,8 @@ export async function evaluateExperiment({
   client?: PhoenixClient;
   /** The logger to use */
   logger: Logger;
+  /** The number of evaluators to run in parallel */
+  concurrency: number;
 }): Promise<RanExperiment> {
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({
@@ -266,21 +263,28 @@ export async function evaluateExperiment({
   };
 
   // Run evaluators against all runs
-  await Promise.all(
-    evaluators.map((evaluator) =>
-      Promise.all(
-        Object.values(experiment.runs).map((run) =>
-          runEvaluator({
-            evaluator,
-            run,
-            exampleCache: examplesById,
-            onComplete: onEvaluationComplete,
-          })
-        )
-      )
-    )
+  // Flat list of evaluator + run tuples
+  const evaluatorsAndRuns = evaluators.flatMap((evaluator) =>
+    Object.values(experiment.runs).map((run) => ({
+      evaluator,
+      run,
+    }))
   );
-
+  const evaluatorsQueue = queue(
+    async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
+      await runEvaluator({
+        evaluator: evaluatorAndRun.evaluator,
+        run: evaluatorAndRun.run,
+        exampleCache: examplesById,
+        onComplete: onEvaluationComplete,
+      });
+    },
+    concurrency
+  );
+  evaluatorsAndRuns.forEach((evaluatorAndRun) =>
+    evaluatorsQueue.push(evaluatorAndRun)
+  );
+  await evaluatorsQueue.drain();
   logger.info(`✅ Evaluation runs completed`);
 
   return {
