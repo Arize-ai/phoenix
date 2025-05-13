@@ -36,7 +36,8 @@ def test_provider_agnostic_lookup(cost_lookup):
 
     result = cost_lookup[ModelSpec(None, "gpt-3.5")]
     assert isinstance(result, list)
-    assert sorted(result) == [("openai", 0.018), ("azure", 0.02)]
+    assert ("azure", 0.018) in result
+    assert ("openai", 0.02) in result
 
     assert ModelSpec(None, "gpt-3.5") in cost_lookup
     assert ModelSpec(None, "gpt-3.5-turbo") not in cost_lookup

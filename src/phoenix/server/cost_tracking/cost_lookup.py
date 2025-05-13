@@ -37,8 +37,9 @@ class ModelCostLookup:
     def __contains__(self, key: ModelSpec):
         provider, model = key.provider, key.model
         if provider is None:
-            return model in self._provider_model_map.get(provider, ())
-        return key in self._model_map
+            return self._model_map.get(model)
+        provider_models = self._provider_model_map.get(provider)
+        return provider_models and model in provider_models
 
     def __len__(self):
         return sum(len(model) for model in self._provider_model_map.values())
