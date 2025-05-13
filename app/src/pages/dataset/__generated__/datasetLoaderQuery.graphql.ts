@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed3392bba044983f8355f4a981291447>>
+ * @generated SignedSource<<8a0a704d47701ec99dbd41250b75c8be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -202,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5b221627cf7e63f41fbec41027cc0951",
+    "cacheID": "997dd3d4849cc24ed81f11148c2a5d39",
     "id": null,
     "metadata": {},
     "name": "datasetLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetLoaderQuery(\n  $id: GlobalID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetLoaderQuery(\n  $id: ID!\n) {\n  dataset: node(id: $id) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      description\n      exampleCount\n      experimentCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "469da2debdebd608c88a6ef83c2540aa";
+(node as any).hash = "5ff18bc8372a865b84a24396d3b3782a";
 
 export default node;

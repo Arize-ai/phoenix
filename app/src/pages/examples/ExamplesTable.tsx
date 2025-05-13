@@ -44,7 +44,7 @@ export function ExamplesTable({
         fragment ExamplesTableFragment on Dataset
         @refetchable(queryName: "ExamplesTableQuery")
         @argumentDefinitions(
-          datasetVersionId: { type: "GlobalID" }
+          datasetVersionId: { type: "ID" }
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
         ) {

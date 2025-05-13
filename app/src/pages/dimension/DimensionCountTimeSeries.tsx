@@ -74,7 +74,7 @@ export function DimensionCountTimeSeries({
   const data = useLazyLoadQuery<DimensionCountTimeSeriesQuery>(
     graphql`
       query DimensionCountTimeSeriesQuery(
-        $dimensionId: GlobalID!
+        $dimensionId: ID!
         $timeRange: TimeRange!
         $countGranularity: Granularity!
       ) {

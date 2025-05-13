@@ -21,7 +21,7 @@ export function DeleteDatasetDialog({
 }) {
   const [commitDelete, isCommittingDelete] =
     useMutation<DeleteDatasetDialogMutation>(graphql`
-      mutation DeleteDatasetDialogMutation($datasetId: GlobalID!) {
+      mutation DeleteDatasetDialogMutation($datasetId: ID!) {
         deleteDataset(input: { datasetId: $datasetId }) {
           __typename
         }
