@@ -58,9 +58,14 @@ class RegexDict:
         return len(self._entries)
 
 
-class ModelSpec(NamedTuple):
+class ModelPattern(NamedTuple):
     provider: Optional[str]
-    model: str
+    pattern: re.Pattern
+
+
+class ModelName(NamedTuple):
+    provider: Optional[str]
+    name: str
 
 
 class ModelCostLookup:
@@ -72,13 +77,15 @@ class ModelCostLookup:
         # Map from *pattern string* to a set of providers that have that pattern.
         self._model_map = defaultdict(set)
 
-    def __setitem__(self, key: ModelSpec, value: float):
-        provider, pattern = key.provider, key.model
+    def __setitem__(self, key: ModelPattern, value: float):
+        assert isinstance(key, ModelPattern), "Insertion key must be a ModelPattern"
+        provider, pattern = key.provider, key.name
         self._provider_model_map[provider][pattern] = value
         self._model_map[pattern].add(provider)
 
-    def __delitem__(self, key: ModelSpec):
-        provider, pattern = key.provider, key.model
+    def __delitem__(self, key: ModelPattern):
+        assert isinstance(key, ModelPattern), "Deletion key must be a ModelPattern"
+        provider, pattern = key.provider, key.name
         del self._provider_model_map[provider][pattern]
         self._model_map[pattern].discard(provider)
         if not self._provider_model_map[provider]:
@@ -86,11 +93,12 @@ class ModelCostLookup:
         if not self._model_map[pattern]:
             del self._model_map[pattern]
 
-    def __getitem__(self, key: ModelSpec):
-        provider, model_name = key.provider, key.model
+    def __getitem__(self, key: ModelName):
+        assert isinstance(key, ModelName), "Lookup key must be a ModelName"
+        provider, model_name = key.provider, key.name
 
         if provider is None:
-            # Return a list of (provider, cost) pairs whose *patterns* match the
+            # Return a list of (provider, cost) pairs whose patterns match the
             # requested model string.
             matches = []
             for p, regex_dict in self._provider_model_map.items():
@@ -108,8 +116,8 @@ class ModelCostLookup:
             raise KeyError(provider)
         return regex_dict[model_name]
 
-    def __contains__(self, key: ModelSpec):
-        provider, model_name = key.provider, key.model
+    def __contains__(self, key: ModelName):
+        provider, model_name = key.provider, key.name
 
         if provider is None:
             # Does *any* provider have a pattern matching this model string?
