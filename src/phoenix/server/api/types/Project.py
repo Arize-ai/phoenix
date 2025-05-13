@@ -584,6 +584,32 @@ class Project(Node):
         )
         return ProjectTraceRetentionPolicy(id=id_)
 
+    @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_project:
+            created_at = self.db_project.created_at
+        else:
+            created_at = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.created_at),
+            )
+        return created_at
+
+    @strawberry.field
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_project:
+            updated_at = self.db_project.updated_at
+        else:
+            updated_at = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.updated_at),
+            )
+        return updated_at
+
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
