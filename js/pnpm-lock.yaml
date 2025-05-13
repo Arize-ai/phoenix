@@ -84,6 +84,9 @@ importers:
 
   packages/phoenix-client:
     dependencies:
+      '@arizeai/openinference-semantic-conventions':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
@@ -219,6 +222,9 @@ packages:
 
   '@anthropic-ai/sdk@0.35.0':
     resolution: {integrity: sha512-JxVuNIRLjcXZbDW/rJa3vSIoYB5c0wgIQUPsjueeqli9OJyCJpInj0UlvKSSk6R2oCYyg0y2M0H8n8Wyt0l1IA==}
+
+  '@arizeai/openinference-semantic-conventions@1.1.0':
+    resolution: {integrity: sha512-rxRYnUWjt28DlVXnWukcQAyGhPYQ3ckmKrjEdUjmUNnvvv4k8Dabbp5h6AEjNy7YzN9jL2smNRJnbLIVtkrLEg==}
 
   '@asteasolutions/zod-to-openapi@6.4.0':
     resolution: {integrity: sha512-8cxfF7AHHx2PqnN4Cd8/O8CBu/nVYJP9DpnfVLW3BFb66VJDnqI/CczZnkqMc3SNh6J9GiX7JbJ5T4BSP4HZ2Q==}
@@ -2632,6 +2638,8 @@ snapshots:
     transitivePeerDependencies:
       - encoding
     optional: true
+
+  '@arizeai/openinference-semantic-conventions@1.1.0': {}
 
   '@asteasolutions/zod-to-openapi@6.4.0(zod@3.24.2)':
     dependencies:
