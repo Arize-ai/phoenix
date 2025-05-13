@@ -1491,7 +1491,7 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
         pd.DataFrame(
             {
                 "label": ["relevant", "NOT_PARSABLE", "unrelated"],
-                "score": [0.0, 0.0, 0.0],
+                "score": [1.0, 0.0, 0.0],
                 "explanation": [
                     "relevant-explanation\nrelevant",
                     "some-explanation\nLABEL: unparseable-label",
