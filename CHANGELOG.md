@@ -1,5 +1,17 @@
 # Changelog
 
+## [9.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.1.0...arize-phoenix-v9.2.0) (2025-05-13)
+
+
+### Features
+
+* **ui:** agno, mcp, gemini integrations ([#7537](https://github.com/Arize-ai/phoenix/issues/7537)) ([8fb1bba](https://github.com/Arize-ai/phoenix/commit/8fb1bba58b3d5f7163c5519791a92b28f0ae708c))
+
+
+### Documentation
+
+* update readme with agno, mcp ([#7532](https://github.com/Arize-ai/phoenix/issues/7532)) ([f132606](https://github.com/Arize-ai/phoenix/commit/f132606d59e0db261bfa99d39a253773a7459a26))
+
 ## [9.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.0.1...arize-phoenix-v9.1.0) (2025-05-13)
 
 
