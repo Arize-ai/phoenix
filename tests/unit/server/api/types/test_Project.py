@@ -493,7 +493,7 @@ async def test_project_spans(
     llama_index_rag_spans: Any,
 ) -> None:
     query = """
-      query ($projectId: GlobalID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
+      query ($projectId: ID!, $after: String = null, $before: String = null, $filterCondition: String = null, $first: Int = null, $last: Int = null, $sort: SpanSort = null) {
         node(id: $projectId) {
           ... on Project {
             spans(
