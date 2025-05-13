@@ -283,6 +283,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiment_evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create or update evaluation for an experiment run */
+        post: operations["upsertExperimentEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/span_annotations": {
         parameters: {
             query?: never;
@@ -789,6 +806,24 @@ export interface components {
              * @description The last update timestamp of the experiment
              */
             updated_at: string;
+        };
+        /** ExperimentEvaluationResult */
+        ExperimentEvaluationResult: {
+            /**
+             * Label
+             * @description The label assigned by the evaluation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the evaluation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the evaluation result
+             */
+            explanation?: string | null;
         };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
@@ -1448,6 +1483,68 @@ export interface components {
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
+        };
+        /** UpsertExperimentEvaluationRequestBody */
+        UpsertExperimentEvaluationRequestBody: {
+            /**
+             * Experiment Run Id
+             * @description The ID of the experiment run being evaluated
+             */
+            experiment_run_id: string;
+            /**
+             * Name
+             * @description The name of the evaluation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the evaluation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the evaluation in ISO format
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the evaluation in ISO format
+             */
+            end_time: string;
+            /** @description The result of the evaluation */
+            result: components["schemas"]["ExperimentEvaluationResult"];
+            /**
+             * Error
+             * @description Optional error message if the evaluation encountered an error
+             */
+            error?: string | null;
+            /**
+             * Metadata
+             * @description Metadata for the evaluation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Trace Id
+             * @description Optional trace ID for tracking
+             */
+            trace_id?: string | null;
+        };
+        /** UpsertExperimentEvaluationResponseBody */
+        UpsertExperimentEvaluationResponseBody: {
+            data: components["schemas"]["UpsertExperimentEvaluationResponseBodyData"];
+        };
+        /** UpsertExperimentEvaluationResponseBodyData */
+        UpsertExperimentEvaluationResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the upserted experiment evaluation
+             */
+            id: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -2397,6 +2494,57 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsertExperimentEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertExperimentEvaluationRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertExperimentEvaluationResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment run not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

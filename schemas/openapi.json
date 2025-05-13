@@ -1478,6 +1478,67 @@
         }
       }
     },
+    "/v1/experiment_evaluations": {
+      "post": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Create or update evaluation for an experiment run",
+        "operationId": "upsertExperimentEvaluation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertExperimentEvaluationRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment run not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/span_annotations": {
       "post": {
         "tags": [
@@ -3363,6 +3424,48 @@
           "updated_at"
         ],
         "title": "Experiment"
+      },
+      "ExperimentEvaluationResult": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The label assigned by the evaluation"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "The score assigned by the evaluation"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation",
+            "description": "Explanation of the evaluation result"
+          }
+        },
+        "type": "object",
+        "title": "ExperimentEvaluationResult"
       },
       "FreeformAnnotationConfig": {
         "properties": {
@@ -5278,6 +5381,119 @@
           "data"
         ],
         "title": "UploadDatasetResponseBody"
+      },
+      "UpsertExperimentEvaluationRequestBody": {
+        "properties": {
+          "experiment_run_id": {
+            "type": "string",
+            "title": "Experiment Run Id",
+            "description": "The ID of the experiment run being evaluated"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the evaluation"
+          },
+          "annotator_kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "HUMAN"
+            ],
+            "title": "Annotator Kind",
+            "description": "The kind of annotator used for the evaluation"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time",
+            "description": "The start time of the evaluation in ISO format"
+          },
+          "end_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End Time",
+            "description": "The end time of the evaluation in ISO format"
+          },
+          "result": {
+            "$ref": "#/components/schemas/ExperimentEvaluationResult",
+            "description": "The result of the evaluation"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Optional error message if the evaluation encountered an error"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata for the evaluation"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id",
+            "description": "Optional trace ID for tracking"
+          }
+        },
+        "type": "object",
+        "required": [
+          "experiment_run_id",
+          "name",
+          "annotator_kind",
+          "start_time",
+          "end_time",
+          "result"
+        ],
+        "title": "UpsertExperimentEvaluationRequestBody"
+      },
+      "UpsertExperimentEvaluationResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UpsertExperimentEvaluationResponseBodyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpsertExperimentEvaluationResponseBody"
+      },
+      "UpsertExperimentEvaluationResponseBodyData": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the upserted experiment evaluation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UpsertExperimentEvaluationResponseBodyData"
       },
       "ValidationError": {
         "properties": {
