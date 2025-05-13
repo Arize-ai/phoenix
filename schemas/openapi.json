@@ -1210,7 +1210,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/phoenix__server__api__routers__v1__experiments__CreateExperimentResponseBody"
+                  "$ref": "#/components/schemas/CreateExperimentResponseBody"
                 }
               }
             }
@@ -1512,7 +1512,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody"
+                  "$ref": "#/components/schemas/CreateExperimentRunResponseBody"
                 }
               }
             }
@@ -3208,6 +3208,18 @@
         "title": "CreateExperimentRequestBody",
         "description": "Details of the experiment to be created"
       },
+      "CreateExperimentResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateExperimentResponseBody"
+      },
       "CreateExperimentRunRequestBody": {
         "properties": {
           "dataset_example_id": {
@@ -3270,6 +3282,18 @@
           "end_time"
         ],
         "title": "CreateExperimentRunRequestBody"
+      },
+      "CreateExperimentRunResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreateExperimentRunResponseBodyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateExperimentRunResponseBody"
       },
       "CreateExperimentRunResponseBodyData": {
         "properties": {
@@ -5815,30 +5839,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/CreateExperimentRunResponseBodyData"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "CreateExperimentResponseBody"
-      },
-      "phoenix__server__api__routers__v1__experiments__CreateExperimentResponseBody": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/Experiment"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "CreateExperimentResponseBody"
       }
     }
   }

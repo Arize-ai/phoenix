@@ -663,6 +663,10 @@ export interface components {
              */
             repetitions?: number;
         };
+        /** CreateExperimentResponseBody */
+        CreateExperimentResponseBody: {
+            data: components["schemas"]["Experiment"];
+        };
         /** CreateExperimentRunRequestBody */
         CreateExperimentRunRequestBody: {
             /**
@@ -702,6 +706,10 @@ export interface components {
              * @description Optional error message if the experiment run encountered an error
              */
             error?: string | null;
+        };
+        /** CreateExperimentRunResponseBody */
+        CreateExperimentRunResponseBody: {
+            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
         };
         /** CreateExperimentRunResponseBodyData */
         CreateExperimentRunResponseBodyData: {
@@ -1672,14 +1680,6 @@ export interface components {
             /** Error Type */
             type: string;
         };
-        /** CreateExperimentResponseBody */
-        phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody: {
-            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
-        };
-        /** CreateExperimentResponseBody */
-        phoenix__server__api__routers__v1__experiments__CreateExperimentResponseBody: {
-            data: components["schemas"]["Experiment"];
-        };
     };
     responses: never;
     parameters: never;
@@ -2466,7 +2466,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["phoenix__server__api__routers__v1__experiments__CreateExperimentResponseBody"];
+                    "application/json": components["schemas"]["CreateExperimentResponseBody"];
                 };
             };
             /** @description Forbidden */
@@ -2707,7 +2707,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["phoenix__server__api__routers__v1__experiment_runs__CreateExperimentResponseBody"];
+                    "application/json": components["schemas"]["CreateExperimentRunResponseBody"];
                 };
             };
             /** @description Forbidden */
