@@ -13,6 +13,21 @@
     "skipLibCheck": true,
     "types": ["@emotion/react/types/css-prop", "vitest/globals"],
     "baseUrl": "./src",
+    "plugins": [
+      {
+        "name": "ts-plugin-sort-import-suggestions",
+        // Matches `@/`, `../` and `./`, move them up in the suggestions (This is the default config if you leave it empty)
+        "moveUpPatterns": ["@/", "\\.{1,2}/", "@phoenix/components"],
+        // Move `dist` down in the suggestions, by deafult it's `[]`
+        "moveDownPatterns": [
+          "recharts",
+          "dist",
+          "react-aria-components",
+          "@arize/components",
+          "@react-three/drei"
+        ]
+      }
+    ],
     "paths": {
       "@phoenix/*": ["*"]
     }

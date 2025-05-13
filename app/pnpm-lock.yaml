@@ -316,6 +316,9 @@ importers:
       storybook:
         specifier: ^8.4.6
         version: 8.4.6(prettier@3.3.3)
+      ts-plugin-sort-import-suggestions:
+        specifier: ^1.0.4
+        version: 1.0.4
       typescript:
         specifier: ~5.4.5
         version: 5.4.5
@@ -4911,6 +4914,9 @@ packages:
   ts-invariant@0.10.3:
     resolution: {integrity: sha512-uivwYcQaxAucv1CzRp2n/QdYPo4ILf9VXgH19zEIjFx2EJufV16P0JtJVpYHy89DItG6Kwj2oIUjrcK5au+4tQ==}
     engines: {node: '>=8'}
+
+  ts-plugin-sort-import-suggestions@1.0.4:
+    resolution: {integrity: sha512-85n5lm2OQQ+b7aRNK9omU1gmjMNXRsgeLwojm5u4OSY5sVBkAHTcgMQPEeHMNlyyfFW0uXnwgqAU0pNfhD96Bw==}
 
   tsconfck@3.1.4:
     resolution: {integrity: sha512-kdqWFGVJqe+KGYvlSO9NIaWn9jT1Ny4oKVzAJsKii5eoE9snzTJzL4+MMVOMn+fikWGFmKEylcXL710V/kIPJQ==}
@@ -11410,6 +11416,8 @@ snapshots:
   ts-invariant@0.10.3:
     dependencies:
       tslib: 2.6.3
+
+  ts-plugin-sort-import-suggestions@1.0.4: {}
 
   tsconfck@3.1.4(typescript@5.4.5):
     optionalDependencies:
