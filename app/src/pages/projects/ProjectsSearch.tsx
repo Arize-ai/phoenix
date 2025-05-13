@@ -8,7 +8,7 @@ type ProjectsSearchProps = {
   onChange: (value: string) => void;
 };
 
-const DEBOUNCE_TIME = 200;
+const DEBOUNCE_MS = 200;
 
 export function ProjectsSearch({
   onChange: propsOnChange,
@@ -19,7 +19,7 @@ export function ProjectsSearch({
         startTransition(() => {
           propsOnChange(v);
         });
-      }, DEBOUNCE_TIME),
+      }, DEBOUNCE_MS),
     [propsOnChange]
   );
   const onChange = useCallback(
