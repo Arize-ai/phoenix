@@ -23,8 +23,9 @@ import os
 
 # Add Phoenix API Key for tracing
 PHOENIX_API_KEY = "ADD YOUR API KEY"
+PHOENIX_ENDPOINT = "https://app.phoenix.arize.com/v1/traces"
+
 os.environ["PHOENIX_CLIENT_HEADERS"] = f"api_key={PHOENIX_API_KEY}"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```
 
 ### Using Self-hosted Phoenix
@@ -35,7 +36,8 @@ os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com"
 ```python
 import os
 
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "Your Phoenix Endpoint"
+# Update this with your self-hosted endpoint
+PHOENIX_ENDPOINT = "http://0.0.0.0:6006/v1/traces"
 ```
 
 ## Connect to Phoenix <a href="#connect-your-app" id="connect-your-app"></a>
@@ -52,7 +54,8 @@ from phoenix.otel import register
 # configure the Phoenix tracer
 tracer_provider = register(
   project_name="my-llm-app", # Default is 'default'
-  auto_instrument=True # See 'Trace all calls made to a library' below
+  auto_instrument=True, # See 'Trace all calls made to a library' below
+  endpoint=PHOENIX_ENDPOINT,
 )
 tracer = tracer_provider.get_tracer(__name__)
 ```
