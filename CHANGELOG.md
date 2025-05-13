@@ -1,5 +1,19 @@
 # Changelog
 
+## [9.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.0.1...arize-phoenix-v9.1.0) (2025-05-13)
+
+
+### Features
+
+* List, sort,  and filter projects in UI ([#7453](https://github.com/Arize-ai/phoenix/issues/7453)) ([c7ad67e](https://github.com/Arize-ai/phoenix/commit/c7ad67ee9119d579c9ebbb4f5377742bb31279ad))
+* Open span details sections when hotkeys are pressed ([#7494](https://github.com/Arize-ai/phoenix/issues/7494)) ([aacae6a](https://github.com/Arize-ai/phoenix/commit/aacae6a24b365f534b5d816e1a71c95435de2b85))
+
+
+### Bug Fixes
+
+* content wrap in markdown block ([#7508](https://github.com/Arize-ai/phoenix/issues/7508)) ([18d6518](https://github.com/Arize-ai/phoenix/commit/18d65186cf28e6ed925f8e1bb2272aca21651c5b))
+* remove version lowerbound for starlette ([#7527](https://github.com/Arize-ai/phoenix/issues/7527)) ([292a827](https://github.com/Arize-ai/phoenix/commit/292a82775173d3eebbbfa79518e62d03bab63ad6))
+
 ## [9.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.0.0...arize-phoenix-v9.0.1) (2025-05-11)
 
 
