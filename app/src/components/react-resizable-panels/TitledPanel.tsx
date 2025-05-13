@@ -1,11 +1,10 @@
-import {
+import React, {
   forwardRef,
   PropsWithChildren,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
-import * as React from "react";
 import {
   ImperativePanelHandle,
   Panel,

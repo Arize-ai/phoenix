@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import * as React from "react";
+import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import { css } from "@emotion/react";
 

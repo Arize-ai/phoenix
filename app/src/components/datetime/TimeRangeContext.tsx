@@ -1,5 +1,4 @@
-import { createContext, useCallback, useState } from "react";
-import * as React from "react";
+import React, { createContext, useCallback, useState } from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 

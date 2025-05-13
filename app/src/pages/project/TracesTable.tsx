@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import {
+import React, {
   ComponentProps,
   Fragment,
   startTransition,
@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import * as React from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 import {

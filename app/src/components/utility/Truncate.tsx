@@ -1,5 +1,4 @@
-import { CSSProperties } from "react";
-import * as React from "react";
+import React, { CSSProperties } from "react";
 import { css } from "@emotion/react";
 
 const truncateCSS = css`

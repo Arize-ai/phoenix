@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import * as React from "react";
+import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { ColumnDef } from "@tanstack/react-table";
 

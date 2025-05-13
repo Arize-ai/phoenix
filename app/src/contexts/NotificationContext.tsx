@@ -1,5 +1,4 @@
-import { createContext, useCallback, useContext } from "react";
-import * as React from "react";
+import React, { createContext, useCallback, useContext } from "react";
 
 import { NoticeFn, useNotification } from "@arizeai/components";
 

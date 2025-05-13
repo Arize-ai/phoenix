@@ -1,5 +1,4 @@
-import { ComponentProps } from "react";
-import * as React from "react";
+import React, { ComponentProps } from "react";
 import {
   Tab as AriaTab,
   TabList as AriaTabList,

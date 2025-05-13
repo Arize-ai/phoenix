@@ -1,5 +1,4 @@
-import { useState } from "react";
-import * as React from "react";
+import React, { useState } from "react";
 import { useZustand } from "use-zustand";
 import { create, StateCreator } from "zustand";
 

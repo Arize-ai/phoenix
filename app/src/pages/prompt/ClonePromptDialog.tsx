@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import * as React from "react";
+import React, { Suspense } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 import { useNavigate } from "react-router";
