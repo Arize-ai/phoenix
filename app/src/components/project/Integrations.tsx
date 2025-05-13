@@ -318,6 +318,14 @@ const TYPESCRIPT_INTEGRATIONS: IntegrationLinkProps[] = [
       "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-beeai",
     icon: <BeeAISVG />,
   },
+  {
+    name: "Model Context Protocol",
+    docsHref:
+      "https://docs.arize.com/phoenix/tracing/integrations-tracing/model-context-protocol-mcp",
+    githubHref:
+      "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-mcp",
+    icon: <McpSVG />,
+  },
 ];
 export function TypeScriptIntegrations() {
   return (
