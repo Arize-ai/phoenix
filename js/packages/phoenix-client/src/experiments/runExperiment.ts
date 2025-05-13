@@ -252,9 +252,26 @@ function runTask({
     thisRun.endTime = new Date();
     if (!isDryRun) {
       // Log the run to the server
-      // TODO: fill this out
+      // We log this without awaiting (e.g. best effort)
+      client.POST("/v1/experiments/{experiment_id}/runs", {
+        params: {
+          path: {
+            experiment_id: experimentId,
+          },
+        },
+        body: {
+          dataset_example_id: example.id,
+          output: thisRun.output,
+          repetition_number: 0,
+          start_time: thisRun.startTime.toISOString(),
+          end_time: thisRun.endTime.toISOString(),
+          trace_id: thisRun.traceId,
+          error: thisRun.error,
+        },
+      });
     }
     onComplete(thisRun);
+    return thisRun;
   };
   const q = queue(run, concurrency);
   const examplesToUse = dataset.examples.slice(0, nExamples);
@@ -274,6 +291,7 @@ export async function evaluateExperiment({
   client: _client,
   logger,
   concurrency = 5,
+  dryRun = false,
 }: {
   /**
    * The experiment to evaluate
@@ -288,7 +306,18 @@ export async function evaluateExperiment({
   logger: Logger;
   /** The number of evaluators to run in parallel */
   concurrency: number;
+  /**
+   * Whether to run the evaluation as a dry run
+   * If a number is provided, the evaluation will be run for the first n runs
+   * @default false
+   * */
+  dryRun?: boolean | number;
 }): Promise<RanExperiment> {
+  const isDryRun = typeof dryRun === "number" || dryRun === true;
+  const nRuns =
+    typeof dryRun === "number"
+      ? Math.max(dryRun, Object.keys(experiment.runs).length)
+      : Object.keys(experiment.runs).length;
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({
     dataset: experiment.datasetId,
@@ -300,6 +329,8 @@ export async function evaluateExperiment({
     `Dataset "${experiment.datasetId}" has no examples`
   );
   invariant(experiment.runs, `Experiment "${experiment.id}" has no runs`);
+
+  const runsToEvaluate = Object.values(experiment.runs).slice(0, nRuns);
 
   if (evaluators?.length === 0) {
     return {
@@ -329,19 +360,38 @@ export async function evaluateExperiment({
   // Run evaluators against all runs
   // Flat list of evaluator + run tuples
   const evaluatorsAndRuns = evaluators.flatMap((evaluator) =>
-    Object.values(experiment.runs).map((run) => ({
+    runsToEvaluate.map((run) => ({
       evaluator,
       run,
     }))
   );
   const evaluatorsQueue = queue(
     async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
-      await runEvaluator({
+      const evalResult = await runEvaluator({
         evaluator: evaluatorAndRun.evaluator,
         run: evaluatorAndRun.run,
         exampleCache: examplesById,
         onComplete: onEvaluationComplete,
       });
+      if (!isDryRun) {
+        // Log the evaluation to the server
+        // We log this without awaiting (e.g. best effort)
+        client.POST("/v1/experiment_evaluations", {
+          body: {
+            experiment_run_id: evaluatorAndRun.run.id,
+            name: evaluatorAndRun.evaluator.name,
+            // TODO: infer this from the evaluator
+            annotator_kind: "LLM",
+            start_time: evalResult.startTime.toISOString(),
+            end_time: evalResult.endTime.toISOString(),
+            result: {
+              ...evalResult.result,
+            },
+            error: evalResult.error,
+            trace_id: evalResult.traceId,
+          },
+        });
+      }
     },
     concurrency
   );
@@ -401,6 +451,7 @@ async function runEvaluator({
     }
     thisEval.endTime = new Date();
     onComplete(thisEval);
+    return thisEval;
   };
 
   return evaluate();
