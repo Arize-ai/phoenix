@@ -8,7 +8,6 @@ import { Example } from "./datasets";
 export interface Experiment extends Node {
   datasetId: string;
   datasetVersionId: string;
-  repetitions: number;
   /**
    * The project under which the experiment task traces are recorded
    */
@@ -32,7 +31,6 @@ export interface ExperimentRun extends Node {
    */
   experimentId: string;
   datasetExampleId: string;
-  repetitionNumber: number;
   output?: string | Record<string, unknown> | null;
   error: string | null;
   traceId: string | null;
@@ -100,9 +98,4 @@ export interface ExperimentParameters {
    * The number of examples to run the experiment on
    */
   nExamples: number;
-  /**
-   * The number of repetitions to run the experiment
-   * e.g. the number of times to run the task
-   */
-  nRepetitions: number;
 }

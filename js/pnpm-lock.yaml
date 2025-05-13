@@ -103,6 +103,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.1.15
         version: 1.1.15(zod@3.24.2)
+      '@types/async':
+        specifier: ^3.2.24
+        version: 3.2.24
       '@types/node':
         specifier: ^20.17.22
         version: 20.17.22
@@ -683,6 +686,9 @@ packages:
 
   '@shikijs/vscode-textmate@10.0.2':
     resolution: {integrity: sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg==}
+
+  '@types/async@3.2.24':
+    resolution: {integrity: sha512-8iHVLHsCCOBKjCF2KwFe0p9Z3rfM9mL+sSP8btyR5vTjJRAqpBYD28/ZLgXPf0pjG1VxOvtCV/BgXkQbpSe8Hw==}
 
   '@types/diff-match-patch@1.0.36':
     resolution: {integrity: sha512-xFdR6tkm0MWvBfO8xXCSsinYxHcqkQUlcHeSpMC2ukzOb6lwQAfDmW+Qt0AvlGd8HpsS28qKsB+oPeJn9I39jg==}
@@ -3078,6 +3084,8 @@ snapshots:
       '@types/hast': 3.0.4
 
   '@shikijs/vscode-textmate@10.0.2': {}
+
+  '@types/async@3.2.24': {}
 
   '@types/diff-match-patch@1.0.36':
     optional: true

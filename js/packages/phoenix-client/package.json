@@ -53,6 +53,7 @@
   "devDependencies": {
     "@ai-sdk/openai": "^1.1.15",
     "@anthropic-ai/sdk": "^0.35.0",
+    "@types/async": "^3.2.24",
     "@types/node": "^20.17.22",
     "ai": "^4.1.24",
     "openai": "^4.77.0",
