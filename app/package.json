@@ -108,6 +108,7 @@
     "relay-compiler": "^18.2.0",
     "rollup-plugin-visualizer": "^5.12.0",
     "storybook": "^8.4.6",
+    "ts-plugin-sort-import-suggestions": "^1.0.4",
     "typescript": "~5.4.5",
     "vite": "^6.2.7",
     "vite-plugin-relay": "^2.1.0",
