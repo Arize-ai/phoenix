@@ -1,5 +1,3 @@
-import React from "react";
-
 // eslint-disable-next-line deprecate/import
 import {
   Button as LegacyButton,

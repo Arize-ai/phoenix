@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Item, Picker, PickerProps } from "@arizeai/components";

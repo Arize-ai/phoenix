@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 import { UserPicture } from "@phoenix/components/user/UserPicture";

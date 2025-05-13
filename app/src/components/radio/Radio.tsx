@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Radio as AriaRadio,
   type RadioProps as AriaRadioProps,

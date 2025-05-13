@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { defaultKeymap } from "@codemirror/commands";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import ReactCodeMirror, {

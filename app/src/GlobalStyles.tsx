@@ -1,4 +1,3 @@
-import React from "react";
 import { css, Global } from "@emotion/react";
 
 import { useProvider } from "@arizeai/components";

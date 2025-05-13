@@ -1,4 +1,4 @@
-import React, { forwardRef, ReactNode } from "react";
+import { forwardRef, ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import { Button } from "@phoenix/components";

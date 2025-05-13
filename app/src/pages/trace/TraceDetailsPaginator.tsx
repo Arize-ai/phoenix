@@ -1,4 +1,4 @@
-import React, { startTransition } from "react";
+import { startTransition } from "react";
 import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 import { css } from "@emotion/react";

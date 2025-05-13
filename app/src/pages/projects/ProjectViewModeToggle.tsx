@@ -1,4 +1,3 @@
-import React from "react";
 import { Tooltip, TooltipTrigger } from "react-aria-components";
 import { css } from "@emotion/react";
 

@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 
 import { Provider } from "@arizeai/components";

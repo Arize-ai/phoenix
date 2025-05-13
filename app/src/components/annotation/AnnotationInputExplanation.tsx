@@ -1,4 +1,3 @@
-import React from "react";
 import { FocusScope } from "react-aria";
 import { css } from "@emotion/react";
 

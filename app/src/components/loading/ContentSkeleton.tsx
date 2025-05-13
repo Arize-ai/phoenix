@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Flex } from "@phoenix/components";
 
 import { StylableProps } from "../types/style";

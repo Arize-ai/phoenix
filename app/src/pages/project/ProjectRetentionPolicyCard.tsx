@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 
 import { Card } from "@arizeai/components";

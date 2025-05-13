@@ -1,4 +1,3 @@
-import React from "react";
 import type { Preview } from "@storybook/react";
 import { Provider } from "@arizeai/components";
 import { GlobalStyles } from "../src/GlobalStyles";

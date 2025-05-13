@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { ActionMenu, Item } from "@arizeai/components";

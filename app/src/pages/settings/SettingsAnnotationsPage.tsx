@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useFragment, useMutation } from "react-relay";
 import { useLoaderData, useRevalidator } from "react-router";
 

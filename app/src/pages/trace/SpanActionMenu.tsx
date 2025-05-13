@@ -1,4 +1,3 @@
-import React from "react";
 import copy from "copy-to-clipboard";
 
 import { ActionMenu, Item } from "@arizeai/components";

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 
 import { Token, TokenProps } from "@phoenix/components/token";
 
