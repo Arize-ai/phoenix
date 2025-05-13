@@ -99,7 +99,7 @@ export type RunExperimentParams = ClientFn & {
  *   dataset: "my-dataset",
  *   task: async (example) => example.input,
  *   evaluators: [
- *     asEvaluator({name: "my-evaluator", kind: "CODE", evaluate: async (params) => params.output}),
+ *     asEvaluator({ name: "my-evaluator", kind: "CODE", evaluate: async (params) => params.output }),
  *   ],
  * });
  * ```
