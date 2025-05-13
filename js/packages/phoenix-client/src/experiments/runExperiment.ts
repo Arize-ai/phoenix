@@ -16,6 +16,7 @@ import { type Logger } from "../types/logger";
 import { getDatasetBySelector } from "../utils/getDatasetBySelector";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
+import { AnnotatorKind } from "../types/annotations";
 
 /**
  * Parameters for running an experiment.
@@ -76,7 +77,6 @@ export type RunExperimentParams = ClientFn & {
  * Run an experiment.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export async function runExperiment({
   experimentName: _experimentName,
@@ -90,7 +90,7 @@ export async function runExperiment({
   logger = console,
   record = true,
   concurrency = 5,
-  dryRun,
+  dryRun = false,
 }: RunExperimentParams): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
@@ -183,6 +183,7 @@ export async function runExperiment({
     client,
     logger,
     concurrency,
+    dryRun,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -231,7 +232,7 @@ function runTask({
     );
     const thisRun: ExperimentRun = {
       id: id(),
-      traceId: id(),
+      traceId: null, // TODO: fill this in once we trace experiments
       experimentId,
       datasetExampleId: example.id,
       startTime: new Date(),
@@ -253,7 +254,7 @@ function runTask({
     if (!isDryRun) {
       // Log the run to the server
       // We log this without awaiting (e.g. best effort)
-      client.POST("/v1/experiments/{experiment_id}/runs", {
+      const res = await client.POST("/v1/experiments/{experiment_id}/runs", {
         params: {
           path: {
             experiment_id: experimentId,
@@ -269,6 +270,8 @@ function runTask({
           error: thisRun.error,
         },
       });
+      // replace the local run id with the server-assigned id
+      thisRun.id = res.data?.data.id ?? thisRun.id;
     }
     onComplete(thisRun);
     return thisRun;
@@ -283,7 +286,6 @@ function runTask({
  * Evaluate an experiment.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export async function evaluateExperiment({
   experiment,
@@ -374,14 +376,14 @@ export async function evaluateExperiment({
         onComplete: onEvaluationComplete,
       });
       if (!isDryRun) {
+        logger.info(`📝 Logging evaluation ${evalResult.id}`);
         // Log the evaluation to the server
         // We log this without awaiting (e.g. best effort)
         client.POST("/v1/experiment_evaluations", {
           body: {
             experiment_run_id: evaluatorAndRun.run.id,
             name: evaluatorAndRun.evaluator.name,
-            // TODO: infer this from the evaluator
-            annotator_kind: "LLM",
+            annotator_kind: evaluatorAndRun.evaluator.kind,
             start_time: evalResult.startTime.toISOString(),
             end_time: evalResult.endTime.toISOString(),
             result: {
@@ -411,7 +413,6 @@ export async function evaluateExperiment({
  * Run an evaluator against a run.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 async function runEvaluator({
   evaluator,
@@ -429,7 +430,7 @@ async function runEvaluator({
   const evaluate = async () => {
     const thisEval: ExperimentEvaluationRun = {
       id: id(),
-      traceId: id(),
+      traceId: null, // TODO: fill this in once we trace experiments
       experimentRunId: run.id,
       startTime: new Date(),
       endTime: new Date(), // will get replaced with actual end time
@@ -461,7 +462,6 @@ async function runEvaluator({
  * Wrap an evaluator function in an object with a name property.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  *
  * @param name - The name of the evaluator.
  * @param evaluate - The evaluator function.
@@ -469,10 +469,12 @@ async function runEvaluator({
  */
 export function asEvaluator(
   name: string,
+  kind: AnnotatorKind,
   evaluate: Evaluator["evaluate"]
 ): Evaluator {
   return {
     name,
+    kind,
     evaluate,
   };
 }

@@ -15,16 +15,16 @@ dotenv.config();
 
 const env = z
   .object({
-    OPENAI_MODEL: z.string().default("llama3.2"),
-    OPENAI_API_KEY: z.string().default("ollama"),
-    OPENAI_API_BASE_URL: z.string().default("http://localhost:11434/v1"),
+    OPENAI_MODEL: z.string().default("gpt-4o"),
+    OPENAI_API_KEY: z.string().default(process.env.OPENAI_API_KEY ?? ""),
+    OPENAI_API_BASE_URL: z.string().optional(),
   })
   .parse(process.env);
 
 const config: {
   model: string;
   openAiApiKey: string;
-  openAiBaseUrl: string;
+  openAiBaseUrl?: string;
 } = {
   model: env.OPENAI_MODEL,
   openAiApiKey: env.OPENAI_API_KEY,
@@ -127,7 +127,7 @@ const main = async () => {
         log: (message) => log.message(message),
       },
       evaluators: [
-        asEvaluator("Mentions startups", async (params) => {
+        asEvaluator("Mentions startups", "CODE", async (params) => {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           const output = params.output;
           const isString = typeof output === "string";
@@ -141,7 +141,7 @@ const main = async () => {
             metadata: {},
           };
         }),
-        asEvaluator("Mentions evaluation", async (params) => {
+        asEvaluator("Mentions evaluation", "CODE", async (params) => {
           await new Promise((resolve) => setTimeout(resolve, 500));
           const output = params.output;
           const isString = typeof output === "string";
@@ -155,7 +155,7 @@ const main = async () => {
             metadata: {},
           };
         }),
-        asEvaluator("Factuality", async (params) => {
+        asEvaluator("Factuality", "LLM", async (params) => {
           const result = await Factuality.partial({
             ...config,
           })({
@@ -170,7 +170,7 @@ const main = async () => {
             metadata: result.metadata ?? {},
           };
         }),
-        asEvaluator("Humor", async (params) => {
+        asEvaluator("Humor", "LLM", async (params) => {
           const result = await Humor.partial({
             ...config,
           })({
