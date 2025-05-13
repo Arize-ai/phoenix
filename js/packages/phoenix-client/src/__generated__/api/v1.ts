@@ -498,6 +498,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all users
+         * @description Retrieve a paginated list of all users in the system.
+         */
+        get: operations["getUsers"];
+        put?: never;
+        /**
+         * Create a new user
+         * @description Create a new user with the specified configuration.
+         */
+        post: operations["createUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a user by ID
+         * @description Delete an existing user by their unique GlobalID.
+         */
+        delete: operations["deleteUser"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -651,6 +695,19 @@ export interface components {
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {
             data: components["schemas"]["PromptVersion"];
+        };
+        /** CreateUserRequestBody */
+        CreateUserRequestBody: {
+            user: components["schemas"]["UserCreate"];
+            /**
+             * Send Welcome Email
+             * @default true
+             */
+            send_welcome_email: boolean;
+        };
+        /** CreateUserResponseBody */
+        CreateUserResponseBody: {
+            data: components["schemas"]["User"];
         };
         /** Dataset */
         Dataset: {
@@ -869,6 +926,13 @@ export interface components {
         GetPromptsResponseBody: {
             /** Data */
             data: components["schemas"]["Prompt"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetUsersResponseBody */
+        GetUsersResponseBody: {
+            /** Data */
+            data: components["schemas"]["User"][];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -1448,6 +1512,39 @@ export interface components {
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
+        };
+        /** User */
+        User: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /** Profile Picture Url */
+            profile_picture_url?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Role */
+            role: string;
+            /** Password Needs Reset */
+            password_needs_reset: boolean;
+            /** Auth Method */
+            auth_method?: string | null;
+        };
+        /** UserCreate */
+        UserCreate: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+            /** Role */
+            role: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -3192,6 +3289,166 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getUsers: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded user ID) */
+                cursor?: string;
+                /** @description The max number of users to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of users. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetUsersResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The newly created user. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateUserResponseBody"];
+                };
+            };
+            /** @description Role not found. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Username or email already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The GlobalID of the user (e.g. 'VXNlcjox'). */
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful deletion. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description User not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Cannot delete the default admin or system user */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
