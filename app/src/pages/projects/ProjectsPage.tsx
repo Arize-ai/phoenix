@@ -334,7 +334,6 @@ export function ProjectsPageContent({
           gap="size-100"
         >
           <Flex direction="row" alignItems="center" gap="size-100" width="100%">
-            <ProjectViewModeToggle />
             <form
               css={css`
                 width: 100%;
@@ -391,7 +390,8 @@ export function ProjectsPageContent({
               }
             `}
           >
-            <NewProjectButton />
+            <ProjectViewModeToggle />
+            <NewProjectButton variant="primary" />
             <ConnectedLastNTimeRangePicker />
           </Flex>
         </Flex>
