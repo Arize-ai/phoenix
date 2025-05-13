@@ -48,7 +48,7 @@ async def test_compare_experiments_returns_expected_comparisons(
     comparison_experiments: Any,
 ) -> None:
     query = """
-      query ($experimentIds: [GlobalID!]!) {
+      query ($experimentIds: [ID!]!) {
         compareExperiments(
           experimentIds: $experimentIds
         ) {

@@ -15,7 +15,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 class TestDatasetExampleNodeInterface:
     QUERY = """
-      query ($exampleId: GlobalID!, $datasetVersionId: GlobalID = null) {
+      query ($exampleId: ID!, $datasetVersionId: ID = null) {
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
@@ -145,7 +145,7 @@ class TestDatasetExampleNodeInterface:
 
 class TestDatasetExampleCountResolver:
     QUERY = """
-      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null) {
         node(id: $datasetId) {
           ... on Dataset {
             exampleCount(datasetVersionId: $datasetVersionId)
@@ -186,7 +186,7 @@ class TestDatasetExampleCountResolver:
 
 class TestDatasetExamplesResolver:
     QUERY = """
-      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null, $revisionDatasetVersionId: GlobalID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null, $revisionDatasetVersionId: ID = null) {
         node(id: $datasetId) {
           ... on Dataset {
             examples(datasetVersionId: $datasetVersionId) {
@@ -440,7 +440,7 @@ async def test_versions_resolver_returns_versions_in_correct_order(
     dataset_with_three_versions: Any,
 ) -> None:
     query = """
-      query ($datasetId: GlobalID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
+      query ($datasetId: ID!, $dir: SortDir!, $col: DatasetVersionColumn!) {
         dataset: node(id: $datasetId) {
           ... on Dataset {
             versions(sort: {dir: $dir, col: $col}) {
@@ -470,7 +470,7 @@ async def test_versions_resolver_returns_versions_in_correct_order(
 
 class TestDatasetExperimentCountResolver:
     QUERY = """
-      query ($datasetId: GlobalID!, $datasetVersionId: GlobalID = null) {
+      query ($datasetId: ID!, $datasetVersionId: ID = null) {
         node(id: $datasetId) {
           ... on Dataset {
             experimentCount(datasetVersionId: $datasetVersionId)
@@ -511,7 +511,7 @@ class TestDatasetExperimentCountResolver:
 
 class TestDatasetExperimentsResolver:
     QUERY = """
-      query ($datasetId: GlobalID!) {
+      query ($datasetId: ID!) {
         node(id: $datasetId) {
           ... on Dataset {
             experiments {

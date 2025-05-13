@@ -290,7 +290,7 @@ class TestResponseFormat:
 
 
 class TestUserId:
-    QUERY = "query($versionId:GlobalID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
+    QUERY = "query($versionId:ID!){node(id:$versionId){... on PromptVersion{user{id}}}}"
 
     def test_client(self, _get_user: _GetUser, monkeypatch: pytest.MonkeyPatch) -> None:
         u = _get_user(_MEMBER).log_in()

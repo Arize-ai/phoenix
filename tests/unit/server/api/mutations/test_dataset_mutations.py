@@ -54,7 +54,7 @@ async def test_create_dataset(
 
 class TestPatchDatasetMutation:
     MUTATION = """
-      mutation ($datasetId: GlobalID!, $name: String, $description: String, $metadata: JSON) {
+      mutation ($datasetId: ID!, $name: String, $description: String, $metadata: JSON) {
         patchDataset(
           input: {datasetId: $datasetId, name: $name, description: $description, metadata: $metadata}
         ) {
@@ -153,7 +153,7 @@ async def test_add_span_to_dataset(
 ) -> None:
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = """
-      mutation ($datasetId: GlobalID!, $spanIds: [GlobalID!]!) {
+      mutation ($datasetId: ID!, $spanIds: [ID!]!) {
         addSpansToDataset(input: {datasetId: $datasetId, spanIds: $spanIds}) {
           dataset {
             id
@@ -455,7 +455,7 @@ async def test_delete_a_dataset(
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
-        mutation ($datasetId: GlobalID!) {
+        mutation ($datasetId: ID!) {
           deleteDataset(input: { datasetId: $datasetId }) {
             dataset {
               id
@@ -487,7 +487,7 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
     dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
     mutation = textwrap.dedent(
         """
-        mutation ($datasetId: GlobalID!) {
+        mutation ($datasetId: ID!) {
           deleteDataset(input: { datasetId: $datasetId }) {
             dataset {
               id
