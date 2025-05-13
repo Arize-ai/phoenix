@@ -1,5 +1,13 @@
 # Changelog
 
+## [9.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.2.0...arize-phoenix-v9.3.0) (2025-05-13)
+
+
+### Features
+
+* add claude 3.7 ([#7539](https://github.com/Arize-ai/phoenix/issues/7539)) ([db8ceaf](https://github.com/Arize-ai/phoenix/commit/db8ceaf9ada165d045568cb8900ef99dfa35b6ce))
+* **api:** expose experiment routes ([#7543](https://github.com/Arize-ai/phoenix/issues/7543)) ([7882615](https://github.com/Arize-ai/phoenix/commit/7882615fb22c487833b76c784edda668921e21db))
+
 ## [9.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.1.0...arize-phoenix-v9.2.0) (2025-05-13)
 
 
