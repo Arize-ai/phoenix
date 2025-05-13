@@ -22,7 +22,6 @@ import { AnnotatorKind } from "../types/annotations";
  * Parameters for running an experiment.
  *
  * @experimental This feature is not complete, and will change in the future.
- * @deprecated This function will be un-marked as deprecated once the experimental feature flag is removed.
  */
 export type RunExperimentParams = ClientFn & {
   /**
