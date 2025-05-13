@@ -283,6 +283,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List runs for an experiment */
+        get: operations["listExperimentRuns"];
+        put?: never;
+        /** Create run for an experiment */
+        post: operations["createExperimentRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/experiment_evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create or update evaluation for an experiment run */
+        post: operations["upsertExperimentEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/span_annotations": {
         parameters: {
             query?: never;
@@ -632,6 +667,58 @@ export interface components {
         CreateExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
         };
+        /** CreateExperimentRunRequestBody */
+        CreateExperimentRunRequestBody: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+        };
+        /** CreateExperimentRunResponseBody */
+        CreateExperimentRunResponseBody: {
+            data: components["schemas"]["CreateExperimentRunResponseBodyData"];
+        };
+        /** CreateExperimentRunResponseBodyData */
+        CreateExperimentRunResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the newly created experiment run
+             */
+            id: string;
+        };
         /** CreateProjectRequestBody */
         CreateProjectRequestBody: {
             /** Name */
@@ -790,6 +877,74 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ExperimentEvaluationResult */
+        ExperimentEvaluationResult: {
+            /**
+             * Label
+             * @description The label assigned by the evaluation
+             */
+            label?: string | null;
+            /**
+             * Score
+             * @description The score assigned by the evaluation
+             */
+            score?: number | null;
+            /**
+             * Explanation
+             * @description Explanation of the evaluation result
+             */
+            explanation?: string | null;
+        };
+        /** ExperimentRunResponse */
+        ExperimentRunResponse: {
+            /**
+             * Dataset Example Id
+             * @description The ID of the dataset example used in the experiment run
+             */
+            dataset_example_id: string;
+            /**
+             * Output
+             * @description The output of the experiment task
+             */
+            output: unknown;
+            /**
+             * Repetition Number
+             * @description The repetition number of the experiment run
+             */
+            repetition_number: number;
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the experiment run
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the experiment run
+             */
+            end_time: string;
+            /**
+             * Trace Id
+             * @description The ID of the corresponding trace (if one exists)
+             */
+            trace_id?: string | null;
+            /**
+             * Error
+             * @description Optional error message if the experiment run encountered an error
+             */
+            error?: string | null;
+            /**
+             * Id
+             * @description The ID of the experiment run
+             */
+            id: string;
+            /**
+             * Experiment Id
+             * @description The ID of the experiment
+             */
+            experiment_id: string;
+        };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
             /** Name */
@@ -913,6 +1068,11 @@ export interface components {
             data: components["schemas"]["Dataset"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** ListExperimentRunsResponseBody */
+        ListExperimentRunsResponseBody: {
+            /** Data */
+            data: components["schemas"]["ExperimentRunResponse"][];
         };
         /** ListExperimentsResponseBody */
         ListExperimentsResponseBody: {
@@ -1448,6 +1608,68 @@ export interface components {
         /** UploadDatasetResponseBody */
         UploadDatasetResponseBody: {
             data: components["schemas"]["UploadDatasetData"];
+        };
+        /** UpsertExperimentEvaluationRequestBody */
+        UpsertExperimentEvaluationRequestBody: {
+            /**
+             * Experiment Run Id
+             * @description The ID of the experiment run being evaluated
+             */
+            experiment_run_id: string;
+            /**
+             * Name
+             * @description The name of the evaluation
+             */
+            name: string;
+            /**
+             * Annotator Kind
+             * @description The kind of annotator used for the evaluation
+             * @enum {string}
+             */
+            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            /**
+             * Start Time
+             * Format: date-time
+             * @description The start time of the evaluation in ISO format
+             */
+            start_time: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description The end time of the evaluation in ISO format
+             */
+            end_time: string;
+            /** @description The result of the evaluation */
+            result: components["schemas"]["ExperimentEvaluationResult"];
+            /**
+             * Error
+             * @description Optional error message if the evaluation encountered an error
+             */
+            error?: string | null;
+            /**
+             * Metadata
+             * @description Metadata for the evaluation
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Trace Id
+             * @description Optional trace ID for tracking
+             */
+            trace_id?: string | null;
+        };
+        /** UpsertExperimentEvaluationResponseBody */
+        UpsertExperimentEvaluationResponseBody: {
+            data: components["schemas"]["UpsertExperimentEvaluationResponseBodyData"];
+        };
+        /** UpsertExperimentEvaluationResponseBodyData */
+        UpsertExperimentEvaluationResponseBodyData: {
+            /**
+             * Id
+             * @description The ID of the upserted experiment evaluation
+             */
+            id: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -2397,6 +2619,159 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listExperimentRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Experiment runs retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListExperimentRunsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createExperimentRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExperimentRunRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Experiment run created successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateExperimentRunResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment or dataset example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsertExperimentEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertExperimentEvaluationRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertExperimentEvaluationResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment run not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
