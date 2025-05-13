@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 1.2.0
+
+### Minor Changes
+
+- f7fae3b: feat(phoenix-client): Record experiment results to Phoenix server
+- 9273417: feat: Enqueue experiment runs
+- 4dd23c8: support for annotation logging on spans
+
 ## 1.1.0
 
 ### Minor Changes
