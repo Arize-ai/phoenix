@@ -75,27 +75,6 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
     )
 
 
-class Span(V1RoutesBaseModel):
-    id: str = Field(description="The Global Relay-style ID of the span.")
-    span_id: str = Field(description="The OpenTelemetry span ID.")
-    trace_id: Optional[str] = Field(
-        default=None, description="The OpenTelemetry trace ID of the span."
-    )
-    name: Optional[str] = None
-    span_kind: Optional[str] = Field(
-        default=None, description="The kind of span e.g. LLM, RETRIEVER …"
-    )
-    parent_id: Optional[str] = Field(
-        default=None, description="The OpenTelemetry ID of the parent span (if present)."
-    )
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    status_code: Optional[str] = None
-    status_message: Optional[str] = None
-    events: Optional[list[dict[str, Any]]] = None
-    attributes: Optional[dict[str, Any]] = None
-
-
 class KeyValue(BaseModel):
     key: str
     value: Any
@@ -112,7 +91,6 @@ class StatusCode(IntEnum):
 class Status(BaseModel):
     code: StatusCode  # serialized as its int value
     message: Optional[str] = None
-
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -121,13 +99,12 @@ class OtlpSpan(BaseModel):
     span_id: str = Field(alias="spanId")
     parent_span_id: Optional[str] = Field(default=None, alias="parentSpanId")
     name: Optional[str] = None
-    kind: int = 0  # SpanKind enum value. We default to UNSPECIFIED(0).
+    kind: int = 0  # SpanKind enum value. We default to UNSPECIFIED
     start_time_unix_nano: Optional[int] = Field(default=None, alias="startTimeUnixNano")
     end_time_unix_nano: Optional[int] = Field(default=None, alias="endTimeUnixNano")
     attributes: list[KeyValue] = Field(default_factory=list)
     events: list[dict[str, Any]] = Field(default_factory=list)
     status: Status = Field(...)
-
     model_config = ConfigDict(populate_by_name=True)
 
 
@@ -336,7 +313,7 @@ async def span_search(
                 span_id=span_orm.span_id,
                 parent_span_id=span_orm.parent_id,
                 name=span_orm.name,
-                kind=0,  # UNSPECIFIED; real mapping TBD
+                kind=0,  # UNSPECIFIED; OpenInference does not set OTLP SpanKind
                 start_time_unix_nano=start_ns,
                 end_time_unix_nano=end_ns,
                 attributes=attributes_kv,
