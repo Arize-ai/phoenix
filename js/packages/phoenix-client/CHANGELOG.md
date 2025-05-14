@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 1.3.0
+
+### Minor Changes
+
+- 536258e: feat(phoenix-client): Export traces from experiments to Phoenix
+
 ## 1.2.0
 
 ### Minor Changes
