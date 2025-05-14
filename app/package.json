@@ -105,6 +105,7 @@
     "jsdom": "^25.0.1",
     "only-allow": "^1.2.1",
     "prettier": "^3.3.3",
+    "react-grid-layout": "^1.5.1",
     "relay-compiler": "^18.2.0",
     "rollup-plugin-visualizer": "^5.12.0",
     "storybook": "^8.4.6",

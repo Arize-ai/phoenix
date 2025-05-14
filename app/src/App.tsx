@@ -13,6 +13,7 @@ import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
 
 import "normalize.css";
+import "react-grid-layout/css/styles.css";
 
 export function App() {
   return (
