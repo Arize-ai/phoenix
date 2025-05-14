@@ -1,31 +1,24 @@
-import {
-  diag,
-  DiagConsoleLogger,
-  DiagLogLevel,
-  trace,
-} from "@opentelemetry/api";
+import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
-import { HeadersOptions } from "openapi-fetch";
+import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+import { registerInstrumentations } from "@opentelemetry/instrumentation";
+
+import OpenAI from "openai";
 
 export function instrument({
   projectName,
-  collectorEndpoint,
   headers,
+  collectorEndpoint = "http://localhost:6006",
 }: {
   projectName?: string;
-  headers: HeadersOptions;
-  collectorEndpoint: string;
+  headers?: Record<string, string>;
+  collectorEndpoint?: string;
 }) {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
-
-  // do not create a new tracer provider if one already exists on the consuming side
-  if (trace.getTracerProvider()) {
-    return;
-  }
 
   const provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
@@ -35,12 +28,18 @@ export function instrument({
       new SimpleSpanProcessor(
         new OTLPTraceExporter({
           url: `${collectorEndpoint}/v1/traces`,
-          headers: Array.isArray(headers)
-            ? Object.fromEntries(headers)
-            : headers,
+          headers,
         })
       ),
     ],
+  });
+
+  const instrumentation = new OpenAIInstrumentation();
+  instrumentation.manuallyInstrument(OpenAI);
+
+  registerInstrumentations({
+    instrumentations: [instrumentation],
+    tracerProvider: provider,
   });
 
   provider.register();

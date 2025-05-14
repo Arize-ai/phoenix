@@ -1,4 +1,10 @@
 /* eslint-disable no-console */
+import { instrument } from "./instrumentation.js";
+// Instrument our OpenAI client calls
+instrument({
+  projectName: "phoenix-experiment-runner",
+});
+
 import { createClient } from "@arizeai/phoenix-client";
 import {
   asEvaluator,
