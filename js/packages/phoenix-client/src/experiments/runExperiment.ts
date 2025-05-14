@@ -490,7 +490,6 @@ export async function evaluateExperiment({
           }
           evalResult.traceId = span.spanContext().traceId;
           if (!isDryRun) {
-            logger.info(`📝 Logging evaluation ${evalResult.id}`);
             // Log the evaluation to the server
             // We log this without awaiting (e.g. best effort)
             client.POST("/v1/experiment_evaluations", {
@@ -516,7 +515,7 @@ export async function evaluateExperiment({
     concurrency
   );
   if (!evaluatorsAndRuns.length) {
-    logger.info(`🧠 No evaluators to run`);
+    logger.info(`⛔ No evaluators to run`);
     return {
       ...experiment,
       evaluationRuns: [],
@@ -526,7 +525,7 @@ export async function evaluateExperiment({
     evaluatorsQueue.push(evaluatorAndRun, (err) => {
       if (err) {
         logger.error(
-          `Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
+          `❌ Error running evaluator "${evaluatorAndRun.evaluator.name}" on run "${evaluatorAndRun.run.id}": ${err}`
         );
       }
     })
