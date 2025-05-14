@@ -22,11 +22,11 @@
     "zod": "^3.23.8"
   },
   "scripts": {
-    "start": "node dist/index.js",
+    "start": "NODE_NO_WARNINGS=1 node dist/index.js",
     "d:up": "docker compose up -d",
     "d:down": "docker compose down",
     "build": "tsc",
-    "dev": "tsx index.ts"
+    "dev": "NODE_NO_WARNINGS=1 tsx index.ts"
   },
   "keywords": [],
   "author": "",
