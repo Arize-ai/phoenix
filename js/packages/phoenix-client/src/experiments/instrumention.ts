@@ -11,7 +11,7 @@ import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { HeadersOptions } from "openapi-fetch";
 
-export function instrument({
+export function register({
   projectName,
   collectorEndpoint,
   headers,
@@ -23,8 +23,9 @@ export function instrument({
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
 
   // do not create a new tracer provider if one already exists on the consuming side
-  if (trace.getTracerProvider()) {
-    return;
+  const existingProvider = trace.getTracerProvider();
+  if (existingProvider) {
+    return existingProvider as NodeTracerProvider;
   }
 
   const provider = new NodeTracerProvider({
@@ -44,4 +45,6 @@ export function instrument({
   });
 
   provider.register();
+
+  return provider;
 }

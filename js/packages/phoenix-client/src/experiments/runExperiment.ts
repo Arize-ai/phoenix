@@ -17,7 +17,7 @@ import { getDatasetBySelector } from "../utils/getDatasetBySelector";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
-import { instrument } from "./instrument";
+import { register } from "./instrumention";
 import {
   AttributeValue,
   SpanStatusCode,
@@ -30,10 +30,7 @@ import {
   SemanticConventions,
 } from "@arizeai/openinference-semantic-conventions";
 import { ensureString } from "../utils/ensureString";
-
-const INSTRUMENTATION = {
-  enabled: false,
-};
+import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
 /**
  * Parameters for running an experiment.
@@ -121,6 +118,7 @@ export async function runExperiment({
   concurrency = 5,
   dryRun = false,
 }: RunExperimentParams): Promise<RanExperiment> {
+  let provider: NodeTracerProvider | undefined;
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({ dataset: _dataset, client });
@@ -170,16 +168,18 @@ export async function runExperiment({
       projectName,
     };
     // Initialize the tracer, now that we have a project name
-    if (!isDryRun && !INSTRUMENTATION.enabled) {
+    if (!isDryRun) {
       const collectorEndpoint =
         client.config.baseUrl ?? process.env.PHOENIX_COLLECTOR_ENDPOINT;
-      invariant(collectorEndpoint, "Phoenix collector endpoint not found");
-      instrument({
+      invariant(
+        collectorEndpoint,
+        "Phoenix collector endpoint not found. Please set PHOENIX_COLLECTOR_ENDPOINT or set baseUrl on the client."
+      );
+      provider = register({
         projectName,
         collectorEndpoint,
         headers: client.config.headers ?? {},
       });
-      INSTRUMENTATION.enabled = true;
     }
     taskTracer = trace.getTracer(projectName);
   }
@@ -239,6 +239,10 @@ export async function runExperiment({
 
   logger.info(`✅ Experiment ${experiment.id} completed`);
 
+  if (provider) {
+    await provider.shutdown();
+  }
+
   return ranExperiment;
 }
 
@@ -275,7 +279,7 @@ function runTask({
   isDryRun: boolean;
   /** The number of examples to run */
   nExamples: number;
-  /** The tracer to use */
+  /** TraceProvider instance that will be used to create spans from task calls */
   tracer: Tracer;
 }) {
   logger.info(`🔧 Running task "${task.name}" on dataset "${dataset.id}"`);
@@ -396,7 +400,7 @@ export async function evaluateExperiment({
    * */
   dryRun?: boolean | number;
   /**
-   * The tracer to use
+   * TraceProvider instance that will be used to create spans from evaluator calls
    */
   tracer: Tracer;
 }): Promise<RanExperiment> {
@@ -475,9 +479,7 @@ export async function evaluateExperiment({
                 examplesById[evaluatorAndRun.run.datasetExampleId]?.metadata,
             }),
             [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
-            [SemanticConventions.OUTPUT_VALUE]: JSON.stringify(
-              evalResult.result
-            ),
+            [SemanticConventions.OUTPUT_VALUE]: ensureString(evalResult.result),
           });
           if (evalResult.error) {
             span.setStatus({
