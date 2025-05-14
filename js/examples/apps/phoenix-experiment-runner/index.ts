@@ -12,7 +12,7 @@ import {
   type RunExperimentParams,
 } from "@arizeai/phoenix-client/experiments";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
-import { Factuality, Humor } from "autoevals";
+import { Factuality } from "autoevals";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -135,24 +135,7 @@ const main = async () => {
         error: (message) => s.message(message),
       },
       evaluators: [
-        asEvaluator({
-          name: "Mentions startups",
-          kind: "CODE",
-          evaluate: async (params) => {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            const output = params.output;
-            const isString = typeof output === "string";
-            return {
-              score:
-                isString && output?.toLocaleLowerCase()?.includes?.("startups")
-                  ? 1
-                  : 0,
-              label: "Mentions startups",
-              explanation: "The output contains the word 'startups'",
-              metadata: {},
-            };
-          },
-        }),
+        // You can implement code based evaluators like this
         asEvaluator({
           name: "Mentions evaluation",
           kind: "CODE",
@@ -172,6 +155,7 @@ const main = async () => {
             };
           },
         }),
+        // off the shelf evaluators
         asEvaluator({
           name: "Factuality",
           kind: "LLM",
@@ -191,21 +175,45 @@ const main = async () => {
             };
           },
         }),
+        // Custom LLM based evaluators
         asEvaluator({
-          name: "Humor",
+          name: "Is English",
           kind: "LLM",
           evaluate: async (params) => {
-            const result = await Humor.partial({
-              ...config,
-            })({
-              output: JSON.stringify(params.output, null, 2),
-            });
-            return {
-              score: result.score,
-              label: result.name,
-              explanation: (result.metadata?.rationale as string) ?? "",
-              metadata: result.metadata ?? {},
-            };
+            return await new OpenAI({
+              baseURL: config.openAiBaseUrl,
+              apiKey: config.openAiApiKey,
+            }).chat.completions
+              .create({
+                model: config.model,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are an expert language labeler that can only respond with 'English' or 'Not English'",
+                  },
+                  {
+                    role: "user",
+                    content: JSON.stringify(params.output, null, 2),
+                  },
+                ],
+              })
+              .then((res) =>
+                res.choices[0]?.message?.content?.toLocaleLowerCase() ===
+                "english"
+                  ? 1
+                  : 0
+              )
+              .then((score) => {
+                return {
+                  score,
+                  label: "Is English",
+                  explanation: score
+                    ? "The output is in English"
+                    : "The output is not in English",
+                  metadata: {},
+                };
+              });
           },
         }),
       ],

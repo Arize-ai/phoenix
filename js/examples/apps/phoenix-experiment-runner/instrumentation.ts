@@ -39,7 +39,6 @@ export function instrument({
 
   registerInstrumentations({
     instrumentations: [instrumentation],
-    tracerProvider: provider,
   });
 
   provider.register();

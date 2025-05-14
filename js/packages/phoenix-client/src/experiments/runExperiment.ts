@@ -16,8 +16,8 @@ import { getDatasetBySelector } from "../utils/getDatasetBySelector";
 import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
-import { register } from "./instrumention";
-import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
+import { createProvider, createNoOpProvider } from "./instrumention";
+import { SpanStatusCode, Tracer } from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -103,7 +103,6 @@ export async function runExperiment({
   dataset: _dataset,
   task,
   evaluators,
-
   logger = console,
   record = true,
   concurrency = 5,
@@ -131,7 +130,7 @@ export async function runExperiment({
       datasetVersionId: dataset.versionId,
       projectName,
     };
-    taskTracer = trace.getTracer("no-op");
+    taskTracer = createNoOpProvider().getTracer("no-op");
   } else {
     const experimentResponse = await client
       .POST("/v1/datasets/{dataset_id}/experiments", {
@@ -157,19 +156,17 @@ export async function runExperiment({
       projectName,
     };
     // Initialize the tracer, now that we have a project name
-    if (!isDryRun) {
-      const baseUrl = client.config.baseUrl;
-      invariant(
-        baseUrl,
-        "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
-      );
-      provider = register({
-        projectName,
-        baseUrl,
-        headers: client.config.headers ?? {},
-      });
-    }
-    taskTracer = trace.getTracer(projectName);
+    const baseUrl = client.config.baseUrl;
+    invariant(
+      baseUrl,
+      "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
+    );
+    provider = createProvider({
+      projectName,
+      baseUrl,
+      headers: client.config.headers ?? {},
+    });
+    taskTracer = provider.getTracer(projectName);
   }
   if (!record) {
     logger.info(
@@ -210,7 +207,7 @@ export async function runExperiment({
 
   // Shut down the provider so that the experiments run
   if (provider) {
-    await provider.shutdown();
+    await provider.shutdown?.();
   }
 
   const { evaluationRuns } = await evaluateExperiment({
@@ -386,17 +383,19 @@ export async function evaluateExperiment({
     baseUrl,
     "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
   );
-  let provider: NodeTracerProvider | undefined;
+  let provider: NodeTracerProvider;
   if (!isDryRun) {
-    provider = register({
+    provider = createProvider({
       projectName: "evaluators",
       baseUrl,
       headers: client.config.headers ?? {},
     });
+  } else {
+    provider = createNoOpProvider();
   }
   const tracer = isDryRun
-    ? trace.getTracer("no-op")
-    : trace.getTracer("evaluators");
+    ? provider.getTracer("no-op")
+    : provider.getTracer("evaluators");
   const nRuns =
     typeof dryRun === "number"
       ? Math.max(dryRun, Object.keys(experiment.runs).length)
@@ -529,7 +528,7 @@ export async function evaluateExperiment({
   logger.info(`✅ Evaluation runs completed`);
 
   if (provider) {
-    await provider.shutdown();
+    await provider.shutdown?.();
   }
 
   return {
