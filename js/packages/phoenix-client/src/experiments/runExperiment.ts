@@ -18,7 +18,12 @@ import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
 import { instrument } from "./instrument";
-import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
+import {
+  AttributeValue,
+  SpanStatusCode,
+  Tracer,
+  trace,
+} from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -129,19 +134,8 @@ export async function runExperiment({
     nExamples,
   };
   let projectName = _projectName;
-  if (!isDryRun && !INSTRUMENTATION.enabled) {
-    const collectorEndpoint =
-      client.config.baseUrl ?? process.env.PHOENIX_COLLECTOR_ENDPOINT;
-    invariant(collectorEndpoint, "Phoenix collector endpoint not found");
-    instrument({
-      projectName,
-      collectorEndpoint,
-      headers: client.config.headers ?? {},
-    });
-    INSTRUMENTATION.enabled = true;
-  }
   // initialize with noop tracer
-  let tracer: Tracer = trace.getTracer("phoenix-client");
+  let taskTracer: Tracer = trace.getTracer("no-op");
   let experiment: Experiment;
   if (isDryRun) {
     experiment = {
@@ -178,7 +172,19 @@ export async function runExperiment({
       datasetVersionId: dataset.versionId,
       projectName,
     };
-    tracer = trace.getTracer(projectName);
+    // Initialize the tracer, now that we have a project name
+    if (!isDryRun && !INSTRUMENTATION.enabled) {
+      const collectorEndpoint =
+        client.config.baseUrl ?? process.env.PHOENIX_COLLECTOR_ENDPOINT;
+      invariant(collectorEndpoint, "Phoenix collector endpoint not found");
+      instrument({
+        projectName,
+        collectorEndpoint,
+        headers: client.config.headers ?? {},
+      });
+      INSTRUMENTATION.enabled = true;
+    }
+    taskTracer = trace.getTracer(projectName);
   }
 
   if (!record) {
@@ -209,7 +215,7 @@ export async function runExperiment({
     concurrency,
     isDryRun,
     nExamples,
-    tracer,
+    tracer: taskTracer,
   });
   logger.info(`✅ Task runs completed`);
 
@@ -219,6 +225,10 @@ export async function runExperiment({
     runs,
   };
 
+  const evaluationTracer = isDryRun
+    ? trace.getTracer("no-op")
+    : trace.getTracer("evaluators");
+
   const { evaluationRuns } = await evaluateExperiment({
     experiment: ranExperiment,
     evaluators: evaluators ?? [],
@@ -226,6 +236,7 @@ export async function runExperiment({
     logger,
     concurrency,
     dryRun,
+    tracer: evaluationTracer,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
@@ -366,6 +377,7 @@ export async function evaluateExperiment({
   logger,
   concurrency = 5,
   dryRun = false,
+  tracer,
 }: {
   /**
    * The experiment to evaluate
@@ -386,6 +398,10 @@ export async function evaluateExperiment({
    * @default false
    * */
   dryRun?: boolean | number;
+  /**
+   * The tracer to use
+   */
+  tracer: Tracer;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
   const nRuns =
@@ -439,32 +455,72 @@ export async function evaluateExperiment({
   );
   const evaluatorsQueue = queue(
     async (evaluatorAndRun: { evaluator: Evaluator; run: ExperimentRun }) => {
-      const evalResult = await runEvaluator({
-        evaluator: evaluatorAndRun.evaluator,
-        run: evaluatorAndRun.run,
-        exampleCache: examplesById,
-        onComplete: onEvaluationComplete,
-        logger,
-      });
-      if (!isDryRun) {
-        logger.info(`📝 Logging evaluation ${evalResult.id}`);
-        // Log the evaluation to the server
-        // We log this without awaiting (e.g. best effort)
-        client.POST("/v1/experiment_evaluations", {
-          body: {
-            experiment_run_id: evaluatorAndRun.run.id,
-            name: evaluatorAndRun.evaluator.name,
-            annotator_kind: evaluatorAndRun.evaluator.kind,
-            start_time: evalResult.startTime.toISOString(),
-            end_time: evalResult.endTime.toISOString(),
-            result: {
-              ...evalResult.result,
-            },
-            error: evalResult.error,
-            trace_id: evalResult.traceId,
-          },
-        });
-      }
+      return tracer.startActiveSpan(
+        `Evaluation: ${evaluatorAndRun.evaluator.name}`,
+        async (span) => {
+          const evalResult = await runEvaluator({
+            evaluator: evaluatorAndRun.evaluator,
+            run: evaluatorAndRun.run,
+            exampleCache: examplesById,
+            onComplete: onEvaluationComplete,
+            logger,
+          });
+          span.setAttributes({
+            [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+              OpenInferenceSpanKind.EVALUATOR,
+            [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
+            [SemanticConventions.INPUT_VALUE]: JSON.stringify({
+              input: examplesById[evaluatorAndRun.run.datasetExampleId]?.input,
+              output: evaluatorAndRun.run.output,
+              expected:
+                examplesById[evaluatorAndRun.run.datasetExampleId]?.output,
+              metadata:
+                examplesById[evaluatorAndRun.run.datasetExampleId]?.metadata,
+            }),
+            [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
+            [SemanticConventions.OUTPUT_VALUE]: JSON.stringify(
+              evalResult.result
+            ),
+          });
+          if (evalResult.error) {
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: evalResult.error,
+            });
+          } else {
+            span.setStatus({ code: SpanStatusCode.OK });
+          }
+          if (evalResult.result) {
+            span.setAttributes(
+              Object.fromEntries(
+                Object.entries(evalResult.result).filter(([_, v]) => v !== null)
+              ) as Record<string, AttributeValue>
+            );
+          }
+          evalResult.traceId = span.spanContext().traceId;
+          if (!isDryRun) {
+            logger.info(`📝 Logging evaluation ${evalResult.id}`);
+            // Log the evaluation to the server
+            // We log this without awaiting (e.g. best effort)
+            client.POST("/v1/experiment_evaluations", {
+              body: {
+                experiment_run_id: evaluatorAndRun.run.id,
+                name: evaluatorAndRun.evaluator.name,
+                annotator_kind: evaluatorAndRun.evaluator.kind,
+                start_time: evalResult.startTime.toISOString(),
+                end_time: evalResult.endTime.toISOString(),
+                result: {
+                  ...evalResult.result,
+                },
+                error: evalResult.error,
+                trace_id: evalResult.traceId,
+              },
+            });
+          }
+          span.end();
+          return evalResult;
+        }
+      );
     },
     concurrency
   );
@@ -519,14 +575,14 @@ async function runEvaluator({
     );
     const thisEval: ExperimentEvaluationRun = {
       id: id(),
-      traceId: null, // TODO: fill this in once we trace experiments
+      traceId: null,
       experimentRunId: run.id,
       startTime: new Date(),
       endTime: new Date(), // will get replaced with actual end time
       name: evaluator.name,
       result: null,
       error: null,
-      annotatorKind: "LLM", // TODO: make configurable via evaluator def
+      annotatorKind: evaluator.kind,
     };
     try {
       const result = await evaluator.evaluate({
