@@ -58,6 +58,12 @@ class RegexDict:
         return len(self._entries)
 
 
+class CostOverride(NamedTuple):
+    provider: Optional[str]
+    pattern: re.Pattern
+    cost: float
+
+
 class ModelPattern(NamedTuple):
     provider: Optional[str]
     pattern: re.Pattern
@@ -69,13 +75,15 @@ class ModelName(NamedTuple):
 
 
 class ModelCostLookup:
-    __slots__ = ("_provider_model_map", "_model_map")
+    __slots__ = ("_provider_model_map", "_model_map", "_overrides")
 
     def __init__(self):
         # Each provider maps to a *RegexDict* of (pattern -> cost).
         self._provider_model_map = defaultdict(RegexDict)
         # Map from *pattern string* to a set of providers that have that pattern.
         self._model_map = defaultdict(set)
+        # A prioritized list of cost overrides (later overrides have higher priority).
+        self._overrides: list[CostOverride] = []
 
     def __setitem__(self, key: ModelPattern, value: float):
         assert isinstance(key, ModelPattern), "Insertion key must be a ModelPattern"
@@ -97,31 +105,57 @@ class ModelCostLookup:
         assert isinstance(key, ModelName), "Lookup key must be a ModelName"
         provider, model_name = key.provider, key.name
 
-        if provider is None:
-            # Return a list of (provider, cost) pairs whose patterns match the
-            # requested model string.
-            matches = []
-            for p, regex_dict in self._provider_model_map.items():
-                try:
-                    cost = regex_dict[model_name]
-                except KeyError:
-                    continue
-                matches.append((p, cost))
-            if not matches:
-                raise KeyError(model_name)
-            return matches
+        # 1) Provider-specific lookup -------------------------------------
+        if provider is not None:
+            # Check overrides first.
+            override_cost = self._lookup_override(provider, model_name)
+            if override_cost is not None:
+                return override_cost
 
-        regex_dict = self._provider_model_map.get(provider)
-        if regex_dict is None:
-            raise KeyError(provider)
-        return regex_dict[model_name]
+            # Fall back to base cost table.
+            regex_dict = self._provider_model_map.get(provider)
+            if regex_dict is None:
+                raise KeyError(provider)
+            return regex_dict[model_name]
+
+        # 2) Provider-agnostic lookup -------------------------------------
+        # Gather base matches.
+        provider_cost_map: dict[str, float] = {}
+        for p, regex_dict in self._provider_model_map.items():
+            try:
+                provider_cost_map[p] = regex_dict[model_name]
+            except KeyError:
+                continue
+
+        # Apply overrides (they take precedence; later overrides win).
+        for override in self._overrides:
+            if override.pattern.fullmatch(model_name):
+                if override.provider is None:
+                    # Apply to *all* matching providers in the current map.
+                    for p in list(provider_cost_map):
+                        provider_cost_map[p] = override.cost
+                else:
+                    provider_cost_map[override.provider] = override.cost
+
+        if not provider_cost_map:
+            raise KeyError(model_name)
+        return list(provider_cost_map.items())
 
     def __contains__(self, key: ModelName):
         provider, model_name = key.provider, key.name
 
+        # Provider-agnostic containment check.
         if provider is None:
-            # Does *any* provider have a pattern matching this model string?
+            # If **any** override matches the model name, we consider it contained.
+            if any(ov.pattern.fullmatch(model_name) for ov in self._overrides):
+                return True
+
+            # Otherwise, delegate to the base tables.
             return any(model_name in regex_dict for regex_dict in self._provider_model_map.values())
+
+        # Provider-specific containment check.
+        if self._lookup_override(provider, model_name) is not None:
+            return True
 
         regex_dict = self._provider_model_map.get(provider)
         if not regex_dict:
@@ -130,3 +164,23 @@ class ModelCostLookup:
 
     def __len__(self):
         return sum(len(regex_dict) for regex_dict in self._provider_model_map.values())
+
+    def add_override(self, override: CostOverride) -> None:
+        """Register a *prioritized* cost override.
+
+        Overrides are evaluated in the order in which they are added *last in, first out*—
+        the most recently-added override has the highest priority.
+        """
+
+        if not isinstance(override, CostOverride):
+            raise TypeError("override must be a CostOverride instance")
+        self._overrides.append(override)
+
+    def _lookup_override(self, provider: Optional[str], model_name: str) -> Optional[float]:
+        """Return the cost from the highest-priority override that matches, or *None*."""
+
+        for override in reversed(self._overrides):
+            provider_matches = override.provider is None or override.provider == provider
+            if provider_matches and override.pattern.fullmatch(model_name):
+                return override.cost
+        return None
