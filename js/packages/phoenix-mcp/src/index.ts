@@ -8,7 +8,7 @@ import { initializeDatasetTools } from "./datasetTools.js";
 import { initializeExperimentTools } from "./experimentTools.js";
 import { initializePromptTools } from "./promptTools.js";
 import { initializeReadmeResources } from "./readmeResource.js";
-
+import { initializePrompts } from "./prompts.js";
 const argv = minimist(process.argv.slice(2));
 
 // Initialize Phoenix client
@@ -23,15 +23,21 @@ const client = createClient({
 });
 
 // Create server instance
-const server = new McpServer({
-  name: "phoenix-mcp-server",
-  version: "1.0.0",
-  capabilities: {
-    resources: {},
-    tools: {},
+const server = new McpServer(
+  {
+    name: "phoenix-mcp-server",
+    version: "1.0.0",
   },
-});
+  {
+    capabilities: {
+      resources: {},
+      tools: {},
+      prompts: {},
+    },
+  }
+);
 
+initializePrompts({ client, server });
 initializePromptTools({ client, server });
 initializeExperimentTools({ client, server });
 initializeDatasetTools({ client, server });
