@@ -286,7 +286,7 @@ function runTask({
       );
       const traceId = span.spanContext().traceId;
       const thisRun: ExperimentRun = {
-        id: id(),
+        id: id(), // initialized with local id, will be replaced with server-assigned id when dry run is false
         traceId,
         experimentId,
         datasetExampleId: example.id,
@@ -297,7 +297,6 @@ function runTask({
       };
       try {
         const taskOutput = await promisifyResult(task(example));
-        // TODO: why doesn't run output type match task output type?
         thisRun.output =
           typeof taskOutput === "string"
             ? taskOutput
@@ -310,7 +309,6 @@ function runTask({
       thisRun.endTime = new Date();
       if (!isDryRun) {
         // Log the run to the server
-        // We log this without awaiting (e.g. best effort)
         const res = await client.POST("/v1/experiments/{experiment_id}/runs", {
           params: {
             path: {
