@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c180e6a9bbcbd157d7b3d6bccf158e31>>
+ * @generated SignedSource<<0eb5521c9cb434a11e9a6c4298047c8c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
 export type CreateProjectTraceRetentionPolicyInput = {
   addProjects?: ReadonlyArray<string> | null;
   cronExpression: string;
@@ -32,12 +31,38 @@ export type ProjectTraceRetentionRuleMaxDaysOrCountInput = {
   maxDays: number;
 };
 export type CreateRetentionPolicyMutation$variables = {
+  connectionId: string;
   input: CreateProjectTraceRetentionPolicyInput;
 };
 export type CreateRetentionPolicyMutation$data = {
   readonly createProjectTraceRetentionPolicy: {
-    readonly query: {
-      readonly " $fragmentSpreads": FragmentRefs<"RetentionPoliciesTable_policies">;
+    readonly node: {
+      readonly cronExpression: string;
+      readonly id: string;
+      readonly name: string;
+      readonly projects: {
+        readonly edges: ReadonlyArray<{
+          readonly node: {
+            readonly id: string;
+            readonly name: string;
+          };
+        }>;
+      };
+      readonly rule: {
+        readonly __typename: "TraceRetentionRuleMaxCount";
+        readonly maxCount: number;
+      } | {
+        readonly __typename: "TraceRetentionRuleMaxDays";
+        readonly maxDays: number;
+      } | {
+        readonly __typename: "TraceRetentionRuleMaxDaysOrCount";
+        readonly maxCount: number;
+        readonly maxDays: number;
+      } | {
+        // This will never be '%other', but we need some
+        // value in case none of the concrete values match.
+        readonly __typename: "%other";
+      };
     };
   };
 };
@@ -47,25 +72,21 @@ export type CreateRetentionPolicyMutation = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "input"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "connectionId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "input"
+},
+v2 = [
   {
     "kind": "Variable",
     "name": "input",
     "variableName": "input"
-  }
-],
-v2 = [
-  {
-    "kind": "Literal",
-    "name": "first",
-    "value": 1000
   }
 ],
 v3 = {
@@ -86,54 +107,133 @@ v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "__typename",
+  "name": "maxCount",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "maxCount",
+  "name": "maxDays",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "maxDays",
+  "concreteType": "ProjectTraceRetentionPolicy",
+  "kind": "LinkedField",
+  "name": "node",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "cronExpression",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": null,
+      "kind": "LinkedField",
+      "name": "rule",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "__typename",
+          "storageKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            (v5/*: any*/)
+          ],
+          "type": "TraceRetentionRuleMaxCount",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            (v6/*: any*/)
+          ],
+          "type": "TraceRetentionRuleMaxDays",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            (v6/*: any*/),
+            (v5/*: any*/)
+          ],
+          "type": "TraceRetentionRuleMaxDaysOrCount",
+          "abstractKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ProjectConnection",
+      "kind": "LinkedField",
+      "name": "projects",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "ProjectEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "Project",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v4/*: any*/),
+                (v3/*: any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "CreateRetentionPolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectTraceRetentionPolicy",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "RetentionPoliciesTable_policies"
-              }
-            ],
-            "storageKey": null
-          }
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
@@ -143,184 +243,48 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "CreateRetentionPolicyMutation",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "ProjectTraceRetentionPolicyMutationPayload",
         "kind": "LinkedField",
         "name": "createProjectTraceRetentionPolicy",
         "plural": false,
         "selections": [
+          (v7/*: any*/),
           {
             "alias": null,
             "args": null,
-            "concreteType": "Query",
-            "kind": "LinkedField",
-            "name": "query",
-            "plural": false,
-            "selections": [
+            "filters": null,
+            "handle": "prependNode",
+            "key": "",
+            "kind": "LinkedHandle",
+            "name": "node",
+            "handleArgs": [
               {
-                "alias": null,
-                "args": (v2/*: any*/),
-                "concreteType": "ProjectTraceRetentionPolicyConnection",
-                "kind": "LinkedField",
-                "name": "projectTraceRetentionPolicies",
-                "plural": false,
-                "selections": [
+                "items": [
                   {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "ProjectTraceRetentionPolicyEdge",
-                    "kind": "LinkedField",
-                    "name": "edges",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "ProjectTraceRetentionPolicy",
-                        "kind": "LinkedField",
-                        "name": "node",
-                        "plural": false,
-                        "selections": [
-                          (v3/*: any*/),
-                          (v4/*: any*/),
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "cronExpression",
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": null,
-                            "kind": "LinkedField",
-                            "name": "rule",
-                            "plural": false,
-                            "selections": [
-                              (v5/*: any*/),
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v6/*: any*/)
-                                ],
-                                "type": "TraceRetentionRuleMaxCount",
-                                "abstractKey": null
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v7/*: any*/)
-                                ],
-                                "type": "TraceRetentionRuleMaxDays",
-                                "abstractKey": null
-                              },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": [
-                                  (v7/*: any*/),
-                                  (v6/*: any*/)
-                                ],
-                                "type": "TraceRetentionRuleMaxDaysOrCount",
-                                "abstractKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          },
-                          {
-                            "alias": null,
-                            "args": null,
-                            "concreteType": "ProjectConnection",
-                            "kind": "LinkedField",
-                            "name": "projects",
-                            "plural": false,
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "concreteType": "ProjectEdge",
-                                "kind": "LinkedField",
-                                "name": "edges",
-                                "plural": true,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "Project",
-                                    "kind": "LinkedField",
-                                    "name": "node",
-                                    "plural": false,
-                                    "selections": [
-                                      (v4/*: any*/),
-                                      (v3/*: any*/)
-                                    ],
-                                    "storageKey": null
-                                  }
-                                ],
-                                "storageKey": null
-                              }
-                            ],
-                            "storageKey": null
-                          },
-                          (v5/*: any*/)
-                        ],
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "cursor",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "PageInfo",
-                    "kind": "LinkedField",
-                    "name": "pageInfo",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "endCursor",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "hasNextPage",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
+                    "kind": "Variable",
+                    "name": "connections.0",
+                    "variableName": "connectionId"
                   }
                 ],
-                "storageKey": "projectTraceRetentionPolicies(first:1000)"
+                "kind": "ListValue",
+                "name": "connections"
               },
               {
-                "alias": null,
-                "args": (v2/*: any*/),
-                "filters": null,
-                "handle": "connection",
-                "key": "RetentionPoliciesTable_projectTraceRetentionPolicies",
-                "kind": "LinkedHandle",
-                "name": "projectTraceRetentionPolicies"
+                "kind": "Literal",
+                "name": "edgeTypeName",
+                "value": "ProjectTraceRetentionPolicyEdge"
               }
-            ],
-            "storageKey": null
+            ]
           }
         ],
         "storageKey": null
@@ -328,16 +292,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "12a0cf6ab2f80fe2096528b210217a40",
+    "cacheID": "e66dcabab36bc3feafe8042f89faea0a",
     "id": null,
     "metadata": {},
     "name": "CreateRetentionPolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateRetentionPolicyMutation(\n  $input: CreateProjectTraceRetentionPolicyInput!\n) {\n  createProjectTraceRetentionPolicy(input: $input) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n        projects {\n          edges {\n            node {\n              name\n              id\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation CreateRetentionPolicyMutation(\n  $input: CreateProjectTraceRetentionPolicyInput!\n) {\n  createProjectTraceRetentionPolicy(input: $input) {\n    node {\n      id\n      name\n      cronExpression\n      rule {\n        __typename\n        ... on TraceRetentionRuleMaxCount {\n          maxCount\n        }\n        ... on TraceRetentionRuleMaxDays {\n          maxDays\n        }\n        ... on TraceRetentionRuleMaxDaysOrCount {\n          maxDays\n          maxCount\n        }\n      }\n      projects {\n        edges {\n          node {\n            name\n            id\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b012653380fd1ba759a391f3eec9652b";
+(node as any).hash = "e048a373c4096187c141a35eb71ee052";
 
 export default node;

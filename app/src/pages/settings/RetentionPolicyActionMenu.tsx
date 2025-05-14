@@ -32,6 +32,10 @@ export interface RetentionPolicyActionMenuProps {
   projectNames: string[];
   onPolicyEdit: () => void;
   onPolicyDelete: () => void;
+  /**
+   * The ID of the connection to the policy.
+   */
+  connectionId: string;
 }
 
 export const RetentionPolicyActionMenu = ({
@@ -40,6 +44,7 @@ export const RetentionPolicyActionMenu = ({
   projectNames,
   onPolicyEdit,
   onPolicyDelete,
+  connectionId,
 }: RetentionPolicyActionMenuProps) => {
   const canDelete = policyName !== DEFAULT_POLICY_NAME;
   const [dialog, setDialog] = useState<ReactNode>(null);
@@ -65,11 +70,15 @@ export const RetentionPolicyActionMenu = ({
 
   const [deletePolicy, isDeleting] = useMutation(graphql`
     mutation RetentionPolicyActionMenuDeletePolicyMutation(
-      $input: DeleteProjectTraceRetentionPolicyInput!
+      $policyId: ID!
+      $connectionId: ID!
     ) {
-      deleteProjectTraceRetentionPolicy(input: $input) {
+      deleteProjectTraceRetentionPolicy(input: { id: $policyId }) {
         query {
           ...RetentionPoliciesTable_policies
+        }
+        node {
+          id @deleteEdge(connections: [$connectionId])
         }
       }
     }
@@ -105,9 +114,8 @@ export const RetentionPolicyActionMenu = ({
               onPress={() => {
                 deletePolicy({
                   variables: {
-                    input: {
-                      id: policyId,
-                    },
+                    policyId,
+                    connectionId,
                   },
                 });
                 setDialog(null);
@@ -131,6 +139,7 @@ export const RetentionPolicyActionMenu = ({
     deletePolicy,
     onPolicyDelete,
     isDeleting,
+    connectionId,
   ]);
 
   return (

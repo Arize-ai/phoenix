@@ -1,4 +1,4 @@
-import { graphql, useMutation } from "react-relay";
+import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import {
   useNotifyError,
@@ -17,17 +17,48 @@ import {
 /**
  * A Wrapper around the RetentionPolicyForm component that is used to create a new retention policy.
  */
-export function CreateRetentionPolicy(props: { onCreate: () => void }) {
+export function CreateRetentionPolicy(props: {
+  onCreate: () => void;
+  queryId: string;
+}) {
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
   const [submit, isSubitting] = useMutation<CreateRetentionPolicyMutation>(
     graphql`
       mutation CreateRetentionPolicyMutation(
         $input: CreateProjectTraceRetentionPolicyInput!
+        $connectionId: ID!
       ) {
         createProjectTraceRetentionPolicy(input: $input) {
-          query {
-            ...RetentionPoliciesTable_policies
+          node
+            @prependNode(
+              connections: [$connectionId]
+              edgeTypeName: "ProjectTraceRetentionPolicyEdge"
+            ) {
+            id
+            name
+            cronExpression
+            rule {
+              __typename
+              ... on TraceRetentionRuleMaxCount {
+                maxCount
+              }
+              ... on TraceRetentionRuleMaxDays {
+                maxDays
+              }
+              ... on TraceRetentionRuleMaxDaysOrCount {
+                maxDays
+                maxCount
+              }
+            }
+            projects {
+              edges {
+                node {
+                  name
+                  id
+                }
+              }
+            }
           }
         }
       }
@@ -58,6 +89,10 @@ export function CreateRetentionPolicy(props: { onCreate: () => void }) {
     } else {
       throw new Error("Invalid retention policy rule");
     }
+    const connectionId = ConnectionHandler.getConnectionID(
+      props.queryId,
+      "RetentionPoliciesTable_projectTraceRetentionPolicies"
+    );
     submit({
       variables: {
         input: {
@@ -65,6 +100,7 @@ export function CreateRetentionPolicy(props: { onCreate: () => void }) {
           rule,
           name: params.name,
         },
+        connectionId,
       },
       onCompleted: () => {
         notifySuccess({
