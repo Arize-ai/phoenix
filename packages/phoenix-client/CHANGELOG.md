@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.5.0...arize-phoenix-client-v1.6.0) (2025-05-14)
+
+
+### Features
+
+* **api:** expose experiment routes ([#7543](https://github.com/Arize-ai/phoenix/issues/7543)) ([7882615](https://github.com/Arize-ai/phoenix/commit/7882615fb22c487833b76c784edda668921e21db))
+
+
+### Bug Fixes
+
+* allow context.span_id as column name ([#7368](https://github.com/Arize-ai/phoenix/issues/7368)) ([ba1b9eb](https://github.com/Arize-ai/phoenix/commit/ba1b9eba9ce55b6644d46cd3f6436d29ccf2f304))
+
 ## [1.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v1.4.0...arize-phoenix-client-v1.5.0) (2025-05-09)
 
 
