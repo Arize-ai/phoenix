@@ -13,6 +13,8 @@ import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsA
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 
+import { DashboardPage } from "./pages/dashboard";
+import { DashboardsPage } from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
@@ -175,6 +177,17 @@ const router = createBrowserRouter(
                 <Route path="config" element={<ProjectConfigPage />} />
               </Route>
             </Route>
+          </Route>
+          <Route path="/dashboards" handle={{ crumb: () => "dashboards" }}>
+            <Route index element={<DashboardsPage />} />
+            <Route
+              path=":dashboardId"
+              handle={{
+                // TODO: add dashboard name
+                crumb: () => "dashboard",
+              }}
+              element={<DashboardPage />}
+            />
           </Route>
           <Route path="/datasets" handle={{ crumb: () => "datasets" }}>
             <Route index element={<DatasetsPage />} />
