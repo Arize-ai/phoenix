@@ -124,7 +124,9 @@ const main = async () => {
       task: LLMAssistantTask,
       logger: {
         ...log,
-        log: (message) => log.message(message),
+        log: (message) => s.message(message),
+        info: (message) => s.message(message),
+        error: (message) => s.message(message),
       },
       evaluators: [
         asEvaluator({
