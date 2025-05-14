@@ -70,3 +70,29 @@ def test_deletion(cost_lookup):
 def test_keyerror_on_missing(cost_lookup):
     with pytest.raises(KeyError):
         _ = cost_lookup[ModelName("nonexistent", "gpt-0")]
+
+
+def test_regex_match_single_provider(cost_lookup):
+    pattern = ModelPattern("openai", re.compile(r"gpt-3\.5.*"))
+    cost_lookup[pattern] = 0.02
+
+    assert cost_lookup[ModelName("openai", "gpt-3.5")] == 0.02
+    assert cost_lookup[ModelName("openai", "gpt-3.5-turbo")] == 0.02
+
+
+def test_regex_match_multiple_providers(cost_lookup):
+    """Provider-agnostic look-ups should return all providers whose regex matches."""
+    cost_lookup[ModelPattern("anthropic", re.compile(r"model.*"))] = 0.012
+    cost_lookup[ModelPattern("openai", re.compile(r"model.*"))] = 0.02
+
+    results = cost_lookup[ModelName(None, "model-3")]
+    result_dict = dict(results)
+    assert result_dict["anthropic"] == 0.012
+    assert result_dict["openai"] == 0.02
+
+
+def test_regex_no_match_raises(cost_lookup):
+    cost_lookup[ModelPattern("openai", re.compile(r"gpt-3\.5.*"))] = 0.02
+
+    with pytest.raises(KeyError):
+        _ = cost_lookup[ModelName("openai", "gpt-4")]
