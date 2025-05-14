@@ -61,7 +61,7 @@ class RegexDict:
 class ModelCostLookup:
     __slots__ = ("_provider_model_map", "_model_map", "_overrides", "_cache")
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Each provider maps to a *RegexDict* of (pattern -> cost).
         self._provider_model_map = defaultdict(RegexDict)
         # Map from *pattern string* to a set of providers that have that pattern.

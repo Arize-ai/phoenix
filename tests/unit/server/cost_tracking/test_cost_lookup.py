@@ -9,18 +9,18 @@ from phoenix.server.cost_tracking.cost_lookup import (
 
 
 @pytest.fixture()
-def cost_lookup():
+def cost_lookup() -> ModelCostLookup:
     return ModelCostLookup()
 
 
-def test_set_and_get_item(cost_lookup: ModelCostLookup):
+def test_set_and_get_item(cost_lookup: ModelCostLookup) -> None:
     regex = re.compile(r"gpt-3\.5-turbo")
     cost_lookup.add_pattern("openai", regex, 0.02)
 
     assert cost_lookup.get_cost("openai", "gpt-3.5-turbo") == 0.02
 
 
-def test_contains_and_len(cost_lookup: ModelCostLookup):
+def test_contains_and_len(cost_lookup: ModelCostLookup) -> None:
     provider1, name1 = "openai", "gpt-4"
     provider2, name2 = "anthropic", "claude-3"
 
@@ -35,7 +35,7 @@ def test_contains_and_len(cost_lookup: ModelCostLookup):
     assert cost_lookup.pattern_count() == 2
 
 
-def test_provider_agnostic_lookup(cost_lookup: ModelCostLookup):
+def test_provider_agnostic_lookup(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern("openai", re.compile(r"gpt-3\.5"), 0.02)
     cost_lookup.add_pattern("azure", re.compile(r"gpt-3\.5"), 0.018)
 
@@ -48,7 +48,7 @@ def test_provider_agnostic_lookup(cost_lookup: ModelCostLookup):
     assert not cost_lookup.has_model(None, "gpt-3.5-turbo")
 
 
-def test_deletion(cost_lookup: ModelCostLookup):
+def test_deletion(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern("openai", re.compile(r"gpt-3\.5-turbo"), 0.02)
 
     cost_lookup.remove_pattern("openai", re.compile(r"gpt-3\.5-turbo"))
@@ -58,19 +58,19 @@ def test_deletion(cost_lookup: ModelCostLookup):
         _ = cost_lookup.get_cost("openai", "gpt-3.5-turbo")
 
 
-def test_keyerror_on_missing(cost_lookup: ModelCostLookup):
+def test_keyerror_on_missing(cost_lookup: ModelCostLookup) -> None:
     with pytest.raises(KeyError):
         _ = cost_lookup.get_cost("nonexistent", "gpt-0")
 
 
-def test_regex_match_single_provider(cost_lookup: ModelCostLookup):
+def test_regex_match_single_provider(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern("openai", re.compile(r"gpt-3\.5.*"), 0.02)
 
     assert cost_lookup.get_cost("openai", "gpt-3.5") == 0.02
     assert cost_lookup.get_cost("openai", "gpt-3.5-turbo") == 0.02
 
 
-def test_regex_match_multiple_providers(cost_lookup: ModelCostLookup):
+def test_regex_match_multiple_providers(cost_lookup: ModelCostLookup) -> None:
     """Provider-agnostic look-ups should return all providers whose regex matches."""
     cost_lookup.add_pattern("anthropic", re.compile(r"model.*"), 0.012)
     cost_lookup.add_pattern("openai", re.compile(r"model.*"), 0.02)
@@ -81,14 +81,14 @@ def test_regex_match_multiple_providers(cost_lookup: ModelCostLookup):
     assert result_dict["openai"] == 0.02
 
 
-def test_regex_no_match_raises(cost_lookup: ModelCostLookup):
+def test_regex_no_match_raises(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern("openai", re.compile(r"gpt-3\.5.*"), 0.02)
 
     with pytest.raises(KeyError):
         _ = cost_lookup.get_cost("openai", "gpt-4")
 
 
-def test_override_precedence(cost_lookup: ModelCostLookup):
+def test_override_precedence(cost_lookup: ModelCostLookup) -> None:
     """An override should take precedence over the base cost table."""
     cost_lookup.add_pattern("openai", re.compile(r"gpt-4"), 0.06)
 
@@ -97,7 +97,7 @@ def test_override_precedence(cost_lookup: ModelCostLookup):
     assert cost_lookup.get_cost("openai", "gpt-4") == 0.04
 
 
-def test_override_provider_agnostic_lookup(cost_lookup: ModelCostLookup):
+def test_override_provider_agnostic_lookup(cost_lookup: ModelCostLookup) -> None:
     """Provider-agnostic lookups should reflect overrides per provider."""
     cost_lookup.add_pattern("openai", re.compile(r"gpt-3\.5"), 0.02)
     cost_lookup.add_pattern("azure", re.compile(r"gpt-3\.5"), 0.018)
@@ -110,7 +110,7 @@ def test_override_provider_agnostic_lookup(cost_lookup: ModelCostLookup):
     assert result_dict["azure"] == 0.018
 
 
-def test_multiple_overrides_priority(cost_lookup: ModelCostLookup):
+def test_multiple_overrides_priority(cost_lookup: ModelCostLookup) -> None:
     """Later overrides should have higher priority (LIFO)."""
     cost_lookup.add_override("anthropic", re.compile(r"claude-3"), 0.03)
     # Higher-priority override added later.
@@ -121,8 +121,7 @@ def test_multiple_overrides_priority(cost_lookup: ModelCostLookup):
     assert cost_lookup.get_cost("anthropic", "claude-3") == 0.025
 
 
-def test_cache_population(cost_lookup: ModelCostLookup):
-    """`get_cost` should populate the cache, and subsequent calls should hit it."""
+def test_cache_population(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern("openai", re.compile(r"gpt-4"), 0.05)
 
     assert len(cost_lookup._cache) == 0
@@ -131,8 +130,7 @@ def test_cache_population(cost_lookup: ModelCostLookup):
     assert len(cost_lookup._cache) == 1
 
 
-def test_cache_busted_on_override(cost_lookup: ModelCostLookup):
-    """Adding an override should clear the cache and compute new cost."""
+def test_cache_busted_on_override(cost_lookup: ModelCostLookup) -> None:
     pattern = re.compile(r"gpt-3\.5")
     cost_lookup.add_pattern("openai", pattern, 0.02)
 
@@ -147,9 +145,7 @@ def test_cache_busted_on_override(cost_lookup: ModelCostLookup):
     assert cost_lookup._cache
 
 
-def test_cache_hit_avoids_recompute(cost_lookup: ModelCostLookup):
-    """Verify that repeated get_cost calls hit the cache instead of recomputing."""
-
+def test_cache_hit_avoids_recompute(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern("openai", re.compile(r"gpt-4"), 0.05)
 
     with mock.patch.object(
