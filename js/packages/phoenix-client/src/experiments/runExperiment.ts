@@ -92,8 +92,6 @@ export type RunExperimentParams = ClientFn & {
  *   ],
  * });
  * ```
- *
- * @experimental This feature is not complete, and will change in the future.
  */
 export async function runExperiment({
   experimentName,
@@ -629,7 +627,7 @@ let _localIdIndex = 1000;
  *
  * @returns A semi-unique id.
  */
-export function localId(): string {
+function localId(): string {
   _localIdIndex++;
   return `local_${_localIdIndex}`;
 }

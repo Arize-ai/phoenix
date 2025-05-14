@@ -6,12 +6,15 @@ import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
 import { HeadersOptions } from "openapi-fetch";
 
+/**
+ * Creates a provider that exports traces to Phoenix.
+ */
 export function createProvider({
   projectName,
   baseUrl,
   headers,
 }: {
-  projectName?: string;
+  projectName: string;
   headers: HeadersOptions;
   /**
    * The base URL of the Phoenix. Doesn't include the /v1/traces path.
@@ -39,6 +42,9 @@ export function createProvider({
   return provider;
 }
 
+/**
+ * For dry runs we create a provider that doesn't export traces.
+ */
 export function createNoOpProvider() {
   const provider = new NodeTracerProvider({});
 
