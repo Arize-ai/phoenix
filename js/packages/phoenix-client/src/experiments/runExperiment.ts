@@ -18,12 +18,7 @@ import { pluralize } from "../utils/pluralize";
 import { promisifyResult } from "../utils/promisifyResult";
 import { AnnotatorKind } from "../types/annotations";
 import { register } from "./instrumention";
-import {
-  AttributeValue,
-  SpanStatusCode,
-  Tracer,
-  trace,
-} from "@opentelemetry/api";
+import { SpanStatusCode, Tracer, trace } from "@opentelemetry/api";
 import {
   MimeType,
   OpenInferenceSpanKind,
@@ -31,6 +26,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { ensureString } from "../utils/ensureString";
 import type { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { objectAsAttributes } from "../utils/objectAsAttributes";
 
 /**
  * Parameters for running an experiment.
@@ -490,11 +486,7 @@ export async function evaluateExperiment({
             span.setStatus({ code: SpanStatusCode.OK });
           }
           if (evalResult.result) {
-            span.setAttributes(
-              Object.fromEntries(
-                Object.entries(evalResult.result).filter(([_, v]) => v !== null)
-              ) as Record<string, AttributeValue>
-            );
+            span.setAttributes(objectAsAttributes(evalResult.result));
           }
           evalResult.traceId = span.spanContext().traceId;
           if (!isDryRun) {
