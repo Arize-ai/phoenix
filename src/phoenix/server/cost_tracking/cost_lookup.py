@@ -79,13 +79,13 @@ class ModelCostLookup:
 
     def __setitem__(self, key: ModelPattern, value: float):
         assert isinstance(key, ModelPattern), "Insertion key must be a ModelPattern"
-        provider, pattern = key.provider, key.name
+        provider, pattern = key.provider, key.pattern
         self._provider_model_map[provider][pattern] = value
         self._model_map[pattern].add(provider)
 
     def __delitem__(self, key: ModelPattern):
         assert isinstance(key, ModelPattern), "Deletion key must be a ModelPattern"
-        provider, pattern = key.provider, key.name
+        provider, pattern = key.provider, key.pattern
         del self._provider_model_map[provider][pattern]
         self._model_map[pattern].discard(provider)
         if not self._provider_model_map[provider]:
