@@ -108,7 +108,7 @@ export type RunExperimentParams = ClientFn & {
  * @experimental This feature is not complete, and will change in the future.
  */
 export async function runExperiment({
-  experimentName: _experimentName,
+  experimentName,
   experimentDescription,
   experimentMetadata,
   client: _client,
@@ -133,7 +133,8 @@ export async function runExperiment({
   const experimentParams: ExperimentParameters = {
     nExamples,
   };
-  let projectName = _projectName;
+  let projectName =
+    _projectName ?? `${dataset.name}-${new Date().toISOString()}`;
   // initialize with noop tracer
   let taskTracer: Tracer = trace.getTracer("no-op");
   let experiment: Experiment;
@@ -142,8 +143,7 @@ export async function runExperiment({
       id: id(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
-      projectName:
-        _projectName ?? `${dataset.name}-${new Date().toISOString()}`,
+      projectName,
     };
   } else {
     const experimentResponse = await client
@@ -154,7 +154,7 @@ export async function runExperiment({
           },
         },
         body: {
-          name: _experimentName,
+          name: experimentName,
           description: experimentDescription,
           metadata: experimentMetadata,
           project_name: projectName,
@@ -162,10 +162,7 @@ export async function runExperiment({
       })
       .then((res) => res.data?.data);
     invariant(experimentResponse, `Failed to create experiment`);
-    projectName =
-      experimentResponse.project_name ??
-      projectName ??
-      `${dataset.name}-${new Date().toISOString()}`;
+    projectName = experimentResponse.project_name ?? projectName;
     experiment = {
       id: experimentResponse.id,
       datasetId: dataset.id,
@@ -194,7 +191,7 @@ export async function runExperiment({
   }
 
   logger.info(
-    `🧪 Starting experiment "${_experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
+    `🧪 Starting experiment "${experimentName}" on dataset "${dataset.id}" with task "${task.name}" and ${evaluators?.length ?? 0} ${pluralize(
       "evaluator",
       evaluators?.length ?? 0
     )} and ${concurrency} concurrent runs`
@@ -645,6 +642,6 @@ let _id = 1000;
 export function id(): string {
   return (() => {
     _id++;
-    return _id.toString();
+    return `dry_${_id}`;
   })();
 }
