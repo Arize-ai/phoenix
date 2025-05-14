@@ -59,7 +59,7 @@ class RegexDict:
 
 
 class ModelCostLookup:
-    __slots__ = ("_provider_model_map", "_model_map", "_overrides")
+    __slots__ = ("_provider_model_map", "_model_map", "_overrides", "_cache")
 
     def __init__(self):
         # Each provider maps to a *RegexDict* of (pattern -> cost).
@@ -68,6 +68,8 @@ class ModelCostLookup:
         self._model_map = defaultdict(set)
         # A prioritized list of cost overrides (later overrides have higher priority).
         self._overrides: list[tuple[Optional[str], re.Pattern, float]] = []
+        # Cache for computed costs keyed by (provider, model_name).
+        self._cache: dict[tuple[Optional[str], str], Any] = {}
 
     def add_pattern(self, provider: Optional[str], pattern: re.Pattern, cost: float) -> None:
         """Register a model pattern with its cost."""
@@ -75,6 +77,7 @@ class ModelCostLookup:
         assert isinstance(pattern, re.Pattern), "pattern must be a compiled regex"
         self._provider_model_map[provider][pattern] = cost
         self._model_map[pattern].add(provider)
+        self._cache.clear()
 
     def remove_pattern(self, provider: Optional[str], pattern: re.Pattern) -> None:
         """Remove a previously-registered model pattern."""
@@ -86,9 +89,16 @@ class ModelCostLookup:
             del self._provider_model_map[provider]
         if not self._model_map[pattern]:
             del self._model_map[pattern]
+        self._cache.clear()
 
     def get_cost(self, provider: Optional[str], model_name: str):
-        return self._lookup_cost(provider, model_name)
+        key = (provider, model_name)
+        if key in self._cache:
+            return self._cache[key]
+
+        result = self._lookup_cost(provider, model_name)
+        self._cache[key] = result
+        return result
 
     def has_model(self, provider: Optional[str], model_name: str) -> bool:
         """Return ``True`` if a cost (either base or overridden) exists for the model."""
@@ -121,13 +131,13 @@ class ModelCostLookup:
             except KeyError:
                 continue
 
-        for o_provider, o_pattern, o_cost in self._overrides:
-            if o_pattern.fullmatch(model_name):
-                if o_provider is None:
+        for override_provider, override_pattern, override_cost in self._overrides:
+            if override_pattern.fullmatch(model_name):
+                if override_provider is None:
                     for p in list(provider_cost_map):
-                        provider_cost_map[p] = o_cost
+                        provider_cost_map[p] = override_cost
                 else:
-                    provider_cost_map[o_provider] = o_cost
+                    provider_cost_map[override_provider] = override_cost
 
         if not provider_cost_map:
             raise KeyError(model_name)
@@ -156,6 +166,7 @@ class ModelCostLookup:
         if not isinstance(pattern, re.Pattern):
             raise TypeError("pattern must be a compiled regex")
         self._overrides.append((provider, pattern, cost))
+        self._cache.clear()
 
     def _lookup_override(self, provider: Optional[str], model_name: str) -> Optional[float]:
         """Return the cost from the highest-priority override that matches, or *None*."""
