@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d3790035f3e9d8fc39bf9c96c922410>>
+ * @generated SignedSource<<d85af2acc2e131540c37c8e54bf85e55>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -275,16 +275,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "62c02ffd47a43c93aab0b0033afb3695",
+    "cacheID": "67d653235070dbcfe47baecdadd89b38",
     "id": null,
     "metadata": {},
     "name": "RetentionPoliciesTablePoliciesQuery",
     "operationKind": "query",
-    "text": "query RetentionPoliciesTablePoliciesQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...RetentionPoliciesTable_policies_2HEEH6\n}\n\nfragment RetentionPoliciesTable_policies_2HEEH6 on Query {\n  projectTraceRetentionPolicies(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n        projects {\n          edges {\n            node {\n              name\n              id\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query RetentionPoliciesTablePoliciesQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...RetentionPoliciesTable_policies_2HEEH6\n}\n\nfragment RetentionPoliciesTable_policies_2HEEH6 on Query {\n  projectTraceRetentionPolicies(first: $first, after: $after) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ad8a3d39695dd95d0a7b1f6a6c5976dc";
+(node as any).hash = "21f8b6156e669019ebb7877c04f48ade";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b2ff0b81168d4bc1fd8f50e9f5c854a>>
+ * @generated SignedSource<<d97c7415da3bb3b176723a30541ce9a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -384,12 +384,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3e4245c9e490c9199ccd2ee34bf71c40",
+    "cacheID": "25d6433327bd55427c59288866e3f402",
     "id": null,
     "metadata": {},
     "name": "RetentionPolicyActionMenuDeletePolicyMutation",
     "operationKind": "mutation",
-    "text": "mutation RetentionPolicyActionMenuDeletePolicyMutation(\n  $policyId: ID!\n) {\n  deleteProjectTraceRetentionPolicy(input: {id: $policyId}) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n    node {\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        id\n        name\n        cronExpression\n        rule {\n          __typename\n          ... on TraceRetentionRuleMaxCount {\n            maxCount\n          }\n          ... on TraceRetentionRuleMaxDays {\n            maxDays\n          }\n          ... on TraceRetentionRuleMaxDaysOrCount {\n            maxDays\n            maxCount\n          }\n        }\n        projects {\n          edges {\n            node {\n              name\n              id\n            }\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation RetentionPolicyActionMenuDeletePolicyMutation(\n  $policyId: ID!\n) {\n  deleteProjectTraceRetentionPolicy(input: {id: $policyId}) {\n    query {\n      ...RetentionPoliciesTable_policies\n    }\n    node {\n      id\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_policies on Query {\n  projectTraceRetentionPolicies(first: 1000) {\n    edges {\n      node {\n        ...RetentionPoliciesTable_retentionPolicy\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy {\n  id\n  name\n  cronExpression\n  rule {\n    __typename\n    ... on TraceRetentionRuleMaxCount {\n      maxCount\n    }\n    ... on TraceRetentionRuleMaxDays {\n      maxDays\n    }\n    ... on TraceRetentionRuleMaxDaysOrCount {\n      maxDays\n      maxCount\n    }\n  }\n  projects {\n    edges {\n      node {\n        name\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();

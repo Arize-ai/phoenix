@@ -35,30 +35,7 @@ export function CreateRetentionPolicy(props: {
               connections: [$connectionId]
               edgeTypeName: "ProjectTraceRetentionPolicyEdge"
             ) {
-            id
-            name
-            cronExpression
-            rule {
-              __typename
-              ... on TraceRetentionRuleMaxCount {
-                maxCount
-              }
-              ... on TraceRetentionRuleMaxDays {
-                maxDays
-              }
-              ... on TraceRetentionRuleMaxDaysOrCount {
-                maxDays
-                maxCount
-              }
-            }
-            projects {
-              edges {
-                node {
-                  name
-                  id
-                }
-              }
-            }
+            ...RetentionPoliciesTable_retentionPolicy
           }
         }
       }

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import {
   type ColumnDef,
   flexRender,
@@ -19,8 +19,39 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { createPolicyScheduleSummaryText } from "@phoenix/utils/retentionPolicyUtils";
 
 import { RetentionPoliciesTable_policies$key } from "./__generated__/RetentionPoliciesTable_policies.graphql";
+import { RetentionPoliciesTable_retentionPolicy$key } from "./__generated__/RetentionPoliciesTable_retentionPolicy.graphql";
 import { RetentionPoliciesTablePoliciesQuery } from "./__generated__/RetentionPoliciesTablePoliciesQuery.graphql";
 import { RetentionPolicyActionMenu } from "./RetentionPolicyActionMenu";
+
+const RETENTION_POLICY_FRAGMENT = graphql`
+  fragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy
+  @inline {
+    id
+    name
+    cronExpression
+    rule {
+      __typename
+      ... on TraceRetentionRuleMaxCount {
+        maxCount
+      }
+      ... on TraceRetentionRuleMaxDays {
+        maxDays
+      }
+      ... on TraceRetentionRuleMaxDaysOrCount {
+        maxDays
+        maxCount
+      }
+    }
+    projects {
+      edges {
+        node {
+          name
+          id
+        }
+      }
+    }
+  }
+`;
 export const RetentionPoliciesTable = ({
   query,
 }: {
@@ -46,30 +77,7 @@ export const RetentionPoliciesTable = ({
           __id
           edges {
             node {
-              id
-              name
-              cronExpression
-              rule {
-                __typename
-                ... on TraceRetentionRuleMaxCount {
-                  maxCount
-                }
-                ... on TraceRetentionRuleMaxDays {
-                  maxDays
-                }
-                ... on TraceRetentionRuleMaxDaysOrCount {
-                  maxDays
-                  maxCount
-                }
-              }
-              projects {
-                edges {
-                  node {
-                    name
-                    id
-                  }
-                }
-              }
+              ...RetentionPoliciesTable_retentionPolicy
             }
           }
         }
@@ -79,9 +87,14 @@ export const RetentionPoliciesTable = ({
   );
 
   const connectionId = data.projectTraceRetentionPolicies.__id;
-  const tableData = data.projectTraceRetentionPolicies.edges.map(
-    (edge) => edge.node
-  );
+  const tableData = data.projectTraceRetentionPolicies.edges.map((edge) => {
+    const node = edge.node;
+    const data = readInlineData<RetentionPoliciesTable_retentionPolicy$key>(
+      RETENTION_POLICY_FRAGMENT,
+      node
+    );
+    return data;
+  });
 
   const columns: ColumnDef<(typeof tableData)[number]>[] = useMemo(() => {
     const columns: ColumnDef<(typeof tableData)[number]>[] = [
