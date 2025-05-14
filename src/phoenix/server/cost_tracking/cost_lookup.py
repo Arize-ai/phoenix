@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from typing import Any, Iterator, NamedTuple, Optional, Union
+from typing import Any, Iterator, Optional, Union
 
 
 class RegexDict:
@@ -58,22 +58,6 @@ class RegexDict:
         return len(self._entries)
 
 
-class CostOverride(NamedTuple):
-    provider: Optional[str]
-    pattern: re.Pattern
-    cost: float
-
-
-class ModelPattern(NamedTuple):
-    provider: Optional[str]
-    pattern: re.Pattern
-
-
-class ModelName(NamedTuple):
-    provider: Optional[str]
-    name: str
-
-
 class ModelCostLookup:
     __slots__ = ("_provider_model_map", "_model_map", "_overrides")
 
@@ -83,27 +67,25 @@ class ModelCostLookup:
         # Map from *pattern string* to a set of providers that have that pattern.
         self._model_map = defaultdict(set)
         # A prioritized list of cost overrides (later overrides have higher priority).
-        self._overrides: list[CostOverride] = []
+        self._overrides: list[tuple[Optional[str], re.Pattern, float]] = []
 
-    def add_pattern(self, pattern: ModelPattern, cost: float) -> None:
+    def add_pattern(self, provider: Optional[str], pattern: re.Pattern, cost: float) -> None:
         """Register a model pattern with its cost."""
 
-        assert isinstance(pattern, ModelPattern), "pattern must be a ModelPattern"
-        provider, regex = pattern.provider, pattern.pattern
-        self._provider_model_map[provider][regex] = cost
-        self._model_map[regex].add(provider)
+        assert isinstance(pattern, re.Pattern), "pattern must be a compiled regex"
+        self._provider_model_map[provider][pattern] = cost
+        self._model_map[pattern].add(provider)
 
-    def remove_pattern(self, pattern: ModelPattern) -> None:
+    def remove_pattern(self, provider: Optional[str], pattern: re.Pattern) -> None:
         """Remove a previously-registered model pattern."""
 
-        assert isinstance(pattern, ModelPattern), "pattern must be a ModelPattern"
-        provider, regex = pattern.provider, pattern.pattern
-        del self._provider_model_map[provider][regex]
-        self._model_map[regex].discard(provider)
+        assert isinstance(pattern, re.Pattern), "pattern must be a compiled regex"
+        del self._provider_model_map[provider][pattern]
+        self._model_map[pattern].discard(provider)
         if not self._provider_model_map[provider]:
             del self._provider_model_map[provider]
-        if not self._model_map[regex]:
-            del self._model_map[regex]
+        if not self._model_map[pattern]:
+            del self._model_map[pattern]
 
     def get_cost(self, provider: Optional[str], model_name: str):
         return self._lookup_cost(provider, model_name)
@@ -139,13 +121,13 @@ class ModelCostLookup:
             except KeyError:
                 continue
 
-        for override in self._overrides:
-            if override.pattern.fullmatch(model_name):
-                if override.provider is None:
+        for o_provider, o_pattern, o_cost in self._overrides:
+            if o_pattern.fullmatch(model_name):
+                if o_provider is None:
                     for p in list(provider_cost_map):
-                        provider_cost_map[p] = override.cost
+                        provider_cost_map[p] = o_cost
                 else:
-                    provider_cost_map[override.provider] = override.cost
+                    provider_cost_map[o_provider] = o_cost
 
         if not provider_cost_map:
             raise KeyError(model_name)
@@ -153,7 +135,7 @@ class ModelCostLookup:
 
     def _contains(self, provider: Optional[str], model_name: str) -> bool:
         if provider is None:
-            if any(ov.pattern.fullmatch(model_name) for ov in self._overrides):
+            if any(pat.fullmatch(model_name) for _, pat, _ in self._overrides):
                 return True
             return any(model_name in regex_dict for regex_dict in self._provider_model_map.values())
 
@@ -165,22 +147,21 @@ class ModelCostLookup:
             return False
         return model_name in regex_dict
 
-    def add_override(self, override: CostOverride) -> None:
+    def add_override(self, provider: Optional[str], pattern: re.Pattern, cost: float) -> None:
         """Register a *prioritized* cost override.
 
-        Overrides are evaluated in the order in which they are added *last in, first out*—
-        the most recently-added override has the highest priority.
+        Overrides are evaluated in the order in which they are added (LIFO).
         """
 
-        if not isinstance(override, CostOverride):
-            raise TypeError("override must be a CostOverride instance")
-        self._overrides.append(override)
+        if not isinstance(pattern, re.Pattern):
+            raise TypeError("pattern must be a compiled regex")
+        self._overrides.append((provider, pattern, cost))
 
     def _lookup_override(self, provider: Optional[str], model_name: str) -> Optional[float]:
         """Return the cost from the highest-priority override that matches, or *None*."""
 
-        for override in reversed(self._overrides):
-            provider_matches = override.provider is None or override.provider == provider
-            if provider_matches and override.pattern.fullmatch(model_name):
-                return override.cost
+        for override_provider, override_pattern, override_cost in reversed(self._overrides):
+            provider_matches = override_provider is None or override_provider == provider
+            if provider_matches and override_pattern.fullmatch(model_name):
+                return override_cost
         return None
