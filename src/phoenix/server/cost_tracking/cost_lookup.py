@@ -105,29 +105,21 @@ class ModelCostLookup:
         if not self._model_map[regex]:
             del self._model_map[regex]
 
-    def get_cost(self, name: ModelName):
-        """Return the cost for the given model *name*.
+    def get_cost(self, provider: Optional[str], model_name: str):
+        return self._lookup_cost(provider, model_name)
 
-        For provider-agnostic queries (``provider is None``) a list of *(provider, cost)*
-        tuples is returned; otherwise a single ``float`` is returned.
-        """
+    def has_model(self, provider: Optional[str], model_name: str) -> bool:
+        """Return ``True`` if a cost (either base or overridden) exists for the model."""
 
-        return self._lookup_cost(name)
-
-    def has_model(self, name: ModelName) -> bool:
-        """Return ``True`` if a cost (either base or overridden) exists for *name*."""
-
-        return self._contains(name)
+        return self._contains(provider, model_name)
 
     def pattern_count(self) -> int:
         """Return the number of registered *base* patterns (overrides not counted)."""
 
         return sum(len(regex_dict) for regex_dict in self._provider_model_map.values())
 
-    def _lookup_cost(self, key: ModelName):
-        assert isinstance(key, ModelName), "Lookup key must be a ModelName"
-        provider, model_name = key.provider, key.name
-        # [logic copied from previous __getitem__ implementation]
+    def _lookup_cost(self, provider: Optional[str], model_name: str):
+        assert isinstance(model_name, str), "Lookup key must be a str"
         # 1) Provider-specific lookup
         if provider is not None:
             override_cost = self._lookup_override(provider, model_name)
@@ -159,9 +151,7 @@ class ModelCostLookup:
             raise KeyError(model_name)
         return list(provider_cost_map.items())
 
-    def _contains(self, key: ModelName) -> bool:
-        provider, model_name = key.provider, key.name
-
+    def _contains(self, provider: Optional[str], model_name: str) -> bool:
         if provider is None:
             if any(ov.pattern.fullmatch(model_name) for ov in self._overrides):
                 return True
