@@ -15,7 +15,6 @@ export interface Experiment extends Node {
 }
 
 export interface RanExperiment extends Experiment {
-  params: ExperimentParameters;
   runs: Record<string, ExperimentRun>;
   evaluationRuns?: ExperimentEvaluationRun[];
 }

@@ -13,12 +13,15 @@ import { HeadersOptions } from "openapi-fetch";
 
 export function register({
   projectName,
-  collectorEndpoint,
+  baseUrl,
   headers,
 }: {
   projectName?: string;
   headers: HeadersOptions;
-  collectorEndpoint: string;
+  /**
+   * The base URL of the Phoenix. Doesn't include the /v1/traces path.
+   */
+  baseUrl: string;
 }) {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.ERROR);
 
@@ -35,7 +38,7 @@ export function register({
     spanProcessors: [
       new SimpleSpanProcessor(
         new OTLPTraceExporter({
-          url: `${collectorEndpoint}/v1/traces`,
+          url: `${baseUrl}/v1/traces`,
           headers: Array.isArray(headers)
             ? Object.fromEntries(headers)
             : headers,

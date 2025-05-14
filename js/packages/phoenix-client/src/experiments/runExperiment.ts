@@ -7,7 +7,6 @@ import type {
   Evaluator,
   Experiment,
   ExperimentEvaluationRun,
-  ExperimentParameters,
   ExperimentRun,
   ExperimentTask,
   RanExperiment,
@@ -60,10 +59,6 @@ export type RunExperimentParams = ClientFn & {
    */
   evaluators?: Evaluator[];
   /**
-   * The project under which the experiment task traces are recorded
-   */
-  projectName?: string;
-  /**
    * The logger to use
    */
   logger?: Logger;
@@ -108,7 +103,7 @@ export async function runExperiment({
   dataset: _dataset,
   task,
   evaluators,
-  projectName: _projectName,
+
   logger = console,
   record = true,
   concurrency = 5,
@@ -124,21 +119,19 @@ export async function runExperiment({
     typeof dryRun === "number"
       ? Math.max(dryRun, dataset.examples.length)
       : dataset.examples.length;
-  const experimentParams: ExperimentParameters = {
-    nExamples,
-  };
-  let projectName =
-    _projectName ?? `${dataset.name}-${new Date().toISOString()}`;
-  // initialize with noop tracer
-  let taskTracer: Tracer = trace.getTracer("no-op");
+
+  let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
+  // initialize the tracer into scope
+  let taskTracer: Tracer;
   let experiment: Experiment;
   if (isDryRun) {
     experiment = {
-      id: id(),
+      id: localId(),
       datasetId: dataset.id,
       datasetVersionId: dataset.versionId,
       projectName,
     };
+    taskTracer = trace.getTracer("no-op");
   } else {
     const experimentResponse = await client
       .POST("/v1/datasets/{dataset_id}/experiments", {
@@ -165,21 +158,19 @@ export async function runExperiment({
     };
     // Initialize the tracer, now that we have a project name
     if (!isDryRun) {
-      const collectorEndpoint =
-        client.config.baseUrl ?? process.env.PHOENIX_COLLECTOR_ENDPOINT;
+      const baseUrl = client.config.baseUrl;
       invariant(
-        collectorEndpoint,
-        "Phoenix collector endpoint not found. Please set PHOENIX_COLLECTOR_ENDPOINT or set baseUrl on the client."
+        baseUrl,
+        "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
       );
       provider = register({
         projectName,
-        collectorEndpoint,
+        baseUrl,
         headers: client.config.headers ?? {},
       });
     }
     taskTracer = trace.getTracer(projectName);
   }
-
   if (!record) {
     logger.info(
       `🔧 Running experiment in readonly mode. Results will not be recorded.`
@@ -214,13 +205,13 @@ export async function runExperiment({
 
   const ranExperiment: RanExperiment = {
     ...experiment,
-    params: experimentParams,
     runs,
   };
 
-  const evaluationTracer = isDryRun
-    ? trace.getTracer("no-op")
-    : trace.getTracer("evaluators");
+  // Shut down the provider so that the experiments run
+  if (provider) {
+    await provider.shutdown();
+  }
 
   const { evaluationRuns } = await evaluateExperiment({
     experiment: ranExperiment,
@@ -229,15 +220,10 @@ export async function runExperiment({
     logger,
     concurrency,
     dryRun,
-    tracer: evaluationTracer,
   });
   ranExperiment.evaluationRuns = evaluationRuns;
 
   logger.info(`✅ Experiment ${experiment.id} completed`);
-
-  if (provider) {
-    await provider.shutdown();
-  }
 
   return ranExperiment;
 }
@@ -286,7 +272,7 @@ function runTask({
       );
       const traceId = span.spanContext().traceId;
       const thisRun: ExperimentRun = {
-        id: id(), // initialized with local id, will be replaced with server-assigned id when dry run is false
+        id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
         traceId,
         experimentId,
         datasetExampleId: example.id,
@@ -372,7 +358,6 @@ export async function evaluateExperiment({
   logger,
   concurrency = 5,
   dryRun = false,
-  tracer,
 }: {
   /**
    * The experiment to evaluate
@@ -393,17 +378,29 @@ export async function evaluateExperiment({
    * @default false
    * */
   dryRun?: boolean | number;
-  /**
-   * TraceProvider instance that will be used to create spans from evaluator calls
-   */
-  tracer: Tracer;
 }): Promise<RanExperiment> {
   const isDryRun = typeof dryRun === "number" || dryRun === true;
+  const client = _client ?? createClient();
+  const baseUrl = client.config.baseUrl;
+  invariant(
+    baseUrl,
+    "Phoenix base URL not found. Please set PHOENIX_HOST or set baseUrl on the client."
+  );
+  let provider: NodeTracerProvider | undefined;
+  if (!isDryRun) {
+    provider = register({
+      projectName: "evaluators",
+      baseUrl,
+      headers: client.config.headers ?? {},
+    });
+  }
+  const tracer = isDryRun
+    ? trace.getTracer("no-op")
+    : trace.getTracer("evaluators");
   const nRuns =
     typeof dryRun === "number"
       ? Math.max(dryRun, Object.keys(experiment.runs).length)
       : Object.keys(experiment.runs).length;
-  const client = _client ?? createClient();
   const dataset = await getDatasetBySelector({
     dataset: experiment.datasetId,
     client,
@@ -531,6 +528,10 @@ export async function evaluateExperiment({
   await evaluatorsQueue.drain();
   logger.info(`✅ Evaluation runs completed`);
 
+  if (provider) {
+    await provider.shutdown();
+  }
+
   return {
     ...experiment,
     evaluationRuns: Object.values(evaluationRuns),
@@ -562,7 +563,7 @@ async function runEvaluator({
       `🧠 Evaluating run "${run.id}" with evaluator "${evaluator.name}"`
     );
     const thisEval: ExperimentEvaluationRun = {
-      id: id(),
+      id: localId(),
       traceId: null,
       experimentRunId: run.id,
       startTime: new Date(),
@@ -622,16 +623,14 @@ export function asEvaluator({
   };
 }
 
-let _id = 1000;
+let _localIdIndex = 1000;
 
 /**
- * Generate a unique id.
+ * Generate a local id.
  *
- * @returns A unique id.
+ * @returns A semi-unique id.
  */
-export function id(): string {
-  return (() => {
-    _id++;
-    return `local_${_id}`;
-  })();
+export function localId(): string {
+  _localIdIndex++;
+  return `local_${_localIdIndex}`;
 }
