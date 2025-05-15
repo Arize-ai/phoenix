@@ -7,6 +7,7 @@ import {
   Heading,
   Modal,
   ModalProps,
+  View,
 } from "@phoenix/components";
 
 const meta: Meta = {
@@ -22,7 +23,9 @@ const Template: StoryFn<ModalProps> = (args) => (
     <Modal {...args}>
       <Dialog>
         <Heading slot="title">Modal Title</Heading>
-        <Button slot="close">Close</Button>
+        <View padding="size-200">
+          <Button slot="close">Close</Button>
+        </View>
       </Dialog>
     </Modal>
   </DialogTrigger>
