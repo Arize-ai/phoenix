@@ -1,5 +1,17 @@
 # Changelog
 
+## [9.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.3.0...arize-phoenix-v9.4.0) (2025-05-15)
+
+
+### Features
+
+* **dashboards:** rudamentary routes for dashboards ([#7554](https://github.com/Arize-ai/phoenix/issues/7554)) ([ff8cb74](https://github.com/Arize-ai/phoenix/commit/ff8cb74ffdeb935e24d9af4b0df0c0d15bd14262))
+
+
+### Bug Fixes
+
+* correct limit clause in span query statement ([#7565](https://github.com/Arize-ai/phoenix/issues/7565)) ([2bd7799](https://github.com/Arize-ai/phoenix/commit/2bd77998fdef8e29e6d3b1bc97c618f512a1b403))
+
 ## [9.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v9.2.0...arize-phoenix-v9.3.0) (2025-05-13)
 
 
