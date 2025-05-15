@@ -24,13 +24,13 @@ from urllib.parse import urlparse
 
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
-from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import State as StarletteState
-from starlette.exceptions import HTTPException, WebSocketException
+from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -40,7 +40,6 @@ from starlette.staticfiles import StaticFiles
 from starlette.status import HTTP_401_UNAUTHORIZED
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
-from starlette.websockets import WebSocket
 from strawberry.extensions import SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL
@@ -59,6 +58,7 @@ from phoenix.config import (
     get_env_host,
     get_env_port,
     server_instrumentation_is_enabled,
+    verify_server_environment_variables,
 )
 from phoenix.core.model_schema import Model
 from phoenix.db import models
@@ -88,6 +88,7 @@ from phoenix.server.api.dataloaders import (
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
@@ -103,6 +104,7 @@ from phoenix.server.api.dataloaders import (
     TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
@@ -121,7 +123,9 @@ from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
+from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -205,7 +209,6 @@ class AppConfig(NamedTuple):
     web_manifest_path: Path
     authentication_enabled: bool
     """ Whether authentication is enabled """
-    websockets_enabled: bool
     oauth2_idps: Sequence[OAuth2Idp]
 
 
@@ -256,7 +259,6 @@ class Static(StaticFiles):
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
-                    "websockets_enabled": self._app_config.websockets_enabled,
                 },
             )
         except Exception as e:
@@ -476,6 +478,7 @@ def _lifespan(
     db: DbSessionFactory,
     bulk_inserter: BulkInserter,
     dml_event_handler: DmlEventHandler,
+    trace_data_sweeper: Optional[TraceDataSweeper],
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -508,6 +511,8 @@ def _lifespan(
             )
             await stack.enter_async_context(grpc_server)
             await stack.enter_async_context(dml_event_handler)
+            if trace_data_sweeper:
+                await stack.enter_async_context(trace_data_sweeper)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -536,6 +541,17 @@ async def check_healthz(_: Request) -> PlainTextResponse:
     return PlainTextResponse("OK")
 
 
+@router.get("/readyz")
+async def check_readyz(request: Request) -> JSONResponse:
+    try:
+        async with request.app.state.db() as session:
+            await session.execute(select(1))
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        raise HTTPException(status_code=503, detail="database unreachable")
+    return JSONResponse({})
+
+
 def create_graphql_router(
     *,
     graphql_schema: strawberry.Schema,
@@ -550,6 +566,7 @@ def create_graphql_router(
     read_only: bool = False,
     secret: Optional[str] = None,
     token_store: Optional[TokenStore] = None,
+    email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
@@ -565,6 +582,8 @@ def create_graphql_router(
         cache_for_dataloaders (Optional[CacheForDataLoaders], optional): GraphQL data loaders.
         read_only (bool, optional): Marks the app as read-only. Defaults to False.
         secret (Optional[str], optional): The application secret for auth. Defaults to None.
+        token_store (Optional[TokenStore], optional): The token store for auth. Defaults to None.
+        email_sender (Optional[EmailSender], optional): The email sender. Defaults to None.
 
     Returns:
         GraphQLRouter: The router mounted at /graphql
@@ -620,6 +639,9 @@ def create_graphql_router(
                 num_child_spans=NumChildSpansDataLoader(db),
                 num_spans_per_trace=NumSpansPerTraceDataLoader(db),
                 project_fields=TableFieldsDataLoader(db, models.Project),
+                projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
+                    db
+                ),
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 record_counts=RecordCountDataLoader(
                     db,
@@ -643,6 +665,12 @@ def create_graphql_router(
                 ),
                 trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
                 trace_fields=TableFieldsDataLoader(db, models.Trace),
+                trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
+                    db
+                ),
+                project_trace_retention_policy_fields=TableFieldsDataLoader(
+                    db, models.ProjectTraceRetentionPolicy
+                ),
                 trace_root_spans=TraceRootSpansDataLoader(db),
                 project_by_name=ProjectByNameDataLoader(db),
                 users=UsersDataLoader(db),
@@ -653,6 +681,7 @@ def create_graphql_router(
             auth_enabled=authentication_enabled,
             secret=secret,
             token_store=token_store,
+            email_sender=email_sender,
         )
 
     return GraphQLRouter(
@@ -717,36 +746,12 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
 
 
-async def websocket_denial_response_handler(websocket: WebSocket, exc: WebSocketException) -> None:
-    """
-    Overrides the default exception handler for WebSocketException to ensure
-    that the HTTP response returned when a WebSocket connection is denied has
-    the same status code as the raised exception. This is in keeping with the
-    WebSocket Denial Response Extension of the ASGI specificiation described
-    below.
-
-    "Websocket connections start with the client sending a HTTP request
-    containing the appropriate upgrade headers. On receipt of this request a
-    server can choose to either upgrade the connection or respond with an HTTP
-    response (denying the upgrade). The core ASGI specification does not allow
-    for any control over the denial response, instead specifying that the HTTP
-    status code 403 should be returned, whereas this extension allows an ASGI
-    framework to control the denial response."
-
-    For details, see:
-    - https://asgi.readthedocs.io/en/latest/extensions.html#websocket-denial-response
-    """
-    assert isinstance(exc, WebSocketException)
-    await websocket.send_denial_response(JSONResponse(status_code=exc.code, content=exc.reason))
-
-
 def create_app(
     db: DbSessionFactory,
     export_path: Path,
     model: Model,
     authentication_enabled: bool,
     umap_params: UMAPParameters,
-    enable_websockets: bool,
     corpus: Optional[Model] = None,
     debug: bool = False,
     dev: bool = False,
@@ -765,7 +770,9 @@ def create_app(
     email_sender: Optional[EmailSender] = None,
     oauth2_client_configs: Optional[list[OAuth2ClientConfig]] = None,
     bulk_inserter_factory: Optional[Callable[..., BulkInserter]] = None,
+    allowed_origins: Optional[list[str]] = None,
 ) -> FastAPI:
+    verify_server_environment_variables()
     if model.embedding_dimensions:
         try:
             import fast_hdbscan  # noqa: F401
@@ -825,6 +832,10 @@ def create_app(
         cache_for_dataloaders=cache_for_dataloaders,
         last_updated_at=last_updated_at,
     )
+    trace_data_sweeper = TraceDataSweeper(
+        db=db,
+        dml_event_handler=dml_event_handler,
+    )
     bulk_inserter = bulk_inserter_factory(
         db,
         enable_prometheus=enable_prometheus,
@@ -868,6 +879,7 @@ def create_app(
         read_only=read_only,
         secret=secret,
         token_store=token_store,
+        email_sender=email_sender,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -881,6 +893,7 @@ def create_app(
             read_only=read_only,
             bulk_inserter=bulk_inserter,
             dml_event_handler=dml_event_handler,
+            trace_data_sweeper=trace_data_sweeper,
             token_store=token_store,
             tracer_provider=tracer_provider,
             enable_prometheus=enable_prometheus,
@@ -891,7 +904,6 @@ def create_app(
         middleware=middlewares,
         exception_handlers={
             HTTPException: plain_text_http_exception_handler,
-            WebSocketException: websocket_denial_response_handler,  # type: ignore[dict-item]
         },
         debug=debug,
         swagger_ui_parameters={
@@ -926,7 +938,6 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
-                    websockets_enabled=enable_websockets,
                 ),
             ),
             name="static",
@@ -948,6 +959,14 @@ def create_app(
         FastAPIInstrumentor().instrument(tracer_provider=tracer_provider)
         FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
         shutdown_callbacks_list.append(FastAPIInstrumentor().uninstrument)
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     return app
 
 

@@ -1,19 +1,15 @@
-import { createClient, Sink } from "graphql-ws";
+import { createFetchMultipartSubscription } from "@apollo/client/utilities/subscriptions/relay";
 import {
   Environment,
   FetchFunction,
-  GraphQLResponse,
   Network,
   Observable,
   RecordSource,
-  RequestParameters,
   Store,
-  SubscribeFunction,
-  Variables,
 } from "relay-runtime";
 
-import { authFetch, refreshTokens } from "@phoenix/authFetch";
-import { BASE_URL, WS_BASE_URL } from "@phoenix/config";
+import { authFetch } from "@phoenix/authFetch";
+import { BASE_URL } from "@phoenix/config";
 
 import { isObject } from "./typeUtils";
 
@@ -105,38 +101,9 @@ const fetchRelay: FetchFunction = (params, variables, _cacheConfig) =>
     }
   );
 
-const wsClient = createClient({
-  url: `${WS_BASE_URL}/graphql`,
-  shouldRetry: (errorOrCloseEvent) => {
-    if (
-      isAuthenticationEnabled &&
-      errorOrCloseEvent instanceof Event &&
-      errorOrCloseEvent.type === "error"
-    ) {
-      // It's fair to say that an error is due to the expired access token
-      // So we'll refresh the tokens and retry the connection until the max retries is exhausted
-      refreshTokens();
-      return true;
-    }
-    return false;
-  },
+const subscribe = createFetchMultipartSubscription(graphQLPath, {
+  fetch: graphQLFetch,
 });
-
-const subscribe: SubscribeFunction = (
-  operation: RequestParameters,
-  variables: Variables
-) => {
-  return Observable.create<GraphQLResponse>((sink) => {
-    return wsClient.subscribe(
-      {
-        operationName: operation.name,
-        query: operation.text as string,
-        variables,
-      },
-      sink as Sink
-    );
-  });
-};
 
 // Export a singleton instance of Relay Environment configured with our network layer:
 export default new Environment({
@@ -146,6 +113,6 @@ export default new Environment({
     // navigates around the app. Relay will hold onto the specified number of
     // query results, allowing the user to return to recently visited pages
     // and reusing cached data if its available/fresh.
-    gcReleaseBufferSize: 10,
+    gcReleaseBufferSize: 20,
   }),
 });

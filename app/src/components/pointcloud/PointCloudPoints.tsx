@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback, useMemo } from "react";
+import { startTransition, useCallback, useMemo } from "react";
 import debounce from "lodash/debounce";
 import { lighten, shade } from "polished";
 

@@ -23,13 +23,13 @@ from phoenix.otel import register
 tracer_provider = register(
     project_name="default", # sets a project name for spans
     batch=True, # uses a batch span processor
-    auto_instrument=True, # uses all OpenInference instrumentors
+    auto_instrument=True, # uses all installed OpenInference instrumentors
 )
 ```
 
 ### Phoenix Authentication
 
-If the `PHOENIX_API_KEY` environment variable is set, `register` will automatically add an`authorization` header to each span payload.
+If the `PHOENIX_API_KEY` environment variable is set, `register` will automatically add an `authorization` header to each span payload.
 
 ### Configuring the collector endpoint
 
@@ -123,3 +123,11 @@ tracer_provider = register(
     batch=True,
 )
 ```
+
+## Instrumentation
+
+Once you've connected your application to your Phoenix instance using `phoenix.otel.register`, you need to instrument your application. You have a few options to do this:
+
+1. **Using OpenInference auto-instrumentors**. If you've used the `auto_instrument` flag above, then any instrumentor packages in your environment will be called automatically. For a full list of OpenInference packages, see [integrations-tracing](../../integrations-tracing/ "mention")
+2. Using [Phoenix Decorators](instrument-python.md).
+3. Using [Base OTEL](custom-spans.md).

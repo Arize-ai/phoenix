@@ -1,9 +1,10 @@
 name: Publish experimental Docker image
-
+permissions:
+  contents: read
 on:
   push:
     branches:
-      - span-query-optimization
+      - feat/annotations
 
 jobs:
   push_to_registry:
@@ -11,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        variant: [root, nonroot, debug]
+        variant: [debug]
     permissions:
       packages: write
       contents: read

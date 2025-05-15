@@ -1,10 +1,12 @@
 name: Playwright Tests
+permissions:
+  contents: read
 
 on:
   push:
-    branches: [main, prompts]
+    branches: [main, feat/annotations]
   pull_request:
-    branches: [main, prompts]
+    branches: [main, feat/annotations]
 jobs:
   e2e-test:
     timeout-minutes: 60

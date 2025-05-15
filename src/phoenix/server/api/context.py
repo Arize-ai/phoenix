@@ -32,6 +32,7 @@ from phoenix.server.api.dataloaders import (
     NumChildSpansDataLoader,
     NumSpansPerTraceDataLoader,
     ProjectByNameDataLoader,
+    ProjectIdsByTraceRetentionPolicyIdDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SessionIODataLoader,
@@ -47,12 +48,14 @@ from phoenix.server.api.dataloaders import (
     TableFieldsDataLoader,
     TokenCountDataLoader,
     TraceByTraceIdsDataLoader,
+    TraceRetentionPolicyIdByProjectIdDataLoader,
     TraceRootSpansDataLoader,
     UserRolesDataLoader,
     UsersDataLoader,
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DmlEvent
+from phoenix.server.email.types import EmailSender
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
     CanPutItem,
@@ -81,6 +84,7 @@ class DataLoaders:
     num_child_spans: NumChildSpansDataLoader
     num_spans_per_trace: NumSpansPerTraceDataLoader
     project_fields: TableFieldsDataLoader
+    projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     record_counts: RecordCountDataLoader
     session_first_inputs: SessionIODataLoader
@@ -98,6 +102,8 @@ class DataLoaders:
     token_counts: TokenCountDataLoader
     trace_by_trace_ids: TraceByTraceIdsDataLoader
     trace_fields: TableFieldsDataLoader
+    trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
+    project_trace_retention_policy_fields: TableFieldsDataLoader
     trace_root_spans: TraceRootSpansDataLoader
     project_by_name: ProjectByNameDataLoader
     users: UsersDataLoader
@@ -124,6 +130,7 @@ class Context(BaseContext):
     auth_enabled: bool = False
     secret: Optional[str] = None
     token_store: Optional[TokenStore] = None
+    email_sender: Optional[EmailSender] = None
 
     def get_secret(self) -> str:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.

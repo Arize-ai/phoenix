@@ -26,6 +26,7 @@ export * from "./CopyToClipboardButton";
 export * from "./SectionHeading";
 export * from "./Empty";
 export * from "./exception";
+export * from "./KeyboardToken";
 
 // design system based components
 export * from "./alert";
@@ -50,3 +51,4 @@ export * from "./tabs";
 export * from "./loading";
 export * from "./alert";
 export * from "./select";
+export * from "./media";

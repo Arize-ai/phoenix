@@ -1,4 +1,3 @@
-import React from "react";
 import { graphql, useFragment } from "react-relay";
 import { Link } from "react-router";
 import { css } from "@emotion/react";

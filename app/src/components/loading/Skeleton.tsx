@@ -1,12 +1,14 @@
-import React from "react";
+import { forwardRef, HTMLAttributes } from "react";
 import { css, keyframes } from "@emotion/react";
+
+import { classNames } from "@arizeai/components";
 
 import { BorderRadiusToken } from "../types/sizing";
 
 // Export the AnimationType so it can be used in stories
 export type AnimationType = "pulse" | "wave" | false;
 
-export type SkeletonProps = {
+export interface SkeletonProps extends HTMLAttributes<HTMLSpanElement> {
   /**
    * Width of the skeleton. Can be a number (px) or string value
    */
@@ -32,7 +34,7 @@ export type SkeletonProps = {
    * Optional className for custom styling
    */
   className?: string;
-};
+}
 
 const pulseKeyframes = keyframes`
   0% {
@@ -118,30 +120,44 @@ const getBorderRadius = (radius: SkeletonProps["borderRadius"]) => {
   return "var(--ac-global-rounding-medium)";
 };
 
-export function Skeleton({
-  width = "100%",
-  height = "1.2em",
-  borderRadius = "S",
-  animation = "pulse",
-  className,
-}: SkeletonProps) {
-  const finalWidth = typeof width === "number" ? `${width}px` : width;
-  const finalHeight = typeof height === "number" ? `${height}px` : height;
-  const finalRadius = getBorderRadius(borderRadius);
+/**
+ * A skeleton loading component that shows a placeholder while content is loading.
+ * Supports different animations, sizes, and border radius options.
+ */
+export const Skeleton = forwardRef<HTMLSpanElement, SkeletonProps>(
+  (
+    {
+      width = "100%",
+      height = "1.2em",
+      borderRadius = "S",
+      animation = "pulse",
+      className,
+      ...restProps
+    },
+    ref
+  ) => {
+    const finalWidth = typeof width === "number" ? `${width}px` : width;
+    const finalHeight = typeof height === "number" ? `${height}px` : height;
+    const finalRadius = getBorderRadius(borderRadius);
 
-  return (
-    <span
-      className={className}
-      css={[
-        skeletonStyles,
-        animation === "pulse" && pulseAnimation,
-        animation === "wave" && waveAnimation,
-        css`
-          width: ${finalWidth};
-          height: ${finalHeight};
-          border-radius: ${finalRadius};
-        `,
-      ]}
-    />
-  );
-}
+    return (
+      <span
+        ref={ref}
+        className={classNames(className, "ac-skeleton")}
+        css={[
+          skeletonStyles,
+          animation === "pulse" && pulseAnimation,
+          animation === "wave" && waveAnimation,
+          css`
+            width: ${finalWidth};
+            height: ${finalHeight};
+            border-radius: ${finalRadius};
+          `,
+        ]}
+        {...restProps}
+      />
+    );
+  }
+);
+
+Skeleton.displayName = "Skeleton";

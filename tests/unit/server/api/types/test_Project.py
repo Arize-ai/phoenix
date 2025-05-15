@@ -1080,6 +1080,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[5],
@@ -1091,6 +1094,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[10],
@@ -1102,6 +1108,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[0],
@@ -1113,6 +1122,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[5],
@@ -1124,6 +1136,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
                 {
                     "span_rowid": span_rowids[10],
@@ -1135,6 +1150,9 @@ async def llama_index_rag_spans(db: DbSessionFactory) -> None:
                     "annotator_kind": "LLM",
                     "created_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
                     "updated_at": datetime.fromisoformat("2024-05-20T01:42:11+00:00"),
+                    "identifier": "",
+                    "source": "APP",
+                    "user_id": None,
                 },
             ],
         )
@@ -1551,6 +1569,213 @@ class TestProject:
             res = await self._node(field, project, httpx_client)
             assert [e["node"]["id"] for e in res["edges"]] == expected
             cursor = res["edges"][0]["cursor"]
+
+
+@pytest.mark.parametrize(
+    "sort_col, sort_dir, expected_order",
+    [
+        pytest.param(
+            "name",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-name-asc",
+        ),
+        pytest.param(
+            "name",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-name-desc",
+        ),
+        pytest.param(
+            "endTime",
+            "asc",
+            ["project1", "project2", "project3"],
+            id="sort-by-end-time-asc",
+        ),
+        pytest.param(
+            "endTime",
+            "desc",
+            ["project3", "project2", "project1"],
+            id="sort-by-end-time-desc",
+        ),
+    ],
+)
+async def test_project_sort(
+    sort_col: str,
+    sort_dir: str,
+    expected_order: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test project sorting capabilities."""
+    # Create test projects with controlled timestamps
+    base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    projects: list[models.Project] = []
+    async with db() as session:
+        # Create projects first
+        for i, name in enumerate(["project1", "project2", "project3"]):
+            project = models.Project(
+                name=name,
+                created_at=base_time + timedelta(hours=i),
+                updated_at=base_time + timedelta(hours=i),
+            )
+            session.add(project)
+            await session.flush()
+            projects.append(project)
+
+        # Now create traces for each project with different end times
+        # Each project will have 3 traces with different end times
+        # The max end time for each project will be different and match the expected sort order
+        for i, project in enumerate(projects):
+            for j in range(3):
+                trace = models.Trace(
+                    trace_id=token_hex(16),
+                    project_rowid=project.id,
+                    start_time=base_time + timedelta(hours=i),
+                    # The max end time for each project will be base_time + (i+1) days
+                    # This ensures project1 has max end time of day 1
+                    # project2 has max end time of day 2
+                    # project3 has max end time of day 3
+                    end_time=base_time + timedelta(days=i + 1, hours=j),
+                )
+                session.add(trace)
+        await session.commit()
+
+    query = """
+        query ($sort: ProjectSort) {
+            projects(sort: $sort) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"sort": {"col": sort_col, "dir": sort_dir}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]  # type: ignore
+    assert project_names == expected_order
+
+
+@pytest.mark.parametrize(
+    "filter_value, expected_names",
+    [
+        pytest.param(
+            "project",
+            ["test_project", "project_test"],
+            id="filter-matches-all",
+        ),
+        pytest.param(
+            "test",
+            ["test_project", "project_test"],
+            id="filter-matches-partial",
+        ),
+        pytest.param(
+            "TEST",
+            ["test_project", "project_test"],
+            id="filter-case-insensitive",
+        ),
+        pytest.param(
+            "nomatch",
+            [],
+            id="filter-no-matches",
+        ),
+    ],
+)
+async def test_project_filter(
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test project filtering capabilities."""
+    # Create test projects
+    async with db() as session:
+        for name in ["test_project", "project_test", "other_name"]:
+            project = models.Project(name=name)
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($filter: ProjectFilter) {
+            projects(filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {"filter": {"col": "name", "value": filter_value}}
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert sorted(project_names) == sorted(expected_names)
+
+
+@pytest.mark.parametrize(
+    "sort, filter_value, expected_names",
+    [
+        pytest.param(
+            {"col": "name", "dir": "asc"},
+            "test",
+            ["project_test", "test_project"],
+            id="filter-and-sort-asc",
+        ),
+        pytest.param(
+            {"col": "name", "dir": "desc"},
+            "test",
+            ["test_project", "project_test"],
+            id="filter-and-sort-desc",
+        ),
+    ],
+)
+async def test_project_filter_and_sort(
+    sort: dict[str, str],
+    filter_value: str,
+    expected_names: list[str],
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    """Test combining project filtering and sorting."""
+    # Create test projects
+    async with db() as session:
+        for name in ["test_project", "project_test", "other_name"]:
+            project = models.Project(name=name)
+            session.add(project)
+        await session.commit()
+
+    query = """
+        query ($sort: ProjectSort, $filter: ProjectFilter) {
+            projects(sort: $sort, filter: $filter) {
+                edges {
+                    node {
+                        name
+                    }
+                }
+            }
+        }
+    """
+
+    variables = {
+        "sort": sort,
+        "filter": {"col": "name", "value": filter_value},
+    }
+    response = await gql_client.execute(query=query, variables=variables)
+    assert not response.errors
+    assert (data := response.data) is not None
+    projects = data["projects"]
+    project_names = [edge["node"]["name"] for edge in projects["edges"]]
+    assert project_names == expected_names
 
     @pytest.fixture
     async def _span_count_time_series_data(

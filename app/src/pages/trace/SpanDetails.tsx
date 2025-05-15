@@ -1,4 +1,4 @@
-import React, {
+import {
   PropsWithChildren,
   ReactNode,
   Suspense,
@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   type ImperativePanelHandle,
@@ -50,12 +51,17 @@ import {
   Button,
   CopyToClipboardButton,
   Counter,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   ErrorBoundary,
   ExternalLink,
   Flex,
   Heading,
   Icon,
   Icons,
+  Keyboard,
   LazyTabPanel,
   LinkButton,
   Tab,
@@ -81,6 +87,7 @@ import {
   usePreferencesContext,
   useTheme,
 } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { useDimensions } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import {
@@ -158,6 +165,7 @@ const defaultCardProps: Partial<CardProps> = {
 
 const CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD = 900;
 const ASIDE_PANEL_DEFAULT_SIZE = 33;
+const EDIT_ANNOTATION_HOTKEY = "e";
 
 export function SpanDetails({
   spanNodeId,
@@ -177,13 +185,14 @@ export function SpanDetails({
   const asidePanelRef = useRef<ImperativePanelHandle>(null);
   const spanDetailsContainerRef = useRef<HTMLDivElement>(null);
   const spanDetailsContainerDimensions = useDimensions(spanDetailsContainerRef);
-  const isCondensedView =
-    spanDetailsContainerDimensions?.width &&
-    spanDetailsContainerDimensions.width <
-      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD;
+  const isCondensedView = spanDetailsContainerDimensions?.width
+    ? spanDetailsContainerDimensions.width <
+      CONDENSED_VIEW_CONTAINER_WIDTH_THRESHOLD
+    : true;
+  const { viewer } = useViewer();
   const { span } = useLazyLoadQuery<SpanDetailsQuery>(
     graphql`
-      query SpanDetailsQuery($id: GlobalID!) {
+      query SpanDetailsQuery($id: GlobalID!, $filterUserIds: [GlobalID]) {
         span: node(id: $id) {
           __typename
           ... on Span {
@@ -239,13 +248,14 @@ export function SpanDetails({
             }
             ...SpanHeader_span
             ...SpanFeedback_annotations
-            ...SpanAside_span
+            ...SpanAside_span @arguments(filterUserIds: $filterUserIds)
           }
         }
       }
     `,
     {
       id: spanNodeId,
+      filterUserIds: viewer ? [viewer.id] : [null],
     }
   );
 
@@ -254,6 +264,16 @@ export function SpanDetails({
       "Expected a span, but got a different type" + span.__typename
     );
   }
+
+  useHotkeys(
+    EDIT_ANNOTATION_HOTKEY,
+    () => {
+      if (!isAnnotatingSpans) {
+        setIsAnnotatingSpans(true);
+      }
+    },
+    { preventDefault: true }
+  );
 
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(span);
@@ -316,6 +336,12 @@ export function SpanDetails({
                     }
                   }}
                   leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  trailingVisual={
+                    !isCondensedView &&
+                    !isAnnotatingSpans && (
+                      <Keyboard>{EDIT_ANNOTATION_HOTKEY}</Keyboard>
+                    )
+                  }
                 >
                   {isCondensedView ? null : "Annotate"}
                 </ToggleButton>
@@ -329,8 +355,8 @@ export function SpanDetails({
           <Tabs>
             <TabList>
               <Tab id="info">Info</Tab>
-              <Tab id="feedback">
-                Feedback <Counter>{span.spanAnnotations.length}</Counter>
+              <Tab id="annotations">
+                Annotations <Counter>{span.spanAnnotations.length}</Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
@@ -349,7 +375,7 @@ export function SpanDetails({
                 </SpanInfoWrap>
               </Flex>
             </LazyTabPanel>
-            <LazyTabPanel id="feedback">
+            <LazyTabPanel id="annotations">
               <SpanFeedback span={span} />
             </LazyTabPanel>
             <LazyTabPanel id="attributes">
@@ -382,6 +408,8 @@ export function SpanDetails({
           order={2}
           ref={asidePanelRef}
           defaultSize={ASIDE_PANEL_DEFAULT_SIZE}
+          minSize={10}
+          collapsible
           onCollapse={() => {
             setIsAnnotatingSpans(false);
           }}
@@ -1135,11 +1163,9 @@ function EmbeddingSpanInfo(props: {
                         borderColor="purple-700"
                         title="Embedded Text"
                       >
-                        <View padding="size-200">
-                          <ConnectedMarkdownBlock>
-                            {embedding[EmbeddingAttributePostfixes.text] || ""}
-                          </ConnectedMarkdownBlock>
-                        </View>
+                        <ConnectedMarkdownBlock>
+                          {embedding[EmbeddingAttributePostfixes.text] || ""}
+                        </ConnectedMarkdownBlock>
                       </Card>
                     </MarkdownDisplayProvider>
                   </li>
@@ -1246,9 +1272,19 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
                   <Text color="text-700" fontStyle="italic">
                     Parameters
                   </Text>
-                  <JSONBlock>
-                    {JSON.stringify(toolParameters) as string}
-                  </JSONBlock>
+                  <div
+                    css={css`
+                      .cm-editor {
+                        background-color: transparent !important;
+                      }
+                    `}
+                  >
+                    <JSONBlock
+                      basicSetup={{ lineNumbers: false, foldGutter: false }}
+                    >
+                      {JSON.stringify(toolParameters) as string}
+                    </JSONBlock>
+                  </div>
                 </Flex>
               </View>
             ) : null}
@@ -1305,9 +1341,7 @@ function DocumentItem({
     >
       <Flex direction="column">
         {documentContent && (
-          <View padding="size-200">
-            <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
-          </View>
+          <ConnectedMarkdownBlock>{documentContent}</ConnectedMarkdownBlock>
         )}
         {metadata && (
           <>
@@ -1411,15 +1445,18 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MessageAttributePostfixes.content];
   // as of multi-modal models, a message can also be a list
   const messagesContents = message[MessageAttributePostfixes.contents];
-  const toolCalls =
-    message[MessageAttributePostfixes.tool_calls]
-      ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
-      .filter(Boolean) || [];
+  const toolCalls = message[MessageAttributePostfixes.tool_calls]
+    ?.map((obj) => obj[SemanticAttributePrefixes.tool_call])
+    .filter(Boolean);
   const hasFunctionCall =
     message[MessageAttributePostfixes.function_call_arguments_json] &&
     message[MessageAttributePostfixes.function_call_name];
   const role = message[MessageAttributePostfixes.role] || "unknown";
   const messageStyles = useChatMessageStyles(role);
+  const toolCallDisclosureIds = useMemo(() => {
+    return toolCalls?.map((_, idx) => `tool-call-${idx}`) || [];
+  }, [toolCalls]);
+  const toolResultId = message[MessageAttributePostfixes.tool_call_id];
 
   return (
     <MarkdownDisplayProvider>
@@ -1443,62 +1480,148 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       >
         <ErrorBoundary>
           {messagesContents ? (
-            <View padding="size-200">
-              <MessageContentsList messageContents={messagesContents} />
-            </View>
+            <MessageContentsList messageContents={messagesContents} />
           ) : null}
         </ErrorBoundary>
         <Flex direction="column" alignItems="start">
-          {messageContent ? (
-            <View padding="size-200">
-              <ConnectedMarkdownBlock>{messageContent}</ConnectedMarkdownBlock>
-            </View>
-          ) : null}
-          {toolCalls.length > 0
-            ? toolCalls.map((toolCall, idx) => {
-                const parsedArguments = safelyParseJSON(
-                  toolCall?.function?.arguments as string
-                );
+          <DisclosureGroup
+            css={css`
+              width: 100%;
+              // when any .ac-disclosure-trigger is hovered, show the child .copy-to-clipboard-button
+              .ac-disclosure-trigger {
+                width: 100%;
+                .copy-to-clipboard-button {
+                  visibility: hidden;
+                }
+              }
+              .ac-disclosure-trigger:hover,
+              .ac-disclosure-trigger:focus-within,
+              .ac-disclosure-trigger:focus-visible {
+                .copy-to-clipboard-button {
+                  visibility: visible;
+                }
+              }
+            `}
+            defaultExpandedKeys={[
+              "tool-content",
+              ...toolCallDisclosureIds,
+              "function-call",
+            ]}
+          >
+            {/* when the message is a tool result, show the tool result in a disclosure */}
+            {messageContent && role.toLowerCase() === "tool" ? (
+              <Disclosure id="tool-content">
+                <DisclosureTrigger
+                  arrowPosition="start"
+                  justifyContent="space-between"
+                >
+                  <Text>
+                    Tool Result{toolResultId ? `: ${toolResultId}` : ""}
+                  </Text>
+                  {toolResultId ? (
+                    <CopyToClipboardButton text={toolResultId} />
+                  ) : null}
+                </DisclosureTrigger>
+                <DisclosurePanel>
+                  <View width="100%">
+                    <ConnectedMarkdownBlock>
+                      {messageContent}
+                    </ConnectedMarkdownBlock>
+                  </View>
+                </DisclosurePanel>
+              </Disclosure>
+            ) : // when the message is any other kind, just show the content without a disclosure
+            messageContent ? (
+              <View width="100%">
+                <ConnectedMarkdownBlock>
+                  {messageContent}
+                </ConnectedMarkdownBlock>
+              </View>
+            ) : null}
+            {(toolCalls?.length ?? 0) > 0
+              ? toolCalls?.map((toolCall, idx) => {
+                  if (!toolCall) {
+                    return null;
+                  }
+                  const id = toolCall.id;
+                  const parsedArguments = safelyParseJSON(
+                    toolCall?.function?.arguments as string
+                  );
 
-                return (
+                  return (
+                    <Disclosure
+                      key={idx}
+                      id={toolCallDisclosureIds[idx]}
+                      css={
+                        idx === 0
+                          ? css`
+                              border-top: 1px solid
+                                var(--ac-global-border-color-default);
+                            `
+                          : null
+                      }
+                    >
+                      <DisclosureTrigger
+                        arrowPosition="start"
+                        justifyContent="space-between"
+                      >
+                        <span>Tool Call{id ? `: ${id}` : ""}</span>
+                        {id ? <CopyToClipboardButton text={id} /> : null}
+                      </DisclosureTrigger>
+                      <DisclosurePanel>
+                        <pre
+                          key={idx}
+                          css={css`
+                            text-wrap: wrap;
+                            margin: var(--ac-global-dimension-static-size-100) 0;
+                            padding: var(--ac-global-dimension-static-size-200);
+                          `}
+                        >
+                          {toolCall?.function?.name as string}(
+                          {parsedArguments.json
+                            ? JSON.stringify(parsedArguments.json, null, 2)
+                            : `${toolCall?.function?.arguments}`}
+                          )
+                        </pre>
+                      </DisclosurePanel>
+                    </Disclosure>
+                  );
+                })
+              : null}
+            {/*functionCall is deprecated and is superseded by toolCalls, so we don't expect both to be present*/}
+            {hasFunctionCall ? (
+              <Disclosure id="function-call">
+                <DisclosureTrigger>
+                  <Text>Function Call</Text>
+                </DisclosureTrigger>
+                <DisclosurePanel>
                   <pre
-                    key={idx}
                     css={css`
                       text-wrap: wrap;
                       margin: var(--ac-global-dimension-static-size-100) 0;
-                      padding: var(--ac-global-dimension-static-size-200);
                     `}
                   >
-                    {toolCall?.function?.name as string}(
-                    {parsedArguments.json
-                      ? JSON.stringify(parsedArguments.json, null, 2)
-                      : `${toolCall?.function?.arguments}`}
+                    {
+                      message[
+                        MessageAttributePostfixes.function_call_name
+                      ] as string
+                    }
+                    (
+                    {JSON.stringify(
+                      JSON.parse(
+                        message[
+                          MessageAttributePostfixes.function_call_arguments_json
+                        ] as string
+                      ),
+                      null,
+                      2
+                    )}
                     )
                   </pre>
-                );
-              })
-            : null}
-          {/*functionCall is deprecated and is superseded by toolCalls, so we don't expect both to be present*/}
-          {hasFunctionCall ? (
-            <pre
-              css={css`
-                text-wrap: wrap;
-                margin: var(--ac-global-dimension-static-size-100) 0;
-              `}
-            >
-              {message[MessageAttributePostfixes.function_call_name] as string}(
-              {JSON.stringify(
-                JSON.parse(
-                  message[
-                    MessageAttributePostfixes.function_call_arguments_json
-                  ] as string
-                ),
-                null,
-                2
-              )}
-              )
-            </pre>
-          ) : null}
+                </DisclosurePanel>
+              </Disclosure>
+            ) : null}
+          </DisclosureGroup>
         </Flex>
       </Card>
     </MarkdownDisplayProvider>
@@ -1841,11 +1964,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = <JSONBlock>{value}</JSONBlock>;
       break;
     case "text":
-      content = (
-        <View margin="size-200">
-          <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>
-        </View>
-      );
+      content = <ConnectedMarkdownBlock>{value}</ConnectedMarkdownBlock>;
       break;
     default:
       assertUnreachable(mimeType);

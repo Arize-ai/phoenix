@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { useFragment } from "react-relay";
 import { Outlet, useParams } from "react-router";
 import { graphql } from "relay-runtime";

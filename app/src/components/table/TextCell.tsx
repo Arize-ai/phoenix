@@ -1,4 +1,3 @@
-import React from "react";
 import { CellContext } from "@tanstack/react-table";
 
 const MAX_LENGTH = 100;

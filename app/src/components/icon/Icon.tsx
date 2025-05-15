@@ -1,4 +1,4 @@
-import React, { HTMLAttributes, ReactNode } from "react";
+import { HTMLAttributes, ReactNode } from "react";
 import { css } from "@emotion/react";
 
 import { ColorValue, StylableProps } from "@phoenix/components/types";

@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from starlette.types import ASGIApp
 
 import phoenix.trace.v1 as pb
+from phoenix.client import Client
 from phoenix.config import EXPORT_DIR
 from phoenix.core.model_schema_adapter import create_model_from_inferences
 from phoenix.db import models
@@ -37,7 +38,7 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import _db, create_app
 from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.types import BatchedCaller, DbSessionFactory
-from phoenix.session.client import Client
+from phoenix.session.client import Client as LegacyClient
 from phoenix.trace.schemas import Span
 from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.transport import ASGIWebSocketTransport
@@ -201,7 +202,6 @@ async def app(
             umap_params=get_umap_parameters(None),
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
-            enable_websockets=True,
         )
         manager = await stack.enter_async_context(LifespanManager(app))
         yield manager.app
@@ -259,13 +259,21 @@ def gql_client(httpx_client: httpx.AsyncClient) -> Iterator[AsyncGraphQLClient]:
 
 
 @pytest.fixture
+def legacy_px_client(
+    httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
+) -> LegacyClient:
+    sync_client, _ = httpx_clients
+    client = LegacyClient(warn_if_server_not_running=False)
+    client._client = sync_client  # type: ignore[assignment]
+    return client
+
+
+@pytest.fixture
 def px_client(
     httpx_clients: tuple[httpx.Client, httpx.AsyncClient],
 ) -> Client:
     sync_client, _ = httpx_clients
-    client = Client(warn_if_server_not_running=False)
-    client._client = sync_client  # type: ignore[assignment]
-    return client
+    return Client(http_client=sync_client)
 
 
 @pytest.fixture

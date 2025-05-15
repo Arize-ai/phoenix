@@ -1,4 +1,4 @@
-import React, { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { fetchQuery, graphql } from "react-relay";
 import { css } from "@emotion/react";
 

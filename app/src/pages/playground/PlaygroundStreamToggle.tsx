@@ -1,5 +1,3 @@
-import React from "react";
-
 import { Switch } from "@arizeai/components";
 
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -15,11 +13,6 @@ export function PlaygroundStreamToggle() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
-
-  // This toggle should never be shown if websockets are disabled
-  if (window.Config.websocketsEnabled === false) {
-    return null;
-  }
 
   return (
     <Switch

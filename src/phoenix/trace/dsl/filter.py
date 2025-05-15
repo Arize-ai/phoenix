@@ -9,9 +9,10 @@ from types import MappingProxyType
 from uuid import uuid4
 
 import sqlalchemy
+from sqlalchemy import case, literal
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.orm.util import AliasedClass
-from sqlalchemy.sql.expression import Select
+from sqlalchemy.sql.expression import ColumnElement, Select
 from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 import phoenix.trace.v1 as pb
@@ -31,6 +32,8 @@ EVAL_EXPRESSION_PATTERN = re.compile(
     r"""\b((annotations|evals)\[(".*?"|'.*?')\][.](label|score))\b"""
 )
 
+EVAL_NAME_PATTERN = re.compile(r"""(?<!\w)((annotations|evals)\[(".*?"|'.*?')\])(?![\w\.])""")
+
 
 @dataclass(frozen=True)
 class AliasedAnnotationRelation:
@@ -46,26 +49,33 @@ class AliasedAnnotationRelation:
     table: AliasedClass[models.SpanAnnotation] = field(init=False, repr=False)
     _label_attribute_alias: str = field(init=False, repr=False)
     _score_attribute_alias: str = field(init=False, repr=False)
+    _exists_attribute_alias: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         table_alias = f"span_annotation_{self.index}"
         alias_id = uuid4().hex
         label_attribute_alias = f"{table_alias}_label_{alias_id}"
         score_attribute_alias = f"{table_alias}_score_{alias_id}"
+        exists_attribute_alias = f"{table_alias}_exists_{alias_id}"
 
         table = aliased(models.SpanAnnotation, name=table_alias)
         object.__setattr__(self, "_label_attribute_alias", label_attribute_alias)
         object.__setattr__(self, "_score_attribute_alias", score_attribute_alias)
+        object.__setattr__(self, "_exists_attribute_alias", exists_attribute_alias)
         object.__setattr__(self, "table", table)
 
     @property
-    def attributes(self) -> typing.Iterator[tuple[str, Mapped[typing.Any]]]:
+    def attributes(self) -> typing.Iterator[tuple[str, ColumnElement[typing.Any]]]:
         """
         Alias names and attributes (i.e., columns) of the `span_annotation`
         relation.
         """
         yield self._label_attribute_alias, self.table.label
         yield self._score_attribute_alias, self.table.score
+        yield (
+            self._exists_attribute_alias,
+            case((self.table.id.is_not(None), literal(True)), else_=literal(False)),
+        )
 
     def attribute_alias(self, attribute: AnnotationAttribute) -> str:
         """
@@ -555,6 +565,7 @@ def _validate_expression(
                 isinstance(node, (ast.BoolOp, ast.Compare))
                 or isinstance(node, ast.UnaryOp)
                 and isinstance(node.op, ast.Not)
+                or _is_annotation(node)
             ):
                 continue
         elif (
@@ -783,7 +794,7 @@ def _apply_eval_aliasing(
     eval_aliases: dict[AnnotationName, AliasedAnnotationRelation] = {}
     for (
         annotation_expression,
-        annotation_type,
+        _annotation_type,
         annotation_name,
         annotation_attribute,
     ) in _parse_annotation_expressions_and_names(source):
@@ -791,6 +802,15 @@ def _apply_eval_aliasing(
             eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
             eval_aliases[annotation_name] = eval_alias
         alias_name = eval_alias.attribute_alias(annotation_attribute)
+        source = source.replace(annotation_expression, alias_name)
+
+    for match in EVAL_NAME_PATTERN.finditer(source):
+        annotation_expression, _, quoted_eval_name = match.groups()
+        annotation_name = quoted_eval_name[1:-1]
+        if (eval_alias := eval_aliases.get(annotation_name)) is None:
+            eval_alias = AliasedAnnotationRelation(index=len(eval_aliases), name=annotation_name)
+            eval_aliases[annotation_name] = eval_alias
+        alias_name = eval_alias._exists_attribute_alias
         source = source.replace(annotation_expression, alias_name)
     return source, tuple(eval_aliases.values())
 
@@ -811,11 +831,11 @@ def _parse_annotation_expressions_and_names(
     for match in EVAL_EXPRESSION_PATTERN.finditer(source):
         (
             annotation_expression,
-            annotation_type,
+            _annotation_type,
             quoted_eval_name,
             evaluation_attribute_name,
         ) = match.groups()
-        annotation_type = typing.cast(AnnotationType, annotation_type)
+        annotation_type = typing.cast(AnnotationType, _annotation_type)
         yield (
             annotation_expression,
             annotation_type,

@@ -1,4 +1,3 @@
-import React from "react";
 import { useLoaderData } from "react-router";
 
 import { Flex, View } from "@phoenix/components";

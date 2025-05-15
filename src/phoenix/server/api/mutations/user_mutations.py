@@ -1,3 +1,4 @@
+import logging
 import secrets
 from contextlib import AsyncExitStack
 from datetime import datetime, timezone
@@ -32,6 +33,8 @@ from phoenix.server.api.types.User import User, to_gql_user
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import AccessTokenId, ApiKeyId, PasswordResetTokenId, RefreshTokenId
 
+logger = logging.getLogger(__name__)
+
 
 @strawberry.input
 class CreateUserInput:
@@ -39,6 +42,7 @@ class CreateUserInput:
     username: str
     password: str
     role: UserRoleInput
+    send_welcome_email: Optional[bool] = False
 
 
 @strawberry.input
@@ -111,6 +115,12 @@ class UserMutationMixin:
                 await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
                 raise Conflict(_user_operation_error_message(error))
+        if input.send_welcome_email and info.context.email_sender is not None:
+            try:
+                await info.context.email_sender.send_welcome_email(user.email, user.username)
+            except Exception as error:
+                # Log the error but do not raise it
+                logger.error(f"Failed to send welcome email: {error}")
         return UserMutationPayload(user=to_gql_user(user))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsAdmin, IsLocked])  # type: ignore
@@ -133,6 +143,8 @@ class UserMutationMixin:
             if input.new_role:
                 if user.email == DEFAULT_ADMIN_EMAIL:
                     raise Unauthorized("Cannot modify role for the default admin user")
+                if user_id == requester_id:
+                    raise Unauthorized("Cannot modify own role")
                 user_role_id = await session.scalar(_select_role_id_by_name(input.new_role.value))
                 if user_role_id is None:
                     raise NotFound(f"Role {input.new_role.value} not found")

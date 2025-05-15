@@ -68,7 +68,7 @@ model = OpenAIModel(
 # will run requests concurrently to improve performance.
 tool_call_evaluations = llm_classify(
     dataframe=df,
-    template=TOOL_CALLING_PROMPT_TEMPLATE.template.replace("{tool_definitions}", json_tools),
+    template=TOOL_CALLING_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
     provide_explanation=True
@@ -80,3 +80,30 @@ Parameters:
 * `df` - a dataframe of cases to evaluate. The dataframe must have these columns to match the default template:
   * `question` - the query made to the model. If you've [exported spans from Phoenix](https://app.gitbook.com/o/ZmsT56faZH0gUFkMMqBk/s/gtQcEYlwzTfZSAnHREvw/) to evaluate, this will the `llm.input_messages` column in your exported data.
   * `tool_call` - information on the tool called and parameters included. If you've [exported spans from Phoenix](../../../tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans.md) to evaluate, this will be the `llm.function_call` column in your exported data.
+
+## Parameter Extraction Only
+
+This template instead evaluates only the parameter extraction step of a router:
+
+```
+You are comparing a function call response to a question and trying to determine if the generated call has extracted the exact right parameters from the question. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {question}
+    ************
+    [LLM Response]: {response}
+    ************
+    [END DATA]
+
+Compare the parameters in the generated function against the JSON provided below.
+The parameters extracted from the question must match the JSON below exactly.
+Your response must be single word, either "correct", "incorrect", or "not-applicable",
+and should not contain any text or characters aside from that word.
+
+"correct" means the function call parameters match the JSON below and provides only relevant information.
+"incorrect" means that the parameters in the function do not match the JSON schema below exactly, or the generated function does not correctly answer the user's question. You should also respond with "incorrect" if the response makes up information that is not in the JSON schema.
+"not-applicable" means that response was not a function call.
+
+Here is more information on each function:
+{function_defintions}
+```

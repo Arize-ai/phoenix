@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { isNumber, isString } from "lodash";
 
 import {
@@ -7,13 +7,11 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 
 import { Flex, Icon, Icons, Link, Text, View } from "@phoenix/components";
-import {
-  AnnotationLabel,
-  AnnotationTooltip,
-} from "@phoenix/components/annotation";
+import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { JSONBlock } from "@phoenix/components/code";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
@@ -114,7 +112,7 @@ function RootSpanDetails({
           <Flex direction={"row"} justifyContent={"space-between"}>
             <Text>Trace #{index + 1}</Text>
             <Link
-              to={`/projects/${rootSpan.project.id}/traces/${traceId}?selectedSpanNodeId=${rootSpan.id}`}
+              to={`/projects/${rootSpan.project.id}/traces/${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${rootSpan.id}`}
             >
               <Flex alignItems={"center"}>
                 View Trace
@@ -151,19 +149,10 @@ function RootSpanDetails({
           <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
             <Text>Feedback</Text>
             <Flex gap={"size-50"} direction={"column"}>
-              {rootSpan.spanAnnotations.length > 0
-                ? rootSpan.spanAnnotations.map((annotation) => (
-                    <AnnotationTooltip
-                      key={annotation.name}
-                      annotation={annotation}
-                    >
-                      <AnnotationLabel
-                        annotation={annotation}
-                        annotationDisplayPreference="label"
-                      />
-                    </AnnotationTooltip>
-                  ))
-                : "--"}
+              <AnnotationSummaryGroupTokens
+                span={rootSpan}
+                renderEmptyState={() => "--"}
+              />
             </Flex>
           </Flex>
           <span>

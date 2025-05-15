@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -69,7 +69,7 @@ export function PromptsTable(props: PromptsTableProps) {
       }),
     [data]
   );
-  const fetchMoreOnBottomReached = React.useCallback(
+  const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
         const { scrollHeight, scrollTop, clientHeight } = containerRefElement;

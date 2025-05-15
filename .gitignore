@@ -71,3 +71,9 @@ js/examples/notebooks/**/deno.lock
 
 # Caches
 .pnpm-store
+
+# scrtach work
+/.scratch/
+
+# uv
+uv.lock

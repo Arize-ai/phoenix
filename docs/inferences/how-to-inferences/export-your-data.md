@@ -14,7 +14,7 @@ To export a cluster (either selected via the lasso tool or via a the cluster lis
 
 ## Export All Clusters
 
-To export all clusters of embeddings as a single dataframe (labeled by cluster), click the `...` icon on the top right of the screen and click export. Your data will be available either as a Parquet file or is available back in your notebook via your [session](../../api/session.md#attributes) as a dataframe.
+To export all clusters of embeddings as a single dataframe (labeled by cluster), click the `...` icon on the top right of the screen and click export. Your data will be available either as a Parquet file or is available back in your notebook via your [session](https://docs.arize.com/phoenix/references/api/session) as a dataframe.
 
 ```python
 session = px.active_session()

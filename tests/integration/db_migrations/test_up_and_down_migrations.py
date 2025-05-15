@@ -293,3 +293,18 @@ def test_up_and_down_migrations(
         _up(_engine, _alembic_config, "bc8fea3c2bc8")
         _down(_engine, _alembic_config, "4ded9e43755f")
     _up(_engine, _alembic_config, "bc8fea3c2bc8")
+
+    for _ in range(2):
+        _up(_engine, _alembic_config, "2f9d1a65945f")
+        _down(_engine, _alembic_config, "bc8fea3c2bc8")
+    _up(_engine, _alembic_config, "2f9d1a65945f")
+
+    for _ in range(2):
+        _up(_engine, _alembic_config, "bb8139330879")
+        _down(_engine, _alembic_config, "2f9d1a65945f")
+    _up(_engine, _alembic_config, "bb8139330879")
+
+    for _ in range(2):
+        _up(_engine, _alembic_config, "8a3764fe7f1a")
+        _down(_engine, _alembic_config, "bb8139330879")
+    _up(_engine, _alembic_config, "8a3764fe7f1a")

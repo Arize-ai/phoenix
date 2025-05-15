@@ -1,7 +1,8 @@
-import React, {
+import {
   PropsWithChildren,
   startTransition,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { css } from "@emotion/react";
@@ -209,7 +210,7 @@ const spanNameCSS = css`
   text-overflow: ellipsis;
 `;
 
-function SpanTreeItem<TSpan extends ISpanItem>(props: {
+interface SpanTreeItemProps<TSpan extends ISpanItem> {
   node: SpanTreeNode<TSpan>;
   selectedSpanNodeId: string;
   onSpanClick?: (span: ISpanItem) => void;
@@ -218,7 +219,11 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
    * @default 0
    */
   nestingLevel?: number;
-}) {
+}
+
+function SpanTreeItem<TSpan extends ISpanItem>(
+  props: SpanTreeItemProps<TSpan>
+) {
   const { node, selectedSpanNodeId, onSpanClick, nestingLevel = 0 } = props;
   const childNodes = node.children;
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -227,6 +232,18 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
+  const isSelected = selectedSpanNodeId === node.span.id;
+  const itemRef = useRef<HTMLDivElement>(null);
+
+  // Scroll into view when selected
+  useEffect(() => {
+    if (isSelected && itemRef.current) {
+      itemRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [isSelected]);
 
   // React to global changes to the trace tree state and change local state
   useEffect(() => {
@@ -242,7 +259,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
     tokenCountCompletion,
   } = node.span;
   return (
-    <div>
+    <div ref={itemRef}>
       <button
         className="button--reset"
         css={css`

@@ -1,9 +1,4 @@
-import React, {
-  ReactNode,
-  startTransition,
-  useCallback,
-  useState,
-} from "react";
+import { ReactNode, startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { ActionMenu, Dialog, DialogContainer, Item } from "@arizeai/components";
@@ -13,7 +8,9 @@ import { Button, Flex, Icon, Icons, Text, View } from "@phoenix/components";
 import { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
 import { RemoveProjectDataForm } from "./RemoveProjectDataForm";
+
 enum ProjectAction {
+  COPY_NAME = "copyName",
   DELETE = "deleteProject",
   CLEAR = "clearProject",
   REMOVE_DATA = "removeProjectData",
@@ -25,12 +22,14 @@ export function ProjectActionMenu({
   onProjectDelete,
   onProjectClear,
   onProjectRemoveData,
+  variant = "quiet",
 }: {
   projectId: string;
   projectName: string;
   onProjectClear: () => void;
   onProjectRemoveData: () => void;
   onProjectDelete: () => void;
+  variant?: "quiet" | "default";
 }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
   const canDelete = projectName !== "default";
@@ -164,11 +163,15 @@ export function ProjectActionMenu({
       }}
     >
       <ActionMenu
-        buttonVariant="quiet"
+        buttonVariant={variant}
         buttonSize="compact"
         align="end"
         onAction={(action) => {
           switch (action as ProjectAction) {
+            case ProjectAction.COPY_NAME: {
+              navigator.clipboard.writeText(projectName);
+              return;
+            }
             case ProjectAction.DELETE: {
               return onDelete();
             }
@@ -182,6 +185,17 @@ export function ProjectActionMenu({
         }}
         disabledKeys={canDelete ? [] : [ProjectAction.DELETE]}
       >
+        <Item key={ProjectAction.COPY_NAME} textValue="Copy Name">
+          <Flex
+            direction={"row"}
+            gap="size-75"
+            justifyContent={"start"}
+            alignItems={"center"}
+          >
+            <Icon svg={<Icons.ClipboardCopy />} />
+            <Text>Copy Name</Text>
+          </Flex>
+        </Item>
         <Item key={ProjectAction.CLEAR} textValue="Clear All Traces">
           <Flex
             direction={"row"}

@@ -1,4 +1,4 @@
-import React, { Fragment, Suspense, useCallback, useEffect } from "react";
+import { Fragment, Suspense, useCallback, useEffect } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { BlockerFunction, useBlocker, useSearchParams } from "react-router";
@@ -69,28 +69,9 @@ export function Playground(props: Partial<PlaygroundProps>) {
   const playgroundStreamingEnabled = usePreferencesContext(
     (state) => state.playgroundStreamingEnabled
   );
-  const [, setSearchParams] = useSearchParams();
   const hasInstalledProvider = modelProviders.some(
     (provider) => provider.dependenciesInstalled
   );
-
-  useEffect(() => {
-    setSearchParams(
-      (searchParams) => {
-        // remove lingering selectedSpanNodeId param so as to not poison the trace details slideover
-        // with stale data from previous pages
-        searchParams.delete("selectedSpanNodeId");
-        return searchParams;
-      },
-      { replace: true }
-    );
-  }, [setSearchParams]);
-
-  const streaming = window.Config.websocketsEnabled
-    ? playgroundStreamingEnabled
-    : false;
-
-  const showStreamingToggle = window.Config.websocketsEnabled;
 
   if (!hasInstalledProvider) {
     return <NoInstalledProvider availableProviders={modelProviders} />;
@@ -98,7 +79,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
   return (
     <PlaygroundProvider
       {...props}
-      streaming={streaming}
+      streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
     >
       <div css={playgroundWrapCSS}>
@@ -115,7 +96,7 @@ export function Playground(props: Partial<PlaygroundProps>) {
           >
             <Heading level={1}>Playground</Heading>
             <Flex direction="row" gap="size-100" alignItems="center">
-              {showStreamingToggle ? <PlaygroundStreamToggle /> : null}
+              <PlaygroundStreamToggle />
               <PlaygroundDatasetPicker />
               <PlaygroundCredentialsDropdown />
               <PlaygroundRunButton />

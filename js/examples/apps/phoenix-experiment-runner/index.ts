@@ -1,4 +1,10 @@
 /* eslint-disable no-console */
+import { instrument } from "./instrumentation.js";
+// Instrument our OpenAI client calls
+instrument({
+  projectName: "phoenix-experiment-runner",
+});
+
 import { createClient } from "@arizeai/phoenix-client";
 import {
   asEvaluator,
@@ -6,7 +12,7 @@ import {
   type RunExperimentParams,
 } from "@arizeai/phoenix-client/experiments";
 import { intro, outro, select, spinner, log, confirm } from "@clack/prompts";
-import { Factuality, Humor } from "autoevals";
+import { Factuality } from "autoevals";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -15,16 +21,16 @@ dotenv.config();
 
 const env = z
   .object({
-    OPENAI_MODEL: z.string().default("llama3.2"),
-    OPENAI_API_KEY: z.string().default("ollama"),
-    OPENAI_API_BASE_URL: z.string().default("http://localhost:11434/v1"),
+    OPENAI_MODEL: z.string().default("gpt-4o"),
+    OPENAI_API_KEY: z.string().default(process.env.OPENAI_API_KEY ?? ""),
+    OPENAI_API_BASE_URL: z.string().optional(),
   })
   .parse(process.env);
 
 const config: {
   model: string;
   openAiApiKey: string;
-  openAiBaseUrl: string;
+  openAiBaseUrl?: string;
 } = {
   model: env.OPENAI_MODEL,
   openAiApiKey: env.OPENAI_API_KEY,
@@ -122,67 +128,93 @@ const main = async () => {
       experimentName,
       client: phoenix,
       task: LLMAssistantTask,
-      repetitions: 2,
       logger: {
         ...log,
-        log: (message) => log.message(message),
+        log: (message) => s.message(message),
+        info: (message) => s.message(message),
+        error: (message) => s.message(message),
       },
       evaluators: [
-        asEvaluator("Mentions startups", async (params) => {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          const output = params.output;
-          const isString = typeof output === "string";
-          return {
-            score:
-              isString && output?.toLocaleLowerCase()?.includes?.("startups")
-                ? 1
-                : 0,
-            label: "Mentions startups",
-            explanation: "The output contains the word 'startups'",
-            metadata: {},
-          };
+        // You can implement code based evaluators like this
+        asEvaluator({
+          name: "Mentions evaluation",
+          kind: "CODE",
+          evaluate: async (params) => {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            const output = params.output;
+            const isString = typeof output === "string";
+            return {
+              score:
+                isString &&
+                output?.toLocaleLowerCase()?.includes?.("evaluation")
+                  ? 1
+                  : 0,
+              label: "Mentions evaluation",
+              explanation: "The output contains the word 'evaluation'",
+              metadata: {},
+            };
+          },
         }),
-        asEvaluator("Mentions evaluation", async (params) => {
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          const output = params.output;
-          const isString = typeof output === "string";
-          return {
-            score:
-              isString && output?.toLocaleLowerCase()?.includes?.("evaluation")
-                ? 1
-                : 0,
-            label: "Mentions evaluation",
-            explanation: "The output contains the word 'evaluation'",
-            metadata: {},
-          };
+        // off the shelf evaluators
+        asEvaluator({
+          name: "Factuality",
+          kind: "LLM",
+          evaluate: async (params) => {
+            const result = await Factuality.partial({
+              ...config,
+            })({
+              output: JSON.stringify(params.output, null, 2),
+              input: JSON.stringify(params.input, null, 2),
+              expected: JSON.stringify(params.expected, null, 2),
+            });
+            return {
+              score: result.score,
+              label: result.name,
+              explanation: (result.metadata?.rationale as string) ?? "",
+              metadata: result.metadata ?? {},
+            };
+          },
         }),
-        asEvaluator("Factuality", async (params) => {
-          const result = await Factuality.partial({
-            ...config,
-          })({
-            output: JSON.stringify(params.output, null, 2),
-            input: JSON.stringify(params.input, null, 2),
-            expected: JSON.stringify(params.expected, null, 2),
-          });
-          return {
-            score: result.score,
-            label: result.name,
-            explanation: (result.metadata?.rationale as string) ?? "",
-            metadata: result.metadata ?? {},
-          };
-        }),
-        asEvaluator("Humor", async (params) => {
-          const result = await Humor.partial({
-            ...config,
-          })({
-            output: JSON.stringify(params.output, null, 2),
-          });
-          return {
-            score: result.score,
-            label: result.name,
-            explanation: (result.metadata?.rationale as string) ?? "",
-            metadata: result.metadata ?? {},
-          };
+        // Custom LLM based evaluators
+        asEvaluator({
+          name: "Is English",
+          kind: "LLM",
+          evaluate: async (params) => {
+            return await new OpenAI({
+              baseURL: config.openAiBaseUrl,
+              apiKey: config.openAiApiKey,
+            }).chat.completions
+              .create({
+                model: config.model,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are an expert language labeler that can only respond with 'English' or 'Not English'",
+                  },
+                  {
+                    role: "user",
+                    content: JSON.stringify(params.output, null, 2),
+                  },
+                ],
+              })
+              .then((res) =>
+                res.choices[0]?.message?.content?.toLocaleLowerCase() ===
+                "english"
+                  ? 1
+                  : 0
+              )
+              .then((score) => {
+                return {
+                  score,
+                  label: "Is English",
+                  explanation: score
+                    ? "The output is in English"
+                    : "The output is not in English",
+                  metadata: {},
+                };
+              });
+          },
         }),
       ],
     });

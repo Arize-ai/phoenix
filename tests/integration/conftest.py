@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from collections.abc import Generator, Iterator
 from contextlib import ExitStack
@@ -86,12 +88,12 @@ def _span_exporter(request: SubRequest) -> _SpanExporterFactory:
     raise ValueError(f"Unknown exporter: {request.param}")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="package")
 def _fake() -> Faker:
     return Faker()
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True, scope="package")
 def _env(
     _sql_database_url: URL,
     _ports: Iterator[int],
@@ -107,7 +109,7 @@ def _env(
         yield
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True, scope="package")
 def _env_phoenix_sql_database_url(
     _sql_database_url: URL,
     _fake: Faker,
@@ -117,7 +119,7 @@ def _env_phoenix_sql_database_url(
         yield
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True, scope="package")
 def _env_postgresql_schema(
     _sql_database_url: URL,
 ) -> Iterator[None]:

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 import re
+import ssl
 import sys
 from abc import ABC, abstractmethod
+from base64 import b64decode, urlsafe_b64encode
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from contextvars import ContextVar
@@ -16,8 +18,23 @@ from secrets import randbits, token_hex
 from subprocess import PIPE, STDOUT
 from threading import Lock, Thread
 from time import sleep, time
-from typing import Any, Awaitable, Generic, Literal, Optional, Protocol, TypeVar, Union, cast
-from urllib.parse import parse_qs, urljoin, urlparse
+from types import MappingProxyType, TracebackType
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Generator,
+    Generic,
+    Literal,
+    Optional,
+    Protocol,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
+from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 from urllib.request import urlopen
 
 import bs4
@@ -25,6 +42,7 @@ import httpx
 import jwt
 import pytest
 import smtpdfix
+from fastapi import FastAPI
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
@@ -44,19 +62,25 @@ from phoenix.auth import (
     PHOENIX_REFRESH_TOKEN_COOKIE_NAME,
 )
 from phoenix.config import (
+    ENV_PHOENIX_TLS_CA_FILE,
+    ENV_PHOENIX_TLS_CERT_FILE,
+    ENV_PHOENIX_TLS_ENABLED,
+    ENV_PHOENIX_TLS_VERIFY_CLIENT,
     get_base_url,
     get_env_database_connection_str,
     get_env_database_schema,
     get_env_grpc_port,
-    get_env_host,
     get_env_smtp_mail_from,
 )
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.thread_server import ThreadServer
 from psutil import STATUS_ZOMBIE, Popen
 from sqlalchemy import URL, create_engine, text
 from sqlalchemy.exc import OperationalError
+from starlette.requests import Request
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never
 
@@ -132,8 +156,9 @@ class _User:
         self,
         query: str,
         variables: Optional[Mapping[str, Any]] = None,
+        operation_name: Optional[str] = None,
     ) -> tuple[dict[str, Any], Headers]:
-        return _gql(self, query=query, variables=variables)
+        return _gql(self, query=query, variables=variables, operation_name=operation_name)
 
     def create_user(
         self,
@@ -141,11 +166,15 @@ class _User:
         /,
         *,
         profile: _Profile,
+        send_welcome_email: bool = False,
     ) -> _User:
-        return _create_user(self, role=role, profile=profile)
+        return _create_user(self, role=role, profile=profile, send_welcome_email=send_welcome_email)
 
     def delete_users(self, *users: Union[_GqlId, _User]) -> None:
         return _delete_users(self, users=users)
+
+    def list_users(self) -> list[_User]:
+        return _list_users(self)
 
     def patch_user_gid(
         self,
@@ -261,6 +290,9 @@ class _ApiKey(str):
         return self._kind
 
 
+class _AdminSecret(str): ...
+
+
 class _Token(_String, ABC): ...
 
 
@@ -309,6 +341,7 @@ class _LoggedInUser(_User, _CanLogOut[_User]):
 
 _RoleOrUser = Union[UserRoleInput, _User]
 _SecurityArtifact: TypeAlias = Union[
+    _AdminSecret,
     _AccessToken,
     _RefreshToken,
     _LoggedInTokens,
@@ -388,11 +421,28 @@ def _grpc_span_exporter(
 ) -> SpanExporter:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-    host = get_env_host()
-    if host == "0.0.0.0":
-        host = "127.0.0.1"
-    endpoint = f"http://{host}:{get_env_grpc_port()}"
+    endpoint = _change_port(get_base_url(), get_env_grpc_port())
     return OTLPSpanExporter(endpoint=endpoint, headers=headers, timeout=1)
+
+
+def _change_port(url: str, new_port: int) -> str:
+    # Parse the URL
+    parsed_url = urlparse(url)
+
+    # Replace the netloc part with the new port
+    netloc = parsed_url.netloc
+    if ":" in netloc:
+        # If there's already a port, replace it
+        netloc = netloc.split(":")[0] + f":{new_port}"
+    else:
+        # If there's no port, add it
+        netloc = netloc + f":{new_port}"
+
+    # Create a new parsed URL with the updated netloc
+    updated_parts = parsed_url._replace(netloc=netloc)
+
+    # Combine the parts back into a URL
+    return urlunparse(updated_parts)
 
 
 class _RandomIdGenerator(IdGenerator):
@@ -581,10 +631,13 @@ def _httpx_client(
         return _httpx_client(logged_in_user.tokens, headers, cookies, transport)
     elif isinstance(auth, _ApiKey):
         headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
+    elif isinstance(auth, _AdminSecret):
+        headers = {**(headers or {}), "authorization": f"Bearer {auth}"}
     elif auth is None:
         pass
     else:
         assert_never(auth)
+    ssl_context = _get_ssl_context()
     # Having no timeout is useful when stepping through the debugger on the server side.
     return httpx.Client(
         timeout=None,
@@ -593,10 +646,23 @@ def _httpx_client(
         base_url=get_base_url(),
         transport=_LogTransport(
             _DefaultAdminTokenSequestration(
-                transport or httpx.HTTPTransport(),
+                transport or httpx.HTTPTransport(verify=ssl_context or False),
             )
         ),
     )
+
+
+def _get_ssl_context() -> Optional[ssl.SSLContext]:
+    if os.environ.get(ENV_PHOENIX_TLS_ENABLED) != "true":
+        return None
+    context = ssl.create_default_context()
+    ca_file = os.environ.get(ENV_PHOENIX_TLS_CERT_FILE)
+    context.load_verify_locations(cafile=ca_file)
+    if os.environ.get(ENV_PHOENIX_TLS_VERIFY_CLIENT) != "true":
+        return context
+    assert (cert_file := os.environ.get(ENV_PHOENIX_TLS_CA_FILE))
+    context.load_cert_chain(certfile=cert_file)
+    return context
 
 
 @contextmanager
@@ -613,23 +679,24 @@ def _server() -> Iterator[None]:
     time_limit = time() + t
     timed_out = False
     url = urljoin(get_base_url(), "healthz")
+    ssl_context = _get_ssl_context()
     while not timed_out and _is_alive(process):
         sleep(0.1)
         try:
-            urlopen(url)
+            urlopen(url, context=ssl_context)
             break
         except BaseException:
             timed_out = time() > time_limit
     try:
         if timed_out:
-            raise TimeoutError(f"Server did not start within {t} seconds.")
+            raise TimeoutError(f"Server {url} did not start within {t} seconds.")
         assert _is_alive(process)
         with lock:
             for line in log:
                 print(line, end="")
             log.clear()
         yield
-        process.terminate()
+        process.kill()
         process.wait(10)
     finally:
         for line in log:
@@ -684,8 +751,9 @@ def _gql(
     *,
     query: str,
     variables: Optional[Mapping[str, Any]] = None,
+    operation_name: Optional[str] = None,
 ) -> tuple[dict[str, Any], Headers]:
-    json_ = dict(query=query, variables=dict(variables or {}))
+    json_ = dict(query=query, variables=dict(variables or {}), operationName=operation_name)
     resp = _httpx_client(auth).post("graphql", json=json_)
     return _json(resp), resp.headers
 
@@ -706,12 +774,53 @@ def _get_gql_spans(
     }
 
 
+def _list_users(
+    auth: Optional[_SecurityArtifact] = None,
+    /,
+) -> list[_User]:
+    all_users = []
+    has_next_page = True
+    end_cursor = None
+
+    while has_next_page:
+        args = ["first:1000"]
+        if end_cursor:
+            args.append(f'after:"{end_cursor}"')
+        args_str = f"({','.join(args)})"
+        query = (
+            "query{users"
+            + args_str
+            + "{edges{node{id email username role{name}}} pageInfo{hasNextPage endCursor}}}"
+        )
+        resp_dict, _ = _gql(auth, query=query)
+
+        users_data = resp_dict["data"]["users"]
+        users = [e["node"] for e in users_data["edges"]]
+        all_users.extend(
+            [
+                _User(
+                    _GqlId(u["id"]),
+                    UserRoleInput(u["role"]["name"]),
+                    _Profile(u["email"], "", u["username"]),
+                )
+                for u in users
+            ]
+        )
+
+        page_info = users_data["pageInfo"]
+        has_next_page = page_info["hasNextPage"]
+        end_cursor = page_info["endCursor"]
+
+    return all_users
+
+
 def _create_user(
     auth: Optional[_SecurityArtifact] = None,
     /,
     *,
     role: UserRoleInput,
     profile: _Profile,
+    send_welcome_email: bool = False,
 ) -> _User:
     email = profile.email
     password = profile.password
@@ -719,6 +828,7 @@ def _create_user(
     args = [f'email:"{email}"', f'password:"{password}"', f"role:{role.value}"]
     if username:
         args.append(f'username:"{username}"')
+    args.append(f"sendWelcomeEmail:{str(send_welcome_email).lower()}")
     out = "user{id email role{name}}"
     query = "mutation{createUser(input:{" + ",".join(args) + "}){" + out + "}}"
     resp_dict, headers = _gql(auth, query=query)
@@ -980,7 +1090,7 @@ def _decode_token_ids(
             continue
         try:
             token = jwt.decode(v, options={"verify_signature": False})["jti"]
-        except DecodeError:
+        except (DecodeError, KeyError):
             continue
         ans.append(token)
     return ans
@@ -1040,3 +1150,322 @@ async def _await_or_return(obj: Union[_AnyT, Awaitable[_AnyT]]) -> _AnyT:
     if isinstance(obj, Awaitable):
         return cast(_AnyT, await obj)
     return obj
+
+
+class _OIDCServer:
+    """
+    A mock OpenID Connect (OIDC) server implementation for testing OAuth2/OIDC authentication flows.
+
+    This class provides a lightweight, in-memory OIDC server that simulates the behavior of a real
+    OIDC identity provider. It implements the core OIDC endpoints required for testing authentication
+    flows, including authorization, token issuance, and user information retrieval.
+
+    The server runs in a separate thread and can be used as a context manager to ensure proper
+    cleanup of resources. It generates random client credentials and signing keys for each instance,
+    making it suitable for isolated test scenarios.
+
+    Key features:
+    - Implements standard OIDC endpoints (/auth, /token, /.well-known/openid-configuration, etc.)
+    - Supports the authorization code flow
+    - Generates JWT tokens with appropriate claims
+    - Provides JWKS endpoint for token verification
+    - Runs in a separate thread to avoid blocking the main test process
+
+    Usage:
+        with _OIDCServer(port=8000) as oidc_server:
+            # Use oidc_server.client_id and oidc_server.client_secret for OAuth2 configuration
+            # The server will be available at oidc_server.base_url
+    """  # noqa: E501
+
+    def __init__(self, port: int):
+        """
+        Initialize a new OIDC server instance.
+
+        Args:
+            port: The port number on which the server will listen.
+        """
+        self._name: str = f"oidc_server_{token_hex(8)}"
+        self._client_id: str = f"client_id_{token_hex(8)}"
+        self._client_secret: str = f"client_secret_{token_hex(8)}"
+        self._secret_key: str = f"secret_key_{token_hex(16)}"
+        self._host: str = "127.0.0.1"
+        self._port: int = port
+        self._app = FastAPI()
+        self._nonce: Optional[str] = None
+        self._user_id: Optional[str] = None
+        self._user_email: Optional[str] = None
+        self._user_name: Optional[str] = None
+        self._server: Optional[Generator[Thread, None, None]] = None
+        self._thread: Optional[Thread] = None
+        self._setup_routes()
+
+    def _setup_routes(self) -> None:
+        """
+        Set up the FastAPI routes for the OIDC server.
+
+        This method configures all the necessary endpoints for OIDC functionality:
+        - /auth: Authorization endpoint that simulates the initial OAuth2 authorization request.
+        - /token: Token endpoint that exchanges authorization codes for tokens
+        - /.well-known/openid-configuration: Discovery document for OIDC clients
+        - /userinfo: User information endpoint
+        - /.well-known/jwks.json: JSON Web Key Set for token verification
+        """  # noqa: E501
+
+        @self._app.get("/auth")
+        async def auth(request: Request) -> Response:
+            """
+            Authorization endpoint that simulates the initial OAuth2 authorization request.
+
+            Validates the client_id and returns a redirect with an authorization code.
+            """  # noqa: E501
+            params = dict(request.query_params)
+            if params.get("client_id") != self._client_id:
+                return JSONResponse({"error": "invalid_client"}, status_code=400)
+            state = params.get("state")
+            nonce = params.get("nonce")
+            redirect_uri = params.get("redirect_uri")
+            self._nonce = nonce
+            self._user_id = f"user_id_{token_hex(8)}"
+            self._user_email = f"{token_hex(8)}@example.com"
+            self._user_name = f"User {token_hex(8)}"
+            return RedirectResponse(
+                f"{redirect_uri}?code=test_auth_code&state={state}",
+                status_code=302,
+            )
+
+        @self._app.post("/token")
+        async def token(request: Request) -> Response:
+            """
+            Token endpoint that exchanges authorization codes for access and ID tokens.
+
+            Validates client credentials and returns a token response with:
+            - access_token: A randomly generated access token
+            - id_token: A JWT containing user information and the nonce from the auth request
+            - refresh_token: A randomly generated refresh token
+            - Other standard OAuth2 token response fields
+            """  # noqa: E501
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Basic "):
+                try:
+                    credentials = b64decode(auth_header[6:]).decode()
+                    client_id, client_secret = credentials.split(":")
+                    if client_id != self._client_id or client_secret != self._client_secret:
+                        return JSONResponse({"error": "invalid_client"}, status_code=400)
+                except Exception:
+                    return JSONResponse({"error": "invalid_client"}, status_code=400)
+            else:
+                return JSONResponse({"error": "invalid_client"}, status_code=400)
+
+            # Create ID token with required claims
+            now = int(time())
+            id_token = jwt.encode(
+                payload={
+                    "iss": self.base_url,
+                    "sub": self._user_id,
+                    "aud": self._client_id,
+                    "iat": now,
+                    "exp": now + 3600,
+                    "email": self._user_email,
+                    "name": self._user_name,
+                    "nonce": self._nonce,
+                },
+                key=self._secret_key.encode(),
+                algorithm="HS256",
+            )
+
+            # Return token response with all required fields
+            return JSONResponse(
+                {
+                    "access_token": f"access_token_{token_hex(8)}",
+                    "id_token": id_token,
+                    "token_type": "bearer",
+                    "expires_in": 3600,  # 1 hour in seconds
+                    "refresh_token": f"refresh_token_{token_hex(8)}",
+                    "scope": "openid profile email",
+                }
+            )
+
+        @self._app.get("/.well-known/openid-configuration")
+        async def openid_configuration() -> Response:
+            """
+            OpenID Connect discovery document endpoint.
+
+            Returns the standard OIDC configuration document that clients use to
+            discover the endpoints and capabilities of this identity provider.
+            """  # noqa: E501
+            return JSONResponse(
+                {
+                    "issuer": self.base_url,
+                    "authorization_endpoint": self.auth_url,
+                    "token_endpoint": self.token_url,
+                    "userinfo_endpoint": f"{self.base_url}/userinfo",
+                    "jwks_uri": f"{self.base_url}/.well-known/jwks.json",
+                    "response_types_supported": ["code"],
+                    "subject_types_supported": ["public"],
+                    "id_token_signing_alg_values_supported": ["HS256"],
+                    "scopes_supported": ["openid", "profile", "email"],
+                    "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+                    "claims_supported": [
+                        "sub",
+                        "iss",
+                        "aud",
+                        "exp",
+                        "iat",
+                        "name",
+                        "email",
+                        "picture",
+                    ],
+                }
+            )
+
+        @self._app.get("/userinfo")
+        async def userinfo() -> Response:
+            """
+            User information endpoint.
+
+            Returns a JSON response with user profile information that would typically
+            be retrieved from a real identity provider's user database.
+            """  # noqa: E501
+            user_info = {
+                "sub": self._user_id,
+                "name": self._user_name,
+                "email": self._user_email,
+                "picture": "https://example.com/picture.jpg",
+            }
+            return JSONResponse(user_info)
+
+        @self._app.get("/.well-known/jwks.json")
+        async def jwks() -> Response:
+            """
+            JSON Web Key Set endpoint.
+
+            Returns the public keys that clients can use to verify the signatures
+            of ID tokens issued by this server. In this implementation, we're using
+            a symmetric key (HS256) for simplicity, but in a real OIDC provider,
+            this would typically use asymmetric keys (RS256).
+            """  # noqa: E501
+            # Base64url encode the secret key
+            encoded_key = urlsafe_b64encode(self._secret_key.encode()).decode().rstrip("=")
+            return JSONResponse(
+                {
+                    "keys": [
+                        {
+                            "kty": "oct",
+                            "kid": "test_key_id",
+                            "use": "sig",
+                            "alg": "HS256",
+                            "k": encoded_key,
+                        }
+                    ]
+                }
+            )
+
+    def __enter__(self) -> Self:
+        self._server = ThreadServer(
+            app=self._app,
+            host=self._host,
+            port=self._port,
+            root_path="",
+        ).run_in_thread()
+        self._thread = next(self._server)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        if not self._server:
+            return
+        self._server.close()
+        if not self._thread:
+            return
+        self._thread.join(timeout=5)
+
+    @cached_property
+    def base_url(self) -> str:
+        return f"http://{self._host}:{self._port}"
+
+    @cached_property
+    def auth_url(self) -> str:
+        return f"{self.base_url}/auth"
+
+    @cached_property
+    def token_url(self) -> str:
+        return f"{self.base_url}/token"
+
+    @property
+    def user_id(self) -> Optional[str]:
+        """Get the current user ID."""
+        return self._user_id
+
+    @property
+    def user_email(self) -> Optional[str]:
+        """Get the current user email."""
+        return self._user_email
+
+    @property
+    def user_name(self) -> Optional[str]:
+        """Get the current user name."""
+        return self._user_name
+
+    @property
+    def client_id(self) -> str:
+        """Get the OAuth client ID."""
+        return self._client_id
+
+    @property
+    def client_secret(self) -> str:
+        """Get the OAuth client secret."""
+        return self._client_secret
+
+    def __str__(self) -> str:
+        return self._name
+
+
+T = TypeVar("T")
+
+
+async def _get(
+    query_fn: Callable[..., Optional[T]] | Callable[..., Awaitable[Optional[T]]],
+    args: Sequence[Any] = (),
+    kwargs: Mapping[str, Any] = MappingProxyType({}),
+    error_msg: str = "",
+    no_wait: bool = False,
+    retries: int = 60,
+    initial_wait_time: float = 0.1,
+    max_wait_time: float = 1,
+) -> T:
+    """If no_wait, run the query once. Otherwise, retry it if it returns None
+    and raise if retries are exhausted.
+
+    Args:
+        query_fn: Function that returns Optional[T] or Awaitable[Optional[T]]
+        args: Positional arguments for query_fn
+        kwargs: Keyword arguments for query_fn
+        error_msg: Error message if all retries fail
+        no_wait: If True, only try once without retries
+        retries: Maximum number of retry attempts
+        initial_wait_time: Initial wait time between retries in seconds
+        max_wait_time: Maximum wait time between retries in seconds
+
+    Returns:
+        Result from query_fn
+
+    Raises:
+        AssertionError: If query_fn returns None after all retries
+    """  # noqa: E501
+    from asyncio import sleep
+
+    wt = 0 if no_wait else initial_wait_time
+    while True:
+        await sleep(wt)
+        res = query_fn(*args, **kwargs)
+        ans = cast(Optional[T], await res) if isinstance(res, Awaitable) else res
+        if ans is not None:
+            return ans
+        if no_wait or not retries:
+            raise AssertionError(error_msg)
+        retries -= 1
+        wt = min(wt * 1.5, max_wait_time)

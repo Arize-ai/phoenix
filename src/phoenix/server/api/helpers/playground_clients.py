@@ -457,6 +457,12 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient):
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "gpt-4.1-2025-04-14",
+        "gpt-4.1-mini-2025-04-14",
+        "gpt-4.1-nano-2025-04-14",
         "gpt-4o",
         "gpt-4o-2024-11-20",
         "gpt-4o-2024-08-06",
@@ -695,6 +701,8 @@ class AzureOpenAIStreamingClient(OpenAIBaseStreamingClient):
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
+        "claude-3-7-latest",
+        "claude-3-7-sonnet-20250219",
         "claude-3-5-sonnet-latest",
         "claude-3-5-haiku-latest",
         "claude-3-5-sonnet-20241022",
@@ -903,7 +911,10 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     provider_key=GenerativeProviderKey.GOOGLE,
     model_names=[
         PROVIDER_DEFAULT,
-        "gemini-2.0-flash-exp",
+        "gemini-2.5-pro-preview-03-25",
+        "gemini-2.0-flash-lite",
+        "gemini-2.0-flash-001",
+        "gemini-2.0-flash-thinking-exp-01-21",
         "gemini-1.5-flash",
         "gemini-1.5-flash-8b",
         "gemini-1.5-pro",

@@ -1,4 +1,4 @@
-import React, {
+import {
   Fragment,
   ReactNode,
   startTransition,
@@ -142,8 +142,10 @@ function OpenAiModelConfigFormField({
 
 function AzureOpenAiModelConfigFormField({
   instance,
+  container,
 }: {
   instance: PlaygroundNormalizedInstance;
+  container: HTMLElement | null;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
   const updateModelConfig = useCallback(
@@ -200,6 +202,7 @@ function AzureOpenAiModelConfigFormField({
         <Input placeholder="e.x. https://my.openai.azure.com" />
       </TextField>
       <ComboBox
+        container={container ?? undefined}
         size="L"
         label="API Version"
         data-testid="azure-api-version-combobox"
@@ -445,7 +448,10 @@ function ModelConfigDialogContent(props: ModelConfigDialogContentProps) {
           container={container ?? null}
         />
       ) : instance.model.provider === "AZURE_OPENAI" ? (
-        <AzureOpenAiModelConfigFormField instance={instance} />
+        <AzureOpenAiModelConfigFormField
+          instance={instance}
+          container={container ?? null}
+        />
       ) : (
         <ModelComboBox
           modelName={instance.model.modelName}

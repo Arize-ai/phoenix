@@ -1,4 +1,4 @@
-import React, { ReactNode, useCallback, useMemo, useState } from "react";
+import { memo, ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
 import { css, ThemeContext as EmotionThemeContext } from "@emotion/react";
 
@@ -229,7 +229,7 @@ export function PointCloud() {
   );
 }
 
-const Projection = React.memo(function Projection() {
+const Projection = memo(function Projection() {
   const points = usePointCloudContext((state) => state.points);
   const canvasMode = usePointCloudContext((state) => state.canvasMode);
   const setSelectedEventIds = usePointCloudContext(

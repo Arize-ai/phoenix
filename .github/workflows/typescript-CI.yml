@@ -1,8 +1,10 @@
 name: Typescript CI
+permissions:
+  contents: read
 
 on:
   push:
-    branches: [main, sessions]
+    branches: [main, feat/annotations]
   pull_request:
     paths:
       - "app/**"

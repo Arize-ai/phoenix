@@ -1,5 +1,3 @@
-import React from "react";
-
 import { ActionMenu, Item } from "@arizeai/components";
 
 import { Icon, Icons } from "@phoenix/components";

@@ -70,7 +70,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-See [Broken link](broken-reference "mention") for more details
+See [Terminal](../../environments.md#terminal) for more details
 {% endtab %}
 
 {% tab title="Docker" %}
@@ -102,7 +102,7 @@ import os
 os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://localhost:6006"
 ```
 
-For more info on using Phoenix with Docker, see [#docker](llamaindex.md#docker "mention")
+For more info on using Phoenix with Docker, see [Docker](https://docs.arize.com/phoenix/self-hosting/deployment-options/docker).
 {% endtab %}
 
 {% tab title="Notebook" %}
@@ -120,7 +120,7 @@ px.launch_app()
 ```
 
 {% hint style="info" %}
-By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [Broken link](broken-reference "mention") or use one of the other deployment options to retain traces.
+By default, notebook instances do not have persistent storage, so your traces will disappear after the notebook is closed. See [self-hosting](../../) or use one of the other deployment options to retain traces.
 {% endhint %}
 {% endtab %}
 {% endtabs %}
@@ -137,7 +137,9 @@ Initialize the LlamaIndexInstrumentor before your application code.
 
 ```python
 from openinference.instrumentation.llama_index import LlamaIndexInstrumentor
+from phoenix.otel import register
 
+tracer_provider = register()
 LlamaIndexInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 

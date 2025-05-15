@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import operator
 from datetime import datetime, timedelta
-from typing import Any, ClassVar, Optional
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Optional
 
 import strawberry
 from aioitertools.itertools import islice
@@ -10,7 +10,7 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import desc, distinct, func, or_, select
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql.expression import tuple_
-from strawberry import ID, UNSET, Private
+from strawberry import ID, UNSET, Private, lazy
 from strawberry.relay import Connection, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
@@ -25,13 +25,16 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.pagination import (
+    ConnectionArgs,
     Cursor,
     CursorSortColumn,
     CursorString,
     connection_from_cursors_and_nodes,
+    connection_from_list,
 )
 from phoenix.server.api.types.ProjectSession import ProjectSession, to_gql_project_session
 from phoenix.server.api.types.SortDir import SortDir
@@ -42,6 +45,8 @@ from phoenix.server.api.types.ValidationResult import ValidationResult
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
+if TYPE_CHECKING:
+    from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 
 
 @strawberry.type
@@ -142,7 +147,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> int:
+    ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("total", self.project_rowid, time_range, filter_condition),
         )
@@ -153,7 +158,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> int:
+    ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("prompt", self.project_rowid, time_range, filter_condition),
         )
@@ -164,7 +169,7 @@ class Project(Node):
         info: Info[Context, None],
         time_range: Optional[TimeRange] = UNSET,
         filter_condition: Optional[str] = UNSET,
-    ) -> int:
+    ) -> float:
         return await info.context.data_loaders.token_counts.load(
             ("completion", self.project_rowid, time_range, filter_condition),
         )
@@ -539,6 +544,73 @@ class Project(Node):
                 is_valid=False,
                 error_message=e.msg,
             )
+
+    @strawberry.field
+    async def annotation_configs(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+    ) -> Connection[AnnotationConfig]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        async with info.context.db() as session:
+            annotation_configs = await session.stream_scalars(
+                select(models.AnnotationConfig)
+                .join(
+                    models.ProjectAnnotationConfig,
+                    models.AnnotationConfig.id
+                    == models.ProjectAnnotationConfig.annotation_config_id,
+                )
+                .where(models.ProjectAnnotationConfig.project_id == self.project_rowid)
+                .order_by(models.AnnotationConfig.name)
+            )
+            data = [to_gql_annotation_config(config) async for config in annotation_configs]
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    async def trace_retention_policy(
+        self,
+        info: Info[Context, None],
+    ) -> Annotated[ProjectTraceRetentionPolicy, lazy(".ProjectTraceRetentionPolicy")]:
+        from .ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+
+        id_ = await info.context.data_loaders.trace_retention_policy_id_by_project_id.load(
+            self.project_rowid
+        )
+        return ProjectTraceRetentionPolicy(id=id_)
+
+    @strawberry.field
+    async def created_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_project:
+            created_at = self.db_project.created_at
+        else:
+            created_at = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.created_at),
+            )
+        return created_at
+
+    @strawberry.field
+    async def updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> datetime:
+        if self.db_project:
+            updated_at = self.db_project.updated_at
+        else:
+            updated_at = await info.context.data_loaders.project_fields.load(
+                (self.project_rowid, models.Project.updated_at),
+            )
+        return updated_at
 
     @strawberry.field(
         description="Hourly span count for the project.",

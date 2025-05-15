@@ -4,7 +4,7 @@ description: Version and track changes made to prompt templates
 
 # Prompt Management
 
-<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_management.gif" alt=""><figcaption><p>Iterate on prampts, ship prompts when they are tested</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/prompt_management.gif" alt=""><figcaption><p>Iterate on prompts, ship prompts when they are tested</p></figcaption></figure>
 
 
 

@@ -1,12 +1,12 @@
-import React from "react";
-
-import { ActionMenu, Item } from "@arizeai/components";
+import { ActionMenu, ActionMenuProps, Item } from "@arizeai/components";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 
-type AnnotationActionMenuProps = {
+export type AnnotationActionMenuProps = Pick<
+  ActionMenuProps<AnnotationAction>,
+  "buttonVariant" | "buttonSize" | "isDisabled"
+> & {
   onDelete: () => void;
-  isDisabled?: boolean;
 };
 
 enum AnnotationAction {
@@ -17,7 +17,12 @@ enum AnnotationAction {
  * A generic action menu for annotations that can be extended
  */
 export function AnnotationActionMenu(props: AnnotationActionMenuProps) {
-  const { onDelete, isDisabled = false } = props;
+  const {
+    onDelete,
+    isDisabled = false,
+    buttonVariant = "quiet",
+    buttonSize = "compact",
+  } = props;
 
   return (
     <div
@@ -30,8 +35,8 @@ export function AnnotationActionMenu(props: AnnotationActionMenuProps) {
     >
       <ActionMenu
         align="end"
-        buttonVariant="quiet"
-        buttonSize="compact"
+        buttonVariant={buttonVariant}
+        buttonSize={buttonSize}
         isDisabled={isDisabled}
         onAction={(action) => {
           switch (action) {

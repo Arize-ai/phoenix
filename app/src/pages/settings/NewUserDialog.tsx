@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Dialog, DialogContainer } from "@arizeai/components";
@@ -39,6 +39,7 @@ export function NewUserDialog({
             username: data.username,
             password: data.password,
             role: data.role,
+            sendWelcomeEmail: true,
           },
         },
         onCompleted: (response) => {

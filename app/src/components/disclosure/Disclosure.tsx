@@ -1,4 +1,4 @@
-import React, { CSSProperties, PropsWithChildren } from "react";
+import { CSSProperties, PropsWithChildren } from "react";
 import {
   Button,
   Disclosure as AriaDisclosure,
@@ -101,7 +101,7 @@ export const DisclosureTrigger = ({
   width,
 }: DisclosureTriggerProps) => {
   return (
-    <Heading>
+    <Heading className="react-aria-Heading ac-disclosure-trigger">
       <Button
         slot="trigger"
         data-arrow-position={arrowPosition}

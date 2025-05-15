@@ -1,4 +1,3 @@
-import React from "react";
 import { useFragment } from "react-relay";
 import { formatRelative } from "date-fns/formatRelative";
 import { graphql } from "relay-runtime";

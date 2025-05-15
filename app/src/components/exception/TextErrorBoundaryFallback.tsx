@@ -1,4 +1,3 @@
-import React from "react";
 import { css } from "@emotion/react";
 
 import { Icon, Icons, Text } from "@phoenix/components";

@@ -1,4 +1,3 @@
-import React from "react";
 import { Panel, PanelGroup } from "react-resizable-panels";
 import { Meta, StoryFn } from "@storybook/react";
 

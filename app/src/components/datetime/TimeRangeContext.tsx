@@ -17,8 +17,12 @@ export const TimeRangeContext = createContext<TimeRangeContextType | null>(
   null
 );
 
-export function useTimeRange(): TimeRangeContextType {
-  const context = React.useContext(TimeRangeContext);
+export function useNullableTimeRangeContext() {
+  return React.useContext(TimeRangeContext);
+}
+
+export function useTimeRange() {
+  const context = useNullableTimeRangeContext();
   if (context === null) {
     throw new Error(
       "useTimeRange must be used within a TimeRangeContextProvider"

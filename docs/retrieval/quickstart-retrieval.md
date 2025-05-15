@@ -59,7 +59,7 @@ primary_schema = Schema(
 
 In order to run retrieval Evals the following code can be used for quick analysis of common frameworks of LangChain and LlamaIndex.
 
-Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](../reference/open-inference.md) specification.
+Independent of the framework you are instrumenting, Phoenix traces allow you to get retrieval data in a common dataframe format that follows the [OpenInference](https://docs.arize.com/phoenix/references/openinference) specification.
 
 ```python
 # Get traces from Phoenix into dataframe 
@@ -78,7 +78,7 @@ Once the data is in a dataframe, evaluations can be run on the data. Evaluations
 
 ### Q\&A and Hallucination Evals
 
-This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many other [models](../api/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
+This example shows how to run Q\&A and Hallucnation Evals with OpenAI (many other [models](../evaluation/how-to-evals/evaluation-models.md) are available including Anthropic, Mixtral/Mistral, Gemini, OpenAI Azure, Bedrock, etc...)
 
 ```python
 from phoenix.trace import SpanEvaluations, DocumentEvaluations

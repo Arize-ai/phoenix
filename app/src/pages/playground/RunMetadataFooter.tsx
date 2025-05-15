@@ -1,5 +1,6 @@
-import React, { ReactNode, startTransition, Suspense, useState } from "react";
+import { ReactNode, startTransition, Suspense, useState } from "react";
 import { useLazyLoadQuery } from "react-relay";
+import { useSearchParams } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { DialogContainer } from "@arizeai/components";
@@ -8,12 +9,14 @@ import { Button, Flex, Icon, Icons, View } from "@phoenix/components";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
+import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 
 import { RunMetadataFooterQuery } from "./__generated__/RunMetadataFooterQuery.graphql";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
 
 export function RunMetadataFooter({ spanId }: { spanId: string }) {
   const [dialog, setDialog] = useState<ReactNode>(null);
+  const [, setSearchParams] = useSearchParams();
   const data = useLazyLoadQuery<RunMetadataFooterQuery>(
     graphql`
       query RunMetadataFooterQuery($spanId: GlobalID!) {
@@ -103,7 +106,13 @@ export function RunMetadataFooter({ spanId }: { spanId: string }) {
       <DialogContainer
         type="slideOver"
         isDismissable
-        onDismiss={() => setDialog(null)}
+        onDismiss={() => {
+          setDialog(null);
+          setSearchParams((searchParams) => {
+            searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+            return searchParams;
+          });
+        }}
       >
         {dialog}
       </DialogContainer>

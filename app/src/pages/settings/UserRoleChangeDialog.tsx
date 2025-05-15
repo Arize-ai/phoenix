@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Dialog } from "@arizeai/components";
