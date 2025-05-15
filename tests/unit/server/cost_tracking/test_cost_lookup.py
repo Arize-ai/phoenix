@@ -124,11 +124,15 @@ def test_regex_no_match_raises(cost_lookup: ModelCostLookup) -> None:
 def test_override_precedence(cost_lookup: ModelCostLookup) -> None:
     """An override should take precedence over the base cost table."""
     cost_lookup.add_pattern(
-        provider="openai", pattern=re.compile(r"gpt-4"), cost=ModelTokenCost(input=0.06, output=0.06)
+        provider="openai",
+        pattern=re.compile(r"gpt-4"),
+        cost=ModelTokenCost(input=0.06, output=0.06),
     )
 
     cost_lookup.add_override(
-        provider="openai", pattern=re.compile(r"gpt-4"), cost=ModelTokenCost(input=0.04, output=0.04)
+        provider="openai",
+        pattern=re.compile(r"gpt-4"),
+        cost=ModelTokenCost(input=0.04, output=0.04),
     )
 
     assert cost_lookup.get_cost(provider="openai", model_name="gpt-4") == ModelTokenCost(
@@ -188,7 +192,9 @@ def test_multiple_overrides_priority(cost_lookup: ModelCostLookup) -> None:
 
 def test_cache_population(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
-        provider="openai", pattern=re.compile(r"gpt-4"), cost=ModelTokenCost(input=0.05, output=0.05)
+        provider="openai",
+        pattern=re.compile(r"gpt-4"),
+        cost=ModelTokenCost(input=0.05, output=0.05),
     )
 
     assert len(cost_lookup._cache) == 0
@@ -224,7 +230,9 @@ def test_cache_busted_on_override(cost_lookup: ModelCostLookup) -> None:
 
 def test_cache_hit_avoids_recompute(cost_lookup: ModelCostLookup) -> None:
     cost_lookup.add_pattern(
-        provider="openai", pattern=re.compile(r"gpt-4"), cost=ModelTokenCost(input=0.05, output=0.05)
+        provider="openai",
+        pattern=re.compile(r"gpt-4"),
+        cost=ModelTokenCost(input=0.05, output=0.05),
     )
 
     with mock.patch.object(

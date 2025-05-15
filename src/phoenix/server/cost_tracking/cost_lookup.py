@@ -1,6 +1,9 @@
+import json
+import os
 import re
 from collections import defaultdict
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterator, Optional, Union
 
 
@@ -192,3 +195,47 @@ class ModelCostLookup:
             if provider_matches and override_pattern.fullmatch(model_name):
                 return override_cost
         return None
+
+
+def create_cost_table(
+    manifest_path: Optional[Union[str, "os.PathLike[str]"]] = None,
+) -> "ModelCostLookup":
+    if manifest_path is None:
+        manifest_path = Path(__file__).with_name("model_cost_manifest.json")
+
+    manifest_path = Path(manifest_path)
+
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Model cost manifest not found: {manifest_path}")
+
+    with manifest_path.open("r", encoding="utf-8") as fp:
+        try:
+            manifest_entries: list[dict[str, Any]] = json.load(fp)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Failed to parse manifest JSON: {manifest_path}") from exc
+
+    lookup = ModelCostLookup()
+
+    for entry in manifest_entries:
+        provider: Optional[str] = entry.get("provider")
+
+        try:
+            pattern = re.compile(entry["regex"])
+        except re.error as exc:
+            raise ValueError(
+                f"Invalid regex in manifest for model {entry.get('Model')}: {entry['regex']}"
+            ) from exc
+
+        cost = ModelTokenCost(
+            input=entry.get("input"),
+            output=entry.get("output"),
+            cached_input=entry.get("cached_input") or entry.get("cache_write"),
+            cached_output=entry.get("cached_output") or entry.get("cache_read"),
+        )
+
+        lookup.add_pattern(provider, pattern, cost)
+
+    return lookup
+
+
+COST_TABLE = create_cost_table()
