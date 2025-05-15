@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.status import (
     HTTP_201_CREATED,
@@ -47,20 +48,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["users"])
 
 
-class UserCreate(V1RoutesBaseModel):
+class UserData(V1RoutesBaseModel):
     email: str
     username: str
-    password: str
-    role: str
+    password: Optional[str] = None
+    role: UserRole
 
 
-class User(V1RoutesBaseModel):
+class User(UserData):
     id: str
-    email: str
-    username: str
     profile_picture_url: Optional[str] = None
     created_at: datetime
-    role: str
     password_needs_reset: bool
     auth_method: Optional[str] = None
 
@@ -74,7 +72,7 @@ class GetUserResponseBody(ResponseBody[User]):
 
 
 class CreateUserRequestBody(V1RoutesBaseModel):
-    user: UserCreate
+    user: UserData
     send_welcome_email: bool = True
 
 
@@ -102,29 +100,16 @@ async def list_users(
         default=100, description="The max number of users to return at a time.", gt=0
     ),
 ) -> GetUsersResponseBody:
-    stmt = (
-        select(
-            OrmUser.id,
-            OrmUser.email,
-            OrmUser.username,
-            OrmUser.profile_picture_url,
-            OrmUser.created_at,
-            OrmUser.reset_password,
-            OrmUser.auth_method,
-            UserRole.name.label("role"),
-        )
-        .join(UserRole, OrmUser.user_role_id == UserRole.id)
-        .order_by(OrmUser.id.desc())
-    )
+    stmt = select(OrmUser).options(joinedload(OrmUser.role)).order_by(OrmUser.id.desc())
     if cursor:
         try:
             cursor_id = GlobalID.from_id(cursor).node_id
-            stmt = stmt.filter(OrmUser.id <= int(cursor_id))
+            stmt = stmt.where(OrmUser.id <= int(cursor_id))
         except Exception:
             raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
     stmt = stmt.limit(limit + 1)
     async with request.app.state.db() as db:
-        result = await db.execute(stmt)
+        result = await db.scalars(stmt)
         users = result.all()
     next_cursor = None
     if len(users) == limit + 1:
@@ -170,12 +155,12 @@ async def create_user(
     user = request_body.user
     # Validate email and password formats
     validate_email_format(user.email)
-    validate_password_format(user.password)
-    PASSWORD_REQUIREMENTS.validate(user.password)
+    password = (user.password or secrets.token_hex()).strip()
+    validate_password_format(password)
 
     # Generate salt and hash password using the same method as in context.py
     salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-    compute = partial(compute_password_hash, password=user.password, salt=salt)
+    compute = partial(compute_password_hash, password=password, salt=salt)
     password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
 
     async with request.app.state.db() as db:

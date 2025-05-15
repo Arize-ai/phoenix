@@ -36,6 +36,9 @@ class _MockWelcomeEmailSender:
             raise RuntimeError("Failed to send email")
 
 
+class TestEnsureEnums:
+    async def test_ensure_enums
+    
 class TestEnsureStartupAdmins:
     @pytest.mark.parametrize("email_sending_fails", [False, True])
     async def test_ensure_startup_admins(

@@ -330,6 +330,24 @@ class UpsertExperimentEvaluationResponseBodyData(TypedDict):
     id: str
 
 
+class User(TypedDict):
+    id: str
+    email: str
+    username: str
+    created_at: str
+    role: str
+    password_needs_reset: bool
+    profile_picture_url: NotRequired[str]
+    auth_method: NotRequired[str]
+
+
+class UserCreate(TypedDict):
+    email: str
+    username: str
+    password: str
+    role: str
+
+
 class ValidationError(TypedDict):
     loc: Sequence[Union[str, int]]
     msg: str
@@ -392,6 +410,15 @@ class CreateProjectResponseBody(TypedDict):
     data: Project
 
 
+class CreateUserRequestBody(TypedDict):
+    user: UserCreate
+    send_welcome_email: NotRequired[bool]
+
+
+class CreateUserResponseBody(TypedDict):
+    data: User
+
+
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
@@ -423,6 +450,11 @@ class GetPromptVersionTagsResponseBody(TypedDict):
 
 class GetPromptsResponseBody(TypedDict):
     data: Sequence[Prompt]
+    next_cursor: Optional[str]
+
+
+class GetUsersResponseBody(TypedDict):
+    data: Sequence[User]
     next_cursor: Optional[str]
 
 
