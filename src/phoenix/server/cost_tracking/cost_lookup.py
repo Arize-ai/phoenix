@@ -12,8 +12,8 @@ class ModelTokenCost:
     # Cost in USD
     input: Optional[float] = None
     output: Optional[float] = None
-    cached_input: Optional[float] = None
-    cached_output: Optional[float] = None
+    cache_write: Optional[float] = None
+    cache_read: Optional[float] = None
 
 
 class RegexDict:
@@ -229,8 +229,8 @@ def create_cost_table(
         cost = ModelTokenCost(
             input=entry.get("input"),
             output=entry.get("output"),
-            cached_input=entry.get("cache_write"),
-            cached_output=entry.get("cache_read"),
+            cache_write=entry.get("cache_write"),
+            cache_read=entry.get("cache_read"),
         )
 
         lookup.add_pattern(provider, pattern, cost)
