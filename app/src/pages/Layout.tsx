@@ -87,7 +87,7 @@ function SideNav() {
       method: "POST",
     });
     if (response.ok) {
-      navigate("/login");
+      navigate(window.Config.oAuth2Enforced ? "/logout":"/login");
       return;
     }
     notifyError({

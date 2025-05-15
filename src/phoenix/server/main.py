@@ -103,6 +103,9 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 |  🚀 Phoenix Server 🚀
 |  Phoenix UI: {{ ui_path }}
 |  Authentication: {{ auth_enabled }}
+{%- if oauth2_enforced %}
+|  OAuth2: Enforced
+{%- endif %}
 {%- if auth_enabled_for_http or auth_enabled_for_grpc %}
 {%- if tls_enabled_for_http %}
 |  TLS: Enabled for HTTP
@@ -332,7 +335,7 @@ def main() -> None:
         reference_inferences,
     )
 
-    authentication_enabled, secret = get_env_auth_settings()
+    authentication_enabled, secret, oauth2_enforced = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
     fixture_evals: list[pb.Evaluation] = []
@@ -391,11 +394,17 @@ def main() -> None:
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
         auth_enabled=authentication_enabled,
+        oauth2_enforced=oauth2_enforced,
         tls_enabled_for_http=tls_enabled_for_http,
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
     )
+
+    oauth2_client_configs=get_env_oauth2_settings()
+    if oauth2_enforced and (not authentication_enabled or len(oauth2_client_configs) == 0):
+        raise ValueError("OAuth2 is enforced but no OAuth2 client configs are provided.")
+
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
     scaffolder_config = ScaffolderConfig(
@@ -442,7 +451,8 @@ def main() -> None:
         refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
-        oauth2_client_configs=get_env_oauth2_settings(),
+        oauth2_client_configs=oauth2_client_configs,
+        oauth2_enforced=oauth2_enforced,
         allowed_origins=allowed_origins,
     )
 

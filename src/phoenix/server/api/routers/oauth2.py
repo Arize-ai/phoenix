@@ -77,49 +77,55 @@ else:
     create_tokens_dependencies = []
 
 
+@router.get("/{idp_name}/login", dependencies=login_dependencies)
 @router.post("/{idp_name}/login", dependencies=login_dependencies)
 async def login(
     request: Request,
     idp_name: Annotated[str, Path(min_length=1, pattern=_LOWERCASE_ALPHANUMS_AND_UNDERSCORES)],
     return_url: Optional[str] = Query(default=None, alias="returnUrl"),
 ) -> RedirectResponse:
-    secret = request.app.state.get_secret()
-    if not isinstance(
-        oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
-    ):
-        return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
-    if (referer := request.headers.get("referer")) is not None:
-        # if the referer header is present, use it as the origin URL
-        parsed_url = urlparse(referer)
-        origin_url = _append_root_path_if_exists(
-            request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
+    print(f"Login request for IDP: {idp_name}")
+    try:
+        secret = request.app.state.get_secret()
+        if not isinstance(
+            oauth2_client := request.app.state.oauth2_clients.get_client(idp_name), OAuth2Client
+        ):
+            return _redirect_to_login(request=request, error=f"Unknown IDP: {idp_name}.")
+        if (referer := request.headers.get("referer")) is not None:
+            # if the referer header is present, use it as the origin URL
+            parsed_url = urlparse(referer)
+            origin_url = _append_root_path_if_exists(
+                request=request, base_url=f"{parsed_url.scheme}://{parsed_url.netloc}"
+            )
+        else:
+            # fall back to the base url as the origin URL
+            origin_url = str(request.base_url)
+        authorization_url_data = await oauth2_client.create_authorization_url(
+            redirect_uri=_get_create_tokens_endpoint(
+                request=request, origin_url=origin_url, idp_name=idp_name
+            ),
+            state=_generate_state_for_oauth2_authorization_code_flow(
+                secret=secret, origin_url=origin_url, return_url=return_url
+            ),
         )
-    else:
-        # fall back to the base url as the origin URL
-        origin_url = str(request.base_url)
-    authorization_url_data = await oauth2_client.create_authorization_url(
-        redirect_uri=_get_create_tokens_endpoint(
-            request=request, origin_url=origin_url, idp_name=idp_name
-        ),
-        state=_generate_state_for_oauth2_authorization_code_flow(
-            secret=secret, origin_url=origin_url, return_url=return_url
-        ),
-    )
-    assert isinstance(authorization_url := authorization_url_data.get("url"), str)
-    assert isinstance(state := authorization_url_data.get("state"), str)
-    assert isinstance(nonce := authorization_url_data.get("nonce"), str)
-    response = RedirectResponse(url=authorization_url, status_code=HTTP_302_FOUND)
-    response = set_oauth2_state_cookie(
-        response=response,
-        state=state,
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
-    )
-    response = set_oauth2_nonce_cookie(
-        response=response,
-        nonce=nonce,
-        max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
-    )
-    return response
+        assert isinstance(authorization_url := authorization_url_data.get("url"), str)
+        assert isinstance(state := authorization_url_data.get("state"), str)
+        assert isinstance(nonce := authorization_url_data.get("nonce"), str)
+        response = RedirectResponse(url=authorization_url, status_code=HTTP_302_FOUND)
+        response = set_oauth2_state_cookie(
+            response=response,
+            state=state,
+            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        )
+        response = set_oauth2_nonce_cookie(
+            response=response,
+            nonce=nonce,
+            max_age=timedelta(minutes=DEFAULT_OAUTH2_LOGIN_EXPIRY_MINUTES),
+        )
+        return response
+    except err:
+        print(f"Error during OAuth2 login: {err}")
+        raise err
 
 
 @router.get("/{idp_name}/tokens", dependencies=create_tokens_dependencies)

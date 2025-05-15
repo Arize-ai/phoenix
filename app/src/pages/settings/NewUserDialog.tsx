@@ -61,7 +61,7 @@ export function NewUserDialog({
       isKeyboardDismissDisabled
     >
       <Dialog title="Add user">
-        <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} />
+        <UserForm onSubmit={onSubmit} isSubmitting={isCommitting} emailOnly={window.Config.oAuth2Enforced} />
       </Dialog>
     </DialogContainer>
   );

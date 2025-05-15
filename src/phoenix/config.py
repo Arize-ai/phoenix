@@ -138,6 +138,7 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
+ENV_PHOENIX_ENFORCE_OAUTH2 = "PHOENIX_OAUTH2_ENFORCE"
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
 """
@@ -630,6 +631,11 @@ def get_env_enable_auth() -> bool:
     """
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
 
+def get_env_enforce_oauth2() -> bool:
+    """
+    Gets the value of the ENV_PHOENIX_ENFORCE_OAUTH2 environment variable.
+    """
+    return _bool_val(ENV_PHOENIX_ENFORCE_OAUTH2, False)
 
 def get_env_disable_rate_limit() -> bool:
     """
@@ -695,12 +701,13 @@ def get_env_auth_settings() -> tuple[bool, Optional[str]]:
     """
     enable_auth = get_env_enable_auth()
     phoenix_secret = get_env_phoenix_secret()
+    enable_oauth = get_env_enforce_oauth2()
     if enable_auth and not phoenix_secret:
         raise ValueError(
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
-    return enable_auth, phoenix_secret
+    return enable_auth, phoenix_secret, enable_oauth
 
 
 def get_env_password_reset_token_expiry() -> timedelta:
@@ -902,7 +909,6 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
-
 
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config

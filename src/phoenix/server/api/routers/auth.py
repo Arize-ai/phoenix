@@ -68,6 +68,11 @@ router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_de
 
 @router.post("/login")
 async def login(request: Request) -> Response:
+    if get_env_enforce_oauth2():
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail="OAuth2 login is not supported in this version",
+        )
     assert isinstance(access_token_expiry := request.app.state.access_token_expiry, timedelta)
     assert isinstance(refresh_token_expiry := request.app.state.refresh_token_expiry, timedelta)
     token_store: TokenStore = request.app.state.get_token_store()

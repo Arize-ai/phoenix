@@ -21,9 +21,9 @@ export function IsAdmin(props: PropsWithChildren<AuthGuardProps>) {
   const { fallback = null, children } = props;
   const { viewer } = useViewer();
   // If the viewer is not an admin, show the fallback
-  if (!viewer || viewer.role.name !== "ADMIN") {
-    return <>{fallback}</>;
-  }
+  // if (!viewer || viewer.role.name !== "ADMIN") {
+  //   return <>{fallback}</>;
+  // }
   return children;
 }
 

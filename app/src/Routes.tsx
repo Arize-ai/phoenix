@@ -66,6 +66,7 @@ import {
   ForgotPasswordPage,
   homeLoader,
   LoginPage,
+  LogoutPage,
   ModelPage,
   ModelRoot,
   PlaygroundPage,
@@ -104,6 +105,7 @@ const router = createBrowserRouter(
       */}
       <Route path="/v1/*" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/logout" element={<LogoutPage />} />
       <Route
         path="/reset-password"
         element={<ResetPasswordPage />}
