@@ -38,7 +38,7 @@ export const DashboardPanel = forwardRef(function DashboardPanel(
       height="100%"
       width="100%"
       data-testid={`dashboard-panel`}
-      backgroundColor="grey-50"
+      backgroundColor="grey-75"
       ref={ref}
     >
       <DashboardPanelHeader title={title} />

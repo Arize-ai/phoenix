@@ -11,6 +11,7 @@ import {
   View,
 } from "@phoenix/components";
 
+import { DashboardBarChart } from "./DashboardBarChart";
 import { DashboardPanel } from "./DashboardPanel";
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -31,7 +32,7 @@ const gridContainerCSS = css`
       var(--ac-global-color-grey-400) 1px,
       transparent 1px
     );
-    background-size: 16px 16px;
+    background-size: 20px 20px;
   }
 `;
 
@@ -78,13 +79,19 @@ export function DashboardPage() {
           draggableHandle=".dashboard-panel-header"
         >
           <div key="a">
-            <DashboardPanel title="Grid Item A">Grid Item A</DashboardPanel>
+            <DashboardPanel title="Grid Item A">
+              <DashboardBarChart />
+            </DashboardPanel>
           </div>
           <div key="b">
-            <DashboardPanel title="Grid Item B">Grid Item B</DashboardPanel>
+            <DashboardPanel title="Grid Item B">
+              <DashboardBarChart />
+            </DashboardPanel>
           </div>
           <div key="c">
-            <DashboardPanel title="Grid Item C">Grid Item C</DashboardPanel>
+            <DashboardPanel title="Grid Item C">
+              <DashboardBarChart />
+            </DashboardPanel>
           </div>
         </ResponsiveGridLayout>
       </div>

@@ -1201,7 +1201,11 @@ const codeMirrorOverridesCSS = css`
 
 const ReactGridLayoutCSS = css`
   .react-grid-item.react-grid-placeholder {
-    background: var(--ac-global-color-grey-400);
+    // the placeholder doesn't look good
+    background: transparent;
+  }
+  .ac-theme--dark .react-resizable-handle {
+    filter: invert(1);
   }
 `;
 
