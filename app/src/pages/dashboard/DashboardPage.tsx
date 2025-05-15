@@ -1,7 +1,17 @@
-// @ts-expect-error: no types for react-grid-layout
+import { useState } from "react";
 import { Layouts, Responsive, WidthProvider } from "react-grid-layout";
 import { css } from "@emotion/react";
 
+import {
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  ToggleButton,
+  View,
+} from "@phoenix/components";
+
+import { DashboardPanel } from "./DashboardPanel";
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const layouts: Layouts = {
@@ -12,48 +22,56 @@ const layouts: Layouts = {
   ],
 };
 
-const gridItemCSS = css`
-  background: var(--ac-global-color-grey-100);
-  border: 1px solid var(--ac-global-border-color-default);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  height: 100%;
-`;
-
 export function DashboardPage() {
+  const [isEditing, setIsEditing] = useState(false);
   return (
-    <div
+    <main
       css={css`
         width: 100%;
         height: 100%;
-        padding: 32px;
         box-sizing: border-box;
-        background: var(--ac-global-color-grey-50);
       `}
     >
+      <View
+        paddingX="size-200"
+        paddingY="size-100"
+        borderBottomWidth="thin"
+        borderBottomColor="dark"
+        flex="none"
+      >
+        <Flex
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Heading level={1}>Dashboard Title</Heading>
+          <ToggleButton
+            leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+            isSelected={isEditing}
+            onChange={(selected) => setIsEditing(selected)}
+          />
+        </Flex>
+      </View>
       <ResponsiveGridLayout
         className="layout"
         layouts={layouts}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
         rowHeight={80}
-        isResizable
-        isDraggable
-        style={{ minHeight: 400 }}
+        isResizable={isEditing}
+        isDraggable={isEditing}
+        containerPadding={[16, 16]}
       >
-        <div key="a" css={gridItemCSS}>
-          Grid Item A
+        <div key="a">
+          <DashboardPanel title="Grid Item A">Grid Item A</DashboardPanel>
         </div>
-        <div key="b" css={gridItemCSS}>
-          Grid Item B
+        <div key="b">
+          <DashboardPanel title="Grid Item B">Grid Item B</DashboardPanel>
         </div>
-        <div key="c" css={gridItemCSS}>
-          Grid Item C
+        <div key="c">
+          <DashboardPanel title="Grid Item C">Grid Item C</DashboardPanel>
         </div>
       </ResponsiveGridLayout>
-    </div>
+    </main>
   );
 }
