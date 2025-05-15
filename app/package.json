@@ -51,6 +51,7 @@
     "react-hotkeys-hook": "^4.5.0",
     "react-markdown": "^9.0.1",
     "react-relay": "^18.2.0",
+    "react-resizable": "^3.0.5",
     "react-resizable-panels": "^2.1.7",
     "react-router": "^7.5.2",
     "recharts": "^2.12.7",

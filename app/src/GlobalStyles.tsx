@@ -1199,6 +1199,12 @@ const codeMirrorOverridesCSS = css`
   }
 `;
 
+const ReactGridLayoutCSS = css`
+  .react-grid-item.react-grid-placeholder {
+    background: var(--ac-global-color-grey-400);
+  }
+`;
+
 export function GlobalStyles() {
   const { theme = "dark" } = useProvider();
   const themeCSS = theme === "dark" ? darkThemeCSS : lightThemeCSS;
@@ -1212,7 +1218,8 @@ export function GlobalStyles() {
         mediumRootCSS,
         opacitiesCSS,
         appGlobalStylesCSS,
-        codeMirrorOverridesCSS
+        codeMirrorOverridesCSS,
+        ReactGridLayoutCSS
       )}
     />
   );

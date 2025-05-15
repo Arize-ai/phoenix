@@ -14,6 +14,7 @@ import { AppRoutes } from "./Routes";
 
 import "normalize.css";
 import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 
 export function App() {
   return (

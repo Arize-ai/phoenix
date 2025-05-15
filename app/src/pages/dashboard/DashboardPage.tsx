@@ -61,6 +61,7 @@ export function DashboardPage() {
         isResizable={isEditing}
         isDraggable={isEditing}
         containerPadding={[16, 16]}
+        draggableHandle=".dashboard-panel-header"
       >
         <div key="a">
           <DashboardPanel title="Grid Item A">Grid Item A</DashboardPanel>
