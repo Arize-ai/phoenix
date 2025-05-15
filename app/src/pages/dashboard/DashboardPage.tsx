@@ -22,6 +22,19 @@ const layouts: Layouts = {
   ],
 };
 
+const gridContainerCSS = css`
+  width: 100%;
+  height: 100%;
+  &[data-editable="true"] {
+    background-color: var(--ac-global-color-grey-50);
+    background-image: radial-gradient(
+      var(--ac-global-color-grey-400) 1px,
+      transparent 1px
+    );
+    background-size: 16px 16px;
+  }
+`;
+
 export function DashboardPage() {
   const [isEditing, setIsEditing] = useState(false);
   return (
@@ -52,27 +65,29 @@ export function DashboardPage() {
           />
         </Flex>
       </View>
-      <ResponsiveGridLayout
-        className="layout"
-        layouts={layouts}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        rowHeight={80}
-        isResizable={isEditing}
-        isDraggable={isEditing}
-        containerPadding={[16, 16]}
-        draggableHandle=".dashboard-panel-header"
-      >
-        <div key="a">
-          <DashboardPanel title="Grid Item A">Grid Item A</DashboardPanel>
-        </div>
-        <div key="b">
-          <DashboardPanel title="Grid Item B">Grid Item B</DashboardPanel>
-        </div>
-        <div key="c">
-          <DashboardPanel title="Grid Item C">Grid Item C</DashboardPanel>
-        </div>
-      </ResponsiveGridLayout>
+      <div data-editable={isEditing} css={gridContainerCSS}>
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={layouts}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          rowHeight={80}
+          isResizable={isEditing}
+          isDraggable={isEditing}
+          containerPadding={[16, 16]}
+          draggableHandle=".dashboard-panel-header"
+        >
+          <div key="a">
+            <DashboardPanel title="Grid Item A">Grid Item A</DashboardPanel>
+          </div>
+          <div key="b">
+            <DashboardPanel title="Grid Item B">Grid Item B</DashboardPanel>
+          </div>
+          <div key="c">
+            <DashboardPanel title="Grid Item C">Grid Item C</DashboardPanel>
+          </div>
+        </ResponsiveGridLayout>
+      </div>
     </main>
   );
 }
