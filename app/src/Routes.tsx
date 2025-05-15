@@ -13,8 +13,13 @@ import { settingsAnnotationsPageLoader } from "@phoenix/pages/settings/settingsA
 import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 
-import { DashboardPage } from "./pages/dashboard";
-import { DashboardsPage } from "./pages/dashboards";
+import {
+  DashboardPage,
+  projectDashboardLoader,
+  ProjectDashboardPage,
+} from "./pages/dashboard";
+import { projectDashboardLoaderQuery$data } from "./pages/dashboard/__generated__/projectDashboardLoaderQuery.graphql";
+import { dashboardsLoader, DashboardsPage } from "./pages/dashboards";
 import { datasetLoaderQuery$data } from "./pages/dataset/__generated__/datasetLoaderQuery.graphql";
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import { Layout } from "./pages/Layout";
@@ -83,7 +88,6 @@ import {
   SupportPage,
   TracePage,
 } from "./pages";
-
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" errorElement={<ErrorElement />}>
@@ -179,7 +183,20 @@ const router = createBrowserRouter(
             </Route>
           </Route>
           <Route path="/dashboards" handle={{ crumb: () => "dashboards" }}>
-            <Route index element={<DashboardsPage />} />
+            <Route
+              index
+              element={<DashboardsPage />}
+              loader={dashboardsLoader}
+            />
+            <Route
+              path="projects/:projectId"
+              element={<ProjectDashboardPage />}
+              loader={projectDashboardLoader}
+              handle={{
+                crumb: (data: projectDashboardLoaderQuery$data) =>
+                  data.project.name,
+              }}
+            />
             <Route
               path=":dashboardId"
               handle={{
