@@ -116,8 +116,17 @@ def run_experiment(
     - `metadata`: Metadata associated with the dataset example
     - `example`: The dataset `Example` object with all associated fields
 
-    An `evaluator` is either a synchronous or asynchronous function that returns either a boolean
-    or numeric "score". If the `evaluator` is a function of one argument then that argument will be
+    An `evaluator` is either a synchronous or asynchronous function that returns an evaluation
+    result object, which can take any of the following forms.
+
+    - phoenix.experiments.types.EvaluationResult with optional fields for score, label, explanation
+      and metadata
+    - a `bool`, which will be interpreted as a score of 0 or 1 plus a label of "True" or "False"
+    - a `float`, which will be interpreted as a score
+    - a `str`, which will be interpreted as a label
+    - a 2-`tuple` of (`float`, `str`), which will be interpreted as (score, explanation)
+
+    If the `evaluator` is a function of one argument then that argument will be
     bound to the `output` of the task. Alternatively, the `evaluator` can be a function of any
     combination of specific argument names that will be bound to special values:
 
