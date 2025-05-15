@@ -223,14 +223,14 @@ def create_cost_table(
             pattern = re.compile(entry["regex"])
         except re.error as exc:
             raise ValueError(
-                f"Invalid regex in manifest for model {entry.get('Model')}: {entry['regex']}"
+                f"Invalid regex in manifest for model {entry.get('model')}: {entry['regex']}"
             ) from exc
 
         cost = ModelTokenCost(
             input=entry.get("input"),
             output=entry.get("output"),
-            cached_input=entry.get("cached_input") or entry.get("cache_write"),
-            cached_output=entry.get("cached_output") or entry.get("cache_read"),
+            cached_input=entry.get("cache_write"),
+            cached_output=entry.get("cache_read"),
         )
 
         lookup.add_pattern(provider, pattern, cost)
