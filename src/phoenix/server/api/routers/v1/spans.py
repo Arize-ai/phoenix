@@ -2,12 +2,13 @@ import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
+from enum import IntEnum
 from secrets import token_urlsafe
 from typing import Any, Literal, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Header, HTTPException, Query
-from pydantic import Field
+from fastapi import APIRouter, Header, HTTPException, Path, Query
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -27,7 +28,13 @@ from phoenix.trace.dsl import SpanQuery as SpanQuery_
 from phoenix.utilities.json import encode_df_as_json_string
 
 from .models import V1RoutesBaseModel
-from .utils import RequestBody, ResponseBody, add_errors_to_responses
+from .utils import (
+    PaginatedResponseBody,
+    RequestBody,
+    ResponseBody,
+    _get_project_by_identifier,
+    add_errors_to_responses,
+)
 
 DEFAULT_SPAN_LIMIT = 1000
 
@@ -66,6 +73,45 @@ class QuerySpansRequestBody(V1RoutesBaseModel):
         ),
         deprecated=True,
     )
+
+
+class KeyValue(BaseModel):
+    key: str
+    value: Any
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class StatusCode(IntEnum):
+    UNSET = 0
+    OK = 1
+    ERROR = 2
+
+
+class Status(BaseModel):
+    code: StatusCode  # serialized as its int value
+    message: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class OtlpSpan(BaseModel):
+    trace_id: str = Field(alias="traceId")
+    span_id: str = Field(alias="spanId")
+    parent_span_id: Optional[str] = Field(default=None, alias="parentSpanId")
+    name: Optional[str] = None
+    kind: int = 0  # SpanKind enum value. We default to UNSPECIFIED
+    start_time_unix_nano: Optional[int] = Field(default=None, alias="startTimeUnixNano")
+    end_time_unix_nano: Optional[int] = Field(default=None, alias="endTimeUnixNano")
+    attributes: list[KeyValue] = Field(default_factory=list)
+    events: list[dict[str, Any]] = Field(default_factory=list)
+    status: Status = Field(...)
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class SpanSearchResponseBody(PaginatedResponseBody[OtlpSpan]):
+    """Paginated response where each span follows OTLP JSON structure."""
+
+    pass
 
 
 # TODO: Add property details to SpanQuery schema
@@ -152,6 +198,131 @@ async def _json_multipart(
         yield await get_running_loop().run_in_executor(None, encode_df_as_json_string, df)
         yield "\r\n"
     yield f"--{boundary_token}--\r\n"
+
+
+@router.get(
+    "/projects/{project_identifier}/spans",
+    operation_id="spanSearch",
+    summary="Search spans with simple filters (no DSL)",
+    description="Return spans within a project filtered by time range, annotation names, "
+    "and ordered by start_time. Supports cursor-based pagination.",
+    responses=add_errors_to_responses([HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY]),
+)
+async def span_search(
+    request: Request,
+    project_identifier: str = Path(
+        description=(
+            "The project identifier: either project ID or project name. If using a project name, "
+            "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+        )
+    ),
+    cursor: Optional[str] = Query(default=None, description="Pagination cursor (GlobalID of Span)"),
+    limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
+    sort_direction: Literal["asc", "desc"] = Query(
+        default="desc",
+        description="Sort direction for the sort field",
+    ),
+    start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
+    end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
+    annotation_names: Optional[list[str]] = Query(
+        default=None,
+        description=(
+            "If provided, only include spans that have at least one annotation with one "
+            "of these names."
+        ),
+        alias="annotationNames",
+    ),
+) -> SpanSearchResponseBody:
+    """Search spans with minimal filters instead of the old SpanQuery DSL."""
+
+    async with request.app.state.db() as session:
+        project = await _get_project_by_identifier(session, project_identifier)
+
+    project_id: int = project.id
+    order_by = [models.Span.id.asc() if sort_direction == "asc" else models.Span.id.desc()]
+
+    stmt = (
+        select(
+            models.Span,
+            models.Trace.trace_id,
+        )
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+        .join(models.Project, onclause=models.Project.id == project_id)
+        .order_by(*order_by)
+    )
+
+    if start_time:
+        stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
+    if end_time:
+        stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+
+    if annotation_names:
+        stmt = (
+            stmt.join(
+                models.SpanAnnotation,
+                onclause=models.SpanAnnotation.span_rowid == models.Span.id,
+            )
+            .where(models.SpanAnnotation.name.in_(annotation_names))
+            .group_by(models.Span.id, models.Trace.trace_id)
+        )
+
+    if cursor:
+        try:
+            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
+            if sort_direction == "asc":
+                stmt = stmt.where(models.Span.id >= cursor_rowid)
+            else:
+                stmt = stmt.where(models.Span.id <= cursor_rowid)
+        except Exception:
+            raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid cursor")
+
+    stmt = stmt.limit(limit + 1)
+
+    async with request.app.state.db() as session:
+        rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
+
+    if not rows:
+        return SpanSearchResponseBody(next_cursor=None, data=[])
+
+    next_cursor: Optional[str] = None
+    if len(rows) == limit + 1:
+        *rows, extra = rows  # extra is first item of next page
+        span_extra, _ = extra
+        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+
+    # Convert ORM rows -> OTLP-style spans
+    result_spans: list[OtlpSpan] = []
+    for span_orm, trace_id in rows:
+        try:
+            status_code_enum = StatusCode[(span_orm.status_code or "UNSET").upper()]
+        except KeyError:
+            status_code_enum = StatusCode.UNSET
+
+        attributes_kv: list[KeyValue] = [
+            KeyValue(key=k, value=v) for k, v in (span_orm.attributes or {}).items()
+        ]
+
+        start_ns = (
+            int(span_orm.start_time.timestamp() * 1_000_000_000) if span_orm.start_time else None
+        )
+        end_ns = int(span_orm.end_time.timestamp() * 1_000_000_000) if span_orm.end_time else None
+
+        result_spans.append(
+            OtlpSpan(
+                trace_id=trace_id,
+                span_id=span_orm.span_id,
+                parent_span_id=span_orm.parent_id,
+                name=span_orm.name,
+                kind=0,  # UNSPECIFIED; OpenInference does not set OTLP SpanKind
+                start_time_unix_nano=start_ns,
+                end_time_unix_nano=end_ns,
+                attributes=attributes_kv,
+                events=span_orm.events or [],
+                status=Status(code=status_code_enum, message=span_orm.status_message or None),
+            )
+        )
+
+    return SpanSearchResponseBody(next_cursor=next_cursor, data=result_spans)
 
 
 @router.get("/spans", include_in_schema=False, deprecated=True)

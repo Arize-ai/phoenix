@@ -1,5 +1,5 @@
 from asyncio import sleep
-from datetime import datetime
+from datetime import datetime, timedelta
 from random import getrandbits
 from typing import Any, cast
 
@@ -138,3 +138,136 @@ async def project_with_a_single_trace_and_span(
             )
             .returning(models.Span.id)
         )
+
+
+@pytest.fixture
+async def span_search_test_data(db: DbSessionFactory) -> None:
+    """Insert three spans with different times and annotations for filter tests."""
+
+    async with db() as session:
+        project = models.Project(name="search-test")
+        session.add(project)
+        await session.flush()
+
+        trace = models.Trace(
+            project_rowid=project.id,
+            trace_id="abcd1234",
+            start_time=datetime.fromisoformat("2021-01-01T00:00:00+00:00"),
+            end_time=datetime.fromisoformat("2021-01-01T00:01:00+00:00"),
+        )
+        session.add(trace)
+        await session.flush()
+
+        # 3 spans 1 minute apart
+        spans: list[models.Span] = []
+        base_time = datetime.fromisoformat("2021-01-01T00:00:00+00:00")
+        for i in range(3):
+            span = models.Span(
+                trace_rowid=trace.id,
+                span_id=f"span{i}",
+                parent_id=None,
+                name=f"span-{i}",
+                span_kind="CHAIN",
+                start_time=base_time + timedelta(minutes=i),
+                end_time=base_time + timedelta(minutes=i, seconds=30),
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+            )
+            session.add(span)
+            spans.append(span)
+        await session.flush()
+
+        # Add annotations to first two spans
+        for span in spans[:2]:
+            session.add(
+                models.SpanAnnotation(
+                    span_rowid=span.id,
+                    name="TestA",
+                    annotator_kind="HUMAN",
+                    label="L",
+                    score=1.0,
+                    explanation="",
+                    metadata_={},
+                    identifier="",  # noqa
+                    source="API",
+                    user_id=None,
+                )
+            )
+
+
+async def test_span_search_basic(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get("v1/projects/search-test/spans")
+    assert resp.is_success
+    data = resp.json()
+    assert len(data["data"]) == 3
+
+
+async def test_span_search_annotation_filter(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"annotationNames": ["TestA"]},
+    )
+    assert resp.is_success
+    data = resp.json()
+    assert len(data["data"]) == 2
+
+
+async def test_span_search_time_slice(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    start = "2021-01-01T00:01:00+00:00"
+    end = "2021-01-01T00:03:00+00:00"
+    resp = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"start_time": start, "end_time": end},
+    )
+    assert resp.is_success
+    data = resp.json()
+    # spans 1 and 2 fall in range
+    assert len(data["data"]) == 2
+
+
+async def test_span_search_sort_direction(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp_desc = await httpx_client.get(
+        "v1/projects/search-test/spans", params={"sort_direction": "desc"}
+    )
+    resp_asc = await httpx_client.get(
+        "v1/projects/search-test/spans", params={"sort_direction": "asc"}
+    )
+    assert resp_desc.is_success and resp_asc.is_success
+    ids_desc = [s["spanId"] for s in resp_desc.json()["data"]]
+    ids_asc = [s["spanId"] for s in resp_asc.json()["data"]]
+    assert ids_desc == list(reversed(ids_asc))
+
+
+async def test_span_search_pagination(
+    httpx_client: httpx.AsyncClient, span_search_test_data: None
+) -> None:
+    resp1 = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"limit": 2, "sort_direction": "asc"},
+    )
+    assert resp1.is_success
+    body1 = resp1.json()
+    assert len(body1["data"]) == 2 and body1["next_cursor"]
+
+    cursor = body1["next_cursor"]
+    # Second page
+    resp2 = await httpx_client.get(
+        "v1/projects/search-test/spans",
+        params={"cursor": cursor, "sort_direction": "asc"},
+    )
+    assert resp2.is_success
+    body2 = resp2.json()
+    assert len(body2["data"]) == 1 and body2["next_cursor"] is None

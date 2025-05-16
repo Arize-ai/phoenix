@@ -1671,6 +1671,178 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/spans": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Search spans with simple filters (no DSL)",
+        "description": "Return spans within a project filtered by time range, annotation names, and ordered by start_time. Supports cursor-based pagination.",
+        "operationId": "spanSearch",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor (GlobalID of Span)",
+              "title": "Cursor"
+            },
+            "description": "Pagination cursor (GlobalID of Span)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of spans to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of spans to return"
+          },
+          {
+            "name": "sort_direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "description": "Sort direction for the sort field",
+              "default": "desc",
+              "title": "Sort Direction"
+            },
+            "description": "Sort direction for the sort field"
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound time",
+              "title": "Start Time"
+            },
+            "description": "Inclusive lower bound time"
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive upper bound time",
+              "title": "End Time"
+            },
+            "description": "Exclusive upper bound time"
+          },
+          {
+            "name": "annotationNames",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "If provided, only include spans that have at least one annotation with one of these names.",
+              "title": "Annotationnames"
+            },
+            "description": "If provided, only include spans that have at least one annotation with one of these names."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpanSearchResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/span_annotations": {
       "post": {
         "tags": [
@@ -4097,6 +4269,23 @@
         ],
         "title": "InsertedSpanAnnotation"
       },
+      "KeyValue": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "title": "KeyValue"
+      },
       "ListDatasetExamplesData": {
         "properties": {
           "dataset_id": {
@@ -4241,6 +4430,92 @@
           "NONE"
         ],
         "title": "OptimizationDirection"
+      },
+      "OtlpSpan": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "title": "Traceid"
+          },
+          "spanId": {
+            "type": "string",
+            "title": "Spanid"
+          },
+          "parentSpanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentspanid"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "kind": {
+            "type": "integer",
+            "title": "Kind",
+            "default": 0
+          },
+          "startTimeUnixNano": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starttimeunixnano"
+          },
+          "endTimeUnixNano": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endtimeunixnano"
+          },
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/KeyValue"
+            },
+            "type": "array",
+            "title": "Attributes"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Events"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "spanId",
+          "status"
+        ],
+        "title": "OtlpSpan"
       },
       "Project": {
         "properties": {
@@ -5479,6 +5754,67 @@
           "next_cursor"
         ],
         "title": "SpanAnnotationsResponseBody"
+      },
+      "SpanSearchResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OtlpSpan"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SpanSearchResponseBody",
+        "description": "Paginated response where each span follows OTLP JSON structure."
+      },
+      "Status": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/StatusCode"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "Status"
+      },
+      "StatusCode": {
+        "type": "integer",
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "title": "StatusCode"
       },
       "TextContentPart": {
         "properties": {
