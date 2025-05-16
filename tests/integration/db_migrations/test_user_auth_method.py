@@ -14,7 +14,6 @@ from . import (
     _TableSchemaInfo,
     _up,
     _verify_clean_state,
-    _verify_table_schema_info,
 )
 
 DBBackend: TypeAlias = Literal["sqlite", "postgresql"]
@@ -133,7 +132,8 @@ def _setup_initial_state(
         assert isinstance(role_result, int)
         role_id = role_result
         conn.commit()
-        return initial_info, role_id
+    assert initial_info
+    return initial_info, role_id
 
 
 def _verify_pre_migration_state(
@@ -161,7 +161,7 @@ def _verify_pre_migration_state(
     expected_info = _get_expected_pre_upgrade_schema(db_backend)
 
     # Verify schema matches
-    _verify_table_schema_info(expected_info, actual_info, "pre-migration")
+    assert expected_info == actual_info
 
 
 def _get_expected_pre_upgrade_schema(db_backend: DBBackend) -> _TableSchemaInfo:
@@ -278,20 +278,20 @@ def _get_expected_post_upgrade_schema(db_backend: DBBackend) -> _TableSchemaInfo
     pre_upgrade = _get_expected_pre_upgrade_schema(db_backend)
 
     # Add the auth_method column
-    column_names = set(pre_upgrade.column_names)
+    column_names = set(pre_upgrade["column_names"])
     column_names.add("auth_method")
 
     # Add the auth_method CHECK constraint and remove legacy constraints
-    constraint_names = set(pre_upgrade.constraint_names)
+    constraint_names = set(pre_upgrade["constraint_names"])
     constraint_names.add("ck_users_`auth_method`")
     constraint_names.add("ck_users_`auth_method_password`")
     constraint_names.remove("ck_users_`exactly_one_auth_method`")
     constraint_names.remove("ck_users_`oauth2_client_id_and_user_id`")
 
     return _TableSchemaInfo(
-        table_name=pre_upgrade.table_name,
+        table_name=pre_upgrade["table_name"],
         column_names=frozenset(column_names),
-        index_names=pre_upgrade.index_names,
+        index_names=pre_upgrade["index_names"],
         constraint_names=frozenset(constraint_names),
     )
 
@@ -322,7 +322,7 @@ def _verify_post_upgrade_schema(
     expected_info = _get_expected_post_upgrade_schema(db_backend)
 
     # Verify schema matches
-    _verify_table_schema_info(expected_info, actual_info, "upgrade")
+    assert expected_info == actual_info
 
 
 def _verify_post_migration_state(
@@ -639,7 +639,7 @@ def _verify_downgrade_state(
     expected_info = _get_expected_pre_upgrade_schema(db_backend)
 
     # Verify schema matches
-    _verify_table_schema_info(expected_info, actual_info, "downgrade")
+    assert expected_info == actual_info
 
 
 def _create_test_users(
