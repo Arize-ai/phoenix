@@ -1604,6 +1604,9 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
+
+  """Hourly span count for the project."""
+  spanCountTimeSeries(timeRange: TimeRange): SpanCountTimeSeries!
 }
 
 enum ProjectColumn {
@@ -2222,6 +2225,10 @@ type SpanConnection {
 type SpanContext {
   traceId: ID!
   spanId: ID!
+}
+
+type SpanCountTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
 }
 
 """An edge in a connection."""
