@@ -28,7 +28,6 @@ from phoenix.config import (
     get_env_default_admin_initial_password,
     get_env_enforce_oauth2,
     get_env_oauth2_settings,
-    get_env_auth_settings,
 )
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID

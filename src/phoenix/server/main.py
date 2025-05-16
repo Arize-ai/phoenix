@@ -335,7 +335,7 @@ def main() -> None:
         reference_inferences,
     )
 
-    authentication_enabled, secret, oauth2_enforced = get_env_auth_settings()
+    auth_settings = get_env_auth_settings()
 
     fixture_spans: list[Span] = []
     fixture_evals: list[pb.Evaluation] = []
@@ -393,17 +393,21 @@ def main() -> None:
         http_path=urljoin(root_path, "v1/traces"),
         storage=get_printable_db_url(db_connection_str),
         schema=get_env_database_schema(),
-        auth_enabled=authentication_enabled,
-        oauth2_enforced=oauth2_enforced,
+        auth_enabled=auth_settings["enable_auth"],
+        disable_basic_auth=auth_settings["disable_basic_auth"],
         tls_enabled_for_http=tls_enabled_for_http,
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
     )
 
-    oauth2_client_configs=get_env_oauth2_settings()
-    if oauth2_enforced and (not authentication_enabled or len(oauth2_client_configs) == 0):
-        raise ValueError("OAuth2 is enforced but no OAuth2 client configs are provided.")
+    oauth2_client_configs = get_env_oauth2_settings()
+    if auth_settings["enable_auth"] and (
+        not auth_settings["disable_basic_auth"] or len(oauth2_client_configs) == 0
+    ):
+        raise ValueError(
+            "Auth2 is the only supported auth method but no OAuth2 client configs are provided."
+        )
 
     if sys.platform.startswith("win"):
         msg = codecs.encode(msg, "ascii", errors="ignore").decode("ascii").strip()
@@ -433,7 +437,7 @@ def main() -> None:
         db=factory,
         export_path=export_path,
         model=model,
-        authentication_enabled=authentication_enabled,
+        authentication_enabled=auth_settings["enable_auth"],
         umap_params=umap_params,
         corpus=corpus_model,
         debug=args.debug,
@@ -445,14 +449,13 @@ def main() -> None:
         initial_evaluations=fixture_evals,
         startup_callbacks=[lambda: print(msg)],
         shutdown_callbacks=instrumentation_cleanups,
-        secret=secret,
+        secret=auth_settings["phoenix_secret"],
         password_reset_token_expiry=get_env_password_reset_token_expiry(),
         access_token_expiry=get_env_access_token_expiry(),
         refresh_token_expiry=get_env_refresh_token_expiry(),
         scaffolder_config=scaffolder_config,
         email_sender=email_sender,
         oauth2_client_configs=oauth2_client_configs,
-        oauth2_enforced=oauth2_enforced,
         allowed_origins=allowed_origins,
     )
 

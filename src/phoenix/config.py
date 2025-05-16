@@ -7,7 +7,7 @@ from datetime import timedelta
 from enum import Enum
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any, Optional, Union, cast, overload
+from typing import Any, Optional, TypedDict, Union, cast, overload
 from urllib.parse import quote_plus, urljoin, urlparse
 
 import wrapt
@@ -138,7 +138,11 @@ ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT = (
 
 # Authentication settings
 ENV_PHOENIX_ENABLE_AUTH = "PHOENIX_ENABLE_AUTH"
-ENV_PHOENIX_ENFORCE_OAUTH2 = "PHOENIX_OAUTH2_ENFORCE"
+ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
+"""
+To disable basic auth
+This can be helpful in setups where authentication is handled entirely through OATH2
+"""
 ENV_PHOENIX_ENABLE_OAUTH2_JIT = "PHOENIX_ENABLE_OAUTH2_JIT"
 ENV_PHOENIX_DISABLE_RATE_LIMIT = "PHOENIX_DISABLE_RATE_LIMIT"
 ENV_PHOENIX_SECRET = "PHOENIX_SECRET"
@@ -576,8 +580,7 @@ def _float_val(env_var: str, default: Optional[float] = None) -> Optional[float]
         return float(value)
     except ValueError:
         raise ValueError(
-            f"Invalid value for environment variable {env_var}: {value}. "
-            f"Value must be a number."
+            f"Invalid value for environment variable {env_var}: {value}. Value must be a number."
         )
 
 
@@ -595,8 +598,7 @@ def _int_val(env_var: str, default: Optional[int] = None) -> Optional[int]:
         return int(value)
     except ValueError:
         raise ValueError(
-            f"Invalid value for environment variable {env_var}: {value}. "
-            f"Value must be an integer."
+            f"Invalid value for environment variable {env_var}: {value}. Value must be an integer."
         )
 
 
@@ -633,17 +635,20 @@ def get_env_enable_auth() -> bool:
     """
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
 
-def get_env_enforce_oauth2() -> bool:
+
+def get_env_disable_basic_auth() -> bool:
     """
-    Gets the value of the ENV_PHOENIX_ENFORCE_OAUTH2 environment variable.
+    Gets the value of the ENV_PHOENIX_DISABLE_BASIC_AUTH environment variable.
     """
-    return _bool_val(ENV_PHOENIX_ENFORCE_OAUTH2, False)
+    return _bool_val(ENV_PHOENIX_DISABLE_BASIC_AUTH, False)
+
 
 def get_env_oauth2_jit() -> bool:
     """
     Gets the value of the ENV_PHOENIX_ENABLE_OAUTH2_JIT environment variable.
     """
     return _bool_val(ENV_PHOENIX_ENABLE_OAUTH2_JIT, True)
+
 
 def get_env_disable_rate_limit() -> bool:
     """
@@ -694,11 +699,13 @@ def get_env_default_admin_initial_password() -> str:
 
     return getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD
 
+
 def get_env_cookies_path() -> str:
     """
     Gets the value of the PHOENIX_COOKIE_PATH environment variable.
     """
     return getenv(ENV_PHOENIX_COOKIES_PATH, "/")
+
 
 def get_env_phoenix_use_secure_cookies() -> bool:
     return _bool_val(ENV_PHOENIX_USE_SECURE_COOKIES, False)
@@ -708,19 +715,29 @@ def get_env_phoenix_api_key() -> Optional[str]:
     return getenv(ENV_PHOENIX_API_KEY)
 
 
-def get_env_auth_settings() -> tuple[bool, Optional[str]]:
+class AuthSettings(TypedDict):
+    enable_auth: bool
+    phoenix_secret: Optional[str]
+    disable_basic_auth: bool
+
+
+def get_env_auth_settings() -> AuthSettings:
     """
     Gets auth settings and performs validation.
     """
     enable_auth = get_env_enable_auth()
     phoenix_secret = get_env_phoenix_secret()
-    enforce_oauth = get_env_enforce_oauth2()
+    disable_basic_auth = get_env_disable_basic_auth()
     if enable_auth and not phoenix_secret:
         raise ValueError(
             f"`{ENV_PHOENIX_SECRET}` must be set when "
             f"auth is enabled with `{ENV_PHOENIX_ENABLE_AUTH}`"
         )
-    return enable_auth, phoenix_secret, enforce_oauth
+    return {
+        "enable_auth": enable_auth,
+        "phoenix_secret": phoenix_secret,
+        "disable_basic_auth": disable_basic_auth,
+    }
 
 
 def get_env_password_reset_token_expiry() -> timedelta:
@@ -922,6 +939,7 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
         if (match := pattern.match(env_var)) is not None and (idp_name := match.group(1).lower()):
             idp_names.add(idp_name)
     return [OAuth2ClientConfig.from_env(idp_name) for idp_name in sorted(idp_names)]
+
 
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
@@ -1277,7 +1295,7 @@ def get_env_logging_mode() -> LoggingMode:
     except ValueError:
         raise ValueError(
             f"Invalid value `{logging_mode}` for env var `{ENV_LOGGING_MODE}`. "
-            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode],'and')} "
+            f"Valid values are: {log_a_list([mode.value for mode in LoggingMode], 'and')} "
             "(case-insensitive)."
         )
 
@@ -1356,7 +1374,7 @@ def _get_logging_level(env_var: str, default_level: int) -> int:
     if logging_level.upper() not in valid_values:
         raise ValueError(
             f"Invalid value `{logging_level}` for env var `{env_var}`. "
-            f"Valid values are: {log_a_list(valid_values,'and')} (case-insensitive)."
+            f"Valid values are: {log_a_list(valid_values, 'and')} (case-insensitive)."
         )
     return levelNamesMapping[logging_level.upper()]
 

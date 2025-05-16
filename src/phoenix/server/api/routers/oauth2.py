@@ -32,7 +32,11 @@ from phoenix.auth import (
     set_oauth2_state_cookie,
     set_refresh_token_cookie,
 )
-from phoenix.config import get_env_disable_rate_limit, get_env_auth_settings, get_env_enforce_oauth2, get_env_oauth2_jit
+from phoenix.config import (
+    get_env_disable_login_form,
+    get_env_disable_rate_limit,
+    get_env_oauth2_jit,
+)
 from phoenix.db import models
 from phoenix.db.enums import UserRole
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
@@ -259,7 +263,12 @@ async def _ensure_user_exists_and_is_up_to_date(
 
 
 async def _get_user(
-    session: AsyncSession, /, *, oauth2_client_id: str, idp_user_id: str, email: Optional[str] = None
+    session: AsyncSession,
+    /,
+    *,
+    oauth2_client_id: str,
+    idp_user_id: str,
+    email: Optional[str] = None,
 ) -> Optional[models.User]:
     """
     Retrieves the user uniquely identified by the given OAuth2 client ID and IDP
@@ -292,9 +301,7 @@ async def _get_user(
             return user
         # Update the IDP user ID to the one from the IDP
         await session.execute(
-            update(models.User)
-            .where(models.User.id == user.id)
-            .values(oauth2_user_id=idp_user_id)
+            update(models.User).where(models.User.id == user.id).values(oauth2_user_id=idp_user_id)
         )
     return user
 
@@ -398,12 +405,15 @@ class EmailAlreadyInUse(Exception):
 class NotInvited(Exception):
     pass
 
+
 def _redirect_to_login(*, request: Request, error: str) -> RedirectResponse:
     """
     Creates a RedirectResponse to the login page to display an error message.
     """
-    oauth2_enforced = get_env_enforce_oauth2()
-    login_path = _prepend_root_path_if_exists(request=request, path="/login" if not oauth2_enforced else "/logout")
+    disable_login_form = get_env_disable_login_form()
+    login_path = _prepend_root_path_if_exists(
+        request=request, path="/login" if not disable_login_form else "/logout"
+    )
     url = URL(login_path).include_query_params(error=error)
     response = RedirectResponse(url=url)
     response = delete_oauth2_state_cookie(response)
