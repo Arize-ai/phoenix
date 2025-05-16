@@ -841,6 +841,7 @@ class Project(Node):
     sessions: ProjectSessionConnection
     spanAnnotationNames: list[str] = Field(...)
     spanAnnotationSummary: Optional[AnnotationSummary] = None
+    spanCountTimeSeries: SpanCountTimeSeries = Field(...)
     spanLatencyMsQuantile: Optional[float] = None
     spans: SpanConnection
     startTime: Optional[str] = None
@@ -1168,6 +1169,11 @@ class SpanContext(BaseModel):
     model_config = ConfigDict(frozen=True)
     spanId: str
     traceId: str
+
+
+class SpanCountTimeSeries(TimeSeries):
+    model_config = ConfigDict(frozen=True)
+    data: list[TimeSeriesDataPoint]
 
 
 class SpanEdge(BaseModel):

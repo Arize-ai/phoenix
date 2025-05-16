@@ -1,4 +1,5 @@
 import { useMemo, useRef } from "react";
+import { useLoaderData } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -13,13 +14,20 @@ import {
   Heading,
   Icon,
   Icons,
+  LazyTabPanel,
   Link,
   LinkButton,
+  Tab,
+  TabList,
+  Tabs,
   View,
 } from "@phoenix/components";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+
+import { dashboardsLoader } from "./dashboardsLoader";
+import { ProjectDashboardsTable } from "./ProjectDashboardsTable";
 
 // Inline DashboardsTable component
 export type Dashboard = {
@@ -127,6 +135,7 @@ function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
 }
 
 export function DashboardsPage() {
+  const loaderData = useLoaderData<typeof dashboardsLoader>();
   // For now, use mock data for dashboards
   const dashboards = [
     {
@@ -146,12 +155,7 @@ export function DashboardsPage() {
   ];
   return (
     <Flex direction="column" height="100%">
-      <View
-        padding="size-200"
-        borderBottomWidth="thin"
-        borderBottomColor="dark"
-        flex="none"
-      >
+      <View padding="size-200" flex="none">
         <Flex
           direction="row"
           justifyContent="space-between"
@@ -168,7 +172,18 @@ export function DashboardsPage() {
           </LinkButton>
         </Flex>
       </View>
-      <DashboardsTable dashboards={dashboards} />
+      <Tabs>
+        <TabList>
+          <Tab id="project-dashboards">Project Dashboards</Tab>
+          <Tab id="user-dashboards">Custom Dashboards</Tab>
+        </TabList>
+        <LazyTabPanel id="project-dashboards">
+          <ProjectDashboardsTable query={loaderData} />
+        </LazyTabPanel>
+        <LazyTabPanel id="user-dashboards">
+          <DashboardsTable dashboards={dashboards} />
+        </LazyTabPanel>
+      </Tabs>
     </Flex>
   );
 }

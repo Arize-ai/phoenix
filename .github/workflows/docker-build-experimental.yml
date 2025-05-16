@@ -4,7 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - oidc_env_var_allow_sign_up
+      - feat/version-10
 
 jobs:
   push_to_registry:
