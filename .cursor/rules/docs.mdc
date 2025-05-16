@@ -1,0 +1,52 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Docstring Style Guide
+
+All functions, methods, and classes must be documented using Google-style docstrings.
+
+## Required Format
+
+```python
+def function_name(param1: type, param2: type) -> type:
+    """
+    Brief summary of what the function does in one line.
+    
+    More detailed explanation if needed.
+    
+    Args:
+        param1 (type): Description of param1.
+            Include details on multiple lines if needed.
+        param2 (type, optional): Description of param2. Default is None.
+    
+    Returns:
+        return_type: Description of the return value.
+        
+    Raises:
+        ExceptionType: When and why this exception is raised.
+    """  # noqa: E501
+```
+_Note: Inclide `  # noqa: E501` to avoid conflicts with CI._
+
+## Section Guidelines
+
+1. Start with a brief one-line summary
+2. Follow with a more detailed explanation if needed (separated by blank line)
+3. Use the following sections as needed:
+   - `Args:` - For function/method parameters
+   - `Returns:` - For return values
+   - `Raises:` - For exceptions
+   - `Attributes:` - For class attributes
+   - `Examples:` - For usage examples
+
+## Parameter Documentation
+- Format: `param_name (type): Description`
+- Include default values in the description: `(type, optional): Description. Default is value.`
+- Indent continuation lines with 4 spaces
+
+## Types
+- Use Python type annotations in function signatures
+- Use descriptive types in docstrings (`dict` instead of `Dict`, etc.)
+- For unions use `type1 or type2`
